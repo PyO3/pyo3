@@ -2,6 +2,7 @@
 
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
+use crate::unscoped::Type;
 use crate::{exceptions, ffi};
 use crate::{
     AsPyPointer, FromPy, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject,
@@ -37,7 +38,7 @@ impl PyErrValue {
 /// Represents a Python exception that was raised.
 pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
-    pub ptype: Py<PyType<'static>>,
+    pub ptype: Py<Type>,
 
     /// The value of the exception.
     ///
@@ -102,7 +103,7 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions
     /// like `exceptions::RuntimeError`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
-    pub fn from_type<A>(exc: Py<PyType>, args: A) -> PyErr
+    pub fn from_type<A>(exc: Py<Type>, args: A) -> PyErr
     where
         A: ToPyObject + 'static,
     {

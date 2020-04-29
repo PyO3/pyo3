@@ -265,10 +265,10 @@ impl<'p> Python<'p> {
     /// This is equivalent to the Python `issubclass` function.
     pub fn is_subclass<T, U>(self) -> PyResult<bool>
     where
-        T: PyTypeObject,
-        U: PyTypeObject,
+        T: PyTypeInfo<'p>,
+        U: PyTypeInfo<'p>,
     {
-        T::type_object().as_ref(self).is_subclass::<U>()
+        PyType::new::<T>(self).is_subclass::<U>()
     }
 
     /// Gets the Python builtin value `None`.

@@ -5,6 +5,7 @@ use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo};
 use crate::types::PyTuple;
+use crate::unscoped::Tuple;
 use crate::{ffi, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 
 /// This trait represents that **we can do zero-cost conversion from the object
@@ -406,9 +407,9 @@ where
 }
 
 /// Converts `()` to an empty Python tuple.
-impl FromPy<()> for Py<PyTuple<'static>> {
-    fn from_py(_: (), py: Python) -> Py<PyTuple<'static>> {
-        Py::from_py(PyTuple::empty(py), py)
+impl FromPy<()> for Py<Tuple> {
+    fn from_py(_: (), py: Python) -> Py<Tuple> {
+        Py::from(PyTuple::empty(py))
     }
 }
 
@@ -465,6 +466,6 @@ mod test {
         let py = gil.python();
         let list = PyList::new(py, &[1, 2, 3]);
         let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-        assert_eq!(list, val);
+        assert_eq!(&list, val);
     }
 }

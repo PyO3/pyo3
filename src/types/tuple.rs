@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::ffi::{self, Py_ssize_t};
+use crate::unscoped::Tuple;
 use crate::{
     exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
     PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
@@ -52,16 +53,16 @@ impl<'py> PyTuple<'py> {
     }
 
     /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
-    pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple<'static>> {
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
+    pub fn slice(&self, low: isize, high: isize) -> Self {
+        unsafe { self.py().from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
     }
 
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
-    pub fn split_from(&self, low: isize) -> Py<PyTuple<'static>> {
+    pub fn split_from(&self, low: isize) -> Self {
         unsafe {
             let ptr =
                 ffi::PyTuple_GetSlice(self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
-            Py::from_owned_ptr_or_panic(ptr)
+            self.py().from_owned_ptr(ptr)
         }
     }
 
@@ -131,8 +132,8 @@ impl<'py> IntoIterator for &'py PyTuple<'py> {
     }
 }
 
-impl<'py> FromPy<&'_ PyTuple<'py>> for Py<PyTuple<'static>> {
-    fn from_py(tuple: &PyTuple<'py>, _py: Python) -> Py<PyTuple<'static>> {
+impl<'py> FromPy<&'_ PyTuple<'py>> for Py<Tuple> {
+    fn from_py(tuple: &PyTuple<'py>, _py: Python) -> Py<Tuple> {
         unsafe { Py::from_borrowed_ptr(tuple.as_ptr()) }
     }
 }
@@ -166,8 +167,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple<'static>>> for ($($T,)+) {
-        fn into_py(self, py: Python) -> Py<PyTuple<'static>> {
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<Tuple>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<Tuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+

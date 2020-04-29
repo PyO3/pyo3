@@ -5,7 +5,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::type_object::PyTypeInfo;
+use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
@@ -22,7 +22,7 @@ impl<'py> PyType<'py> {
     /// Creates a new type object.
     #[inline]
     pub fn new<T: PyTypeInfo<'py>>(py: Python<'py>) -> Self {
-        py.from_owned_ptr(T::type_object() as *const _ as *mut ffi::PyTypeObject as _)
+        <T as PyTypeObject>::type_object().into_scoped(py)
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.

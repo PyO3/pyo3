@@ -42,7 +42,10 @@ macro_rules! pyobject_native_type_named (
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn into_ptr(self) -> *mut $crate::ffi::PyObject {
-                self.into_non_null().as_ptr()
+                use $crate::AsPyPointer;
+                let ptr = self.as_ptr();
+                std::mem::forget(self);
+                ptr
             }
         }
 
@@ -67,7 +70,8 @@ macro_rules! pyobject_native_type_named (
         impl std::convert::From<$name<'_>> for $crate::PyObject
         {
             fn from(ob: $name<'_>) -> Self {
-                Self::from_non_null(ob.into_non_null())
+                use $crate::{IntoPyPointer, PyNativeType};
+                unsafe { Self::from_owned_ptr(ob.py(), ob.into_ptr()) }
             }
         }
 

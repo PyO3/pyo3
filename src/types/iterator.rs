@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use crate::conversion::PyTryFrom;
 use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, Python};
 
 /// A Python iterator object.
@@ -27,6 +28,10 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// ```
 pub struct PyIterator<'p>(PyAny<'p>);
 
+pyobject_native_type_named!(PyIterator);
+pyobject_native_type_extract!(PyIterator);
+pyobject_native_newtype!(PyIterator);
+
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
@@ -42,7 +47,7 @@ impl<'p> PyIterator<'p> {
             }
 
             if ffi::PyIter_Check(ptr) != 0 {
-                Ok(PyIterator(py.from_owned_ptr(ptr)))
+                Ok(py.from_owned_ptr(ptr))
             } else {
                 Err(PyDowncastError)
             }
@@ -75,10 +80,25 @@ impl<'p> Iterator for PyIterator<'p> {
     }
 }
 
-/// Dropping a `PyIterator` instance decrements the reference count on the object by 1.
-impl<'p> Drop for PyIterator<'p> {
-    fn drop(&mut self) {
-        unsafe { ffi::Py_DECREF(self.0.as_ptr()) }
+impl<'py> PyTryFrom<'py> for PyIterator<'py> {
+    fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a PyIterator<'py>, PyDowncastError> {
+        unsafe {
+            if ffi::PyIter_Check(value.as_ptr()) != 0 {
+                Ok(<PyIterator as PyTryFrom>::try_from_unchecked(value))
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a PyIterator<'py>, PyDowncastError> {
+        <PyIterator as PyTryFrom>::try_from(value)
+    }
+
+    #[inline]
+    unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a PyIterator<'py> {
+        let ptr = value as *const _ as *const PyIterator;
+        &*ptr
     }
 }
 

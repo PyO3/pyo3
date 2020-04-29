@@ -3,7 +3,8 @@
 use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
-use crate::types::{PyAny, PyDict, PyIterator, PyString, PyTuple, PyType};
+use crate::types::{PyAny, PyDict, PyIterator, PyString, PyType};
+use crate::unscoped::Tuple;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
     Python, ToBorrowedObject, ToPyObject,
@@ -89,12 +90,12 @@ pub trait ObjectProtocol<'py> {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    fn call(&self, args: impl IntoPy<Py<PyTuple<'static>>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>>;
+    fn call(&self, args: impl IntoPy<Py<Tuple>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>>;
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    fn call1(&self, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>>;
+    fn call1(&self, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyAny<'py>>;
 
     /// Calls the object without arguments.
     ///
@@ -120,14 +121,14 @@ pub trait ObjectProtocol<'py> {
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyAny<'py>>;
 
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>>;
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyAny<'py>>;
 
     /// Calls a method on the object without arguments.
     ///
@@ -335,7 +336,7 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call(&self, args: impl IntoPy<Py<PyTuple<'static>>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>> {
+    fn call(&self, args: impl IntoPy<Py<Tuple>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>> {
         let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
@@ -353,14 +354,14 @@ where
         self.call((), None)
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
+    fn call1(&self, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyAny<'py>> {
         self.call(args, None)
     }
 
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyAny<'py>> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
@@ -384,7 +385,7 @@ where
         self.call_method(name, (), None)
     }
 
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyAny<'py>> {
         self.call_method(name, args, None)
     }
 

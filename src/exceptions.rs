@@ -2,12 +2,13 @@
 
 //! Exception types defined by Python.
 
+use crate::conversion::AsPyPointer;
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyTuple};
 use crate::Python;
-use crate::{AsPyPointer, ToPyObject};
+use crate::ToPyObject;
 use std::ffi::CStr;
 use std::ops;
 use std::os::raw::c_char;
@@ -89,7 +90,7 @@ macro_rules! import_exception {
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::types::PyType<'static>> {
+            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
                 use $crate::type_object::LazyHeapType;
                 static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
@@ -173,7 +174,7 @@ macro_rules! create_exception {
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::types::PyType<'static>> {
+            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
                 use $crate::type_object::LazyHeapType;
                 static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
@@ -215,7 +216,7 @@ macro_rules! impl_native_exception (
             }
         }
         unsafe impl PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::types::PyType<'static>> {
+            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
                 unsafe { $crate::Py::from_borrowed_ptr(ffi::$exc_name) }
             }
         }
@@ -380,7 +381,7 @@ mod test {
             .map_err(|e| e.print(py))
             .expect("could not setitem");
 
-        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
+        py.run("assert isinstance(exc, socket.gaierror)", None, Some(&d))
             .map_err(|e| e.print(py))
             .expect("assertion failed");
     }
@@ -407,7 +408,7 @@ mod test {
         py.run(
             "assert isinstance(exc, email.errors.MessageError)",
             None,
-            Some(d),
+            Some(&d),
         )
         .map_err(|e| e.print(py))
         .expect("assertion failed");

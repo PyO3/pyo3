@@ -1,11 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::conversion::FromPyPointer;
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
+use crate::unscoped::Unscoped;
 use crate::{
-    ffi, AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, IntoPy, IntoPyPointer, PyCell, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -132,6 +134,12 @@ impl<T> Py<T> {
     }
 }
 
+impl<'py, T: Unscoped<'py>> Py<T> {
+    pub fn into_scoped(self, py: Python<'py>) -> T::NativeType {
+        unsafe { T::NativeType::from_owned_ptr(py, self.into_ptr()) }
+    }
+}
+
 /// Retrieves `&'py` types from `Py<T>` or `PyObject`.
 ///
 /// # Examples
@@ -163,21 +171,21 @@ impl<T> Py<T> {
 /// let py = gil.python();
 /// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
 /// ```
-pub trait AsPyRef<'p>: Sized {
-    type Target: 'p;
+pub trait AsPyRef<'py>: Sized {
+    type Target: 'py;
     /// Return reference to object.
-    fn as_ref(&self, py: Python<'p>) -> &Self::Target;
+    fn as_ref<'a>(&'a self, py: Python<'py>) -> &'a Self::Target where 'py: 'a;
 }
 
-impl<'p, T> AsPyRef<'p> for Py<T>
+impl<'py, T> AsPyRef<'py> for Py<T>
 where
-    T: PyTypeInfo<'p>,
-    T::AsRefTarget: 'p,
+    T: Unscoped<'py>
 {
-    type Target = T::AsRefTarget;
-    fn as_ref(&self, _py: Python<'p>) -> &Self::Target {
-        let any = self as *const Py<T> as *const PyAny;
-        unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
+    type Target = T::NativeType;
+    fn as_ref<'a>(&'a self, _py: Python<'py>) -> &'a Self::Target
+    where 'py: 'a
+    {
+        unsafe { PyDowncastImpl::unchecked_downcast(std::mem::transmute(self)) }
     }
 }
 
@@ -289,10 +297,6 @@ impl<T> std::convert::From<Py<T>> for PyObject {
 //         }
 //     }
 // }
-
-pub trait Unscoped<'py> {
-    type NativeType: PyNativeType<'py>;
-}
 
 /// Reference to a converted [ToPyObject].
 ///
@@ -417,7 +421,7 @@ mod test {
         let py = gil.python();
         let native = PyDict::new(py);
         let ref_count = unsafe { ffi::Py_REFCNT(native.as_ptr()) };
-        let borrowed = ManagedPyRef::from_to_pyobject(py, native);
+        let borrowed = ManagedPyRef::from_to_pyobject(py, &native);
         assert_eq!(native.as_ptr(), borrowed.data);
         assert_eq!(ref_count, unsafe { ffi::Py_REFCNT(borrowed.data) });
         drop(borrowed);

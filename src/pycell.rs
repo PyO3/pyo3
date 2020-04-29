@@ -129,7 +129,8 @@ unsafe impl<'py, T: PyClass<'py>> PyLayout<'py, T> for PyCellLayout<'py, T> {
     unsafe fn py_drop(&mut self, py: Python) {
         ManuallyDrop::drop(&mut self.inner.value);
         self.dict.clear_dict(py);
-        self.weakref.clear_weakrefs(self as *mut _ as _, py);
+        let ptr = self as *mut _ as _;
+        self.weakref.clear_weakrefs(ptr, py);
         self.inner.ob_base.py_drop(py);
     }
 }

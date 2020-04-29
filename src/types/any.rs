@@ -31,7 +31,7 @@ use std::ptr::NonNull;
 /// assert!(any.downcast::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
-pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<&'a ffi::PyObject>);
+pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<Python<'a>>);
 
 impl<'py> crate::type_object::PySizedLayout<'py, PyAny<'py>> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny);
@@ -56,7 +56,7 @@ impl<'py> PyAny<'py> {
     /// # Safety
     ///
     /// It must be ensured that the pointer is an owned reference.
-    pub unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
+    pub unsafe fn from_non_null(_py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
         Self(ptr, PhantomData)
     }
 

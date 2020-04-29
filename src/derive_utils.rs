@@ -6,12 +6,12 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::TypeError;
-use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, Py, PyCell, PyObject, Python};
 use std::cell::UnsafeCell;
+use std::borrow::Cow;
 
 /// Description of a python parameter; used for `parse_args()`.
 #[derive(Debug)]
@@ -32,15 +32,15 @@ pub struct ParamDescription {
 /// * kwargs: Keyword arguments
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_fn_args<'a, 'py>(
+pub fn parse_fn_args<'py>(
     fname: Option<&str>,
     params: &[ParamDescription],
-    args: &'a PyTuple<'py>,
-    kwargs: Option<&'a PyDict<'py>>,
+    args: &'py PyTuple<'py>,
+    kwargs: Option<&'py PyDict<'py>>,
     accept_args: bool,
     accept_kwargs: bool,
-    output: &mut [Option<&'a PyAny<'py>>],
-) -> PyResult<(&'a PyTuple<'py>, Option<PyDict<'py>>)> {
+    output: &mut [Option<&'py PyAny<'py>>],
+) -> PyResult<(Cow<'py, PyTuple<'py>>, Option<Cow<'py, PyDict<'py>>>)> {
     let nargs = args.len();
     let mut used_args = 0;
     macro_rules! raise_error {
@@ -48,45 +48,59 @@ pub fn parse_fn_args<'a, 'py>(
             concat!("{} ", $s), fname.unwrap_or("function") $(,$arg)*
         ))))
     }
-    // Copy kwargs not to modify it
+
     let kwargs = match kwargs {
-        Some(k) => Some(k.copy()?),
-        None => None,
+        Some(kwargs) => {
+            let mut unrecognised_kwargs = Cow::Borrowed(kwargs);
+            // Iterate through the parameters and assign values to output:
+            for (i, (p, out)) in params.iter().zip(output).enumerate() {
+                *out = match kwargs.get_item(p.name) {
+                    Some(kwarg) => {
+                        if i < nargs {
+                            raise_error!("got multiple values for argument: {}", p.name)
+                        }
+
+                        // Delete kwarg from unrecognised set (first making a copy if needed)
+                        if let Cow::Borrowed(k) = &unrecognised_kwargs{
+                            unrecognised_kwargs = Cow::Owned(k.copy()?);
+                        }
+                        unrecognised_kwargs.del_item(p.name)?;
+
+                        Some(kwarg)
+                    }
+                    None => {
+                        if p.kw_only {
+                            if !p.is_optional {
+                                raise_error!("missing required keyword-only argument: {}", p.name)
+                            }
+                            None
+                        } else if i < nargs {
+                            used_args += 1;
+                            Some(args.get_item(i))
+                        } else {
+                            if !p.is_optional {
+                                raise_error!("missing required positional argument: {}", p.name)
+                            }
+                            None
+                        }
+                    }
+                }
+            }
+
+            if unrecognised_kwargs.is_empty() {
+                None
+            } else if !accept_kwargs {
+                // Raise an error when we get an unknown key
+                let (key, _) = unrecognised_kwargs.iter().next().unwrap();
+                raise_error!("got an unexpected keyword argument: {}", key)
+            } else {
+                Some(unrecognised_kwargs)
+            }
+
+        },
+        None => None
     };
-    // Iterate through the parameters and assign values to output:
-    for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        *out = match kwargs.and_then(|d| d.get_item(p.name)) {
-            Some(kwarg) => {
-                if i < nargs {
-                    raise_error!("got multiple values for argument: {}", p.name)
-                }
-                kwargs.as_ref().unwrap().del_item(p.name)?;
-                Some(kwarg)
-            }
-            None => {
-                if p.kw_only {
-                    if !p.is_optional {
-                        raise_error!("missing required keyword-only argument: {}", p.name)
-                    }
-                    None
-                } else if i < nargs {
-                    used_args += 1;
-                    Some(args.get_item(i))
-                } else {
-                    if !p.is_optional {
-                        raise_error!("missing required positional argument: {}", p.name)
-                    }
-                    None
-                }
-            }
-        }
-    }
-    let is_kwargs_empty = kwargs.as_ref().map_or(true, |dict| dict.is_empty());
-    // Raise an error when we get an unknown key
-    if !accept_kwargs && !is_kwargs_empty {
-        let (key, _) = kwargs.unwrap().iter().next().unwrap();
-        raise_error!("got an unexpected keyword argument: {}", key)
-    }
+
     // Raise an error when we get too many positional args
     if !accept_args && used_args < nargs {
         raise_error!(
@@ -98,17 +112,11 @@ pub fn parse_fn_args<'a, 'py>(
     }
     // Adjust the remaining args
     let args = if accept_args {
-        let py = args.py();
-        let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
-        py.checked_cast_as(slice).unwrap()
+        Cow::Owned(args.slice(used_args as isize, nargs as isize))
     } else {
-        args
+        Cow::Borrowed(args)
     };
-    let kwargs = if accept_kwargs && is_kwargs_empty {
-        None
-    } else {
-        kwargs
-    };
+
     Ok((args, kwargs))
 }
 

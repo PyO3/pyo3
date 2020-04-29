@@ -4,7 +4,8 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::gil;
 use crate::instance::{AsPyRef, PyNativeType};
-use crate::types::{PyAny, PyDict, PyTuple};
+use crate::types::{PyAny, PyDict};
+use crate::unscoped::Tuple;
 use crate::{AsPyPointer, Py, Python};
 use crate::{FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::ptr::NonNull;
@@ -191,7 +192,7 @@ impl PyObject {
     pub fn call(
         &self,
         py: Python,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let args = args.into_py(py).into_ptr();
@@ -209,7 +210,7 @@ impl PyObject {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyObject> {
+    pub fn call1(&self, py: Python, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
@@ -227,7 +228,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
@@ -252,7 +253,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }
@@ -274,10 +275,12 @@ where
     }
 }
 
-impl<'p> AsPyRef<'p> for PyObject {
-    type Target = PyAny<'p>;
-    fn as_ref(&self, _py: Python<'p>) -> &PyAny<'p> {
-        unsafe { &*(self as *const _ as *const PyAny) }
+impl<'py> AsPyRef<'py> for PyObject {
+    type Target = PyAny<'py>;
+    fn as_ref<'a>(&'a self, _py: Python<'py>) -> &'a PyAny<'py>
+    where 'py: 'a
+    {
+        unsafe { std::mem::transmute(self) }
     }
 }
 

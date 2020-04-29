@@ -42,7 +42,7 @@ impl<'py> PyDict<'py> {
     pub fn from_sequence(py: Python<'py>, seq: &PyAny) -> PyResult<Self> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
-            match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
+            match ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.into_ptr(), 1i32) {
                 0 => Ok(dict),
                 -1 => Err(PyErr::fetch(py)),
                 _ => unreachable!(),

@@ -63,9 +63,9 @@ mod test {
         dict.set_item("zus", "jet").unwrap();
 
         let bytes = dumps(py, &dict, VERSION)
-            .expect("marshalling failed")
-            .as_bytes();
-        let deserialized = loads(py, bytes).expect("unmarshalling failed");
+            .expect("marshalling failed");
+
+        let deserialized = loads(py, bytes.as_bytes()).expect("unmarshalling failed");
 
         assert!(equal(py, &*dict, &deserialized));
     }

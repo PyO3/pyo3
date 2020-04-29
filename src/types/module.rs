@@ -10,8 +10,8 @@ use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
+use crate::unscoped::Tuple;
 use crate::{AsPyPointer, IntoPy, Py, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -83,7 +83,7 @@ impl<'py> PyModule<'py> {
             Err(err) => {
                 if err.is_instance::<exceptions::AttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr("__all__", l).map_err(PyErr::from)?;
+                    self.setattr("__all__", &l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
                     Err(err)
@@ -126,7 +126,7 @@ impl<'py> PyModule<'py> {
     pub fn call(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple<'static>>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyAny<'py>> {
         self.getattr(name)?.call(args, kwargs)
@@ -135,7 +135,7 @@ impl<'py> PyModule<'py> {
     /// Calls a function in the module with only positional arguments.
     ///
     /// This is equivalent to the Python expression `module.name(*args)`.
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyAny<'py>> {
         self.getattr(name)?.call1(args)
     }
 
