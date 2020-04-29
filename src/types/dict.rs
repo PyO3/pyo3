@@ -319,13 +319,13 @@ where
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for HashMap<K, V, S>
+impl<'a, 'py, K, V, S> FromPyObject<'a, 'py> for HashMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'a, 'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &'a PyAny<'py>) -> Result<Self, PyErr> {
         let dict = <PyDict as PyTryFrom>::try_from(ob)?;
         let mut ret = HashMap::default();
         for (k, v) in dict.iter() {
@@ -335,12 +335,12 @@ where
     }
 }
 
-impl<'source, K, V> FromPyObject<'source> for BTreeMap<K, V>
+impl<'a, 'py, K, V> FromPyObject<'a, 'py> for BTreeMap<K, V>
 where
-    K: FromPyObject<'source> + cmp::Ord,
-    V: FromPyObject<'source>,
+    K: FromPyObject<'a, 'py> + cmp::Ord,
+    V: FromPyObject<'a, 'py>,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &'a PyAny<'py>) -> Result<Self, PyErr> {
         let dict = <PyDict as PyTryFrom>::try_from(ob)?;
         let mut ret = BTreeMap::new();
         for (k, v) in dict.iter() {

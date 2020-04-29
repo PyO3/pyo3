@@ -144,15 +144,15 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'a> crate::FromPyObject<'a, '_> for Cow<'a, str> {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_string()
     }
 }
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'a> crate::FromPyObject<'a> for &'a str {
+impl<'a> crate::FromPyObject<'a, '_> for &'a str {
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
         let s: Cow<'a, str> = crate::FromPyObject::extract(ob)?;
         match s {
@@ -167,8 +167,8 @@ impl<'a> crate::FromPyObject<'a> for &'a str {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> FromPyObject<'source> for String {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for String {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_string()
             .map(Cow::into_owned)

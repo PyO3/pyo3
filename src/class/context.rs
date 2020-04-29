@@ -37,9 +37,9 @@ pub trait PyContextEnterProtocol<'p>: PyContextProtocol<'p> {
 }
 
 pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
-    type ExcType: crate::FromPyObject<'p>;
-    type ExcValue: crate::FromPyObject<'p>;
-    type Traceback: crate::FromPyObject<'p>;
+    type ExcType: for<'a> crate::FromPyObject<'a, 'p>;
+    type ExcValue: for<'a> crate::FromPyObject<'a, 'p>;
+    type Traceback: for<'a> crate::FromPyObject<'a, 'p>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }

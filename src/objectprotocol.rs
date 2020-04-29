@@ -206,8 +206,8 @@ pub trait ObjectProtocol<'py> {
     /// This is a wrapper function around `FromPyObject::extract()`.
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
-        D: FromPyObject<'a>,
-        Self: AsRef<PyAny<'a>>;
+        D: FromPyObject<'a, 'py>,
+        Self: AsRef<PyAny<'py>>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -468,15 +468,15 @@ where
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
-        Self: AsRef<PyAny<'a>>,
+        Self: AsRef<PyAny<'py>>,
     {
         D::try_from(self.as_ref())
     }
 
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
-        D: FromPyObject<'a>,
-        Self: AsRef<PyAny<'a>>,
+        D: FromPyObject<'a, 'py>,
+        Self: AsRef<PyAny<'py>>,
     {
         FromPyObject::extract(self.as_ref())
     }

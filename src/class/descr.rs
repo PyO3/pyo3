@@ -44,25 +44,25 @@ pub trait PyDescrProtocol<'p>: PyClass<'p> {
 }
 
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
-    type Owner: FromPyObject<'p>;
+    type Inst: for<'a> FromPyObject<'a, 'p>;
+    type Owner: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
-    type Value: FromPyObject<'p>;
+    type Inst: for<'a> FromPyObject<'a, 'p>;
+    type Value: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyDescrDeleteProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
+    type Inst: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
+    type Inst: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 

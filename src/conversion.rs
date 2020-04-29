@@ -186,9 +186,9 @@ impl<T> FromPy<T> for T {
 ///
 /// The trait's conversion method takes a `&PyAny` argument but is called
 /// `FromPyObject` for historical reasons.
-pub trait FromPyObject<'source>: Sized {
+pub trait FromPyObject<'a, 'py>: Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyAny) -> PyResult<Self>;
+    fn extract(ob: &'a PyAny<'py>) -> PyResult<Self>;
 }
 
 /// Identity conversion: allows using existing `PyObject` instances where
@@ -252,26 +252,26 @@ where
     }
 }
 
-impl<'py, T> FromPyObject<'py> for &PyCell<'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for &'a PyCell<'py, T>
 where
     T: PyClass<'py>,
 {
-    fn extract(obj: &PyAny<'py>) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         PyTryFrom::try_from(obj).map_err(Into::into)
     }
 }
 
-impl<'py, T> FromPyObject<'py> for T
+impl<'py, T> FromPyObject<'_, 'py> for T
 where
     T: PyClass<'py> + Clone,
 {
-    fn extract(obj: &PyAny<'py>) -> PyResult<Self> {
+    fn extract(obj: &'_ PyAny<'py>) -> PyResult<Self> {
         let cell: &PyCell<Self> = PyTryFrom::try_from(obj)?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
 }
 
-impl<'a, 'py, T> FromPyObject<'py> for PyRef<'a, 'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'a, 'py, T>
 where
     T: PyClass<'py>,
 {
@@ -281,7 +281,7 @@ where
     }
 }
 
-impl<'a, 'py, T> FromPyObject<'a> for PyRefMut<'a, 'py, T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRefMut<'a, 'py, T>
 where
     T: PyClass<'py>,
 {
@@ -291,11 +291,11 @@ where
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Option<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Option<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'a, 'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {

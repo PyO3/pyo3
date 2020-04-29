@@ -52,8 +52,8 @@ impl FromPy<bool> for PyObject {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for bool {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
     }
 }

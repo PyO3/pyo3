@@ -102,17 +102,17 @@ pub trait PyObjectProtocol<'p>: PyClass<'p> {
 }
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
-    type Name: FromPyObject<'p>;
+    type Name: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
-    type Name: FromPyObject<'p>;
-    type Value: FromPyObject<'p>;
+    type Name: for<'a> FromPyObject<'a, 'p>;
+    type Value: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
-    type Name: FromPyObject<'p>;
+    type Name: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
@@ -124,7 +124,7 @@ pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
-    type Format: FromPyObject<'p>;
+    type Format: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -139,7 +139,7 @@ pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
-    type Other: FromPyObject<'p>;
+    type Other: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }

@@ -177,8 +177,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyAny) -> PyResult<Self>
+    impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
+        fn extract(obj: &'a PyAny<'py>) -> PyResult<Self>
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             let slice = t.as_slice();

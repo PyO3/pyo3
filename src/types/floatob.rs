@@ -48,10 +48,10 @@ impl FromPy<f64> for PyObject {
     }
 }
 
-impl<'source> FromPyObject<'source> for f64 {
+impl FromPyObject<'_, '_> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
         if v == -1.0 && PyErr::occurred(obj.py()) {
@@ -74,8 +74,8 @@ impl FromPy<f32> for PyObject {
     }
 }
 
-impl<'source> FromPyObject<'source> for f32 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for f32 {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 }

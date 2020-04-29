@@ -85,46 +85,46 @@ pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
 }
 
 pub trait PySequenceGetItemProtocol<'p>: PySequenceProtocol<'p> {
-    type Index: FromPyObject<'p> + From<isize>;
+    type Index: for<'a> FromPyObject<'a, 'p> + From<isize>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceSetItemProtocol<'p>: PySequenceProtocol<'p> {
-    type Index: FromPyObject<'p> + From<isize>;
-    type Value: FromPyObject<'p>;
+    type Index: for<'a> FromPyObject<'a, 'p> + From<isize>;
+    type Value: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PySequenceDelItemProtocol<'p>: PySequenceProtocol<'p> {
-    type Index: FromPyObject<'p> + From<isize>;
+    type Index: for<'a> FromPyObject<'a, 'p> + From<isize>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PySequenceContainsProtocol<'p>: PySequenceProtocol<'p> {
-    type Item: FromPyObject<'p>;
+    type Item: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<bool>>;
 }
 
 pub trait PySequenceConcatProtocol<'p>: PySequenceProtocol<'p> {
-    type Other: FromPyObject<'p>;
+    type Other: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
-    type Index: FromPyObject<'p> + From<isize>;
+    type Index: for<'a> FromPyObject<'a, 'p> + From<isize>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
-    type Other: FromPyObject<'p>;
+    type Other: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<Self>>;
 }
 
 pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
-    type Index: FromPyObject<'p> + From<isize>;
+    type Index: for<'a> FromPyObject<'a, 'p> + From<isize>;
     type Result: Into<PyResult<Self>>;
 }
 

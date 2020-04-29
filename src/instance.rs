@@ -276,11 +276,11 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     }
 }
 
-impl<'a, 'py, T> FromPyObject<'py> for Py<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Py<T>
 where
     T: PyTypeInfo<'py>,
-    &'a T::AsRefTarget: FromPyObject<'py>,
-    T::AsRefTarget: 'py + AsPyPointer,
+    &'a T::AsRefTarget: FromPyObject<'a, 'py>,
+    T::AsRefTarget: 'a + 'py + AsPyPointer,
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &PyAny<'py>) -> PyResult<Self> {

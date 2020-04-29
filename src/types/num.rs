@@ -37,8 +37,8 @@ macro_rules! int_fits_larger_int {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: &PyAny) -> PyResult<Self> {
                 let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
                 match cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
@@ -78,8 +78,8 @@ macro_rules! int_convert_128 {
                 }
             }
         }
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(ob: &PyAny) -> PyResult<$rust_type> {
                 unsafe {
                     let num = ffi::PyNumber_Index(ob.as_ptr());
                     if num.is_null() {
@@ -134,8 +134,8 @@ macro_rules! int_fits_c_long {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: &PyAny) -> PyResult<Self> {
                 let ptr = obj.as_ptr();
                 let val = unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -170,8 +170,8 @@ macro_rules! int_convert_u64_or_i64 {
                 unsafe { PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self)) }
             }
         }
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(ob: &PyAny) -> PyResult<$rust_type> {
                 let ptr = ob.as_ptr();
                 unsafe {
                     let num = ffi::PyNumber_Index(ptr);

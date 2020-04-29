@@ -54,19 +54,19 @@ pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
-    type Key: FromPyObject<'p>;
+    type Key: for<'a> FromPyObject<'a, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
-    type Key: FromPyObject<'p>;
-    type Value: FromPyObject<'p>;
+    type Key: for<'a> FromPyObject<'a, 'p>;
+    type Value: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
-    type Key: FromPyObject<'p>;
+    type Key: for<'a> FromPyObject<'a, 'p>;
     type Result: Into<PyResult<()>>;
 }
 

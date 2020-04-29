@@ -156,9 +156,9 @@ impl PyObject {
     /// Casts the PyObject to a concrete Python object type.
     ///
     /// This can cast only to native Python types, not types implemented in Rust.
-    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
+    pub fn cast_as<'a, 'py, D>(&'a self, py: Python<'py>) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom<'p>,
+        D: PyTryFrom<'py>,
     {
         D::try_from(self.as_ref(py))
     }
@@ -166,9 +166,9 @@ impl PyObject {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'p, D>(&'p self, py: Python<'p>) -> PyResult<D>
+    pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> PyResult<D>
     where
-        D: FromPyObject<'p>,
+        D: FromPyObject<'a, 'py>,
     {
         FromPyObject::extract(self.as_ref(py))
     }
@@ -315,10 +315,10 @@ impl PartialEq for PyObject {
     }
 }
 
-impl<'a> FromPyObject<'a> for PyObject {
+impl<'py> FromPyObject<'_, 'py> for PyObject {
     #[inline]
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
         unsafe { Ok(PyObject::from_borrowed_ptr(ob.py(), ob.as_ptr())) }
     }
 }

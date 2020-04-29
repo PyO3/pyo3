@@ -64,7 +64,7 @@ impl<'a> FromPy<&'a [u8]> for PyObject {
     }
 }
 
-impl<'a> FromPyObject<'a> for &'a [u8] {
+impl<'a> FromPyObject<'a, '_> for &'a [u8] {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
     }

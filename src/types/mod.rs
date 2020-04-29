@@ -129,7 +129,7 @@ macro_rules! pyobject_native_var_type {
 // because rust-numpy has a special implementation.
 macro_rules! pyobject_native_type_extract {
     ($name: ident $(,$type_param: ident)*) => {
-        impl<'a, 'py, $($type_param,)*> $crate::FromPyObject<'py> for &'a $name<'py> {
+        impl<'a, 'py, $($type_param,)*> $crate::FromPyObject<'a, 'py> for &'a $name<'py> {
             fn extract(obj: &'a $crate::PyAny<'py>) -> $crate::PyResult<Self> {
                 $crate::PyTryFrom::try_from(obj).map_err(Into::into)
             }

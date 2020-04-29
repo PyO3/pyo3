@@ -239,13 +239,13 @@ impl<'py, T: PyClass<'py>> PyBaseTypeUtils<'py> for T {
 
 /// Utility trait to enable &PyClass as a pymethod/function argument
 #[doc(hidden)]
-pub trait ExtractExt<'a> {
-    type Target: crate::FromPyObject<'a>;
+pub trait ExtractExt<'a, 'py> {
+    type Target: crate::FromPyObject<'a, 'py>;
 }
 
-impl<'a, T> ExtractExt<'a> for T
+impl<'a, 'py, T> ExtractExt<'a, 'py> for T
 where
-    T: crate::FromPyObject<'a>,
+    T: crate::FromPyObject<'a, 'py>,
 {
     type Target = T;
 }

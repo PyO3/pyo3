@@ -266,9 +266,9 @@ impl<'py> PySequence<'py> {
 macro_rules! array_impls {
     ($($N:expr),+) => {
         $(
-            impl<'a, T> FromPyObject<'a> for [T; $N]
+            impl<'a, 'py, T> FromPyObject<'a, 'py> for [T; $N]
             where
-                T: Copy + Default + FromPyObject<'a>,
+                T: Copy + Default + FromPyObject<'a, 'py>,
             {
                 default fn extract(obj: &'a PyAny) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
@@ -277,11 +277,11 @@ macro_rules! array_impls {
                 }
             }
 
-            impl<'source, T> FromPyObject<'source> for [T; $N]
+            impl<'a, 'py, T> FromPyObject<'a, 'py> for [T; $N]
             where
-                for<'a> T: Copy + Default + FromPyObject<'a> + buffer::Element,
+                T: Copy + Default + FromPyObject<'a, 'py> + buffer::Element,
             {
-                fn extract(obj: &'source PyAny) -> PyResult<Self> {
+                fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     // first try buffer protocol
                     if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
@@ -305,20 +305,20 @@ array_impls!(
     26, 27, 28, 29, 30, 31, 32
 );
 
-impl<'a, T> FromPyObject<'a> for Vec<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Vec<T>
 where
-    T: FromPyObject<'a>,
+    T: FromPyObject<'a, 'py>,
 {
-    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    default fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         extract_sequence(obj)
     }
 }
 
-impl<'source, T> FromPyObject<'source> for Vec<T>
+impl<'a, 'py, T> FromPyObject<'a, 'py> for Vec<T>
 where
-    for<'a> T: FromPyObject<'a> + buffer::Element + Copy,
+    T: FromPyObject<'a, 'py> + buffer::Element + Copy,
 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         // first try buffer protocol
         if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
             if buf.dimensions() == 1 {
@@ -334,9 +334,9 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
+fn extract_sequence<'a, 'py, T>(obj: &'a PyAny<'py>) -> PyResult<Vec<T>>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'a, 'py>,
 {
     let seq = <PySequence as PyTryFrom>::try_from(obj)?;
     let mut v = Vec::with_capacity(seq.len().unwrap_or(0) as usize);
@@ -346,9 +346,9 @@ where
     Ok(v)
 }
 
-fn extract_sequence_into_slice<'s, T>(obj: &'s PyAny, slice: &mut [T]) -> PyResult<()>
+fn extract_sequence_into_slice<'a, 'py, T>(obj: &'a PyAny<'py>, slice: &mut [T]) -> PyResult<()>
 where
-    T: FromPyObject<'s>,
+    T: FromPyObject<'a, 'py>,
 {
     let seq = <PySequence as PyTryFrom>::try_from(obj)?;
     if seq.len()? as usize != slice.len() {

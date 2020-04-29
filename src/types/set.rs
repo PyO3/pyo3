@@ -200,12 +200,12 @@ where
     }
 }
 
-impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
+impl<'a, 'py, K, S> FromPyObject<'a, 'py> for HashSet<K, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    K: FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'a PyAny<'py>) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
     }
@@ -226,11 +226,11 @@ where
     }
 }
 
-impl<'source, K> FromPyObject<'source> for BTreeSet<K>
+impl<'a, 'py, K> FromPyObject<'a, 'py> for BTreeSet<K>
 where
-    K: FromPyObject<'source> + cmp::Ord,
+    K: FromPyObject<'a, 'py> + cmp::Ord,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'a PyAny<'py>) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
     }
