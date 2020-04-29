@@ -62,7 +62,7 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: PyRef<'p, Self>) -> PyResult<Self> {
+    fn __concat__(&self, other: PyRef<'p, 'p, Self>) -> PyResult<Self> {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Ok(Self { elements })
@@ -87,8 +87,8 @@ fn test_getitem() {
     let py = gil.python();
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s = ByteSequence([1, 2, 3]); assert s[0] == 1");
     run("s = ByteSequence([1, 2, 3]); assert s[1] == 2");
@@ -103,8 +103,8 @@ fn test_setitem() {
     let py = gil.python();
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s = ByteSequence([1, 2, 3]); s[0] = 4; assert list(s) == [4, 2, 3]");
     err("s = ByteSequence([1, 2, 3]); s[0] = 'hello'");
@@ -116,8 +116,8 @@ fn test_delitem() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]");
     run("s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]");
@@ -133,7 +133,7 @@ fn test_contains() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
 
     run("s = ByteSequence([1, 2, 3]); assert 1 in s");
     run("s = ByteSequence([1, 2, 3]); assert 2 in s");
@@ -148,8 +148,8 @@ fn test_concat() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1+s2) == [1, 2, 3, 4]");
     err("s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2");
@@ -161,8 +161,8 @@ fn test_inplace_concat() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s = ByteSequence([1, 2]); s += ByteSequence([3, 4]); assert list(s) == [1, 2, 3, 4]");
     err("s = ByteSequence([1, 2]); s += 'hello'");
@@ -174,8 +174,8 @@ fn test_repeat() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s1 = ByteSequence([1, 2, 3]); s2 = s1*2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
     err("s1 = ByteSequence([1, 2, 3]); s2 = s1*-1; assert list(s2) == [1, 2, 3, 1, 2, 3]");
@@ -187,8 +187,8 @@ fn test_inplace_repeat() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]");
     err("s = ByteSequence([1, 2); s *= -1");

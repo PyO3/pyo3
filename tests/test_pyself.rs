@@ -17,10 +17,10 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: &PyCell<Self>) -> &PyCell<Self> {
+    fn clone_ref<'py>(slf: &'py PyCell<'py, Self>) -> &'py PyCell<'py, Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
+    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<'py, Self> {
         slf
     }
     fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {

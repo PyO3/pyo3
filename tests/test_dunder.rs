@@ -53,11 +53,11 @@ struct Iterator {
 
 #[pyproto]
 impl<'p> PyIterProtocol for Iterator {
-    fn __iter__(slf: PyRef<'p, Self>) -> PyResult<Py<Iterator>> {
+    fn __iter__(slf: PyRef<'p, 'p, Self>) -> PyResult<Py<Iterator>> {
         Ok(slf.into())
     }
 
-    fn __next__(mut slf: PyRefMut<'p, Self>) -> PyResult<Option<i32>> {
+    fn __next__(mut slf: PyRefMut<'p, 'p, Self>) -> PyResult<Option<i32>> {
         Ok(slf.iter.next())
     }
 }
@@ -375,9 +375,9 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
 
     fn __exit__(
         &mut self,
-        ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        ty: Option<&'p PyType<'p>>,
+        _value: Option<&'p PyAny<'p>>,
+        _traceback: Option<&'p PyAny<'p>>,
     ) -> PyResult<bool> {
         let gil = GILGuard::acquire();
         self.exit_called = true;

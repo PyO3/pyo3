@@ -29,13 +29,13 @@ pub trait PyIterProtocol<'p>: PyClass<'p> {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Receiver: for<'a> TryFromPyCell<'a, 'p, Self>;
+    type Receiver: TryFromPyCell<'p, 'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Receiver: for<'a> TryFromPyCell<'a, 'p, Self>;
+    type Receiver: TryFromPyCell<'p, 'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }

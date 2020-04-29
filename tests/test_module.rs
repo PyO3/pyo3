@@ -80,7 +80,7 @@ fn test_module_with_functions() {
     .into_py_dict(py);
 
     let run = |code| {
-        py.run(code, None, Some(d))
+        py.run(code, None, Some(&d))
             .map_err(|e| e.print(py))
             .unwrap()
     };
@@ -116,7 +116,7 @@ fn test_module_renaming() {
     py.run(
         "assert different_name.__name__ == 'other_name'",
         None,
-        Some(d),
+        Some(&d),
     )
     .unwrap();
 }

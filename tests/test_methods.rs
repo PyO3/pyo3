@@ -27,8 +27,8 @@ fn instance_method() {
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method().unwrap(), 42);
     let d = [("obj", obj)].into_py_dict(py);
-    py.run("assert obj.method() == 42", None, Some(d)).unwrap();
-    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d))
+    py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
+    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(&d))
         .unwrap();
 }
 
@@ -54,8 +54,8 @@ fn instance_method_with_args() {
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method(6).unwrap(), 42);
     let d = [("obj", obj)].into_py_dict(py);
-    py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
-    py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
+    py.run("assert obj.method(3) == 21", None, Some(&d)).unwrap();
+    py.run("assert obj.method(multiplier=6) == 42", None, Some(&d))
         .unwrap();
 }
 
@@ -83,7 +83,7 @@ fn class_method() {
 
     let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
     let run = |code| {
-        py.run(code, None, Some(d))
+        py.run(code, None, Some(&d))
             .map_err(|e| e.print(py))
             .unwrap()
     };
@@ -113,7 +113,7 @@ fn class_method_with_args() {
     py.run(
         "assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'",
         None,
-        Some(d),
+        Some(&d),
     )
     .unwrap();
 }
@@ -144,7 +144,7 @@ fn static_method() {
 
     let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
     let run = |code| {
-        py.run(code, None, Some(d))
+        py.run(code, None, Some(&d))
             .map_err(|e| e.print(py))
             .unwrap()
     };
@@ -173,7 +173,7 @@ fn static_method_with_args() {
     assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
 
     let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
-    py.run("assert C.method(1337) == '0x539'", None, Some(d))
+    py.run("assert C.method(1337) == '0x539'", None, Some(&d))
         .unwrap();
 }
 
@@ -353,7 +353,7 @@ fn meth_doc() {
     let py = gil.python();
     let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
     let run = |code| {
-        py.run(code, None, Some(d))
+        py.run(code, None, Some(&d))
             .map_err(|e| e.print(py))
             .unwrap()
     };
@@ -435,7 +435,7 @@ fn method_with_pyclassarg() {
     let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
     let objs = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
     let run = |code| {
-        py.run(code, None, Some(objs))
+        py.run(code, None, Some(&objs))
             .map_err(|e| e.print(py))
             .unwrap()
     };

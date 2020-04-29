@@ -258,7 +258,7 @@ impl PyNumberProtocol for RhsArithmetic {
         Ok(format!("{:?} | RA", other))
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny<'p>>) -> PyResult<String> {
         Ok(format!("{:?} ** RA", other))
     }
 }
@@ -302,7 +302,7 @@ impl PyNumberProtocol for LhsAndRhsArithmetic {
         Ok(format!("{:?} - RA", other))
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny<'p>>) -> PyResult<String> {
         Ok(format!("{:?} ** RA", other))
     }
 

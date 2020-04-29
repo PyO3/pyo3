@@ -452,8 +452,22 @@ fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Type {
         _ => panic!("fn arg type is not supported"),
     };
 
-    // Add a lifetime if there is none
-    if let syn::Type::Reference(ref mut r) = ty {
+
+    if let syn::Type::Reference(r) = &mut ty {
+        // HACK: For PyAny, add <'p>
+        match &mut *r.elem {
+            syn::Type::Path(ty) => {
+                let seg = ty.path.segments.last_mut().unwrap();
+                if seg.ident == "PyAny" {
+                    if let syn::PathArguments::None = seg.arguments {
+                        seg.arguments = syn::PathArguments::AngleBracketed(syn::parse_quote!(<'p>));
+                    }
+                }
+            },
+            _ => {}
+        }
+
+        // Add a lifetime if there is none
         r.lifetime.get_or_insert(syn::parse_quote! {'p});
     }
 

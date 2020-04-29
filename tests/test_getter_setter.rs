@@ -38,7 +38,7 @@ impl ClassWithProperties {
     }
 
     #[getter]
-    fn get_data_list<'py>(&self, py: Python<'py>) -> &'py PyList {
+    fn get_data_list<'py>(&self, py: Python<'py>) -> PyList<'py> {
         PyList::new(py, &[self.num])
     }
 }
@@ -64,7 +64,7 @@ fn class_with_properties() {
     py.run(
         "assert C.DATA.__doc__ == 'a getter for data'",
         None,
-        Some(d),
+        Some(&d),
     )
     .unwrap();
 }

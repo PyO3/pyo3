@@ -64,7 +64,7 @@ fn test_date_check() {
     let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "date", "2018, 1, 1").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
 
     assert_check_exact!(PyDate_Check, obj);
     assert_check_only!(PyDate_Check, sub_obj);
@@ -76,7 +76,7 @@ fn test_time_check() {
     let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "time", "12, 30, 15").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
 
     assert_check_exact!(PyTime_Check, obj);
     assert_check_only!(PyTime_Check, sub_obj);
@@ -88,7 +88,7 @@ fn test_datetime_check() {
     let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "datetime", "2018, 1, 1, 13, 30, 15")
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
         .map_err(|e| e.print(py))
         .unwrap();
 
@@ -103,7 +103,7 @@ fn test_delta_check() {
     let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "timedelta", "1, -3").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
 
     assert_check_exact!(PyDelta_Check, obj);
     assert_check_only!(PyDelta_Check, sub_obj);
@@ -127,7 +127,7 @@ fn test_datetime_utc() {
     let locals = [("dt", dt)].into_py_dict(py);
 
     let offset: f32 = py
-        .eval("dt.utcoffset().total_seconds()", None, Some(locals))
+        .eval("dt.utcoffset().total_seconds()", None, Some(&locals))
         .unwrap()
         .extract()
         .unwrap();

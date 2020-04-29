@@ -75,8 +75,8 @@ fn test_getitem() {
     let py = gil.python();
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("m = Mapping(['1', '2', '3']); assert m['1'] == 0");
     run("m = Mapping(['1', '2', '3']); assert m['2'] == 1");
@@ -90,8 +90,8 @@ fn test_setitem() {
     let py = gil.python();
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run("m = Mapping(['1', '2', '3']); m['1'] = 4; assert m['1'] == 4");
     run("m = Mapping(['1', '2', '3']); m['0'] = 0; assert m['0'] == 0");
@@ -106,8 +106,8 @@ fn test_delitem() {
     let py = gil.python();
 
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
+    let err = |code| py.run(code, None, Some(&d)).unwrap_err();
 
     run(
         "m = Mapping(['1', '2', '3']); del m['1']; assert len(m) == 2; \
@@ -123,7 +123,7 @@ fn test_reversed() {
     let py = gil.python();
 
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let run = |code| py.run(code, None, Some(&d)).unwrap();
 
     run("m = Mapping(['1', '2']); assert set(reversed(m)) == {'1', '2'}");
 }

@@ -318,256 +318,256 @@ pub trait PyNumberProtocol<'p>: PyClass<'p> {
 }
 
 pub trait PyNumberAddProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberSubProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberMulProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberMatmulProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberTruedivProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberFloordivProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberModProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberDivmodProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberPowProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
-    type Modulo: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
+    type Modulo: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberLShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberAndProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberXorProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberOrProtocol<'p>: PyNumberProtocol<'p> {
-    type Left: for<'a> FromPyObject<'a, 'p>;
-    type Right: for<'a> FromPyObject<'a, 'p>;
+    type Left: FromPyObject<'p, 'p>;
+    type Right: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRAddProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRSubProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRMulProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRMatmulProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRTruedivProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRFloordivProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRModProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRDivmodProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRPowProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
-    type Modulo: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
+    type Modulo: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRLShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRRShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRAndProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberRXorProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberROrProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyNumberIAddProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberISubProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIMulProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIMatmulProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberITruedivProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIFloordivProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIModProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberILShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIRShiftProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIAndProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIXorProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyNumberIOrProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: for<'a> FromPyObject<'a, 'p>;
+    type Other: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<()>>;
 }
 
@@ -608,7 +608,7 @@ pub trait PyNumberFloatProtocol<'p>: PyNumberProtocol<'p> {
 
 pub trait PyNumberRoundProtocol<'p>: PyNumberProtocol<'p> {
     type Success: IntoPy<PyObject>;
-    type NDigits: for<'a> FromPyObject<'a, 'p>;
+    type NDigits: FromPyObject<'p, 'p>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
