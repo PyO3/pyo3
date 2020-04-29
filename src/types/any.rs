@@ -34,14 +34,15 @@ use std::ptr::NonNull;
 pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<Python<'a>>);
 
 impl<'py> crate::type_object::PySizedLayout<'py, PyAny<'py>> for ffi::PyObject {}
-pyobject_native_type_named!(PyAny);
+pyobject_native_type_named!(PyAny<'py>);
+pyobject_native_type_common!(PyAny<'py>);
 pyobject_native_type_info!(
-    PyAny,
+    PyAny<'py>,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
     ffi::PyObject_Check
 );
-pyobject_native_type_extract!(PyAny);
+pyobject_native_type_extract!(PyAny<'py>);
 
 impl<'py> PyAny<'py> {
     pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>

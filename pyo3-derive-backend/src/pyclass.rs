@@ -276,7 +276,7 @@ fn impl_class(
             }
         } else {
             quote! {
-                impl pyo3::pyclass::PyClassAlloc for #cls {}
+                impl pyo3::pyclass::PyClassAlloc<'_> for #cls {}
             }
         }
     };
@@ -357,7 +357,7 @@ fn impl_class(
     let base_layout = if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
     } else {
-        quote! { pyo3::pycell::PyCellBase<pyo3::PyAny> }
+        quote! { pyo3::pycell::PyCellBase<'py, pyo3::PyAny<'py>> }
     };
     let base_nativetype = if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::BaseNativeType }
@@ -379,13 +379,13 @@ fn impl_class(
     };
 
     Ok(quote! {
-        unsafe impl pyo3::type_object::PyTypeInfo for #cls {
+        unsafe impl<'py> pyo3::type_object::PyTypeInfo<'py> for #cls {
             type Type = #cls;
-            type BaseType = #base;
-            type Layout = pyo3::PyCell<Self>;
+            type BaseType = #base<'py>;
+            type Layout = pyo3::pycell::PyCellLayout<'py, Self>;
             type BaseLayout = #base_layout;
-            type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
-            type AsRefTarget = pyo3::PyCell<Self>;
+            type Initializer = pyo3::pyclass_init::PyClassInitializer<'py, Self>;
+            type AsRefTarget = pyo3::PyCell<'py, Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
@@ -400,20 +400,20 @@ fn impl_class(
             }
         }
 
-        impl pyo3::PyClass for #cls {
+        impl<'py> pyo3::PyClass<'py> for #cls {
             type Dict = #dict;
             type WeakRef = #weakref;
-            type BaseNativeType = #base_nativetype;
+            type BaseNativeType = #base_nativetype<'py>;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+        impl<'a, 'py: 'a> pyo3::derive_utils::ExtractExt<'a, 'py> for &'a #cls
         {
-            type Target = pyo3::PyRef<'a, #cls>;
+            type Target = pyo3::PyRef<'a, 'py, #cls>;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+        impl<'a, 'py: 'a> pyo3::derive_utils::ExtractExt<'a, 'py> for &'a mut #cls
         {
-            type Target = pyo3::PyRefMut<'a, #cls>;
+            type Target = pyo3::PyRefMut<'a, 'py, #cls>;
         }
 
         #into_pyobject

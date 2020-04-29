@@ -30,7 +30,7 @@ fn mut_ref_arg() {
 
     let d = [("inst1", &inst1), ("inst2", &inst2)].into_py_dict(py);
 
-    py.run("inst1.set_other(inst2)", None, Some(d)).unwrap();
+    py.run("inst1.set_other(inst2)", None, Some(&d)).unwrap();
     let inst2 = inst2.as_ref(py).borrow();
     assert_eq!(inst2.n, 100);
 }
@@ -128,11 +128,11 @@ impl PickleSupport {
     }
 
     pub fn __reduce__<'py>(
-        slf: &'py PyCell<Self>,
+        slf: PyCell<Self>,
         py: Python<'py>,
-    ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
-        let cls = slf.to_object(py).getattr(py, "__class__")?;
-        let dict = slf.to_object(py).getattr(py, "__dict__")?;
+    ) -> PyResult<(PyObject, PyTuple<'py>, PyObject)> {
+        let cls = slf.getattr(py, "__class__")?;
+        let dict = slf.getattr(py, "__dict__")?;
         Ok((cls, PyTuple::empty(py), dict))
     }
 }
@@ -152,7 +152,7 @@ fn test_pickle() {
     let py = gil.python();
     let module = PyModule::new(py, "test_module").unwrap();
     module.add_class::<PickleSupport>().unwrap();
-    add_module(py, module).unwrap();
+    add_module(py, &module).unwrap();
     let inst = PyCell::new(py, PickleSupport {}).unwrap();
     py_run!(
         py,

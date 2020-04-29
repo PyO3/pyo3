@@ -18,9 +18,9 @@ pub struct PySet<'py>(PyAny<'py>);
 #[repr(transparent)]
 pub struct PyFrozenSet<'py>(PyAny<'py>);
 
-pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
+pyobject_native_type!(PySet<'py>, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
 pyobject_native_type!(
-    PyFrozenSet,
+    PyFrozenSet<'py>,
     ffi::PySetObject,
     ffi::PyFrozenSet_Type,
     ffi::PyFrozenSet_Check

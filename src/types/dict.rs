@@ -19,7 +19,7 @@ use std::{cmp, collections, hash};
 pub struct PyDict<'py>(PyAny<'py>);
 
 pyobject_native_type!(
-    PyDict,
+    PyDict<'py>,
     ffi::PyDictObject,
     ffi::PyDict_Type,
     ffi::PyDict_Check

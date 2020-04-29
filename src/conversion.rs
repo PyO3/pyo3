@@ -252,16 +252,6 @@ where
     }
 }
 
-impl<'a, 'py, T> FromPyObject<'a, 'py> for &'a PyCell<'py, T>
-where
-    'py: 'a,
-    T: PyClass<'py>,
-{
-    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
-        PyTryFrom::try_from(obj).map_err(Into::into)
-    }
-}
-
 impl<'py, T> FromPyObject<'_, 'py> for T
 where
     T: PyClass<'py> + Clone,

@@ -67,7 +67,7 @@ pub trait PyTimeAccess {
 /// Bindings around `datetime.date`
 pub struct PyDate<'py>(PyAny<'py>);
 pyobject_native_type!(
-    PyDate,
+    PyDate<'py>,
     crate::ffi::PyDateTime_Date,
     *PyDateTimeAPI.DateType,
     Some("datetime"),
@@ -123,7 +123,7 @@ impl PyDateAccess for PyDate<'_> {
 /// Bindings for `datetime.datetime`
 pub struct PyDateTime<'py>(PyAny<'py>);
 pyobject_native_type!(
-    PyDateTime,
+    PyDateTime<'py>,
     crate::ffi::PyDateTime_DateTime,
     *PyDateTimeAPI.DateTimeType,
     Some("datetime"),
@@ -233,7 +233,7 @@ impl PyTimeAccess for PyDateTime<'_> {
 /// Bindings for `datetime.time`
 pub struct PyTime<'py>(PyAny<'py>);
 pyobject_native_type!(
-    PyTime,
+    PyTime<'py>,
     crate::ffi::PyDateTime_Time,
     *PyDateTimeAPI.TimeType,
     Some("datetime"),
@@ -318,7 +318,7 @@ impl PyTimeAccess for PyTime<'_> {
 /// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo<'py>(PyAny<'py>);
 pyobject_native_type!(
-    PyTzInfo,
+    PyTzInfo<'py>,
     crate::ffi::PyObject,
     *PyDateTimeAPI.TZInfoType,
     Some("datetime"),
@@ -328,7 +328,7 @@ pyobject_native_type!(
 /// Bindings for `datetime.timedelta`
 pub struct PyDelta<'py>(PyAny<'py>);
 pyobject_native_type!(
-    PyDelta,
+    PyDelta<'py>,
     crate::ffi::PyDateTime_Delta,
     *PyDateTimeAPI.DeltaType,
     Some("datetime"),

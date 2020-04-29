@@ -368,7 +368,7 @@ struct MethodWithLifeTime {}
 
 #[pymethods]
 impl MethodWithLifeTime {
-    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+    fn set_to_list<'py>(&self, py: Python<'py>, set: &PySet) -> PyResult<PyList<'py>> {
         let mut items = vec![];
         for _ in 0..set.len() {
             items.push(set.pop().unwrap());

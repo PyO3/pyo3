@@ -298,7 +298,7 @@ macro_rules! py_run_impl {
         use pyo3::ToPyObject;
         let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
 
-        $py.run($code, None, Some(d))
+        $py.run($code, None, Some(&d))
             .map_err(|e| {
                 e.print($py);
                 // So when this c api function the last line called printed the error to stderr,

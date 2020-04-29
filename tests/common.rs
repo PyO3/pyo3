@@ -15,7 +15,7 @@ macro_rules! py_expect_exception {
         use pyo3::types::IntoPyDict;
         let d = [(stringify!($val), &$val)].into_py_dict($py);
 
-        let res = $py.run($code, None, Some(d));
+        let res = $py.run($code, None, Some(&d));
         let err = res.unwrap_err();
         if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
             panic!("Expected {} but got {:?}", stringify!($err), err)

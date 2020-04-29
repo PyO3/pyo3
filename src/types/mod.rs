@@ -26,11 +26,11 @@ pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
 #[macro_export]
-macro_rules! pyobject_native_type_named (
-    ($name: ident $(,$type_param: ident)*) => {
-        unsafe impl<'py, $($type_param,)*> $crate::PyNativeType<'py> for $name<'py> {}
+macro_rules! pyobject_native_type_common (
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >) => {
+        unsafe impl<'py $(, $type_param $(: $bound)?)*> $crate::PyNativeType<'py> for $name<'py $(,$type_param)*> {}
 
-        impl<$($type_param,)*> $crate::AsPyPointer for $name<'_> {
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::AsPyPointer for $name<'py $(,$type_param)*> {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -38,7 +38,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> $crate::IntoPyPointer for $name<'_> {
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::IntoPyPointer for $name<'py $(,$type_param)*> {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn into_ptr(self) -> *mut $crate::ffi::PyObject {
@@ -49,16 +49,16 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> PartialEq for $name<'_> {
+        impl<'py $(, $type_param $(: $bound)?)*> PartialEq for $name<'py $(,$type_param)*> {
             #[inline]
-            fn eq(&self, o: &$name) -> bool {
+            fn eq(&self, o: &$name<'py $(,$type_param)*>) -> bool {
                 use $crate::AsPyPointer;
 
                 self.as_ptr() == o.as_ptr()
             }
         }
 
-        impl<$($type_param,)*> $crate::ToPyObject for $name<'_>
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::ToPyObject for $name<'py $(,$type_param)*>
         {
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
@@ -67,15 +67,20 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl std::convert::From<$name<'_>> for $crate::PyObject
+        impl<'py $(, $type_param $(: $bound)?)*> std::convert::From<$name<'py $(,$type_param)*>> for $crate::PyObject
         {
-            fn from(ob: $name<'_>) -> Self {
+            fn from(ob: $name<'py $(,$type_param)*>) -> Self {
                 use $crate::{IntoPyPointer, PyNativeType};
                 unsafe { Self::from_owned_ptr(ob.py(), ob.into_ptr()) }
             }
         }
+    }
+);
 
-        impl<$($type_param,)*> ::std::fmt::Debug for $name<'_> {
+#[macro_export]
+macro_rules! pyobject_native_type_named (
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >) => {
+        impl<'py $(, $type_param $(: $bound)?)*> ::std::fmt::Debug for $name<'py $(,$type_param)*> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
@@ -85,7 +90,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> ::std::fmt::Display for $name<'_> {
+        impl<'py $(, $type_param $(: $bound)?)*> ::std::fmt::Display for $name<'py $(,$type_param)*> {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
@@ -99,49 +104,48 @@ macro_rules! pyobject_native_type_named (
 
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name: ident, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl<'py> $crate::type_object::PySizedLayout<'py, $name<'py>> for $layout {}
-        impl<'py> $crate::derive_utils::PyBaseTypeUtils<'py> for $name<'py> {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path) => {
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PySizedLayout<'py, $name<'py $(,$type_param)*>> for $layout {}
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::derive_utils::PyBaseTypeUtils<'py> for $name<'py $(,$type_param)*> {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
             type LayoutAsBase = $crate::pycell::PyCellBase<'py, Self>;
             type BaseNativeType = Self;
         }
-        pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_newtype!($name $(,$type_param)*);
-        pyobject_native_type_info!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
-        pyobject_native_type_extract!($name $(,$type_param)*);
-
-
+        pyobject_native_type_named!($name<'py $(, $type_param $(: $bound)?)*>);
+        pyobject_native_newtype!($name<'py $(, $type_param $(: $bound)?)*>);
+        pyobject_native_type_info!($name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, $module, $checkfunction);
+        pyobject_native_type_extract!($name<'py $(, $type_param $(: $bound)?)*>);
     };
-    ($name: ident, $layout: path, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path) => {
         pyobject_native_type! {
-            $name, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
+            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
         }
     };
 }
 
 #[macro_export]
 macro_rules! pyobject_native_var_type {
-    ($name: ident, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_newtype!($name $(,$type_param)*);
-        pyobject_native_type_info!($name, $crate::ffi::PyObject,
-                                   $typeobject, $module, $checkfunction $(,$type_param)*);
-        pyobject_native_type_extract!($name $(,$type_param)*);
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $module: expr, $checkfunction: path) => {
+        pyobject_native_newtype!($name<'py $(, $type_param $(: $bound)?)*>);
+        pyobject_native_type_named!($name<'py $(, $type_param $(: $bound)?)*>);
+        pyobject_native_type_info!($name<'py $(, $type_param $(: $bound)?)*>, $crate::ffi::PyObject,
+                                   $typeobject, $module, $checkfunction);
+        pyobject_native_type_extract!($name<'py $(, $type_param $(: $bound)?)*>);
     };
-    ($name: ident, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $checkfunction: path) => {
         pyobject_native_var_type! {
-            $name, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
+            $name<'py $(, $type_param $(: $bound)?)*>, $typeobject, Some("builtins"), $checkfunction
         }
     };
 }
 
 // NOTE: This macro is not included in pyobject_native_newtype!
 // because rust-numpy has a special implementation.
+#[macro_export]
 macro_rules! pyobject_native_type_extract {
-    ($name: ident $(,$type_param: ident)*) => {
-        impl<'a, 'py, $($type_param,)*> $crate::FromPyObject<'a, 'py> for &'a $name<'py> {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >) => {
+        impl<'a, 'py $(, $type_param $(: $bound)?)*> $crate::FromPyObject<'a, 'py> for &'a $name<'py $(,$type_param)*> {
             fn extract(obj: &'a $crate::PyAny<'py>) -> $crate::PyResult<Self> {
                 $crate::PyTryFrom::try_from(obj).map_err(Into::into)
             }
@@ -151,11 +155,11 @@ macro_rules! pyobject_native_type_extract {
 
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name: ident, $layout: path, $typeobject: expr,
-     $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        unsafe impl<'py> $crate::type_object::PyLayout<'py, $name<'py>> for $layout {}
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr,
+     $module: expr, $checkfunction: path) => {
+        unsafe impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PyLayout<'py, $name<'py $(,$type_param)*>> for $layout {}
 
-        unsafe impl<'py, $($type_param,)*> $crate::type_object::PyTypeInfo<'py> for $name<'py> {
+        unsafe impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PyTypeInfo<'py> for $name<'py $(,$type_param)*> {
             type Type = ();
             type BaseType = $crate::PyAny<'py>;
             type Layout = $layout;
@@ -179,55 +183,57 @@ macro_rules! pyobject_native_type_info(
         }
     };
 
-    ($name: ident, $layout: path, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path) => {
         pyobject_native_type_info! {
-            $name, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
+            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction
         }
     };
 );
 
 #[macro_export]
 macro_rules! pyobject_native_newtype(
-    ($name: ident $(,$type_param: ident)*) => {
-        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name<'a>> for &'a $crate::PyAny<'a> {
-            fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
+    ($name: ident < 'py $( ,$type_param: ident)* > ) => {
+        pyobject_native_type_common!($name<'py $(,$type_param)*>);
+
+        impl<'a, 'py, $($type_param,)*> ::std::convert::From<&'a $name<'py $(,$type_param)*>> for &'a $crate::PyAny<'a> {
+            fn from(ob: &'a $name<'py $(,$type_param)*>) -> Self {
+                unsafe{&*(ob as *const _ as *const $crate::PyAny)}
             }
         }
 
-        impl Clone for $name<'_> {
-            fn clone(&self) -> Self {
-                Self(self.0.clone())
-            }
-        }
-
-        impl<'a, $($type_param,)*> ::std::convert::AsRef<$crate::PyAny<'a>> for $name<'a> {
+        impl<'py, $($type_param,)*> ::std::convert::AsRef<$crate::PyAny<'py>> for $name<'py $(,$type_param)*> {
             #[inline]
-            fn as_ref(&self) -> &$crate::PyAny<'a> {
+            fn as_ref(&self) -> &$crate::PyAny<'py> {
                 &self.0
             }
         }
 
-        impl<'a, $($type_param,)*> ::std::ops::Deref for $name<'a> {
-            type Target = $crate::PyAny<'a>;
+        impl<'py, $($type_param,)*> ::std::ops::Deref for $name<'py $(,$type_param)*> {
+            type Target = $crate::PyAny<'py>;
 
             #[inline]
-            fn deref(&self) -> &$crate::PyAny<'a> {
+            fn deref(&self) -> &$crate::PyAny<'py> {
                 &self.0
             }
         }
 
-        unsafe impl<'p> $crate::FromPyPointer<'p> for $name<'p>
+        unsafe impl<'py $(,$type_param)*> $crate::FromPyPointer<'py> for $name<'py $(,$type_param)*>
         {
-            unsafe fn from_owned_ptr_or_opt(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject) -> Option<Self> {
+            unsafe fn from_owned_ptr_or_opt(py: $crate::Python<'py>, ptr: *mut $crate::ffi::PyObject) -> Option<Self> {
                 ::std::ptr::NonNull::new(ptr).map(|p| Self(PyAny::from_non_null(py, p)))
             }
             unsafe fn from_borrowed_ptr_or_opt(
-                py: $crate::Python<'p>,
+                py: $crate::Python<'py>,
                 ptr: *mut $crate::ffi::PyObject,
-            ) -> Option<&'p Self> {
+            ) -> Option<&'py Self> {
                 use $crate::type_object::PyDowncastImpl;
                 ::std::ptr::NonNull::new(ptr).map(|p| Self::unchecked_downcast($crate::gil::register_borrowed(py, p)))
+            }
+        }
+
+        impl<'py $(,$type_param)*> Clone for $name<'py $(,$type_param)*> {
+            fn clone(&self) -> Self {
+                Self(self.0.clone())
             }
         }
     };

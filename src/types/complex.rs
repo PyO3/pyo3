@@ -13,7 +13,7 @@ use std::os::raw::c_double;
 pub struct PyComplex<'py>(PyAny<'py>);
 
 pyobject_native_type!(
-    PyComplex,
+    PyComplex<'py>,
     ffi::PyComplexObject,
     ffi::PyComplex_Type,
     ffi::PyComplex_Check

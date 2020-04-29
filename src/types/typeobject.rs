@@ -16,7 +16,7 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyType<'a>(PyAny<'a>);
 
-pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
+pyobject_native_var_type!(PyType<'py>, ffi::PyType_Type, ffi::PyType_Check);
 
 impl<'py> PyType<'py> {
     /// Creates a new type object.

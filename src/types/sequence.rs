@@ -13,9 +13,9 @@ use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
 pub struct PySequence<'py>(PyAny<'py>);
-pyobject_native_type_named!(PySequence);
-pyobject_native_type_extract!(PySequence);
-pyobject_native_newtype!(PySequence);
+pyobject_native_type_named!(PySequence<'py>);
+pyobject_native_type_extract!(PySequence<'py>);
+pyobject_native_newtype!(PySequence<'py>);
 
 impl<'py> PySequence<'py> {
     /// Returns the number of objects in sequence.

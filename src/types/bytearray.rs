@@ -12,7 +12,7 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
+pyobject_native_var_type!(PyByteArray<'py>, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 
 impl<'py> PyByteArray<'py> {
     /// Creates a new Python bytearray object.

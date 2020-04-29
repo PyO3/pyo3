@@ -7,7 +7,7 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 
 /// A Python iterator object.
 ///
-/// Unlike other Python objects, this class includes a `Python<'p>` token
+/// Unlike other Python objects, this class includes a `Python<'py>` token
 /// so that `PyIterator` can implement the Rust `Iterator` trait.
 ///
 /// # Example
@@ -26,15 +26,15 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// # Ok(())
 /// # }
 /// ```
-pub struct PyIterator<'p>(PyAny<'p>);
+pub struct PyIterator<'py>(PyAny<'py>);
 
-pyobject_native_type_named!(PyIterator);
-pyobject_native_type_extract!(PyIterator);
-pyobject_native_newtype!(PyIterator);
+pyobject_native_type_named!(PyIterator<'py>);
+pyobject_native_type_extract!(PyIterator<'py>);
+pyobject_native_newtype!(PyIterator<'py>);
 
-impl<'p> PyIterator<'p> {
+impl<'py> PyIterator<'py> {
     /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
+    pub fn from_object<T>(py: Python<'py>, obj: &T) -> Result<PyIterator<'py>, PyDowncastError>
     where
         T: AsPyPointer,
     {
@@ -55,8 +55,8 @@ impl<'p> PyIterator<'p> {
     }
 }
 
-impl<'p> Iterator for PyIterator<'p> {
-    type Item = PyResult<PyAny<'p>>;
+impl<'py> Iterator for PyIterator<'py> {
+    type Item = PyResult<PyAny<'py>>;
 
     /// Retrieves the next item from an iterator.
     ///

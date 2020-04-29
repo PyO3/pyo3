@@ -1,5 +1,5 @@
 //! Includes `PyCell` implementation.
-use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyPointer};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout, PyTypeInfo};
@@ -198,7 +198,11 @@ unsafe impl<'py, T: PyClass<'py>> PyLayout<'py, T> for PyCellLayout<'py, T> {
 /// # pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
 /// ```
 #[repr(transparent)]
+#[derive(Clone)]
 pub struct PyCell<'py, T: PyClass<'py>>(PyAny<'py>, PhantomData<RefCell<T>>);
+
+crate::pyobject_native_type_common!(PyCell<'py, T: PyClass<'py> >);
+crate::pyobject_native_type_extract!(PyCell<'py, T: PyClass<'py> >);
 
 impl<'py, T: PyClass<'py>> PyCell<'py, T> {
     /// Make new `PyCell` on the Python heap and returns the reference of it.
@@ -375,37 +379,32 @@ impl<'py, T: PyClass<'py>> PyCell<'py, T> {
     }
 }
 
-unsafe impl<'p, T> FromPyPointer<'p> for PyCell<'p, T>
-where
-    T: PyClass<'p>,
+impl<'py, T: PyClass<'py>> ::std::convert::AsRef<PyAny<'py>> for PyCell<'py, T> {
+    #[inline]
+    fn as_ref(&self) -> &PyAny<'py> {
+        &self.0
+    }
+}
+
+impl<'py, T: PyClass<'py>> ::std::ops::Deref for PyCell<'py, T> {
+    type Target = PyAny<'py>;
+
+    #[inline]
+    fn deref(&self) -> &PyAny<'py> {
+        &self.0
+    }
+}
+
+unsafe impl<'py, T: PyClass<'py>> FromPyPointer<'py> for PyCell<'py, T>
 {
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+    unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|p| Self(PyAny::from_non_null(py, p), PhantomData))
     }
     unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'p>,
+        py: Python<'py>,
         ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| &*(gil::register_borrowed(py, p).as_ptr() as *const PyCell<T>))
-    }
-}
-
-unsafe impl<'py, T: PyClass<'py>> PyDowncastImpl<'py> for PyCell<'py, T> {
-    unsafe fn unchecked_downcast<'a>(obj: &'a PyAny) -> &'a Self {
-        &*(obj.as_ptr() as *const Self)
-    }
-    private_impl! {}
-}
-
-impl<'py, T: PyClass<'py>> AsPyPointer for PyCell<'py, T> {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner().as_ptr()
-    }
-}
-
-impl<'py, T: PyClass<'py>> ToPyObject for &PyCell<'py, T> {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    ) -> Option<&'py Self> {
+        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
     }
 }
 

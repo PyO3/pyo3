@@ -17,7 +17,7 @@ use std::os::raw::c_double;
 pub struct PyFloat<'py>(PyAny<'py>);
 
 pyobject_native_type!(
-    PyFloat,
+    PyFloat<'py>,
     ffi::PyFloatObject,
     ffi::PyFloat_Type,
     ffi::PyFloat_Check

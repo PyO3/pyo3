@@ -13,7 +13,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
+pyobject_native_var_type!(PyBytes<'py>, ffi::PyBytes_Type, ffi::PyBytes_Check);
 
 impl<'py> PyBytes<'py> {
     /// Creates a new Python bytestring object.

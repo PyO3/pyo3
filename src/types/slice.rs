@@ -16,7 +16,7 @@ use std::os::raw::c_long;
 pub struct PySlice<'py>(PyAny<'py>);
 
 pyobject_native_type!(
-    PySlice,
+    PySlice<'py>,
     ffi::PySliceObject,
     ffi::PySlice_Type,
     ffi::PySlice_Check

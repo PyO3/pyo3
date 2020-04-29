@@ -16,7 +16,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyString<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
+pyobject_native_var_type!(PyString<'py>, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 impl<'py> PyString<'py> {
     /// Creates a new Python string object.
