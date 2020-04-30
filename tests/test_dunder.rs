@@ -459,8 +459,8 @@ fn test_cls_impl() {
     let ob = Py::new(py, Test {}).unwrap();
     let d = [("ob", ob)].into_py_dict(py);
 
-    py.run("assert ob[1] == 'int'", None, Some(d)).unwrap();
-    py.run("assert ob[100:200:1] == 'slice'", None, Some(d))
+    py.run("assert ob[1] == 'int'", None, Some(&d)).unwrap();
+    py.run("assert ob[100:200:1] == 'slice'", None, Some(&d))
         .unwrap();
 }
 

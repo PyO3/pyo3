@@ -90,7 +90,7 @@ macro_rules! import_exception {
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
+            fn type_object() -> $crate::Py<$crate::type_marker::Type> {
                 use $crate::type_object::LazyHeapType;
                 static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
@@ -174,7 +174,7 @@ macro_rules! create_exception {
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
+            fn type_object() -> $crate::Py<$crate::type_marker::Type> {
                 use $crate::type_object::LazyHeapType;
                 static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
@@ -216,7 +216,7 @@ macro_rules! impl_native_exception (
             }
         }
         unsafe impl PyTypeObject for $name {
-            fn type_object() -> $crate::Py<$crate::unscoped::Type> {
+            fn type_object() -> $crate::Py<$crate::type_marker::Type> {
                 unsafe { $crate::Py::from_borrowed_ptr(ffi::$exc_name) }
             }
         }

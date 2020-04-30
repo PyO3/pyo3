@@ -2,6 +2,7 @@ use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
 use crate::types::PyAny;
+use crate::type_marker;
 use crate::AsPyPointer;
 use crate::Python;
 #[cfg(not(PyPy))]
@@ -16,7 +17,8 @@ pyobject_native_type!(
     PyComplex<'py>,
     ffi::PyComplexObject,
     ffi::PyComplex_Type,
-    ffi::PyComplex_Check
+    ffi::PyComplex_Check,
+    type_marker::Complex
 );
 
 impl<'py> PyComplex<'py> {

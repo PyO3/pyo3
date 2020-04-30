@@ -3,6 +3,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::types::PyAny;
+use crate::type_marker;
 use crate::AsPyPointer;
 use crate::Python;
 use std::os::raw::c_char;
@@ -12,7 +13,7 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyByteArray<'py>, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
+pyobject_native_var_type!(PyByteArray<'py>, ffi::PyByteArray_Type, ffi::PyByteArray_Check, type_marker::ByteArray);
 
 impl<'py> PyByteArray<'py> {
     /// Creates a new Python bytearray object.

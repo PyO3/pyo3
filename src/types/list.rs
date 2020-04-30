@@ -6,14 +6,14 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    ToPyObject, type_marker
 };
 
 /// Represents a Python `list`.
 #[repr(transparent)]
 pub struct PyList<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyList<'py>, ffi::PyList_Type, ffi::PyList_Check);
+pyobject_native_var_type!(PyList<'py>, ffi::PyList_Type, ffi::PyList_Check, type_marker::List);
 
 impl<'py> PyList<'py> {
     /// Constructs a new list with the given elements.

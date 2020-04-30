@@ -131,15 +131,16 @@ pub(crate) fn impl_method_proto(
             let mut slf_ty = get_arg_ty(sig, 0);
 
             // update the type if no lifetime was given:
-            // PyRef<Self> --> PyRef<'p, Self>
+            // PyRef<Self> --> PyRef<'p, 'p, Self>
             if let syn::Type::Path(ref mut path) = slf_ty {
                 if let syn::PathArguments::AngleBracketed(ref mut args) =
                     path.path.segments[0].arguments
                 {
                     if let syn::GenericArgument::Lifetime(_) = args.args[0] {
                     } else {
-                        let lt = syn::parse_quote! {'p};
-                        args.args.insert(0, lt);
+                        // Insert two 'p lifetimes for PyRef / PyRefMut
+                        args.args.insert(0, syn::parse_quote! {'p});
+                        args.args.insert(0, syn::parse_quote! {'p});
                     }
                 }
             }

@@ -3,6 +3,7 @@ use pyo3;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3::{AsPyRef, PyCell, PyIterProtocol};
+use pyo3::type_marker::Bytes;
 use std::collections::HashMap;
 
 mod common;
@@ -23,23 +24,23 @@ impl Reader {
     fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<'py, Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
+    fn get_iter(slf: &PyCell<Self>, keys: PyBytes) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
-            keys,
+            keys: keys.into(),
             idx: 0,
         })
     }
     fn get_iter_and_reset(
         mut slf: PyRefMut<Self>,
-        keys: Py<PyBytes>,
+        keys: PyBytes,
         py: Python,
     ) -> PyResult<Iter> {
         let reader = Py::new(py, slf.clone())?;
         slf.inner.clear();
         Ok(Iter {
             reader,
-            keys,
+            keys: keys.into(),
             idx: 0,
         })
     }
@@ -49,7 +50,7 @@ impl Reader {
 #[derive(Debug)]
 struct Iter {
     reader: Py<Reader>,
-    keys: Py<PyBytes>,
+    keys: Py<Bytes>,
     idx: usize,
 }
 

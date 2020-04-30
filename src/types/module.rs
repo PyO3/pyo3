@@ -11,7 +11,8 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::unscoped::Tuple;
+use crate::type_marker;
+use crate::type_marker::Tuple;
 use crate::{AsPyPointer, IntoPy, Py, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -21,7 +22,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyModule<'py>, ffi::PyModule_Type, ffi::PyModule_Check);
+pyobject_native_var_type!(PyModule<'py>, ffi::PyModule_Type, ffi::PyModule_Check, type_marker::Module);
 
 impl<'py> PyModule<'py> {
     /// Creates a new module object with the `__name__` attribute set to name.

@@ -2,8 +2,9 @@
 use crate::conversion::{AsPyPointer, FromPyPointer};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::{gil, ffi, FromPy, PyAny, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::type_marker::TypeMarker;
+use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout};
+use crate::{gil, ffi, FromPy, PyAny, PyClass, PyErr, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell, RefCell};
 use std::fmt;
 use std::marker::PhantomData;
@@ -15,14 +16,14 @@ use std::ptr::NonNull;
 /// This is necessary for sharing BorrowFlag between parents and children.
 #[doc(hidden)]
 #[repr(C)]
-pub struct PyCellBase<'py, T: PyTypeInfo<'py>> {
+pub struct PyCellBase<'py, T: TypeMarker<'py>> {
     ob_base: T::Layout,
     borrow_flag: Cell<BorrowFlag>,
 }
 
 unsafe impl<'py, T> PyLayout<'py, T> for PyCellBase<'py, T>
 where
-    T: PyTypeInfo<'py> + PyNativeType<'py>,
+    T: TypeMarker<'py>,
     T::Layout: PySizedLayout<'py, T>,
 {
     const IS_NATIVE_TYPE: bool = true;
@@ -31,14 +32,14 @@ where
 // Thes impls ensures `PyCellBase` can be a base type.
 impl<'py, T> PySizedLayout<'py, T> for PyCellBase<'py, T>
 where
-    T: PyTypeInfo<'py> + PyNativeType<'py>,
+    T: TypeMarker<'py>,
     T::Layout: PySizedLayout<'py, T>,
 {
 }
 
 unsafe impl<'py, T> PyBorrowFlagLayout<'py, T> for PyCellBase<'py, T>
 where
-    T: PyTypeInfo<'py> + PyNativeType<'py>,
+    T: TypeMarker<'py>,
     T::Layout: PySizedLayout<'py, T>,
 {
 }
@@ -83,11 +84,11 @@ impl<'py, T: PyClass<'py>> PyCellInner<'py, T> {
         self.value.get()
     }
     fn get_borrow_flag(&self) -> BorrowFlag {
-        let base = (&self.ob_base) as *const _ as *const PyCellBase<T::BaseNativeType>;
+        let base = (&self.ob_base) as *const _ as *const PyCellBase<T::RootType>;
         unsafe { (*base).borrow_flag.get() }
     }
     fn set_borrow_flag(&self, flag: BorrowFlag) {
-        let base = (&self.ob_base) as *const _ as *const PyCellBase<T::BaseNativeType>;
+        let base = (&self.ob_base) as *const _ as *const PyCellBase<T::RootType>;
         unsafe { (*base).borrow_flag.set(flag) }
     }
 }
@@ -109,7 +110,7 @@ impl<'py, T: PyClass<'py>> PyCellLayout<'py, T> {
         if base.is_null() {
             return Err(PyErr::fetch(py));
         }
-        let base = base as *mut PyCellBase<T::BaseNativeType>;
+        let base = base as *mut PyCellBase<T::RootType>;
         (*base).borrow_flag = Cell::new(BorrowFlag::UNUSED);
         let self_ = base as *mut Self;
         (*self_).dict = T::Dict::new();
@@ -198,11 +199,10 @@ unsafe impl<'py, T: PyClass<'py>> PyLayout<'py, T> for PyCellLayout<'py, T> {
 /// # pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
 /// ```
 #[repr(transparent)]
-#[derive(Clone)]
 pub struct PyCell<'py, T: PyClass<'py>>(PyAny<'py>, PhantomData<RefCell<T>>);
 
-crate::pyobject_native_type_common!(PyCell<'py, T: PyClass<'py> >);
-crate::pyobject_native_type_extract!(PyCell<'py, T: PyClass<'py> >);
+crate::pyobject_native_type_common!(PyCell<'py, T: PyClass<'py>>);
+crate::pyobject_native_type_extract!(PyCell<'py, T: PyClass<'py>>);
 
 impl<'py, T: PyClass<'py>> PyCell<'py, T> {
     /// Make new `PyCell` on the Python heap and returns the reference of it.
@@ -427,6 +427,12 @@ impl<'py, T: PyClass<'py> + fmt::Debug> fmt::Debug for PyCell<'py, T> {
     }
 }
 
+impl<'py, T: PyClass<'py>> Clone for PyCell<'py, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
+
 /// Wraps a borrowed reference to a value in a `PyCell<T>`.
 ///
 /// See the [`PyCell`](struct.PyCell.html) documentation for more.
@@ -478,17 +484,17 @@ impl<'py, T: PyClass<'py>> PyRef<'_, 'py, T> {
 
 impl<'py, T, U> AsRef<U> for PyRef<'_, 'py, T>
 where
-    T: PyClass<'py> + PyTypeInfo<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>>,
+    T: PyClass<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>, BaseInitializer = U::Initializer>,
     U: PyClass<'py>,
 {
-    fn as_ref(&self) -> &T::BaseType {
+    fn as_ref(&self) -> &U {
         unsafe { &*self.inner.ob_base.get_ptr() }
     }
 }
 
 impl<'a, 'py, T, U> PyRef<'a, 'py, T>
 where
-    T: PyClass<'py> + PyTypeInfo<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>>,
+    T: PyClass<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>, BaseInitializer = U::Initializer>,
     U: PyClass<'py>,
 {
     /// Get `PyRef<T::BaseType>`.
@@ -595,7 +601,7 @@ impl<'py, T: PyClass<'py>> PyRefMut<'_, 'py, T> {
 
 impl<'py, T, U> AsRef<U> for PyRefMut<'_, 'py, T>
 where
-    T: PyClass<'py> + PyTypeInfo<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>>,
+    T: PyClass<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>, BaseInitializer = U::Initializer>,
     U: PyClass<'py>,
 {
     fn as_ref(&self) -> &T::BaseType {
@@ -605,8 +611,8 @@ where
 
 impl<'py, T, U> AsMut<U> for PyRefMut<'_, 'py, T>
 where
-    T: PyClass<'py> + PyTypeInfo<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>>,
-    U: PyClass<'py>,
+T: PyClass<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>, BaseInitializer = U::Initializer>,
+U: PyClass<'py>,
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
         unsafe { &mut *self.inner.ob_base.get_ptr() }
@@ -615,7 +621,7 @@ where
 
 impl<'a, 'py, T, U> PyRefMut<'a, 'py, T>
 where
-    T: PyClass<'py> + PyTypeInfo<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>>,
+    T: PyClass<'py, BaseType = U, BaseLayout = PyCellInner<'py, U>, BaseInitializer = U::Initializer>,
     U: PyClass<'py>,
 {
     /// Get `PyRef<T::BaseType>`.

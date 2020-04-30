@@ -4,7 +4,7 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    ToBorrowedObject, ToPyObject, type_marker
 };
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
@@ -18,12 +18,13 @@ pub struct PySet<'py>(PyAny<'py>);
 #[repr(transparent)]
 pub struct PyFrozenSet<'py>(PyAny<'py>);
 
-pyobject_native_type!(PySet<'py>, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
+pyobject_native_type!(PySet<'py>, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check, type_marker::Set);
 pyobject_native_type!(
     PyFrozenSet<'py>,
     ffi::PySetObject,
     ffi::PyFrozenSet_Type,
-    ffi::PyFrozenSet_Check
+    ffi::PyFrozenSet_Check,
+    type_marker::FrozenSet
 );
 
 impl<'py> PySet<'py> {

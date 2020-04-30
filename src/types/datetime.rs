@@ -30,6 +30,7 @@ use crate::types::{PyAny, PyTuple};
 use crate::AsPyPointer;
 use crate::Python;
 use crate::ToPyObject;
+use crate::type_marker;
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr;
@@ -71,7 +72,8 @@ pyobject_native_type!(
     crate::ffi::PyDateTime_Date,
     *PyDateTimeAPI.DateType,
     Some("datetime"),
-    PyDate_Check
+    PyDate_Check,
+    type_marker::Date
 );
 
 impl<'py> PyDate<'py> {
@@ -127,7 +129,8 @@ pyobject_native_type!(
     crate::ffi::PyDateTime_DateTime,
     *PyDateTimeAPI.DateTimeType,
     Some("datetime"),
-    PyDateTime_Check
+    PyDateTime_Check,
+    type_marker::DateTime
 );
 
 impl<'py> PyDateTime<'py> {
@@ -237,7 +240,8 @@ pyobject_native_type!(
     crate::ffi::PyDateTime_Time,
     *PyDateTimeAPI.TimeType,
     Some("datetime"),
-    PyTime_Check
+    PyTime_Check,
+    type_marker::Time
 );
 
 impl<'py> PyTime<'py> {
@@ -322,7 +326,8 @@ pyobject_native_type!(
     crate::ffi::PyObject,
     *PyDateTimeAPI.TZInfoType,
     Some("datetime"),
-    PyTZInfo_Check
+    PyTZInfo_Check,
+    type_marker::TzInfo
 );
 
 /// Bindings for `datetime.timedelta`
@@ -332,7 +337,8 @@ pyobject_native_type!(
     crate::ffi::PyDateTime_Delta,
     *PyDateTimeAPI.DeltaType,
     Some("datetime"),
-    PyDelta_Check
+    PyDelta_Check,
+    type_marker::Delta
 );
 
 impl<'py> PyDelta<'py> {

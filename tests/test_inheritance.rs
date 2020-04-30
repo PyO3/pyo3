@@ -3,7 +3,7 @@ use pyo3::py_run;
 
 use pyo3::types::IntoPyDict;
 
-use pyo3::types::{PyDict, PySet};
+use pyo3::type_marker::{Dict, Set};
 mod common;
 
 #[pyclass]
@@ -24,7 +24,7 @@ fn subclass() {
     py.run(
         "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
         None,
-        Some(d),
+        Some(&d),
     )
     .map_err(|e| e.print(py))
     .unwrap();
@@ -98,7 +98,7 @@ fn mutation_fails() {
     let obj = PyCell::new(py, SubClass::new()).unwrap();
     let global = Some([("obj", obj)].into_py_dict(py));
     let e = py
-        .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+        .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global.as_ref(), None)
         .unwrap_err();
     assert!(e.is_instance::<pyo3::pycell::PyBorrowMutError>(py))
 }
@@ -150,7 +150,7 @@ except Exception as e:
     );
 }
 
-#[pyclass(extends=PySet)]
+#[pyclass(extends=Set)]
 #[derive(Debug)]
 struct SetWithName {
     #[pyo3(get(name))]
@@ -177,7 +177,7 @@ fn inherit_set() {
     );
 }
 
-#[pyclass(extends=PyDict)]
+#[pyclass(extends=Dict)]
 #[derive(Debug)]
 struct DictWithName {
     #[pyo3(get(name))]

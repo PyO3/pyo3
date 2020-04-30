@@ -10,13 +10,13 @@ struct MyClass {}
 impl MyClass {
     #[staticmethod]
     #[args(args = "*")]
-    fn test_args(args: &PyTuple) -> PyResult<&PyTuple> {
-        Ok(args)
+    fn test_args(args: PyTuple) -> PyResult<PyTuple> {
+        Ok(args.clone())
     }
 
     #[staticmethod]
     #[args(kwargs = "**")]
-    fn test_kwargs(kwargs: Option<&PyDict>) -> PyResult<Option<&PyDict>> {
+    fn test_kwargs<'py>(kwargs: Option<&'py PyDict>) -> PyResult<Option<&'py PyDict<'py>>> {
         Ok(kwargs)
     }
 }

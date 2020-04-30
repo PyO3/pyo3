@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::ffi::{self, Py_ssize_t};
-use crate::unscoped::Tuple;
+use crate::type_marker::Tuple;
 use crate::{
     exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
     PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
@@ -14,7 +14,7 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyTuple<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyTuple<'py>, ffi::PyTuple_Type, ffi::PyTuple_Check);
+pyobject_native_var_type!(PyTuple<'py>, ffi::PyTuple_Type, ffi::PyTuple_Check, Tuple);
 
 impl<'py> PyTuple<'py> {
     /// Constructs a new tuple with the given elements.

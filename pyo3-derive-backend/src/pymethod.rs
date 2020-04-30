@@ -128,7 +128,7 @@ fn impl_wrap_common(
                 let _py = _pool.python();
                 pyo3::run_callback(_py, || {
                     #slf
-                    let _args = pyo3::PyAny::raw_borrowed(_py, &_args).downcast::<PyTuple>()?;
+                    let _args = pyo3::PyAny::raw_borrowed(_py, &_args).downcast::<pyo3::types::PyTuple>()?;
                     let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
                     #body

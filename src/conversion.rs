@@ -5,7 +5,7 @@ use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo};
 use crate::types::PyTuple;
-use crate::unscoped::Tuple;
+use crate::type_marker::Tuple;
 use crate::{ffi, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 
 /// This trait represents that **we can do zero-cost conversion from the object

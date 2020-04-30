@@ -11,7 +11,6 @@ use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, Py, PyCell, PyObject, Python};
 use std::cell::UnsafeCell;
-use std::borrow::Cow;
 
 /// Description of a python parameter; used for `parse_args()`.
 #[derive(Debug)]
@@ -229,14 +228,14 @@ pub trait PyBaseTypeUtils<'py> {
     type Dict;
     type WeakRef;
     type LayoutAsBase;
-    type BaseNativeType;
+    type RootType;
 }
 
 impl<'py, T: PyClass<'py>> PyBaseTypeUtils<'py> for T {
     type Dict = T::Dict;
     type WeakRef = T::WeakRef;
     type LayoutAsBase = crate::pycell::PyCellInner<'py, T>;
-    type BaseNativeType = T::BaseNativeType;
+    type RootType = T::BaseNativeType;
 }
 
 /// Utility trait to enable &PyClass as a pymethod/function argument

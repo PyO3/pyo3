@@ -195,9 +195,9 @@ pub mod pyclass;
 pub mod pyclass_init;
 pub mod pyclass_slots;
 mod python;
+pub mod type_marker;
 pub mod type_object;
 pub mod types;
-pub mod unscoped;
 
 /// The proc macros, which are also part of the prelude.
 pub mod proc_macro {

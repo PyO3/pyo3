@@ -5,6 +5,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
+use crate::type_marker;
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
 use std::os::raw::c_long;
@@ -19,7 +20,8 @@ pyobject_native_type!(
     PySlice<'py>,
     ffi::PySliceObject,
     ffi::PySlice_Type,
-    ffi::PySlice_Check
+    ffi::PySlice_Check,
+    type_marker::Slice
 );
 
 /// Represents Python `slice` indices.

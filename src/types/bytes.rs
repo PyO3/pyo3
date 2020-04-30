@@ -1,6 +1,6 @@
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ToPyObject, type_marker
 };
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -13,7 +13,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyBytes<'py>, ffi::PyBytes_Type, ffi::PyBytes_Check);
+pyobject_native_var_type!(PyBytes<'py>, ffi::PyBytes_Type, ffi::PyBytes_Check, type_marker::Bytes);
 
 impl<'py> PyBytes<'py> {
     /// Creates a new Python bytestring object.

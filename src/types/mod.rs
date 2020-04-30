@@ -73,6 +73,13 @@ macro_rules! pyobject_native_type_common (
                 unsafe { $crate::PyObject::from_owned_ptr(py, self.into_ptr()) }
             }
         }
+
+        impl<'a, 'py $(, $type_param $(: $bound)?)*> $crate::FromPyObject<'a, 'py> for $name<'py $(,$type_param)*> {
+            fn extract(any: &'a $crate::PyAny<'py>) -> $crate::PyResult<$name<'py $(,$type_param)*>> {
+                use $crate::{AsPyPointer, PyNativeType};
+                unsafe { $crate::FromPyPointer::from_borrowed_ptr_or_err(any.py(), any.as_ptr()).map(Clone::clone) }
+            }
+        }
     }
 );
 
@@ -103,38 +110,45 @@ macro_rules! pyobject_native_type_named (
 
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path) => {
-        impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PySizedLayout<'py, $name<'py $(,$type_param)*>> for $layout {}
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path, $typemarker: path) => {
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PySizedLayout<'py, $typemarker> for $layout {}
         impl<'py $(, $type_param $(: $bound)?)*> $crate::derive_utils::PyBaseTypeUtils<'py> for $name<'py $(,$type_param)*> {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<'py, Self>;
-            type BaseNativeType = Self;
+            type LayoutAsBase = $crate::pycell::PyCellBase<'py, $typemarker>;
+            type RootType = Self;
         }
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::derive_utils::PyBaseTypeUtils<'py> for $typemarker {
+            type Dict = $crate::pyclass_slots::PyClassDummySlot;
+            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
+            type LayoutAsBase = $crate::pycell::PyCellBase<'py, $typemarker>;
+            type RootType = Self;
+        }
+
         pyobject_native_type_named!($name<'py $(, $type_param $(: $bound)?)*>);
         pyobject_native_newtype!($name<'py $(, $type_param $(: $bound)?)*>);
-        pyobject_native_type_info!($name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, $module, $checkfunction);
+        pyobject_native_type_info!($name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, $module, $checkfunction, $typemarker);
         pyobject_native_type_extract!($name<'py $(, $type_param $(: $bound)?)*>);
     };
-    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path, $typemarker: path) => {
         pyobject_native_type! {
-            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
+            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction, $typemarker
         }
     };
 }
 
 #[macro_export]
 macro_rules! pyobject_native_var_type {
-    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $module: expr, $checkfunction: path) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $module: expr, $checkfunction: path, $typemarker: path) => {
         pyobject_native_newtype!($name<'py $(, $type_param $(: $bound)?)*>);
         pyobject_native_type_named!($name<'py $(, $type_param $(: $bound)?)*>);
         pyobject_native_type_info!($name<'py $(, $type_param $(: $bound)?)*>, $crate::ffi::PyObject,
-                                   $typeobject, $module, $checkfunction);
+                                   $typeobject, $module, $checkfunction, $typemarker);
         pyobject_native_type_extract!($name<'py $(, $type_param $(: $bound)?)*>);
     };
-    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $checkfunction: path) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $typeobject: expr, $checkfunction: path, $typemarker: path) => {
         pyobject_native_var_type! {
-            $name<'py $(, $type_param $(: $bound)?)*>, $typeobject, Some("builtins"), $checkfunction
+            $name<'py $(, $type_param $(: $bound)?)*>, $typeobject, Some("builtins"), $checkfunction, $typemarker
         }
     };
 }
@@ -155,16 +169,10 @@ macro_rules! pyobject_native_type_extract {
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr,
-     $module: expr, $checkfunction: path) => {
-        unsafe impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PyLayout<'py, $name<'py $(,$type_param)*>> for $layout {}
+     $module: expr, $checkfunction: path, $typemarker: path) => {
 
         unsafe impl<'py $(, $type_param $(: $bound)?)*> $crate::type_object::PyTypeInfo<'py> for $name<'py $(,$type_param)*> {
-            type Type = ();
-            type BaseType = $crate::PyAny<'py>;
-            type Layout = $layout;
-            type BaseLayout = ffi::PyObject;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<'py, Self>;
-            type AsRefTarget = Self;
+            type Type = $typemarker;
 
             const NAME: &'static str = stringify!($name);
             const MODULE: Option<&'static str> = $module;
@@ -182,9 +190,9 @@ macro_rules! pyobject_native_type_info(
         }
     };
 
-    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path) => {
+    ($name: ident < 'py $( ,$type_param: ident $(: $bound: path)? )* >, $layout: path, $typeobject: expr, $checkfunction: path, $typemarker: path) => {
         pyobject_native_type_info! {
-            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction
+            $name<'py $(, $type_param $(: $bound)?)*>, $layout, $typeobject, Some("builtins"), $checkfunction, $typemarker
         }
     };
 );

@@ -2,9 +2,8 @@
 //! Python type object information
 
 use crate::pyclass::{initialize_type_object, PyClass};
-use crate::pyclass_init::PyObjectInit;
 use crate::types::PyAny;
-use crate::unscoped::Type;
+use crate::type_marker::{TypeMarker, Type, TypeWithBase};
 use crate::{ffi, AsPyPointer, Py, Python};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
@@ -15,9 +14,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyLayout<'py, T: PyTypeInfo<'py>> {
+pub unsafe trait PyLayout<'py, T: TypeMarker<'py> + Sized> {
     const IS_NATIVE_TYPE: bool = true;
-    fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
+    fn get_super(&mut self) -> Option<&mut T::BaseLayout>
+    where
+        T: TypeWithBase<'py>
+    {
         None
     }
     unsafe fn py_init(&mut self, _value: T) {}
@@ -26,8 +28,8 @@ pub unsafe trait PyLayout<'py, T: PyTypeInfo<'py>> {
 
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
-/// , in addition that `T` is a concrete representaion of `U`.
-pub trait PySizedLayout<'py, T: PyTypeInfo<'py>>: PyLayout<'py, T> + Sized {}
+/// , in addition that `T` is a concrete representation of `U`.
+pub trait PySizedLayout<'py, T: TypeMarker<'py>>: PyLayout<'py, T> + Sized {}
 
 /// Marker type indicates that `Self` can be a base layout of `PyClass`.
 ///
@@ -43,7 +45,7 @@ pub trait PySizedLayout<'py, T: PyTypeInfo<'py>>: PyLayout<'py, T> + Sized {}
 /// }
 /// ```
 /// Otherwise, implementing this trait is undefined behavior.
-pub unsafe trait PyBorrowFlagLayout<'py, T: PyTypeInfo<'py>>: PyLayout<'py, T> + Sized {}
+pub unsafe trait PyBorrowFlagLayout<'py, T: TypeMarker<'py>>: PyLayout<'py, T> + Sized {}
 
 /// Our custom type flags
 #[doc(hidden)]
@@ -98,7 +100,7 @@ where
 ///  - the return value of type_object must always point to the same PyTypeObject instance
 pub unsafe trait PyTypeInfo<'py>: Sized {
     /// Type of objects to store in PyObject struct
-    type Type;
+    type Type: TypeMarker<'py>;
 
     /// Class name
     const NAME: &'static str;
@@ -108,24 +110,6 @@ pub unsafe trait PyTypeInfo<'py>: Sized {
 
     /// Class doc string
     const DESCRIPTION: &'static str = "\0";
-
-    /// Type flags (ie PY_TYPE_FLAG_GC, PY_TYPE_FLAG_WEAKREF)
-    const FLAGS: usize = 0;
-
-    /// Base class
-    type BaseType: PyTypeInfo<'py> + PyTypeObject;
-
-    /// Layout
-    type Layout: PyLayout<'py, Self>;
-
-    /// Layout of Basetype.
-    type BaseLayout: PySizedLayout<'py, Self::BaseType>;
-
-    /// Initializer for layout
-    type Initializer: PyObjectInit<'py, Self>;
-
-    /// Utility type to make AsPyRef work
-    type AsRefTarget: PyDowncastImpl<'py>;
 
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;

@@ -93,7 +93,7 @@ fn test_buffer() {
         )
         .unwrap();
         let env = [("ob", instance)].into_py_dict(py);
-        py.run("assert bytes(ob) == b' 23'", None, Some(env))
+        py.run("assert bytes(ob) == b' 23'", None, Some(&env))
             .unwrap();
     }
 

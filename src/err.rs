@@ -2,7 +2,7 @@
 
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
-use crate::unscoped::Type;
+use crate::type_marker::Type;
 use crate::{exceptions, ffi};
 use crate::{
     AsPyPointer, FromPy, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject,

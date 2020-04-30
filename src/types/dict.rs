@@ -4,6 +4,7 @@ use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
+use crate::type_marker;
 use crate::AsPyPointer;
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
@@ -22,7 +23,8 @@ pyobject_native_type!(
     PyDict<'py>,
     ffi::PyDictObject,
     ffi::PyDict_Type,
-    ffi::PyDict_Check
+    ffi::PyDict_Check,
+    type_marker::Dict
 );
 
 impl<'py> PyDict<'py> {

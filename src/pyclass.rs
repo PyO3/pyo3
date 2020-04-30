@@ -1,19 +1,22 @@
 //! `PyClass` trait
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
+use crate::type_marker::{TypeMarker, TypeWithBase};
 use crate::type_object::{type_flags, PyLayout};
 use crate::pycell::PyCellLayout;
-use crate::{class, ffi, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
+use crate::pyclass_init::PyNativeTypeInitializer;
+use crate::{class, ffi, PyErr, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
 
 #[inline]
-pub(crate) unsafe fn default_alloc<'py, T: PyTypeInfo<'py>>() -> *mut ffi::PyObject {
+pub(crate) unsafe fn default_alloc<'py, T: TypeWithBase<'py>>() -> *mut ffi::PyObject
+{
     let type_obj = T::type_object();
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
-        let base_tp = <T::BaseType as PyTypeInfo>::type_object();
+        let base_tp = T::base_type_object();
         if let Some(base_new) = base_tp.tp_new {
             return base_new(type_obj as *const _ as _, ptr::null_mut(), ptr::null_mut());
         }
@@ -23,7 +26,7 @@ pub(crate) unsafe fn default_alloc<'py, T: PyTypeInfo<'py>>() -> *mut ffi::PyObj
 }
 
 /// This trait enables custom alloc/dealloc implementations for `T: PyClass`.
-pub trait PyClassAlloc<'py>: PyTypeInfo<'py> + Sized {
+pub trait PyClassAlloc<'py>: TypeWithBase<'py> + Sized {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
@@ -72,15 +75,15 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass<'py>: 'static +
-    PyTypeInfo<'py, Layout = PyCellLayout<'py, Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
+    PyTypeInfo<'py> + TypeWithBase<'py, Layout = PyCellLayout<'py, Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
     /// Specify this class has `#[pyclass(weakref)]` or not.
     type WeakRef: PyClassWeakRef;
-    /// The closest native ancestor. This is `PyAny` by default, and when you declare
-    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    type BaseNativeType: PyTypeInfo<'py> + PyNativeType<'py>;
+    /// The closest native ancestor. This is `Any` by default, and when you declare
+    /// `#[pyclass(extends=Dict)]`, it's `Dict`.
+    type RootType: TypeMarker<'py, Initializer = PyNativeTypeInitializer<'py, Self::RootType>>;
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -90,7 +93,7 @@ pub(crate) fn initialize_type_object<T>(
     type_object: &mut ffi::PyTypeObject,
 ) -> PyResult<()>
 where
-    T: for<'py> PyClass<'py>,
+    T: for<'py> PyClass<'py>
 {
     type_object.tp_doc = match T::DESCRIPTION {
         // PyPy will segfault if passed only a nul terminator as `tp_doc`, ptr::null() is OK though.
@@ -100,7 +103,7 @@ where
         s => CString::new(s)?.into_raw(),
     };
 
-    type_object.tp_base = <T::BaseType as PyTypeInfo>::type_object() as *const _ as _;
+    type_object.tp_base = T::base_type_object() as *const _ as _;
 
     type_object.tp_name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
@@ -202,7 +205,7 @@ where
     }
 }
 
-fn py_class_flags<T: for<'py> PyTypeInfo<'py>>(type_object: &mut ffi::PyTypeObject) {
+fn py_class_flags<'py, T: TypeMarker<'py>>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
         || T::FLAGS & type_flags::GC != 0

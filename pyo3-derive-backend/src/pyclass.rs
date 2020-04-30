@@ -43,7 +43,7 @@ impl Default for PyClassArgs {
             // We need the 0 as value for the constant we're later building using quote for when there
             // are no other flags
             flags: vec![parse_quote! { 0 }],
-            base: parse_quote! { pyo3::PyAny },
+            base: parse_quote! { pyo3::type_marker::Any },
             has_extends: false,
         }
     }
@@ -312,14 +312,14 @@ fn impl_class(
     let weakref = if has_weakref {
         quote! { pyo3::pyclass_slots::PyClassWeakRefSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::WeakRef }
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils<'py>>::WeakRef }
     } else {
         quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
     let dict = if has_dict {
         quote! { pyo3::pyclass_slots::PyClassDictSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::Dict }
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils<'py>>::Dict }
     } else {
         quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
@@ -355,14 +355,14 @@ fn impl_class(
         quote! { 0 }
     };
     let base_layout = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils<'py>>::LayoutAsBase }
     } else {
-        quote! { pyo3::pycell::PyCellBase<'py, pyo3::PyAny<'py>> }
+        quote! { pyo3::pycell::PyCellBase<'py, pyo3::type_marker::Any> }
     };
     let base_nativetype = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::BaseNativeType }
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils<'py>>::RootType }
     } else {
-        quote! { pyo3::PyAny }
+        quote! { pyo3::type_marker::Any }
     };
 
     // If #cls is not extended type, we allow Self->PyObject conversion
@@ -381,16 +381,10 @@ fn impl_class(
     Ok(quote! {
         unsafe impl<'py> pyo3::type_object::PyTypeInfo<'py> for #cls {
             type Type = #cls;
-            type BaseType = #base<'py>;
-            type Layout = pyo3::pycell::PyCellLayout<'py, Self>;
-            type BaseLayout = #base_layout;
-            type Initializer = pyo3::pyclass_init::PyClassInitializer<'py, Self>;
-            type AsRefTarget = pyo3::PyCell<'py, Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
             const DESCRIPTION: &'static str = #doc;
-            const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
             fn type_object() -> &'static pyo3::ffi::PyTypeObject {
@@ -403,7 +397,7 @@ fn impl_class(
         impl<'py> pyo3::PyClass<'py> for #cls {
             type Dict = #dict;
             type WeakRef = #weakref;
-            type BaseNativeType = #base_nativetype<'py>;
+            type RootType = #base_nativetype;
         }
 
         impl<'a, 'py: 'a> pyo3::derive_utils::ExtractExt<'a, 'py> for &'a #cls
@@ -414,6 +408,25 @@ fn impl_class(
         impl<'a, 'py: 'a> pyo3::derive_utils::ExtractExt<'a, 'py> for &'a mut #cls
         {
             type Target = pyo3::PyRefMut<'a, 'py, #cls>;
+        }
+
+        impl<'py> pyo3::type_marker::TypeMarker<'py> for #cls {
+            type NativeType = pyo3::PyCell<'py, #cls>;
+            type Layout = pyo3::pycell::PyCellLayout<'py, Self>;
+            type Initializer = pyo3::pyclass_init::PyClassInitializer<'py, Self>;
+
+            const FLAGS: usize = #(#flags)|* | #extended;
+
+            fn type_object() -> &'static pyo3::ffi::PyTypeObject {
+                <Self as pyo3::PyTypeInfo<'py>>::type_object()
+            }
+        }
+
+        impl<'py> pyo3::type_marker::TypeWithBase<'py> for #cls {
+            type BaseType = #base;
+            type BaseNativeType = <#base as pyo3::type_marker::TypeMarker<'py>>::NativeType;
+            type BaseLayout = #base_layout;
+            type BaseInitializer = <#base as pyo3::type_marker::TypeMarker<'py>>::Initializer;
         }
 
         #into_pyobject

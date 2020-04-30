@@ -4,7 +4,7 @@ use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::types::{PyAny, PyDict, PyIterator, PyString, PyType};
-use crate::unscoped::Tuple;
+use crate::type_marker::Tuple;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
     Python, ToBorrowedObject, ToPyObject,

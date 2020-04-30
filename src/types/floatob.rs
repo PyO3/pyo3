@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, ObjectProtocol, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, Python, ToPyObject,
+    PyResult, Python, ToPyObject, type_marker,
 };
 use std::os::raw::c_double;
 
@@ -20,7 +20,8 @@ pyobject_native_type!(
     PyFloat<'py>,
     ffi::PyFloatObject,
     ffi::PyFloat_Type,
-    ffi::PyFloat_Check
+    ffi::PyFloat_Check,
+    type_marker::Float
 );
 
 impl<'py> PyFloat<'py> {

@@ -4,7 +4,8 @@
 
 use crate::ffi;
 use crate::pyclass::{tp_free_fallback, PyClassAlloc};
-use crate::type_object::{PyLayout, PyTypeInfo};
+use crate::type_object::PyLayout;
+use crate::type_marker::TypeWithBase;
 use crate::Python;
 use std::mem;
 use std::os::raw::c_void;
@@ -70,11 +71,11 @@ impl<T> FreeList<T> {
 
 impl<'py, T> PyClassAlloc<'py> for T
 where
-    T: PyTypeInfo<'py> + PyClassWithFreeList,
+    T: TypeWithBase<'py> + PyClassWithFreeList,
 {
     unsafe fn alloc(_py: Python) -> *mut Self::Layout {
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object() as *const _ as _);
+            ffi::PyObject_Init(obj, Self::type_object() as *const _ as _);
             obj as _
         } else {
             crate::pyclass::default_alloc::<Self>() as _

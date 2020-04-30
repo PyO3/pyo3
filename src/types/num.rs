@@ -4,7 +4,7 @@
 
 use crate::{
     exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, Python, ToPyObject,
+    PyResult, Python, ToPyObject, type_marker
 };
 use num_traits::cast::cast;
 use std::i64;
@@ -112,7 +112,7 @@ macro_rules! int_convert_128 {
 #[repr(transparent)]
 pub struct PyLong<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyLong<'py>, ffi::PyLong_Type, ffi::PyLong_Check);
+pyobject_native_var_type!(PyLong<'py>, ffi::PyLong_Type, ffi::PyLong_Check, type_marker::Long);
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {

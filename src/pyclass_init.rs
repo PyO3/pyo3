@@ -1,6 +1,7 @@
 //! Initialization utilities for `#[pyclass]`.
 use crate::pycell::PyCellLayout;
-use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
+use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout};
+use crate::type_marker::TypeMarker;
 use crate::{PyClass, PyResult, Python};
 use std::marker::PhantomData;
 
@@ -8,15 +9,15 @@ use std::marker::PhantomData;
 ///
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
-pub trait PyObjectInit<'py, T: PyTypeInfo<'py>>: Sized {
+pub trait PyObjectInit<'py, T: TypeMarker<'py>>: Sized {
     fn init_class<L: PyLayout<'py, T>>(self, layout: &mut L);
     private_decl! {}
 }
 
 /// Initializer for Python native type, like `PyDict`.
-pub struct PyNativeTypeInitializer<'py, T: PyTypeInfo<'py>>(PhantomData<T>, PhantomData<Python<'py>>);
+pub struct PyNativeTypeInitializer<'py, T: TypeMarker<'py>>(PhantomData<T>, PhantomData<Python<'py>>);
 
-impl<'py, T: PyTypeInfo<'py>> PyObjectInit<'py, T> for PyNativeTypeInitializer<'py, T> {
+impl<'py, T: TypeMarker<'py>> PyObjectInit<'py, T> for PyNativeTypeInitializer<'py, T> {
     fn init_class<L: PyLayout<'py, T>>(self, _layout: &mut L) {}
     private_impl! {}
 }
@@ -66,14 +67,14 @@ impl<'py, T: PyTypeInfo<'py>> PyObjectInit<'py, T> for PyNativeTypeInitializer<'
 /// ```
 pub struct PyClassInitializer<'py, T: PyClass<'py>> {
     init: T,
-    super_init: <T::BaseType as PyTypeInfo<'py>>::Initializer,
+    super_init: <T::BaseType as TypeMarker<'py>>::Initializer,
 }
 
 impl<'py, T: PyClass<'py>> PyClassInitializer<'py, T> {
     /// Constract new initialzer from value `T` and base class' initializer.
     ///
     /// We recommend to mainly use `add_subclass`, instead of directly call `new`.
-    pub fn new(init: T, super_init: <T::BaseType as PyTypeInfo<'py>>::Initializer) -> Self {
+    pub fn new(init: T, super_init: <T::BaseType as TypeMarker<'py>>::Initializer) -> Self {
         Self { init, super_init }
     }
 
@@ -108,9 +109,9 @@ impl<'py, T: PyClass<'py>> PyClassInitializer<'py, T> {
     /// ```
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<'py, S>
     where
-        S: PyClass<'py> + PyTypeInfo<'py, BaseType = T>,
+        T: PyClass<'py, Initializer = Self>,
+        S: PyClass<'py, BaseType = T, BaseInitializer = Self>,
         S::BaseLayout: PySizedLayout<'py, T>,
-        S::BaseType: PyTypeInfo<'py, Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
@@ -144,7 +145,7 @@ impl<'py, T: PyClass<'py>> PyObjectInit<'py, T> for PyClassInitializer<'py, T> {
 impl<'py, T> From<T> for PyClassInitializer<'py, T>
 where
     T: PyClass<'py>,
-    T::BaseType: PyTypeInfo<'py, Initializer = PyNativeTypeInitializer<'py, T::BaseType>>,
+    T::BaseType: TypeMarker<'py, Initializer = PyNativeTypeInitializer<'py, T::BaseType>>,
 {
     fn from(value: T) -> PyClassInitializer<'py, T> {
         Self::new(value, PyNativeTypeInitializer(PhantomData, PhantomData))
@@ -153,10 +154,10 @@ where
 
 impl<'py, S, B> From<(S, B)> for PyClassInitializer<'py, S>
 where
-    S: PyClass<'py> + PyTypeInfo<'py, BaseType = B>,
+    S: PyClass<'py, BaseType = B, BaseInitializer = PyClassInitializer<'py, B>>,
     S::BaseLayout: PySizedLayout<'py, B>,
-    B: PyClass<'py> + PyTypeInfo<'py, Initializer = PyClassInitializer<'py, B>>,
-    B::BaseType: PyTypeInfo<'py, Initializer = PyNativeTypeInitializer<'py, B::BaseType>>,
+    B: PyClass<'py, Initializer = PyClassInitializer<'py, B>>,
+    B::BaseType: TypeMarker<'py, Initializer = PyNativeTypeInitializer<'py, B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<'py, S> {
         let (sub, base) = sub_and_base;

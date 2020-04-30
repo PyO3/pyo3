@@ -1,13 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::conversion::FromPyPointer;
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
-use crate::unscoped::Unscoped;
+use crate::type_marker::TypeMarker;
 use crate::{
     ffi, AsPyPointer, IntoPy, IntoPyPointer, PyCell, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, Python, ToPyObject,
+    PyClassInitializer, PyRef, PyRefMut, Python, ToPyObject, PyAny, FromPyObject, FromPyPointer
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -134,12 +133,6 @@ impl<T> Py<T> {
     }
 }
 
-impl<'py, T: Unscoped<'py>> Py<T> {
-    pub fn into_scoped(self, py: Python<'py>) -> T::NativeType {
-        unsafe { T::NativeType::from_owned_ptr(py, self.into_ptr()) }
-    }
-}
-
 /// Retrieves `&'py` types from `Py<T>` or `PyObject`.
 ///
 /// # Examples
@@ -179,7 +172,7 @@ pub trait AsPyRef<'py>: Sized {
 
 impl<'py, T> AsPyRef<'py> for Py<T>
 where
-    T: Unscoped<'py>
+    T: TypeMarker<'py>
 {
     type Target = T::NativeType;
     fn as_ref<'a>(&'a self, _py: Python<'py>) -> &'a Self::Target
@@ -283,20 +276,19 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     }
 }
 
-// impl<'a, 'py, T> FromPyObject<'a, 'py> for Py<T>
-// where
-//     T: PyTypeInfo<'py>,
-//     &'a T::AsRefTarget: FromPyObject<'a, 'py>,
-//     T::AsRefTarget: 'a + 'py + AsPyPointer,
-// {
-//     /// Extracts `Self` from the source `PyObject`.
-//     fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
-//         unsafe {
-//             ob.extract::<&T::AsRefTarget>()
-//                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
-//         }
-//     }
-// }
+impl<'py, T> FromPyObject<'_, 'py> for Py<T>
+where
+    T: TypeMarker<'py>,
+    T::NativeType: 'py + FromPyPointer<'py> + AsPyPointer,
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
+        unsafe {
+            let val = ob.py().from_borrowed_ptr_or_err::<T::NativeType>(ob.as_ptr())?;
+            Ok(Py::from_borrowed_ptr(val.as_ptr()))
+        }
+    }
+}
 
 /// Reference to a converted [ToPyObject].
 ///

@@ -3,6 +3,7 @@ use crate::err::PyDowncastError;
 use crate::ffi;
 use crate::gil;
 use crate::python::Python;
+use crate::type_marker;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
@@ -33,14 +34,15 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<Python<'a>>);
 
-impl<'py> crate::type_object::PySizedLayout<'py, PyAny<'py>> for ffi::PyObject {}
+impl<'py> crate::type_object::PySizedLayout<'py, type_marker::Any> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny<'py>);
 pyobject_native_type_common!(PyAny<'py>);
 pyobject_native_type_info!(
     PyAny<'py>,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
-    ffi::PyObject_Check
+    ffi::PyObject_Check,
+    type_marker::Any
 );
 pyobject_native_type_extract!(PyAny<'py>);
 

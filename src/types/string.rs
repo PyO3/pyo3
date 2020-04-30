@@ -2,7 +2,7 @@
 
 use crate::{
     ffi, gil, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, PyTryFrom, Python, ToPyObject,
+    PyResult, PyTryFrom, Python, ToPyObject, type_marker
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -16,7 +16,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyString<'py>(PyAny<'py>);
 
-pyobject_native_var_type!(PyString<'py>, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
+pyobject_native_var_type!(PyString<'py>, ffi::PyUnicode_Type, ffi::PyUnicode_Check, type_marker::String);
 
 impl<'py> PyString<'py> {
     /// Creates a new Python string object.

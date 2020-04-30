@@ -258,7 +258,7 @@ fn test_module_nesting() {
 
 #[pyfunction(a = 5, vararg = "*")]
 fn ext_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
-    [a.to_object(py), vararg.into()].to_object(py)
+    [a.to_object(py), vararg.clone().into()].to_object(py)
 }
 
 #[pymodule]
