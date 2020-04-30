@@ -266,12 +266,12 @@ impl PyObject {
     }
 }
 
-impl<'a, T> std::convert::From<&'a T> for PyObject
+impl<'a, 'py, T> std::convert::From<T> for PyObject
 where
-    T: AsPyPointer,
+    T: IntoPyPointer + PyNativeType<'py>
 {
-    fn from(ob: &'a T) -> Self {
-        unsafe { PyObject::from_non_null(NonNull::new(ob.as_ptr()).expect("Null ptr")) }
+    fn from(ob: T) -> Self {
+        unsafe { PyObject::from_non_null(NonNull::new(ob.into_ptr()).expect("Null ptr")) }
     }
 }
 

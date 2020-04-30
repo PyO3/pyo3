@@ -44,7 +44,7 @@ impl ToPyObject for bool {
 impl FromPy<bool> for PyObject {
     #[inline]
     fn from_py(other: bool, py: Python) -> Self {
-        PyBool::new(py, other).into()
+        PyBool::new(py, other).clone().into()
     }
 }
 
@@ -71,7 +71,7 @@ mod test {
         assert!(PyBool::new(py, true).is_true());
         let t: &PyAny = PyBool::new(py, true).into();
         assert_eq!(true, t.extract().unwrap());
-        assert_eq!(true.to_object(py), PyBool::new(py, true).into());
+        assert_eq!(true.to_object(py), PyBool::new(py, true).clone().into());
     }
 
     #[test]
@@ -81,6 +81,6 @@ mod test {
         assert!(!PyBool::new(py, false).is_true());
         let t: &PyAny = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
-        assert_eq!(false.to_object(py), PyBool::new(py, false).into());
+        assert_eq!(false.to_object(py), PyBool::new(py, false).clone().into());
     }
 }

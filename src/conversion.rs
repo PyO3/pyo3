@@ -64,16 +64,10 @@ where
 
 impl<'a, T> IntoPyPointer for &'a T
 where
-    T: AsPyPointer,
+    T: IntoPyPointer + Clone,
 {
     fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.as_ptr();
-        if !ptr.is_null() {
-            unsafe {
-                ffi::Py_INCREF(ptr);
-            }
-        }
-        ptr
+        self.clone().into_ptr()
     }
 }
 

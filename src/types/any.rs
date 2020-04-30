@@ -68,11 +68,15 @@ impl<'py> PyAny<'py> {
         let PyAny(ptr, _) = self;
         ptr
     }
+
+    pub fn raw_borrowed<'a>(_py: Python<'py>, ptr_ref: &'a *mut ffi::PyObject) -> &'a Self {
+        unsafe { std::mem::transmute(ptr_ref) }
+    }
 }
 
 impl Clone for PyAny<'_> {
     fn clone(&self) -> Self {
-        unsafe { ffi::Py_INCREF(self.0.as_ptr()); };
+        unsafe { ffi::Py_INCREF(self.0.as_ptr()); }
         Self(self.0, PhantomData)
     }
 }

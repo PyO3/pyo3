@@ -40,7 +40,7 @@ pub fn parse_fn_args<'py>(
     accept_args: bool,
     accept_kwargs: bool,
     output: &mut [Option<&'py PyAny<'py>>],
-) -> PyResult<(Cow<'py, PyTuple<'py>>, Option<Cow<'py, PyDict<'py>>>)> {
+) -> PyResult<(PyTuple<'py>, Option<PyDict<'py>>)> {
     let nargs = args.len();
     let mut used_args = 0;
     macro_rules! raise_error {
@@ -49,58 +49,47 @@ pub fn parse_fn_args<'py>(
         ))))
     }
 
-    let kwargs = match kwargs {
-        Some(kwargs) => {
-            let mut unrecognised_kwargs = Cow::Borrowed(kwargs);
-            // Iterate through the parameters and assign values to output:
-            for (i, (p, out)) in params.iter().zip(output).enumerate() {
-                *out = match kwargs.get_item(p.name) {
-                    Some(kwarg) => {
-                        if i < nargs {
-                            raise_error!("got multiple values for argument: {}", p.name)
-                        }
+    // Copy unrecognised_kwargs not to modify it
+    let unrecognized_kwargs = kwargs.as_ref().map(|d| d.copy()).transpose()?;
 
-                        // Delete kwarg from unrecognised set (first making a copy if needed)
-                        if let Cow::Borrowed(k) = &unrecognised_kwargs{
-                            unrecognised_kwargs = Cow::Owned(k.copy()?);
-                        }
-                        unrecognised_kwargs.del_item(p.name)?;
+    // Iterate through the parameters and assign values to output:
+    for (i, (p, out)) in params.iter().zip(output).enumerate() {
+        *out = match kwargs.and_then(|d| d.get_item(p.name)) {
+            Some(kwarg) => {
+                if i < nargs {
+                    raise_error!("got multiple values for argument: {}", p.name)
+                }
 
-                        Some(kwarg)
+                unrecognized_kwargs.as_ref().unwrap().del_item(p.name)?;
+                Some(kwarg)
+            }
+            None => {
+                if p.kw_only {
+                    if !p.is_optional {
+                        raise_error!("missing required keyword-only argument: {}", p.name)
                     }
-                    None => {
-                        if p.kw_only {
-                            if !p.is_optional {
-                                raise_error!("missing required keyword-only argument: {}", p.name)
-                            }
-                            None
-                        } else if i < nargs {
-                            used_args += 1;
-                            Some(args.get_item(i))
-                        } else {
-                            if !p.is_optional {
-                                raise_error!("missing required positional argument: {}", p.name)
-                            }
-                            None
-                        }
+                    None
+                } else if i < nargs {
+                    used_args += 1;
+                    Some(args.get_item(i))
+                } else {
+                    if !p.is_optional {
+                        raise_error!("missing required positional argument: {}", p.name)
                     }
+                    None
                 }
             }
+        }
+    }
 
-            if unrecognised_kwargs.is_empty() {
-                None
-            } else if !accept_kwargs {
-                // Raise an error when we get an unknown key
-                let (key, _) = unrecognised_kwargs.iter().next().unwrap();
-                raise_error!("got an unexpected keyword argument: {}", key)
-            } else {
-                Some(unrecognised_kwargs)
-            }
+    let kwargs = unrecognized_kwargs;
 
-        },
-        None => None
-    };
-
+    let is_kwargs_empty = kwargs.as_ref().map_or(true, |dict| dict.is_empty());
+    // Raise an error when we get an unknown key
+    if !accept_kwargs && !is_kwargs_empty {
+        let (key, _) = kwargs.as_ref().unwrap().iter().next().unwrap();
+        raise_error!("got an unexpected keyword argument: {}", key)
+    }
     // Raise an error when we get too many positional args
     if !accept_args && used_args < nargs {
         raise_error!(
@@ -112,9 +101,14 @@ pub fn parse_fn_args<'py>(
     }
     // Adjust the remaining args
     let args = if accept_args {
-        Cow::Owned(args.slice(used_args as isize, nargs as isize))
+        args.slice(used_args as isize, nargs as isize)
     } else {
-        Cow::Borrowed(args)
+        args.clone()
+    };
+    let kwargs = if accept_kwargs && is_kwargs_empty {
+        None
+    } else {
+        kwargs
     };
 
     Ok((args, kwargs))

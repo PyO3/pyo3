@@ -128,7 +128,7 @@ fn impl_wrap_common(
                 let _py = _pool.python();
                 pyo3::run_callback(_py, || {
                     #slf
-                    let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                    let _args = pyo3::PyAny::raw_borrowed(_py, &_args).downcast::<PyTuple>()?;
                     let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
                     #body
@@ -451,8 +451,8 @@ fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStre
         ];
 
         let mut output = [None; #num_normal_params];
-        let mut _args = _args;
-        let mut _kwargs = _kwargs;
+        let _args = _args;
+        let _kwargs = _kwargs;
 
         let (_args, _kwargs) = pyo3::derive_utils::parse_fn_args(
             Some(_LOCATION),
@@ -503,7 +503,7 @@ fn impl_arg_param(
         };
     } else if spec.is_kwargs(&name) {
         return quote! {
-            let #arg_name = _kwargs;
+            let #arg_name = _kwargs.as_ref();
         };
     }
     let arg_value = quote!(output[#option_pos]);

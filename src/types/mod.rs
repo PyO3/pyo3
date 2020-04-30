@@ -67,11 +67,10 @@ macro_rules! pyobject_native_type_common (
             }
         }
 
-        impl<'py $(, $type_param $(: $bound)?)*> std::convert::From<$name<'py $(,$type_param)*>> for $crate::PyObject
-        {
-            fn from(ob: $name<'py $(,$type_param)*>) -> Self {
-                use $crate::{IntoPyPointer, PyNativeType};
-                unsafe { Self::from_owned_ptr(ob.py(), ob.into_ptr()) }
+        impl<'py $(, $type_param $(: $bound)?)*> $crate::IntoPy<$crate::PyObject> for $name<'py $(,$type_param)*> {
+            fn into_py(self, py: $crate::Python) -> $crate::PyObject {
+                use $crate::IntoPyPointer;
+                unsafe { $crate::PyObject::from_owned_ptr(py, self.into_ptr()) }
             }
         }
     }

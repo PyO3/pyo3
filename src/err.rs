@@ -141,7 +141,7 @@ impl PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
             PyErr {
                 ptype: unsafe { Py::from_borrowed_ptr(ffi::PyExceptionInstance_Class(ptr)) },
-                pvalue: PyErrValue::Value(obj.into()),
+                pvalue: PyErrValue::Value(obj.clone().into()),
                 ptraceback: None,
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {

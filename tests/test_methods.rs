@@ -26,7 +26,7 @@ fn instance_method() {
     let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method().unwrap(), 42);
-    let d = [("obj", obj)].into_py_dict(py);
+    let d = [("obj", &obj)].into_py_dict(py);
     py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
     py.run("assert obj.method.__doc__ == 'Test method'", None, Some(&d))
         .unwrap();
@@ -53,7 +53,7 @@ fn instance_method_with_args() {
     let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method(6).unwrap(), 42);
-    let d = [("obj", obj)].into_py_dict(py);
+    let d = [("obj", &obj)].into_py_dict(py);
     py.run("assert obj.method(3) == 21", None, Some(&d)).unwrap();
     py.run("assert obj.method(multiplier=6) == 42", None, Some(&d))
         .unwrap();
@@ -217,7 +217,7 @@ impl MethArgs {
         args: &PyTuple,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
-        Ok([args.into(), kwargs.to_object(py)].to_object(py))
+        Ok([args.clone().into(), kwargs.to_object(py)].to_object(py))
     }
 
     #[args(args = "*", kwargs = "**")]
@@ -228,7 +228,7 @@ impl MethArgs {
         args: &PyTuple,
         kwargs: Option<&PyDict>,
     ) -> PyObject {
-        [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
+        [a.to_object(py), args.clone().into(), kwargs.to_object(py)].to_object(py)
     }
 
     #[args(a, b = 2, "*", c = 3)]
@@ -513,7 +513,7 @@ impl FromSequence {
     fn new(seq: Option<&pyo3::types::PySequence>) -> PyResult<Self> {
         if let Some(seq) = seq {
             Ok(FromSequence {
-                numbers: seq.as_ref().extract::<Vec<_>>()?,
+                numbers: seq.as_ref().extract()?,
             })
         } else {
             Ok(FromSequence::default())
