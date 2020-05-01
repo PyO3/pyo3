@@ -3,7 +3,7 @@
 //! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
-use crate::type_object::{PyDowncastImpl, PyTypeInfo};
+use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 use std::ptr::NonNull;
@@ -311,7 +311,7 @@ where
 /// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized + PyDowncastImpl {
+pub trait PyTryFrom<'v>: Sized + PyNativeType {
     /// Cast from a concrete Python object type to PyObject.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
@@ -348,7 +348,7 @@ where
 
 impl<'v, T> PyTryFrom<'v> for T
 where
-    T: PyDowncastImpl + PyTypeInfo + PyNativeType,
+    T: PyTypeInfo + PyNativeType,
 {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
@@ -460,28 +460,14 @@ where
     T: 'p + crate::PyNativeType,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_owned(py, p)))
+        gil::register_owned(py, NonNull::new(ptr)?);
+        Some(&*(ptr as *mut Self))
     }
     unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'p>,
+        _py: Python<'p>,
         ptr: *mut ffi::PyObject,
     ) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
-    }
-}
-
-unsafe impl<'p, T> FromPyPointer<'p> for PyCell<T>
-where
-    T: PyClass,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| &*(gil::register_owned(py, p).as_ptr() as *const PyCell<T>))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| &*(gil::register_borrowed(py, p).as_ptr() as *const PyCell<T>))
+        NonNull::new(ptr as *mut Self).map(|p| &*p.as_ptr())
     }
 }
 

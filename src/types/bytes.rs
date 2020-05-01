@@ -1,4 +1,3 @@
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
@@ -12,7 +11,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes(PyObject, Unsendable);
+pub struct PyBytes(PyAny);
 
 pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
 

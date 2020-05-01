@@ -31,7 +31,7 @@ macro_rules! pyobject_native_type_named (
         impl<$($type_param,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
             fn as_ref(&self) -> &$crate::PyAny {
-                unsafe{&*(self as *const $name as *const $crate::PyAny)}
+                unsafe { &*(self.as_ptr() as *const $crate::PyAny) }
             }
         }
 
@@ -150,7 +150,7 @@ macro_rules! pyobject_native_type_convert(
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 use $crate::AsPyPointer;
-                unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
+                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 

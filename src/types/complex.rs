@@ -1,17 +1,13 @@
-use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
-use crate::AsPyPointer;
-use crate::PyObject;
-use crate::Python;
+use crate::{ffi, AsPyPointer, PyAny, Python};
 #[cfg(not(PyPy))]
 use std::ops::*;
 use std::os::raw::c_double;
 
 /// Represents a Python `complex`.
 #[repr(transparent)]
-pub struct PyComplex(PyObject, Unsendable);
+pub struct PyComplex(PyAny);
 
 pyobject_native_type!(
     PyComplex,
@@ -133,7 +129,7 @@ impl<'py> Neg for &'py PyComplex {
 #[cfg(feature = "num-complex")]
 mod complex_conversion {
     use super::*;
-    use crate::{FromPyObject, PyAny, PyErr, PyResult, ToPyObject};
+    use crate::{FromPyObject, PyAny, PyErr, PyObject, PyResult, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {

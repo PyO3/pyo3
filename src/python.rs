@@ -3,17 +3,15 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::ffi;
 use crate::gil::{self, GILGuard};
-use crate::instance::AsPyRef;
-use crate::object::PyObject;
-use crate::type_object::{PyDowncastImpl, PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
-use crate::{AsPyPointer, FromPyPointer, IntoPyPointer, PyTryFrom};
+use crate::{
+    ffi, AsPyPointer, AsPyRef, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom,
+};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
-use std::ptr::NonNull;
 
 pub use gil::prepare_freethreaded_python;
 
@@ -293,27 +291,18 @@ impl<'p> Python<'p> {
     where
         T: PyTryFrom<'p>,
     {
-        let obj = unsafe { gil::register_owned(self, obj.into_nonnull()) };
-        <T as PyTryFrom>::try_from(obj)
+        let any: &PyAny = unsafe { self.from_owned_ptr(obj.into_ptr()) };
+        <T as PyTryFrom>::try_from(any)
     }
 
     /// Registers the object in the release pool, and does an unchecked downcast
     /// to the specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
-        T: PyDowncastImpl + PyTypeInfo,
+        T: PyNativeType + PyTypeInfo,
     {
-        let obj = gil::register_owned(self, obj.into_nonnull());
-        T::unchecked_downcast(obj)
-    }
-
-    /// Registers the object pointer in the release pool.
-    #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny {
-        match NonNull::new(ptr) {
-            Some(p) => gil::register_borrowed(self, p),
-            None => crate::err::panic_after_error(),
-        }
+        let any: &PyAny = self.from_owned_ptr(obj.into_ptr());
+        T::unchecked_downcast(any)
     }
 
     /// Registers the object pointer in the release pool,

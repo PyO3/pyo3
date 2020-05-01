@@ -2,7 +2,6 @@
 //
 
 use crate::err::{self, PyErr, PyResult};
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
@@ -13,11 +12,11 @@ use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]
-pub struct PySet(PyObject, Unsendable);
+pub struct PySet(PyAny);
 
 /// Represents a  Python `frozenset`
 #[repr(transparent)]
-pub struct PyFrozenSet(PyObject, Unsendable);
+pub struct PyFrozenSet(PyAny);
 
 pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
 pyobject_native_type!(

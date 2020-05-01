@@ -2,7 +2,7 @@
 
 //! Interaction with python's global interpreter lock
 
-use crate::{ffi, internal_tricks::Unsendable, PyAny, Python};
+use crate::{ffi, internal_tricks::Unsendable, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
@@ -144,8 +144,7 @@ impl Drop for GILGuard {
 
 /// Implementation of release pool
 struct ReleasePoolImpl {
-    owned: ArrayList<NonNull<ffi::PyObject>>,
-    borrowed: ArrayList<NonNull<ffi::PyObject>>,
+    owned: Vec<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
     obj: Vec<Box<dyn any::Any>>,
     p: parking_lot::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
@@ -154,8 +153,7 @@ struct ReleasePoolImpl {
 impl ReleasePoolImpl {
     fn new() -> Self {
         Self {
-            owned: ArrayList::new(),
-            borrowed: ArrayList::new(),
+            owned: Vec::with_capacity(256),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
             obj: Vec::with_capacity(8),
             p: parking_lot::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
@@ -180,14 +178,12 @@ impl ReleasePoolImpl {
         vec.set_len(0);
     }
 
-    pub unsafe fn drain(&mut self, _py: Python, owned: usize, borrowed: usize) {
+    pub unsafe fn drain(&mut self, _py: Python, owned: usize) {
         // Release owned objects(call decref)
-        while owned < self.owned.len() {
-            let last = self.owned.pop_back().unwrap();
-            ffi::Py_DECREF(last.as_ptr());
+        for i in owned..self.owned.len() {
+            ffi::Py_DECREF(self.owned[i].as_ptr());
         }
-        // Release borrowed objects(don't call decref)
-        self.borrowed.truncate(borrowed);
+        self.owned.truncate(owned);
         self.release_pointers();
         self.obj.clear();
     }
@@ -219,7 +215,6 @@ unsafe impl Sync for ReleasePool {}
 #[doc(hidden)]
 pub struct GILPool {
     owned: usize,
-    borrowed: usize,
     // Stable solution for impl !Send
     no_send: Unsendable,
 }
@@ -235,7 +230,6 @@ impl GILPool {
         pool.release_pointers();
         GILPool {
             owned: pool.owned.len(),
-            borrowed: pool.borrowed.len(),
             no_send: Unsendable::default(),
         }
     }
@@ -248,7 +242,7 @@ impl Drop for GILPool {
     fn drop(&mut self) {
         unsafe {
             let pool = POOL.get_or_init();
-            pool.drain(self.python(), self.owned, self.borrowed);
+            pool.drain(self.python(), self.owned);
         }
         decrement_gil_count();
     }
@@ -275,14 +269,9 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
     }
 }
 
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
+pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
     let pool = POOL.get_or_init();
-    &*(pool.owned.push_back(obj) as *const _ as *const PyAny)
-}
-
-pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
-    let pool = POOL.get_or_init();
-    &*(pool.borrowed.push_back(obj) as *const _ as *const PyAny)
+    pool.owned.push(obj);
 }
 
 /// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
@@ -304,70 +293,10 @@ fn decrement_gil_count() {
     })
 }
 
-use self::array_list::ArrayList;
-
-mod array_list {
-    use std::collections::LinkedList;
-    const BLOCK_SIZE: usize = 256;
-
-    /// A container type for Release Pool
-    /// See #271 for why this is crated
-    pub(super) struct ArrayList<T> {
-        inner: LinkedList<[Option<T>; BLOCK_SIZE]>,
-        length: usize,
-    }
-
-    impl<T: Copy> ArrayList<T> {
-        pub fn new() -> Self {
-            ArrayList {
-                inner: LinkedList::new(),
-                length: 0,
-            }
-        }
-        pub fn push_back(&mut self, item: T) -> &T {
-            let next_idx = self.next_idx();
-            if next_idx == 0 {
-                self.inner.push_back([None; BLOCK_SIZE]);
-            }
-            self.inner.back_mut().unwrap()[next_idx] = Some(item);
-            self.length += 1;
-            self.inner.back().unwrap()[next_idx].as_ref().unwrap()
-        }
-        pub fn pop_back(&mut self) -> Option<T> {
-            self.length -= 1;
-            let current_idx = self.next_idx();
-            if current_idx == 0 {
-                let last_list = self.inner.pop_back()?;
-                return last_list[0];
-            }
-            self.inner.back().and_then(|arr| arr[current_idx])
-        }
-        pub fn len(&self) -> usize {
-            self.length
-        }
-        pub fn truncate(&mut self, new_len: usize) {
-            if self.length <= new_len {
-                return;
-            }
-            while self.inner.len() > (new_len + BLOCK_SIZE - 1) / BLOCK_SIZE {
-                self.inner.pop_back();
-            }
-            self.length = new_len;
-        }
-        fn next_idx(&self) -> usize {
-            self.length % BLOCK_SIZE
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use super::{GILPool, NonNull, GIL_COUNT, POOL};
-    use crate::object::PyObject;
-    use crate::AsPyPointer;
-    use crate::Python;
-    use crate::ToPyObject;
-    use crate::{ffi, gil};
+    use super::{GILPool, GIL_COUNT, POOL};
+    use crate::{ffi, gil, AsPyPointer, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -437,66 +366,6 @@ mod test {
             }
             {
                 assert_eq!(p.owned.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-            }
-        }
-    }
-
-    #[test]
-    fn test_borrowed() {
-        unsafe {
-            let p = POOL.get_or_init();
-
-            let obj = get_object();
-            let obj_ptr = obj.as_ptr();
-            {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-                assert_eq!(p.borrowed.len(), 0);
-
-                gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
-
-                assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-            }
-            {
-                let _gil = Python::acquire_gil();
-                assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-            }
-        }
-    }
-
-    #[test]
-    fn test_borrowed_nested() {
-        unsafe {
-            let p = POOL.get_or_init();
-
-            let obj = get_object();
-            let obj_ptr = obj.as_ptr();
-            {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-                assert_eq!(p.borrowed.len(), 0);
-
-                gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
-
-                assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-
-                {
-                    let _pool = GILPool::new();
-                    assert_eq!(p.borrowed.len(), 1);
-                    gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
-                    assert_eq!(p.borrowed.len(), 2);
-                }
-
-                assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
-            }
-            {
-                let _gil = Python::acquire_gil();
-                assert_eq!(p.borrowed.len(), 0);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
         }

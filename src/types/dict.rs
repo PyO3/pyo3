@@ -2,22 +2,19 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
-use crate::AsPyPointer;
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
-use crate::Python;
-use crate::{ffi, IntoPy};
-use crate::{FromPyObject, PyTryFrom};
-use crate::{ToBorrowedObject, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+};
 use std::collections::{BTreeMap, HashMap};
 use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict(PyObject, Unsendable);
+pub struct PyDict(PyAny);
 
 pyobject_native_type!(
     PyDict,

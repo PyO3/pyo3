@@ -2,8 +2,8 @@
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::{ffi, FromPy, PyAny, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
+use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -158,6 +158,8 @@ pub struct PyCell<T: PyClass> {
     dict: T::Dict,
     weakref: T::WeakRef,
 }
+
+unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
 
 impl<T: PyClass> PyCell<T> {
     /// Make new `PyCell` on the Python heap and returns the reference of it.
@@ -358,13 +360,6 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
         self.weakref.clear_weakrefs(self.as_ptr(), py);
         self.inner.ob_base.py_drop(py);
     }
-}
-
-unsafe impl<T: PyClass> PyDowncastImpl for PyCell<T> {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
-        &*(obj.as_ptr() as *const Self)
-    }
-    private_impl! {}
 }
 
 impl<T: PyClass> AsPyPointer for PyCell<T> {

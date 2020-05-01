@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, gil, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, PyTryFrom, Python, ToPyObject,
@@ -15,7 +14,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyString(PyObject, Unsendable);
+pub struct PyString(PyAny);
 
 pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
@@ -48,7 +47,7 @@ impl PyString {
     pub fn as_bytes(&self) -> PyResult<&[u8]> {
         unsafe {
             let mut size: ffi::Py_ssize_t = 0;
-            let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
+            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
                 Err(PyErr::fetch(self.py()))
             } else {
@@ -74,7 +73,7 @@ impl PyString {
             Err(_) => {
                 unsafe {
                     let py_bytes = ffi::PyUnicode_AsEncodedString(
-                        self.0.as_ptr(),
+                        self.as_ptr(),
                         CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
                         CStr::from_bytes_with_nul(b"surrogatepass\0")
                             .unwrap()

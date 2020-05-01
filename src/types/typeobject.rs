@@ -3,19 +3,15 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::instance::{Py, PyNativeType};
-use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::{ffi, AsPyPointer, PyAny, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
-pub struct PyType(PyObject, Unsendable);
+pub struct PyType(PyAny);
 
 pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 

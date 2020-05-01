@@ -32,6 +32,7 @@ impl PyObject {
         PyObject(ptr)
     }
 
+    #[cfg(test)]
     pub(crate) unsafe fn into_nonnull(self) -> NonNull<ffi::PyObject> {
         let res = self.0;
         std::mem::forget(self); // Avoid Drop
@@ -268,7 +269,7 @@ impl PyObject {
 impl AsPyRef for PyObject {
     type Target = PyAny;
     fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p PyAny {
-        unsafe { &*(self as *const _ as *const PyAny) }
+        unsafe { &*(self.as_ptr() as *const PyAny) }
     }
 }
 
