@@ -368,7 +368,7 @@ where
     fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         let value = value.into();
         unsafe {
-            if T::is_instance(value) {
+            if <T as PyTypeInfo<'py>>::is_instance(value) {
                 Ok(Self::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
@@ -377,7 +377,7 @@ where
     }
     fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         unsafe {
-            if T::is_exact_instance(value) {
+            if <T as PyTypeInfo<'py>>::is_exact_instance(value) {
                 Ok(Self::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)

@@ -3,7 +3,7 @@ use crate::ffi;
 use crate::pyclass_init::PyObjectInit;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::*;
-use crate::PyNativeType;
+use crate::{AsPyPointer, PyNativeType};
 
 pub trait TypeMarker<'py>: Sized {
     type NativeType: PyNativeType<'py>;
@@ -15,6 +15,18 @@ pub trait TypeMarker<'py>: Sized {
 
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;
+
+    /// Check if `*mut ffi::PyObject` is instance of this type
+    fn is_instance(object: &PyAny) -> bool {
+        unsafe {
+            ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object() as *const _ as _) != 0
+        }
+    }
+
+    /// Check if `*mut ffi::PyObject` is exact instance of this type
+    fn is_exact_instance(object: &PyAny) -> bool {
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object() as *const _ as _ }
+    }
 }
 
 pub trait TypeWithBase<'py>: TypeMarker<'py> {

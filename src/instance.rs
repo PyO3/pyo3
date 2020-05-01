@@ -1,5 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::err::{PyErr, PyResult};
+use crate::err::{PyErr, PyResult, PyDowncastError};
 use crate::gil;
 use crate::object::PyObject;
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
@@ -284,8 +284,11 @@ where
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
         unsafe {
-            let val = ob.py().from_borrowed_ptr_or_err::<T::NativeType>(ob.as_ptr())?;
-            Ok(Py::from_borrowed_ptr(val.as_ptr()))
+            if T::is_instance(ob) {
+                Ok(Py::from_borrowed_ptr(ob.as_ptr()))
+            } else {
+                Err(PyDowncastError.into())
+            }
         }
     }
 }

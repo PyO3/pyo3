@@ -3,7 +3,7 @@ use pyo3::types::PyList;
 
 #[pyclass]
 struct MyClass {
-    list: &'static PyList,
+    list: &'static PyList<'static>,
 }
 
 #[pymethods]
