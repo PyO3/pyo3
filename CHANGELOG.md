@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
 * `IntoPy<PyObject>` for `HashSet` and `BTreeSet`. [#864](https://github.com/PyO3/pyo3/pull/864)
+* `ObjectProtocol::dir`. [#886](https://github.com/PyO3/pyo3/pull/886)
 
 ### Fixed
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
