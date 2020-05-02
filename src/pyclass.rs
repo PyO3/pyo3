@@ -1,5 +1,5 @@
 //! `PyClass` trait
-use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
+use crate::class::methods::{PyMethodDefType, PyMethodsImpl};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
@@ -71,7 +71,7 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
+    PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethodsImpl
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -215,7 +215,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-fn py_class_method_defs<T: PyMethodsProtocol>() -> (
+fn py_class_method_defs<T: PyMethodsImpl>() -> (
     Option<ffi::newfunc>,
     Option<ffi::PyCFunctionWithKeywords>,
     Vec<ffi::PyMethodDef>,
@@ -274,7 +274,7 @@ fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
     }
 }
 
-fn py_class_properties<T: PyMethodsProtocol>() -> Vec<ffi::PyGetSetDef> {
+fn py_class_properties<T: PyMethodsImpl>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
     for def in T::py_methods() {

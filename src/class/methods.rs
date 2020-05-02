@@ -115,15 +115,7 @@ impl PySetterDef {
     }
 }
 
-#[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
-/// This trait is implemented for all pyclass so to implement the [PyMethodsProtocol]
-/// through inventory
-pub trait PyMethodsInventoryDispatch {
-    /// This allows us to get the inventory type when only the pyclass is in scope
-    type InventoryType: PyMethodsInventory;
-}
-
-#[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+#[doc(hidden)] // Only to be used through the proc macros
 /// Allows arbitrary pymethod blocks to submit their methods, which are eventually collected by pyclass
 pub trait PyMethodsInventory: inventory::Collect {
     /// Create a new instance
@@ -133,20 +125,15 @@ pub trait PyMethodsInventory: inventory::Collect {
     fn get_methods(&self) -> &'static [PyMethodDefType];
 }
 
-/// The implementation of this trait defines which methods a Python type has.
-///
-/// For pyclass derived structs this is implemented by collecting all impl blocks through inventory
-pub trait PyMethodsProtocol {
-    /// Returns all methods that are defined for a class
-    fn py_methods() -> Vec<&'static PyMethodDefType>;
-}
+#[doc(hidden)] // Only to be used through the proc macros
+/// For pyclass derived structs, this trait collects method from all impl blocks using inventory.
+pub trait PyMethodsImpl {
+    /// Normal methods, mainly defined by `#[pymethod]`.
+    type Methods: PyMethodsInventory;
 
-impl<T> PyMethodsProtocol for T
-where
-    T: PyMethodsInventoryDispatch,
-{
+    /// Returns all methods that are defined for a class
     fn py_methods() -> Vec<&'static PyMethodDefType> {
-        inventory::iter::<T::InventoryType>
+        inventory::iter::<Self::Methods>
             .into_iter()
             .flat_map(PyMethodsInventory::get_methods)
             .collect()

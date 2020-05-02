@@ -213,7 +213,7 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
 fn impl_inventory(cls: &syn::Ident) -> TokenStream {
     // Try to build a unique type that gives a hint about it's function when
     // it comes up in error messages
-    let name = cls.to_string() + "GeneratedPyo3Inventory";
+    let name = format!("Pyo3MethodsInventoryFor{}", cls);
     let inventory_cls = syn::Ident::new(&name, Span::call_site());
 
     quote! {
@@ -234,8 +234,8 @@ fn impl_inventory(cls: &syn::Ident) -> TokenStream {
             }
         }
 
-        impl pyo3::class::methods::PyMethodsInventoryDispatch for #cls {
-            type InventoryType = #inventory_cls;
+        impl pyo3::class::methods::PyMethodsImpl for #cls {
+            type Methods = #inventory_cls;
         }
 
         pyo3::inventory::collect!(#inventory_cls);
@@ -461,7 +461,7 @@ fn impl_descriptors(
     Ok(quote! {
         pyo3::inventory::submit! {
             #![crate = pyo3] {
-                type ClsInventory = <#cls as pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
+                type ClsInventory = <#cls as pyo3::class::methods::PyMethodsImpl>::Methods;
                 <ClsInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
