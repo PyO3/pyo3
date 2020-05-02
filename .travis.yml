@@ -47,9 +47,9 @@ install:
   - pip install setuptools-rust pytest pytest-benchmark tox
 
 script:
-  # Options for grcov
   - if ! [[ $FEATURES == *"pypy"* ]]; then export CARGO_INCREMENTAL=0; fi
-  - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"; fi
+  # Options for grcov
+  - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off"; fi
   - ./ci/travis/test.sh
 
 deploy:
