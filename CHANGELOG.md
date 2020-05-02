@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `&'static Py~` being allowed as arguments. [#869](https://github.com/PyO3/pyo3/pull/869)
 * `#[pyo3(get)]` for `Py<T>`. [#880](https://github.com/PyO3/pyo3/pull/880)
 
+### Removed
+* `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
+
 
 ## [0.9.2]
 
