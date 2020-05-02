@@ -25,8 +25,8 @@ pub unsafe trait PyNativeType: Sized {
     ///
     /// # Safety
     ///
-    /// Unless obj is not an instance of a type corresponding to Self,
-    /// this method causes undefined behavior.
+    /// `obj` must have the same layout as `*const ffi::PyObject` and must be
+    /// an instance of a type corresponding to `Self`.
     unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
         &*(obj.as_ptr() as *const Self)
     }
