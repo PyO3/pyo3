@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
   * When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
 * `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
+* Some functions such as `PyList::get_item` which return borrowed objects at the C ffi layer now return owned objects at the PyO3 layer, for safety reasons. [#890](https://github.com/PyO3/pyo3/pull/890)
 
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)

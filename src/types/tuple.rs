@@ -70,12 +70,12 @@ impl PyTuple {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: usize) -> &PyAny {
-        // TODO: reconsider whether we should panic
-        // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            self.py()
-                .from_borrowed_ptr(ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+            // PyTuple_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
+            let ptr = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+            ffi::Py_INCREF(ptr);
+            self.py().from_owned_ptr(ptr)
         }
     }
 
@@ -83,7 +83,6 @@ impl PyTuple {
     pub fn as_slice(&self) -> &[PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
-        // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
