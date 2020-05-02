@@ -244,16 +244,14 @@ impl Drop for GILPool {
                 // while calling Py_DECREF we may cause other callbacks to run which will need to
                 // register objects into the GILPool.
                 let len = owned_objects.borrow().len();
-                for i in self.owned_objects_start..len {
-                    let ptr = owned_objects.borrow().get_unchecked(i).as_ptr();
-                    ffi::Py_DECREF(ptr);
+                if self.owned_objects_start < len {
+                    let rest = owned_objects
+                        .borrow_mut()
+                        .split_off(self.owned_objects_start);
+                    for obj in rest {
+                        ffi::Py_DECREF(obj.as_ptr());
+                    }
                 }
-                // If this assertion fails, something weird is going on where another GILPool that was
-                // created after this one has not yet been dropped.
-                debug_assert!(owned_objects.borrow().len() == len);
-                owned_objects
-                    .borrow_mut()
-                    .truncate(self.owned_objects_start);
             });
 
             OWNED_ANYS.with(|owned_anys| owned_anys.borrow_mut().truncate(self.owned_anys_start));
