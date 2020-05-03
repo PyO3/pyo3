@@ -72,10 +72,8 @@ impl PyTuple {
     pub fn get_item(&self, index: usize) -> &PyAny {
         assert!(index < self.len());
         unsafe {
-            // PyTuple_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
-            let ptr = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
-            ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
+            self.py()
+                .from_borrowed_ptr(ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
