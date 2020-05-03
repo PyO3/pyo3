@@ -2,7 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::internal_tricks::Unsendable;
 use crate::{
     exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, Python, ToPyObject,
@@ -111,7 +110,7 @@ macro_rules! int_convert_128 {
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyObject, Unsendable);
+pub struct PyLong(PyAny);
 
 pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 

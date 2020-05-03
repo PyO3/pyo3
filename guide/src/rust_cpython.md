@@ -47,7 +47,8 @@ impl MyClass {
 
 ## Ownership and lifetimes
 
-All objects are owned by the PyO3 library and all APIs available with references, while in rust-cpython, you own python objects.
+While in rust-cpython you always own python objects, PyO3 allows efficient *borrowed objects*
+and most APIs are available with references.
 
 Here is an example of the PyList API:
 
@@ -73,7 +74,8 @@ impl PyList {
 }
 ```
 
-Because PyO3 allows only references to Python objects, all references have the GIL lifetime. So the owned Python object is not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
+In PyO3, all object references are bounded by the GIL lifetime.
+So the owned Python object is not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
 
 ## Error handling
 

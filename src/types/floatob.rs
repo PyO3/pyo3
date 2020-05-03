@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, ObjectProtocol, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, Python, ToPyObject,
@@ -15,7 +14,7 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat(PyObject, Unsendable);
+pub struct PyFloat(PyAny);
 
 pyobject_native_type!(
     PyFloat,
@@ -32,7 +31,7 @@ impl PyFloat {
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
+        unsafe { ffi::PyFloat_AsDouble(self.as_ptr()) }
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::conversion::PyTryFrom;
+use crate::conversion::{AsPyPointer, PyTryFrom};
 use crate::err::PyDowncastError;
-use crate::internal_tricks::Unsendable;
-use crate::{ffi, PyObject};
+use crate::ffi;
+use std::cell::UnsafeCell;
 
 /// A Python object with GIL lifetime
 ///
@@ -28,10 +28,26 @@ use crate::{ffi, PyObject};
 /// assert!(any.downcast::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
-pub struct PyAny(PyObject, Unsendable);
+pub struct PyAny(UnsafeCell<ffi::PyObject>);
+
+impl crate::AsPyPointer for PyAny {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0.get()
+    }
+}
+
+impl PartialEq for PyAny {
+    #[inline]
+    fn eq(&self, o: &PyAny) -> bool {
+        self.as_ptr() == o.as_ptr()
+    }
+}
+
+unsafe impl crate::PyNativeType for PyAny {}
 unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
 impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
-pyobject_native_type_named!(PyAny);
+
 pyobject_native_type_convert!(
     PyAny,
     ffi::PyObject,
@@ -39,6 +55,7 @@ pyobject_native_type_convert!(
     Some("builtins"),
     ffi::PyObject_Check
 );
+
 pyobject_native_type_extract!(PyAny);
 
 impl PyAny {

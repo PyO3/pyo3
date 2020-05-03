@@ -1,17 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::{ffi, AsPyPointer, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray(PyObject, Unsendable);
+pub struct PyByteArray(PyAny);
 
 pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 
@@ -38,7 +34,7 @@ impl PyByteArray {
     #[inline]
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe { ffi::PyByteArray_Size(self.0.as_ptr()) as usize }
+        unsafe { ffi::PyByteArray_Size(self.as_ptr()) as usize }
     }
 
     /// Checks if the bytearray is empty.
@@ -69,8 +65,8 @@ impl PyByteArray {
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         let slice = unsafe {
-            let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
-            let length = ffi::PyByteArray_Size(self.0.as_ptr()) as usize;
+            let buffer = ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8;
+            let length = ffi::PyByteArray_Size(self.as_ptr()) as usize;
             slice::from_raw_parts_mut(buffer, length)
         };
         slice.to_vec()
@@ -79,7 +75,7 @@ impl PyByteArray {
     /// Resizes the bytearray object to the new length `len`.
     pub fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
-            let result = ffi::PyByteArray_Resize(self.0.as_ptr(), len as ffi::Py_ssize_t);
+            let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
             if result == 0 {
                 Ok(())
             } else {

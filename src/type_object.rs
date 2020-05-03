@@ -63,32 +63,6 @@ pub mod type_flags {
     pub const EXTENDED: usize = 1 << 4;
 }
 
-/// Reference abstraction for `PyClass` and `PyNativeType`. Used internaly.
-// NOTE(kngwyu):
-// `&PyCell` is a pointer of `ffi::PyObject` but `&PyAny` is a pointer of a pointer,
-// so we need abstraction.
-// This mismatch eventually should be fixed(e.g., https://github.com/PyO3/pyo3/issues/679).
-pub unsafe trait PyDowncastImpl {
-    /// Cast `&PyAny` to `&Self` without no type checking.
-    ///
-    /// # Safety
-    ///
-    /// Unless obj is not an instance of a type corresponding to Self,
-    /// this method causes undefined behavior.
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
-    private_decl! {}
-}
-
-unsafe impl<'py, T> PyDowncastImpl for T
-where
-    T: 'py + crate::PyNativeType,
-{
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
-        &*(obj as *const _ as *const Self)
-    }
-    private_impl! {}
-}
-
 /// Python type information.
 /// All Python native types(e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
 ///
@@ -124,7 +98,7 @@ pub unsafe trait PyTypeInfo: Sized {
     type Initializer: PyObjectInit<Self>;
 
     /// Utility type to make AsPyRef work
-    type AsRefTarget: PyDowncastImpl;
+    type AsRefTarget: crate::PyNativeType;
 
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;

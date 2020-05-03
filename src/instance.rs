@@ -3,7 +3,7 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
+use crate::type_object::PyBorrowFlagLayout;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
     PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -20,6 +20,15 @@ use std::ptr::NonNull;
 pub unsafe trait PyNativeType: Sized {
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
+    }
+    /// Cast `&PyAny` to `&Self` without no type checking.
+    ///
+    /// # Safety
+    ///
+    /// `obj` must have the same layout as `*const ffi::PyObject` and must be
+    /// an instance of a type corresponding to `Self`.
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
+        &*(obj.as_ptr() as *const Self)
     }
 }
 
@@ -176,8 +185,8 @@ where
 {
     type Target = T::AsRefTarget;
     fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p Self::Target {
-        let any = self as *const Py<T> as *const PyAny;
-        unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
 }
 

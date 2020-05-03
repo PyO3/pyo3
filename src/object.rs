@@ -32,12 +32,6 @@ impl PyObject {
         PyObject(ptr)
     }
 
-    pub(crate) unsafe fn into_nonnull(self) -> NonNull<ffi::PyObject> {
-        let res = self.0;
-        std::mem::forget(self); // Avoid Drop
-        res
-    }
-
     /// Creates a `PyObject` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
@@ -268,7 +262,7 @@ impl PyObject {
 impl AsPyRef for PyObject {
     type Target = PyAny;
     fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p PyAny {
-        unsafe { &*(self as *const _ as *const PyAny) }
+        unsafe { &*(self.as_ptr() as *const PyAny) }
     }
 }
 

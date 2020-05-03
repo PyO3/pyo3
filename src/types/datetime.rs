@@ -25,12 +25,9 @@ use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyTuple;
-use crate::AsPyPointer;
-use crate::Python;
-use crate::ToPyObject;
+use crate::{AsPyPointer, PyAny, Python, ToPyObject};
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr;
@@ -66,7 +63,8 @@ pub trait PyTimeAccess {
 }
 
 /// Bindings around `datetime.date`
-pub struct PyDate(PyObject, Unsendable);
+#[repr(transparent)]
+pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
@@ -122,7 +120,8 @@ impl PyDateAccess for PyDate {
 }
 
 /// Bindings for `datetime.datetime`
-pub struct PyDateTime(PyObject, Unsendable);
+#[repr(transparent)]
+pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
@@ -232,7 +231,8 @@ impl PyTimeAccess for PyDateTime {
 }
 
 /// Bindings for `datetime.time`
-pub struct PyTime(PyObject, Unsendable);
+#[repr(transparent)]
+pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
@@ -317,7 +317,8 @@ impl PyTimeAccess for PyTime {
 /// Bindings for `datetime.tzinfo`
 ///
 /// This is an abstract base class and should not be constructed directly.
-pub struct PyTzInfo(PyObject, Unsendable);
+#[repr(transparent)]
+pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -327,7 +328,8 @@ pyobject_native_type!(
 );
 
 /// Bindings for `datetime.timedelta`
-pub struct PyDelta(PyObject, Unsendable);
+#[repr(transparent)]
+pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,

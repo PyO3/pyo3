@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::ffi::{self, Py_ssize_t};
-use crate::internal_tricks::Unsendable;
 use crate::{
     exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
     PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
@@ -12,7 +11,7 @@ use std::slice;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyTuple(PyObject, Unsendable);
+pub struct PyTuple(PyAny);
 
 pyobject_native_var_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
