@@ -552,4 +552,22 @@ mod test {
         let obj = py.eval("42", None, None).unwrap();
         assert_eq!(unsafe { obj.get_type().as_type_ptr() }, obj.get_type_ptr())
     }
+
+    #[test]
+    fn test_dir() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = py.eval("42", None, None).unwrap();
+        let dir = py
+            .eval("dir(42)", None, None)
+            .unwrap()
+            .extract::<&PyList>()
+            .unwrap();
+        let a = obj
+            .dir()
+            .into_iter()
+            .map(|x| x.extract::<String>().unwrap());
+        let b = dir.into_iter().map(|x| x.extract::<String>().unwrap());
+        assert!(a.eq(b));
+    }
 }
