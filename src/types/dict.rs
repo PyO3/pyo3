@@ -96,7 +96,7 @@ impl PyDict {
     ///
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
-    /// To get a `KeyError` for non-existing keys, use `ObjectProtocol::get_item`.
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
     pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
     where
         K: ToBorrowedObject,
@@ -361,8 +361,8 @@ mod test {
     use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
+    use crate::PyObject;
     use crate::Python;
-    use crate::{ObjectProtocol, PyObject};
     use crate::{PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 

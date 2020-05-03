@@ -3,6 +3,7 @@ use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
+use crate::types::PyAny;
 use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
@@ -100,6 +101,9 @@ impl<T: PyClass> PyCellInner<T> {
 /// Thus, to mutate the data behind `&PyCell<T>` safely, we employ the
 /// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
 /// like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
+///
+/// `PyCell` implements `Deref<Target = PyAny>`, so you can also call methods from `PyAny`
+/// when you have a `PyCell<T>`.
 ///
 /// # Examples
 ///
@@ -371,6 +375,20 @@ impl<T: PyClass> AsPyPointer for PyCell<T> {
 impl<T: PyClass> ToPyObject for &PyCell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
+    fn as_ref(&self) -> &PyAny {
+        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
+    }
+}
+
+impl<T: PyClass> Deref for PyCell<T> {
+    type Target = PyAny;
+
+    fn deref(&self) -> &PyAny {
+        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 }
 

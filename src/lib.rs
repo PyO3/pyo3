@@ -142,7 +142,6 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResul
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
-pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -187,7 +186,6 @@ mod instance;
 mod internal_tricks;
 pub mod marshal;
 mod object;
-mod objectprotocol;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;
@@ -338,6 +336,7 @@ pub mod doc_test {
     doctest!("../guide/src/exception.md", guide_exception_md);
     doctest!("../guide/src/function.md", guide_function_md);
     doctest!("../guide/src/get_started.md", guide_get_started_md);
+    doctest!("../guide/src/migration.md", guide_migration_md);
     doctest!("../guide/src/module.md", guide_module_md);
     doctest!(
         "../guide/src/python_from_rust.md",
@@ -346,5 +345,5 @@ pub mod doc_test {
     doctest!("../guide/src/parallelism.md", guide_parallelism_md);
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
-    doctest!("../guide/src/migration.md", guide_migration_md);
+    doctest!("../guide/src/types.md", guide_types_md);
 }

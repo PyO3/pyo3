@@ -38,7 +38,7 @@ macro_rules! int_fits_larger_int {
 
         impl<'source> FromPyObject<'source> for $rust_type {
             fn extract(obj: &'source PyAny) -> PyResult<Self> {
-                let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
+                let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val).map_err(|_| exceptions::OverflowError.into())
             }
         }

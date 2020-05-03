@@ -35,6 +35,15 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        impl<$($type_param,)*> ::std::ops::Deref for $name {
+            type Target = $crate::PyAny;
+
+            #[inline]
+            fn deref(&self) -> &$crate::PyAny {
+                unsafe { &*(self.as_ptr() as *const $crate::PyAny) }
+            }
+        }
+
         unsafe impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
         impl<$($type_param,)*> $crate::AsPyPointer for $name {
@@ -158,7 +167,6 @@ macro_rules! pyobject_native_type_convert(
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
-                use $crate::ObjectProtocol;
                 let s = self.repr().map_err(|_| ::std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }
@@ -168,7 +176,6 @@ macro_rules! pyobject_native_type_convert(
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
-                use $crate::ObjectProtocol;
                 let s = self.str().map_err(|_| ::std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }

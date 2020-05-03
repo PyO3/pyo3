@@ -255,4 +255,22 @@ mod test {
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
     }
+
+    #[test]
+    fn test_debug_string() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = "Hello\n".to_object(py);
+        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+        assert_eq!(format!("{:?}", s), "'Hello\\n'");
+    }
+
+    #[test]
+    fn test_display_string() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = "Hello\n".to_object(py);
+        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+        assert_eq!(format!("{}", s), "Hello\n");
+    }
 }

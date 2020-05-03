@@ -66,7 +66,6 @@ macro_rules! py_binary_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
@@ -94,7 +93,6 @@ macro_rules! py_binary_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
                 let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
@@ -117,7 +115,6 @@ macro_rules! py_binary_reverse_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 // Swap lhs <-> rhs
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(rhs);
@@ -142,7 +139,6 @@ macro_rules! py_binary_self_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
@@ -191,7 +187,6 @@ macro_rules! py_ternary_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg1 = py
@@ -224,7 +219,6 @@ macro_rules! py_ternary_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let arg1 = py
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
@@ -256,7 +250,6 @@ macro_rules! py_ternary_reverse_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 // Swap lhs <-> rhs
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(arg2);
@@ -284,7 +277,6 @@ macro_rules! py_dummy_ternary_self_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
@@ -307,7 +299,6 @@ macro_rules! py_func_set {
         where
             T: for<'p> $trait_name<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<$generic>>(slf);
 
@@ -340,7 +331,6 @@ macro_rules! py_func_del {
         where
             U: for<'p> $trait_name<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 if value.is_null() {
                     let slf = py.from_borrowed_ptr::<$crate::PyCell<U>>(slf);
@@ -370,7 +360,6 @@ macro_rules! py_func_set_del {
         where
             T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {
-            use $crate::ObjectProtocol;
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<$generic>>(slf);
                 let name = py.from_borrowed_ptr::<$crate::PyAny>(name);

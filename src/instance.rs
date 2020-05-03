@@ -2,7 +2,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
-use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyBorrowFlagLayout;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
@@ -148,7 +147,6 @@ impl<T> Py<T> {
 /// `PyObject::as_ref` returns `&PyAny`.
 /// ```
 /// # use pyo3::prelude::*;
-/// use pyo3::ObjectProtocol;
 /// let obj: PyObject = {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
@@ -156,14 +154,13 @@ impl<T> Py<T> {
 /// };
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);
 /// ```
 ///
 /// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
 /// for `#[pyclass]`.
 /// ```
 /// # use pyo3::prelude::*;
-/// use pyo3::ObjectProtocol;
 /// let obj: PyObject = {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
@@ -171,7 +168,7 @@ impl<T> Py<T> {
 /// };
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);
 /// ```
 pub trait AsPyRef: Sized {
     type Target;

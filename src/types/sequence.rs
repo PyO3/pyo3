@@ -5,7 +5,6 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
-use crate::objectprotocol::ObjectProtocol;
 use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
@@ -385,7 +384,6 @@ impl<'v> PyTryFrom<'v> for PySequence {
 mod test {
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
-    use crate::objectprotocol::ObjectProtocol;
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
