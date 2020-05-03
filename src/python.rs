@@ -197,7 +197,7 @@ impl<'p> Python<'p> {
     ) -> PyResult<()> {
         let res = self.run_code(code, ffi::Py_file_input, globals, locals);
         res.map(|obj| {
-            debug_assert!(crate::ObjectProtocol::is_none(obj));
+            debug_assert!(obj.is_none());
         })
     }
 
@@ -405,7 +405,6 @@ impl<'p> Python<'p> {
 
 #[cfg(test)]
 mod test {
-    use crate::objectprotocol::ObjectProtocol;
     use crate::types::{IntoPyDict, PyAny, PyBool, PyInt, PyList};
     use crate::Python;
 

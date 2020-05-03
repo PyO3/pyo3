@@ -6,7 +6,6 @@
 use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::{PyErr, PyResult};
 use crate::gil::GILPool;
-use crate::objectprotocol::ObjectProtocol;
 use crate::{callback, exceptions, ffi, run_callback, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 

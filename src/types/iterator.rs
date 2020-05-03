@@ -19,7 +19,7 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
-/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(ObjectProtocol::extract::<usize>)).collect();
+/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(PyAny::extract::<usize>)).collect();
 /// let sum: usize = numbers?.iter().sum();
 /// assert_eq!(sum, 10);
 /// # Ok(())
@@ -87,7 +87,6 @@ impl<'p> Drop for PyIterator<'p> {
 mod tests {
     use crate::gil::GILPool;
     use crate::instance::AsPyRef;
-    use crate::objectprotocol::ObjectProtocol;
     use crate::types::{PyDict, PyList};
     use crate::GILGuard;
     use crate::Python;

@@ -7,7 +7,6 @@ use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::objectprotocol::ObjectProtocol;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;

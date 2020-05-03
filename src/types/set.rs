@@ -301,7 +301,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, IntoPy, ObjectProtocol, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyRef, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 

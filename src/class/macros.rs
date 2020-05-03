@@ -70,7 +70,6 @@ macro_rules! py_binary_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -100,7 +99,6 @@ macro_rules! py_binary_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -126,7 +124,6 @@ macro_rules! py_binary_reverse_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -155,8 +152,6 @@ macro_rules! py_binary_self_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -209,8 +204,6 @@ macro_rules! py_ternary_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -245,8 +238,6 @@ macro_rules! py_ternary_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -281,7 +272,6 @@ macro_rules! py_ternary_reverse_num_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -312,8 +302,6 @@ macro_rules! py_dummy_ternary_self_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -338,8 +326,6 @@ macro_rules! py_func_set {
         where
             T: for<'p> $trait_name<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -374,8 +360,6 @@ macro_rules! py_func_del {
         where
             U: for<'p> $trait_name<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {
@@ -407,8 +391,6 @@ macro_rules! py_func_set_del {
         where
             T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {
-            use $crate::ObjectProtocol;
-
             let pool = $crate::GILPool::new();
             let py = pool.python();
             $crate::run_callback(py, || {

@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{ObjectProtocol, ToPyObject};
+use pyo3::ToPyObject;
 
 #[macro_use]
 mod common;

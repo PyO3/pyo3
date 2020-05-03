@@ -133,6 +133,7 @@
 //! }
 //! ```
 
+pub use crate::builtin_methods::*;
 pub use crate::callback::run_callback;
 pub use crate::class::*;
 pub use crate::conversion::{
@@ -143,7 +144,6 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResul
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
-pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -169,6 +169,7 @@ pub use libc;
 pub use unindent;
 
 pub mod buffer;
+pub mod builtin_methods;
 #[doc(hidden)]
 pub mod callback;
 pub mod class;
@@ -188,7 +189,6 @@ mod instance;
 mod internal_tricks;
 pub mod marshal;
 mod object;
-mod objectprotocol;
 pub mod prelude;
 pub mod pycell;
 pub mod pyclass;

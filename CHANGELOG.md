@@ -13,10 +13,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
   * When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
 * `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
+* The trait `ObjectProtocol` has been removed, and all the methods from the trait have been moved to `PyAny`. [#892](https://github.com/PyO3/pyo3/pull/892)
 
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
 * `IntoPy<PyObject>` for `HashSet` and `BTreeSet`. [#864](https://github.com/PyO3/pyo3/pull/864)
+* All builtin types (PyList, PyTuple, PyDict) etc. now implement `Deref` for `PyAny`. [#892](https://github.com/PyO3/pyo3/pull/892)
+* `pyo3::builtin_methods` module for Python builtin methods such as `repr()`, `str()` etc. [#892](https://github.com/PyO3/pyo3/pull/892)
 
 ### Fixed
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
@@ -26,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 * `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
+* `ObjectProtocol`. [#892](https://github.com/PyO3/pyo3/pull/892)\
 
 
 ## [0.9.2]

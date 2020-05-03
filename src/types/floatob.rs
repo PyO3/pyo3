@@ -2,8 +2,8 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, ObjectProtocol, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, Python, ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use std::os::raw::c_double;
 

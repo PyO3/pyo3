@@ -34,7 +34,7 @@ same purpose, except that it consumes `self`.
 ## `*args` and `**kwargs` for Python object calls
 
 There are several ways how to pass positional and keyword arguments to a Python object call.
-The [`ObjectProtocol`] trait provides two methods:
+[`PyAny`] provides two methods:
 
 * `call` - call any callable Python object.
 * `call_method` - call a specific method on the object, shorthand for `get_attr` then `call`.
@@ -137,7 +137,7 @@ Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [
 [`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/trait.ToPyObject.html
 [`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
-[`ObjectProtocol`]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html
+[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
 
 [`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html

@@ -11,8 +11,8 @@
 use crate::callback::HashCallbackOutput;
 use crate::class::methods::PyMethodDef;
 use crate::{
-    callback, exceptions, ffi, run_callback, FromPyObject, GILPool, IntoPy, ObjectProtocol, PyAny,
-    PyCell, PyClass, PyErr, PyObject, PyResult,
+    callback, exceptions, ffi, run_callback, FromPyObject, GILPool, IntoPy, PyAny, PyCell, PyClass,
+    PyErr, PyObject, PyResult,
 };
 use std::os::raw::c_int;
 

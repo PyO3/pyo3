@@ -59,7 +59,6 @@ impl<'source> FromPyObject<'source> for bool {
 
 #[cfg(test)]
 mod test {
-    use crate::objectprotocol::ObjectProtocol;
     use crate::types::{PyAny, PyBool};
     use crate::Python;
     use crate::ToPyObject;

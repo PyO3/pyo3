@@ -661,9 +661,6 @@ mod test {
     use crate::ffi;
     use crate::Python;
 
-    #[allow(unused_imports)]
-    use crate::objectprotocol::ObjectProtocol;
-
     #[test]
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()

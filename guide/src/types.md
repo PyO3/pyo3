@@ -84,7 +84,7 @@ implemented in Rust.
 merged with it in the future.
 
 
-### `PyAny`
+### [`PyAny`]
 
 **Represents:** a Python object of unspecified type, restricted to a GIL
 lifetime.  Currently, `PyAny` can only ever occur as a reference, usually
@@ -93,6 +93,9 @@ lifetime.  Currently, `PyAny` can only ever occur as a reference, usually
 **Used:** Whenever you want to refer to some Python object only as long as
 holding the GIL.  For example, intermediate values and arguments to
 `pyfunction`s or `pymethod`s implemented in Rust where any type is allowed.
+
+Many general methods for interacting with Python objects are on the `PyAny` struct,
+such as `getattr`, `setattr`, and `.call`.
 
 **Conversions:**
 
@@ -108,9 +111,12 @@ lifetime just like `PyAny`.
 the GIL.  Like `PyAny`, this is the most convenient form to use for function
 arguments and intermediate values.
 
+These types all implement `Deref` to `PyAny`, so they all have access to the same
+convenience methods which can be found on `PyAny`.
+
 **Conversions:**
 
-- To `PyAny`: `obj.as_ref()`
+- To `PyAny`: `obj.as_ref()` or `obj.deref()`
 - To `Py<T>`: `Py::from(obj)`
 
 
