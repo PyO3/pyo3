@@ -10,6 +10,7 @@ use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
+use std::ptr::NonNull;
 use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
@@ -101,8 +102,12 @@ impl PyDict {
         K: ToBorrowedObject,
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            self.py()
-                .from_borrowed_ptr_or_opt(ffi::PyDict_GetItem(self.as_ptr(), key))
+            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
+            NonNull::new(ptr).map(|p| {
+                // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
+                ffi::Py_INCREF(p.as_ptr());
+                self.py().from_owned_ptr(p.as_ptr())
+            })
         })
     }
 
@@ -190,7 +195,10 @@ impl<'py> Iterator for PyDictIterator<'py> {
             let mut value: *mut ffi::PyObject = std::ptr::null_mut();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.dict.py();
-                Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
+                // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
+                ffi::Py_INCREF(key);
+                ffi::Py_INCREF(value);
+                Some((py.from_owned_ptr(key), py.from_owned_ptr(value)))
             } else {
                 None
             }

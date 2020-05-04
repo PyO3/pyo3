@@ -135,7 +135,9 @@ impl<'py> Iterator for PySetIterator<'py> {
             let mut key: *mut ffi::PyObject = std::ptr::null_mut();
             let mut hash: ffi::Py_hash_t = 0;
             if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
-                Some(self.set.py().from_borrowed_ptr(key))
+                // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
+                ffi::Py_INCREF(key);
+                Some(self.set.py().from_owned_ptr(key))
             } else {
                 None
             }

@@ -54,9 +54,13 @@ impl PyList {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyAny {
+        assert!((index.abs() as usize) < self.len());
         unsafe {
-            self.py()
-                .from_borrowed_ptr(ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
+            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
+
+            // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
+            ffi::Py_INCREF(ptr);
+            self.py().from_owned_ptr(ptr)
         }
     }
 

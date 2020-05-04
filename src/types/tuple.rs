@@ -69,8 +69,6 @@ impl PyTuple {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: usize) -> &PyAny {
-        // TODO: reconsider whether we should panic
-        // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
             self.py()
@@ -82,7 +80,6 @@ impl PyTuple {
     pub fn as_slice(&self) -> &[PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
-        // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
