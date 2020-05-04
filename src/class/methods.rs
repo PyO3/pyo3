@@ -138,6 +138,7 @@ impl PySetterDef {
 /// Allows arbitrary pymethod blocks to submit their methods, which are eventually
 /// collected by pyclass.
 #[doc(hidden)]
+#[cfg(feature = "macros")]
 pub trait PyMethodsInventory: inventory::Collect {
     /// Create a new instance
     fn new(methods: &'static [PyMethodDefType]) -> Self;
@@ -149,6 +150,7 @@ pub trait PyMethodsInventory: inventory::Collect {
 /// Implementation detail. Only to be used through the proc macros.
 /// For pyclass derived structs, this trait collects method from all impl blocks using inventory.
 #[doc(hidden)]
+#[cfg(feature = "macros")]
 pub trait PyMethodsImpl {
     /// Normal methods. Mainly defined by `#[pymethod]`.
     type Methods: PyMethodsInventory;
@@ -159,5 +161,13 @@ pub trait PyMethodsImpl {
             .into_iter()
             .flat_map(PyMethodsInventory::get_methods)
             .collect()
+    }
+}
+
+#[doc(hidden)]
+#[cfg(not(feature = "macros"))]
+pub trait PyMethodsImpl {
+    fn py_methods() -> Vec<&'static PyMethodDefType> {
+        Vec::new()
     }
 }

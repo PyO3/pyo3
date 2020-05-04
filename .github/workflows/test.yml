@@ -28,7 +28,9 @@ jobs:
           toolchain: nightly
           default: true
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
-      - name: Build
+      - name: Build without default features
+        run: cargo build --no-default-features --verbose
+      - name: Build with default features
         run: cargo build --verbose
       - name: Install test dependencies
         run: |
