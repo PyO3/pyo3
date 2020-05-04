@@ -6,7 +6,7 @@ use crate::{
     exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, Python, ToPyObject,
 };
-use num_traits::cast::cast;
+use std::convert::TryFrom;
 use std::i64;
 use std::os::raw::{c_int, c_long, c_uchar};
 
@@ -39,10 +39,7 @@ macro_rules! int_fits_larger_int {
         impl<'source> FromPyObject<'source> for $rust_type {
             fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
-                match cast::<$larger_type, $rust_type>(val) {
-                    Some(v) => Ok(v),
-                    None => Err(exceptions::OverflowError.into()),
-                }
+                <$rust_type>::try_from(val).map_err(|_| exceptions::OverflowError.into())
             }
         }
     };
@@ -146,10 +143,7 @@ macro_rules! int_fits_c_long {
                         val
                     }
                 }?;
-                match cast::<c_long, $rust_type>(val) {
-                    Some(v) => Ok(v),
-                    None => Err(exceptions::OverflowError.into()),
-                }
+                <$rust_type>::try_from(val).map_err(|_| exceptions::OverflowError.into())
             }
         }
     };
@@ -322,7 +316,6 @@ mod bigint_conversion {
         use super::*;
         use crate::types::{PyDict, PyModule};
         use indoc::indoc;
-        use num_traits::{One, Zero};
 
         fn python_fib(py: Python) -> &PyModule {
             let fib_code = indoc!(
@@ -342,11 +335,11 @@ mod bigint_conversion {
 
         fn rust_fib<T>(n: usize) -> T
         where
-            T: Zero + One,
+            T: From<u16>,
             for<'a> &'a T: std::ops::Add<Output = T>,
         {
-            let mut f0: T = Zero::zero();
-            let mut f1: T = One::one();
+            let mut f0: T = T::from(0);
+            let mut f1: T = T::from(1);
             for _ in 0..n {
                 let f2 = &f0 + &f1;
                 f0 = std::mem::replace(&mut f1, f2);
@@ -428,15 +421,15 @@ mod bigint_conversion {
                 test!(BigInt, BigInt::from(i), py);
                 test!(BigUint, BigUint::from(i), py);
                 test!(BigInt, -BigInt::from(i), py);
-                test!(BigInt, BigInt::one() << i, py);
-                test!(BigUint, BigUint::one() << i, py);
-                test!(BigInt, -BigInt::one() << i, py);
-                test!(BigInt, (BigInt::one() << i) + 1u32, py);
-                test!(BigUint, (BigUint::one() << i) + 1u32, py);
-                test!(BigInt, (-BigInt::one() << i) + 1u32, py);
-                test!(BigInt, (BigInt::one() << i) - 1u32, py);
-                test!(BigUint, (BigUint::one() << i) - 1u32, py);
-                test!(BigInt, (-BigInt::one() << i) - 1u32, py);
+                test!(BigInt, BigInt::from(1) << i, py);
+                test!(BigUint, BigUint::from(1u32) << i, py);
+                test!(BigInt, -BigInt::from(1) << i, py);
+                test!(BigInt, (BigInt::from(1) << i) + 1u32, py);
+                test!(BigUint, (BigUint::from(1u32) << i) + 1u32, py);
+                test!(BigInt, (-BigInt::from(1) << i) + 1u32, py);
+                test!(BigInt, (BigInt::from(1) << i) - 1u32, py);
+                test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
+                test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
             }
         }
     }
