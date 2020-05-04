@@ -1,8 +1,13 @@
-use regex::Regex;
-use serde::Deserialize;
-use std::io::{self, BufRead, BufReader};
-use std::process::{Command, Stdio};
-use std::{collections::HashMap, convert::AsRef, env, fmt, fs::File, path::Path};
+use std::{
+    collections::HashMap,
+    convert::AsRef,
+    env, fmt,
+    fs::File,
+    io::{self, BufRead, BufReader},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    str::FromStr,
+};
 use version_check::{Channel, Date, Version};
 
 /// Specifies the minimum nightly version needed to compile pyo3.
@@ -23,7 +28,7 @@ macro_rules! bail {
 }
 
 /// Information returned from python interpreter
-#[derive(Deserialize, Debug)]
+#[derive(Debug)]
 struct InterpreterConfig {
     version: PythonVersion,
     libdir: Option<String>,
@@ -31,17 +36,17 @@ struct InterpreterConfig {
     ld_version: String,
     /// Prefix used for determining the directory of libpython
     base_prefix: String,
-    executable: String,
+    executable: PathBuf,
     calcsize_pointer: Option<u32>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PythonInterpreterKind {
     CPython,
     PyPy,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
@@ -64,6 +69,17 @@ impl fmt::Display for PythonVersion {
             None => f.write_str("*")?,
         };
         Ok(())
+    }
+}
+
+impl FromStr for PythonInterpreterKind {
+    type Err = Box<dyn std::error::Error>;
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "CPython" => Ok(Self::CPython),
+            "PyPy" => Ok(Self::PyPy),
+            _ => Err(format!("Invalid interpreter: {}", s).into()),
+        }
     }
 }
 
@@ -101,22 +117,15 @@ static SYSCONFIG_VALUES: [&str; 1] = [
 /// Attempts to parse the header at the given path, returning a map of definitions to their values.
 /// Each entry in the map directly corresponds to a `#define` in the given header.
 fn parse_header_defines(header_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
-    // This regex picks apart a C style, single line `#define` statement into an identifier and a
-    // value. e.g. for the line `#define Py_DEBUG 1`, this regex will capture `Py_DEBUG` into
-    // `ident` and `1` into `value`.
-    let define_regex = Regex::new(r"^\s*#define\s+(?P<ident>[a-zA-Z0-9_]+)\s+(?P<value>.+)\s*$")?;
-
-    let header_file = File::open(header_path.as_ref())?;
-    let header_reader = BufReader::new(&header_file);
-
+    let header_reader = BufReader::new(File::open(header_path.as_ref())?);
     let mut definitions = HashMap::new();
-    let tostr = |r: regex::Match<'_>| r.as_str().to_string();
     for maybe_line in header_reader.lines() {
-        if let Some(captures) = define_regex.captures(&maybe_line?) {
-            match (captures.name("ident"), captures.name("value")) {
-                (Some(key), Some(val)) => definitions.insert(tostr(key), tostr(val)),
-                _ => None,
-            };
+        let line = maybe_line?;
+        let mut i = line.trim().split_whitespace();
+        if i.next() == Some("#define") {
+            if let (Some(key), Some(value), None) = (i.next(), i.next(), i.next()) {
+                definitions.insert(key.into(), value.into());
+            }
         }
     }
     Ok(definitions)
@@ -179,7 +188,7 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
         shared,
         ld_version: "".to_string(),
         base_prefix: "".to_string(),
-        executable: "".to_string(),
+        executable: PathBuf::new(),
         calcsize_pointer: None,
     };
 
@@ -190,10 +199,7 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
 #[cfg(not(target_os = "windows"))]
-fn get_config_vars(python_path: &str) -> Result<HashMap<String, String>> {
-    // FIXME: We can do much better here using serde:
-    // import json, sysconfig; print(json.dumps({k:str(v) for k, v in sysconfig.get_config_vars().items()}))
-
+fn get_config_vars(python_path: &Path) -> Result<HashMap<String, String>> {
     let mut script = "import sysconfig; \
                       config = sysconfig.get_config_vars();"
         .to_owned();
@@ -228,7 +234,7 @@ fn get_config_vars(python_path: &str) -> Result<HashMap<String, String>> {
 }
 
 #[cfg(target_os = "windows")]
-fn get_config_vars(_: &str) -> Result<HashMap<String, String>> {
+fn get_config_vars(_: &Path) -> Result<HashMap<String, String>> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -274,7 +280,7 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
 }
 
 /// Run a python script using the specified interpreter binary.
-fn run_python_script(interpreter: &str, script: &str) -> Result<String> {
+fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
     let out = Command::new(interpreter)
         .args(&["-c", script])
         .stderr(Stdio::inherit())
@@ -286,12 +292,12 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String> {
                 bail!(
                     "Could not find any interpreter at {}, \
                      are you sure you have Python installed on your PATH?",
-                    interpreter
+                    interpreter.display()
                 );
             } else {
                 bail!(
                     "Failed to run the Python interpreter at {}: {}",
-                    interpreter,
+                    interpreter.display(),
                     err
                 );
             }
@@ -395,32 +401,23 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
 ///
 /// If none of the above works, an error is returned
 fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        let interpreter_path = sys_executable
-            .to_str()
-            .ok_or("Unable to get PYTHON_SYS_EXECUTABLE value")?;
-        let interpreter_config = get_config_from_interpreter(interpreter_path)?;
-
-        return Ok((interpreter_config, get_config_vars(interpreter_path)?));
+    let python_interpreter = if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        exe.into()
+    } else {
+        PathBuf::from(
+            ["python", "python3"]
+                .iter()
+                .find(|bin| {
+                    if let Ok(out) = Command::new(bin).arg("--version").output() {
+                        // begin with `Python 3.X.X :: additional info`
+                        out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
+                    } else {
+                        false
+                    }
+                })
+                .ok_or("Python 3.x interpreter not found")?,
+        )
     };
-
-    let python_interpreter = ["python", "python3"]
-        .iter()
-        .find(|bin| {
-            if let Ok(out) = Command::new(bin).arg("--version").output() {
-                // begin with `Python 3.X.X :: additional info`
-                out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
-            } else {
-                false
-            }
-        })
-        .ok_or("Python 3.x interpreter not found")?;
-
-    // check default python
-    let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
-    if interpreter_config.version.major == 3 {
-        return Ok((interpreter_config, get_config_vars(&python_interpreter)?));
-    }
 
     let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
     if interpreter_config.version.major == 3 {
@@ -431,7 +428,7 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
 }
 
 /// Extract compilation vars from the specified interpreter.
-fn get_config_from_interpreter(interpreter: &str) -> Result<InterpreterConfig> {
+fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
 import json
 import platform
@@ -446,23 +443,40 @@ try:
 except AttributeError:
     base_prefix = sys.exec_prefix
 
-print(json.dumps({
-    "version": {
-        "major": sys.version_info[0],
-        "minor": sys.version_info[1],
-        "implementation": platform.python_implementation()
-    },
-    "libdir": sysconfig.get_config_var('LIBDIR'),
-    "ld_version": sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'),
-    "base_prefix": base_prefix,
-    "shared": PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')),
-    "executable": sys.executable,
-    "calcsize_pointer": struct.calcsize("P"),
-}))
+libdir = sysconfig.get_config_var('LIBDIR')
+
+print("version_major", sys.version_info[0])
+print("version_minor", sys.version_info[1])
+print("implementation", platform.python_implementation())
+if libdir is not None:
+    print("libdir", libdir)
+print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
+print("base_prefix", base_prefix)
+print("shared", PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
+print("executable", sys.executable)
+print("calcsize_pointer", struct.calcsize("P"))
 "#;
-    let json = run_python_script(interpreter, script)?;
-    Ok(serde_json::from_str(&json)
-        .map_err(|e| format!("Failed to get InterPreterConfig: {}", e))?)
+    let output = run_python_script(interpreter, script)?;
+    let map: HashMap<String, String> = output
+        .lines()
+        .filter_map(|line| {
+            let mut i = line.splitn(2, ' ');
+            Some((i.next()?.into(), i.next()?.into()))
+        })
+        .collect();
+    Ok(InterpreterConfig {
+        version: PythonVersion {
+            major: map["version_major"].parse()?,
+            minor: Some(map["version_minor"].parse()?),
+            implementation: map["implementation"].parse()?,
+        },
+        libdir: map.get("libdir").cloned(),
+        shared: map["shared"] == "True",
+        ld_version: map["ld_version"].clone(),
+        base_prefix: map["base_prefix"].clone(),
+        executable: map["executable"].clone().into(),
+        calcsize_pointer: Some(map["calcsize_pointer"].parse()?),
+    })
 }
 
 fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
