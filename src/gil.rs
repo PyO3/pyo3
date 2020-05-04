@@ -4,26 +4,18 @@
 
 use crate::{ffi, internal_tricks::Unsendable, Python};
 use parking_lot::Mutex;
-use std::cell::{Cell, RefCell, UnsafeCell};
+use std::cell::{RefCell, UnsafeCell};
 use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
 
 thread_local! {
-    /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
-    ///
-    /// It will be incremented whenever a GIL-holding RAII struct is created, and decremented
-    /// whenever they are dropped.
-    ///
-    /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
-    static GIL_COUNT: Cell<u32> = Cell::new(0);
-
     /// These are objects owned by the current thread, to be released when the GILPool drops.
-    static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
+    static OWNED_OBJECTS: RefCell<Vec<Vec<NonNull<ffi::PyObject>>>> = RefCell::new(Vec::with_capacity(4));
 
     /// These are non-python objects such as (String) owned by the current thread, to be released
     /// when the GILPool drops.
-    static OWNED_ANYS: RefCell<Vec<Box<dyn any::Any>>> = RefCell::new(Vec::with_capacity(256));
+    static OWNED_ANYS: RefCell<Vec<Vec<Box<dyn any::Any>>>> = RefCell::new(Vec::with_capacity(4));
 }
 
 /// Check whether the GIL is acquired.
@@ -33,7 +25,12 @@ thread_local! {
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
 fn gil_is_acquired() -> bool {
-    GIL_COUNT.with(|c| c.get() > 0)
+    get_gil_count() > 0
+}
+
+#[inline(always)]
+pub(crate) fn get_gil_count() -> usize {
+    OWNED_OBJECTS.with(|objs| objs.borrow().len())
 }
 
 /// Prepares the use of Python in a free-threaded context.
@@ -175,7 +172,7 @@ impl ReleasePool {
         }
     }
 
-    fn release_pointers(&self, _py: Python) {
+    fn release_pointers(&self) {
         let mut v = self.pointers_to_drop.lock();
 
         if v.is_null() {
@@ -211,8 +208,6 @@ static POOL: ReleasePool = ReleasePool::new();
 
 #[doc(hidden)]
 pub struct GILPool {
-    owned_objects_start: usize,
-    owned_anys_start: usize,
     // Stable solution for impl !Send
     no_send: Unsendable,
 }
@@ -222,12 +217,11 @@ impl GILPool {
     /// This function requires that GIL is already acquired.
     #[inline]
     pub unsafe fn new() -> GILPool {
-        increment_gil_count();
         // Release objects that were dropped since last GIL acquisition
-        POOL.release_pointers(Python::assume_gil_acquired());
+        POOL.release_pointers();
+        OWNED_OBJECTS.with(|owned_objects| owned_objects.borrow_mut().push(Vec::new()));
+        OWNED_ANYS.with(|owned_anys| owned_anys.borrow_mut().push(Vec::new()));
         GILPool {
-            owned_objects_start: OWNED_OBJECTS.with(|o| o.borrow().len()),
-            owned_anys_start: OWNED_ANYS.with(|o| o.borrow().len()),
             no_send: Unsendable::default(),
         }
     }
@@ -243,20 +237,14 @@ impl Drop for GILPool {
                 // Note: inside this closure we must be careful to not hold a borrow too long, because
                 // while calling Py_DECREF we may cause other callbacks to run which will need to
                 // register objects into the GILPool.
-                let len = owned_objects.borrow().len();
-                if self.owned_objects_start < len {
-                    let rest = owned_objects
-                        .borrow_mut()
-                        .split_off(self.owned_objects_start);
-                    for obj in rest {
-                        ffi::Py_DECREF(obj.as_ptr());
-                    }
+                let last = owned_objects.borrow_mut().pop().unwrap();
+                for obj in last {
+                    ffi::Py_DECREF(obj.as_ptr());
                 }
             });
 
-            OWNED_ANYS.with(|owned_anys| owned_anys.borrow_mut().truncate(self.owned_anys_start));
+            OWNED_ANYS.with(|owned_anys| owned_anys.borrow_mut().pop());
         }
-        decrement_gil_count();
     }
 }
 
@@ -277,9 +265,9 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
+pub unsafe fn register_owned(py: Python, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
-    OWNED_OBJECTS.with(|objs| objs.borrow_mut().push(obj));
+    OWNED_OBJECTS.with(|objs| objs.borrow_mut()[py.pool_idx()].push(obj));
 }
 
 /// Register any value inside the GILPool.
@@ -287,7 +275,7 @@ pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
 /// # Safety
 /// It is the caller's responsibility to ensure that the inferred lifetime 'p is not inferred by
 /// the Rust compiler to outlast the current GILPool.
-pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
+pub unsafe fn register_any<'p, T: 'static>(py: Python, obj: T) -> &'p T {
     debug_assert!(gil_is_acquired());
     OWNED_ANYS.with(|owned_anys| {
         let boxed = Box::new(obj);
@@ -296,33 +284,14 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
         // Sneaky - extend the lifetime of the reference so that the box can be moved
         let value_ref_extended_lifetime = std::mem::transmute(value_ref);
 
-        owned_anys.borrow_mut().push(boxed);
+        owned_anys.borrow_mut()[py.pool_idx()].push(boxed);
         value_ref_extended_lifetime
-    })
-}
-
-/// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
-#[inline(always)]
-fn increment_gil_count() {
-    GIL_COUNT.with(|c| c.set(c.get() + 1))
-}
-
-/// Decrement pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
-#[inline(always)]
-fn decrement_gil_count() {
-    GIL_COUNT.with(|c| {
-        let current = c.get();
-        debug_assert!(
-            current > 0,
-            "Negative GIL count detected. Please report this error to the PyO3 repo as a bug."
-        );
-        c.set(current - 1);
     })
 }
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS};
+    use super::{get_gil_count, GILPool, OWNED_OBJECTS};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
@@ -332,12 +301,11 @@ mod test {
         let py = gil.python();
 
         let obj = py.eval("object()", None, None).unwrap();
-
         obj.to_object(py)
     }
 
     fn owned_object_count() -> usize {
-        OWNED_OBJECTS.with(|objs| objs.borrow().len())
+        OWNED_OBJECTS.with(|objs| objs.borrow().last().unwrap().len())
     }
 
     #[test]
@@ -376,18 +344,18 @@ mod test {
 
         unsafe {
             {
-                let _pool = GILPool::new();
+                let pool = GILPool::new();
                 assert_eq!(owned_object_count(), 0);
 
-                gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
+                gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
 
                 assert_eq!(owned_object_count(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
-                    let _pool = GILPool::new();
+                    let pool = GILPool::new();
                     let obj = get_object();
-                    gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
-                    assert_eq!(owned_object_count(), 2);
+                    gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
+                    assert_eq!(owned_object_count(), 1);
                 }
                 assert_eq!(owned_object_count(), 1);
             }
@@ -449,9 +417,6 @@ mod test {
 
     #[test]
     fn test_gil_counts() {
-        // Check GILGuard and GILPool both increase counts correctly
-        let get_gil_count = || GIL_COUNT.with(|c| c.get());
-
         assert_eq!(get_gil_count(), 0);
         let gil = Python::acquire_gil();
         assert_eq!(get_gil_count(), 1);

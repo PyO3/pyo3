@@ -46,7 +46,7 @@ pub use gil::prepare_freethreaded_python;
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with
 /// [Python::allow_threads].
 #[derive(Copy, Clone)]
-pub struct Python<'p>(PhantomData<&'p GILGuard>);
+pub struct Python<'p>(usize, PhantomData<&'p GILGuard>);
 
 impl<'p> Python<'p> {
     /// Retrieves a Python instance under the assumption that the GIL is already
@@ -61,7 +61,9 @@ impl<'p> Python<'p> {
     /// I.e., `Python<'static>` is always *really* unsafe.
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
-        Python(PhantomData)
+        let len = gil::get_gil_count();
+        debug_assert!(len > 0);
+        Python(len - 1, PhantomData)
     }
 
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
@@ -71,6 +73,10 @@ impl<'p> Python<'p> {
     #[inline]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()
+    }
+
+    pub(crate) fn pool_idx(&self) -> usize {
+        self.0
     }
 
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
@@ -379,7 +385,7 @@ impl<'p> Python<'p> {
     /// Passes value ownership to `Python` object and get reference back.
     /// Value get cleaned up on the GIL release.
     pub fn register_any<T: 'static>(self, ob: T) -> &'p T {
-        unsafe { gil::register_any(ob) }
+        unsafe { gil::register_any(self, ob) }
     }
 
     /// Releases a PyObject reference.
