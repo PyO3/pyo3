@@ -130,14 +130,14 @@ mod tests {
 
     #[test]
     fn iter_item_refcnt() {
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
+        let _gil_guard = Python::acquire_gil();
 
         let obj;
         let none;
         let count;
         {
-            let _pool = unsafe { GILPool::new() };
+            let pool = unsafe { GILPool::new() };
+            let py = unsafe { pool.python() };
             let l = PyList::empty(py);
             none = py.None();
             l.append(10).unwrap();
@@ -147,7 +147,8 @@ mod tests {
         }
 
         {
-            let _pool = unsafe { GILPool::new() };
+            let pool = unsafe { GILPool::new() };
+            let py = unsafe { pool.python() };
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 

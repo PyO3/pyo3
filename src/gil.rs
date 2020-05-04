@@ -33,7 +33,11 @@ thread_local! {
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
 fn gil_is_acquired() -> bool {
-    GIL_COUNT.with(|c| c.get() > 0)
+    get_gil_count() > 0
+}
+
+pub(crate) fn get_gil_count() -> u32 {
+    GIL_COUNT.with(|c| c.get())
 }
 
 /// Prepares the use of Python in a free-threaded context.
@@ -136,7 +140,7 @@ impl GILGuard {
     /// Retrieves the marker type that proves that the GIL was acquired.
     #[inline]
     pub fn python(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
+        unsafe { self.pool.python() }
     }
 }
 
@@ -213,6 +217,7 @@ static POOL: ReleasePool = ReleasePool::new();
 pub struct GILPool {
     owned_objects_start: usize,
     owned_anys_start: usize,
+    gil_count: u32,
     // Stable solution for impl !Send
     no_send: Unsendable,
 }
@@ -228,11 +233,12 @@ impl GILPool {
         GILPool {
             owned_objects_start: OWNED_OBJECTS.with(|o| o.borrow().len()),
             owned_anys_start: OWNED_ANYS.with(|o| o.borrow().len()),
+            gil_count: get_gil_count(),
             no_send: Unsendable::default(),
         }
     }
     pub unsafe fn python(&self) -> Python {
-        Python::assume_gil_acquired()
+        Python::from_gil_count(self.gil_count)
     }
 }
 
@@ -277,8 +283,8 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
-    debug_assert!(gil_is_acquired());
+pub unsafe fn register_owned(py: Python, obj: NonNull<ffi::PyObject>) {
+    assert_eq!(py.count(), get_gil_count(), "Please use a newer Python");
     OWNED_OBJECTS.with(|objs| objs.borrow_mut().push(obj));
 }
 
@@ -287,8 +293,8 @@ pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
 /// # Safety
 /// It is the caller's responsibility to ensure that the inferred lifetime 'p is not inferred by
 /// the Rust compiler to outlast the current GILPool.
-pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
-    debug_assert!(gil_is_acquired());
+pub unsafe fn register_any<'p, T: 'static>(py: Python, obj: T) -> &'p T {
+    assert_eq!(py.count(), get_gil_count(), "Please use a newer Python");
     OWNED_ANYS.with(|owned_anys| {
         let boxed = Box::new(obj);
         let value_ref: &T = &*boxed;
@@ -322,7 +328,7 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS};
+    use super::{get_gil_count, GILPool, OWNED_OBJECTS};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
@@ -376,17 +382,17 @@ mod test {
 
         unsafe {
             {
-                let _pool = GILPool::new();
+                let pool = GILPool::new();
                 assert_eq!(owned_object_count(), 0);
 
-                gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
+                gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
 
                 assert_eq!(owned_object_count(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
-                    let _pool = GILPool::new();
+                    let pool = GILPool::new();
                     let obj = get_object();
-                    gil::register_owned(py, NonNull::new_unchecked(obj.into_ptr()));
+                    gil::register_owned(pool.python(), NonNull::new_unchecked(obj.into_ptr()));
                     assert_eq!(owned_object_count(), 2);
                 }
                 assert_eq!(owned_object_count(), 1);
@@ -447,11 +453,9 @@ mod test {
         }
     }
 
+    /// Check GILGuard and GILPool both increase counts correctly
     #[test]
     fn test_gil_counts() {
-        // Check GILGuard and GILPool both increase counts correctly
-        let get_gil_count = || GIL_COUNT.with(|c| c.get());
-
         assert_eq!(get_gil_count(), 0);
         let gil = Python::acquire_gil();
         assert_eq!(get_gil_count(), 1);

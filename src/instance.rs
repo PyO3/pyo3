@@ -343,8 +343,7 @@ where
 #[repr(transparent)]
 pub struct ManagedPyRef<'p, T: ToPyObject + ?Sized> {
     data: *mut ffi::PyObject,
-    data_type: PhantomData<T>,
-    _py: Python<'p>,
+    data_type: PhantomData<&'p T>,
 }
 
 /// This should eventually be replaced with a generic `IntoPy` trait impl by figuring
@@ -382,7 +381,6 @@ impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {
         ManagedPyRef {
             data: self.to_object(py).into_ptr(),
             data_type: PhantomData,
-            _py: py,
         }
     }
 
@@ -396,11 +394,10 @@ impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {
 /// The object we're getting is an owned pointer, it might have it's own drop impl.
 impl<T: ToPyObject + AsPyPointer + ?Sized> ManagedPyRefDispatch for T {
     /// Use AsPyPointer to copy the pointer and store it as borrowed pointer
-    fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self> {
+    fn to_managed_py_ref<'p>(&self, _py: Python<'p>) -> ManagedPyRef<'p, Self> {
         ManagedPyRef {
             data: self.as_ptr(),
             data_type: PhantomData,
-            _py: py,
         }
     }
 
