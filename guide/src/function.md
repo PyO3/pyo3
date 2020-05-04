@@ -187,5 +187,5 @@ If you have a static function, you can expose it with `#[pyfunction]` and use [`
 [`ObjectProtocol::call`]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html#tymethod.call
 [`ObjectProtocol::call0`]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html#tymethod.call0
 [`ObjectProtocol::call1`]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html#tymethod.call1
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html
