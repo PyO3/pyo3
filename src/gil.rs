@@ -3,8 +3,8 @@
 //! Interaction with python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, Python};
-use parking_lot::Mutex;
 use std::cell::{Cell, RefCell, UnsafeCell};
+use std::sync::atomic::{spin_loop_hint, AtomicBool, Ordering};
 use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
@@ -153,54 +153,51 @@ impl Drop for GILGuard {
 
 /// Thread-safe storage for objects which were dropped while the GIL was not held.
 struct ReleasePool {
-    pointers_to_drop: Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
-    pointers_being_dropped: UnsafeCell<*mut Vec<NonNull<ffi::PyObject>>>,
+    locked: AtomicBool,
+    pointers_to_drop: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
+}
+
+struct Lock<'a> {
+    lock: &'a AtomicBool,
+}
+
+impl<'a> Lock<'a> {
+    fn new(lock: &'a AtomicBool) -> Self {
+        while lock.compare_and_swap(false, true, Ordering::Acquire) {
+            spin_loop_hint();
+        }
+        Self { lock }
+    }
+}
+
+impl<'a> Drop for Lock<'a> {
+    fn drop(&mut self) {
+        self.lock.store(false, Ordering::Release);
+    }
 }
 
 impl ReleasePool {
     const fn new() -> Self {
         Self {
-            pointers_to_drop: parking_lot::const_mutex(std::ptr::null_mut()),
-            pointers_being_dropped: UnsafeCell::new(std::ptr::null_mut()),
+            locked: AtomicBool::new(false),
+            pointers_to_drop: UnsafeCell::new(Vec::new()),
         }
     }
 
     fn register_pointer(&self, obj: NonNull<ffi::PyObject>) {
-        let mut storage = self.pointers_to_drop.lock();
-        if storage.is_null() {
-            *storage = Box::into_raw(Box::new(Vec::with_capacity(256)))
-        }
-        unsafe {
-            (**storage).push(obj);
-        }
+        let _lock = Lock::new(&self.locked);
+        let v = self.pointers_to_drop.get();
+        unsafe { (*v).push(obj) };
     }
 
     fn release_pointers(&self, _py: Python) {
-        let mut v = self.pointers_to_drop.lock();
-
-        if v.is_null() {
-            // No pointers have been registered
-            return;
-        }
-
+        let _lock = Lock::new(&self.locked);
+        let v = self.pointers_to_drop.get();
         unsafe {
-            // Function is safe to call because GIL is held, so only one thread can be inside this
-            // block at a time
-
-            let vec = &mut **v;
-            if vec.is_empty() {
-                return;
-            }
-
-            // switch vectors
-            std::mem::swap(&mut *self.pointers_being_dropped.get(), &mut *v);
-            drop(v);
-
-            // release PyObjects
-            for ptr in vec.iter_mut() {
+            for ptr in &(*v) {
                 ffi::Py_DECREF(ptr.as_ptr());
             }
-            vec.set_len(0);
+            (*v).clear();
         }
     }
 }
