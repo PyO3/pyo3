@@ -3,7 +3,7 @@
 use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
-use crate::types::{PyAny, PyDict, PyIterator, PyString, PyTuple, PyType};
+use crate::types::{PyAny, PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
     Python, ToBorrowedObject, ToPyObject,
@@ -211,6 +211,9 @@ pub trait ObjectProtocol {
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
+
+    /// Returns the list of attributes of this object.
+    fn dir(&self) -> &PyList;
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
@@ -485,6 +488,10 @@ where
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 
+    fn dir(&self) -> &PyList {
+        unsafe { self.py().from_owned_ptr(ffi::PyObject_Dir(self.as_ptr())) }
+    }
+
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     fn None(&self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self.py(), ffi::Py_None()) }
@@ -544,5 +551,23 @@ mod test {
         let py = gil.python();
         let obj = py.eval("42", None, None).unwrap();
         assert_eq!(unsafe { obj.get_type().as_type_ptr() }, obj.get_type_ptr())
+    }
+
+    #[test]
+    fn test_dir() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = py.eval("42", None, None).unwrap();
+        let dir = py
+            .eval("dir(42)", None, None)
+            .unwrap()
+            .extract::<&PyList>()
+            .unwrap();
+        let a = obj
+            .dir()
+            .into_iter()
+            .map(|x| x.extract::<String>().unwrap());
+        let b = dir.into_iter().map(|x| x.extract::<String>().unwrap());
+        assert!(a.eq(b));
     }
 }
