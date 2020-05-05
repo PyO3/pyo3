@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 * `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
+* `num-traits` is no longer a dependency. [#895](https://github.com/PyO3/pyo3/pull/895)
 
 
 ## [0.9.2]
