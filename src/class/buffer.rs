@@ -5,8 +5,7 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::err::PyResult;
-use crate::gil::GILPool;
-use crate::{callback, ffi, run_callback, PyCell, PyClass, PyRefMut};
+use crate::{ffi, PyCell, PyClass, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -91,12 +90,9 @@ where
         where
             T: for<'p> PyBufferGetBufferProtocol<'p>,
         {
-            let pool = GILPool::new();
-            let py = pool.python();
-            run_callback(py, || {
+            crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-                let result = T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into();
-                callback::convert(py, result)
+                T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into()
             })
         }
         Some(wrap::<T>)
@@ -126,12 +122,9 @@ where
         where
             T: for<'p> PyBufferReleaseBufferProtocol<'p>,
         {
-            let pool = GILPool::new();
-            let py = pool.python();
-            run_callback(py, || {
+            crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-                let result = T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into();
-                crate::callback::convert(py, result)
+                T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into()
             })
         }
         Some(wrap::<T>)

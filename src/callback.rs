@@ -152,14 +152,65 @@ where
     T::ERR_VALUE
 }
 
+/// Use this macro for all internal callback functions which Python will call.
+///
+/// It sets up the GILPool and converts the output into a Python object. It also restores
+/// any python error returned as an Err variant from the body.
+///
+/// # Safety
+/// This macro assumes the GIL is held. (It makes use of unsafe code, so usage of it is only
+/// possible inside unsafe blocks.)
 #[doc(hidden)]
-pub fn run_callback<T, F>(py: Python, callback: F) -> T
-where
-    F: FnOnce() -> PyResult<T>,
-    T: PyCallbackOutput,
-{
-    callback().unwrap_or_else(|e| {
-        e.restore(py);
-        T::ERR_VALUE
-    })
+#[macro_export]
+macro_rules! callback_body {
+    ($py:ident, $body:expr) => {{
+        $crate::callback_body_without_convert!($py, $crate::callback::convert($py, $body))
+    }};
+}
+
+/// Variant of the above which does not perform the callback conversion. This allows the callback
+/// conversion to be done manually in the case where lifetimes might otherwise cause issue.
+///
+/// For example this pyfunction:
+///
+/// ```ignore
+/// fn foo(&self) -> &Bar {
+///     &self.bar
+/// }
+/// ```
+///
+/// It is wrapped in proc macros with callback_body_without_convert like so:
+///
+/// ```ignore
+/// pyo3::callback_body_without_convert!(py, {
+///     let _slf = #slf;
+///     pyo3::callback::convert(py, #foo)
+/// })
+/// ```
+///
+/// If callback_body was used instead:
+///
+/// ```ignore
+/// pyo3::callback_body!(py, {
+///     let _slf = #slf;
+///     #foo
+/// })
+/// ```
+///
+/// Then this will fail to compile, because the result of #foo borrows _slf, but _slf drops when
+/// the block passed to the macro ends.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! callback_body_without_convert {
+    ($py:ident, $body:expr) => {{
+        let pool = $crate::GILPool::new();
+
+        let $py = pool.python();
+        let callback = move || -> $crate::PyResult<_> { $body };
+
+        callback().unwrap_or_else(|e| {
+            e.restore(pool.python());
+            $crate::callback::callback_error()
+        })
+    }};
 }
