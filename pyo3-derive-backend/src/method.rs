@@ -29,6 +29,7 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
+    ClassAttribute,
     /// For methods taht have `self_: &PyCell<Self>` instead of self receiver
     PySelfRef(syn::TypeReference),
     /// For methods taht have `self_: PyRef<Self>` or `PyRefMut<Self>` instead of self receiver
@@ -139,6 +140,15 @@ impl<'a> FnSpec<'a> {
             };
         }
 
+        if let FnType::ClassAttribute = &fn_type {
+            if self_.is_some() || !arguments.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "Class attribute methods cannot take arguments",
+                ));
+            }
+        }
+
         // "Tweak" getter / setter names: strip off set_ and get_ if needed
         if let FnType::Getter | FnType::Setter = &fn_type {
             if python_name.is_none() {
@@ -178,7 +188,7 @@ impl<'a> FnSpec<'a> {
                 "text_signature not allowed on __new__; if you want to add a signature on \
                  __new__, put it on the struct definition instead",
             )?,
-            FnType::FnCall | FnType::Getter | FnType::Setter => {
+            FnType::FnCall | FnType::Getter | FnType::Setter | FnType::ClassAttribute => {
                 parse_erroneous_text_signature("text_signature not allowed with this attribute")?
             }
         };
@@ -331,6 +341,8 @@ fn parse_method_attributes(
                     res = Some(FnType::FnClass)
                 } else if name.is_ident("staticmethod") {
                     res = Some(FnType::FnStatic)
+                } else if name.is_ident("classattr") {
+                    res = Some(FnType::ClassAttribute)
                 } else if name.is_ident("setter") || name.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         return Err(syn::Error::new_spanned(

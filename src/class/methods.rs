@@ -1,8 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::ffi;
+use crate::{ffi, PyObject, Python};
 use libc::c_int;
 use std::ffi::CString;
+use std::fmt;
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` and `#[pyproto]` annotations.
@@ -18,6 +19,8 @@ pub enum PyMethodDefType {
     Static(PyMethodDef),
     /// Represents normal method
     Method(PyMethodDef),
+    /// Represents class attribute, used by `#[attribute]`
+    ClassAttribute(PyClassAttributeDef),
     /// Represents getter descriptor, used by `#[getter]`
     Getter(PyGetterDef),
     /// Represents setter descriptor, used by `#[setter]`
@@ -38,6 +41,12 @@ pub struct PyMethodDef {
     pub ml_meth: PyMethodType,
     pub ml_flags: c_int,
     pub ml_doc: &'static str,
+}
+
+#[derive(Copy, Clone)]
+pub struct PyClassAttributeDef {
+    pub name: &'static str,
+    pub meth: for<'p> fn(Python<'p>) -> PyObject,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -82,6 +91,16 @@ impl PyMethodDef {
             ml_flags: self.ml_flags,
             ml_doc: self.ml_doc.as_ptr() as *const _,
         }
+    }
+}
+
+// Manual implementation because `Python<'_>` does not implement `Debug` and
+// trait bounds on `fn` compiler-generated derive impls are too restrictive.
+impl fmt::Debug for PyClassAttributeDef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PyClassAttributeDef")
+            .field("name", &self.name)
+            .finish()
     }
 }
 

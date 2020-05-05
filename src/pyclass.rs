@@ -1,7 +1,9 @@
 //! `PyClass` trait
-use crate::class::methods::{PyMethodDefType, PyMethodsImpl};
+use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethodsImpl};
+use crate::conversion::{IntoPyPointer, ToPyObject};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
+use crate::types::PyDict;
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -165,11 +167,21 @@ where
     // buffer protocol
     type_object.tp_as_buffer = to_ptr(<T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer());
 
+    let (new, call, mut methods, attrs) = py_class_method_defs::<T>();
+
     // normal methods
-    let (new, call, mut methods) = py_class_method_defs::<T>();
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
+    }
+
+    // class attributes
+    if !attrs.is_empty() {
+        let dict = PyDict::new(py);
+        for attr in attrs {
+            dict.set_item(attr.name, (attr.meth)(py))?;
+        }
+        type_object.tp_dict = dict.to_object(py).into_ptr();
     }
 
     // __new__ method
@@ -219,8 +231,10 @@ fn py_class_method_defs<T: PyMethodsImpl>() -> (
     Option<ffi::newfunc>,
     Option<ffi::PyCFunctionWithKeywords>,
     Vec<ffi::PyMethodDef>,
+    Vec<PyClassAttributeDef>,
 ) {
     let mut defs = Vec::new();
+    let mut attrs = Vec::new();
     let mut call = None;
     let mut new = None;
 
@@ -242,6 +256,9 @@ fn py_class_method_defs<T: PyMethodsImpl>() -> (
             | PyMethodDefType::Class(ref def)
             | PyMethodDefType::Static(ref def) => {
                 defs.push(def.as_method_def());
+            }
+            PyMethodDefType::ClassAttribute(def) => {
+                attrs.push(def);
             }
             _ => (),
         }
@@ -265,7 +282,7 @@ fn py_class_method_defs<T: PyMethodsImpl>() -> (
 
     py_class_async_methods::<T>(&mut defs);
 
-    (new, call, defs)
+    (new, call, defs, attrs)
 }
 
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
