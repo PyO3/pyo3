@@ -1,11 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::panic::PanicException;
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
 use crate::{exceptions, ffi};
 use crate::{
-    AsPyPointer, FromPy, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, ObjectProtocol, Py, PyAny, PyObject,
+    Python, ToBorrowedObject, ToPyObject,
 };
 use libc::c_int;
 use std::ffi::CString;
@@ -168,13 +169,33 @@ impl PyErr {
     ///
     /// The error is cleared from the Python interpreter.
     /// If no error is set, returns a `SystemError`.
-    pub fn fetch(_: Python) -> PyErr {
+    ///
+    /// If the error fetched is a `PanicException` (which would have originated from a panic in a
+    /// pyo3 callback) then this function will resume the panic.
+    pub fn fetch(py: Python) -> PyErr {
         unsafe {
             let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
             let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
             let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
-            PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback)
+
+            let err = PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback);
+
+            if ptype == PanicException::type_object().as_ptr() {
+                let msg: String = PyAny::from_borrowed_ptr_or_opt(py, pvalue)
+                    .and_then(|obj| obj.extract().ok())
+                    .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
+
+                eprintln!(
+                    "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
+                );
+                eprintln!("Python stack trace below:");
+                err.print(py);
+
+                std::panic::resume_unwind(Box::new(msg))
+            }
+
+            err
         }
     }
 
@@ -564,6 +585,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use crate::exceptions;
+    use crate::panic::PanicException;
     use crate::{PyErr, Python};
 
     #[test]
@@ -574,5 +596,17 @@ mod tests {
         err.restore(py);
         assert!(PyErr::occurred(py));
         drop(PyErr::fetch(py));
+    }
+
+    #[test]
+    fn fetching_panic_exception_panics() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let err: PyErr = PanicException::py_err("new panic");
+        err.restore(py);
+        assert!(PyErr::occurred(py));
+        let started_unwind =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| PyErr::fetch(py))).is_err();
+        assert!(started_unwind);
     }
 }
