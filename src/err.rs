@@ -600,6 +600,14 @@ mod tests {
 
     #[test]
     fn fetching_panic_exception_panics() {
+        // If -Cpanic=abort is specified, we can't catch panic.
+        if option_env!("RUSTFLAGS")
+            .map(|s| s.contains("-Cpanic=abort"))
+            .unwrap_or(false)
+        {
+            return;
+        }
+
         let gil = Python::acquire_gil();
         let py = gil.python();
         let err: PyErr = PanicException::py_err("new panic");
