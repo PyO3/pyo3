@@ -166,10 +166,11 @@ impl Drop for GILGuard {
     }
 }
 
-/// Thread-safe storage for objects which were dropped while the GIL was not held.
-struct ReleasePool {
+/// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
+struct ReferencePool {
     locked: AtomicBool,
-    pointers_to_drop: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
+    pointers_to_incref: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
+    pointers_to_decref: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
 }
 
 struct Lock<'a> {
@@ -191,35 +192,58 @@ impl<'a> Drop for Lock<'a> {
     }
 }
 
-impl ReleasePool {
+impl ReferencePool {
     const fn new() -> Self {
         Self {
             locked: AtomicBool::new(false),
-            pointers_to_drop: UnsafeCell::new(Vec::new()),
+            pointers_to_incref: UnsafeCell::new(Vec::new()),
+            pointers_to_decref: UnsafeCell::new(Vec::new()),
         }
     }
 
-    fn register_pointer(&self, obj: NonNull<ffi::PyObject>) {
+    fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
         let _lock = Lock::new(&self.locked);
-        let v = self.pointers_to_drop.get();
+        let v = self.pointers_to_incref.get();
         unsafe { (*v).push(obj) };
     }
 
-    fn release_pointers(&self, _py: Python) {
+    fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
         let _lock = Lock::new(&self.locked);
-        let v = self.pointers_to_drop.get();
-        unsafe {
-            for ptr in &(*v) {
-                ffi::Py_DECREF(ptr.as_ptr());
+        let v = self.pointers_to_decref.get();
+        unsafe { (*v).push(obj) };
+    }
+
+    fn update_counts(&self, _py: Python) {
+        let _lock = Lock::new(&self.locked);
+
+        // Always increase reference counts first - as otherwise objects which have a
+        // nonzero total reference count might be incorrectly dropped by Python during
+        // this update.
+        {
+            let v = self.pointers_to_incref.get();
+            unsafe {
+                for ptr in &(*v) {
+                    ffi::Py_INCREF(ptr.as_ptr());
+                }
+                (*v).clear();
             }
-            (*v).clear();
+        }
+
+        {
+            let v = self.pointers_to_decref.get();
+            unsafe {
+                for ptr in &(*v) {
+                    ffi::Py_DECREF(ptr.as_ptr());
+                }
+                (*v).clear();
+            }
         }
     }
 }
 
-unsafe impl Sync for ReleasePool {}
+unsafe impl Sync for ReferencePool {}
 
-static POOL: ReleasePool = ReleasePool::new();
+static POOL: ReferencePool = ReferencePool::new();
 
 /// A RAII pool which PyO3 uses to store owned Python references.
 pub struct GILPool {
@@ -240,8 +264,8 @@ impl GILPool {
     #[inline]
     pub unsafe fn new() -> GILPool {
         increment_gil_count();
-        // Release objects that were dropped since last GIL acquisition
-        POOL.release_pointers(Python::assume_gil_acquired());
+        // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
+        POOL.update_counts(Python::assume_gil_acquired());
         GILPool {
             owned_objects_start: OWNED_OBJECTS.with(|o| o.borrow().len()),
             owned_anys_start: OWNED_ANYS.with(|o| o.borrow().len()),
@@ -279,16 +303,35 @@ impl Drop for GILPool {
     }
 }
 
-/// Register a Python object pointer inside the release pool, to have reference count decreased
+/// Register a Python object pointer inside the release pool, to have reference count increased
 /// next time the GIL is acquired in pyo3.
+///
+/// If the GIL is held, the reference count will be increased immediately instead of being queued
+/// for later.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
-pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
+pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
+    if gil_is_acquired() {
+        ffi::Py_INCREF(obj.as_ptr())
+    } else {
+        POOL.register_incref(obj);
+    }
+}
+
+/// Register a Python object pointer inside the release pool, to have reference count decreased
+/// next time the GIL is acquired in pyo3.
+///
+/// If the GIL is held, the reference count will be decreased immediately instead of being queued
+/// for later.
+///
+/// # Safety
+/// The object must be an owned Python reference.
+pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     if gil_is_acquired() {
         ffi::Py_DECREF(obj.as_ptr())
     } else {
-        POOL.register_pointer(obj);
+        POOL.register_decref(obj);
     }
 }
 
@@ -341,7 +384,7 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
+    use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
@@ -501,32 +544,23 @@ mod test {
 
     #[test]
     fn test_allow_threads() {
+        // allow_threads should temporarily release GIL in Py03's internal tracking too.
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let object = get_object(py);
+
+        assert!(gil_is_acquired());
 
         py.allow_threads(move || {
-            // Should be no pointers to drop
-            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
+            assert!(!gil_is_acquired());
 
-            // Dropping object without the GIL should put the pointer in the pool
-            drop(object);
-            let obj_count = unsafe { (*POOL.pointers_to_drop.get()).len() };
-            assert_eq!(obj_count, 1);
-
-            // Now repeat dropping an object, with the GIL.
             let gil = Python::acquire_gil();
+            assert!(gil_is_acquired());
 
-            // (Acquiring the GIL should have cleared the pool).
-            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
-
-            let object = get_object(gil.python());
-            drop(object);
             drop(gil);
+            assert!(!gil_is_acquired());
+        });
 
-            // Previous drop should have decreased count immediately instead of put in pool
-            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
-        })
+        assert!(gil_is_acquired());
     }
 
     #[test]
@@ -541,6 +575,79 @@ mod test {
         drop(gil2);
 
         // After gil2 drops, obj should still have a reference count of one
-        assert_eq!(unsafe { ffi::Py_REFCNT(obj.as_ptr()) }, 1);
+        assert_eq!(obj.get_refcnt(), 1);
+    }
+
+    #[test]
+    fn test_clone_with_gil() {
+        let gil = Python::acquire_gil();
+        let obj = get_object(gil.python());
+        let count = obj.get_refcnt();
+
+        // Cloning with the GIL should increase reference count immediately
+        #[allow(clippy::redundant_clone)]
+        let c = obj.clone();
+        assert_eq!(count + 1, c.get_refcnt());
+    }
+
+    #[test]
+    fn test_clone_without_gil() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = get_object(py);
+        let count = obj.get_refcnt();
+
+        // Cloning without GIL should not update reference count
+        drop(gil);
+        let c = obj.clone();
+        assert_eq!(count, obj.get_refcnt());
+
+        // Acquring GIL will clear this pending change
+        let gil = Python::acquire_gil();
+
+        // Total reference count should be one higher
+        assert_eq!(count + 1, obj.get_refcnt());
+
+        // Clone dropped then GIL released
+        drop(c);
+        drop(gil);
+
+        // Overall count is now back to the original, and should be no pending change
+        assert_eq!(count, obj.get_refcnt());
+    }
+
+    #[test]
+    fn test_clone_in_other_thread() {
+        let gil = Python::acquire_gil();
+        let obj = get_object(gil.python());
+        let count = obj.get_refcnt();
+
+        // Move obj to a thread which does not have the GIL, and clone it
+        let t = std::thread::spawn(move || {
+            // Cloning without GIL should not update reference count
+            let _ = obj.clone();
+            assert_eq!(count, obj.get_refcnt());
+
+            // Return obj so original thread can continue to use
+            obj
+        });
+
+        let obj = t.join().unwrap();
+        let ptr = NonNull::new(obj.as_ptr()).unwrap();
+
+        // The pointer should appear once in the incref pool, and once in the
+        // decref pool (for the clone being created and also dropped)
+        assert_eq!(unsafe { &*POOL.pointers_to_incref.get() }, &vec![ptr]);
+        assert_eq!(unsafe { &*POOL.pointers_to_decref.get() }, &vec![ptr]);
+
+        // Re-acquring GIL will clear these pending changes
+        drop(gil);
+        let _gil = Python::acquire_gil();
+
+        assert!(unsafe { (*POOL.pointers_to_incref.get()).is_empty() });
+        assert!(unsafe { (*POOL.pointers_to_decref.get()).is_empty() });
+
+        // Overall count is still unchanged
+        assert_eq!(count, obj.get_refcnt());
     }
 }

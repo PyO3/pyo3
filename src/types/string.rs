@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::types::PyBytes;
 use crate::{
-    ffi, gil, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, PyTryFrom, Python, ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
+    PyTryFrom, Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;
-use std::ptr::NonNull;
 use std::str;
 
 /// Represents a Python `string` (a Unicode string object).
@@ -71,24 +71,17 @@ impl PyString {
         match self.to_string() {
             Ok(s) => s,
             Err(_) => {
-                unsafe {
-                    let py_bytes = ffi::PyUnicode_AsEncodedString(
-                        self.as_ptr(),
-                        CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
-                        CStr::from_bytes_with_nul(b"surrogatepass\0")
-                            .unwrap()
-                            .as_ptr(),
-                    );
-                    // Since we have a valid PyString and replace any surrogates, assume success.
-                    debug_assert!(!py_bytes.is_null());
-                    // ensure DECREF will be called
-                    gil::register_pointer(NonNull::new(py_bytes).unwrap());
-                    let buffer = ffi::PyBytes_AsString(py_bytes) as *const u8;
-                    debug_assert!(!buffer.is_null());
-                    let length = ffi::PyBytes_Size(py_bytes) as usize;
-                    let bytes = std::slice::from_raw_parts(buffer, length);
-                    String::from_utf8_lossy(bytes)
-                }
+                let bytes = unsafe {
+                    self.py()
+                        .from_owned_ptr::<PyBytes>(ffi::PyUnicode_AsEncodedString(
+                            self.as_ptr(),
+                            CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
+                            CStr::from_bytes_with_nul(b"surrogatepass\0")
+                                .unwrap()
+                                .as_ptr(),
+                        ))
+                };
+                String::from_utf8_lossy(bytes.as_bytes())
             }
         }
     }
