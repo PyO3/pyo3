@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
 * `&'static Py~` being allowed as arguments. [#869](https://github.com/PyO3/pyo3/pull/869)
 * `#[pyo3(get)]` for `Py<T>`. [#880](https://github.com/PyO3/pyo3/pull/880)
+* `allow_threads` will no longer cause segfaults in the event of panics inside the closure. [#912](https://github.com/PyO3/pyo3/pull/912)
 
 ### Removed
 * `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)

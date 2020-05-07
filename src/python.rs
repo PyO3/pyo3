@@ -136,9 +136,16 @@ impl<'p> Python<'p> {
         // transferring the `Python` token into the closure.
         unsafe {
             let save = ffi::PyEval_SaveThread();
-            let result = f();
+            // Unwinding right here corrupts the Python interpreter state and leads to weird
+            // crashes such as stack overflows. We will catch the unwind and resume as soon as
+            // we've restored the GIL state.
+            //
+            // Because we will resume unwinding as soon as the GIL state is fixed, we can assert
+            // that the closure is unwind safe.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
             ffi::PyEval_RestoreThread(save);
-            result
+            // Now that the GIL state has been safely reset, we can unwind if a panic was caught.
+            result.unwrap_or_else(|payload| std::panic::resume_unwind(payload))
         }
     }
 
@@ -468,5 +475,34 @@ mod test {
         let py = gil.python();
         assert!(py.is_subclass::<PyBool, PyInt>().unwrap());
         assert!(!py.is_subclass::<PyBool, PyList>().unwrap());
+    }
+
+    #[test]
+    fn test_allow_threads_panics_safely() {
+        // If -Cpanic=abort is specified, we can't catch panic.
+        if option_env!("RUSTFLAGS")
+            .map(|s| s.contains("-Cpanic=abort"))
+            .unwrap_or(false)
+        {
+            return;
+        }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let result = std::panic::catch_unwind(|| unsafe {
+            let py = Python::assume_gil_acquired();
+            py.allow_threads(|| {
+                panic!("There was a panic!");
+            });
+        });
+
+        // Check panic was caught
+        assert!(result.is_err());
+
+        // If allow_threads is implemented correctly, this thread still owns the GIL here
+        // so the following Python calls should not cause crashes.
+        let list = PyList::new(py, &[1, 2, 3, 4]);
+        assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
     }
 }
