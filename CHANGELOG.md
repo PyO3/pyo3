@@ -15,11 +15,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
 * `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
 * Some functions such as `PyList::get_item` which return borrowed objects at the C ffi layer now return owned objects at the PyO3 layer, for safety reasons. [#890](https://github.com/PyO3/pyo3/pull/890)
+* The trait `ObjectProtocol` has been removed, and all the methods from the trait have been moved to `PyAny`. [#911](https://github.com/PyO3/pyo3/pull/911)
+  * The exception to this is `ObjectProtocol::None`, which has simply been removed. Use `Python::None` instead.
 
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
 * `IntoPy<PyObject>` for `HashSet` and `BTreeSet`. [#864](https://github.com/PyO3/pyo3/pull/864)
-* `ObjectProtocol::dir`. [#886](https://github.com/PyO3/pyo3/pull/886)
+* `PyAny::dir`. [#886](https://github.com/PyO3/pyo3/pull/886)
+* All builtin types (`PyList`, `PyTuple`, `PyDict`) etc. now implement `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
+* `PyCell<T>` now implements `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
 
 ### Fixed
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
@@ -31,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 * `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
 * `num-traits` is no longer a dependency. [#895](https://github.com/PyO3/pyo3/pull/895)
+* `ObjectProtocol`. [#911](https://github.com/PyO3/pyo3/pull/911)
 
 
 ## [0.9.2]

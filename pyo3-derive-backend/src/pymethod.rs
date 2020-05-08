@@ -430,7 +430,6 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
     let num_normal_params = params.len();
     // create array of arguments, and then parse
     quote! {{
-        use pyo3::ObjectProtocol;
         const PARAMS: &'static [pyo3::derive_utils::ParamDescription] = &[
             #(#params),*
         ];

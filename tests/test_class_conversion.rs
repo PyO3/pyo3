@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{ObjectProtocol, ToPyObject};
+use pyo3::ToPyObject;
 
 #[macro_use]
 mod common;
@@ -31,7 +31,10 @@ fn test_cloneable_pyclass() {
 }
 
 #[pyclass]
-struct BaseClass {}
+#[derive(Default)]
+struct BaseClass {
+    value: i32,
+}
 
 #[pymethods]
 impl BaseClass {
@@ -64,7 +67,7 @@ fn test_polymorphic_container_stores_base_class() {
     let p = PyCell::new(
         py,
         PolymorphicContainer {
-            inner: Py::new(py, BaseClass {}).unwrap(),
+            inner: Py::new(py, BaseClass::default()).unwrap(),
         },
     )
     .unwrap()
@@ -81,7 +84,7 @@ fn test_polymorphic_container_stores_sub_class() {
     let p = PyCell::new(
         py,
         PolymorphicContainer {
-            inner: Py::new(py, BaseClass {}).unwrap(),
+            inner: Py::new(py, BaseClass::default()).unwrap(),
         },
     )
     .unwrap()
@@ -92,7 +95,7 @@ fn test_polymorphic_container_stores_sub_class() {
             "inner",
             PyCell::new(
                 py,
-                PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {}),
+                PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
             )
             .unwrap(),
         )
@@ -109,7 +112,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
     let p = PyCell::new(
         py,
         PolymorphicContainer {
-            inner: Py::new(py, BaseClass {}).unwrap(),
+            inner: Py::new(py, BaseClass::default()).unwrap(),
         },
     )
     .unwrap()
@@ -120,4 +123,41 @@ fn test_polymorphic_container_does_not_accept_other_types() {
     assert!(setattr(1i32.into_py(py)).is_err());
     assert!(setattr(py.None()).is_err());
     assert!(setattr((1i32, 2i32).into_py(py)).is_err());
+}
+
+#[test]
+fn test_pyref_as_base() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+
+    // First try PyRefMut
+    let sub: PyRefMut<SubClass> = cell.borrow_mut();
+    let mut base: PyRefMut<BaseClass> = sub.into_super();
+    assert_eq!(120, base.value);
+    base.value = 999;
+    assert_eq!(999, base.value);
+    drop(base);
+
+    // Repeat for PyRef
+    let sub: PyRef<SubClass> = cell.borrow();
+    let base: PyRef<BaseClass> = sub.into_super();
+    assert_eq!(999, base.value);
+}
+
+#[test]
+fn test_pycell_deref() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+
+    // Should be able to deref as PyAny
+    assert_eq!(
+        cell.call_method0("foo")
+            .and_then(PyAny::extract::<&str>)
+            .unwrap(),
+        "SubClass"
+    );
 }

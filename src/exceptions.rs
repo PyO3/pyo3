@@ -354,7 +354,6 @@ pub mod socket {
 #[cfg(test)]
 mod test {
     use crate::exceptions::Exception;
-    use crate::objectprotocol::ObjectProtocol;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{PyErr, Python};
 
