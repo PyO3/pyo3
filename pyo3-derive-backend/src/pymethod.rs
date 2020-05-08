@@ -30,6 +30,9 @@ pub fn gen_py_method(
         FnType::FnCall => impl_py_method_def_call(&spec, &impl_wrap(cls, &spec, false)),
         FnType::FnClass => impl_py_method_def_class(&spec, &impl_wrap_class(cls, &spec)),
         FnType::FnStatic => impl_py_method_def_static(&spec, &impl_wrap_static(cls, &spec)),
+        FnType::ClassAttribute => {
+            impl_py_class_attribute(&spec, &impl_wrap_class_attribute(cls, &spec))
+        }
         FnType::Getter => impl_py_getter_def(
             &spec.python_name,
             &spec.doc,
@@ -242,6 +245,19 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
                 pyo3::callback::convert(_py, #body)
             })
+        }
+    }
+}
+
+/// Generate a wrapper for initialization of a class attribute.
+/// To be called in `pyo3::pyclass::initialize_type_object`.
+pub fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
+    let name = &spec.name;
+    let cb = quote! { #cls::#name() };
+
+    quote! {
+        fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+            pyo3::IntoPy::into_py(#cb, py)
         }
     }
 }
@@ -610,6 +626,20 @@ pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
                 ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | pyo3::ffi::METH_STATIC,
                 ml_doc: #doc,
+            }
+        })
+    }
+}
+
+pub fn impl_py_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) -> TokenStream {
+    let python_name = &spec.python_name;
+    quote! {
+        pyo3::class::PyMethodDefType::ClassAttribute({
+            #wrapper
+
+            pyo3::class::PyClassAttributeDef {
+                name: stringify!(#python_name),
+                meth: __wrap,
             }
         })
     }

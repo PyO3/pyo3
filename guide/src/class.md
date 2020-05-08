@@ -573,6 +573,37 @@ impl MyClass {
 }
 ```
 
+## Class attributes
+
+To create a class attribute (also called [class variable][classattr]), a method without
+any arguments can be annotated with the `#[classattr]` attribute. The return type must be `T` for
+some `T` that implements `IntoPy<PyObject>`.
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {}
+#[pymethods]
+impl MyClass {
+    #[classattr]
+    fn my_attribute() -> String {
+        "hello".to_string()
+    }
+}
+
+let gil = Python::acquire_gil();
+let py = gil.python();
+let my_class = py.get_type::<MyClass>();
+pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
+```
+
+Note that unlike class variables defined in Python code, class attributes defined in Rust cannot
+be mutated at all:
+```rust,ignore
+// Would raise a `TypeError: can't set attributes of built-in/extension type 'MyClass'`
+pyo3::py_run!(py, my_class, "my_class.my_attribute = 'foo'")
+```
+
 ## Callable objects
 
 To specify a custom `__call__` method for a custom class, the method needs to be annotated with
@@ -914,3 +945,5 @@ To escape this we use [inventory](https://github.com/dtolnay/inventory), which a
 [`PyClassInitializer<T>`]: https://pyo3.rs/master/doc/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+
+[classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
