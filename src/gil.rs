@@ -16,7 +16,9 @@ thread_local! {
     /// whenever they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
-    static GIL_COUNT: Cell<u32> = Cell::new(0);
+    ///
+    /// pub(crate) because it is manipulated temporarily by Python::allow_threads
+    pub(crate) static GIL_COUNT: Cell<u32> = Cell::new(0);
 
     /// These are objects owned by the current thread, to be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
@@ -319,7 +321,7 @@ fn decrement_gil_count() {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS};
+    use super::{GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
@@ -474,5 +476,35 @@ mod test {
 
         drop(gil);
         assert_eq!(get_gil_count(), 0);
+    }
+
+    #[test]
+    fn test_allow_threads() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let object = get_object();
+
+        py.allow_threads(move || {
+            // Should be no pointers to drop
+            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
+
+            // Dropping object without the GIL should put the pointer in the pool
+            drop(object);
+            let obj_count = unsafe { (*POOL.pointers_to_drop.get()).len() };
+            assert_eq!(obj_count, 1);
+
+            // Now repeat dropping an object, with the GIL.
+            let gil = Python::acquire_gil();
+
+            // (Acquiring the GIL should have cleared the pool).
+            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
+
+            let object = get_object();
+            drop(object);
+            drop(gil);
+
+            // Previous drop should have decreased count immediately instead of put in pool
+            assert!(unsafe { (*POOL.pointers_to_drop.get()).is_empty() });
+        })
     }
 }

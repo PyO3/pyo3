@@ -135,6 +135,7 @@ impl<'p> Python<'p> {
         // The `Send` bound on the closure prevents the user from
         // transferring the `Python` token into the closure.
         unsafe {
+            let count = gil::GIL_COUNT.with(|c| c.replace(0));
             let save = ffi::PyEval_SaveThread();
             // Unwinding right here corrupts the Python interpreter state and leads to weird
             // crashes such as stack overflows. We will catch the unwind and resume as soon as
@@ -144,6 +145,7 @@ impl<'p> Python<'p> {
             // that the closure is unwind safe.
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
             ffi::PyEval_RestoreThread(save);
+            gil::GIL_COUNT.with(|c| c.set(count));
             // Now that the GIL state has been safely reset, we can unwind if a panic was caught.
             result.unwrap_or_else(|payload| std::panic::resume_unwind(payload))
         }
