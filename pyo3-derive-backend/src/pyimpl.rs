@@ -24,9 +24,18 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Resu
     let mut methods = Vec::new();
     let mut cfg_attributes = Vec::new();
     for iimpl in impls.iter_mut() {
-        if let syn::ImplItem::Method(ref mut meth) = iimpl {
-            methods.push(pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs)?);
-            cfg_attributes.push(get_cfg_attributes(&meth.attrs));
+        match iimpl {
+            syn::ImplItem::Method(meth) => {
+                methods.push(pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs)?);
+                cfg_attributes.push(get_cfg_attributes(&meth.attrs));
+            }
+            syn::ImplItem::Const(konst) => {
+                if let Some(meth) = pymethod::gen_py_const(ty, &konst.ident, &mut konst.attrs)? {
+                    methods.push(meth);
+                }
+                cfg_attributes.push(get_cfg_attributes(&konst.attrs));
+            }
+            _ => (),
         }
     }
 

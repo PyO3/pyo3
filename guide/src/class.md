@@ -604,6 +604,20 @@ be mutated at all:
 pyo3::py_run!(py, my_class, "my_class.my_attribute = 'foo'")
 ```
 
+If the class attribute is defined with `const` code only, one can also annotate associated
+constants:
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {}
+#[pymethods]
+impl MyClass {
+    #[classattr]
+    const MY_CONST_ATTRIBUTE: &'static str = "foobar";
+}
+```
+
 ## Callable objects
 
 To specify a custom `__call__` method for a custom class, the method needs to be annotated with

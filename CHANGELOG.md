@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PyAny::dir`. [#886](https://github.com/PyO3/pyo3/pull/886)
 - All builtin types (`PyList`, `PyTuple`, `PyDict`) etc. now implement `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
 - `PyCell<T>` now implements `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
+- Methods and associated constants can now be annotated with `#[classattr]` to define class attributes. [#905](https://github.com/PyO3/pyo3/pull/905) [#914](https://github.com/PyO3/pyo3/pull/914)
 
 ### Changed
 - Panics from Rust will now be caught and raised as Python errors. [#797](https://github.com/PyO3/pyo3/pull/797)

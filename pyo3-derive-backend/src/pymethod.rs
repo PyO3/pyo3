@@ -1,4 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::konst::ConstSpec;
 use crate::method::{FnArg, FnSpec, FnType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
@@ -31,7 +32,7 @@ pub fn gen_py_method(
         FnType::FnClass => impl_py_method_def_class(&spec, &impl_wrap_class(cls, &spec)),
         FnType::FnStatic => impl_py_method_def_static(&spec, &impl_wrap_static(cls, &spec)),
         FnType::ClassAttribute => {
-            impl_py_class_attribute(&spec, &impl_wrap_class_attribute(cls, &spec))
+            impl_py_method_class_attribute(&spec, &impl_wrap_class_attribute(cls, &spec))
         }
         FnType::Getter => impl_py_getter_def(
             &spec.python_name,
@@ -60,6 +61,23 @@ fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn gen_py_const(
+    cls: &syn::Type,
+    name: &syn::Ident,
+    attrs: &mut Vec<syn::Attribute>,
+) -> syn::Result<Option<TokenStream>> {
+    let spec = ConstSpec::parse(name, attrs)?;
+    if spec.is_class_attr {
+        let wrapper = quote! {
+            fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                pyo3::IntoPy::into_py(#cls::#name, py)
+            }
+        };
+        return Ok(Some(impl_py_const_class_attribute(&spec, &wrapper)));
+    }
+    Ok(None)
 }
 
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
@@ -249,7 +267,8 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     }
 }
 
-/// Generate a wrapper for initialization of a class attribute.
+/// Generate a wrapper for initialization of a class attribute from a method
+/// annotated with `#[classattr]`.
 /// To be called in `pyo3::pyclass::initialize_type_object`.
 pub fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
@@ -630,7 +649,21 @@ pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
     }
 }
 
-pub fn impl_py_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) -> TokenStream {
+pub fn impl_py_method_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) -> TokenStream {
+    let python_name = &spec.python_name;
+    quote! {
+        pyo3::class::PyMethodDefType::ClassAttribute({
+            #wrapper
+
+            pyo3::class::PyClassAttributeDef {
+                name: stringify!(#python_name),
+                meth: __wrap,
+            }
+        })
+    }
+}
+
+pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) -> TokenStream {
     let python_name = &spec.python_name;
     quote! {
         pyo3::class::PyMethodDefType::ClassAttribute({

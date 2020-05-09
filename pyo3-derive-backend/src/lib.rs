@@ -5,6 +5,7 @@
 
 mod defs;
 mod func;
+mod konst;
 mod method;
 mod module;
 mod pyclass;

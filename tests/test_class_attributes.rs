@@ -17,6 +17,9 @@ struct Bar {
 #[pymethods]
 impl Foo {
     #[classattr]
+    const MY_CONST: &'static str = "foobar";
+
+    #[classattr]
     fn a() -> i32 {
         5
     }
@@ -53,6 +56,7 @@ fn class_attributes() {
     let foo_obj = py.get_type::<Foo>();
     py_assert!(py, foo_obj, "foo_obj.a == 5");
     py_assert!(py, foo_obj, "foo_obj.B == 'bar'");
+    py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
 }
 
 #[test]
