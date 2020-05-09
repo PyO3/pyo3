@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
 - `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
 - Some functions such as `PyList::get_item` which return borrowed objects at the C ffi layer now return owned objects at the PyO3 layer, for safety reasons. [#890](https://github.com/PyO3/pyo3/pull/890)
+- The `GILGuard` returned from `Python::acquire_gil` will now only assume responsiblity for freeing owned references on drop if no other `GILPool` or `GILGuard` exists. This ensures that multiple calls to the safe api `Python::acquire_gil` cannot lead to dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
 - The trait `ObjectProtocol` has been removed, and all the methods from the trait have been moved to `PyAny`. [#911](https://github.com/PyO3/pyo3/pull/911)
   - The exception to this is `ObjectProtocol::None`, which has simply been removed. Use `Python::None` instead.
 
