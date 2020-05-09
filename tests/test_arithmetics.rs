@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;

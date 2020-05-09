@@ -24,11 +24,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - The `GILGuard` returned from `Python::acquire_gil` will now only assume responsiblity for freeing owned references on drop if no other `GILPool` or `GILGuard` exists. This ensures that multiple calls to the safe api `Python::acquire_gil` cannot lead to dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
 - The trait `ObjectProtocol` has been removed, and all the methods from the trait have been moved to `PyAny`. [#911](https://github.com/PyO3/pyo3/pull/911)
   - The exception to this is `ObjectProtocol::None`, which has simply been removed. Use `Python::None` instead.
+- No `#![feature(specialization)]` in user code. [#917](https://github.com/PyO3/pyo3/pull/917)
 
 ### Removed
 - `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
 - `num-traits` is no longer a dependency. [#895](https://github.com/PyO3/pyo3/pull/895)
 - `ObjectProtocol`. [#911](https://github.com/PyO3/pyo3/pull/911)
+- All `*ProtocolImpl` traits. [#917](https://github.com/PyO3/pyo3/pull/917)
 
 ### Fixed
 - `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)

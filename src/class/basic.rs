@@ -9,7 +9,6 @@
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use crate::callback::HashCallbackOutput;
-use crate::class::methods::PyMethodDef;
 use crate::{
     exceptions, ffi, FromPyObject, IntoPy, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult,
 };
@@ -145,15 +144,11 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyObjectProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
     fn tp_as_object(_type_object: &mut ffi::PyTypeObject);
     fn nb_bool_fn() -> Option<ffi::inquiry>;
 }
 
 impl<T> PyObjectProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
-    }
     default fn tp_as_object(_type_object: &mut ffi::PyTypeObject) {}
     default fn nb_bool_fn() -> Option<ffi::inquiry> {
         None
@@ -164,20 +159,6 @@ impl<'p, T> PyObjectProtocolImpl for T
 where
     T: PyObjectProtocol<'p>,
 {
-    fn methods() -> Vec<PyMethodDef> {
-        let mut methods = Vec::new();
-
-        if let Some(def) = <Self as FormatProtocolImpl>::__format__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as BytesProtocolImpl>::__bytes__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as UnicodeProtocolImpl>::__unicode__() {
-            methods.push(def)
-        }
-        methods
-    }
     fn tp_as_object(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_str = Self::tp_str();
         type_object.tp_repr = Self::tp_repr();
@@ -370,45 +351,6 @@ where
 {
     fn tp_repr() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyObjectReprProtocol, T::__repr__)
-    }
-}
-
-#[doc(hidden)]
-pub trait FormatProtocolImpl {
-    fn __format__() -> Option<PyMethodDef>;
-}
-impl<'p, T> FormatProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    default fn __format__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-#[doc(hidden)]
-pub trait BytesProtocolImpl {
-    fn __bytes__() -> Option<PyMethodDef>;
-}
-impl<'p, T> BytesProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    default fn __bytes__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-#[doc(hidden)]
-pub trait UnicodeProtocolImpl {
-    fn __unicode__() -> Option<PyMethodDef>;
-}
-impl<'p, T> UnicodeProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    default fn __unicode__() -> Option<PyMethodDef> {
-        None
     }
 }
 

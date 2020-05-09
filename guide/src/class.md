@@ -17,76 +17,7 @@ struct MyClass {
 The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`],
 and [`PyClass`] for `MyClass`.
 
-Specifically, the following implementation is generated:
-
-```rust
-use pyo3::prelude::*;
-
-/// Class for demonstration
-struct MyClass {
-    num: i32,
-    debug: bool,
-}
-
-impl pyo3::pyclass::PyClassAlloc for MyClass {}
-
-unsafe impl pyo3::PyTypeInfo for MyClass {
-    type Type = MyClass;
-    type BaseType = PyAny;
-    type BaseLayout = pyo3::pycell::PyCellBase<PyAny>;
-    type Layout = PyCell<Self>;
-    type Initializer = PyClassInitializer<Self>;
-    type AsRefTarget = PyCell<Self>;
-
-    const NAME: &'static str = "MyClass";
-    const MODULE: Option<&'static str> = None;
-    const DESCRIPTION: &'static str = "Class for demonstration";
-    const FLAGS: usize = 0;
-
-    #[inline]
-    fn type_object() -> &'static pyo3::ffi::PyTypeObject {
-        use pyo3::type_object::LazyStaticType;
-        static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-        TYPE_OBJECT.get_or_init::<Self>()
-    }
-}
-
-impl pyo3::pyclass::PyClass for MyClass {
-    type Dict = pyo3::pyclass_slots::PyClassDummySlot;
-    type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
-    type BaseNativeType = PyAny;
-}
-
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
-    }
-}
-
-pub struct Pyo3MethodsInventoryForMyClass {
-    methods: &'static [pyo3::class::PyMethodDefType],
-}
-
-impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass {
-    fn new(methods: &'static [pyo3::class::PyMethodDefType]) -> Self {
-        Self { methods }
-    }
-
-    fn get_methods(&self) -> &'static [pyo3::class::PyMethodDefType] {
-        self.methods
-    }
-}
-
-impl pyo3::class::methods::PyMethodsImpl for MyClass {
-    type Methods = Pyo3MethodsInventoryForMyClass;
-}
-
-pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let cls = py.get_type::<MyClass>();
-# pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
-```
+If you curious what `#[pyclass]` generates, see [How methods are implemented](#how-methods-are-implemented) section.
 
 ## Adding the class to a module
 
@@ -944,7 +875,77 @@ pyclass dependent on whether there is an impl block, we'd need to implement the 
 `#[pyclass]` and override the implementation in `#[pymethods]`, which is to the best of my knowledge
 only possible with the specialization feature, which can't be used on stable.
 
-To escape this we use [inventory](https://github.com/dtolnay/inventory), which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class::impl_inventory` for more details.
+To escape this we use [inventory](https://github.com/dtolnay/inventory),
+which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick.
+See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class` for more details.
+
+Specifically, the following implementation is generated:
+
+```rust
+use pyo3::prelude::*;
+
+/// Class for demonstration
+struct MyClass {
+    num: i32,
+    debug: bool,
+}
+
+impl pyo3::pyclass::PyClassAlloc for MyClass {}
+
+unsafe impl pyo3::PyTypeInfo for MyClass {
+    type Type = MyClass;
+    type BaseType = PyAny;
+    type BaseLayout = pyo3::pycell::PyCellBase<PyAny>;
+    type Layout = PyCell<Self>;
+    type Initializer = PyClassInitializer<Self>;
+    type AsRefTarget = PyCell<Self>;
+
+    const NAME: &'static str = "MyClass";
+    const MODULE: Option<&'static str> = None;
+    const DESCRIPTION: &'static str = "Class for demonstration";
+    const FLAGS: usize = 0;
+
+    #[inline]
+    fn type_object() -> &'static pyo3::ffi::PyTypeObject {
+        use pyo3::type_object::LazyStaticType;
+        static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
+        TYPE_OBJECT.get_or_init::<Self>()
+    }
+}
+
+impl pyo3::pyclass::PyClass for MyClass {
+    type Dict = pyo3::pyclass_slots::PyClassDummySlot;
+    type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
+    type BaseNativeType = PyAny;
+}
+
+impl pyo3::IntoPy<PyObject> for MyClass {
+    fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
+    }
+}
+
+pub struct Pyo3MethodsInventoryForMyClass {
+    methods: &'static [pyo3::class::PyMethodDefType],
+}
+impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass {
+    fn new(methods: &'static [pyo3::class::PyMethodDefType]) -> Self {
+        Self { methods }
+    }
+    fn get(&self) -> &'static [pyo3::class::PyMethodDefType] {
+        self.methods
+    }
+}
+impl pyo3::class::methods::PyMethodsImpl for MyClass {
+    type Methods = Pyo3MethodsInventoryForMyClass;
+}
+pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let cls = py.get_type::<MyClass>();
+# pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
+```
+
 
 [`GILGuard`]: https://docs.rs/pyo3/latest/pyo3/struct.GILGuard.html
 [`PyGCProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html
