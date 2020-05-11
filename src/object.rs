@@ -308,11 +308,20 @@ impl<'a> FromPyObject<'a> for PyObject {
     }
 }
 
+impl Clone for PyObject {
+    fn clone(&self) -> Self {
+        unsafe {
+            gil::register_incref(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 /// Dropping a `PyObject` instance decrements the reference count on the object by 1.
 impl Drop for PyObject {
     fn drop(&mut self) {
         unsafe {
-            gil::register_pointer(self.0);
+            gil::register_decref(self.0);
         }
     }
 }

@@ -265,11 +265,20 @@ impl<T> PartialEq for Py<T> {
     }
 }
 
+impl<T> Clone for Py<T> {
+    fn clone(&self) -> Self {
+        unsafe {
+            gil::register_incref(self.0);
+        }
+        Self(self.0, PhantomData)
+    }
+}
+
 /// Dropping a `Py` instance decrements the reference count on the object by 1.
 impl<T> Drop for Py<T> {
     fn drop(&mut self) {
         unsafe {
-            gil::register_pointer(self.0);
+            gil::register_decref(self.0);
         }
     }
 }
