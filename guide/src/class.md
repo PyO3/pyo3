@@ -936,7 +936,7 @@ impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass
         self.methods
     }
 }
-impl pyo3::class::methods::PyMethodsImpl for MyClass {
+impl pyo3::class::methods::HasMethodsInventory for MyClass {
     type Methods = Pyo3MethodsInventoryForMyClass;
 }
 pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);

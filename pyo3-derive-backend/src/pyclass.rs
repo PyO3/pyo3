@@ -228,7 +228,7 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
             }
         }
 
-        impl pyo3::class::methods::PyMethodsImpl for #cls {
+        impl pyo3::class::methods::HasMethodsInventory for #cls {
             type Methods = #inventory_cls;
         }
 
@@ -455,8 +455,8 @@ fn impl_descriptors(
     Ok(quote! {
         pyo3::inventory::submit! {
             #![crate = pyo3] {
-                type ClsInventory = <#cls as pyo3::class::methods::PyMethodsImpl>::Methods;
-                <ClsInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
+                type Inventory = <#cls as pyo3::class::methods::HasMethodsInventory>::Methods;
+                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
     })
