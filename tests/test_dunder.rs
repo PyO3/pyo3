@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::class::{
     PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol, PySequenceProtocol,
 };

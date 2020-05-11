@@ -123,14 +123,10 @@ impl<'p, T> PyDescrSetNameProtocolImpl for T where T: PyDescrProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyDescrProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
     fn tp_as_descr(_type_object: &mut ffi::PyTypeObject);
 }
 
 impl<T> PyDescrProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
-    }
     default fn tp_as_descr(_type_object: &mut ffi::PyTypeObject) {}
 }
 
@@ -138,9 +134,6 @@ impl<'p, T> PyDescrProtocolImpl for T
 where
     T: PyDescrProtocol<'p>,
 {
-    fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
-    }
     fn tp_as_descr(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_descr_get = Self::tp_descr_get();
         type_object.tp_descr_set = Self::tp_descr_set();

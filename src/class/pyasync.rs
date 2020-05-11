@@ -8,7 +8,6 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
-use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::{ffi, PyClass, PyObject};
 
@@ -89,16 +88,11 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
 #[doc(hidden)]
 pub trait PyAsyncProtocolImpl {
     fn tp_as_async() -> Option<ffi::PyAsyncMethods>;
-    fn methods() -> Vec<PyMethodDef>;
 }
 
 impl<T> PyAsyncProtocolImpl for T {
     default fn tp_as_async() -> Option<ffi::PyAsyncMethods> {
         None
-    }
-
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
     }
 }
 
@@ -113,20 +107,6 @@ where
             am_aiter: Self::am_aiter(),
             am_anext: Self::am_anext(),
         })
-    }
-
-    #[inline]
-    fn methods() -> Vec<PyMethodDef> {
-        let mut methods = Vec::new();
-
-        if let Some(def) = <Self as PyAsyncAenterProtocolImpl>::__aenter__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyAsyncAexitProtocolImpl>::__aexit__() {
-            methods.push(def)
-        }
-
-        methods
     }
 }
 
@@ -225,31 +205,5 @@ mod anext {
                 IterANextOutput
             )
         }
-    }
-}
-
-trait PyAsyncAenterProtocolImpl {
-    fn __aenter__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyAsyncAenterProtocolImpl for T
-where
-    T: PyAsyncProtocol<'p>,
-{
-    default fn __aenter__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-trait PyAsyncAexitProtocolImpl {
-    fn __aexit__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyAsyncAexitProtocolImpl for T
-where
-    T: PyAsyncProtocol<'p>,
-{
-    default fn __aexit__() -> Option<PyMethodDef> {
-        None
     }
 }

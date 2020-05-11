@@ -3,7 +3,6 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
-use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
 use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
@@ -78,15 +77,11 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
 #[doc(hidden)]
 pub trait PyMappingProtocolImpl {
     fn tp_as_mapping() -> Option<ffi::PyMappingMethods>;
-    fn methods() -> Vec<PyMethodDef>;
 }
 
 impl<T> PyMappingProtocolImpl for T {
     default fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
         None
-    }
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
     }
 }
 
@@ -107,17 +102,6 @@ where
             mp_subscript: Self::mp_subscript(),
             mp_ass_subscript: f,
         })
-    }
-
-    #[inline]
-    fn methods() -> Vec<PyMethodDef> {
-        let mut methods = Vec::new();
-
-        if let Some(def) = <Self as PyMappingReversedProtocolImpl>::__reversed__() {
-            methods.push(def)
-        }
-
-        methods
     }
 }
 
@@ -240,19 +224,5 @@ where
 {
     fn mp_del_subscript() -> Option<ffi::objobjargproc> {
         <T as DelSetItemDispatch>::det_set_dispatch()
-    }
-}
-
-#[doc(hidden)]
-pub trait PyMappingReversedProtocolImpl {
-    fn __reversed__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingReversedProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn __reversed__() -> Option<PyMethodDef> {
-        None
     }
 }

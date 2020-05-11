@@ -172,7 +172,7 @@ where
     // normal methods
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
+        type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as _;
     }
 
     // class attributes
@@ -197,7 +197,7 @@ where
     }
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
-        type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as *mut _;
+        type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as _;
     }
 
     // set type flags
@@ -264,31 +264,7 @@ fn py_class_method_defs<T: PyMethodsImpl>() -> (
         }
     }
 
-    for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
-    for def in <T as class::context::PyContextProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
-    for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
-    for def in <T as class::number::PyNumberProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
-    for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
-
-    py_class_async_methods::<T>(&mut defs);
-
     (new, call, defs, attrs)
-}
-
-fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
-    for def in <T as class::pyasync::PyAsyncProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
 }
 
 fn py_class_properties<T: PyMethodsImpl>() -> Vec<ffi::PyGetSetDef> {

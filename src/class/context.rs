@@ -4,7 +4,6 @@
 //! Trait and support implementation for context manager api
 //!
 
-use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::{PyClass, PyObject};
 
@@ -42,62 +41,4 @@ pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
     type Traceback: crate::FromPyObject<'p>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
-}
-
-#[doc(hidden)]
-pub trait PyContextProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
-}
-
-impl<T> PyContextProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
-    }
-}
-
-impl<'p, T> PyContextProtocolImpl for T
-where
-    T: PyContextProtocol<'p>,
-{
-    #[inline]
-    fn methods() -> Vec<PyMethodDef> {
-        let mut methods = Vec::new();
-
-        if let Some(def) = <Self as PyContextEnterProtocolImpl>::__enter__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyContextExitProtocolImpl>::__exit__() {
-            methods.push(def)
-        }
-
-        methods
-    }
-}
-
-#[doc(hidden)]
-pub trait PyContextEnterProtocolImpl {
-    fn __enter__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyContextEnterProtocolImpl for T
-where
-    T: PyContextProtocol<'p>,
-{
-    default fn __enter__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-#[doc(hidden)]
-pub trait PyContextExitProtocolImpl {
-    fn __exit__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyContextExitProtocolImpl for T
-where
-    T: PyContextProtocol<'p>,
-{
-    default fn __exit__() -> Option<PyMethodDef> {
-        None
-    }
 }

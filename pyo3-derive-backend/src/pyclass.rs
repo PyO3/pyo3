@@ -208,11 +208,9 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     Ok(descs)
 }
 
-/// The orphan rule disallows using a generic inventory struct, so we create the whole boilerplate
-/// once per class
-fn impl_inventory(cls: &syn::Ident) -> TokenStream {
-    // Try to build a unique type that gives a hint about it's function when
-    // it comes up in error messages
+/// To allow multiple #[pymethods]/#[pyproto] block, we define inventory types.
+fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
+    // Try to build a unique type for better error messages
     let name = format!("Pyo3MethodsInventoryFor{}", cls);
     let inventory_cls = syn::Ident::new(&name, Span::call_site());
 
@@ -221,15 +219,11 @@ fn impl_inventory(cls: &syn::Ident) -> TokenStream {
         pub struct #inventory_cls {
             methods: &'static [pyo3::class::PyMethodDefType],
         }
-
         impl pyo3::class::methods::PyMethodsInventory for #inventory_cls {
             fn new(methods: &'static [pyo3::class::PyMethodDefType]) -> Self {
-                Self {
-                    methods
-                }
+                Self { methods }
             }
-
-            fn get_methods(&self) -> &'static [pyo3::class::PyMethodDefType] {
+            fn get(&self) -> &'static [pyo3::class::PyMethodDefType] {
                 self.methods
             }
         }
@@ -345,7 +339,7 @@ fn impl_class(
         quote! {}
     };
 
-    let inventory_impl = impl_inventory(&cls);
+    let impl_inventory = impl_methods_inventory(&cls);
 
     let base = &attr.base;
     let flags = &attr.flags;
@@ -418,7 +412,7 @@ fn impl_class(
 
         #into_pyobject
 
-        #inventory_impl
+        #impl_inventory
 
         #extra
 

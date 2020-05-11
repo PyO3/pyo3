@@ -4,7 +4,6 @@
 //! Trait and support implementation for implementing number protocol
 
 use crate::class::basic::PyObjectProtocolImpl;
-use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
@@ -619,14 +618,10 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyNumberProtocolImpl: PyObjectProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
     fn tp_as_number() -> Option<ffi::PyNumberMethods>;
 }
 
 impl<'p, T> PyNumberProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
-        Vec::new()
-    }
     default fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
             let meth = ffi::PyNumberMethods {
@@ -683,62 +678,6 @@ where
             nb_matrix_multiply: Self::nb_matrix_multiply().or_else(Self::nb_matmul_fallback),
             nb_inplace_matrix_multiply: Self::nb_inplace_matrix_multiply(),
         })
-    }
-
-    #[inline]
-    fn methods() -> Vec<PyMethodDef> {
-        let mut methods = Vec::new();
-
-        if let Some(def) = <Self as PyNumberRAddProtocolImpl>::__radd__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRSubProtocolImpl>::__rsub__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRMulProtocolImpl>::__rmul__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRMatmulProtocolImpl>::__rmatmul__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRTruedivProtocolImpl>::__rtruediv__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRFloordivProtocolImpl>::__rfloordiv__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRModProtocolImpl>::__rmod__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRDivmodProtocolImpl>::__rdivmod__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRPowProtocolImpl>::__rpow__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRLShiftProtocolImpl>::__rlshift__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRRShiftProtocolImpl>::__rrshift__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRAndProtocolImpl>::__rand__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRXorProtocolImpl>::__rxor__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberROrProtocolImpl>::__ror__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberComplexProtocolImpl>::__complex__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyNumberRoundProtocolImpl>::__round__() {
-            methods.push(def)
-        }
-
-        methods
     }
 }
 
@@ -1336,20 +1275,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRAddProtocolImpl {
-    fn __radd__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRAddProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __radd__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 // Fallback trait for nb_add
 trait PyNumberAddFallback {
     fn nb_add_fallback() -> Option<ffi::binaryfunc>;
@@ -1370,20 +1295,6 @@ where
 {
     fn nb_add_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRAddProtocol, T::__radd__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRSubProtocolImpl {
-    fn __rsub__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRSubProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rsub__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1409,20 +1320,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRMulProtocolImpl {
-    fn __rmul__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRMulProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rmul__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberMulFallback {
     fn nb_mul_fallback() -> Option<ffi::binaryfunc>;
 }
@@ -1442,20 +1339,6 @@ where
 {
     fn nb_mul_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRMulProtocol, T::__rmul__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRMatmulProtocolImpl {
-    fn __rmatmul__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRMatmulProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rmatmul__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1481,20 +1364,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRTruedivProtocolImpl {
-    fn __rtruediv__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRTruedivProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rtruediv__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberTruedivFallback {
     fn nb_truediv_fallback() -> Option<ffi::binaryfunc>;
 }
@@ -1514,20 +1383,6 @@ where
 {
     fn nb_truediv_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRTruedivProtocol, T::__rtruediv__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRFloordivProtocolImpl {
-    fn __rfloordiv__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRFloordivProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rfloordiv__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1553,20 +1408,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRModProtocolImpl {
-    fn __rmod__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRModProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rmod__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberModFallback {
     fn nb_mod_fallback() -> Option<ffi::binaryfunc>;
 }
@@ -1586,20 +1427,6 @@ where
 {
     fn nb_mod_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRModProtocol, T::__rmod__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRDivmodProtocolImpl {
-    fn __rdivmod__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRDivmodProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rdivmod__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1625,20 +1452,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRPowProtocolImpl {
-    fn __rpow__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRPowProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rpow__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberPowFallback {
     fn nb_pow_fallback() -> Option<ffi::ternaryfunc>;
 }
@@ -1658,20 +1471,6 @@ where
 {
     fn nb_pow_fallback() -> Option<ffi::ternaryfunc> {
         py_ternary_reverse_num_func!(PyNumberRPowProtocol, T::__rpow__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRLShiftProtocolImpl {
-    fn __rlshift__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRLShiftProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rlshift__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1697,20 +1496,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRRShiftProtocolImpl {
-    fn __rrshift__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRRShiftProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rrshift__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberRRshiftFallback {
     fn nb_rshift_fallback() -> Option<ffi::binaryfunc>;
 }
@@ -1730,20 +1515,6 @@ where
 {
     fn nb_rshift_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRRShiftProtocol, T::__rrshift__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberRAndProtocolImpl {
-    fn __rand__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRAndProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rand__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1769,20 +1540,6 @@ where
     }
 }
 
-#[doc(hidden)]
-pub trait PyNumberRXorProtocolImpl {
-    fn __rxor__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRXorProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __rxor__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
 trait PyNumberXorFallback {
     fn nb_xor_fallback() -> Option<ffi::binaryfunc>;
 }
@@ -1802,20 +1559,6 @@ where
 {
     fn nb_xor_fallback() -> Option<ffi::binaryfunc> {
         py_binary_reverse_num_func!(PyNumberRXorProtocol, T::__rxor__)
-    }
-}
-
-#[doc(hidden)]
-pub trait PyNumberROrProtocolImpl {
-    fn __ror__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberROrProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __ror__() -> Option<PyMethodDef> {
-        None
     }
 }
 
@@ -1993,31 +1736,5 @@ where
 {
     fn nb_index() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberIndexProtocol, T::__index__)
-    }
-}
-
-pub trait PyNumberComplexProtocolImpl {
-    fn __complex__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberComplexProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __complex__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-pub trait PyNumberRoundProtocolImpl {
-    fn __round__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyNumberRoundProtocolImpl for T
-where
-    T: PyNumberProtocol<'p>,
-{
-    default fn __round__() -> Option<PyMethodDef> {
-        None
     }
 }
