@@ -150,21 +150,18 @@ pub use crate::type_object::{type_flags, PyTypeInfo};
 // Since PyAny is as important as PyObject, we expose it to the top level.
 pub use crate::types::PyAny;
 
-// Re-exported for wrap_function
+#[cfg(feature = "macros")]
 #[doc(hidden)]
-pub use paste;
-// Re-exported for py_run
-#[doc(hidden)]
-pub use indoc;
-// Re-exported for pymethods
-#[doc(hidden)]
-pub use inventory;
+pub use {
+    indoc,     // Re-exported for py_run
+    inventory, // Re-exported for pymethods
+    paste,     // Re-exported for wrap_function
+    unindent,  // Re-exported for py_run
+};
+
 // Re-exported for the `__wrap` functions
 #[doc(hidden)]
 pub use libc;
-// Re-exported for py_run
-#[doc(hidden)]
-pub use unindent;
 
 pub mod buffer;
 #[doc(hidden)]
@@ -197,6 +194,7 @@ pub mod type_object;
 pub mod types;
 
 /// The proc macros, which are also part of the prelude.
+#[cfg(feature = "macros")]
 pub mod proc_macro {
     pub use pyo3cls::pymodule;
     /// The proc macro attributes
@@ -278,6 +276,7 @@ macro_rules! wrap_pymodule {
 /// If you need to handle failures, please use [Python::run] directly.
 ///
 #[macro_export]
+#[cfg(feature = "macros")]
 macro_rules! py_run {
     ($py:expr, $($val:ident)+, $code:literal) => {{
         pyo3::py_run_impl!($py, $($val)+, pyo3::indoc::indoc!($code))
@@ -289,6 +288,7 @@ macro_rules! py_run {
 
 #[macro_export]
 #[doc(hidden)]
+#[cfg(feature = "macros")]
 macro_rules! py_run_impl {
     ($py:expr, $($val:ident)+, $code:expr) => {{
         use pyo3::types::IntoPyDict;
