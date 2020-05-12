@@ -8,7 +8,7 @@ For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/p
 ### `ObjectProtocol` is removed
 All methods are moved to [`PyAny`].
 And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
-al you need is removing `ObjectProtocol` from your code.
+all you need to do is remove `ObjectProtocol` from your code.
 
 Before:
 ```rust,compile_fail
@@ -29,7 +29,7 @@ assert_eq!(hi.len().unwrap(), 5);
 ```
 
 ### No `#![feature(specialization)]` in user code
-While PyO3 itself still requires spcialization and nightly Rust,
+While PyO3 itself still requires specialization and nightly Rust,
 now you don't have to use `#![feature(specialization)]` in your crate.
 
 ## from 0.8.* to 0.9
