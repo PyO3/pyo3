@@ -42,8 +42,8 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Resu
     Ok(quote! {
        pyo3::inventory::submit! {
             #![crate = pyo3] {
-                type TyInventory = <#ty as pyo3::class::methods::PyMethodsImpl>::Methods;
-                <TyInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(
+                type Inventory = <#ty as pyo3::class::methods::HasMethodsInventory>::Methods;
+                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(
                     #(#cfg_attributes)*
                     #methods
                 ),*])

@@ -147,27 +147,28 @@ pub trait PyMethodsInventory: inventory::Collect {
     fn get(&self) -> &'static [PyMethodDefType];
 }
 
+#[doc(hidden)]
+#[cfg(feature = "macros")]
+pub trait HasMethodsInventory {
+    type Methods: PyMethodsInventory;
+}
+
 /// Implementation detail. Only to be used through the proc macros.
 /// For pyclass derived structs, this trait collects method from all impl blocks using inventory.
 #[doc(hidden)]
-#[cfg(feature = "macros")]
 pub trait PyMethodsImpl {
-    /// Normal methods. Mainly defined by `#[pymethod]`.
-    type Methods: PyMethodsInventory;
-
     /// Returns all methods that are defined for a class.
     fn py_methods() -> Vec<&'static PyMethodDefType> {
-        inventory::iter::<Self::Methods>
-            .into_iter()
-            .flat_map(PyMethodsInventory::get)
-            .collect()
+        Vec::new()
     }
 }
 
-#[doc(hidden)]
-#[cfg(not(feature = "macros"))]
-pub trait PyMethodsImpl {
+#[cfg(feature = "macros")]
+impl<T: HasMethodsInventory> PyMethodsImpl for T {
     fn py_methods() -> Vec<&'static PyMethodDefType> {
-        Vec::new()
+        inventory::iter::<T::Methods>
+            .into_iter()
+            .flat_map(PyMethodsInventory::get)
+            .collect()
     }
 }

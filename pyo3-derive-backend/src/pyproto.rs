@@ -98,8 +98,8 @@ fn impl_proto_impl(
     let inventory_submission = quote! {
         pyo3::inventory::submit! {
             #![crate = pyo3] {
-                type ProtoInventory = <#ty as pyo3::class::methods::PyMethodsImpl>::Methods;
-                <ProtoInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
+                type Inventory = <#ty as pyo3::class::methods::HasMethodsInventory>::Methods;
+                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
     };
