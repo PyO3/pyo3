@@ -9,6 +9,7 @@ For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/p
 All methods are moved to [`PyAny`].
 And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
 all you need to do is remove `ObjectProtocol` from your code.
+Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
 
 Before:
 ```rust,compile_fail
