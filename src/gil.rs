@@ -214,28 +214,39 @@ impl ReferencePool {
     }
 
     fn update_counts(&self, _py: Python) {
-        let _lock = Lock::new(&self.locked);
+        macro_rules! swap_vec_with_lock {
+            // Get vec from one of ReferencePool's UnsafeCell fields by locking, swapping the
+            // vec for a new one if needed, and unlocking.
+            ($cell:expr) => {{
+                let _lock = Lock::new(&self.locked);
+                let v = $cell.get();
+                let mut out = None;
+                unsafe {
+                    if !(*v).is_empty() {
+                        std::mem::swap(out.get_or_insert_with(Vec::new), &mut *v);
+                    }
+                }
+                drop(_lock);
+                out
+            }};
+        };
 
         // Always increase reference counts first - as otherwise objects which have a
         // nonzero total reference count might be incorrectly dropped by Python during
         // this update.
         {
-            let v = self.pointers_to_incref.get();
-            unsafe {
-                for ptr in &(*v) {
-                    ffi::Py_INCREF(ptr.as_ptr());
+            if let Some(v) = swap_vec_with_lock!(self.pointers_to_incref) {
+                for ptr in v {
+                    unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
                 }
-                (*v).clear();
             }
         }
 
         {
-            let v = self.pointers_to_decref.get();
-            unsafe {
-                for ptr in &(*v) {
-                    ffi::Py_DECREF(ptr.as_ptr());
+            if let Some(v) = swap_vec_with_lock!(self.pointers_to_decref) {
+                for ptr in v {
+                    unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
                 }
-                (*v).clear();
             }
         }
     }
@@ -649,5 +660,36 @@ mod test {
 
         // Overall count is still unchanged
         assert_eq!(count, obj.get_refcnt());
+    }
+
+    #[test]
+    fn test_update_counts_does_not_deadlock() {
+        // update_counts can run arbitrary Python code during Py_DECREF.
+        // if the locking is implemented incorrectly, it will deadlock.
+
+        let gil = Python::acquire_gil();
+        let obj = get_object(gil.python());
+
+        unsafe {
+            unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
+                // This line will implicitly call update_counts
+                // -> and so cause deadlock if update_counts is not handling recursion correctly.
+                let pool = GILPool::new();
+
+                // Rebuild obj so that it can be dropped
+                PyObject::from_owned_ptr(
+                    pool.python(),
+                    ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
+                );
+            }
+
+            let ptr = obj.into_ptr();
+            let capsule = ffi::PyCapsule_New(ptr as _, std::ptr::null(), Some(capsule_drop));
+
+            (*POOL.pointers_to_decref.get()).push(NonNull::new(capsule).unwrap());
+
+            // Updating the counts will call decref on the capsule, which calls capsule_drop
+            POOL.update_counts(gil.python())
+        }
     }
 }
