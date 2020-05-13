@@ -5,39 +5,43 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.10.0]
 ### Added
-- `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
-- `IntoPy<PyObject>` for `HashSet` and `BTreeSet`. [#864](https://github.com/PyO3/pyo3/pull/864)
-- `PyAny::dir`. [#886](https://github.com/PyO3/pyo3/pull/886)
-- `impl Clone` for `PyObject` and `Py<T>`. [#908](https://github.com/PyO3/pyo3/pull/908)
-- All builtin types (`PyList`, `PyTuple`, `PyDict`) etc. now implement `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
-- `PyCell<T>` now implements `Deref<Target = PyAny>`. [#911](https://github.com/PyO3/pyo3/pull/911)
-- Methods and associated constants can now be annotated with `#[classattr]` to define class attributes. [#905](https://github.com/PyO3/pyo3/pull/905) [#914](https://github.com/PyO3/pyo3/pull/914)
+- Add FFI definition `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
+- Implement `IntoPy<PyObject>` for `HashSet` and `BTreeSet`. [#864](https://github.com/PyO3/pyo3/pull/864)
+- Add `PyAny::dir` method. [#886](https://github.com/PyO3/pyo3/pull/886)
+- Gate macros behind a `macros` feature (enabled by default). [#897](https://github.com/PyO3/pyo3/pull/897)
+- Add ability to define class attributes using `#[classattr]` on functions in `#[pymethods]`. [#905](https://github.com/PyO3/pyo3/pull/905)
+- Implement `Clone` for `PyObject` and `Py<T>`. [#908](https://github.com/PyO3/pyo3/pull/908)
+- Implement `Deref<Target = PyAny>` for all builtin types. (`PyList`, `PyTuple`, `PyDict` etc.) [#911](https://github.com/PyO3/pyo3/pull/911)
+- Implement `Deref<Target = PyAny>` for `PyCell<T>`. [#911](https://github.com/PyO3/pyo3/pull/911)
+- Add `#[classattr]` support for associated constants in `#[pymethods]`. [#914](https://github.com/PyO3/pyo3/pull/914)
 
 ### Changed
-- Panics from Rust will now be caught and raised as Python errors. [#797](https://github.com/PyO3/pyo3/pull/797)
-- `PyObject` and `Py<T>` reference counts are now decremented sooner after `drop()`. [#851](https://github.com/PyO3/pyo3/pull/851)
-  - When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
-  - When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
-- `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
-- Some functions such as `PyList::get_item` which return borrowed objects at the C ffi layer now return owned objects at the PyO3 layer, for safety reasons. [#890](https://github.com/PyO3/pyo3/pull/890)
-- The `GILGuard` returned from `Python::acquire_gil` will now only assume responsiblity for freeing owned references on drop if no other `GILPool` or `GILGuard` exists. This ensures that multiple calls to the safe api `Python::acquire_gil` cannot lead to dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
-- The trait `ObjectProtocol` has been removed, and all the methods from the trait have been moved to `PyAny`. [#911](https://github.com/PyO3/pyo3/pull/911)
-  - The exception to this is `ObjectProtocol::None`, which has simply been removed. Use `Python::None` instead.
-- No `#![feature(specialization)]` in user code. [#917](https://github.com/PyO3/pyo3/pull/917)
+- Panics will now be raised as a Python `PanicException`. [#797](https://github.com/PyO3/pyo3/pull/797)
+- Change `PyObject` and `Py<T>` reference counts to decrement immediately upon drop when the GIL is held. [#851](https://github.com/PyO3/pyo3/pull/851)
+- Allow `PyIterProtocol` methods to use either `PyRef` or `PyRefMut` as the receiver type. [#856](https://github.com/PyO3/pyo3/pull/856)
+- Change the implementation of `FromPyObject` for `Py<T>` to apply to a wider range of `T`, including all `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
+- Move all methods from the `ObjectProtocol` trait to the `PyAny` struct. [#911](https://github.com/PyO3/pyo3/pull/911)
+- Remove need for `#![feature(specialization)]` in crates depending on PyO3. [#917](https://github.com/PyO3/pyo3/pull/917)
 
 ### Removed
-- `PyMethodsProtocol` is now renamed to `PyMethodsImpl` and hidden. [#889](https://github.com/PyO3/pyo3/pull/889)
-- `num-traits` is no longer a dependency. [#895](https://github.com/PyO3/pyo3/pull/895)
-- `ObjectProtocol`. [#911](https://github.com/PyO3/pyo3/pull/911)
-- All `*ProtocolImpl` traits. [#917](https://github.com/PyO3/pyo3/pull/917)
+- Remove `PyMethodsProtocol` trait. [#889](https://github.com/PyO3/pyo3/pull/889)
+- Remove `num-traits` dependency. [#895](https://github.com/PyO3/pyo3/pull/895)
+- Remove `ObjectProtocol` trait. [#911](https://github.com/PyO3/pyo3/pull/911)
+- Remove `PyAny::None`. Users should use `Python::None` instead. [#911](https://github.com/PyO3/pyo3/pull/911)
+- Remove all `*ProtocolImpl` traits. [#917](https://github.com/PyO3/pyo3/pull/917)
 
 ### Fixed
-- `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
-- Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
-- `&'static Py~` being allowed as arguments. [#869](https://github.com/PyO3/pyo3/pull/869)
-- `#[pyo3(get)]` for `Py<T>`. [#880](https://github.com/PyO3/pyo3/pull/880)
-- `allow_threads` will no longer cause segfaults in the event of panics inside the closure. [#912](https://github.com/PyO3/pyo3/pull/912)
+- Fix support for `__radd__` and other `__r*__` methods as implementations for Python mathematical operators. [#839](https://github.com/PyO3/pyo3/pull/839)
+- Fix panics during garbage collection when traversing objects that were already mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
+- Prevent `&'static` references to Python objects as arguments to `#[pyfunction]` and `#[pymethods]`. [#869](https://github.com/PyO3/pyo3/pull/869)
+- Fix lifetime safety bug with `AsPyRef::as_ref`. [#876](https://github.com/PyO3/pyo3/pull/876)
+- Fix `#[pyo3(get)]` attribute on `Py<T>` fields. [#880](https://github.com/PyO3/pyo3/pull/880)
+- Fix segmentation faults caused by functions such as `PyList::get_item` returning borrowed objects when it was not safe to do so. [#890](https://github.com/PyO3/pyo3/pull/890)
+- Fix segmentation faults caused by nested `Python::acquire_gil` calls creating dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
+- Fix segmentatation faults when a panic occurs during a call to `Python::allow_threads`. [#912](https://github.com/PyO3/pyo3/pull/912)
 
 ## [0.9.2] - 2020-04-09
 ### Added
@@ -385,7 +389,8 @@ Yanked
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/pyo3/pyo3/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/pyo3/pyo3/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/pyo3/pyo3/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/pyo3/pyo3/compare/v0.8.5...v0.9.0

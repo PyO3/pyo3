@@ -1,5 +1,38 @@
 # Appendix B: Migrating from older PyO3 versions
-This guide can help you upgrade code through breaking changes from one PyO3 version to the next. For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
+
+This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
+For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
+
+## from 0.9.* to 0.10
+
+### `ObjectProtocol` is removed
+All methods are moved to [`PyAny`].
+And since now all native types (e.g., `PyList`) implements `Deref<Target=PyAny>`,
+all you need to do is remove `ObjectProtocol` from your code.
+Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing.
+
+Before:
+```rust,compile_fail
+use pyo3::ObjectProtocol;
+
+let gil = pyo3::Python::acquire_gil();
+let obj = gil.python().eval("lambda: 'Hi :)'", None, None).unwrap();
+let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
+assert_eq!(hi.len().unwrap(), 5);
+```
+
+After:
+```rust
+let gil = pyo3::Python::acquire_gil();
+let obj = gil.python().eval("lambda: 'Hi :)'", None, None).unwrap();
+let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
+assert_eq!(hi.len().unwrap(), 5);
+```
+
+### No `#![feature(specialization)]` in user code
+While PyO3 itself still requires specialization and nightly Rust,
+now you don't have to use `#![feature(specialization)]` in your crate.
+
 ## from 0.8.* to 0.9
 
 ### `#[new]` interface
@@ -191,10 +224,10 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 [`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
-
-[`PyCell`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html
-[`PyBorrowMutError`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyBorrowMutError.html
-[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
+[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
+[`PyCell`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html
+[`PyBorrowMutError`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyBorrowMutError.html
+[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
