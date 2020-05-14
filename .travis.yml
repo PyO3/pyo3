@@ -34,11 +34,6 @@ env:
     - TRAVIS_RUST_VERSION=nightly
     - RUST_BACKTRACE=1
 
-addons:
-  apt:
-    packages:
-      - libgoogle-perftools-dev
-
 before_install:
   - source ./ci/travis/setup.sh
   - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
