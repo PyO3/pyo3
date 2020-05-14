@@ -3,8 +3,8 @@
 //! Interaction with python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, Python};
-use std::cell::{Cell, RefCell, UnsafeCell};
-use std::sync::atomic::{spin_loop_hint, AtomicBool, Ordering};
+use parking_lot::{const_mutex, Mutex};
+use std::cell::{Cell, RefCell};
 use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
@@ -168,65 +168,36 @@ impl Drop for GILGuard {
 
 /// Thread-safe storage for objects which were inc_ref / dec_ref while the GIL was not held.
 struct ReferencePool {
-    locked: AtomicBool,
-    pointers_to_incref: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
-    pointers_to_decref: UnsafeCell<Vec<NonNull<ffi::PyObject>>>,
-}
-
-struct Lock<'a> {
-    lock: &'a AtomicBool,
-}
-
-impl<'a> Lock<'a> {
-    fn new(lock: &'a AtomicBool) -> Self {
-        while lock.compare_and_swap(false, true, Ordering::Acquire) {
-            spin_loop_hint();
-        }
-        Self { lock }
-    }
-}
-
-impl<'a> Drop for Lock<'a> {
-    fn drop(&mut self) {
-        self.lock.store(false, Ordering::Release);
-    }
+    pointers_to_incref: Mutex<Vec<NonNull<ffi::PyObject>>>,
+    pointers_to_decref: Mutex<Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            locked: AtomicBool::new(false),
-            pointers_to_incref: UnsafeCell::new(Vec::new()),
-            pointers_to_decref: UnsafeCell::new(Vec::new()),
+            pointers_to_incref: const_mutex(Vec::new()),
+            pointers_to_decref: const_mutex(Vec::new()),
         }
     }
 
     fn register_incref(&self, obj: NonNull<ffi::PyObject>) {
-        let _lock = Lock::new(&self.locked);
-        let v = self.pointers_to_incref.get();
-        unsafe { (*v).push(obj) };
+        self.pointers_to_incref.lock().push(obj)
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
-        let _lock = Lock::new(&self.locked);
-        let v = self.pointers_to_decref.get();
-        unsafe { (*v).push(obj) };
+        self.pointers_to_decref.lock().push(obj)
     }
 
     fn update_counts(&self, _py: Python) {
         macro_rules! swap_vec_with_lock {
-            // Get vec from one of ReferencePool's UnsafeCell fields by locking, swapping the
-            // vec for a new one if needed, and unlocking.
+            // Get vec from one of ReferencePool's mutexes via lock, swap vec if needed, unlock.
             ($cell:expr) => {{
-                let _lock = Lock::new(&self.locked);
-                let v = $cell.get();
+                let mut locked = $cell.lock();
                 let mut out = None;
-                unsafe {
-                    if !(*v).is_empty() {
-                        std::mem::swap(out.get_or_insert_with(Vec::new), &mut *v);
-                    }
+                if !locked.is_empty() {
+                    std::mem::swap(out.get_or_insert_with(Vec::new), &mut *locked);
                 }
-                drop(_lock);
+                drop(locked);
                 out
             }};
         };
@@ -648,15 +619,15 @@ mod test {
 
         // The pointer should appear once in the incref pool, and once in the
         // decref pool (for the clone being created and also dropped)
-        assert_eq!(unsafe { &*POOL.pointers_to_incref.get() }, &vec![ptr]);
-        assert_eq!(unsafe { &*POOL.pointers_to_decref.get() }, &vec![ptr]);
+        assert_eq!(&*POOL.pointers_to_incref.lock(), &vec![ptr]);
+        assert_eq!(&*POOL.pointers_to_decref.lock(), &vec![ptr]);
 
         // Re-acquring GIL will clear these pending changes
         drop(gil);
         let _gil = Python::acquire_gil();
 
-        assert!(unsafe { (*POOL.pointers_to_incref.get()).is_empty() });
-        assert!(unsafe { (*POOL.pointers_to_decref.get()).is_empty() });
+        assert!(POOL.pointers_to_incref.lock().is_empty());
+        assert!(POOL.pointers_to_decref.lock().is_empty());
 
         // Overall count is still unchanged
         assert_eq!(count, obj.get_refcnt());
@@ -686,7 +657,7 @@ mod test {
             let ptr = obj.into_ptr();
             let capsule = ffi::PyCapsule_New(ptr as _, std::ptr::null(), Some(capsule_drop));
 
-            (*POOL.pointers_to_decref.get()).push(NonNull::new(capsule).unwrap());
+            POOL.register_decref(NonNull::new(capsule).unwrap());
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
             POOL.update_counts(gil.python())
