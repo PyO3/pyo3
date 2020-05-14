@@ -193,9 +193,9 @@ impl ReferencePool {
             // Get vec from one of ReferencePool's mutexes via lock, swap vec if needed, unlock.
             ($cell:expr) => {{
                 let mut locked = $cell.lock();
-                let mut out = None;
+                let mut out = Vec::new();
                 if !locked.is_empty() {
-                    std::mem::swap(out.get_or_insert_with(Vec::new), &mut *locked);
+                    std::mem::swap(&mut out, &mut *locked);
                 }
                 drop(locked);
                 out
@@ -205,20 +205,12 @@ impl ReferencePool {
         // Always increase reference counts first - as otherwise objects which have a
         // nonzero total reference count might be incorrectly dropped by Python during
         // this update.
-        {
-            if let Some(v) = swap_vec_with_lock!(self.pointers_to_incref) {
-                for ptr in v {
-                    unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
-                }
-            }
+        for ptr in swap_vec_with_lock!(self.pointers_to_incref) {
+            unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
         }
 
-        {
-            if let Some(v) = swap_vec_with_lock!(self.pointers_to_decref) {
-                for ptr in v {
-                    unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
-                }
-            }
+        for ptr in swap_vec_with_lock!(self.pointers_to_decref) {
+            unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
         }
     }
 }
