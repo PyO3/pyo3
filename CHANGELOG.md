@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## Added
+- Gate some optimizations needing specialization in a `nightly-optimizations` feature (disabled by default). [#927](https://github.com/PyO3/pyo3/pull/927)
 
 ## [0.10.0] - 2020-05-14
 ### Fixed

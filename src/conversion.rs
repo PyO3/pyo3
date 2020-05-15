@@ -104,6 +104,20 @@ impl<T> ToBorrowedObject for T
 where
     T: ToPyObject,
 {
+    #[cfg(not(nightly_optimizations))]
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+    where
+        F: FnOnce(*mut ffi::PyObject) -> R,
+    {
+        let ptr = self.to_object(py).into_ptr();
+        let result = f(ptr);
+        unsafe {
+            ffi::Py_XDECREF(ptr);
+        }
+        result
+    }
+
+    #[cfg(nightly_optimizations)]
     default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
     where
         F: FnOnce(*mut ffi::PyObject) -> R,
@@ -117,6 +131,7 @@ where
     }
 }
 
+#[cfg(nightly_optimizations)]
 impl<T> ToBorrowedObject for T
 where
     T: ToPyObject + AsPyPointer,

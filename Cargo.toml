@@ -48,6 +48,10 @@ python3 = []
 # so that the module can also be used with statically linked python interpreters.
 extension-module = []
 
+# Use this feature to enable optimizations only possible on nightly Rust.
+# (Dependent on specialization.)
+nightly-optimizations = []
+
 # The stable cpython abi as defined in PEP 384. Currently broken with
 # many compilation errors. Pull Requests working towards fixing that
 # are welcome.
