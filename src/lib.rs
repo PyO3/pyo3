@@ -140,7 +140,7 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{GILGuard, GILPool};
-pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
+pub use crate::instance::{AsPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;

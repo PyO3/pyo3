@@ -87,8 +87,6 @@ pub trait ToPyObject {
 /// all [ToPyObject] and creates a new object using [ToPyObject::to_object],
 /// while the fast one is only implemented for AsPyPointer (we know
 /// that every AsPyPointer is also ToPyObject) and uses [AsPyPointer::as_ptr()]
-///
-/// This trait should eventually be replaced with [ManagedPyRef](crate::ManagedPyRef).
 pub trait ToBorrowedObject: ToPyObject {
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
