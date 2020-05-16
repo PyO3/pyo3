@@ -3,6 +3,25 @@
 These APIs work from Rust whenever you have a `Python` object handy, whether
 PyO3 is built for an extension module or not.
 
+## Want to access Python APIs? Then use `PyModule::import`.
+
+[`Pymodule::import`](https://pyo3.rs/master/doc/pyo3/types/struct.PyModule.html#method.import) can
+be used to get handle to a Python module from Rust. You can use this to import and use any Python
+module available in your environment.
+
+```rust
+use pyo3::prelude::*;
+
+fn main() -> PyResult<()> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let builtins = PyModule::import(py, "builtins")?;
+    let total: i32 = builtins.call1("sum", (vec![1, 2, 3],))?.extract()?;
+    assert_eq!(total, 6);
+    Ok(())
+}
+```
+
 ## Want to run just an expression? Then use `eval`.
 
 [`Python::eval`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.eval) is
@@ -72,10 +91,11 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a Python file or Python function? Then use `PyModule`.
+## You have a Python file or Python function? Then use `PyModule::from_code`.
 
-[PyModule](https://pyo3.rs/master/doc/pyo3/types/struct.PyModule.html) also can
-execute Python code by calling its methods.
+[PyModule::from_code](https://pyo3.rs/master/doc/pyo3/types/struct.PyModule.html#method.from_code)
+can be used to generate a Python module which can then be used just as if it was imported with
+`PyModule::import`.
 
 ```rust
 use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
