@@ -141,8 +141,8 @@ fn empty_class_in_module() {
 
 #[pyclass]
 struct ClassWithObjectField {
-    // PyObject has special case for derive_utils::GetPropertyValue,
-    // so this test is making sure it compiles!
+    // It used to be that PyObject was not supported with (get, set)
+    // - this test is just ensuring it compiles.
     #[pyo3(get, set)]
     value: PyObject,
 }

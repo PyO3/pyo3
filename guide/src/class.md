@@ -309,8 +309,38 @@ impl SubClass {
 
 ## Object properties
 
-Property descriptor methods can be defined in a `#[pymethods]` `impl` block only and have to be
-annotated with `#[getter]` and `#[setter]` attributes. For example:
+PyO3 supports two ways to add properties to your `#[pyclass]`:
+- For simple fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
+- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the `#[pymethods]` block.
+
+We'll cover each of these in the following sections.
+
+### Object properties using `#[pyo3(get, set)]`
+
+For simple cases where a member variable is just read and written with no side effects, you can declare getters and setters in your `#[pyclass]` field definition using the `pyo3` attribute, like in the example below:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    #[pyo3(get, set)]
+    num: i32
+}
+```
+
+The above would make the `num` property available for reading and writing from Python code as `self.num`.
+
+Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
+
+To use these annotations, your field type must implement some conversion traits:
+- For `get` the field type must implement both `IntoPy<PyObject>` and `Clone`.
+- For `set` the field type must implement `FromPyObject`.
+
+### Object properties using `#[getter]` and `#[setter]`
+
+For cases which don't satisfy the `#[pyo3(get, set)]` trait requirements, or need side effects, descriptor methods can be defined in a `#[pymethods]` `impl` block.
+
+This is done using the `#[getter]` and `#[setter]` attributes, like in the example below:
 
 ```rust
 # use pyo3::prelude::*;
@@ -385,20 +415,6 @@ impl MyClass {
 ```
 
 In this case, the property `number` is defined and available from Python code as `self.number`.
-
-For simple cases where a member variable is just read and written with no side effects, you
-can also declare getters and setters in your Rust struct field definition, for example:
-
-```rust
-# use pyo3::prelude::*;
-#[pyclass]
-struct MyClass {
-    #[pyo3(get, set)]
-    num: i32
-}
-```
-
-Then it is available from Python code as `self.num`.
 
 ## Instance methods
 
