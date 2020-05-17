@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 - Remove `ManagedPyRef` (unused, and needs specialization) [#930](https://github.com/PyO3/pyo3/pull/930)
 
+### Fixed
+- Fix passing explicit `None` to `Option<T>` argument `#[pyfunction]` with a default value. [#936](https://github.com/PyO3/pyo3/pull/936)
+
 ## [0.10.1] - 2020-05-14
 ### Fixed
 - Fix deadlock in `Python::acquire_gil()` after dropping a `PyObject` or `Py<T>`. [#924](https://github.com/PyO3/pyo3/pull/924)
