@@ -520,9 +520,9 @@ fn impl_arg_param(
             };
             // Get Option<&T> from Option<PyRef<T>>
             quote! {
-                let #mut_ _tmp = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
+                let #mut_ _tmp = match #arg_value {
                     Some(_obj) => {
-                        Some(_obj.extract::<<#tref as pyo3::derive_utils::ExtractExt>::Target>()?)
+                        _obj.extract::<Option<<#tref as pyo3::derive_utils::ExtractExt>::Target>>()?
                     },
                     None => #default,
                 };
@@ -530,15 +530,15 @@ fn impl_arg_param(
             }
         } else {
             quote! {
-                let #arg_name = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
-                    Some(_obj) => Some(_obj.extract()?),
+                let #arg_name = match #arg_value {
+                    Some(_obj) => _obj.extract()?,
                     None => #default,
                 };
             }
         }
     } else if let Some(default) = spec.default_value(name) {
         quote! {
-            let #arg_name = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
+            let #arg_name = match #arg_value {
                 Some(_obj) => _obj.extract()?,
                 None => #default,
             };
