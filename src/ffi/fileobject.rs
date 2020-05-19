@@ -15,6 +15,8 @@ extern "C" {
         arg7: *const c_char,
         arg8: c_int,
     ) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFile_AsFileDescriptor")]
+    pub fn PyObject_AsFileDescriptor(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyFile_GetLine")]
     pub fn PyFile_GetLine(arg1: *mut PyObject, arg2: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyFile_WriteObject")]
