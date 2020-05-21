@@ -42,7 +42,12 @@ impl<'p> PyIterator<'p> {
             }
 
             if ffi::PyIter_Check(ptr) != 0 {
-                // this is not right, but this cause of segfault check #71
+                // This looks suspicious, but is actually correct. Even though ptr is an owned
+                // reference, PyIterator takes ownership of the reference and decreases the count
+                // in its Drop implementation.
+                //
+                // Therefore we must use from_borrowed_ptr instead of from_owned_ptr so that the
+                // GILPool does not take ownership of the reference.
                 Ok(PyIterator(py.from_borrowed_ptr(ptr)))
             } else {
                 Err(PyDowncastError)
