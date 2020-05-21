@@ -94,6 +94,9 @@ arguments and intermediate values.
 These types all implement `Deref<Target = PyAny>`, so they all expose the same
 methods which can be found on `PyAny`.
 
+To see all Python types exposed by `PyO3` you should consult the
+[`pyo3::types`] module.
+
 **Conversions:**
 
 ```rust
@@ -232,7 +235,6 @@ borrows, analog to `Ref` and `RefMut` used by `RefCell`.
 on types like `Py<T>` and `PyAny` to get a reference quickly.
 
 
-
 ## Related traits and types
 
 ### `PyClass`
@@ -245,9 +247,9 @@ usually defined using the `#[pyclass]` macro.
 This trait marks structs that mirror native Python types, such as `PyList`.
 
 
-
 [eval]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.eval
 [clone_ref]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#method.clone_ref
+[pyo3::types]: https://pyo3.rs/master/doc/pyo3/types/index.html
 [PyAny]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
 [PyList_append]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html

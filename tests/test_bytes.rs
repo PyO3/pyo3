@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 use pyo3::wrap_pyfunction;
 
 mod common;
@@ -13,10 +14,29 @@ fn test_pybytes_bytes_conversion() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let bytes_pybytes_conversion = wrap_pyfunction!(bytes_pybytes_conversion)(py);
-    py_assert!(
-        py,
-        bytes_pybytes_conversion,
-        "bytes_pybytes_conversion(b'Hello World') == b'Hello World'"
-    );
+    let f = wrap_pyfunction!(bytes_pybytes_conversion)(py);
+    py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
+}
+
+#[pyfunction]
+fn bytes_vec_conversion(py: Python, bytes: Vec<u8>) -> &PyBytes {
+    PyBytes::new(py, bytes.as_slice())
+}
+
+#[test]
+fn test_pybytes_vec_conversion() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let f = wrap_pyfunction!(bytes_vec_conversion)(py);
+    py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
+}
+
+#[test]
+fn test_bytearray_vec_conversion() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let f = wrap_pyfunction!(bytes_vec_conversion)(py);
+    py_assert!(py, f, "f(bytearray(b'Hello World')) == b'Hello World'");
 }
