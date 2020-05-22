@@ -4,6 +4,10 @@ use pyo3::exceptions::ValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList};
 
+use pyo3::py_run;
+
+mod common;
+
 #[pyclass]
 struct ByteSequence {
     elements: Vec<u8>,
@@ -192,4 +196,39 @@ fn test_inplace_repeat() {
 
     run("s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]");
     err("s = ByteSequence([1, 2); s *= -1");
+}
+
+// Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
+
+#[pyclass]
+struct GenericList {
+    #[pyo3(get, set)]
+    items: Vec<PyObject>,
+}
+
+#[test]
+fn test_generic_list_get() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let list: PyObject = GenericList {
+        items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
+    }
+    .into_py(py);
+
+    py_assert!(py, list, "list.items == [1, 2, 3]");
+}
+
+#[test]
+fn test_generic_list_set() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
+
+    py_run!(py, list, "list.items = [1, 2, 3]");
+    assert_eq!(
+        list.borrow().items,
+        vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
+    );
 }

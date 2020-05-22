@@ -310,8 +310,7 @@ pub(crate) fn impl_wrap_getter(
             (
                 name.unraw(),
                 quote!({
-                    use pyo3::derive_utils::GetPropertyValue;
-                    (&_slf.#name).get_property_value(_py)
+                    _slf.#name.clone()
                 }),
             )
         }
