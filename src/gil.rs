@@ -83,7 +83,12 @@ pub fn prepare_freethreaded_python() {
 
             // PyPy does not support the embedding API
             #[cfg(not(PyPy))]
-            ffi::Py_InitializeEx(0);
+            {
+                ffi::Py_InitializeEx(0);
+
+                // Make sure Py_Finalize will be called before exiting.
+                libc::atexit(finalize);
+            }
 
             // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
             // > to call it yourself anymore.
@@ -354,6 +359,15 @@ fn decrement_gil_count() {
         );
         c.set(current - 1);
     })
+}
+
+extern "C" fn finalize() {
+    unsafe {
+        if ffi::Py_IsInitialized() != 0 {
+            ffi::PyGILState_Ensure();
+            ffi::Py_Finalize();
+        }
+    }
 }
 
 #[cfg(test)]
