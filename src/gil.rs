@@ -30,7 +30,7 @@ thread_local! {
 ///  1) for performance
 ///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
 ///     which could lead to incorrect conclusions that the GIL is held.
-fn gil_is_acquired() -> bool {
+pub(crate) fn gil_is_acquired() -> bool {
     GIL_COUNT.try_with(|c| c.get() > 0).unwrap_or(false)
 }
 

@@ -42,7 +42,6 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>` with
 /// specified type information.
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -375,6 +374,34 @@ where
             ob.extract::<&T::AsRefTarget>()
                 .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
         }
+    }
+}
+
+/// Py<T> can be used as an error when T is an Error.
+///
+/// However for GIL lifetime reasons, cause() cannot be implemented for Py<T>.
+/// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
+impl<T> std::error::Error for Py<T>
+where
+    T: std::error::Error + PyTypeInfo,
+    T::AsRefTarget: std::fmt::Display
+{ }
+
+impl<T> std::fmt::Display for Py<T>
+where
+    T: PyTypeInfo,
+    T::AsRefTarget: std::fmt::Display
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        std::fmt::Display::fmt(self.as_ref(py), f)
+    }
+}
+
+impl<T> std::fmt::Debug for Py<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
 }
 

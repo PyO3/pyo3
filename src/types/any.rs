@@ -5,7 +5,7 @@ use crate::conversion::{
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
+use crate::{err, ffi, Py, PyNativeType, PyObject};
 use libc::c_int;
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
@@ -64,6 +64,8 @@ pyobject_native_type_convert!(
 );
 
 pyobject_native_type_extract!(PyAny);
+
+pyobject_native_type_fmt!(PyAny);
 
 impl PyAny {
     /// Convert this PyAny to a concrete Python type.

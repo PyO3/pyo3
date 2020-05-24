@@ -344,13 +344,17 @@ impl PyErr {
     ///
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    fn instance(mut self, py: Python) -> Py<exceptions::BaseException> {
+    pub fn instance(mut self, py: Python) -> &exceptions::BaseException {
         self.normalize(py);
-        let r = match self.pvalue {
-            PyErrValue::Value(ref instance) => instance.clone_ref(py).extract(py),
-            _ => Err(PyDowncastError.into()),
-        };
-        r.expect("Normalized error instance should be a BaseException")
+        match self.pvalue {
+            PyErrValue::Value(ref instance) => {
+                let any: &PyAny = unsafe { py.from_owned_ptr(instance.clone_ref(py).into_ptr()) };
+                any.downcast()
+                    .expect("Normalized error instance should be a BaseException")
+            }
+            PyErrValue::None => panic!("This exception is not an instance"),
+            _ => unreachable!(),
+        }
     }
 
     /// Writes the error back to the Python interpreter's global state.
@@ -437,7 +441,7 @@ impl FromPy<PyErr> for PyObject {
 
 impl FromPy<PyErr> for Py<exceptions::BaseException> {
     fn from_py(other: PyErr, py: Python) -> Self {
-        other.instance(py)
+        other.instance(py).into()
     }
 }
 
@@ -458,7 +462,7 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl std::convert::From<PyDowncastError> for PyErr {
     fn from(_err: PyDowncastError) -> PyErr {
-        exceptions::TypeError.into()
+        exceptions::TypeError::py_err(())
     }
 }
 
@@ -607,7 +611,7 @@ mod tests {
     fn set_typeerror() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let err: PyErr = exceptions::TypeError.into();
+        let err: PyErr = exceptions::TypeError::py_err(());
         err.restore(py);
         assert!(PyErr::occurred(py));
         drop(PyErr::fetch(py));

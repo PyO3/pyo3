@@ -198,13 +198,12 @@ impl Names {
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let names = PyCell::new(py, Names::new()).unwrap();
-# let borrow_mut_err = py.get_type::<pyo3::pycell::PyBorrowMutError>();
-# pyo3::py_run!(py, names borrow_mut_err, r"
+# pyo3::py_run!(py, names, r"
 # try:
 #    names.merge(names)
 #    assert False, 'Unreachable'
 # except RuntimeError as e:
-#    isinstance(e, borrow_mut_err)
+#    assert str(e) == 'Already borrowed'
 # ");
 ```
 `Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
