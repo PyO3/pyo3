@@ -1,0 +1,14 @@
+error[E0277]: `std::rc::Rc<i32>` cannot be sent between threads safely
+  --> $DIR/pyclass_send.rs:4:1
+   |
+4  | #[pyclass]
+   | ^^^^^^^^^^ `std::rc::Rc<i32>` cannot be sent between threads safely
+   |
+  ::: $WORKSPACE/src/pyclass.rs:76:76
+   |
+76 |     PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethods + Send
+   |                                                                            ---- required by this bound in `pyo3::pyclass::PyClass`
+   |
+   = help: within `NotThreadSafe`, the trait `std::marker::Send` is not implemented for `std::rc::Rc<i32>`
+   = note: required because it appears within the type `NotThreadSafe`
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
