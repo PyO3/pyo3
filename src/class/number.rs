@@ -3,9 +3,9 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
-use crate::class::basic::PyObjectProtocolImpl;
 use crate::err::PyResult;
 use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
+use std::os::raw::c_int;
 
 /// Number interface
 #[allow(unused_variables)]
@@ -314,6 +314,12 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
+    fn __bool__(&'p self) -> Self::Result
+    where
+        Self: PyNumberBoolProtocol<'p>,
+    {
+        unimplemented!()
+    }
 }
 
 pub trait PyNumberAddProtocol<'p>: PyNumberProtocol<'p> {
@@ -616,22 +622,18 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
+pub trait PyNumberBoolProtocol<'p>: PyNumberProtocol<'p> {
+    type Result: Into<PyResult<bool>>;
+}
+
 #[doc(hidden)]
-pub trait PyNumberProtocolImpl: PyObjectProtocolImpl {
+pub trait PyNumberProtocolImpl {
     fn tp_as_number() -> Option<ffi::PyNumberMethods>;
 }
 
 impl<'p, T> PyNumberProtocolImpl for T {
     default fn tp_as_number() -> Option<ffi::PyNumberMethods> {
-        if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
-            let meth = ffi::PyNumberMethods {
-                nb_bool: Some(nb_bool),
-                ..ffi::PyNumberMethods_INIT
-            };
-            Some(meth)
-        } else {
-            None
-        }
+        None
     }
 }
 
@@ -650,7 +652,7 @@ where
             nb_negative: Self::nb_negative(),
             nb_positive: Self::nb_positive(),
             nb_absolute: Self::nb_absolute(),
-            nb_bool: <Self as PyObjectProtocolImpl>::nb_bool_fn(),
+            nb_bool: Self::nb_bool(),
             nb_invert: Self::nb_invert(),
             nb_lshift: Self::nb_lshift().or_else(Self::nb_lshift_fallback),
             nb_rshift: Self::nb_rshift().or_else(Self::nb_rshift_fallback),
@@ -1736,5 +1738,25 @@ where
 {
     fn nb_index() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberIndexProtocol, T::__index__)
+    }
+}
+
+trait PyNumberBoolProtocolImpl {
+    fn nb_bool() -> Option<ffi::inquiry>;
+}
+impl<'p, T> PyNumberBoolProtocolImpl for T
+where
+    T: PyNumberProtocol<'p>,
+{
+    default fn nb_bool() -> Option<ffi::inquiry> {
+        None
+    }
+}
+impl<T> PyNumberBoolProtocolImpl for T
+where
+    T: for<'p> PyNumberBoolProtocol<'p>,
+{
+    fn nb_bool() -> Option<ffi::inquiry> {
+        py_unary_func!(PyNumberBoolProtocol, T::__bool__, c_int)
     }
 }

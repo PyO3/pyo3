@@ -3,8 +3,11 @@ use crate::func::MethodProto;
 
 pub struct Proto {
     pub name: &'static str,
+    pub slot_table: &'static str,
+    pub set_slot_table: &'static str,
     pub methods: &'static [MethodProto],
     pub py_methods: &'static [PyMethod],
+    pub slot_setters: &'static [SlotSetter],
 }
 
 impl Proto {
@@ -47,8 +50,27 @@ impl PyMethod {
     }
 }
 
+pub struct SlotSetter {
+    pub proto_names: &'static [&'static str],
+    pub set_function: &'static str,
+    pub exclude_indices: &'static [usize],
+}
+
+impl SlotSetter {
+    const EMPTY_INDICES: &'static [usize] = &[];
+    const fn new(names: &'static [&'static str], set_function: &'static str) -> Self {
+        SlotSetter {
+            proto_names: names,
+            set_function,
+            exclude_indices: Self::EMPTY_INDICES,
+        }
+    }
+}
+
 pub const OBJECT: Proto = Proto {
     name: "Object",
+    slot_table: "pyo3::class::basic::PyObjectMethods",
+    set_slot_table: "set_basic_methods",
     methods: &[
         MethodProto::Binary {
             name: "__getattr__",
@@ -95,11 +117,6 @@ pub const OBJECT: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::basic::PyObjectBytesProtocol",
         },
-        MethodProto::Unary {
-            name: "__bool__",
-            pyres: false,
-            proto: "pyo3::class::basic::PyObjectBoolProtocol",
-        },
         MethodProto::Binary {
             name: "__richcmp__",
             arg: "Other",
@@ -112,10 +129,27 @@ pub const OBJECT: Proto = Proto {
         PyMethod::new("__bytes__", "pyo3::class::basic::BytesProtocolImpl"),
         PyMethod::new("__unicode__", "pyo3::class::basic::UnicodeProtocolImpl"),
     ],
+    slot_setters: &[
+        SlotSetter::new(&["__str__"], "set_str"),
+        SlotSetter::new(&["__repr__"], "set_repr"),
+        SlotSetter::new(&["__hash__"], "set_hash"),
+        SlotSetter::new(&["__getattr__"], "set_getattr"),
+        SlotSetter::new(&["__richcmp__"], "set_richcompare"),
+        SlotSetter {
+            proto_names: &["__setattr__", "__delattr__"],
+            set_function: "set_setdelattr",
+            // exclude set and del
+            exclude_indices: &[6, 7],
+        },
+        SlotSetter::new(&["__setattr__"], "set_setattr"),
+        SlotSetter::new(&["__delattr__"], "set_setattr"),
+    ],
 };
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::Unary {
             name: "__await__",
@@ -155,10 +189,13 @@ pub const ASYNC: Proto = Proto {
             "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
         ),
     ],
+    slot_setters: &[],
 };
 
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
+    slot_table: "pyo3::ffi::PyBufferProcs",
+    set_slot_table: "set_buffer_methods",
     methods: &[
         MethodProto::Unary {
             name: "bf_getbuffer",
@@ -172,10 +209,16 @@ pub const BUFFER: Proto = Proto {
         },
     ],
     py_methods: &[],
+    slot_setters: &[
+        SlotSetter::new(&["bf_getbuffer"], "set_getbuffer"),
+        SlotSetter::new(&["bf_releasebuffer"], "set_releasebuffer"),
+    ],
 };
 
 pub const CONTEXT: Proto = Proto {
     name: "Context",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::Unary {
             name: "__enter__",
@@ -200,10 +243,13 @@ pub const CONTEXT: Proto = Proto {
             "pyo3::class::context::PyContextExitProtocolImpl",
         ),
     ],
+    slot_setters: &[],
 };
 
 pub const GC: Proto = Proto {
     name: "GC",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::Free {
             name: "__traverse__",
@@ -215,10 +261,13 @@ pub const GC: Proto = Proto {
         },
     ],
     py_methods: &[],
+    slot_setters: &[],
 };
 
 pub const DESCR: Proto = Proto {
     name: "Descriptor",
+    slot_table: "pyo3::class::descr::PyDescrMethods",
+    set_slot_table: "set_descr_methods",
     methods: &[
         MethodProto::Ternary {
             name: "__get__",
@@ -254,10 +303,16 @@ pub const DESCR: Proto = Proto {
             "pyo3::class::context::PyDescrNameProtocolImpl",
         ),
     ],
+    slot_setters: &[
+        SlotSetter::new(&["__get__"], "set_descr_get"),
+        SlotSetter::new(&["__set__"], "set_descr_set"),
+    ],
 };
 
 pub const ITER: Proto = Proto {
     name: "Iter",
+    slot_table: "pyo3::class::iter::PyIterMethods",
+    set_slot_table: "set_iter_methods",
     py_methods: &[],
     methods: &[
         MethodProto::UnaryS {
@@ -273,10 +328,24 @@ pub const ITER: Proto = Proto {
             proto: "pyo3::class::iter::PyIterNextProtocol",
         },
     ],
+    slot_setters: &[
+        SlotSetter {
+            proto_names: &["__iter__"],
+            set_function: "set_iter",
+            exclude_indices: &[],
+        },
+        SlotSetter {
+            proto_names: &["__next__"],
+            set_function: "set_iternext",
+            exclude_indices: &[],
+        },
+    ],
 };
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -312,10 +381,13 @@ pub const MAPPING: Proto = Proto {
         "__reversed__",
         "pyo3::class::mapping::PyMappingReversedProtocolImpl",
     )],
+    slot_setters: &[],
 };
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -373,10 +445,13 @@ pub const SEQ: Proto = Proto {
         },
     ],
     py_methods: &[],
+    slot_setters: &[],
 };
 
 pub const NUM: Proto = Proto {
     name: "Number",
+    slot_table: "",
+    set_slot_table: "",
     methods: &[
         MethodProto::BinaryS {
             name: "__add__",
@@ -686,6 +761,11 @@ pub const NUM: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::number::PyNumberRoundProtocol",
         },
+        MethodProto::Unary {
+            name: "__bool__",
+            pyres: false,
+            proto: "pyo3::class::number::PyNumberBoolProtocol",
+        },
     ],
     py_methods: &[
         PyMethod::coexist("__radd__", "pyo3::class::number::PyNumberRAddProtocolImpl"),
@@ -729,4 +809,5 @@ pub const NUM: Proto = Proto {
             "pyo3::class::number::PyNumberRoundProtocolImpl",
         ),
     ],
+    slot_setters: &[],
 };

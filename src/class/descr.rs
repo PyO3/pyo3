@@ -5,7 +5,6 @@
 //! [Python information](
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
-use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
@@ -66,76 +65,27 @@ pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 
-trait PyDescrGetProtocolImpl {
-    fn tp_descr_get() -> Option<ffi::descrgetfunc>;
+#[derive(Default)]
+pub struct PyDescrMethods {
+    pub tp_descr_get: Option<ffi::descrgetfunc>,
+    pub tp_descr_set: Option<ffi::descrsetfunc>,
 }
-impl<'p, T> PyDescrGetProtocolImpl for T
-where
-    T: PyDescrProtocol<'p>,
-{
-    default fn tp_descr_get() -> Option<ffi::descrgetfunc> {
-        None
+
+impl PyDescrMethods {
+    pub(crate) fn prepare_type_obj(&self, type_object: &mut ffi::PyTypeObject) {
+        type_object.tp_descr_get = self.tp_descr_get;
+        type_object.tp_descr_set = self.tp_descr_set;
     }
-}
-
-impl<T> PyDescrGetProtocolImpl for T
-where
-    T: for<'p> PyDescrGetProtocol<'p>,
-{
-    fn tp_descr_get() -> Option<ffi::descrgetfunc> {
-        py_ternary_func!(PyDescrGetProtocol, T::__get__)
+    pub fn set_descr_get<T>(&mut self)
+    where
+        T: for<'p> PyDescrGetProtocol<'p>,
+    {
+        self.tp_descr_get = py_ternary_func!(PyDescrGetProtocol, T::__get__);
     }
-}
-
-trait PyDescrSetProtocolImpl {
-    fn tp_descr_set() -> Option<ffi::descrsetfunc>;
-}
-impl<'p, T> PyDescrSetProtocolImpl for T
-where
-    T: PyDescrProtocol<'p>,
-{
-    default fn tp_descr_set() -> Option<ffi::descrsetfunc> {
-        None
-    }
-}
-impl<T> PyDescrSetProtocolImpl for T
-where
-    T: for<'p> PyDescrSetProtocol<'p>,
-{
-    fn tp_descr_set() -> Option<ffi::descrsetfunc> {
-        py_ternary_func!(PyDescrSetProtocol, T::__set__, c_int)
-    }
-}
-
-trait PyDescrDelProtocolImpl {
-    fn __del__() -> Option<PyMethodDef> {
-        None
-    }
-}
-impl<'p, T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol<'p> {}
-
-trait PyDescrSetNameProtocolImpl {
-    fn __set_name__() -> Option<PyMethodDef> {
-        None
-    }
-}
-impl<'p, T> PyDescrSetNameProtocolImpl for T where T: PyDescrProtocol<'p> {}
-
-#[doc(hidden)]
-pub trait PyDescrProtocolImpl {
-    fn tp_as_descr(_type_object: &mut ffi::PyTypeObject);
-}
-
-impl<T> PyDescrProtocolImpl for T {
-    default fn tp_as_descr(_type_object: &mut ffi::PyTypeObject) {}
-}
-
-impl<'p, T> PyDescrProtocolImpl for T
-where
-    T: PyDescrProtocol<'p>,
-{
-    fn tp_as_descr(type_object: &mut ffi::PyTypeObject) {
-        type_object.tp_descr_get = Self::tp_descr_get();
-        type_object.tp_descr_set = Self::tp_descr_set();
+    pub fn set_descr_set<T>(&mut self)
+    where
+        T: for<'p> PyDescrSetProtocol<'p>,
+    {
+        self.tp_descr_set = py_ternary_func!(PyDescrSetProtocol, T::__set__, c_int);
     }
 }

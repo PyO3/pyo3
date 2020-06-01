@@ -14,6 +14,7 @@ pub mod iter;
 pub mod mapping;
 pub mod methods;
 pub mod number;
+pub mod proto_methods;
 pub mod pyasync;
 pub mod sequence;
 

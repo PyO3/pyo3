@@ -5,7 +5,10 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::err::PyResult;
-use crate::{ffi, PyCell, PyClass, PyRefMut};
+use crate::{
+    ffi::{self, PyBufferProcs},
+    PyCell, PyClass, PyRefMut,
+};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -37,51 +40,11 @@ pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 
-#[doc(hidden)]
-pub trait PyBufferProtocolImpl {
-    fn tp_as_buffer() -> Option<ffi::PyBufferProcs>;
-}
-
-impl<T> PyBufferProtocolImpl for T {
-    default fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
-        None
-    }
-}
-
-impl<'p, T> PyBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    #[inline]
-    #[allow(clippy::needless_update)] // For python 2 it's not useless
-    fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
-        Some(ffi::PyBufferProcs {
-            bf_getbuffer: Self::cb_bf_getbuffer(),
-            bf_releasebuffer: Self::cb_bf_releasebuffer(),
-            ..ffi::PyBufferProcs_INIT
-        })
-    }
-}
-
-trait PyBufferGetBufferProtocolImpl {
-    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc>;
-}
-
-impl<'p, T> PyBufferGetBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    default fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
-        None
-    }
-}
-
-impl<T> PyBufferGetBufferProtocolImpl for T
-where
-    T: for<'p> PyBufferGetBufferProtocol<'p>,
-{
-    #[inline]
-    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
+impl PyBufferProcs {
+    pub fn set_getbuffer<T>(&mut self)
+    where
+        T: for<'p> PyBufferGetBufferProtocol<'p>,
+    {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
             arg1: *mut ffi::Py_buffer,
@@ -95,29 +58,12 @@ where
                 T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into()
             })
         }
-        Some(wrap::<T>)
+        self.bf_getbuffer = Some(wrap::<T>);
     }
-}
-
-trait PyBufferReleaseBufferProtocolImpl {
-    fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc>;
-}
-
-impl<'p, T> PyBufferReleaseBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    default fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc> {
-        None
-    }
-}
-
-impl<T> PyBufferReleaseBufferProtocolImpl for T
-where
-    T: for<'p> PyBufferReleaseBufferProtocol<'p>,
-{
-    #[inline]
-    fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc> {
+    pub fn set_releasebuffer<T>(&mut self)
+    where
+        T: for<'p> PyBufferReleaseBufferProtocol<'p>,
+    {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer)
         where
             T: for<'p> PyBufferReleaseBufferProtocol<'p>,
@@ -127,6 +73,6 @@ where
                 T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into()
             })
         }
-        Some(wrap::<T>)
+        self.bf_releasebuffer = Some(wrap::<T>);
     }
 }
