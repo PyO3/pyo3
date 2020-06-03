@@ -33,21 +33,22 @@ pub fn solve<T: Model>(model: &mut T) {
 }
 ```
 
-You cannot change that code as it runs on many Rust models.
-You also have many Python models that cannot be solved as your solver is not available in that language.
+We cannot change that code as it runs on many Rust models.
+We also have many Python models that cannot be solved as this solver is not available in that language.
 Rewriting it in Python would be cumbersome and error-prone, as everything is already available in Rust.
-How could we expose your solver to Python thanks to PyO3 ?
+How could we expose this solver to Python thanks to PyO3 ?
 
 ## Expose the required trait model
 
-If you add a Python model implementing the same three methods as the trait, it seems it could be adapted to use your solver.
-However, you cannot pass a `PyObject` to your solver as it does not implement the Rust trait (even if the Python model has the required methods)
+If a Python model implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
+However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods)
 
-You need to write a wrapper around your Python object in order to implement the trait.
+It is required to write a wrapper around the Python model in order to implement the trait.
 This wrapper will call the Python model from Rust.
-The methods signatures must be the same as your trait, that you cannot change.
+The methods signatures must be the same as the trait.
+The Rust trait cannot be change for the purpose of making the code available in Python.
 
-The Python model you want to expose is the following one, it has all the required methods:
+The Python model we want to expose is the following one, it implments all the required methods:
 
 ```python
 class Model:
@@ -216,7 +217,7 @@ impl Model for UserModel {
 }
 ```
 
-You get the compilation error:
+The prievious code will not compile. The compilation error is the following one:
 `error: #[pymethods] can not be used only with trait impl block`
 
 That's a bummer!
@@ -250,7 +251,7 @@ impl UserModel {
 }
 ```
 
-This wrapper handles the type conversion between the PyO3 requirements and your trait, especially:
+This wrapper handles the type conversion between the PyO3 requirements and the trait, especially:
 - the return type that must be a `PyResult`
 - the references that are required by the trait but that cannot be passed from Python
 
@@ -292,7 +293,7 @@ Print value from Python:  [1.0]
 
 We have succeed to expose a Rust model that implement the `Model` trait to Python!
 
-We will expose the `solve` function, but before, let's talk about types errors.
+We will now expose the `solve` function, but before, let's talk about types errors.
 
 ## Type errors in Python
 
@@ -318,7 +319,7 @@ It is a type error and Python points to it, so no worry.
 
 ### Wrong types in Python function signature
 
-Let's assume now that the return type of one of the methods of our Model class is wrong, for example the get_results that is expected to be a `Vec<f64>` in Rust, so a list in Python.
+Let's assume now that the return type of one of the methods of our Model class is wrong, for example the `get_results` method that is expected to return a `Vec<f64>` in Rust, so a list in Python.
 
 ```python
 class Model:
@@ -337,15 +338,15 @@ This call results in the following panic:
 pyo3_runtime.PanicException: called `Result::unwrap()` on an `Err` value: PyErr { type: Py(0x10dcf79f0, PhantomData) }
 ```
 
-This error code is quite not helpful for a Python user that does not know anything about Rust.
+This error code is quite not helpful for a Python user that does not know anything about Rust, or someone that does not know PyO3 was used to interface the Rust code.
 
 However, as being responsible for making the Rust code available to Python, we can do something about it.
 
-The issue is that we called unwrap anywhere we could, and any panic from PyO3 will be directely forwarded to the end user.
+The issue is that we called `unwrap` anywhere we could, and any panic from PyO3 will be directely forwarded to the end user.
 
 Let's modify the code performing the type conversion to give a helpful error message to the Python user:
 
-We used in our `get_results` method the following call that performs the extraction:
+We used in our `get_results` method the following call that performs the type conversion:
 
 ```rust
 impl Model for UserModel {
@@ -390,15 +391,15 @@ By doing so, you catch the result of the Python computation and check its type i
 Of course, it does not cover all the possible wrong outputs:
 the user could return a list of strings instead of a list of floats.
 
-A runtime panic would still occurs thanks to PyO3, but with a error message hard to decipher for non-rust user.
+A runtime panic would still occurs due to PyO3, but with a error message hard to decipher for non-rust user.
 
-It is up to the developer exposing the rust code to decide how much effort to invest into Python type errors handling.
+It is up to the developer exposing the rust code to decide how much effort to invest into Python type errors handling and improved error messages.
 
 ## The final code
 
 Now let's also expose the `solve()` function to make it available from Python.
 
-It is not possible to expose direcly the `solve` function to Python, as the type conversion cannot be performed.
+It is not possible to expose direcly the `solve` function to Python, as the type conversion cannot be performed, as it is requiring an object implementing the `Model` trait as input.
 
 However, we can write a function wrapper that takes as argument a `UserModel`, which struct has also been expose to Python to call the core function `solve`.
 
