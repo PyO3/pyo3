@@ -34,6 +34,9 @@ fn sum_as_string(a: i64, b: i64) -> String {
 
 The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It can take as an argument the name of your module, which must be the name of the `.so` or `.pyd` file; the default is the Rust function's name.
 
+If the name of the module (the default being the function name) does not match the name of the `.so` or `.pyd` file, you may get an import error in Python with the following message:
+`ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
+
 To import the module, either copy the shared library as described in [Get Started](./get_started.md) or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation

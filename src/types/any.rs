@@ -259,6 +259,10 @@ impl PyAny {
     /// let dict = vec![("reverse", true)].into_py_dict(py);
     /// list.call_method(py, "sort", (), Some(dict)).unwrap();
     /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+    ///
+    /// let new_element = 1.to_object(py);
+    /// list.call_method(py, "append", (new_element,), None).unwrap();
+    /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3, 1]);
     /// ```
     pub fn call_method(
         &self,
