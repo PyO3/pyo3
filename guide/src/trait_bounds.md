@@ -444,7 +444,7 @@ impl UserModel {
     pub fn new(model: Py<PyAny>) -> Self {
         UserModel { model }
     }
-    //    #[classmethod]
+
     pub fn set_variables_in_rust(&mut self, var: Vec<f64>) -> PyResult<()> {
         println!("Set variables from Python calling Rust");
         self.set_variables(&var);
