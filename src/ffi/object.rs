@@ -133,8 +133,8 @@ pub type objobjargproc =
 #[cfg(not(Py_LIMITED_API))]
 mod bufferinfo {
     use crate::ffi::pyport::Py_ssize_t;
-    use std::mem;
     use std::os::raw::{c_char, c_int, c_void};
+    use std::ptr;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -152,10 +152,21 @@ mod bufferinfo {
         pub internal: *mut c_void,
     }
 
-    impl Default for Py_buffer {
-        #[inline]
-        fn default() -> Self {
-            unsafe { mem::zeroed() }
+    impl Py_buffer {
+        pub const fn new() -> Self {
+            Py_buffer {
+                buf: ptr::null_mut(),
+                obj: ptr::null_mut(),
+                len: 0,
+                itemsize: 0,
+                readonly: 0,
+                ndim: 0,
+                format: ptr::null_mut(),
+                shape: ptr::null_mut(),
+                strides: ptr::null_mut(),
+                suboffsets: ptr::null_mut(),
+                internal: ptr::null_mut(),
+            }
         }
     }
 
