@@ -1,14 +1,15 @@
 # Expose a trait to Python
 
-PyO3 allows you to expose code for which the argument type can be converted into a Python type.
+PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](https://pyo3.rs/master/conversions.html)).
+However, it is not always straightforward to convert Rust code that requires a given trait implementation as an argument.
 
-However, how can you expose rust code that requires as argument a given trait implementation ?
+This tutorial explains how to convert a Rust function that takes a trait as argument for use in Python with classes implementing the same methods as the trait.
 
-Why would you do such a thing ?
+Why is this useful?
 
 ### Pros
-- Make your code available to Python users
-- Code your complex logics with the help of the borrow checker
+- Make your Rust code available to Python users
+- Code complex algorithms in Rust with the help of the borrow checker
 
 ### Cons
 - Not as fast as native Rust (type conversion has to be performed and one part of the code runs in Python)
@@ -16,10 +17,10 @@ Why would you do such a thing ?
 
 ## Example
 
-Let's work with the following toy example of an implementation of a optimization solver operating on a given model.
+Let's work with the following basic example of an implementation of a optimization solver operating on a given model.
 
-Let's say we have a function `solve` that operates on a model and mutates it states.
-The argument of the function can be any model that implement the `Model` trait :
+Let's say we have a function `solve` that operates on a model and mutates its state.
+The argument of the function can be any model that implements the `Model` trait :
 
 ```rust
 pub trait Model {
@@ -32,23 +33,22 @@ pub fn solve<T: Model>(model: &mut T) {
   println!("Magic solver that mutates the model into a resolved state");
 }
 ```
-
-We cannot change that code as it runs on many Rust models.
-We also have many Python models that cannot be solved as this solver is not available in that language.
+Let's assume we have the following constraints:
+- We cannot change that code as it runs on many Rust models.
+- We also have many Python models that cannot be solved as this solver is not available in that language.
 Rewriting it in Python would be cumbersome and error-prone, as everything is already available in Rust.
+
 How could we expose this solver to Python thanks to PyO3 ?
 
 ## Expose the required trait model
 
-If a Python model implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
-However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods)
+If a Python class implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
+However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods).
 
-It is required to write a wrapper around the Python model in order to implement the trait.
-This wrapper will call the Python model from Rust.
-The methods signatures must be the same as the trait.
-The Rust trait cannot be change for the purpose of making the code available in Python.
+In order to implement the trait, we must write a wrapper around the calls in Rust to the Python model.
+The method signatures must be the same as the trait, keeping in mind that the Rust trait cannot be changed for the purpose of making the code available in Python.
 
-The Python model we want to expose is the following one, it implments all the required methods:
+The Python model we want to expose is the following one, which already contains all the required methods:
 
 ```python
 class Model:
@@ -60,7 +60,7 @@ class Model:
         return self.results
 ```
 
-This wrapper will call the Python model from Rust, it is using a struct to hold the model as a `PyAny` object:
+The following wrapper will call the Python model from Rust, using a struct to hold the model as a `PyAny` object:
 
 ```rust
 use pyo3::prelude::*;
@@ -146,7 +146,7 @@ impl UserModel {
 }
 ```
 
-Let's add the PyO3 annotations to the trait implementation:
+Now we add the PyO3 annotations to the trait implementation:
 
 ```rust
 # use pyo3::prelude::*;
@@ -217,12 +217,12 @@ impl Model for UserModel {
 }
 ```
 
-The prievious code will not compile. The compilation error is the following one:
+However, the prievious code will not compile. The compilation error is the following one:
 `error: #[pymethods] can not be used only with trait impl block`
 
 That's a bummer!
-However, we can write a wrapper around this functions to call them directly.
-These wrapper will also perform the types conversion in-between Python and Rust.
+However, we can write a second wrapper around these functions to call them directly.
+This wrapper will also perform the type conversions between Python and Rust.
 
 ```rust
 #[pymethods]
@@ -250,10 +250,10 @@ impl UserModel {
     }
 }
 ```
-
-This wrapper handles the type conversion between the PyO3 requirements and the trait, especially:
-- the return type that must be a `PyResult`
-- the references that are required by the trait but that cannot be passed from Python
+This wrapper handles the type conversion between the PyO3 requirements and the trait.
+In order to meet PyO3 requirements, this wrapper must:
+- return an object of type `PyResult`
+- use only values, not references in the method signatures
 
 Let's run the file python file:
 
@@ -291,20 +291,20 @@ Get results from Rust calling Python
 Print value from Python:  [1.0]
 ```
 
-We have succeed to expose a Rust model that implement the `Model` trait to Python!
+We have now successfully exposed a Rust model that implements the `Model` trait to Python!
 
 We will now expose the `solve` function, but before, let's talk about types errors.
 
 ## Type errors in Python
 
-What happens if you have a type errors when using Python and how can you improve the error messages ?
+What happens if you have type errors when using Python and how can you improve the error messages?
 
 
 ### Wrong types in Python function arguments
 
 Let's assume in the first case that you will use in your Python file `my_rust_model.set_variables_in_rust(2.0)` instead of `my_rust_model.set_variables_in_rust([2.0])`.
 
-The Rust signature expect a vector, which is a list in Python.
+The Rust signature expects a vector, which corresponds to a list in Python.
 What happens if instead of a vector, we pass a single value ?
 
 At the execution of Python, we get :
@@ -315,11 +315,11 @@ File "main.py", line 15, in <module>
 TypeError
 ```
 
-It is a type error and Python points to it, so no worry.
+It is a type error and Python points to it, so it's easy to identify and solve.
 
-### Wrong types in Python function signature
+### Wrong types in Python method signatures
 
-Let's assume now that the return type of one of the methods of our Model class is wrong, for example the `get_results` method that is expected to return a `Vec<f64>` in Rust, so a list in Python.
+Let's assume now that the return type of one of the methods of our Model class is wrong, for example the `get_results` method that is expected to return a `Vec<f64>` in Rust, a list in Python.
 
 ```python
 class Model:
@@ -338,11 +338,11 @@ This call results in the following panic:
 pyo3_runtime.PanicException: called `Result::unwrap()` on an `Err` value: PyErr { type: Py(0x10dcf79f0, PhantomData) }
 ```
 
-This error code is quite not helpful for a Python user that does not know anything about Rust, or someone that does not know PyO3 was used to interface the Rust code.
+This error code is not helpful for a Python user that does not know anything about Rust, or someone that does not know PyO3 was used to interface the Rust code.
 
-However, as being responsible for making the Rust code available to Python, we can do something about it.
+However, as we are responsible for making the Rust code available to Python, we can do something about it.
 
-The issue is that we called `unwrap` anywhere we could, and any panic from PyO3 will be directely forwarded to the end user.
+The issue is that we called `unwrap` anywhere we could, and therefore any panic from PyO3 will be directly forwarded to the end user.
 
 Let's modify the code performing the type conversion to give a helpful error message to the Python user:
 
@@ -364,7 +364,7 @@ impl Model for UserModel {
 }
 ```
 
-Let's break it down in order to perform a better error handling:
+Let's break it down in order to perform better error handling:
 
 ```rust
 impl Model for UserModel {
@@ -390,18 +390,19 @@ By doing so, you catch the result of the Python computation and check its type i
 
 Of course, it does not cover all the possible wrong outputs:
 the user could return a list of strings instead of a list of floats.
+In this case, a runtime panic would still occur due to PyO3, but with an error message much more difficult to decipher for non-rust user.
 
-A runtime panic would still occurs due to PyO3, but with a error message hard to decipher for non-rust user.
-
-It is up to the developer exposing the rust code to decide how much effort to invest into Python type errors handling and improved error messages.
+It is up to the developer exposing the rust code to decide how much effort to invest into Python type error handling and improved error messages.
 
 ## The final code
 
-Now let's also expose the `solve()` function to make it available from Python.
+Now let's expose the `solve()` function to make it available from Python.
 
-It is not possible to expose direcly the `solve` function to Python, as the type conversion cannot be performed, as it is requiring an object implementing the `Model` trait as input.
+It is not possible to directly expose the `solve` function to Python, as the type conversion cannot be performed.
+It requires an object implementing the `Model` trait as input.
 
-However, we can write a function wrapper that takes as argument a `UserModel`, which struct has also been expose to Python to call the core function `solve`.
+However, the `UserModel` already implements this trait.
+Because of this, we can write a function wrapper that takes the `UserModel`--which has already been exposed to Python--as an argument in order to call the core function `solve`.
 
 It is also required to make the struct public.
 
