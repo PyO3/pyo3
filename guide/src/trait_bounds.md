@@ -1,4 +1,4 @@
-# Expose a trait to Python
+# Using in Python a Rust function with trait bounds
 
 PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](https://pyo3.rs/master/conversions.html)).
 However, it is not always straightforward to convert Rust code that requires a given trait implementation as an argument.
@@ -40,7 +40,7 @@ Rewriting it in Python would be cumbersome and error-prone, as everything is alr
 
 How could we expose this solver to Python thanks to PyO3 ?
 
-## Expose the required trait model
+## Implementation of the trait bounds for the Python class
 
 If a Python class implements the same three methods as the `Model` trait, it seems logical it could be adapted to use the solver.
 However, it is not possible to pass a `PyObject` to it as it does not implement the Rust trait (even if the Python model has the required methods).
