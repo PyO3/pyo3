@@ -8,8 +8,8 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 path = os.path.join(current_dir, "zen-of-python.txt")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def textfile():
+@pytest.fixture(scope="session")
+def contents() -> str:
     text = """
 The Zen of Python, by Tim Peters
 
@@ -33,23 +33,19 @@ If the implementation is hard to explain, it's a bad idea.
 If the implementation is easy to explain, it may be a good idea.
 Namespaces are one honking great idea -- let's do more of those!
 """
-
-    with open(path, "w") as f:
-        f.write(text * 1000)
-    yield
-    os.remove(path)
+    return text * 1000
 
 
-def test_word_count_rust_parallel(benchmark):
-    count = benchmark(word_count.WordCounter(path).search, "is")
+def test_word_count_rust_parallel(benchmark, contents):
+    count = benchmark(word_count.search, contents, "is")
     assert count == 10000
 
 
-def test_word_count_rust_sequential(benchmark):
-    count = benchmark(word_count.WordCounter(path).search_sequential, "is")
+def test_word_count_rust_sequential(benchmark, contents):
+    count = benchmark(word_count.search_sequential, contents, "is")
     assert count == 10000
 
 
-def test_word_count_python_sequential(benchmark):
-    count = benchmark(word_count.search_py, path, "is")
+def test_word_count_python_sequential(benchmark, contents):
+    count = benchmark(word_count.search_py, contents, "is")
     assert count == 10000

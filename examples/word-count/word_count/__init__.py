@@ -1,14 +1,13 @@
-from .word_count import WordCounter, count_line
+from .word_count import count_line, search, search_sequential
 
-__all__ = ["WordCounter", "count_line", "search_py"]
+__all__ = ["count_line", "search_py", "search", "search_sequential"]
 
 
-def search_py(path, needle):
+def search_py(contents, needle):
     total = 0
-    with open(path, "r") as f:
-        for line in f:
-            words = line.split(" ")
-            for word in words:
-                if word == needle:
-                    total += 1
+    for line in contents.split():
+        words = line.split(" ")
+        for word in words:
+            if word == needle:
+                total += 1
     return total

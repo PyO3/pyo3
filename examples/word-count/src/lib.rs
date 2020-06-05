@@ -4,45 +4,24 @@
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use rayon::prelude::*;
-use std::fs;
-use std::path::PathBuf;
 
-/// Represents a file that can be searched
-#[pyclass(module = "word_count")]
-struct WordCounter {
-    path: PathBuf,
+/// Searches for the word, parallelized by rayon
+#[pyfunction]
+fn search(py: Python<'_>, contents: &str, search: String) -> PyResult<usize> {
+    let count = py.allow_threads(move || {
+        contents
+            .par_lines()
+            .map(|line| count_line(line, &search))
+            .sum()
+    });
+    Ok(count)
 }
 
-#[pymethods]
-impl WordCounter {
-    #[new]
-    fn new(path: String) -> Self {
-        WordCounter {
-            path: PathBuf::from(path),
-        }
-    }
-
-    /// Searches for the word, parallelized by rayon
-    fn search(&self, py: Python<'_>, search: String) -> PyResult<usize> {
-        let contents = fs::read_to_string(&self.path)?;
-
-        let count = py.allow_threads(move || {
-            contents
-                .par_lines()
-                .map(|line| count_line(line, &search))
-                .sum()
-        });
-        Ok(count)
-    }
-
-    /// Searches for a word in a classic sequential fashion
-    fn search_sequential(&self, needle: String) -> PyResult<usize> {
-        let contents = fs::read_to_string(&self.path)?;
-
-        let result = contents.lines().map(|line| count_line(line, &needle)).sum();
-
-        Ok(result)
-    }
+/// Searches for a word in a classic sequential fashion
+#[pyfunction]
+fn search_sequential(contents: &str, needle: String) -> PyResult<usize> {
+    let result = contents.lines().map(|line| count_line(line, &needle)).sum();
+    Ok(result)
 }
 
 fn matches(word: &str, needle: &str) -> bool {
@@ -77,7 +56,8 @@ fn count_line(line: &str, needle: &str) -> usize {
 #[pymodule]
 fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(count_line))?;
-    m.add_class::<WordCounter>()?;
+    m.add_wrapped(wrap_pyfunction!(search))?;
+    m.add_wrapped(wrap_pyfunction!(search_sequential))?;
 
     Ok(())
 }
