@@ -34,7 +34,6 @@ fn buffer_inplace_add(py: Python, x: PyBuffer<i32>, y: PyBuffer<i32>) {
 
 #[test]
 fn test_buffer_add() {
-    // Regression test for issue #932
     let gil = Python::acquire_gil();
     let py = gil.python();
     let f = wrap_pyfunction!(buffer_inplace_add)(py);
