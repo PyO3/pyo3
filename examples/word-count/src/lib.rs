@@ -7,11 +7,11 @@ use rayon::prelude::*;
 
 /// Searches for the word, parallelized by rayon
 #[pyfunction]
-fn search(py: Python<'_>, contents: &str, search: String) -> PyResult<usize> {
+fn search(py: Python<'_>, contents: &str, needle: &str) -> PyResult<usize> {
     let count = py.allow_threads(move || {
         contents
             .par_lines()
-            .map(|line| count_line(line, &search))
+            .map(|line| count_line(line, needle))
             .sum()
     });
     Ok(count)
@@ -19,8 +19,8 @@ fn search(py: Python<'_>, contents: &str, search: String) -> PyResult<usize> {
 
 /// Searches for a word in a classic sequential fashion
 #[pyfunction]
-fn search_sequential(contents: &str, needle: String) -> PyResult<usize> {
-    let result = contents.lines().map(|line| count_line(line, &needle)).sum();
+fn search_sequential(contents: &str, needle: &str) -> PyResult<usize> {
+    let result = contents.lines().map(|line| count_line(line, needle)).sum();
     Ok(result)
 }
 
