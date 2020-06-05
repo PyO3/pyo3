@@ -18,6 +18,7 @@ clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
 	cargo clippy --all-features --all-targets -- \
 		$(addprefix -D ,${CLIPPY_LINTS_TO_DENY})
+	for example in examples/*; do (cd $$example/; cargo clippy) || exit 1; done
 
 lint: fmt clippy
 	@true
