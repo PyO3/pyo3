@@ -1,6 +1,6 @@
-from .word_count import count_line, search, search_sequential
+from .word_count import search, search_sequential
 
-__all__ = ["count_line", "search_py", "search", "search_sequential"]
+__all__ = ["search_py", "search", "search_sequential"]
 
 
 def search_py(contents, needle):

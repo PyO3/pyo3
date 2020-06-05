@@ -42,7 +42,6 @@ fn matches(word: &str, needle: &str) -> bool {
 }
 
 /// Count the occurences of needle in line, case insensitive
-#[pyfunction]
 fn count_line(line: &str, needle: &str) -> usize {
     let mut total = 0;
     for word in line.split(' ') {
@@ -55,7 +54,6 @@ fn count_line(line: &str, needle: &str) -> usize {
 
 #[pymodule]
 fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(count_line))?;
     m.add_wrapped(wrap_pyfunction!(search))?;
     m.add_wrapped(wrap_pyfunction!(search_sequential))?;
 
