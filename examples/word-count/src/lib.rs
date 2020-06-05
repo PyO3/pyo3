@@ -59,7 +59,7 @@ fn matches(word: &str, needle: &str) -> bool {
             }
         }
     }
-    return needle.next().is_none();
+    needle.next().is_none()
 }
 
 /// Count the occurences of needle in line, case insensitive

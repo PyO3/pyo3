@@ -1,17 +1,14 @@
-.PHONY: test test_py3 publish clippy lint fmt
+.PHONY: test test_py publish clippy lint fmt
 
 # Constant used in clippy target
 CLIPPY_LINTS_TO_DENY := warnings
 
-test:
+test: lint test_py
 	cargo test
-	${MAKE} clippy
-	tox
-	for example in examples/*; do tox -e py -c $$example/tox.ini || exit 1; done
 
-test_py3:
-	tox -e py3
-	for example in examples/*; do tox -e py3 -c $$example/tox.ini || exit 1; done
+test_py:
+	tox -e py
+	for example in examples/*; do tox -e py -c $$example/tox.ini || exit 1; done
 
 fmt:
 	cargo fmt --all -- --check
@@ -21,6 +18,7 @@ clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
 	cargo clippy --all-features --all-targets -- \
 		$(addprefix -D ,${CLIPPY_LINTS_TO_DENY})
+	for example in examples/*; do (cd $$example/; cargo clippy) || exit 1; done
 
 lint: fmt clippy
 	@true
