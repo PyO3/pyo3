@@ -1,6 +1,6 @@
 # Parallelism
 
-CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock), which prevent that several threads can execute Python code in parallel. This makes threading in Python a bad fit for [CPU-bound](https://stackoverflow.com/questions/868568/) tasks and often forces developers to accept the overhead of multiprocessing.
+CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock), which prevents that several threads can execute Python code in parallel. This makes threading in Python a bad fit for [CPU-bound](https://stackoverflow.com/questions/868568/) tasks and often forces developers to accept the overhead of multiprocessing.
 
 In PyO3 parallelism can be easily achieved in Rust-only code. Let's take a look at our [word-count](https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs) example, where we have a `search` function that utilizes the [rayon](https://github.com/nikomatsakis/rayon) crate to count words in parallel.
 ```rust
@@ -70,6 +70,6 @@ test_word_count_python_sequential                      27.3985 (15.82)    45.452
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
 
-You can see that the Python threaded version is not much slower than the Rust sequential version, which means compared to an execution on a single CPU-core the speed has doubled.
+You can see that the Python threaded version is not much slower than the Rust sequential version, which means compared to an execution on a single CPU core the speed has doubled.
 
 [`Python::allow_threads`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.allow_threads
