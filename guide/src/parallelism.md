@@ -3,7 +3,7 @@
 CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock), which prevents that several threads can execute Python code in parallel. This makes threading in Python a bad fit for [CPU-bound](https://stackoverflow.com/questions/868568/) tasks and often forces developers to accept the overhead of multiprocessing.
 
 In PyO3 parallelism can be easily achieved in Rust-only code. Let's take a look at our [word-count](https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs) example, where we have a `search` function that utilizes the [rayon](https://github.com/nikomatsakis/rayon) crate to count words in parallel.
-```rust
+```rust, ignore
 #[pyfunction]
 fn search(contents: &str, needle: &str) -> usize {
     contents
@@ -14,14 +14,14 @@ fn search(contents: &str, needle: &str) -> usize {
 ```
 
 But let's assume you have a long running Rust function which you would like to execute several times in parallel. For the sake of example let's take a sequential version of the word count:
-```rust
+```rust, ignore
 fn search_sequential(contents: &str, needle: &str) -> usize {
     contents.lines().map(|line| count_line(line, needle)).sum()
 }
 ```
 
 To enable parallel execution of this function, the [`Python::allow_threads`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::allow_threads`] to enable true parallelism:
-```rust
+```rust, ignore
 #[pyfunction]
 fn search_sequential_allow_threads(py: Python, contents: &str, needle: &str) -> usize {
     py.allow_threads(|| search_sequential(contents, needle))
@@ -59,7 +59,7 @@ We are using `pytest-benchmark` to benchmark four word count functions:
 The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/master/examples/word-count/tests/test_word_count.py), and we can run `tox` in the `word-count` folder to benchmark these functions.
 
 While the results of the benchmark of course depend on your machine, the relative results should be similar to this (mid 2020):
-```
+```ignore
 -------------------------------------------------------------------------------------------------- benchmark: 4 tests -------------------------------------------------------------------------------------------------
 Name (time in ms)                                          Min                Max               Mean            StdDev             Median               IQR            Outliers       OPS            Rounds  Iterations
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
