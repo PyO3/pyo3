@@ -279,7 +279,7 @@ macro_rules! array_impls {
                 fn extract(obj: &'source PyAny) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     // first try buffer protocol
-                    if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
+                    if let Ok(buf) = buffer::PyBuffer::get(obj) {
                         if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
                             buf.release(obj.py());
                             return Ok(array);
@@ -315,9 +315,9 @@ where
 {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         // first try buffer protocol
-        if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
+        if let Ok(buf) = buffer::PyBuffer::get(obj) {
             if buf.dimensions() == 1 {
-                if let Ok(v) = buf.to_vec::<T>(obj.py()) {
+                if let Ok(v) = buf.to_vec(obj.py()) {
                     buf.release(obj.py());
                     return Ok(v);
                 }
