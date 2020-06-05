@@ -613,6 +613,7 @@ mod test {
         // Move obj to a thread which does not have the GIL, and clone it
         let t = std::thread::spawn(move || {
             // Cloning without GIL should not update reference count
+            #[allow(clippy::redundant_clone)]
             let _ = obj.clone();
             assert_eq!(count, obj.get_refcnt());
 
