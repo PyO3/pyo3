@@ -7,21 +7,22 @@ use rayon::prelude::*;
 
 /// Searches for the word, parallelized by rayon
 #[pyfunction]
-fn search(py: Python<'_>, contents: &str, needle: &str) -> PyResult<usize> {
-    let count = py.allow_threads(move || {
-        contents
-            .par_lines()
-            .map(|line| count_line(line, needle))
-            .sum()
-    });
-    Ok(count)
+fn search(contents: &str, needle: &str) -> usize {
+    contents
+        .par_lines()
+        .map(|line| count_line(line, needle))
+        .sum()
 }
 
 /// Searches for a word in a classic sequential fashion
 #[pyfunction]
-fn search_sequential(contents: &str, needle: &str) -> PyResult<usize> {
-    let result = contents.lines().map(|line| count_line(line, needle)).sum();
-    Ok(result)
+fn search_sequential(contents: &str, needle: &str) -> usize {
+    contents.lines().map(|line| count_line(line, needle)).sum()
+}
+
+#[pyfunction]
+fn search_sequential_allow_threads(py: Python, contents: &str, needle: &str) -> usize {
+    py.allow_threads(|| search_sequential(contents, needle))
 }
 
 fn matches(word: &str, needle: &str) -> bool {
@@ -56,6 +57,7 @@ fn count_line(line: &str, needle: &str) -> usize {
 fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(search))?;
     m.add_wrapped(wrap_pyfunction!(search_sequential))?;
+    m.add_wrapped(wrap_pyfunction!(search_sequential_allow_threads))?;
 
     Ok(())
 }

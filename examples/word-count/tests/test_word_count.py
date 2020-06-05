@@ -1,7 +1,8 @@
-# -*- coding: utf-8 -*-
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+
 import word_count
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -49,3 +50,23 @@ def test_word_count_rust_sequential(benchmark, contents):
 def test_word_count_python_sequential(benchmark, contents):
     count = benchmark(word_count.search_py, contents, "is")
     assert count == 10000
+
+
+def run_rust_sequential_twice(
+    executor: ThreadPoolExecutor, contents: str, needle: str
+) -> int:
+    future_1 = executor.submit(
+        word_count.search_sequential_allow_threads, contents, needle
+    )
+    future_2 = executor.submit(
+        word_count.search_sequential_allow_threads, contents, needle
+    )
+    result_1 = future_1.result()
+    result_2 = future_2.result()
+    return result_1 + result_2
+
+
+def test_word_count_rust_sequential_twice_with_threads(benchmark, contents):
+    executor = ThreadPoolExecutor(max_workers=2)
+    count = benchmark(run_rust_sequential_twice, executor, contents, "is")
+    assert count == 20000

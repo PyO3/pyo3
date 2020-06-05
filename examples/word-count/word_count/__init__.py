@@ -1,6 +1,11 @@
-from .word_count import search, search_sequential
+from .word_count import search, search_sequential, search_sequential_allow_threads
 
-__all__ = ["search_py", "search", "search_sequential"]
+__all__ = [
+    "search_py",
+    "search",
+    "search_sequential",
+    "search_sequential_allow_threads",
+]
 
 
 def search_py(contents, needle):
