@@ -147,8 +147,8 @@ pub const OBJECT: Proto = Proto {
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
-    slot_table: "",
-    set_slot_table: "",
+    slot_table: "pyo3::ffi::PyAsyncMethods",
+    set_slot_table: "set_async_methods",
     methods: &[
         MethodProto::Unary {
             name: "__await__",
@@ -188,7 +188,11 @@ pub const ASYNC: Proto = Proto {
             "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
         ),
     ],
-    slot_setters: &[],
+    slot_setters: &[
+        SlotSetter::new(&["__await__"], "set_await"),
+        SlotSetter::new(&["__aiter__"], "set_aiter"),
+        SlotSetter::new(&["__anext__"], "set_anext"),
+    ],
 };
 
 pub const BUFFER: Proto = Proto {
@@ -390,8 +394,8 @@ pub const MAPPING: Proto = Proto {
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
-    slot_table: "",
-    set_slot_table: "",
+    slot_table: "pyo3::ffi::PySequenceMethods",
+    set_slot_table: "set_sequence_methods",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -449,7 +453,22 @@ pub const SEQ: Proto = Proto {
         },
     ],
     py_methods: &[],
-    slot_setters: &[],
+    slot_setters: &[
+        SlotSetter::new(&["__len__"], "set_len"),
+        SlotSetter::new(&["__concat__"], "set_concat"),
+        SlotSetter::new(&["__repeat__"], "set_repeat"),
+        SlotSetter::new(&["__getitem__"], "set_getitem"),
+        SlotSetter {
+            proto_names: &["__setitem__", "__delitem__"],
+            set_function: "set_setdelitem",
+            skipped_setters: &["set_setitem", "set_delitem"],
+        },
+        SlotSetter::new(&["__setitem__"], "set_setitem"),
+        SlotSetter::new(&["__delitem__"], "set_delitem"),
+        SlotSetter::new(&["__contains__"], "set_contains"),
+        SlotSetter::new(&["__inplace_concat__"], "set_inplace_concat"),
+        SlotSetter::new(&["__inplace_repeat__"], "set_inplace_repeat"),
+    ],
 };
 
 pub const NUM: Proto = Proto {

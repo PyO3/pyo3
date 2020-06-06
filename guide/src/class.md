@@ -955,6 +955,14 @@ impl pyo3::class::methods::HasMethodsInventory for MyClass {
     type Methods = Pyo3MethodsInventoryForMyClass;
 }
 pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
+
+impl pyo3::class::proto_methods::HasProtoRegistry for MyClass {
+    fn registory() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
+        static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
+            = pyo3::class::proto_methods::PyProtoRegistry::new();
+        &REGISTRY
+    }
+}
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let cls = py.get_type::<MyClass>();

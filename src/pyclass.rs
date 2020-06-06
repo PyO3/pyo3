@@ -157,21 +157,14 @@ where
         unsafe { basic.as_ref() }.update_typeobj(type_object);
     }
 
-    fn to_ptr<T>(value: Option<T>) -> *mut T {
-        value
-            .map(|v| Box::into_raw(Box::new(v)))
-            .unwrap_or_else(ptr::null_mut)
-    }
-
     // number methods
     type_object.tp_as_number = T::number_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // mapping methods
     type_object.tp_as_mapping = T::mapping_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // sequence methods
-    type_object.tp_as_sequence =
-        to_ptr(<T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence());
+    type_object.tp_as_sequence = T::sequence_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // async methods
-    type_object.tp_as_async = to_ptr(<T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async());
+    type_object.tp_as_async = T::async_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // buffer protocol
     type_object.tp_as_buffer = T::buffer_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
 
