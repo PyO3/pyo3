@@ -1,12 +1,12 @@
 language: python
-
+os: linux
 dist: bionic
 
 cache:
   pip: true
   cargo: true
 
-matrix:
+jobs:
   include:
     - name: Python 3.5
       python: "3.5"
@@ -46,7 +46,6 @@ script:
 
 deploy:
   - provider: script
-    skip_cleanup: true
     script: ./ci/travis/cover.sh
     on:
       branch: master
@@ -54,7 +53,6 @@ deploy:
       python: 3.6
       condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
-    skip_cleanup: true
     script: ./ci/travis/guide.sh
     on:
       branch: master
@@ -62,7 +60,6 @@ deploy:
       python: 3.6
       condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
-    skip_cleanup: true
     script: ./ci/travis/guide.sh
     on:
       tags: true
