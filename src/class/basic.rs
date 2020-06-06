@@ -183,54 +183,13 @@ impl PyObjectMethods {
     where
         T: for<'p> PyObjectGetAttrProtocol<'p>,
     {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            arg: *mut ffi::PyObject,
-        ) -> *mut ffi::PyObject
-        where
-            T: for<'p> PyObjectGetAttrProtocol<'p>,
-        {
-            crate::callback_body!(py, {
-                // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-                // for existing fields and methods first
-                let existing = ffi::PyObject_GenericGetAttr(slf, arg);
-                if existing.is_null() {
-                    // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                    ffi::PyErr_Clear();
-                } else {
-                    return Ok(existing);
-                }
-
-                let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-                let arg = py.from_borrowed_ptr::<PyAny>(arg);
-                call_ref!(slf, __getattr__, arg)
-            })
-        }
-        self.tp_getattro = Some(wrap::<T>);
+        self.tp_getattro = tp_getattro::<T>();
     }
     pub fn set_richcompare<T>(&mut self)
     where
         T: for<'p> PyObjectRichcmpProtocol<'p>,
     {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            arg: *mut ffi::PyObject,
-            op: c_int,
-        ) -> *mut ffi::PyObject
-        where
-            T: for<'p> PyObjectRichcmpProtocol<'p>,
-        {
-            crate::callback_body!(py, {
-                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-                let arg = py.from_borrowed_ptr::<PyAny>(arg);
-
-                let op = extract_op(op)?;
-                let arg = arg.extract()?;
-
-                slf.try_borrow()?.__richcmp__(arg, op).into()
-            })
-        }
-        self.tp_richcompare = Some(wrap::<T>);
+        self.tp_richcompare = tp_richcompare::<T>();
     }
     pub fn set_setattr<T>(&mut self)
     where
@@ -258,16 +217,70 @@ impl PyObjectMethods {
     }
 }
 
-fn extract_op(op: c_int) -> PyResult<CompareOp> {
-    match op {
-        ffi::Py_LT => Ok(CompareOp::Lt),
-        ffi::Py_LE => Ok(CompareOp::Le),
-        ffi::Py_EQ => Ok(CompareOp::Eq),
-        ffi::Py_NE => Ok(CompareOp::Ne),
-        ffi::Py_GT => Ok(CompareOp::Gt),
-        ffi::Py_GE => Ok(CompareOp::Ge),
-        _ => Err(PyErr::new::<exceptions::ValueError, _>(
-            "tp_richcompare called with invalid comparison operator",
-        )),
+fn tp_getattro<T>() -> Option<ffi::binaryfunc>
+where
+    T: for<'p> PyObjectGetAttrProtocol<'p>,
+{
+    unsafe extern "C" fn wrap<T>(
+        slf: *mut ffi::PyObject,
+        arg: *mut ffi::PyObject,
+    ) -> *mut ffi::PyObject
+    where
+        T: for<'p> PyObjectGetAttrProtocol<'p>,
+    {
+        crate::callback_body!(py, {
+            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+            // for existing fields and methods first
+            let existing = ffi::PyObject_GenericGetAttr(slf, arg);
+            if existing.is_null() {
+                // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                ffi::PyErr_Clear();
+            } else {
+                return Ok(existing);
+            }
+
+            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+            let arg = py.from_borrowed_ptr::<PyAny>(arg);
+            call_ref!(slf, __getattr__, arg)
+        })
     }
+    Some(wrap::<T>)
+}
+
+fn tp_richcompare<T>() -> Option<ffi::richcmpfunc>
+where
+    T: for<'p> PyObjectRichcmpProtocol<'p>,
+{
+    fn extract_op(op: c_int) -> PyResult<CompareOp> {
+        match op {
+            ffi::Py_LT => Ok(CompareOp::Lt),
+            ffi::Py_LE => Ok(CompareOp::Le),
+            ffi::Py_EQ => Ok(CompareOp::Eq),
+            ffi::Py_NE => Ok(CompareOp::Ne),
+            ffi::Py_GT => Ok(CompareOp::Gt),
+            ffi::Py_GE => Ok(CompareOp::Ge),
+            _ => Err(PyErr::new::<exceptions::ValueError, _>(
+                "tp_richcompare called with invalid comparison operator",
+            )),
+        }
+    }
+    unsafe extern "C" fn wrap<T>(
+        slf: *mut ffi::PyObject,
+        arg: *mut ffi::PyObject,
+        op: c_int,
+    ) -> *mut ffi::PyObject
+    where
+        T: for<'p> PyObjectRichcmpProtocol<'p>,
+    {
+        crate::callback_body!(py, {
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+            let arg = py.from_borrowed_ptr::<PyAny>(arg);
+
+            let op = extract_op(op)?;
+            let arg = arg.extract()?;
+
+            slf.try_borrow()?.__richcmp__(arg, op).into()
+        })
+    }
+    Some(wrap::<T>)
 }
