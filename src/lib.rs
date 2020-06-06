@@ -335,7 +335,6 @@ pub mod doc_test {
     doctest!("../guide/src/debugging.md", guide_debugging_md);
     doctest!("../guide/src/exception.md", guide_exception_md);
     doctest!("../guide/src/function.md", guide_function_md);
-    doctest!("../guide/src/get_started.md", guide_get_started_md);
     doctest!("../guide/src/migration.md", guide_migration_md);
     doctest!("../guide/src/module.md", guide_module_md);
     doctest!(
