@@ -47,7 +47,7 @@ pub struct PyIterMethods {
 }
 
 impl PyIterMethods {
-    pub(crate) fn prepare_type_obj(&self, type_object: &mut ffi::PyTypeObject) {
+    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_iter = self.tp_iter;
         type_object.tp_iternext = self.tp_iternext;
     }

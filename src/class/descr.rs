@@ -72,7 +72,7 @@ pub struct PyDescrMethods {
 }
 
 impl PyDescrMethods {
-    pub(crate) fn prepare_type_obj(&self, type_object: &mut ffi::PyTypeObject) {
+    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_descr_get = self.tp_descr_get;
         type_object.tp_descr_set = self.tp_descr_set;
     }

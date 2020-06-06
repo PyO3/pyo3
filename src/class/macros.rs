@@ -106,7 +106,7 @@ macro_rules! py_binary_num_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_binary_reverse_num_func {
+macro_rules! py_binary_reversed_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
             lhs: *mut ffi::PyObject,
@@ -240,7 +240,7 @@ macro_rules! py_ternary_num_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_ternary_reverse_num_func {
+macro_rules! py_ternary_reversed_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
             arg1: *mut $crate::ffi::PyObject,

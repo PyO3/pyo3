@@ -135,7 +135,7 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
-/// All functions necessary for basic protocols.
+/// All FFI functions for basic protocols.
 #[derive(Default)]
 pub struct PyObjectMethods {
     pub tp_str: Option<ffi::reprfunc>,
@@ -147,7 +147,7 @@ pub struct PyObjectMethods {
 }
 
 impl PyObjectMethods {
-    pub(crate) fn prepare_type_obj(&self, type_object: &mut ffi::PyTypeObject) {
+    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_str = self.tp_str;
         type_object.tp_repr = self.tp_repr;
         type_object.tp_hash = self.tp_hash;

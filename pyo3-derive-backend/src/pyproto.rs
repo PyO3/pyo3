@@ -126,21 +126,23 @@ fn slot_initialization(
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
     let mut initializers: Vec<TokenStream> = vec![];
-    // This is for setters.
-    // If we can use set_setdelattr, skip set_setattr and set_setdelattr.
-    let mut skip_indices = vec![];
-    'setter_loop: for (i, m) in proto.slot_setters.iter().enumerate() {
-        if skip_indices.contains(&i) {
+    // Some setters cannot coexist.
+    // E.g., if we have `__add__`, we need to skip `set_radd`.
+    let mut skipped_setters = HashSet::new();
+    'setter_loop: for m in proto.slot_setters {
+        if skipped_setters.contains(m.set_function) {
             continue;
         }
         for name in m.proto_names {
             if !method_names.contains(*name) {
-                // This `#[pyproto] impl` doesn't have all required methods,
-                // let's skip implementation.
+                // If this `#[pyproto]` block doesn't provide all required methods,
+                // let's skip implementing this method.
                 continue 'setter_loop;
             }
         }
-        skip_indices.extend_from_slice(m.exclude_indices);
+        for s in m.skipped_setters {
+            skipped_setters.insert(s.to_string());
+        }
         // Add slot methods to PyProtoRegistry
         let set = syn::Ident::new(m.set_function, Span::call_site());
         initializers.push(quote! { table.#set::<#ty>(); });
@@ -160,7 +162,7 @@ fn slot_initialization(
         fn #init() {
             let mut table = #table::default();
             #(#initializers)*
-            <#ty as pyo3::class::proto_methods::HasPyProtoRegistry>::registory().#set(table);
+            <#ty as pyo3::class::proto_methods::HasProtoRegistry>::registory().#set(table);
         }
     })
 }

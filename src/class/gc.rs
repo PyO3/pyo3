@@ -18,69 +18,23 @@ pub trait PyGCProtocol<'p>: PyClass {
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
 pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
-#[doc(hidden)]
-pub trait PyGCProtocolImpl {
-    fn update_type_object(_type_object: &mut ffi::PyTypeObject);
+/// All FFI functions for gc protocols.
+#[derive(Default)]
+pub struct PyGCMethods {
+    pub tp_traverse: Option<ffi::traverseproc>,
+    pub tp_clear: Option<ffi::inquiry>,
 }
 
-impl<'p, T> PyGCProtocolImpl for T {
-    default fn update_type_object(_type_object: &mut ffi::PyTypeObject) {}
-}
-
-impl<'p, T> PyGCProtocolImpl for T
-where
-    T: PyGCProtocol<'p>,
-{
-    fn update_type_object(type_object: &mut ffi::PyTypeObject) {
-        type_object.tp_traverse = Self::tp_traverse();
-        type_object.tp_clear = Self::tp_clear();
+impl PyGCMethods {
+    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
+        type_object.tp_traverse = self.tp_traverse;
+        type_object.tp_clear = self.tp_clear;
     }
-}
 
-#[derive(Copy, Clone)]
-pub struct PyVisit<'p> {
-    visit: ffi::visitproc,
-    arg: *mut c_void,
-    /// VisitProc contains a Python instance to ensure that
-    /// 1) it is cannot be moved out of the traverse() call
-    /// 2) it cannot be sent to other threads
-    _py: Python<'p>,
-}
-
-impl<'p> PyVisit<'p> {
-    pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
+    pub fn set_traverse<T>(&mut self)
     where
-        T: AsPyPointer,
+        T: for<'p> PyGCTraverseProtocol<'p>,
     {
-        let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
-        if r == 0 {
-            Ok(())
-        } else {
-            Err(PyTraverseError(r))
-        }
-    }
-}
-
-trait PyGCTraverseProtocolImpl {
-    fn tp_traverse() -> Option<ffi::traverseproc>;
-}
-
-impl<'p, T> PyGCTraverseProtocolImpl for T
-where
-    T: PyGCProtocol<'p>,
-{
-    default fn tp_traverse() -> Option<ffi::traverseproc> {
-        None
-    }
-}
-
-#[doc(hidden)]
-impl<T> PyGCTraverseProtocolImpl for T
-where
-    T: for<'p> PyGCTraverseProtocol<'p>,
-{
-    #[inline]
-    fn tp_traverse() -> Option<ffi::traverseproc> {
         unsafe extern "C" fn tp_traverse<T>(
             slf: *mut ffi::PyObject,
             visit: ffi::visitproc,
@@ -108,30 +62,13 @@ where
                 0
             }
         }
-
-        Some(tp_traverse::<T>)
+        self.tp_traverse = Some(tp_traverse::<T>);
     }
-}
 
-trait PyGCClearProtocolImpl {
-    fn tp_clear() -> Option<ffi::inquiry>;
-}
-
-impl<'p, T> PyGCClearProtocolImpl for T
-where
-    T: PyGCProtocol<'p>,
-{
-    default fn tp_clear() -> Option<ffi::inquiry> {
-        None
-    }
-}
-
-impl<T> PyGCClearProtocolImpl for T
-where
-    T: for<'p> PyGCClearProtocol<'p>,
-{
-    #[inline]
-    fn tp_clear() -> Option<ffi::inquiry> {
+    pub fn set_clear<T>(&mut self)
+    where
+        T: for<'p> PyGCClearProtocol<'p>,
+    {
         unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
         where
             T: for<'p> PyGCClearProtocol<'p>,
@@ -143,6 +80,32 @@ where
             slf.borrow_mut().__clear__();
             0
         }
-        Some(tp_clear::<T>)
+        self.tp_clear = Some(tp_clear::<T>);
+    }
+}
+
+/// Object visitor for GC.
+#[derive(Copy, Clone)]
+pub struct PyVisit<'p> {
+    visit: ffi::visitproc,
+    arg: *mut c_void,
+    /// VisitProc contains a Python instance to ensure that
+    /// 1) it is cannot be moved out of the traverse() call
+    /// 2) it cannot be sent to other threads
+    _py: Python<'p>,
+}
+
+impl<'p> PyVisit<'p> {
+    /// Visit `obj`.
+    pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
+    where
+        T: AsPyPointer,
+    {
+        let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
+        if r == 0 {
+            Ok(())
+        } else {
+            Err(PyTraverseError(r))
+        }
     }
 }

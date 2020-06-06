@@ -138,21 +138,23 @@ where
     }
 
     // GC support
-    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+    if let Some(gc) = T::gc_methods() {
+        unsafe { gc.as_ref() }.update_typeobj(type_object);
+    }
 
     // descriptor protocol
     if let Some(descr) = T::descr_methods() {
-        unsafe { descr.as_ref() }.prepare_type_obj(type_object);
+        unsafe { descr.as_ref() }.update_typeobj(type_object);
     }
 
     // iterator methods
     if let Some(iter) = T::iter_methods() {
-        unsafe { iter.as_ref() }.prepare_type_obj(type_object);
+        unsafe { iter.as_ref() }.update_typeobj(type_object);
     }
 
     // basic methods
     if let Some(basic) = T::basic_methods() {
-        unsafe { basic.as_ref() }.prepare_type_obj(type_object);
+        unsafe { basic.as_ref() }.update_typeobj(type_object);
     }
 
     fn to_ptr<T>(value: Option<T>) -> *mut T {
@@ -162,10 +164,9 @@ where
     }
 
     // number methods
-    type_object.tp_as_number = to_ptr(<T as class::number::PyNumberProtocolImpl>::tp_as_number());
+    type_object.tp_as_number = T::number_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // mapping methods
-    type_object.tp_as_mapping =
-        to_ptr(<T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping());
+    type_object.tp_as_mapping = T::mapping_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // sequence methods
     type_object.tp_as_sequence =
         to_ptr(<T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence());

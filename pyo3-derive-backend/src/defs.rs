@@ -53,16 +53,16 @@ impl PyMethod {
 pub struct SlotSetter {
     pub proto_names: &'static [&'static str],
     pub set_function: &'static str,
-    pub exclude_indices: &'static [usize],
+    pub skipped_setters: &'static [&'static str],
 }
 
 impl SlotSetter {
-    const EMPTY_INDICES: &'static [usize] = &[];
+    const EMPTY_SETTERS: &'static [&'static str] = &[];
     const fn new(names: &'static [&'static str], set_function: &'static str) -> Self {
         SlotSetter {
             proto_names: names,
             set_function,
-            exclude_indices: Self::EMPTY_INDICES,
+            skipped_setters: Self::EMPTY_SETTERS,
         }
     }
 }
@@ -138,11 +138,10 @@ pub const OBJECT: Proto = Proto {
         SlotSetter {
             proto_names: &["__setattr__", "__delattr__"],
             set_function: "set_setdelattr",
-            // exclude set and del
-            exclude_indices: &[6, 7],
+            skipped_setters: &["set_setattr", "set_delattr"],
         },
         SlotSetter::new(&["__setattr__"], "set_setattr"),
-        SlotSetter::new(&["__delattr__"], "set_setattr"),
+        SlotSetter::new(&["__delattr__"], "set_delattr"),
     ],
 };
 
@@ -248,8 +247,8 @@ pub const CONTEXT: Proto = Proto {
 
 pub const GC: Proto = Proto {
     name: "GC",
-    slot_table: "",
-    set_slot_table: "",
+    slot_table: "pyo3::class::gc::PyGCMethods",
+    set_slot_table: "set_gc_methods",
     methods: &[
         MethodProto::Free {
             name: "__traverse__",
@@ -261,7 +260,10 @@ pub const GC: Proto = Proto {
         },
     ],
     py_methods: &[],
-    slot_setters: &[],
+    slot_setters: &[
+        SlotSetter::new(&["__traverse__"], "set_traverse"),
+        SlotSetter::new(&["__clear__"], "set_clear"),
+    ],
 };
 
 pub const DESCR: Proto = Proto {
@@ -329,23 +331,15 @@ pub const ITER: Proto = Proto {
         },
     ],
     slot_setters: &[
-        SlotSetter {
-            proto_names: &["__iter__"],
-            set_function: "set_iter",
-            exclude_indices: &[],
-        },
-        SlotSetter {
-            proto_names: &["__next__"],
-            set_function: "set_iternext",
-            exclude_indices: &[],
-        },
+        SlotSetter::new(&["__iter__"], "set_iter"),
+        SlotSetter::new(&["__next__"], "set_iternext"),
     ],
 };
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
-    slot_table: "",
-    set_slot_table: "",
+    slot_table: "pyo3::ffi::PyMappingMethods",
+    set_slot_table: "set_mapping_methods",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -381,7 +375,17 @@ pub const MAPPING: Proto = Proto {
         "__reversed__",
         "pyo3::class::mapping::PyMappingReversedProtocolImpl",
     )],
-    slot_setters: &[],
+    slot_setters: &[
+        SlotSetter::new(&["__len__"], "set_length"),
+        SlotSetter::new(&["__getitem__"], "set_getitem"),
+        SlotSetter {
+            proto_names: &["__setitem__", "__delitem__"],
+            set_function: "set_setdelitem",
+            skipped_setters: &["set_setitem", "set_delitem"],
+        },
+        SlotSetter::new(&["__setitem__"], "set_setitem"),
+        SlotSetter::new(&["__delitem__"], "set_delitem"),
+    ],
 };
 
 pub const SEQ: Proto = Proto {
@@ -450,8 +454,8 @@ pub const SEQ: Proto = Proto {
 
 pub const NUM: Proto = Proto {
     name: "Number",
-    slot_table: "",
-    set_slot_table: "",
+    slot_table: "pyo3::ffi::PyNumberMethods",
+    set_slot_table: "set_number_methods",
     methods: &[
         MethodProto::BinaryS {
             name: "__add__",
@@ -809,5 +813,107 @@ pub const NUM: Proto = Proto {
             "pyo3::class::number::PyNumberRoundProtocolImpl",
         ),
     ],
-    slot_setters: &[],
+    slot_setters: &[
+        SlotSetter {
+            proto_names: &["__add__"],
+            set_function: "set_add",
+            skipped_setters: &["set_radd"],
+        },
+        SlotSetter::new(&["__radd__"], "set_radd"),
+        SlotSetter {
+            proto_names: &["__sub__"],
+            set_function: "set_sub",
+            skipped_setters: &["set_rsub"],
+        },
+        SlotSetter::new(&["__rsub__"], "set_rsub"),
+        SlotSetter {
+            proto_names: &["__mul__"],
+            set_function: "set_mul",
+            skipped_setters: &["set_rmul"],
+        },
+        SlotSetter::new(&["__rmul__"], "set_rmul"),
+        SlotSetter::new(&["__mod__"], "set_mod"),
+        SlotSetter {
+            proto_names: &["__divmod__"],
+            set_function: "set_divmod",
+            skipped_setters: &["set_rdivmod"],
+        },
+        SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
+        SlotSetter {
+            proto_names: &["__pow__"],
+            set_function: "set_pow",
+            skipped_setters: &["set_rpow"],
+        },
+        SlotSetter::new(&["__rpow__"], "set_rpow"),
+        SlotSetter::new(&["__neg__"], "set_neg"),
+        SlotSetter::new(&["__pos__"], "set_pos"),
+        SlotSetter::new(&["__abs__"], "set_abs"),
+        SlotSetter::new(&["__bool__"], "set_bool"),
+        SlotSetter::new(&["__invert__"], "set_invert"),
+        SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
+        SlotSetter {
+            proto_names: &["__lshift__"],
+            set_function: "set_lshift",
+            skipped_setters: &["set_rlshift"],
+        },
+        SlotSetter::new(&["__rlshift__"], "set_rlshift"),
+        SlotSetter {
+            proto_names: &["__rshift__"],
+            set_function: "set_rshift",
+            skipped_setters: &["set_rrshift"],
+        },
+        SlotSetter::new(&["__rrshift__"], "set_rrshift"),
+        SlotSetter {
+            proto_names: &["__and__"],
+            set_function: "set_and",
+            skipped_setters: &["set_rand"],
+        },
+        SlotSetter::new(&["__rand__"], "set_rand"),
+        SlotSetter {
+            proto_names: &["__xor__"],
+            set_function: "set_xor",
+            skipped_setters: &["set_rxor"],
+        },
+        SlotSetter::new(&["__rxor__"], "set_rxor"),
+        SlotSetter {
+            proto_names: &["__or__"],
+            set_function: "set_or",
+            skipped_setters: &["set_ror"],
+        },
+        SlotSetter::new(&["__ror__"], "set_ror"),
+        SlotSetter::new(&["__int__"], "set_int"),
+        SlotSetter::new(&["__float__"], "set_float"),
+        SlotSetter::new(&["__iadd__"], "set_iadd"),
+        SlotSetter::new(&["__isub__"], "set_isub"),
+        SlotSetter::new(&["__imul__"], "set_imul"),
+        SlotSetter::new(&["__imod__"], "set_imod"),
+        SlotSetter::new(&["__ipow__"], "set_ipow"),
+        SlotSetter::new(&["__ilshift__"], "set_ilshift"),
+        SlotSetter::new(&["__irshift__"], "set_irshift"),
+        SlotSetter::new(&["__iand__"], "set_iand"),
+        SlotSetter::new(&["__ixor__"], "set_ixor"),
+        SlotSetter::new(&["__ior__"], "set_ior"),
+        SlotSetter {
+            proto_names: &["__floordiv__"],
+            set_function: "set_floordiv",
+            skipped_setters: &["set_rfloordiv"],
+        },
+        SlotSetter::new(&["__rfloordiv__"], "set_rfloordiv"),
+        SlotSetter {
+            proto_names: &["__truediv__"],
+            set_function: "set_truediv",
+            skipped_setters: &["set_rtruediv"],
+        },
+        SlotSetter::new(&["__rtruediv__"], "set_rtruediv"),
+        SlotSetter::new(&["__ifloordiv__"], "set_ifloordiv"),
+        SlotSetter::new(&["__itruediv__"], "set_itruediv"),
+        SlotSetter::new(&["__index__"], "set_index"),
+        SlotSetter {
+            proto_names: &["__matmul__"],
+            set_function: "set_matmul",
+            skipped_setters: &["set_rmatmul"],
+        },
+        SlotSetter::new(&["__rmatmul__"], "set_rmatmul"),
+        SlotSetter::new(&["__imatmul__"], "set_imatmul"),
+    ],
 };

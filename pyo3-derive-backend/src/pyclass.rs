@@ -239,7 +239,7 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
 /// TODO(kngwyu): doc
 fn impl_proto_registory(cls: &syn::Ident) -> TokenStream {
     quote! {
-        impl pyo3::class::proto_methods::HasPyProtoRegistry for #cls {
+        impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
             fn registory() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
                 static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
                     = pyo3::class::proto_methods::PyProtoRegistry::new();
