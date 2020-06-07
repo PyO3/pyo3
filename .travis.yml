@@ -47,6 +47,7 @@ script:
 deploy:
   - provider: script
     script: ./ci/travis/cover.sh
+    edge: true
     on:
       branch: master
       repo: PyO3/pyo3
@@ -54,6 +55,7 @@ deploy:
       condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     script: ./ci/travis/guide.sh
+    edge: true
     on:
       branch: master
       repo: PyO3/pyo3
@@ -61,6 +63,7 @@ deploy:
       condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     script: ./ci/travis/guide.sh
+    edge: true
     on:
       tags: true
       repo: PyO3/pyo3
