@@ -42,6 +42,51 @@ impl PyByteArray {
         self.len() == 0
     }
 
+    /// Get the start of the buffer containing the contents of the bytearray.
+    ///
+    /// Note that this bytearray object is both shared and mutable, and the backing buffer may be
+    /// reallocated if the bytearray is resized. This can occur from Python code as well as from
+    /// Rust via [PyByteArray::resize].
+    ///
+    /// As a result, the returned pointer should be dereferenced only if since calling this method
+    /// no Python code has executed, [PyByteArray::resize] has not been called.
+    pub fn data(&self) -> *mut u8 {
+        unsafe { ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8 }
+    }
+
+    /// Get the contents of this buffer as a slice.
+    ///
+    /// # Safety
+    /// This bytearray must not be resized or edited while holding the slice.
+    ///
+    /// ## Safety Detail
+    /// This method is equivalent to `std::slice::from_raw_parts(self.data(), self.len())`, and so
+    /// all the safety notes of `std::slice::from_raw_parts` apply here.
+    ///
+    /// In particular, note that this bytearray object is both shared and mutable, and the backing
+    /// buffer may be reallocated if the bytearray is resized. Mutations can occur from Python
+    /// code as well as from Rust, via [PyByteArray::as_bytes_mut] and [PyByteArray::resize].
+    ///
+    /// Extreme care should be exercised when using this slice, as the Rust compiler will
+    /// make optimizations based on the assumption the contents of this slice cannot change. This
+    /// can easily lead to undefined behavior.
+    ///
+    /// As a result, this slice should only be used for short-lived operations to read this
+    /// bytearray without executing any Python code, such as copying into a Vec.
+    pub unsafe fn as_bytes(&self) -> &[u8] {
+        slice::from_raw_parts(self.data(), self.len())
+    }
+
+    /// Get the contents of this buffer as a mutable slice.
+    ///
+    /// # Safety
+    /// This slice should only be used for short-lived operations that write to this bytearray
+    /// without executing any Python code. See the safety note for [PyByteArray::as_bytes].
+    #[allow(clippy::mut_from_ref)]
+    pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
+        slice::from_raw_parts_mut(self.data(), self.len())
+    }
+
     /// Copies the contents of the bytearray to a Rust vector.
     ///
     /// # Example
@@ -64,15 +109,13 @@ impl PyByteArray {
     /// py.run("assert bytearray == b'Hello World.'", None, Some(locals)).unwrap();
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
-        let slice = unsafe {
-            let buffer = ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8;
-            let length = ffi::PyByteArray_Size(self.as_ptr()) as usize;
-            slice::from_raw_parts_mut(buffer, length)
-        };
-        slice.to_vec()
+        unsafe { self.as_bytes() }.to_vec()
     }
 
     /// Resizes the bytearray object to the new length `len`.
+    ///
+    /// Note that this will invalidate any pointers obtained by [PyByteArray::data], as well as
+    /// any (unsafe) slices obtained from [PyByteArray::as_bytes] and [PyByteArray::as_bytes_mut].
     pub fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
             let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
@@ -93,30 +136,95 @@ mod test {
     use crate::Python;
 
     #[test]
-    fn test_bytearray() {
+    fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let src = b"Hello Python";
         let bytearray = PyByteArray::new(py, src);
         assert_eq!(src.len(), bytearray.len());
-        assert_eq!(src, bytearray.to_vec().as_slice());
+    }
+
+    #[test]
+    fn test_as_bytes() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let src = b"Hello Python";
+        let bytearray = PyByteArray::new(py, src);
+
+        let slice = unsafe { bytearray.as_bytes() };
+        assert_eq!(src, slice);
+        assert_eq!(bytearray.data() as *const _, slice.as_ptr());
+    }
+
+    #[test]
+    fn test_as_bytes_mut() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let src = b"Hello Python";
+        let bytearray = PyByteArray::new(py, src);
+
+        let slice = unsafe { bytearray.as_bytes_mut() };
+        assert_eq!(src, slice);
+        assert_eq!(bytearray.data(), slice.as_mut_ptr());
+
+        slice[0..5].copy_from_slice(b"Hi...");
+
+        assert_eq!(
+            &bytearray.str().unwrap().to_string().unwrap(),
+            "bytearray(b'Hi... Python')"
+        );
+    }
+
+    #[test]
+    fn test_to_vec() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let src = b"Hello Python";
+        let bytearray = PyByteArray::new(py, src);
+
+        let vec = bytearray.to_vec();
+        assert_eq!(src, vec.as_slice());
+    }
+
+    #[test]
+    fn test_from() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let src = b"Hello Python";
+        let bytearray = PyByteArray::new(py, src);
 
         let ba: PyObject = bytearray.into();
         let bytearray = PyByteArray::from(py, &ba).unwrap();
 
-        assert_eq!(src.len(), bytearray.len());
-        assert_eq!(src, bytearray.to_vec().as_slice());
+        assert_eq!(src, unsafe { bytearray.as_bytes() });
+    }
 
-        bytearray.resize(20).unwrap();
-        assert_eq!(20, bytearray.len());
+    #[test]
+    fn test_from_err() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
 
-        let none = py.None();
-        if let Err(err) = PyByteArray::from(py, &none) {
+        if let Err(err) = PyByteArray::from(py, &py.None()) {
             assert!(err.is_instance::<exceptions::TypeError>(py));
         } else {
             panic!("error");
         }
-        drop(none);
+    }
+
+    #[test]
+    fn test_resize() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let src = b"Hello Python";
+        let bytearray = PyByteArray::new(py, src);
+
+        bytearray.resize(20).unwrap();
+        assert_eq!(20, bytearray.len());
     }
 }
