@@ -472,6 +472,7 @@ From the Python perspective, the `method2` in this example does not accept any a
 
 To create a class method for a custom class, the method needs to be annotated
 with the `#[classmethod]` attribute.
+This is the equivalent of the Python decorator `@classmethod`.
 
 ```rust
 # use pyo3::prelude::*;
