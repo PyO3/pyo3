@@ -8,12 +8,12 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
     if let Some((_, ref path, _)) = ast.trait_ {
         Err(syn::Error::new_spanned(
             path,
-            "#[pymethods] can not be used only with trait impl block",
+            "#[pymethods] cannot be used on trait impl blocks",
         ))
     } else if ast.generics != Default::default() {
         Err(syn::Error::new_spanned(
             ast.generics.clone(),
-            "#[pymethods] can not be used with lifetime parameters or generics",
+            "#[pymethods] cannot be used with lifetime parameters or generics",
         ))
     } else {
         impl_methods(&ast.self_ty, &mut ast.items)
