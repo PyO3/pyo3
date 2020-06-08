@@ -162,7 +162,7 @@ fn slot_initialization(
         fn #init() {
             let mut table = #table::default();
             #(#initializers)*
-            <#ty as pyo3::class::proto_methods::HasProtoRegistry>::registory().#set(table);
+            <#ty as pyo3::class::proto_methods::HasProtoRegistry>::registry().#set(table);
         }
     })
 }

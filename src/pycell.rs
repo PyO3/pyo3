@@ -372,7 +372,7 @@ impl<T: PyClass> AsPyPointer for PyCell<T> {
     }
 }
 
-impl<T: PyClass + Send + Sync> ToPyObject for &PyCell<T> {
+impl<T: PyClass> ToPyObject for &PyCell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }

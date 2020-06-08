@@ -41,39 +41,39 @@ pub trait PyProtoMethods {
     }
 }
 
-/// Indicates that a type has a protocol registory.
+/// Indicates that a type has a protocol registry.
 #[doc(hidden)]
 pub trait HasProtoRegistry: Sized + 'static {
-    fn registory() -> &'static PyProtoRegistry;
+    fn registry() -> &'static PyProtoRegistry;
 }
 
 impl<T: HasProtoRegistry> PyProtoMethods for T {
     fn async_methods() -> Option<NonNull<PyAsyncMethods>> {
-        NonNull::new(Self::registory().async_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().async_methods.load(Ordering::SeqCst))
     }
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
-        NonNull::new(Self::registory().basic_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().basic_methods.load(Ordering::SeqCst))
     }
     fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
-        NonNull::new(Self::registory().buffer_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().buffer_methods.load(Ordering::SeqCst))
     }
     fn descr_methods() -> Option<NonNull<PyDescrMethods>> {
-        NonNull::new(Self::registory().descr_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().descr_methods.load(Ordering::SeqCst))
     }
     fn gc_methods() -> Option<NonNull<PyGCMethods>> {
-        NonNull::new(Self::registory().gc_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().gc_methods.load(Ordering::SeqCst))
     }
     fn mapping_methods() -> Option<NonNull<PyMappingMethods>> {
-        NonNull::new(Self::registory().mapping_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().mapping_methods.load(Ordering::SeqCst))
     }
     fn number_methods() -> Option<NonNull<PyNumberMethods>> {
-        NonNull::new(Self::registory().number_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().number_methods.load(Ordering::SeqCst))
     }
     fn iter_methods() -> Option<NonNull<PyIterMethods>> {
-        NonNull::new(Self::registory().iter_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().iter_methods.load(Ordering::SeqCst))
     }
     fn sequence_methods() -> Option<NonNull<PySequenceMethods>> {
-        NonNull::new(Self::registory().sequence_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().sequence_methods.load(Ordering::SeqCst))
     }
 }
 

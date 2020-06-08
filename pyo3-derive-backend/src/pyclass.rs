@@ -237,10 +237,10 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
 }
 
 /// TODO(kngwyu): doc
-fn impl_proto_registory(cls: &syn::Ident) -> TokenStream {
+fn impl_proto_registry(cls: &syn::Ident) -> TokenStream {
     quote! {
         impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
-            fn registory() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
+            fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
                 static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
                     = pyo3::class::proto_methods::PyProtoRegistry::new();
                 &REGISTRY
@@ -353,7 +353,7 @@ fn impl_class(
     };
 
     let impl_inventory = impl_methods_inventory(&cls);
-    let impl_proto_registory = impl_proto_registory(&cls);
+    let impl_proto_registry = impl_proto_registry(&cls);
 
     let base = &attr.base;
     let flags = &attr.flags;
@@ -428,7 +428,7 @@ fn impl_class(
 
         #impl_inventory
 
-        #impl_proto_registory
+        #impl_proto_registry
 
         #extra
 
