@@ -81,6 +81,11 @@ rustflags = [
 
 While developing, you can symlink (or copy) and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd`, and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
+Adding the `cdylib` arguments in the `Cargo.toml` files changes the way your crate is compiled.
+Other Rust projects using your crate will have to link against the `.so` or `.pyd` file rather than include your library directly as normal.
+In order to make available your crate in the usual way for Rust user, you you might want to consider using both `crate-type = ["cdylib", "rlib"]` so that Rust users can use the `rlib` (the default lib crate type).
+Another possibility is to create a new crate to perform the binding.
+
 To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count), while maturin should work on your crate without any configuration.
 
 ## Using Python from Rust
