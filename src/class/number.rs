@@ -5,7 +5,6 @@
 
 use crate::err::PyResult;
 use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
-use std::os::raw::c_int;
 
 /// Number interface
 #[allow(unused_variables)]
@@ -314,12 +313,6 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __bool__(&'p self) -> Self::Result
-    where
-        Self: PyNumberBoolProtocol<'p>,
-    {
-        unimplemented!()
-    }
 }
 
 pub trait PyNumberAddProtocol<'p>: PyNumberProtocol<'p> {
@@ -622,11 +615,12 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PyNumberBoolProtocol<'p>: PyNumberProtocol<'p> {
-    type Result: Into<PyResult<bool>>;
-}
-
 impl ffi::PyNumberMethods {
+    pub(crate) fn from_nb_bool(nb_bool: ffi::inquiry) -> *mut Self {
+        let mut nm = ffi::PyNumberMethods_INIT;
+        nm.nb_bool = Some(nb_bool);
+        Box::into_raw(Box::new(nm))
+    }
     pub fn set_add<T>(&mut self)
     where
         T: for<'p> PyNumberAddProtocol<'p>,
@@ -710,12 +704,6 @@ impl ffi::PyNumberMethods {
         T: for<'p> PyNumberAbsProtocol<'p>,
     {
         self.nb_absolute = py_unary_func!(PyNumberAbsProtocol, T::__abs__);
-    }
-    pub fn set_bool<T>(&mut self)
-    where
-        T: for<'p> PyNumberBoolProtocol<'p>,
-    {
-        self.nb_bool = py_unary_func!(PyNumberBoolProtocol, T::__bool__, c_int);
     }
     pub fn set_invert<T>(&mut self)
     where

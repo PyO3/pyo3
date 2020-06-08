@@ -121,10 +121,6 @@ impl PyObjectProtocol for Comparisons {
     fn __hash__(&self) -> PyResult<isize> {
         Ok(self.val as isize)
     }
-}
-
-#[pyproto]
-impl pyo3::class::PyNumberProtocol for Comparisons {
     fn __bool__(&self) -> PyResult<bool> {
         Ok(self.val != 0)
     }

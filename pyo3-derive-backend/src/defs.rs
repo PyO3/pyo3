@@ -123,6 +123,11 @@ pub const OBJECT: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::basic::PyObjectRichcmpProtocol",
         },
+        MethodProto::Unary {
+            name: "__bool__",
+            pyres: false,
+            proto: "pyo3::class::basic::PyObjectBoolProtocol",
+        },
     ],
     py_methods: &[
         PyMethod::new("__format__", "pyo3::class::basic::FormatProtocolImpl"),
@@ -142,6 +147,7 @@ pub const OBJECT: Proto = Proto {
         },
         SlotSetter::new(&["__setattr__"], "set_setattr"),
         SlotSetter::new(&["__delattr__"], "set_delattr"),
+        SlotSetter::new(&["__bool__"], "set_bool"),
     ],
 };
 
@@ -784,11 +790,6 @@ pub const NUM: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::number::PyNumberRoundProtocol",
         },
-        MethodProto::Unary {
-            name: "__bool__",
-            pyres: false,
-            proto: "pyo3::class::number::PyNumberBoolProtocol",
-        },
     ],
     py_methods: &[
         PyMethod::coexist("__radd__", "pyo3::class::number::PyNumberRAddProtocolImpl"),
@@ -867,7 +868,6 @@ pub const NUM: Proto = Proto {
         SlotSetter::new(&["__neg__"], "set_neg"),
         SlotSetter::new(&["__pos__"], "set_pos"),
         SlotSetter::new(&["__abs__"], "set_abs"),
-        SlotSetter::new(&["__bool__"], "set_bool"),
         SlotSetter::new(&["__invert__"], "set_invert"),
         SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
         SlotSetter {

@@ -152,13 +152,21 @@ where
         unsafe { iter.as_ref() }.update_typeobj(type_object);
     }
 
+    // nb_bool is a part of PyObjectProtocol, but should be placed under tp_as_number
+    let mut nb_bool = None;
     // basic methods
     if let Some(basic) = T::basic_methods() {
         unsafe { basic.as_ref() }.update_typeobj(type_object);
+        nb_bool = unsafe { basic.as_ref() }.nb_bool;
     }
 
     // number methods
-    type_object.tp_as_number = T::number_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
+    type_object.tp_as_number = T::number_methods()
+        .map(|mut p| {
+            unsafe { p.as_mut() }.nb_bool = nb_bool;
+            p.as_ptr()
+        })
+        .unwrap_or_else(|| nb_bool.map_or_else(ptr::null_mut, ffi::PyNumberMethods::from_nb_bool));
     // mapping methods
     type_object.tp_as_mapping = T::mapping_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // sequence methods

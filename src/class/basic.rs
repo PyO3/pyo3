@@ -90,6 +90,12 @@ pub trait PyObjectProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
+    fn __bool__(&'p self) -> Self::Result
+    where
+        Self: PyObjectBoolProtocol<'p>,
+    {
+        unimplemented!()
+    }
 }
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
@@ -144,6 +150,7 @@ pub struct PyObjectMethods {
     pub tp_getattro: Option<ffi::getattrofunc>,
     pub tp_richcompare: Option<ffi::richcmpfunc>,
     pub tp_setattro: Option<ffi::setattrofunc>,
+    pub nb_bool: Option<ffi::inquiry>,
 }
 
 impl PyObjectMethods {
@@ -214,6 +221,12 @@ impl PyObjectMethods {
             __setattr__,
             __delattr__
         )
+    }
+    pub fn set_bool<T>(&mut self)
+    where
+        T: for<'p> PyObjectBoolProtocol<'p>,
+    {
+        self.nb_bool = py_unary_func!(PyObjectBoolProtocol, T::__bool__, c_int);
     }
 }
 
