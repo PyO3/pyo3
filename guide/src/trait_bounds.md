@@ -193,24 +193,24 @@ This wrapper will also perform the type conversions between Python and Rust.
 ```rust
 #[pymethods]
 impl UserModel {
-    pub fn set_variables_in_rust(&mut self, var: Vec<f64>) -> PyResult<()> {
+    pub fn set_variables(&mut self, var: Vec<f64>) -> PyResult<()> {
         println!("Set variables from Python calling Rust");
-        self.set_variables(&var);
+        Model::set_variables(self, &var);
         Ok(())
     }
 
-    pub fn get_results_in_rust(&mut self) -> PyResult<Vec<f64>> {
+    pub fn get_results(&mut self) -> PyResult<Vec<f64>> {
         println!("Get results from Python calling Rust");
-        let results = self.get_results();
+        let results = Model::get_results(self);
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_results = results.into_py(py);
         Ok(py_results)
     }
 
-    pub fn compute_in_rust(&mut self) -> PyResult<()> {
+    pub fn compute(&mut self) -> PyResult<()> {
         println!("Compute from Python calling Rust");
-        self.compute();
+        Model::compute(self);
         Ok(())
     }
 }
@@ -236,11 +236,11 @@ if __name__=="__main__":
 
   myModel = Model()
   my_rust_model = trait_exposure.UserModel(myModel)
-  my_rust_model.set_variables_in_rust([2.0])
+  my_rust_model.set_variables([2.0])
   print("Print value from Python: ", myModel.inputs)
-  my_rust_model.compute_in_rust()
-  print("Print value from Python: ", my_rust_model.get_results_in_rust())
-
+  my_rust_model.compute()
+  print("Print value from Python through Rust: ", my_rust_model.get_results())
+  print("Print value directly from Python: ", myModel.get_results())
 ```
 
 This outputs:
@@ -253,7 +253,8 @@ Compute from Python calling Rust
 Compute from Rust calling Python
 Get results from Python calling Rust
 Get results from Rust calling Python
-Print value from Python:  [1.0]
+Print value from Python through Rust:  [1.0]
+Print value directly from Python:  [1.0]
 ```
 
 We have now successfully exposed a Rust model that implements the `Model` trait to Python!
@@ -267,7 +268,7 @@ What happens if you have type errors when using Python and how can you improve t
 
 ### Wrong types in Python function arguments
 
-Let's assume in the first case that you will use in your Python file `my_rust_model.set_variables_in_rust(2.0)` instead of `my_rust_model.set_variables_in_rust([2.0])`.
+Let's assume in the first case that you will use in your Python file `my_rust_model.set_variables(2.0)` instead of `my_rust_model.set_variables([2.0])`.
 
 The Rust signature expects a vector, which corresponds to a list in Python.
 What happens if instead of a vector, we pass a single value ?
@@ -276,7 +277,7 @@ At the execution of Python, we get :
 
 ```block
 File "main.py", line 15, in <module>
-   my_rust_model.set_variables_in_rust(2)
+   my_rust_model.set_variables(2)
 TypeError
 ```
 
@@ -411,24 +412,23 @@ impl UserModel {
         UserModel { model }
     }
 
-    pub fn set_variables_in_rust(&mut self, var: Vec<f64>) -> PyResult<()> {
+    pub fn set_variables(&mut self, var: Vec<f64>) -> PyResult<()> {
         println!("Set variables from Python calling Rust");
-        self.set_variables(&var);
+        Model::set_variables(self, &var);
         Ok(())
     }
 
-    pub fn get_results_in_rust(&mut self) -> PyResult<Vec<f64>> {
+    pub fn get_results(&mut self) -> PyResult<Vec<f64>> {
         println!("Get results from Python calling Rust");
-        let results = self.get_results();
+        let results = Model::get_results(self);
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_results = results.into_py(py);
         Ok(py_results)
     }
 
-    pub fn compute_in_rust(&mut self) -> PyResult<()> {
-        println!("Compute from Python calling Rust");
-        self.compute();
+    pub fn compute(&mut self) -> PyResult<()> {
+        Model::compute(self);
         Ok(())
     }
 }
