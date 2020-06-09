@@ -184,7 +184,7 @@ impl Model for UserModel {
 ```
 
 However, the previous code will not compile. The compilation error is the following one:
-`error: #[pymethods] can not be used only with trait impl block`
+`error: #[pymethods] cannot be used on trait impl blocks`
 
 That's a bummer!
 However, we can write a second wrapper around these functions to call them directly.
