@@ -14,10 +14,9 @@ struct MyClass {
 }
 ```
 
-The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`],
-and [`PyClass`] for `MyClass`.
+Because Python objects are freely shared between threads by the Python interpreter, all structs annotated with `#[pyclass]` must implement `Send`.
 
-If you curious what `#[pyclass]` generates, see [How methods are implemented](#how-methods-are-implemented) section.
+The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass`. To see these generated implementations, refer to the section [How methods are implemented](#how-methods-are-implemented) at the end of this chapter.
 
 ## Adding the class to a module
 
