@@ -227,7 +227,6 @@ This wrapper will also perform the type conversions between Python and Rust.
 ```rust
 #[pymethods]
 impl UserModel {
-
     pub fn set_variables_in_rust(&mut self, var: Vec<f64>) -> PyResult<()> {
         println!("Set variables from Python calling Rust");
         self.set_variables(&var);
