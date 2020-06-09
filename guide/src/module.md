@@ -1,6 +1,6 @@
 # Python Modules
 
-As shown in the Getting Started chapter, you can create a module as follows:
+You can create a module as follows:
 
 ```rust
 use pyo3::prelude::*;
@@ -37,7 +37,7 @@ The `#[pymodule]` procedural macro attribute takes care of exporting the initial
 If the name of the module (the default being the function name) does not match the name of the `.so` or `.pyd` file, you will get an import error in Python with the following message:
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
-To import the module, either copy the shared library as described in [Get Started](./get_started.md) or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
+To import the module, either copy the shared library as described in [the README](https://github.com/PyO3/pyo3) or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation
 

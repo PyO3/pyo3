@@ -114,6 +114,7 @@ fn get_delta_tuple<'p>(py: Python<'p>, delta: &PyDelta) -> &'p PyTuple {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 #[pyfunction]
 fn make_datetime<'p>(
     py: Python<'p>,
