@@ -217,7 +217,7 @@ impl Model for UserModel {
 }
 ```
 
-However, the prievious code will not compile. The compilation error is the following one:
+However, the previous code will not compile. The compilation error is the following one:
 `error: #[pymethods] can not be used only with trait impl block`
 
 That's a bummer!
