@@ -4,7 +4,6 @@ use pyo3::class::PyVisit;
 use pyo3::prelude::*;
 use pyo3::type_object::PyTypeObject;
 use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
-use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -84,19 +83,19 @@ fn data_is_dropped() {
 #[allow(dead_code)]
 #[pyclass]
 struct GCIntegration {
-    self_ref: RefCell<PyObject>,
+    self_ref: PyObject,
     dropped: TestDropCall,
 }
 
 #[pyproto]
 impl PyGCProtocol for GCIntegration {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
-        visit.call(&*self.self_ref.borrow())
+        visit.call(&self.self_ref)
     }
 
     fn __clear__(&mut self) {
         let gil = GILGuard::acquire();
-        *self.self_ref.borrow_mut() = gil.python().None();
+        self.self_ref = gil.python().None();
     }
 }
 
@@ -110,7 +109,7 @@ fn gc_integration() {
         let inst = PyCell::new(
             py,
             GCIntegration {
-                self_ref: RefCell::new(py.None()),
+                self_ref: py.None(),
                 dropped: TestDropCall {
                     drop_called: Arc::clone(&drop_called),
                 },
@@ -119,7 +118,7 @@ fn gc_integration() {
         .unwrap();
 
         let mut borrow = inst.borrow_mut();
-        *borrow.self_ref.borrow_mut() = inst.to_object(py);
+        borrow.self_ref = inst.to_object(py);
     }
 
     let gil = Python::acquire_gil();
