@@ -52,16 +52,19 @@ impl PyTuple {
     }
 
     /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
-    pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
+    pub fn slice(&self, low: isize, high: isize) -> &PyTuple {
+        unsafe {
+            self.py()
+                .from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
+        }
     }
 
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
-    pub fn split_from(&self, low: isize) -> Py<PyTuple> {
+    pub fn split_from(&self, low: isize) -> &PyTuple {
         unsafe {
             let ptr =
                 ffi::PyTuple_GetSlice(self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
-            Py::from_owned_ptr_or_panic(ptr)
+            self.py().from_owned_ptr(ptr)
         }
     }
 
@@ -128,7 +131,7 @@ impl<'a> IntoIterator for &'a PyTuple {
 
 impl<'a> FromPy<&'a PyTuple> for Py<PyTuple> {
     fn from_py(tuple: &'a PyTuple, _py: Python) -> Py<PyTuple> {
-        unsafe { Py::from_borrowed_ptr(tuple.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(tuple.py(), tuple.as_ptr()) }
     }
 }
 
@@ -166,7 +169,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                Py::from_owned_ptr_or_panic(ptr)
+                Py::from_owned_ptr_or_panic(py, ptr)
             }
         }
     }

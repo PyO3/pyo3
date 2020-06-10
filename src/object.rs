@@ -48,11 +48,11 @@ impl PyObject {
     /// Panics if the pointer is NULL.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
+    pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => PyObject(nonnull_ptr),
             None => {
-                crate::err::panic_after_error();
+                crate::err::panic_after_error(py);
             }
         }
     }
@@ -119,7 +119,7 @@ impl PyObject {
     }
 
     /// Gets the reference count of the ffi::PyObject pointer.
-    pub fn get_refcnt(&self) -> isize {
+    pub fn get_refcnt(&self, _py: Python) -> isize {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
@@ -131,7 +131,7 @@ impl PyObject {
     /// Returns whether the object is considered to be None.
     ///
     /// This is equivalent to the Python expression `self is None`.
-    pub fn is_none(&self) -> bool {
+    pub fn is_none(&self, _py: Python) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 

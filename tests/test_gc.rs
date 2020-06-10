@@ -284,7 +284,7 @@ fn gc_during_borrow() {
         }
 
         // get the traverse function
-        let ty = TraversableClass::type_object().as_ref(py).as_type_ptr();
+        let ty = TraversableClass::type_object(py).as_type_ptr();
         let traverse = (*ty).tp_traverse.unwrap();
 
         // create an object and check that traversing it works normally

@@ -370,6 +370,35 @@ extern "C" fn finalize() {
     }
 }
 
+/// Ensure the GIL is held, useful in implementation of APIs like PyErr::new where it's
+/// inconvenient to force the user to acquire the GIL.
+pub(crate) fn ensure_gil() -> EnsureGIL {
+    if gil_is_acquired() {
+        EnsureGIL(None)
+    } else {
+        EnsureGIL(Some(GILGuard::acquire()))
+    }
+}
+
+/// Struct used internally which avoids acquiring the GIL where it's not necessary.
+pub(crate) struct EnsureGIL(Option<GILGuard>);
+
+impl EnsureGIL {
+    /// Get the GIL token.
+    ///
+    /// # Safety
+    /// If `self.0` is `None`, then this calls [Python::assume_gil_acquired].
+    /// Thus this method could be used to get access to a GIL token while the GIL is not held.
+    /// Care should be taken to only use the returned Python in contexts where it is certain the
+    /// GIL continues to be held.
+    pub unsafe fn python(&self) -> Python {
+        match &self.0 {
+            Some(gil) => gil.python(),
+            None => Python::assume_gil_acquired(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
@@ -569,13 +598,15 @@ mod test {
     #[test]
     fn test_clone_with_gil() {
         let gil = Python::acquire_gil();
-        let obj = get_object(gil.python());
-        let count = obj.get_refcnt();
+        let py = gil.python();
+
+        let obj = get_object(py);
+        let count = obj.get_refcnt(py);
 
         // Cloning with the GIL should increase reference count immediately
         #[allow(clippy::redundant_clone)]
         let c = obj.clone();
-        assert_eq!(count + 1, c.get_refcnt());
+        assert_eq!(count + 1, c.get_refcnt(py));
     }
 
     #[test]
@@ -583,39 +614,46 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object(py);
-        let count = obj.get_refcnt();
+        let count = obj.get_refcnt(py);
 
         // Cloning without GIL should not update reference count
         drop(gil);
         let c = obj.clone();
-        assert_eq!(count, obj.get_refcnt());
+        assert_eq!(
+            count,
+            obj.get_refcnt(unsafe { Python::assume_gil_acquired() })
+        );
 
         // Acquring GIL will clear this pending change
         let gil = Python::acquire_gil();
+        let py = gil.python();
 
         // Total reference count should be one higher
-        assert_eq!(count + 1, obj.get_refcnt());
+        assert_eq!(count + 1, obj.get_refcnt(py));
 
-        // Clone dropped then GIL released
+        // Clone dropped
         drop(c);
-        drop(gil);
 
         // Overall count is now back to the original, and should be no pending change
-        assert_eq!(count, obj.get_refcnt());
+        assert_eq!(count, obj.get_refcnt(py));
     }
 
     #[test]
     fn test_clone_in_other_thread() {
         let gil = Python::acquire_gil();
-        let obj = get_object(gil.python());
-        let count = obj.get_refcnt();
+        let py = gil.python();
+        let obj = get_object(py);
+        let count = obj.get_refcnt(py);
 
         // Move obj to a thread which does not have the GIL, and clone it
         let t = std::thread::spawn(move || {
             // Cloning without GIL should not update reference count
             #[allow(clippy::redundant_clone)]
             let _ = obj.clone();
-            assert_eq!(count, obj.get_refcnt());
+            assert_eq!(
+                count,
+                obj.get_refcnt(unsafe { Python::assume_gil_acquired() })
+            );
 
             // Return obj so original thread can continue to use
             obj
@@ -631,13 +669,13 @@ mod test {
 
         // Re-acquring GIL will clear these pending changes
         drop(gil);
-        let _gil = Python::acquire_gil();
+        let gil = Python::acquire_gil();
 
         assert!(POOL.pointers_to_incref.lock().is_empty());
         assert!(POOL.pointers_to_decref.lock().is_empty());
 
         // Overall count is still unchanged
-        assert_eq!(count, obj.get_refcnt());
+        assert_eq!(count, obj.get_refcnt(gil.python()));
     }
 
     #[test]

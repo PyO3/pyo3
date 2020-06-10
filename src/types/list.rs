@@ -303,11 +303,11 @@ mod test {
             let ob = v.to_object(py);
             let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             let none = py.None();
-            cnt = none.get_refcnt();
+            cnt = none.get_refcnt(py);
             list.set_item(0, none).unwrap();
         }
 
-        assert_eq!(cnt, py.None().get_refcnt());
+        assert_eq!(cnt, py.None().get_refcnt(py));
     }
 
     #[test]
@@ -336,11 +336,11 @@ mod test {
             let _pool = unsafe { crate::GILPool::new() };
             let list = PyList::empty(py);
             let none = py.None();
-            cnt = none.get_refcnt();
+            cnt = none.get_refcnt(py);
             list.insert(0, none).unwrap();
         }
 
-        assert_eq!(cnt, py.None().get_refcnt());
+        assert_eq!(cnt, py.None().get_refcnt(py));
     }
 
     #[test]
@@ -365,10 +365,10 @@ mod test {
             let _pool = unsafe { crate::GILPool::new() };
             let list = PyList::empty(py);
             let none = py.None();
-            cnt = none.get_refcnt();
+            cnt = none.get_refcnt(py);
             list.append(none).unwrap();
         }
-        assert_eq!(cnt, py.None().get_refcnt());
+        assert_eq!(cnt, py.None().get_refcnt(py));
     }
 
     #[test]
