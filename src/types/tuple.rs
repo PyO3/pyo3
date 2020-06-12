@@ -2,8 +2,8 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
-    PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
+    PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
 
@@ -77,20 +77,19 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    pub fn as_slice(&self) -> &[PyObject] {
-        // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
+    pub fn as_slice(&self) -> &[&PyAny] {
+        // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
-            &*(slice as *const [*mut ffi::PyObject] as *const [PyObject])
+            &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
         }
     }
 
     /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyTupleIterator {
         PyTupleIterator {
-            py: self.py(),
             slice: self.as_slice(),
             index: 0,
         }
@@ -99,8 +98,7 @@ impl PyTuple {
 
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
-    py: Python<'a>,
-    slice: &'a [PyObject],
+    slice: &'a [&'a PyAny],
     index: usize,
 }
 
@@ -110,7 +108,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.slice.len() {
-            let item = self.slice[self.index].as_ref(self.py);
+            let item = self.slice[self.index];
             self.index += 1;
             Some(item)
         } else {
@@ -180,7 +178,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $(slice[$n].extract::<$T>(obj.py())?,)+
+                    $(slice[$n].extract::<$T>()?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
