@@ -52,9 +52,8 @@ unsafe impl<T> Sync for Py<T> {}
 impl<T> Py<T> {
     /// Create a new instance `Py<T>`.
     ///
-    /// This method is **soft-duplicated** since PyO3 0.9.0.
-    /// Use [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and
-    /// `Py::from` instead.
+    /// You can crate [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and `Py::from`,
+    /// but this method can be more efficient.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
         T: PyClass,
