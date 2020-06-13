@@ -1,5 +1,6 @@
 use pyo3::class::{
-    PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol, PySequenceProtocol,
+    PyAsyncProtocol, PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol,
+    PySequenceProtocol,
 };
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::prelude::*;
@@ -551,4 +552,74 @@ fn getattr_doesnt_override_member() {
     let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
     py_assert!(py, inst, "inst.data == 4");
     py_assert!(py, inst, "inst.a == 8");
+}
+
+/// Wraps a Python future and yield it once.
+#[pyclass]
+struct OnceFuture {
+    future: PyObject,
+    polled: bool,
+}
+
+#[pymethods]
+impl OnceFuture {
+    #[new]
+    fn new(future: PyObject) -> Self {
+        OnceFuture {
+            future,
+            polled: false,
+        }
+    }
+}
+
+#[pyproto]
+impl PyAsyncProtocol for OnceFuture {
+    fn __await__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
+        Ok(slf)
+    }
+}
+
+#[pyproto]
+impl PyIterProtocol for OnceFuture {
+    fn __iter__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
+        Ok(slf)
+    }
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+        if !slf.polled {
+            slf.polled = true;
+            Ok(Some(slf.future.clone()))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[test]
+fn test_await() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let once = py.get_type::<OnceFuture>();
+    let source = pyo3::indoc::indoc!(
+        r#"
+import asyncio
+import sys
+
+async def main():
+    res = await Once(await asyncio.sleep(0.1))
+    return res
+
+# It looks like that https://bugs.python.org/issue38563 solves this problem,
+# but we see still errors on Github actions...
+if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+loop = asyncio.get_event_loop()
+assert loop.run_until_complete(main()) is None
+loop.close()
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Once", once).unwrap();
+    py.run(source, None, Some(globals))
+        .map_err(|e| e.print(py))
+        .unwrap();
 }

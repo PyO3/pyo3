@@ -156,18 +156,21 @@ pub const ASYNC: Proto = Proto {
     slot_table: "pyo3::ffi::PyAsyncMethods",
     set_slot_table: "set_async_methods",
     methods: &[
-        MethodProto::Unary {
+        MethodProto::UnaryS {
             name: "__await__",
+            arg: "Receiver",
             pyres: true,
             proto: "pyo3::class::pyasync::PyAsyncAwaitProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::UnaryS {
             name: "__aiter__",
+            arg: "Receiver",
             pyres: true,
             proto: "pyo3::class::pyasync::PyAsyncAiterProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::UnaryS {
             name: "__anext__",
+            arg: "Receiver",
             pyres: true,
             proto: "pyo3::class::pyasync::PyAsyncAnextProtocol",
         },

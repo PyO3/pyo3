@@ -34,8 +34,9 @@ macro_rules! py_unarys_func {
         {
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-                let borrow = <T::Receiver>::try_from_pycell(slf)
-                    .map_err(|e| e.into())?;
+                let borrow =
+                    <T::Receiver as $crate::derive_utils::TryFromPyCell<_>>::try_from_pycell(slf)
+                        .map_err(|e| e.into())?;
 
                 $class::$f(borrow).into()$(.map($conv))?
             })

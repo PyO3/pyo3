@@ -8,6 +8,7 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
+use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
 use crate::{ffi, PyClass, PyObject};
 
@@ -16,21 +17,21 @@ use crate::{ffi, PyClass, PyObject};
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
 pub trait PyAsyncProtocol<'p>: PyClass {
-    fn __await__(&'p self) -> Self::Result
+    fn __await__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyAsyncAwaitProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __aiter__(&'p self) -> Self::Result
+    fn __aiter__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyAsyncAiterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __anext__(&'p mut self) -> Self::Result
+    fn __anext__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyAsyncAnextProtocol<'p>,
     {
@@ -58,16 +59,19 @@ pub trait PyAsyncProtocol<'p>: PyClass {
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
@@ -90,13 +94,13 @@ impl ffi::PyAsyncMethods {
     where
         T: for<'p> PyAsyncAwaitProtocol<'p>,
     {
-        self.am_await = py_unary_func!(PyAsyncAwaitProtocol, T::__await__);
+        self.am_await = py_unarys_func!(PyAsyncAwaitProtocol, T::__await__);
     }
     pub fn set_aiter<T>(&mut self)
     where
         T: for<'p> PyAsyncAiterProtocol<'p>,
     {
-        self.am_aiter = py_unary_func!(PyAsyncAiterProtocol, T::__aiter__);
+        self.am_aiter = py_unarys_func!(PyAsyncAiterProtocol, T::__aiter__);
     }
     pub fn set_anext<T>(&mut self)
     where
@@ -133,12 +137,6 @@ mod anext {
     where
         T: for<'p> PyAsyncAnextProtocol<'p>,
     {
-        py_unary_func!(
-            PyAsyncAnextProtocol,
-            T::__anext__,
-            call_mut,
-            *mut crate::ffi::PyObject,
-            IterANextOutput
-        )
+        py_unarys_func!(PyAsyncAnextProtocol, T::__anext__, IterANextOutput)
     }
 }
