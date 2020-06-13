@@ -70,7 +70,7 @@ For most PyO3 usage the conversion cost is worth paying to get these benefits. A
 
 When returning values from functions callable from Python, Python-native types (`&PyAny`, `&PyDict` etc.) can be used with zero cost.
 
-Because these types are references, in some situations the Rust compiler may ask for lifetime annotations. If this is the case, you should use `Py<PyAny>`, `Py<PyDict>` etc. instead - which are also zero-cost and can be created from the native types with an `.into()` conversion.
+Because these types are references, in some situations the Rust compiler may ask for lifetime annotations. If this is the case, you should use `Py<PyAny>`, `Py<PyDict>` etc. instead - which are also zero-cost. For all of these Python-native types `T`, `Py<T>` can be created from `T` with an `.into()` conversion.
 
 If your function is fallible, it should return `PyResult<T>`, which will raise a `Python` exception if the `Err` variant is returned.
 
