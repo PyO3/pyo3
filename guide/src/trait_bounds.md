@@ -148,73 +148,11 @@ impl UserModel {
 
 Now we add the PyO3 annotations to the trait implementation:
 
-```rust,compile_fail
-# use pyo3::prelude::*;
-# use pyo3::types::PyAny;
-#
-# pub trait Model {
-#   fn set_variables(&mut self, inputs: &Vec<f64>);
-#   fn compute(&mut self);
-#   fn get_results(&self) -> Vec<f64>;
-# }
-#
-# #[pyclass]
-# struct UserModel {
-#     model: Py<PyAny>,
-# }
-#
-# #[pymodule]
-# fn trait_exposure(_py: Python, m: &PyModule) -> PyResult<()> {
-#     m.add_class::<UserModel>()?;
-#     Ok(())
-# }
-#
-# #[pymethods]
-# impl UserModel {
-#     #[new]
-#     pub fn new(model: Py<PyAny>) -> Self {
-#         UserModel { model }
-#     }
-# }
+```rust,ignore
 #[pymethods]
 impl Model for UserModel {
   // the previous trait implementation
-#   fn set_variables(&mut self, var: &Vec<f64>) {
-#       println!("Rust calling Python to set the variables");
-#       let gil = Python::acquire_gil();
-#       let py = gil.python();
-#       let values: Vec<f64> = var.clone();
-#       let list: PyObject = values.into_py(py);
-#       let py_model = self.model.as_ref(py);
-#       py_model
-#           .call_method("set_variables", (list,), None)
-#           .unwrap();
-#   }
-#
-#   fn get_results(&self) -> Vec<f64> {
-#       println!("Rust calling Python to get the results");
-#       let gil = Python::acquire_gil();
-#       let py = gil.python();
-#       self
-#           .model
-#           .as_ref(py)
-#           .call_method("get_results", (), None)
-#           .unwrap()
-#           .extract()
-#           .unwrap()
-#   }
-#
-#   fn compute(&mut self) {
-#       println!("Rust calling Python to perform the computation");
-#       let gil = Python::acquire_gil();
-#       let py = gil.python();
-#       self.model
-#           .as_ref(py)
-#           .call_method("compute", (), None)
-#           .unwrap();
-#   }
 }
-```
 
 However, the previous code will not compile. The compilation error is the following one:
 `error: #[pymethods] cannot be used on trait impl blocks`
