@@ -2,10 +2,11 @@
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
+use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -49,14 +50,13 @@ unsafe impl<T> Send for Py<T> {}
 
 unsafe impl<T> Sync for Py<T> {}
 
-impl<T> Py<T> {
-    /// Create a new instance `Py<T>`.
-    ///
-    /// You can crate [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and `Py::from`,
-    /// but this method can be more efficient.
+impl<T> Py<T>
+where
+    T: PyClass,
+{
+    /// Create a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
-        T: PyClass,
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         let initializer = value.into();
@@ -65,6 +65,57 @@ impl<T> Py<T> {
         Ok(ob)
     }
 
+    /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// Equivalent to `self.as_ref(py).borrow()` -
+    /// see [`PyCell::borrow`](../pycell/struct.PyCell.html#method.borrow)
+    ///
+    /// # Panics
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow`](#method.try_borrow).
+    pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
+        self.as_ref(py).borrow()
+    }
+
+    /// Mutably borrows the value `T`. This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// Equivalent to `self.as_ref(py).borrow_mut()` -
+    /// see [`PyCell::borrow_mut`](../pycell/struct.PyCell.html#method.borrow_mut)
+    ///
+    /// # Panics
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow_mut`](#method.try_borrow_mut).
+    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T> {
+        self.as_ref(py).borrow_mut()
+    }
+
+    /// Immutably borrows the value `T`, returning an error if the value is currently
+    /// mutably borrowed. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// Equivalent to `self.as_ref(py).try_borrow()` -
+    /// see [`PyCell::try_borrow`](../pycell/struct.PyCell.html#method.try_borrow)
+    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
+        self.as_ref(py).try_borrow()
+    }
+
+    /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
+    /// This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    ///
+    /// Equivalent to `self.as_ref(py).try_borrow_mut() -
+    /// see [`PyCell::try_borrow_mut`](../pycell/struct.PyCell.html#method.try_borrow_mut)
+    pub fn try_borrow_mut<'py>(
+        &'py self,
+        py: Python<'py>,
+    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError> {
+        self.as_ref(py).try_borrow_mut()
+    }
+}
+
+impl<T> Py<T> {
     /// Creates a `Py<T>` instance for the given FFI pointer.
     ///
     /// This moves ownership over the pointer into the `Py<T>`.
