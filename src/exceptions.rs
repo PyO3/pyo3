@@ -90,28 +90,27 @@ macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object(py: $crate::Python) -> &$crate::types::PyType {
-                use $crate::type_object::LazyHeapType;
-                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
+                use $crate::once_cell::GILOnceCell;
+                use $crate::AsPyRef;
+                static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
+                    GILOnceCell::new();
 
-                let ptr = TYPE_OBJECT.get_or_init(|py| {
-                    let imp = py
-                        .import(stringify!($module))
-                        .expect(concat!("Can not import module: ", stringify!($module)));
-                    let cls = imp.get(stringify!($name)).expect(concat!(
-                        "Can not load exception class: {}.{}",
-                        stringify!($module),
-                        ".",
-                        stringify!($name)
-                    ));
+                TYPE_OBJECT
+                    .get_or_init(py, || {
+                        let imp = py
+                            .import(stringify!($module))
+                            .expect(concat!("Can not import module: ", stringify!($module)));
+                        let cls = imp.get(stringify!($name)).expect(concat!(
+                            "Can not load exception class: {}.{}",
+                            stringify!($module),
+                            ".",
+                            stringify!($name)
+                        ));
 
-                    unsafe {
-                        std::ptr::NonNull::new_unchecked(
-                            $crate::IntoPyPointer::into_ptr(cls) as *mut _
-                        )
-                    }
-                });
-
-                unsafe { py.from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
+                        cls.extract()
+                            .expect("Imported exception should be a type object")
+                    })
+                    .as_ref(py)
             }
         }
     };
@@ -174,19 +173,25 @@ macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object(py: $crate::Python) -> &$crate::types::PyType {
-                use $crate::type_object::LazyHeapType;
-                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
+                use $crate::once_cell::GILOnceCell;
+                use $crate::AsPyRef;
+                static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
+                    GILOnceCell::new();
 
-                let ptr = TYPE_OBJECT.get_or_init(|py| {
-                    $crate::PyErr::new_type(
-                        py,
-                        concat!(stringify!($module), ".", stringify!($name)),
-                        Some(py.get_type::<$base>()),
-                        None,
-                    )
-                });
-
-                unsafe { py.from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
+                TYPE_OBJECT
+                    .get_or_init(py, || unsafe {
+                        $crate::Py::from_owned_ptr(
+                            py,
+                            $crate::PyErr::new_type(
+                                py,
+                                concat!(stringify!($module), ".", stringify!($name)),
+                                Some(py.get_type::<$base>()),
+                                None,
+                            )
+                            .as_ptr() as *mut $crate::ffi::PyObject,
+                        )
+                    })
+                    .as_ref(py)
             }
         }
     };

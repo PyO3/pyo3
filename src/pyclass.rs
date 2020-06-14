@@ -11,11 +11,11 @@ use std::os::raw::c_void;
 use std::ptr;
 
 #[inline]
-pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
-    let type_obj = T::type_object();
+pub(crate) unsafe fn default_alloc<T: PyTypeInfo>(py: Python) -> *mut ffi::PyObject {
+    let type_obj = T::type_object_raw(py);
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
-        let base_tp = <T::BaseType as PyTypeInfo>::type_object();
+        let base_tp = T::BaseType::type_object_raw(py);
         if let Some(base_new) = base_tp.tp_new {
             return base_new(type_obj as *const _ as _, ptr::null_mut(), ptr::null_mut());
         }
@@ -30,8 +30,8 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     ///
     /// # Safety
     /// This function must return a valid pointer to the Python heap.
-    unsafe fn alloc(_py: Python) -> *mut Self::Layout {
-        default_alloc::<Self>() as _
+    unsafe fn alloc(py: Python) -> *mut Self::Layout {
+        default_alloc::<Self>(py) as _
     }
 
     /// Deallocate `#[pyclass]` on the Python heap.
@@ -45,7 +45,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
             return;
         }
 
-        match Self::type_object().tp_free {
+        match Self::type_object_raw(py).tp_free {
             Some(free) => free(obj as *mut c_void),
             None => tp_free_fallback(obj),
         }
@@ -107,7 +107,7 @@ where
         s => CString::new(s)?.into_raw(),
     };
 
-    type_object.tp_base = <T::BaseType as PyTypeInfo>::type_object() as *const _ as _;
+    type_object.tp_base = T::BaseType::type_object_raw(py) as *const _ as _;
 
     type_object.tp_name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),

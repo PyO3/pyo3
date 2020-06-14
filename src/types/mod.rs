@@ -143,7 +143,7 @@ macro_rules! pyobject_native_type_convert(
             const MODULE: Option<&'static str> = $module;
 
             #[inline]
-            fn type_object() -> &'static $crate::ffi::PyTypeObject {
+            fn type_object_raw(_py: Python) -> &'static $crate::ffi::PyTypeObject {
                 unsafe{ &$typeobject }
             }
 
