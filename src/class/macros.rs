@@ -178,7 +178,7 @@ macro_rules! py_ssizearg_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_ternary_func {
+macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident, $return_type:ty) => {{
         unsafe extern "C" fn wrap<T>(
             slf: *mut $crate::ffi::PyObject,
@@ -190,6 +190,9 @@ macro_rules! py_ternary_func {
         {
             $crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
+                let slf =
+                    <T::Receiver as $crate::derive_utils::TryFromPyCell<_>>::try_from_pycell(slf)
+                        .map_err(|e| e.into())?;
                 let arg1 = py
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
                     .extract()?;
@@ -197,14 +200,14 @@ macro_rules! py_ternary_func {
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg2)
                     .extract()?;
 
-                slf.try_borrow()?.$f(arg1, arg2).into()
+                $class::$f(slf, arg1, arg2).into()
             })
         }
 
         Some(wrap::<T>)
     }};
     ($trait:ident, $class:ident :: $f:ident) => {
-        py_ternary_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
+        py_ternarys_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
     };
 }
 

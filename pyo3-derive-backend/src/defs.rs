@@ -284,18 +284,20 @@ pub const DESCR: Proto = Proto {
     slot_table: "pyo3::class::descr::PyDescrMethods",
     set_slot_table: "set_descr_methods",
     methods: &[
-        MethodProto::Ternary {
+        MethodProto::TernaryS {
             name: "__get__",
-            arg1: "Inst",
-            arg2: "Owner",
+            arg1: "Receiver",
+            arg2: "Inst",
+            arg3: "Owner",
             pyres: true,
             proto: "pyo3::class::descr::PyDescrGetProtocol",
         },
-        MethodProto::Ternary {
+        MethodProto::TernaryS {
             name: "__set__",
-            arg1: "Inst",
-            arg2: "Value",
-            pyres: true,
+            arg1: "Receiver",
+            arg2: "Inst",
+            arg3: "Value",
+            pyres: false,
             proto: "pyo3::class::descr::PyDescrSetProtocol",
         },
         MethodProto::Binary {

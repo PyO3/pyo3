@@ -1,6 +1,6 @@
 use pyo3::class::{
-    PyAsyncProtocol, PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol,
-    PySequenceProtocol,
+    PyAsyncProtocol, PyContextProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol,
+    PyObjectProtocol, PySequenceProtocol,
 };
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::prelude::*;
@@ -619,7 +619,65 @@ loop.close()
     );
     let globals = PyModule::import(py, "__main__").unwrap().dict();
     globals.set_item("Once", once).unwrap();
-    py.run(source, None, Some(globals))
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}
+
+/// Increment the count when `__get__` is called.
+#[pyclass]
+struct DescrCounter {
+    #[pyo3(get)]
+    count: usize,
+}
+
+#[pymethods]
+impl DescrCounter {
+    #[new]
+    fn new() -> Self {
+        DescrCounter { count: 0 }
+    }
+}
+
+#[pyproto]
+impl PyDescrProtocol for DescrCounter {
+    fn __get__(
+        mut slf: PyRefMut<'p, Self>,
+        _instance: &PyAny,
+        _owner: Option<&'p PyType>,
+    ) -> PyResult<PyRefMut<'p, Self>> {
+        slf.count += 1;
+        Ok(slf)
+    }
+    fn __set__(
+        _slf: PyRef<'p, Self>,
+        _instance: &PyAny,
+        mut new_value: PyRefMut<'p, Self>,
+    ) -> PyResult<()> {
+        new_value.count = _slf.count;
+        Ok(())
+    }
+}
+
+#[test]
+fn descr_getset() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let counter = py.get_type::<DescrCounter>();
+    let source = pyo3::indoc::indoc!(
+        r#"
+class Class:
+    counter = Counter()
+c = Class()
+c.counter # count += 1
+assert c.counter.count == 2
+c.counter = Counter()
+assert c.counter.count == 3
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Counter", counter).unwrap();
+    py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();
 }

@@ -6,21 +6,25 @@
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
 use crate::err::PyResult;
-use crate::types::{PyAny, PyType};
+use crate::types::PyAny;
 use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
 pub trait PyDescrProtocol<'p>: PyClass {
-    fn __get__(&'p self, instance: &'p PyAny, owner: Option<&'p PyType>) -> Self::Result
+    fn __get__(
+        slf: Self::Receiver,
+        instance: Self::Inst,
+        owner: Option<Self::Owner>,
+    ) -> Self::Result
     where
         Self: PyDescrGetProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __set__(&'p self, instance: &'p PyAny, value: &'p PyAny) -> Self::Result
+    fn __set__(slf: Self::Receiver, instance: Self::Inst, value: Self::Value) -> Self::Result
     where
         Self: PyDescrSetProtocol<'p>,
     {
@@ -43,6 +47,7 @@ pub trait PyDescrProtocol<'p>: PyClass {
 }
 
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
+    type Receiver: crate::derive_utils::TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Owner: FromPyObject<'p>;
     type Success: IntoPy<PyObject>;
@@ -50,6 +55,7 @@ pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
 }
 
 pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
+    type Receiver: crate::derive_utils::TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
@@ -80,12 +86,12 @@ impl PyDescrMethods {
     where
         T: for<'p> PyDescrGetProtocol<'p>,
     {
-        self.tp_descr_get = py_ternary_func!(PyDescrGetProtocol, T::__get__);
+        self.tp_descr_get = py_ternarys_func!(PyDescrGetProtocol, T::__get__);
     }
     pub fn set_descr_set<T>(&mut self)
     where
         T: for<'p> PyDescrSetProtocol<'p>,
     {
-        self.tp_descr_set = py_ternary_func!(PyDescrSetProtocol, T::__set__, c_int);
+        self.tp_descr_set = py_ternarys_func!(PyDescrSetProtocol, T::__set__, c_int);
     }
 }
