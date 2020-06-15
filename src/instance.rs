@@ -160,14 +160,20 @@ impl<T> Py<T> {
 /// for `#[pyclass]`.
 /// ```
 /// # use pyo3::prelude::*;
-/// let obj: PyObject = {
+/// #[pyclass]
+/// struct Counter {
+///     count: usize,
+/// }
+/// let counter = {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     py.eval("[]", None, None).unwrap().to_object(py)
+///     Py::new(py, Counter { count: 0}).unwrap()
 /// };
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);
+/// let counter_cell: &PyCell<Counter> = counter.as_ref(py);
+/// let counter_ref = counter_cell.borrow();
+/// assert_eq!(counter_ref.count, 0);
 /// ```
 pub trait AsPyRef: Sized {
     type Target;
