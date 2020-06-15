@@ -14,3 +14,4 @@
 - [PyPy support](pypy.md)
 - [Appendix A: PyO3 and rust-cpython](rust_cpython.md)
 - [Appendix B: Migration Guide](migration.md)
+- [Appendix C: Trait bounds](trait_bounds.md)
