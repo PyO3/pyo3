@@ -176,7 +176,7 @@ impl PyModule {
     where
         T: PyClass,
     {
-        self.add(T::NAME, <T as PyTypeObject>::type_object())
+        self.add(T::NAME, <T as PyTypeObject>::type_object(self.py()))
     }
 
     /// Adds a function or a (sub)module to a module, using the functions __name__ as name.

@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py, PyNativeType};
+use crate::instance::PyNativeType;
 use crate::type_object::PyTypeObject;
 use crate::{ffi, AsPyPointer, PyAny, Python};
 use std::borrow::Cow;
@@ -18,8 +18,8 @@ pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 impl PyType {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>() -> Py<PyType> {
-        T::type_object()
+    pub fn new<T: PyTypeObject>(py: Python) -> &PyType {
+        T::type_object(py)
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -48,7 +48,8 @@ impl PyType {
     where
         T: PyTypeObject,
     {
-        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object().as_ptr()) };
+        let result =
+            unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr()) };
         if result == -1 {
             Err(PyErr::fetch(self.py()))
         } else if result == 1 {

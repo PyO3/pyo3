@@ -521,8 +521,8 @@ mod test {
         }
         {
             let gil = Python::acquire_gil();
-            let _py = gil.python();
-            assert_eq!(1, obj.get_refcnt());
+            let py = gil.python();
+            assert_eq!(1, obj.get_refcnt(py));
         }
     }
 

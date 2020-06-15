@@ -118,7 +118,7 @@ mod tests {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
             obj = vec![10, 20].to_object(py);
-            count = obj.get_refcnt();
+            count = obj.get_refcnt(py);
         }
 
         {
@@ -129,7 +129,7 @@ mod tests {
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         }
-        assert_eq!(count, obj.get_refcnt());
+        assert_eq!(count, obj.get_refcnt(Python::acquire_gil().python()));
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod tests {
             none = py.None();
             l.append(10).unwrap();
             l.append(&none).unwrap();
-            count = none.get_refcnt();
+            count = none.get_refcnt(py);
             obj = l.to_object(py);
         }
 
@@ -158,7 +158,7 @@ mod tests {
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
             assert!(it.next().unwrap().unwrap().is_none());
         }
-        assert_eq!(count, none.get_refcnt());
+        assert_eq!(count, none.get_refcnt(py));
     }
 
     #[test]

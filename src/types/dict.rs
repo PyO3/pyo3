@@ -479,11 +479,11 @@ mod test {
         {
             let _pool = unsafe { crate::GILPool::new() };
             let none = py.None();
-            cnt = none.get_refcnt();
+            cnt = none.get_refcnt(py);
             let _dict = [(10, none)].into_py_dict(py);
         }
         {
-            assert_eq!(cnt, py.None().get_refcnt());
+            assert_eq!(cnt, py.None().get_refcnt(py));
         }
     }
 

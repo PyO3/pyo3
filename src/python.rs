@@ -6,9 +6,7 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
-use crate::{
-    ffi, AsPyPointer, AsPyRef, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom,
-};
+use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -253,7 +251,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeObject,
     {
-        unsafe { self.from_borrowed_ptr(T::type_object().into_ptr()) }
+        T::type_object(self)
     }
 
     /// Imports the Python module with the specified name.
@@ -265,7 +263,7 @@ impl<'p> Python<'p> {
     ///
     /// This is equivalent to the Python `isinstance` function.
     pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
-        T::type_object().as_ref(self).is_instance(obj)
+        T::type_object(self).is_instance(obj)
     }
 
     /// Checks whether type `T` is subclass of type `U`.
@@ -276,7 +274,7 @@ impl<'p> Python<'p> {
         T: PyTypeObject,
         U: PyTypeObject,
     {
-        T::type_object().as_ref(self).is_subclass::<U>()
+        T::type_object(self).is_subclass::<U>()
     }
 
     /// Gets the Python builtin value `None`.

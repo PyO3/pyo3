@@ -4,7 +4,7 @@
 use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, AsPyPointer, Py, Python};
+use crate::{ffi, AsPyPointer, Python};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -124,15 +124,15 @@ pub unsafe trait PyTypeInfo: Sized {
 /// See [PyTypeInfo::type_object]
 pub unsafe trait PyTypeObject {
     /// Returns the safe abstraction over the type object.
-    fn type_object() -> Py<PyType>;
+    fn type_object(py: Python) -> &PyType;
 }
 
 unsafe impl<T> PyTypeObject for T
 where
     T: PyTypeInfo,
 {
-    fn type_object() -> Py<PyType> {
-        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
+    fn type_object(py: Python) -> &PyType {
+        unsafe { py.from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
     }
 }
 
