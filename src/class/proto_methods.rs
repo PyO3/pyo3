@@ -9,8 +9,8 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-/// Defines what we need for method protocols.
-/// Stub implementations are for rust-numpy.
+/// Defines all methods for object protocols.
+// Note: stub implementations are for rust-numpy. Please remove them.
 pub trait PyProtoMethods {
     fn async_methods() -> Option<NonNull<PyAsyncMethods>> {
         None
@@ -41,7 +41,7 @@ pub trait PyProtoMethods {
     }
 }
 
-/// Indicates that a type has a protocol registry.
+/// Indicates that a type has a protocol registry. Implemented by `#[pyclass]`.
 #[doc(hidden)]
 pub trait HasProtoRegistry: Sized + 'static {
     fn registry() -> &'static PyProtoRegistry;
@@ -49,34 +49,36 @@ pub trait HasProtoRegistry: Sized + 'static {
 
 impl<T: HasProtoRegistry> PyProtoMethods for T {
     fn async_methods() -> Option<NonNull<PyAsyncMethods>> {
-        NonNull::new(Self::registry().async_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().async_methods.load(Ordering::Relaxed))
     }
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
-        NonNull::new(Self::registry().basic_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().basic_methods.load(Ordering::Relaxed))
     }
     fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
-        NonNull::new(Self::registry().buffer_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().buffer_methods.load(Ordering::Relaxed))
     }
     fn descr_methods() -> Option<NonNull<PyDescrMethods>> {
-        NonNull::new(Self::registry().descr_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().descr_methods.load(Ordering::Relaxed))
     }
     fn gc_methods() -> Option<NonNull<PyGCMethods>> {
-        NonNull::new(Self::registry().gc_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().gc_methods.load(Ordering::Relaxed))
     }
     fn mapping_methods() -> Option<NonNull<PyMappingMethods>> {
-        NonNull::new(Self::registry().mapping_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().mapping_methods.load(Ordering::Relaxed))
     }
     fn number_methods() -> Option<NonNull<PyNumberMethods>> {
-        NonNull::new(Self::registry().number_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().number_methods.load(Ordering::Relaxed))
     }
     fn iter_methods() -> Option<NonNull<PyIterMethods>> {
-        NonNull::new(Self::registry().iter_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().iter_methods.load(Ordering::Relaxed))
     }
     fn sequence_methods() -> Option<NonNull<PySequenceMethods>> {
-        NonNull::new(Self::registry().sequence_methods.load(Ordering::SeqCst))
+        NonNull::new(Self::registry().sequence_methods.load(Ordering::Relaxed))
     }
 }
 
+/// Stores all method protocols.
+/// Used in the proc-macro code as a static variable.
 #[doc(hidden)]
 pub struct PyProtoRegistry {
     /// Async protocols.
@@ -115,38 +117,38 @@ impl PyProtoRegistry {
     }
     pub fn set_async_methods(&self, methods: PyAsyncMethods) {
         self.async_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_basic_methods(&self, methods: PyObjectMethods) {
         self.basic_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_buffer_methods(&self, methods: PyBufferProcs) {
         self.buffer_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_descr_methods(&self, methods: PyDescrMethods) {
         self.descr_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_gc_methods(&self, methods: PyGCMethods) {
         self.gc_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_mapping_methods(&self, methods: PyMappingMethods) {
         self.mapping_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_number_methods(&self, methods: PyNumberMethods) {
         self.number_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_iter_methods(&self, methods: PyIterMethods) {
         self.iter_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
     pub fn set_sequence_methods(&self, methods: PySequenceMethods) {
         self.sequence_methods
-            .store(Box::into_raw(Box::new(methods)), Ordering::SeqCst)
+            .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
 }
