@@ -25,6 +25,7 @@ pub struct PyGCMethods {
     pub tp_clear: Option<ffi::inquiry>,
 }
 
+#[doc(hidden)]
 impl PyGCMethods {
     pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_traverse = self.tp_traverse;

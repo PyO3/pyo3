@@ -126,6 +126,7 @@ pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<P
     type Result: Into<PyResult<Self>>;
 }
 
+#[doc(hidden)]
 impl ffi::PySequenceMethods {
     pub fn set_len<T>(&mut self)
     where

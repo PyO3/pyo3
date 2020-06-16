@@ -89,6 +89,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
+#[doc(hidden)]
 impl ffi::PyAsyncMethods {
     pub fn set_await<T>(&mut self)
     where

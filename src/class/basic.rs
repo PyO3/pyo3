@@ -153,6 +153,7 @@ pub struct PyObjectMethods {
     pub nb_bool: Option<ffi::inquiry>,
 }
 
+#[doc(hidden)]
 impl PyObjectMethods {
     pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_str = self.tp_str;
@@ -162,7 +163,7 @@ impl PyObjectMethods {
         type_object.tp_richcompare = self.tp_richcompare;
         type_object.tp_setattro = self.tp_setattro;
     }
-
+    // Set functions used by `#[pyproto]`.
     pub fn set_str<T>(&mut self)
     where
         T: for<'p> PyObjectStrProtocol<'p>,

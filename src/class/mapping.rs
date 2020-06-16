@@ -74,6 +74,7 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
+#[doc(hidden)]
 impl ffi::PyMappingMethods {
     pub fn set_length<T>(&mut self)
     where

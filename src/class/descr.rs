@@ -71,12 +71,14 @@ pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 
+/// All FFI functions for description protocols.
 #[derive(Default)]
 pub struct PyDescrMethods {
     pub tp_descr_get: Option<ffi::descrgetfunc>,
     pub tp_descr_set: Option<ffi::descrsetfunc>,
 }
 
+#[doc(hidden)]
 impl PyDescrMethods {
     pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_descr_get = self.tp_descr_get;

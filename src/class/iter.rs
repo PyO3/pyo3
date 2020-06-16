@@ -46,6 +46,7 @@ pub struct PyIterMethods {
     pub tp_iternext: Option<ffi::iternextfunc>,
 }
 
+#[doc(hidden)]
 impl PyIterMethods {
     pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
         type_object.tp_iter = self.tp_iter;

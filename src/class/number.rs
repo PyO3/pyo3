@@ -615,6 +615,7 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
+#[doc(hidden)]
 impl ffi::PyNumberMethods {
     pub(crate) fn from_nb_bool(nb_bool: ffi::inquiry) -> *mut Self {
         let mut nm = ffi::PyNumberMethods_INIT;

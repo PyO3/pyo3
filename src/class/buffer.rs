@@ -40,6 +40,8 @@ pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 
+/// Set functions used by `#[pyproto]`.
+#[doc(hidden)]
 impl PyBufferProcs {
     pub fn set_getbuffer<T>(&mut self)
     where
