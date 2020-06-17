@@ -16,11 +16,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.42.0-nightly 2020-01-21.
-
-If you have never used nightly Rust, the official guide has
-[a great section](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html#rustup-and-the-role-of-rust-nightly)
-about installing it.
+PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.44.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
 Please refer to the [pypy section in the guide](https://pyo3.rs/master/pypy.html).

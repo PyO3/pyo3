@@ -98,6 +98,7 @@ pub trait ToBorrowedObject: ToPyObject {
         F: FnOnce(*mut ffi::PyObject) -> R;
 }
 
+#[cfg(feature = "nightly")]
 impl<T> ToBorrowedObject for T
 where
     T: ToPyObject,
@@ -115,6 +116,25 @@ where
     }
 }
 
+#[cfg(not(feature = "nightly"))]
+impl<T> ToBorrowedObject for T
+where
+    T: ToPyObject,
+{
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+    where
+        F: FnOnce(*mut ffi::PyObject) -> R,
+    {
+        let ptr = self.to_object(py).into_ptr();
+        let result = f(ptr);
+        unsafe {
+            ffi::Py_XDECREF(ptr);
+        }
+        result
+    }
+}
+
+#[cfg(feature = "nightly")]
 impl<T> ToBorrowedObject for T
 where
     T: ToPyObject + AsPyPointer,

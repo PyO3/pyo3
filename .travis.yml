@@ -31,7 +31,7 @@ jobs:
 
 env:
   global:
-    - TRAVIS_RUST_VERSION=nightly
+    - TRAVIS_RUST_VERSION=stable
     - RUST_BACKTRACE=1
 
 before_install:

@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+#[cfg(feature = "nightly")]
 use crate::buffer;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions;
@@ -261,6 +262,7 @@ impl PySequence {
 macro_rules! array_impls {
     ($($N:expr),+) => {
         $(
+            #[cfg(feature = "nightly")]
             impl<'a, T> FromPyObject<'a> for [T; $N]
             where
                 T: Copy + Default + FromPyObject<'a>,
@@ -272,6 +274,19 @@ macro_rules! array_impls {
                 }
             }
 
+            #[cfg(not(feature = "nightly"))]
+            impl<'a, T> FromPyObject<'a> for [T; $N]
+            where
+                T: Copy + Default + FromPyObject<'a>,
+            {
+                fn extract(obj: &'a PyAny) -> PyResult<Self> {
+                    let mut array = [T::default(); $N];
+                    extract_sequence_into_slice(obj, &mut array)?;
+                    Ok(array)
+                }
+            }
+
+            #[cfg(feature = "nightly")]
             impl<'source, T> FromPyObject<'source> for [T; $N]
             where
                 for<'a> T: Copy + Default + FromPyObject<'a> + buffer::Element,
@@ -300,6 +315,17 @@ array_impls!(
     26, 27, 28, 29, 30, 31, 32
 );
 
+#[cfg(not(feature = "nightly"))]
+impl<'a, T> FromPyObject<'a> for Vec<T>
+where
+    T: FromPyObject<'a>,
+{
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        extract_sequence(obj)
+    }
+}
+
+#[cfg(feature = "nightly")]
 impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
@@ -309,6 +335,7 @@ where
     }
 }
 
+#[cfg(feature = "nightly")]
 impl<'source, T> FromPyObject<'source> for Vec<T>
 where
     for<'a> T: FromPyObject<'a> + buffer::Element + Copy,

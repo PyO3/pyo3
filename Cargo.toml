@@ -34,12 +34,10 @@ unindent = { version = "0.1.4", optional = true }
 assert_approx_eq = "1.1.0"
 trybuild = "1.0.23"
 
-[build-dependencies]
-version_check = "0.9.1"
-
 [features]
 default = ["macros"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
+nightly = []
 
 # this is no longer needed internally, but setuptools-rust assumes this feature
 python3 = []
