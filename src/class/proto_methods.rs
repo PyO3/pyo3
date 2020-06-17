@@ -9,8 +9,8 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-/// Defines all methods for object protocols.
-// Note: stub implementations are for rust-numpy. Please remove them.
+/// Defines all method tables we need for object protocols.
+// Note(kngwyu): default implementations are for rust-numpy. Please don't remove them.
 pub trait PyProtoMethods {
     fn async_methods() -> Option<NonNull<PyAsyncMethods>> {
         None

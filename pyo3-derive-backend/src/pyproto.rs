@@ -71,7 +71,7 @@ fn impl_proto_impl(
                 // Insert the method to the HashSet
                 method_names.insert(met.sig.ident.to_string());
             }
-            // Add non-slot methods to inventory slots
+            // Add non-slot methods to inventory like `#[pymethods]`
             if let Some(m) = proto.get_method(&met.sig.ident) {
                 let name = &met.sig.ident;
                 let fn_spec = FnSpec::parse(&met.sig, &mut met.attrs, false)?;
@@ -82,7 +82,7 @@ fn impl_proto_impl(
                 } else {
                     quote!(0)
                 };
-                // TODO(kngwyu): ml_doc
+                // TODO(kngwyu): Set ml_doc
                 py_methods.push(quote! {
                     pyo3::class::PyMethodDefType::Method({
                         #method
@@ -125,24 +125,23 @@ fn slot_initialization(
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
-    let mut initializers: Vec<TokenStream> = vec![];
     // Some setters cannot coexist.
     // E.g., if we have `__add__`, we need to skip `set_radd`.
-    let mut skipped_setters = HashSet::new();
-    'setter_loop: for m in proto.slot_setters {
-        if skipped_setters.contains(m.set_function) {
+    let mut skipped_setters = Vec::new();
+    // Collect initializers
+    let mut initializers: Vec<TokenStream> = vec![];
+    'outer_loop: for m in proto.slot_setters {
+        if skipped_setters.contains(&m.set_function) {
             continue;
         }
         for name in m.proto_names {
+            // If this `#[pyproto]` block doesn't provide all required methods,
+            // let's skip implementing this method.
             if !method_names.contains(*name) {
-                // If this `#[pyproto]` block doesn't provide all required methods,
-                // let's skip implementing this method.
-                continue 'setter_loop;
+                continue 'outer_loop;
             }
         }
-        for s in m.skipped_setters {
-            skipped_setters.insert(s.to_string());
-        }
+        skipped_setters.extend_from_slice(m.skipped_setters);
         // Add slot methods to PyProtoRegistry
         let set = syn::Ident::new(m.set_function, Span::call_site());
         initializers.push(quote! { table.#set::<#ty>(); });

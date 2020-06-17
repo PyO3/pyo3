@@ -1,12 +1,19 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::func::MethodProto;
 
+/// Predicates for `#[pyproto]`.
 pub struct Proto {
+    /// The name of this protocol. E.g., Iter.
     pub name: &'static str,
+    /// The name of slot table. E.g., PyIterMethods.
     pub slot_table: &'static str,
+    /// The name of the setter used to set the table to `PyProtoRegistry`.
     pub set_slot_table: &'static str,
+    /// All methods.
     pub methods: &'static [MethodProto],
+    /// All methods registered as normal methods like `#[pymethods]`.
     pub py_methods: &'static [PyMethod],
+    /// All methods registered to the slot table.
     pub slot_setters: &'static [SlotSetter],
 }
 
@@ -25,6 +32,7 @@ impl Proto {
     }
 }
 
+/// Represents a method registered as a normal method like `#[pymethods]`.
 // TODO(kngwyu): Currently only __radd__-like methods use METH_COEXIST to prevent
 // __add__-like methods from overriding them.
 pub struct PyMethod {
@@ -50,9 +58,15 @@ impl PyMethod {
     }
 }
 
+/// Represents a setter used to register a method to the method table.
 pub struct SlotSetter {
+    /// Protocols necessary for invoking this setter.
+    /// E.g., we need `__setattr__` and `__delattr__` for invoking `set_setdelitem`.
     pub proto_names: &'static [&'static str],
+    /// The name of the setter called to the method table.
     pub set_function: &'static str,
+    /// Represents a set of setters disabled by this setter.
+    /// E.g., `set_setdelitem` have to disable `set_setitem` and `set_delitem`.
     pub skipped_setters: &'static [&'static str],
 }
 

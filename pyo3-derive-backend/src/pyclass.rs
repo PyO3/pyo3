@@ -236,7 +236,7 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
-/// TODO(kngwyu): doc
+/// Implement `HasProtoRegistry` for the class for lazy protocol initialization.
 fn impl_proto_registry(cls: &syn::Ident) -> TokenStream {
     quote! {
         impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
