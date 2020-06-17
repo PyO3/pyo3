@@ -607,12 +607,12 @@ import sys
 async def main():
     res = await Once(await asyncio.sleep(0.1))
     return res
-
-# It looks like that https://bugs.python.org/issue38563 solves this problem,
-# but we see still errors on Github actions...
+# For an odd error similar to https://bugs.python.org/issue38563
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-loop = asyncio.get_event_loop()
+# get_event_loop can raise an error: https://github.com/PyO3/pyo3/pull/961#issuecomment-645238579
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 assert loop.run_until_complete(main()) is None
 loop.close()
 "#
