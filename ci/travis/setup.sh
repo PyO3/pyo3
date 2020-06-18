@@ -7,7 +7,7 @@ set -e
 # Use profile=minimal here to skip installing clippy
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION --profile=minimal -y
 export PATH=$PATH:$HOME/.cargo/bin
-if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
+if [[ $RUN_LINT == 1 ]]; then
     rustup component add clippy
     rustup component add rustfmt
 fi

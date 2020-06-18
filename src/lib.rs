@@ -1,4 +1,4 @@
-#![cfg_attr(nightly, feature(specialization))]
+#![cfg_attr(feature = "nightly", feature(specialization))]
 #![allow(clippy::missing_safety_doc)] // FIXME (#698)
 
 //! Rust bindings to the Python interpreter.
