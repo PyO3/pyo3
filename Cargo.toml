@@ -37,6 +37,9 @@ trybuild = "1.0.23"
 [features]
 default = ["macros"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
+# For CI
+all-stable = ["default", "num-bigint", "num-complex"]
+# Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
 # this is no longer needed internally, but setuptools-rust assumes this feature
