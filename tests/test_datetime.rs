@@ -1,7 +1,3 @@
-#![cfg_attr(nightly, feature(concat_idents))]
-
-#[cfg(feature = "nightly")]
-use pyo3::ffi::*;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
@@ -35,29 +31,26 @@ fn _get_subclasses<'p>(
     Ok((obj, sub_obj, sub_sub_obj))
 }
 
-#[cfg(feature = "nightly")]
 macro_rules! assert_check_exact {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::AsPyPointer;
+            use pyo3::{AsPyPointer, ffi::*};
             assert!($check_func(($obj).as_ptr()) != 0);
-            assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) != 0);
+            assert!(pyo3::paste::expr!([<$check_func Exact>])(($obj).as_ptr()) != 0);
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 macro_rules! assert_check_only {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::AsPyPointer;
+            use pyo3::{AsPyPointer, ffi::*};
             assert!($check_func(($obj).as_ptr()) != 0);
-            assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) == 0);
+            assert!(pyo3::paste::expr!([<$check_func Exact>])(($obj).as_ptr()) == 0);
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 #[test]
 fn test_date_check() {
     let gil = Python::acquire_gil();
@@ -69,7 +62,6 @@ fn test_date_check() {
     assert_check_only!(PyDate_Check, sub_sub_obj);
 }
 
-#[cfg(feature = "nightly")]
 #[test]
 fn test_time_check() {
     let gil = Python::acquire_gil();
@@ -81,7 +73,6 @@ fn test_time_check() {
     assert_check_only!(PyTime_Check, sub_sub_obj);
 }
 
-#[cfg(feature = "nightly")]
 #[test]
 fn test_datetime_check() {
     let gil = Python::acquire_gil();
@@ -96,7 +87,6 @@ fn test_datetime_check() {
     assert_check_only!(PyDateTime_Check, sub_sub_obj);
 }
 
-#[cfg(feature = "nightly")]
 #[test]
 fn test_delta_check() {
     let gil = Python::acquire_gil();
