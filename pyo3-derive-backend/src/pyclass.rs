@@ -236,6 +236,19 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
+/// Implement `HasProtoRegistry` for the class for lazy protocol initialization.
+fn impl_proto_registry(cls: &syn::Ident) -> TokenStream {
+    quote! {
+        impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
+            fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
+                static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
+                    = pyo3::class::proto_methods::PyProtoRegistry::new();
+                &REGISTRY
+            }
+        }
+    }
+}
+
 fn get_class_python_name(cls: &syn::Ident, attr: &PyClassArgs) -> TokenStream {
     match &attr.name {
         Some(name) => quote! { #name },
@@ -340,6 +353,7 @@ fn impl_class(
     };
 
     let impl_inventory = impl_methods_inventory(&cls);
+    let impl_proto_registry = impl_proto_registry(&cls);
 
     let base = &attr.base;
     let flags = &attr.flags;
@@ -413,6 +427,8 @@ fn impl_class(
         #into_pyobject
 
         #impl_inventory
+
+        #impl_proto_registry
 
         #extra
 

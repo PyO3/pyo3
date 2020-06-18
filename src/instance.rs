@@ -47,7 +47,6 @@ pub unsafe trait PyNativeType: Sized {
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
 unsafe impl<T> Send for Py<T> {}
-
 unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T>

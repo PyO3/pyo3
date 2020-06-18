@@ -438,14 +438,16 @@ mod typeobject {
     impl Default for PyAsyncMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { mem::zeroed() }
+            PyAsyncMethods_INIT
         }
     }
+
     pub const PyAsyncMethods_INIT: PyAsyncMethods = PyAsyncMethods {
         am_await: None,
         am_aiter: None,
         am_anext: None,
     };
+
     #[repr(C)]
     #[derive(Copy, Clone, Debug)]
     pub struct PyBufferProcs {
@@ -456,9 +458,10 @@ mod typeobject {
     impl Default for PyBufferProcs {
         #[inline]
         fn default() -> Self {
-            unsafe { mem::zeroed() }
+            PyBufferProcs_INIT
         }
     }
+
     pub const PyBufferProcs_INIT: PyBufferProcs = PyBufferProcs {
         bf_getbuffer: None,
         bf_releasebuffer: None,

@@ -75,154 +75,41 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 #[doc(hidden)]
-pub trait PyMappingProtocolImpl {
-    fn tp_as_mapping() -> Option<ffi::PyMappingMethods>;
-}
-
-impl<T> PyMappingProtocolImpl for T {
-    default fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
-        None
+impl ffi::PyMappingMethods {
+    pub fn set_length<T>(&mut self)
+    where
+        T: for<'p> PyMappingLenProtocol<'p>,
+    {
+        self.mp_length = py_len_func!(PyMappingLenProtocol, T::__len__);
     }
-}
-
-impl<'p, T> PyMappingProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
-        let f = if let Some(df) = Self::mp_del_subscript() {
-            Some(df)
-        } else {
-            Self::mp_ass_subscript()
-        };
-
-        Some(ffi::PyMappingMethods {
-            mp_length: Self::mp_length(),
-            mp_subscript: Self::mp_subscript(),
-            mp_ass_subscript: f,
-        })
+    pub fn set_getitem<T>(&mut self)
+    where
+        T: for<'p> PyMappingGetItemProtocol<'p>,
+    {
+        self.mp_subscript = py_binary_func!(PyMappingGetItemProtocol, T::__getitem__);
     }
-}
-
-trait PyMappingLenProtocolImpl {
-    fn mp_length() -> Option<ffi::lenfunc>;
-}
-
-impl<'p, T> PyMappingLenProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn mp_length() -> Option<ffi::lenfunc> {
-        None
+    pub fn set_setitem<T>(&mut self)
+    where
+        T: for<'p> PyMappingSetItemProtocol<'p>,
+    {
+        self.mp_ass_subscript = py_func_set!(PyMappingSetItemProtocol, T, __setitem__);
     }
-}
-
-impl<T> PyMappingLenProtocolImpl for T
-where
-    T: for<'p> PyMappingLenProtocol<'p>,
-{
-    #[inline]
-    fn mp_length() -> Option<ffi::lenfunc> {
-        py_len_func!(PyMappingLenProtocol, T::__len__)
+    pub fn set_delitem<T>(&mut self)
+    where
+        T: for<'p> PyMappingDelItemProtocol<'p>,
+    {
+        self.mp_ass_subscript = py_func_del!(PyMappingDelItemProtocol, T, __delitem__);
     }
-}
-
-trait PyMappingGetItemProtocolImpl {
-    fn mp_subscript() -> Option<ffi::binaryfunc>;
-}
-
-impl<'p, T> PyMappingGetItemProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn mp_subscript() -> Option<ffi::binaryfunc> {
-        None
-    }
-}
-
-impl<T> PyMappingGetItemProtocolImpl for T
-where
-    T: for<'p> PyMappingGetItemProtocol<'p>,
-{
-    #[inline]
-    fn mp_subscript() -> Option<ffi::binaryfunc> {
-        py_binary_func!(PyMappingGetItemProtocol, T::__getitem__)
-    }
-}
-
-trait PyMappingSetItemProtocolImpl {
-    fn mp_ass_subscript() -> Option<ffi::objobjargproc>;
-}
-
-impl<'p, T> PyMappingSetItemProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
-        None
-    }
-}
-
-impl<T> PyMappingSetItemProtocolImpl for T
-where
-    T: for<'p> PyMappingSetItemProtocol<'p>,
-{
-    #[inline]
-    fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
-        py_func_set!(PyMappingSetItemProtocol, T, __setitem__)
-    }
-}
-
-/// Returns `None` if PyMappingDelItemProtocol isn't implemented, otherwise dispatches to
-/// `DelSetItemDispatch`
-trait DeplItemDipatch {
-    fn mp_del_subscript() -> Option<ffi::objobjargproc>;
-}
-
-impl<'p, T> DeplItemDipatch for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        None
-    }
-}
-
-/// Returns `py_func_set_del` if PyMappingSetItemProtocol is implemented, otherwise `py_func_del`
-trait DelSetItemDispatch: Sized + for<'p> PyMappingDelItemProtocol<'p> {
-    fn det_set_dispatch() -> Option<ffi::objobjargproc>;
-}
-
-impl<T> DelSetItemDispatch for T
-where
-    T: Sized + for<'p> PyMappingDelItemProtocol<'p>,
-{
-    default fn det_set_dispatch() -> Option<ffi::objobjargproc> {
-        py_func_del!(PyMappingDelItemProtocol, Self, __delitem__)
-    }
-}
-
-impl<T> DelSetItemDispatch for T
-where
-    T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
-{
-    fn det_set_dispatch() -> Option<ffi::objobjargproc> {
-        py_func_set_del!(
+    pub fn set_setdelitem<T>(&mut self)
+    where
+        T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
+    {
+        self.mp_ass_subscript = py_func_set_del!(
             PyMappingSetItemProtocol,
             PyMappingDelItemProtocol,
             T,
             __setitem__,
             __delitem__
-        )
-    }
-}
-
-impl<T> DeplItemDipatch for T
-where
-    T: Sized + for<'p> PyMappingDelItemProtocol<'p>,
-{
-    fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        <T as DelSetItemDispatch>::det_set_dispatch()
+        );
     }
 }

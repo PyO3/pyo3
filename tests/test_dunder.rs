@@ -1,5 +1,6 @@
 use pyo3::class::{
-    PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol, PySequenceProtocol,
+    PyAsyncProtocol, PyContextProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol,
+    PyObjectProtocol, PySequenceProtocol,
 };
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::prelude::*;
@@ -551,4 +552,132 @@ fn getattr_doesnt_override_member() {
     let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
     py_assert!(py, inst, "inst.data == 4");
     py_assert!(py, inst, "inst.a == 8");
+}
+
+/// Wraps a Python future and yield it once.
+#[pyclass]
+struct OnceFuture {
+    future: PyObject,
+    polled: bool,
+}
+
+#[pymethods]
+impl OnceFuture {
+    #[new]
+    fn new(future: PyObject) -> Self {
+        OnceFuture {
+            future,
+            polled: false,
+        }
+    }
+}
+
+#[pyproto]
+impl PyAsyncProtocol for OnceFuture {
+    fn __await__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
+        Ok(slf)
+    }
+}
+
+#[pyproto]
+impl PyIterProtocol for OnceFuture {
+    fn __iter__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
+        Ok(slf)
+    }
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+        if !slf.polled {
+            slf.polled = true;
+            Ok(Some(slf.future.clone()))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[test]
+fn test_await() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let once = py.get_type::<OnceFuture>();
+    let source = pyo3::indoc::indoc!(
+        r#"
+import asyncio
+import sys
+
+async def main():
+    res = await Once(await asyncio.sleep(0.1))
+    return res
+# For an odd error similar to https://bugs.python.org/issue38563
+if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+# get_event_loop can raise an error: https://github.com/PyO3/pyo3/pull/961#issuecomment-645238579
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+assert loop.run_until_complete(main()) is None
+loop.close()
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Once", once).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}
+
+/// Increment the count when `__get__` is called.
+#[pyclass]
+struct DescrCounter {
+    #[pyo3(get)]
+    count: usize,
+}
+
+#[pymethods]
+impl DescrCounter {
+    #[new]
+    fn new() -> Self {
+        DescrCounter { count: 0 }
+    }
+}
+
+#[pyproto]
+impl PyDescrProtocol for DescrCounter {
+    fn __get__(
+        mut slf: PyRefMut<'p, Self>,
+        _instance: &PyAny,
+        _owner: Option<&'p PyType>,
+    ) -> PyResult<PyRefMut<'p, Self>> {
+        slf.count += 1;
+        Ok(slf)
+    }
+    fn __set__(
+        _slf: PyRef<'p, Self>,
+        _instance: &PyAny,
+        mut new_value: PyRefMut<'p, Self>,
+    ) -> PyResult<()> {
+        new_value.count = _slf.count;
+        Ok(())
+    }
+}
+
+#[test]
+fn descr_getset() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let counter = py.get_type::<DescrCounter>();
+    let source = pyo3::indoc::indoc!(
+        r#"
+class Class:
+    counter = Counter()
+c = Class()
+c.counter # count += 1
+assert c.counter.count == 2
+c.counter = Counter()
+assert c.counter.count == 3
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Counter", counter).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
 }

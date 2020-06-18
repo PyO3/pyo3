@@ -40,69 +40,29 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
+#[derive(Default)]
+pub struct PyIterMethods {
+    pub tp_iter: Option<ffi::getiterfunc>,
+    pub tp_iternext: Option<ffi::iternextfunc>,
+}
+
 #[doc(hidden)]
-pub trait PyIterProtocolImpl {
-    fn tp_as_iter(_typeob: &mut ffi::PyTypeObject);
-}
-
-impl<T> PyIterProtocolImpl for T {
-    default fn tp_as_iter(_typeob: &mut ffi::PyTypeObject) {}
-}
-
-impl<'p, T> PyIterProtocolImpl for T
-where
-    T: PyIterProtocol<'p>,
-{
-    #[inline]
-    fn tp_as_iter(typeob: &mut ffi::PyTypeObject) {
-        typeob.tp_iter = Self::tp_iter();
-        typeob.tp_iternext = Self::tp_iternext();
+impl PyIterMethods {
+    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
+        type_object.tp_iter = self.tp_iter;
+        type_object.tp_iternext = self.tp_iternext;
     }
-}
-
-trait PyIterIterProtocolImpl {
-    fn tp_iter() -> Option<ffi::getiterfunc>;
-}
-
-impl<'p, T> PyIterIterProtocolImpl for T
-where
-    T: PyIterProtocol<'p>,
-{
-    default fn tp_iter() -> Option<ffi::getiterfunc> {
-        None
+    pub fn set_iter<T>(&mut self)
+    where
+        T: for<'p> PyIterIterProtocol<'p>,
+    {
+        self.tp_iter = py_unarys_func!(PyIterIterProtocol, T::__iter__);
     }
-}
-
-impl<T> PyIterIterProtocolImpl for T
-where
-    T: for<'p> PyIterIterProtocol<'p>,
-{
-    #[inline]
-    fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unarys_func!(PyIterIterProtocol, T::__iter__)
-    }
-}
-
-trait PyIterNextProtocolImpl {
-    fn tp_iternext() -> Option<ffi::iternextfunc>;
-}
-
-impl<'p, T> PyIterNextProtocolImpl for T
-where
-    T: PyIterProtocol<'p>,
-{
-    default fn tp_iternext() -> Option<ffi::iternextfunc> {
-        None
-    }
-}
-
-impl<T> PyIterNextProtocolImpl for T
-where
-    T: for<'p> PyIterNextProtocol<'p>,
-{
-    #[inline]
-    fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unarys_func!(PyIterNextProtocol, T::__next__, IterNextConverter)
+    pub fn set_iternext<T>(&mut self)
+    where
+        T: for<'p> PyIterNextProtocol<'p>,
+    {
+        self.tp_iternext = py_unarys_func!(PyIterNextProtocol, T::__next__, IterNextConverter);
     }
 }
 

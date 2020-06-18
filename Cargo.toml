@@ -19,6 +19,7 @@ travis-ci = { repository = "PyO3/pyo3", branch = "master" }
 appveyor = { repository = "fafhrd91/pyo3" }
 
 [dependencies]
+ctor = { version = "0.1", optional = true }
 indoc = { version = "0.3.4", optional = true }
 inventory = { version = "0.1.4", optional = true }
 libc = "0.2.62"
@@ -38,7 +39,7 @@ version_check = "0.9.1"
 
 [features]
 default = ["macros"]
-macros = ["indoc", "inventory", "paste", "pyo3cls", "unindent"]
+macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
 
 # this is no longer needed internally, but setuptools-rust assumes this feature
 python3 = []

@@ -1,5 +1,6 @@
 //! `PyClass` trait
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
+use crate::class::proto_methods::PyProtoMethods;
 use crate::conversion::{IntoPyPointer, ToPyObject};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
@@ -77,6 +78,7 @@ pub trait PyClass:
     + Sized
     + PyClassAlloc
     + PyMethods
+    + PyProtoMethods
     + Send
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
@@ -141,35 +143,43 @@ where
     }
 
     // GC support
-    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+    if let Some(gc) = T::gc_methods() {
+        unsafe { gc.as_ref() }.update_typeobj(type_object);
+    }
 
     // descriptor protocol
-    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
+    if let Some(descr) = T::descr_methods() {
+        unsafe { descr.as_ref() }.update_typeobj(type_object);
+    }
 
     // iterator methods
-    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
+    if let Some(iter) = T::iter_methods() {
+        unsafe { iter.as_ref() }.update_typeobj(type_object);
+    }
 
+    // nb_bool is a part of PyObjectProtocol, but should be placed under tp_as_number
+    let mut nb_bool = None;
     // basic methods
-    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
-
-    fn to_ptr<T>(value: Option<T>) -> *mut T {
-        value
-            .map(|v| Box::into_raw(Box::new(v)))
-            .unwrap_or_else(ptr::null_mut)
+    if let Some(basic) = T::basic_methods() {
+        unsafe { basic.as_ref() }.update_typeobj(type_object);
+        nb_bool = unsafe { basic.as_ref() }.nb_bool;
     }
 
     // number methods
-    type_object.tp_as_number = to_ptr(<T as class::number::PyNumberProtocolImpl>::tp_as_number());
+    type_object.tp_as_number = T::number_methods()
+        .map(|mut p| {
+            unsafe { p.as_mut() }.nb_bool = nb_bool;
+            p.as_ptr()
+        })
+        .unwrap_or_else(|| nb_bool.map_or_else(ptr::null_mut, ffi::PyNumberMethods::from_nb_bool));
     // mapping methods
-    type_object.tp_as_mapping =
-        to_ptr(<T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping());
+    type_object.tp_as_mapping = T::mapping_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // sequence methods
-    type_object.tp_as_sequence =
-        to_ptr(<T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence());
+    type_object.tp_as_sequence = T::sequence_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // async methods
-    type_object.tp_as_async = to_ptr(<T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async());
+    type_object.tp_as_async = T::async_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
     // buffer protocol
-    type_object.tp_as_buffer = to_ptr(<T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer());
+    type_object.tp_as_buffer = T::buffer_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
 
     let (new, call, mut methods, attrs) = py_class_method_defs::<T>();
 

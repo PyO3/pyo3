@@ -153,6 +153,7 @@ pub use crate::types::PyAny;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
+    ctor,      // Re-exported for pyproto
     indoc,     // Re-exported for py_run
     inventory, // Re-exported for pymethods
     paste,     // Re-exported for wrap_function

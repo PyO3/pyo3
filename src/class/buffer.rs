@@ -5,7 +5,10 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::err::PyResult;
-use crate::{ffi, PyCell, PyClass, PyRefMut};
+use crate::{
+    ffi::{self, PyBufferProcs},
+    PyCell, PyClass, PyRefMut,
+};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -37,96 +40,55 @@ pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 
+/// Set functions used by `#[pyproto]`.
 #[doc(hidden)]
-pub trait PyBufferProtocolImpl {
-    fn tp_as_buffer() -> Option<ffi::PyBufferProcs>;
-}
-
-impl<T> PyBufferProtocolImpl for T {
-    default fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
-        None
+impl PyBufferProcs {
+    pub fn set_getbuffer<T>(&mut self)
+    where
+        T: for<'p> PyBufferGetBufferProtocol<'p>,
+    {
+        self.bf_getbuffer = bf_getbuffer::<T>();
+    }
+    pub fn set_releasebuffer<T>(&mut self)
+    where
+        T: for<'p> PyBufferReleaseBufferProtocol<'p>,
+    {
+        self.bf_releasebuffer = bf_releasebuffer::<T>();
     }
 }
 
-impl<'p, T> PyBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    #[inline]
-    #[allow(clippy::needless_update)] // For python 2 it's not useless
-    fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
-        Some(ffi::PyBufferProcs {
-            bf_getbuffer: Self::cb_bf_getbuffer(),
-            bf_releasebuffer: Self::cb_bf_releasebuffer(),
-            ..ffi::PyBufferProcs_INIT
-        })
-    }
-}
-
-trait PyBufferGetBufferProtocolImpl {
-    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc>;
-}
-
-impl<'p, T> PyBufferGetBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    default fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
-        None
-    }
-}
-
-impl<T> PyBufferGetBufferProtocolImpl for T
+fn bf_getbuffer<T>() -> Option<ffi::getbufferproc>
 where
     T: for<'p> PyBufferGetBufferProtocol<'p>,
 {
-    #[inline]
-    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            arg1: *mut ffi::Py_buffer,
-            arg2: c_int,
-        ) -> c_int
-        where
-            T: for<'p> PyBufferGetBufferProtocol<'p>,
-        {
-            crate::callback_body!(py, {
-                let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-                T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into()
-            })
-        }
-        Some(wrap::<T>)
+    unsafe extern "C" fn wrap<T>(
+        slf: *mut ffi::PyObject,
+        arg1: *mut ffi::Py_buffer,
+        arg2: c_int,
+    ) -> c_int
+    where
+        T: for<'p> PyBufferGetBufferProtocol<'p>,
+    {
+        crate::callback_body!(py, {
+            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+            T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into()
+        })
     }
+    Some(wrap::<T>)
 }
 
-trait PyBufferReleaseBufferProtocolImpl {
-    fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc>;
-}
-
-impl<'p, T> PyBufferReleaseBufferProtocolImpl for T
-where
-    T: PyBufferProtocol<'p>,
-{
-    default fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc> {
-        None
-    }
-}
-
-impl<T> PyBufferReleaseBufferProtocolImpl for T
+fn bf_releasebuffer<T>() -> Option<ffi::releasebufferproc>
 where
     T: for<'p> PyBufferReleaseBufferProtocol<'p>,
 {
-    #[inline]
-    fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer)
-        where
-            T: for<'p> PyBufferReleaseBufferProtocol<'p>,
-        {
-            crate::callback_body!(py, {
-                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-                T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into()
-            })
-        }
-        Some(wrap::<T>)
+    unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer)
+    where
+        T: for<'p> PyBufferReleaseBufferProtocol<'p>,
+    {
+        crate::callback_body!(py, {
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+            T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into()
+        })
     }
+    Some(wrap::<T>)
 }
