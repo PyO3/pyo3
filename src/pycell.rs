@@ -166,8 +166,11 @@ pub struct PyCell<T: PyClass> {
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
 
 impl<T: PyClass> PyCell<T> {
-    /// Make new `PyCell` on the Python heap and returns the reference of it.
+    /// Make a new `PyCell` on the Python heap and return the reference to it.
     ///
+    /// In cases where the value in the cell does not need to be accessed immediately after
+    /// creation, consider [`Py::new`](../instance/struct.Py.html#method.new) as a more efficient
+    /// alternative.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
     where
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,

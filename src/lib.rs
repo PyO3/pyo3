@@ -346,4 +346,5 @@ pub mod doc_test {
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
     doctest!("../guide/src/types.md", guide_types_md);
+    doctest!("../guide/src/trait_bounds.md", guide_trait_bounds_md);
 }

@@ -2,10 +2,11 @@
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
+use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -48,29 +49,78 @@ pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 unsafe impl<T> Send for Py<T> {}
 unsafe impl<T> Sync for Py<T> {}
 
-impl<T> Py<T> {
-    /// Create a new instance `Py<T>`.
-    ///
-    /// This method is **soft-duplicated** since PyO3 0.9.0.
-    /// Use [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and
-    /// `Py::from` instead.
+impl<T> Py<T>
+where
+    T: PyClass,
+{
+    /// Create a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
-        T: PyClass,
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         let initializer = value.into();
         let obj = unsafe { initializer.create_cell(py)? };
-        let ob = unsafe { Py::from_owned_ptr(obj as _) };
+        let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
         Ok(ob)
     }
 
+    /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// Equivalent to `self.as_ref(py).borrow()` -
+    /// see [`PyCell::borrow`](../pycell/struct.PyCell.html#method.borrow)
+    ///
+    /// # Panics
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow`](#method.try_borrow).
+    pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
+        self.as_ref(py).borrow()
+    }
+
+    /// Mutably borrows the value `T`. This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// Equivalent to `self.as_ref(py).borrow_mut()` -
+    /// see [`PyCell::borrow_mut`](../pycell/struct.PyCell.html#method.borrow_mut)
+    ///
+    /// # Panics
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow_mut`](#method.try_borrow_mut).
+    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T> {
+        self.as_ref(py).borrow_mut()
+    }
+
+    /// Immutably borrows the value `T`, returning an error if the value is currently
+    /// mutably borrowed. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// Equivalent to `self.as_ref(py).try_borrow()` -
+    /// see [`PyCell::try_borrow`](../pycell/struct.PyCell.html#method.try_borrow)
+    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
+        self.as_ref(py).try_borrow()
+    }
+
+    /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
+    /// This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    ///
+    /// Equivalent to `self.as_ref(py).try_borrow_mut() -
+    /// see [`PyCell::try_borrow_mut`](../pycell/struct.PyCell.html#method.try_borrow_mut)
+    pub fn try_borrow_mut<'py>(
+        &'py self,
+        py: Python<'py>,
+    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError> {
+        self.as_ref(py).try_borrow_mut()
+    }
+}
+
+impl<T> Py<T> {
     /// Creates a `Py<T>` instance for the given FFI pointer.
     ///
     /// This moves ownership over the pointer into the `Py<T>`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_owned_ptr(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
         debug_assert!(
             !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
@@ -83,11 +133,11 @@ impl<T> Py<T> {
     /// Panics if the pointer is NULL.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
             None => {
-                crate::err::panic_after_error();
+                crate::err::panic_after_error(_py);
             }
         }
     }
@@ -109,7 +159,7 @@ impl<T> Py<T> {
     /// Calls `Py_INCREF()` on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_borrowed_ptr(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
         debug_assert!(
             !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
@@ -120,14 +170,14 @@ impl<T> Py<T> {
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
-    pub fn get_refcnt(&self) -> isize {
+    pub fn get_refcnt(&self, _py: Python) -> isize {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
     /// Clones self by calling `Py_INCREF()` on the ptr.
     #[inline]
-    pub fn clone_ref(&self, _py: Python) -> Py<T> {
-        unsafe { Py::from_borrowed_ptr(self.0.as_ptr()) }
+    pub fn clone_ref(&self, py: Python) -> Py<T> {
+        unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
     }
 
     /// Returns the inner pointer without decreasing the refcount.
@@ -160,14 +210,20 @@ impl<T> Py<T> {
 /// for `#[pyclass]`.
 /// ```
 /// # use pyo3::prelude::*;
-/// let obj: PyObject = {
+/// #[pyclass]
+/// struct Counter {
+///     count: usize,
+/// }
+/// let counter = {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     py.eval("[]", None, None).unwrap().to_object(py)
+///     Py::new(py, Counter { count: 0}).unwrap()
 /// };
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);
+/// let counter_cell: &PyCell<Counter> = counter.as_ref(py);
+/// let counter_ref = counter_cell.borrow();
+/// assert_eq!(counter_ref.count, 0);
 /// ```
 pub trait AsPyRef: Sized {
     type Target;
@@ -225,7 +281,7 @@ where
     T: AsPyPointer + PyNativeType,
 {
     fn from(obj: &'a T) -> Self {
-        unsafe { Py::from_borrowed_ptr(obj.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) }
     }
 }
 
@@ -235,7 +291,7 @@ where
     T: PyClass,
 {
     fn from(cell: &PyCell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(cell.py(), cell.as_ptr()) }
     }
 }
 
@@ -244,7 +300,7 @@ where
     T: PyClass,
 {
     fn from(pyref: PyRef<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
@@ -253,7 +309,7 @@ where
     T: PyClass,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
+        unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
     }
 }
 
@@ -291,19 +347,19 @@ impl<T> std::convert::From<Py<T>> for PyObject {
 
 impl<'a, T> std::convert::From<&'a T> for PyObject
 where
-    T: AsPyPointer,
+    T: AsPyPointer + PyNativeType,
 {
     fn from(ob: &'a T) -> Self {
-        unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
+        unsafe { Py::<T>::from_borrowed_ptr(ob.py(), ob.as_ptr()) }.into()
     }
 }
 
 impl<'a, T> std::convert::From<&'a mut T> for PyObject
 where
-    T: AsPyPointer,
+    T: AsPyPointer + PyNativeType,
 {
     fn from(ob: &'a mut T) -> Self {
-        unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
+        unsafe { Py::<T>::from_borrowed_ptr(ob.py(), ob.as_ptr()) }.into()
     }
 }
 
@@ -317,7 +373,7 @@ where
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
         unsafe {
             ob.extract::<&T::AsRefTarget>()
-                .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
+                .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
         }
     }
 }

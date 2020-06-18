@@ -74,7 +74,12 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethods + PyProtoMethods + Send
+    PyTypeInfo<Layout = PyCell<Self>, AsRefTarget = PyCell<Self>>
+    + Sized
+    + PyClassAlloc
+    + PyMethods
+    + PyProtoMethods
+    + Send
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;

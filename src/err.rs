@@ -1,12 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::gil::ensure_gil;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
 use crate::{exceptions, ffi};
 use crate::{
-    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyNativeType, PyObject,
+    Python, ToBorrowedObject, ToPyObject,
 };
 use libc::c_int;
 use std::ffi::CString;
@@ -88,11 +89,14 @@ impl PyErr {
         T: PyTypeObject,
         V: ToPyObject + 'static,
     {
-        let ty = T::type_object();
+        let gil = ensure_gil();
+        let py = unsafe { gil.python() };
+
+        let ty = T::type_object(py);
         assert_ne!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) }, 0);
 
         PyErr {
-            ptype: ty,
+            ptype: ty.into(),
             pvalue: PyErrValue::ToObject(Box::new(value)),
             ptraceback: None,
         }
@@ -103,12 +107,12 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions
     /// like `exceptions::RuntimeError`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
-    pub fn from_type<A>(exc: Py<PyType>, args: A) -> PyErr
+    pub fn from_type<A>(exc: &PyType, args: A) -> PyErr
     where
         A: ToPyObject + 'static,
     {
         PyErr {
-            ptype: exc,
+            ptype: exc.into(),
             pvalue: PyErrValue::ToObject(Box::new(args)),
             ptraceback: None,
         }
@@ -119,11 +123,14 @@ impl PyErr {
     where
         T: PyTypeObject,
     {
-        let ty = T::type_object();
+        let gil = ensure_gil();
+        let py = unsafe { gil.python() };
+
+        let ty = T::type_object(py);
         assert_ne!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) }, 0);
 
         PyErr {
-            ptype: ty,
+            ptype: ty.into(),
             pvalue: value,
             ptraceback: None,
         }
@@ -140,19 +147,21 @@ impl PyErr {
 
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
             PyErr {
-                ptype: unsafe { Py::from_borrowed_ptr(ffi::PyExceptionInstance_Class(ptr)) },
+                ptype: unsafe {
+                    Py::from_borrowed_ptr(obj.py(), ffi::PyExceptionInstance_Class(ptr))
+                },
                 pvalue: PyErrValue::Value(obj.into()),
                 ptraceback: None,
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: unsafe { Py::from_borrowed_ptr(ptr) },
+                ptype: unsafe { Py::from_borrowed_ptr(obj.py(), ptr) },
                 pvalue: PyErrValue::None,
                 ptraceback: None,
             }
         } else {
             PyErr {
-                ptype: exceptions::TypeError::type_object(),
+                ptype: exceptions::TypeError::type_object(obj.py()).into(),
                 pvalue: PyErrValue::ToObject(Box::new("exceptions must derive from BaseException")),
                 ptraceback: None,
             }
@@ -179,9 +188,9 @@ impl PyErr {
             let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
 
-            let err = PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback);
+            let err = PyErr::new_from_ffi_tuple(py, ptype, pvalue, ptraceback);
 
-            if ptype == PanicException::type_object().as_ptr() {
+            if ptype == PanicException::type_object(py).as_ptr() {
                 let msg: String = PyAny::from_borrowed_ptr_or_opt(py, pvalue)
                     .and_then(|obj| obj.extract().ok())
                     .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
@@ -233,6 +242,7 @@ impl PyErr {
     }
 
     unsafe fn new_from_ffi_tuple(
+        py: Python,
         ptype: *mut ffi::PyObject,
         pvalue: *mut ffi::PyObject,
         ptraceback: *mut ffi::PyObject,
@@ -240,24 +250,22 @@ impl PyErr {
         // Note: must not panic to ensure all owned pointers get acquired correctly,
         // and because we mustn't panic in normalize().
 
-        let pvalue = if let Some(obj) =
-            PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), pvalue)
-        {
+        let pvalue = if let Some(obj) = PyObject::from_owned_ptr_or_opt(py, pvalue) {
             PyErrValue::Value(obj)
         } else {
             PyErrValue::None
         };
 
         let ptype = if ptype.is_null() {
-            <exceptions::SystemError as PyTypeObject>::type_object()
+            <exceptions::SystemError as PyTypeObject>::type_object(py).into()
         } else {
-            Py::from_owned_ptr(ptype)
+            Py::from_owned_ptr(py, ptype)
         };
 
         PyErr {
             ptype,
             pvalue,
-            ptraceback: PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), ptraceback),
+            ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback),
         }
     }
 
@@ -288,12 +296,12 @@ impl PyErr {
     }
 
     /// Returns true if the current exception is instance of `T`.
-    pub fn is_instance<T>(&self, _py: Python) -> bool
+    pub fn is_instance<T>(&self, py: Python) -> bool
     where
         T: PyTypeObject,
     {
         unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), T::type_object().as_ptr()) != 0
+            ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), T::type_object(py).as_ptr()) != 0
         }
     }
 
@@ -328,7 +336,7 @@ impl PyErr {
         let mut ptraceback = ptraceback.into_ptr();
         unsafe {
             ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
-            PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback)
+            PyErr::new_from_ffi_tuple(py, ptype, pvalue, ptraceback)
         }
     }
 
@@ -565,7 +573,7 @@ impl_to_pyerr!(std::string::FromUtf16Error, exceptions::UnicodeDecodeError);
 impl_to_pyerr!(std::char::DecodeUtf16Error, exceptions::UnicodeDecodeError);
 impl_to_pyerr!(std::net::AddrParseError, exceptions::ValueError);
 
-pub fn panic_after_error() -> ! {
+pub fn panic_after_error(_py: Python) -> ! {
     unsafe {
         ffi::PyErr_Print();
     }
