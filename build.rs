@@ -69,8 +69,8 @@ impl FromStr for PythonInterpreterKind {
     type Err = Box<dyn std::error::Error>;
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "CPython" => Ok(Self::CPython),
-            "PyPy" => Ok(Self::PyPy),
+            "CPython" => Ok(PythonInterpreterKind::CPython),
+            "PyPy" => Ok(PythonInterpreterKind::PyPy),
             _ => Err(format!("Invalid interpreter: {}", s).into()),
         }
     }
@@ -295,7 +295,7 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
                 );
             }
         }
-        Ok(ok) if !ok.status.success() => bail!("Python script failed: {}"),
+        Ok(ref ok) if !ok.status.success() => bail!("Python script failed: {}"),
         Ok(ok) => Ok(String::from_utf8(ok.stdout)?),
     }
 }
