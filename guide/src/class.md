@@ -888,12 +888,12 @@ documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
 Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
 trait with a function that returns all methods. Since it's impossible to make the code generation in
 pyclass dependent on whether there is an impl block, we'd need to implement the trait on
-`#[pyclass]` and override the implementation in `#[pymethods]`, which is to the best of my knowledge
-only possible with the specialization feature, which can't be used on stable.
-
-To escape this we use [inventory](https://github.com/dtolnay/inventory),
+`#[pyclass]` and override the implementation in `#[pymethods]`.
+To enable this, we use a static registry type provided by [inventory](https://github.com/dtolnay/inventory),
 which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick.
 See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class` for more details.
+Also for `#[pyproto]`, we use a similar, but more task-specific registry and
+initialize it by [ctor](https://github.com/mmastrac/rust-ctor) crate.
 
 Specifically, the following implementation is generated:
 
