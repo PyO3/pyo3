@@ -12,6 +12,7 @@
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
 - [PyPy support](pypy.md)
+- [FAQ & Troubleshooting](faq.md)
 - [Appendix A: PyO3 and rust-cpython](rust_cpython.md)
 - [Appendix B: Migration Guide](migration.md)
 - [Appendix C: Trait bounds](trait_bounds.md)

@@ -31,21 +31,8 @@ impl Foo {
     }
 
     #[classattr]
-    fn foo() -> Foo {
-        Foo { x: 1 }
-    }
-
-    #[classattr]
     fn bar() -> Bar {
         Bar { x: 2 }
-    }
-}
-
-#[pymethods]
-impl Bar {
-    #[classattr]
-    fn foo() -> Foo {
-        Foo { x: 3 }
     }
 }
 
@@ -67,13 +54,23 @@ fn class_attributes_are_immutable() {
     py_expect_exception!(py, foo_obj, "foo_obj.a = 6", TypeError);
 }
 
+#[pyclass]
+struct SelfClassAttribute {
+    #[pyo3(get)]
+    x: i32,
+}
+
+#[pymethods]
+impl SelfClassAttribute {
+    #[classattr]
+    const SELF: SelfClassAttribute = SelfClassAttribute { x: 1 };
+}
+
 #[test]
+#[should_panic(expected = "Recursive initialization of type_object for SelfClassAttribute")]
 fn recursive_class_attributes() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let foo_obj = py.get_type::<Foo>();
-    let bar_obj = py.get_type::<Bar>();
-    py_assert!(py, foo_obj, "foo_obj.foo.x == 1");
-    py_assert!(py, foo_obj, "foo_obj.bar.x == 2");
-    py_assert!(py, bar_obj, "bar_obj.foo.x == 3");
+
+    py.get_type::<SelfClassAttribute>();
 }

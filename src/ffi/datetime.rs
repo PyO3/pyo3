@@ -14,10 +14,10 @@
 use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
 use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
+use crate::once_cell::GILOnceCell;
+use crate::Python;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
-use std::ptr;
-use std::sync::Once;
 #[cfg(not(PyPy))]
 use {crate::ffi::PyCapsule_Import, std::ffi::CString};
 
@@ -196,29 +196,9 @@ pub struct PyDateTime_Delta {
     pub microseconds: c_int,
 }
 
-// C API Capsule
-// Note: This is "roll-your-own" lazy-static implementation is necessary because
-// of the interaction between the call_once locks and the GIL. It turns out that
-// calling PyCapsule_Import releases and re-acquires the GIL during the import,
-// so if you have two threads attempting to use the PyDateTimeAPI singleton
-// under the GIL, it causes a deadlock; what happens is:
-//
-// Thread 1 acquires GIL
-// Thread 1 acquires the call_once lock
-// Thread 1 calls PyCapsule_Import, thus releasing the GIL
-// Thread 2 acquires the GIL
-// Thread 2 blocks waiting for the call_once lock
-// Thread 1 blocks waiting for the GIL
-//
-// However, Python's import mechanism acquires a module-specific lock around
-// each import call, so all call importing datetime will return the same
-// object, making the call_once lock superfluous. As such, we can weaken
-// the guarantees of the cache, such that PyDateTime_IMPORT can be called
-// until __PY_DATETIME_API_UNSAFE_CACHE is populated, which will happen exactly
-// one time. So long as PyDateTime_IMPORT has no side effects (it should not),
-// this will be at most a slight waste of resources.
-static PY_DATETIME_API_ONCE: Once = Once::new();
-static mut PY_DATETIME_API_UNSAFE_CACHE: *const PyDateTime_CAPI = ptr::null();
+// Python already shares this object between threads, so it's no more evil for us to do it too!
+unsafe impl Sync for PyDateTime_CAPI {}
+static PY_DATETIME_API: GILOnceCell<&'static PyDateTime_CAPI> = GILOnceCell::new();
 
 #[derive(Debug)]
 pub struct PyDateTimeAPI {
@@ -233,13 +213,7 @@ impl Deref for PyDateTimeAPI {
     type Target = PyDateTime_CAPI;
 
     fn deref(&self) -> &'static PyDateTime_CAPI {
-        unsafe {
-            if !PY_DATETIME_API_UNSAFE_CACHE.is_null() {
-                &(*PY_DATETIME_API_UNSAFE_CACHE)
-            } else {
-                PyDateTime_IMPORT()
-            }
-        }
+        unsafe { PyDateTime_IMPORT() }
     }
 }
 
@@ -251,25 +225,27 @@ impl Deref for PyDateTimeAPI {
 /// Use this function only if you want to eagerly load the datetime module,
 /// such as if you do not want the first call to a datetime function to be
 /// slightly slower than subsequent calls.
+///
+/// # Safety
+/// The Python GIL must be held.
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
-    // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
-    // `PyCapsule_Import` will behave unexpectedly in pypy.
-    #[cfg(PyPy)]
-    let py_datetime_c_api = PyDateTime_Import();
+    let py = Python::assume_gil_acquired();
+    PY_DATETIME_API.get_or_init(py, || {
+        // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
+        // `PyCapsule_Import` will behave unexpectedly in pypy.
+        #[cfg(PyPy)]
+        let py_datetime_c_api = PyDateTime_Import();
 
-    #[cfg(not(PyPy))]
-    let py_datetime_c_api = {
-        // PyDateTime_CAPSULE_NAME is a macro in C
-        let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
+        #[cfg(not(PyPy))]
+        let py_datetime_c_api = {
+            // PyDateTime_CAPSULE_NAME is a macro in C
+            let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
 
-        PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *const PyDateTime_CAPI
-    };
+            &*(PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *const PyDateTime_CAPI)
+        };
 
-    PY_DATETIME_API_ONCE.call_once(move || {
-        PY_DATETIME_API_UNSAFE_CACHE = py_datetime_c_api;
-    });
-
-    &(*PY_DATETIME_API_UNSAFE_CACHE)
+        py_datetime_c_api
+    })
 }
 
 /// Type Check macros

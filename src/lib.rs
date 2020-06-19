@@ -184,6 +184,7 @@ mod instance;
 mod internal_tricks;
 pub mod marshal;
 mod object;
+pub mod once_cell;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;

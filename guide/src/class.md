@@ -565,6 +565,11 @@ impl MyClass {
 }
 ```
 
+Note that defining a class attribute of the same type as the class will make the class unusable.
+Attempting to use the class will cause a panic reading `Recursive evaluation of type_object`.
+As an alternative, if having the attribute on instances is acceptable, create a `#[getter]` which
+uses a `GILOnceCell` to cache the attribute value. Or add the attribute to a module instead.
+
 ## Callable objects
 
 To specify a custom `__call__` method for a custom class, the method needs to be annotated with
@@ -922,10 +927,10 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     const FLAGS: usize = 0;
 
     #[inline]
-    fn type_object() -> &'static pyo3::ffi::PyTypeObject {
+    fn type_object_raw(py: pyo3::Python) -> &'static pyo3::ffi::PyTypeObject {
         use pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-        TYPE_OBJECT.get_or_init::<Self>()
+        TYPE_OBJECT.get_or_init::<Self>(py)
     }
 }
 
