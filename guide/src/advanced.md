@@ -28,3 +28,9 @@ version = "0.8.1"
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 ```
+
+## `nightly` flag
+
+`pyo3/nightly` feature needs nightly compiler, but enables some optimizations as follows:
+- `FromPyObject` for `Vec` and array is optimized when the object can be `PyBuffer`
+- `ToBorrowedObject`, used by `PyDict::set_item` or so, is optimized when the taken object is a Python native type.
