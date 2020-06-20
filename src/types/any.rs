@@ -230,16 +230,16 @@ impl PyAny {
         result
     }
 
-    /// Calls the object with only positional arguments.
+    /// Calls the object without arguments.
     ///
-    /// This is equivalent to the Python expression `self(*args)`.
+    /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         self.call((), None)
     }
 
-    /// Calls the object without arguments.
+    /// Calls the object with only positional arguments.
     ///
-    /// This is equivalent to the Python expression `self()`.
+    /// This is equivalent to the Python expression `self(*args)`.
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
