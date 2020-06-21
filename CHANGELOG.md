@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.11.0] - 2020-06-23
 ### Added
 - Support stable versions of Rust (>=1.39). [#969](https://github.com/PyO3/pyo3/pull/969)
 - Add FFI definition `PyObject_AsFileDescriptor`. [#938](https://github.com/PyO3/pyo3/pull/938)
@@ -426,7 +428,8 @@ Yanked
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.11.0...HEAD
+[0.11.0] https://github.com/pyo3/pyo3/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/pyo3/pyo3/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/pyo3/pyo3/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/pyo3/pyo3/compare/v0.9.1...v0.9.2

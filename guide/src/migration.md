@@ -3,6 +3,9 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
 
+## from 0.10.* to 0.11
+Now PyO3 supports stable Rust toolchain. The minimum required version is 1.39.0.
+
 ## from 0.9.* to 0.10
 
 ### `ObjectProtocol` is removed
