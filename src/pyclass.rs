@@ -1,10 +1,10 @@
 //! `PyClass` trait
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
 use crate::class::proto_methods::PyProtoMethods;
-use crate::conversion::{IntoPyPointer, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyPointer, IntoPyPointer, ToPyObject};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::types::PyDict;
+use crate::types::{PyAny, PyDict};
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -42,14 +42,16 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     /// `self_` must be a valid pointer to the Python heap.
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
-        let obj = self_ as _;
-        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+        let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
+        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
+        {
+            // tp_finalize resurrected.
             return;
         }
 
-        match Self::type_object_raw(py).tp_free {
-            Some(free) => free(obj as *mut c_void),
-            None => tp_free_fallback(obj),
+        match (*ffi::Py_TYPE(obj.as_ptr())).tp_free {
+            Some(free) => free(obj.as_ptr() as *mut c_void),
+            None => tp_free_fallback(obj.as_ptr()),
         }
     }
 }
@@ -66,8 +68,7 @@ fn tp_dealloc<T: PyClassAlloc>() -> Option<ffi::destructor> {
     Some(dealloc::<T>)
 }
 
-#[doc(hidden)]
-pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
+pub(crate) unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
     let ty = ffi::Py_TYPE(obj);
     if ffi::PyType_IS_GC(ty) != 0 {
         ffi::PyObject_GC_Del(obj as *mut c_void);
