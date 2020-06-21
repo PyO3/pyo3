@@ -153,6 +153,7 @@ Now we add the PyO3 annotations to the trait implementation:
 impl Model for UserModel {
   // the previous trait implementation
 }
+```
 
 However, the previous code will not compile. The compilation error is the following one:
 `error: #[pymethods] cannot be used on trait impl blocks`

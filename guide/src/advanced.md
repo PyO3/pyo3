@@ -28,3 +28,9 @@ version = "0.8.1"
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 ```
+
+## The `nightly` feature
+
+The `pyo3/nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
+- `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object is a `PyBuffer`
+- `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.

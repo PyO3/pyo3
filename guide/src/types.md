@@ -46,7 +46,7 @@ references is done at runtime using `PyCell`, a scheme very similar to
 
 ## Object types
 
-### [`PyAny`]
+### [`PyAny`][PyAny]
 
 **Represents:** a Python object of unspecified type, restricted to a GIL
 lifetime.  Currently, `PyAny` can only ever occur as a reference, `&PyAny`.
@@ -95,7 +95,7 @@ These types all implement `Deref<Target = PyAny>`, so they all expose the same
 methods which can be found on `PyAny`.
 
 To see all Python types exposed by `PyO3` you should consult the
-[`pyo3::types`] module.
+[`pyo3::types`][pyo3::types] module.
 
 **Conversions:**
 

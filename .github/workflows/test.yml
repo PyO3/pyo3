@@ -25,7 +25,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           default: true
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
       - name: Build without default features

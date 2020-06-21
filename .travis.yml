@@ -16,23 +16,28 @@ jobs:
       python: "3.7"
     - name: Python 3.8
       python: "3.8"
+      # Run clippy and rustfmt
+      env: RUN_LINT=1
     - name: Python 3.9-dev
       python: "3.9-dev"
-    - name: Minimum nightly
+    - name: Nightly
       python: "3.7"
-      # Keep this synced up with build.rs and ensure that the nightly version does have clippy available
-      # https://static.rust-lang.org/dist/YYYY-MM-DD/clippy-nightly-x86_64-unknown-linux-gnu.tar.gz exists
-      env: TRAVIS_RUST_VERSION=nightly-2020-01-21
+      env: TRAVIS_RUST_VERSION=nightly FEATURES="nightly"
+    - name: Minimum Stable
+      python: "3.7"
+      env: TRAVIS_RUST_VERSION=1.39.0
     - name: PyPy3.5 7.0 # Tested via anaconda PyPy (since travis's PyPy version is too old)
       python: "3.7"
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
+    - name: Nightly
     - python: 3.9-dev
 
 env:
   global:
-    - TRAVIS_RUST_VERSION=nightly
+    - TRAVIS_RUST_VERSION=stable
     - RUST_BACKTRACE=1
+    - RUN_LINT=0
 
 before_install:
   - source ./ci/travis/setup.sh

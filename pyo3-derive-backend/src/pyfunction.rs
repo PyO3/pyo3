@@ -179,22 +179,25 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
         _ => true,
     });
 
-    match &*name_attrs {
-        [] => Ok(None),
-        [(syn::Lit::Str(s), span)] => {
+    if 1 < name_attrs.len() {
+        return Err(syn::Error::new(
+            name_attrs[0].1,
+            "#[name] can not be specified multiple times",
+        ));
+    }
+
+    match name_attrs.get(0) {
+        Some((syn::Lit::Str(s), span)) => {
             let mut ident: syn::Ident = s.parse()?;
             // This span is the whole attribute span, which is nicer for reporting errors.
             ident.set_span(*span);
             Ok(Some(ident))
         }
-        [(_, span)] => Err(syn::Error::new(
+        Some((_, span)) => Err(syn::Error::new(
             *span,
             "Expected string literal for #[name] argument",
         )),
-        [(_, span), ..] => Err(syn::Error::new(
-            *span,
-            "#[name] can not be specified multiple times",
-        )),
+        None => Ok(None),
     }
 }
 

@@ -512,10 +512,11 @@ fn impl_arg_param(
         };
         if let syn::Type::Reference(tref) = ty {
             let (tref, mut_) = tref_preprocess(tref);
-            let as_deref = if mut_.is_some() {
-                quote! { as_deref_mut }
+            // To support Rustc 1.39.0, we don't use as_deref here...
+            let tmp_as_deref = if mut_.is_some() {
+                quote! { _tmp.as_mut().map(std::ops::DerefMut::deref_mut) }
             } else {
-                quote! { as_deref }
+                quote! { _tmp.as_ref().map(std::ops::Deref::deref) }
             };
             // Get Option<&T> from Option<PyRef<T>>
             quote! {
@@ -525,7 +526,7 @@ fn impl_arg_param(
                     },
                     None => #default,
                 };
-                let #arg_name = _tmp.#as_deref();
+                let #arg_name = #tmp_as_deref;
             }
         } else {
             quote! {
@@ -731,8 +732,9 @@ pub(crate) fn impl_py_getter_def(
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
 fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
-    match args {
-        [py, rest @ ..] if utils::if_type_is_python(&py.ty) => (Some(py), rest),
-        rest => (None, rest),
+    if args.get(0).map(|py| utils::if_type_is_python(&py.ty)) == Some(true) {
+        (Some(&args[0]), &args[1..])
+    } else {
+        (None, args)
     }
 }

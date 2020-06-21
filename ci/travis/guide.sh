@@ -21,7 +21,7 @@ mdbook build -d ../target/guide guide
 
 # Build the doc
 # This builds the book in target/doc
-cargo doc --all-features --no-deps
+cargo doc --features="default num-bigint num-complex" --no-deps
 echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/doc/index.html
 
 # Get the lastest tag across all branches

@@ -10,7 +10,7 @@ else
   PYTHON_SYS_EXECUTABLE="/opt/anaconda/envs/pypy3/bin/pypy3" cargo build;
 fi
 
-if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
+if [[ $RUN_LINT == 1 ]]; then
     pip install --pre black==19.3b0
     make lint
 fi

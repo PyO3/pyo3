@@ -8,13 +8,6 @@ use std::{
     process::{Command, Stdio},
     str::FromStr,
 };
-use version_check::{Channel, Date, Version};
-
-/// Specifies the minimum nightly version needed to compile pyo3.
-/// Keep this synced up with the travis ci config,
-/// But note that this is the rustc version which can be lower than the nightly version
-const MIN_DATE: &str = "2020-01-20";
-const MIN_VERSION: &str = "1.42.0-nightly";
 
 const PY3_MIN_MINOR: u8 = 5;
 const CFG_KEY: &str = "py_sys_config";
@@ -76,8 +69,8 @@ impl FromStr for PythonInterpreterKind {
     type Err = Box<dyn std::error::Error>;
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "CPython" => Ok(Self::CPython),
-            "PyPy" => Ok(Self::PyPy),
+            "CPython" => Ok(PythonInterpreterKind::CPython),
+            "PyPy" => Ok(PythonInterpreterKind::PyPy),
             _ => Err(format!("Invalid interpreter: {}", s).into()),
         }
     }
@@ -302,7 +295,7 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
                 );
             }
         }
-        Ok(ok) if !ok.status.success() => bail!("Python script failed: {}"),
+        Ok(ref ok) if !ok.status.success() => bail!("Python script failed: {}"),
         Ok(ok) => Ok(String::from_utf8(ok.stdout)?),
     }
 }
@@ -567,34 +560,7 @@ fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<(
     Ok(())
 }
 
-fn check_rustc_version() -> Result<()> {
-    let channel = Channel::read().ok_or("Failed to determine rustc channel")?;
-    if !channel.supports_features() {
-        bail!("PyO3 requires a nightly or dev version of Rust.");
-    }
-
-    let actual_version = Version::read().ok_or("Failed to determine the rustc version")?;
-    if !actual_version.at_least(MIN_VERSION) {
-        bail!(
-            "PyO3 requires at least rustc {}, while the current version is {}",
-            MIN_VERSION,
-            actual_version
-        )
-    }
-
-    let actual_date = Date::read().ok_or("Failed to determine the rustc date")?;
-    if !actual_date.at_least(MIN_DATE) {
-        bail!(
-            "PyO3 requires at least rustc {}, while the current rustc date is {}",
-            MIN_DATE,
-            actual_date
-        )
-    }
-    Ok(())
-}
-
 fn main() -> Result<()> {
-    check_rustc_version()?;
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
     // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
     // and threading interfaces.  First check if we're cross compiling, if so, we cannot run the
