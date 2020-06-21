@@ -29,8 +29,8 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 ```
 
-## `nightly` flag
+## The `nightly` feature
 
-`pyo3/nightly` feature needs nightly compiler, but enables some optimizations as follows:
-- `FromPyObject` for `Vec` and array is optimized when the object can be `PyBuffer`
-- `ToBorrowedObject`, used by `PyDict::set_item` or so, is optimized when the taken object is a Python native type.
+The `pyo3/nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
+- `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object is a `PyBuffer`
+- `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
