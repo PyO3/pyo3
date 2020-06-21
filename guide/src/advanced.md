@@ -16,19 +16,6 @@ For most use cases this behaviour is invisible. Occasionally, however, users may
 
 The unsafe function `Python::new_pool` allows you to create a new `GILPool`. When doing this, you must be very careful to ensure that once the `GILPool` is dropped you do not retain access any owned references created after the `GILPool` was created.
 
-## Testing
-
-Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` to fail with weird linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
-
-```toml
-[dependencies.pyo3]
-version = "0.8.1"
-
-[features]
-extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
-```
-
 ## The `nightly` feature
 
 The `pyo3/nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
