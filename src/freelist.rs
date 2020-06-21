@@ -72,13 +72,16 @@ impl<T> PyClassAlloc for T
 where
     T: PyTypeInfo + PyClassWithFreeList,
 {
-    unsafe fn alloc(py: Python) -> *mut Self::Layout {
-        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, Self::type_object_raw(py) as *const _ as _);
-            obj as _
-        } else {
-            crate::pyclass::default_alloc::<Self>(py) as _
+    unsafe fn new(py: Python, subtype: *mut ffi::PyTypeObject) -> *mut Self::Layout {
+        let type_obj = Self::type_object_raw(py) as *const _ as _;
+        // if subtype is not equal to this type, we cannot use the freelist
+        if subtype == type_obj {
+            if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
+                ffi::PyObject_Init(obj, subtype);
+                return obj as _;
+            }
         }
+        crate::pyclass::default_new::<Self>(py, subtype) as _
     }
 
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
