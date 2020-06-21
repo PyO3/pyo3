@@ -4,7 +4,72 @@ This guide can help you upgrade code through breaking changes from one PyO3 vers
 For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
 
 ## from 0.10.* to 0.11
-Now PyO3 supports stable Rust toolchain. The minimum required version is 1.39.0.
+
+### Stable Rust
+PyO3 now supports the stable Rust toolchain. The minimum required version is 1.39.0.
+
+### `#[pyclass]` structs must now be `Send`
+Because `#[pyclass]` structs can be sent between threads by the Python interpreter, they must implement
+`Send` to guarantee thread safety. This bound was added in PyO3 `0.11.0`.
+
+This may "break" some code which previously was accepted, even though it was unsound. To resolve this,
+consider using types like `Arc` instead of `Rc`, `Mutex` instead of `RefCell`, and add `Send` to any
+boxed closures stored inside the `#[pyclass]`.
+
+Before:
+```rust,compile_fail
+use pyo3::prelude::*;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+#[pyclass]
+struct NotThreadSafe {
+    shared_bools: Rc<RefCell<Vec<bool>>>,
+    closure: Box<Fn()>
+}
+```
+
+After:
+```rust
+use pyo3::prelude::*;
+use std::sync::{Arc, Mutex};
+
+#[pyclass]
+struct ThreadSafe {
+    shared_bools: Arc<Mutex<Vec<bool>>>,
+    closure: Box<Fn() + Send>
+}
+```
+
+Or in situations where you cannot change your `#[pyclass]` to automatically implement `Send`
+(e.g., when it contains a raw pointer), you can use `unsafe impl Send`.
+In such cases, care should be taken to ensure the struct is actually thread safe.
+See [the Rustnomicon](ttps://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
+
+### All `PyObject` and `Py<T>` methods now take `Python` as an argument
+Previously, a few methods such as `Object::get_refcnt` did not take `Python` as an argument (to
+ensure that the Python GIL was held by the current thread). Technically, this was not sound.
+To migrate, just pass a `py` argument to any calls to these methods.
+
+Before:
+```rust,compile_fail
+use pyo3::prelude::*;
+
+let gil = Python::acquire_gil();
+let py = gil.python();
+
+py.None().get_refcnt();
+```
+
+After:
+```rust
+use pyo3::prelude::*;
+
+let gil = Python::acquire_gil();
+let py = gil.python();
+
+py.None().get_refcnt(py);
+```
 
 ## from 0.9.* to 0.10
 

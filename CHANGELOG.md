@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [0.11.0] - 2020-06-23
+## [0.11.0] - 2020-06-28
 ### Added
 - Support stable versions of Rust (>=1.39). [#969](https://github.com/PyO3/pyo3/pull/969)
 - Add FFI definition `PyObject_AsFileDescriptor`. [#938](https://github.com/PyO3/pyo3/pull/938)
