@@ -79,3 +79,44 @@ fn new_with_two_args() {
     assert_eq!(obj_ref._data1, 10);
     assert_eq!(obj_ref._data2, 20);
 }
+
+#[pyclass(subclass)]
+struct SuperClass {
+    #[pyo3(get)]
+    from_rust: bool,
+}
+
+#[pymethods]
+impl SuperClass {
+    #[new]
+    fn new() -> Self {
+        SuperClass { from_rust: true }
+    }
+}
+
+/// Checks that `subclass.__new__` works correctly.
+/// See https://github.com/PyO3/pyo3/issues/947 for the corresponding bug.
+#[test]
+fn subclass_new() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let super_cls = py.get_type::<SuperClass>();
+    let source = pyo3::indoc::indoc!(
+        r#"
+class Class(SuperClass):
+    def __new__(cls):
+        return super().__new__(cls)  # This should return an instance of Class
+
+    @property
+    def from_rust(self):
+        return False
+c = Class()
+assert c.from_rust is False
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("SuperClass", super_cls).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}

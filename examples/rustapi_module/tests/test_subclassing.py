@@ -6,10 +6,12 @@ PYPY = platform.python_implementation() == "PyPy"
 
 
 class SomeSubClass(Subclassable):
-    pass
+    def __str__(self):
+        return "SomeSubclass"
 
 
 def test_subclassing():
     if not PYPY:
         a = SomeSubClass()
-        _b = str(a) + repr(a)
+        assert str(a) == "SomeSubclass"
+        assert type(a) is SomeSubClass

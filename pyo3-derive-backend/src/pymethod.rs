@@ -193,7 +193,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
-            _cls: *mut pyo3::ffi::PyTypeObject,
+            subtype: *mut pyo3::ffi::PyTypeObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
@@ -204,8 +204,9 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                let _result = pyo3::derive_utils::IntoPyNewResult::into_pynew_result(#body);
-                let cell = pyo3::PyClassInitializer::from(_result?).create_cell(_py)?;
+                let _result = pyo3::derive_utils::IntoPyNewResult::into_pynew_result(#body)?;
+                let initializer = pyo3::PyClassInitializer::from(_result);
+                let cell = initializer.create_cell_from_subtype(_py, subtype)?;
                 Ok(cell as *mut pyo3::ffi::PyObject)
             })
         }

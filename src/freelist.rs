@@ -2,10 +2,9 @@
 
 //! Free allocation list
 
-use crate::ffi;
 use crate::pyclass::{tp_free_fallback, PyClassAlloc};
 use crate::type_object::{PyLayout, PyTypeInfo};
-use crate::Python;
+use crate::{ffi, AsPyPointer, FromPyPointer, PyAny, Python};
 use std::mem;
 use std::os::raw::c_void;
 
@@ -72,25 +71,29 @@ impl<T> PyClassAlloc for T
 where
     T: PyTypeInfo + PyClassWithFreeList,
 {
-    unsafe fn alloc(py: Python) -> *mut Self::Layout {
-        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, Self::type_object_raw(py) as *const _ as _);
-            obj as _
-        } else {
-            crate::pyclass::default_alloc::<Self>(py) as _
+    unsafe fn new(py: Python, subtype: *mut ffi::PyTypeObject) -> *mut Self::Layout {
+        let type_obj = Self::type_object_raw(py) as *const _ as _;
+        // if subtype is not equal to this type, we cannot use the freelist
+        if subtype == type_obj {
+            if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
+                ffi::PyObject_Init(obj, subtype);
+                return obj as _;
+            }
         }
+        crate::pyclass::default_new::<Self>(py, subtype) as _
     }
 
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
-
-        let obj = self_ as _;
-        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+        let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
+        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
+        {
+            // tp_finalize resurrected.
             return;
         }
 
-        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj) {
-            match Self::type_object_raw(py).tp_free {
+        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj.as_ptr()) {
+            match (*ffi::Py_TYPE(obj)).tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => tp_free_fallback(obj),
             }

@@ -1,37 +1,39 @@
 //! `PyClass` trait
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
 use crate::class::proto_methods::PyProtoMethods;
-use crate::conversion::{IntoPyPointer, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyPointer, IntoPyPointer, ToPyObject};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::types::PyDict;
+use crate::types::{PyAny, PyDict};
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
 
 #[inline]
-pub(crate) unsafe fn default_alloc<T: PyTypeInfo>(py: Python) -> *mut ffi::PyObject {
-    let type_obj = T::type_object_raw(py);
+pub(crate) unsafe fn default_new<T: PyTypeInfo>(
+    py: Python,
+    subtype: *mut ffi::PyTypeObject,
+) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
         let base_tp = T::BaseType::type_object_raw(py);
         if let Some(base_new) = base_tp.tp_new {
-            return base_new(type_obj as *const _ as _, ptr::null_mut(), ptr::null_mut());
+            return base_new(subtype, ptr::null_mut(), ptr::null_mut());
         }
     }
-    let alloc = type_obj.tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-    alloc(type_obj as *const _ as _, 0)
+    let alloc = (*subtype).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+    alloc(subtype, 0) as _
 }
 
-/// This trait enables custom alloc/dealloc implementations for `T: PyClass`.
+/// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
 pub trait PyClassAlloc: PyTypeInfo + Sized {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
     /// This function must return a valid pointer to the Python heap.
-    unsafe fn alloc(py: Python) -> *mut Self::Layout {
-        default_alloc::<Self>(py) as _
+    unsafe fn new(py: Python, subtype: *mut ffi::PyTypeObject) -> *mut Self::Layout {
+        default_new::<Self>(py, subtype) as _
     }
 
     /// Deallocate `#[pyclass]` on the Python heap.
@@ -40,20 +42,33 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     /// `self_` must be a valid pointer to the Python heap.
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
-        let obj = self_ as _;
-        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+        let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
+        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
+        {
+            // tp_finalize resurrected.
             return;
         }
 
-        match Self::type_object_raw(py).tp_free {
-            Some(free) => free(obj as *mut c_void),
-            None => tp_free_fallback(obj),
+        match (*ffi::Py_TYPE(obj.as_ptr())).tp_free {
+            Some(free) => free(obj.as_ptr() as *mut c_void),
+            None => tp_free_fallback(obj.as_ptr()),
         }
     }
 }
 
-#[doc(hidden)]
-pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
+fn tp_dealloc<T: PyClassAlloc>() -> Option<ffi::destructor> {
+    unsafe extern "C" fn dealloc<T>(obj: *mut ffi::PyObject)
+    where
+        T: PyClassAlloc,
+    {
+        let pool = crate::GILPool::new();
+        let py = pool.python();
+        <T as PyClassAlloc>::dealloc(py, (obj as *mut T::Layout) as _)
+    }
+    Some(dealloc::<T>)
+}
+
+pub(crate) unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
     let ty = ffi::Py_TYPE(obj);
     if ffi::PyType_IS_GC(ty) != 0 {
         ffi::PyObject_GC_Del(obj as *mut c_void);
@@ -115,15 +130,7 @@ where
     };
 
     // dealloc
-    unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
-    where
-        T: PyClassAlloc,
-    {
-        let pool = crate::GILPool::new();
-        let py = pool.python();
-        <T as PyClassAlloc>::dealloc(py, (obj as *mut T::Layout) as _)
-    }
-    type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
+    type_object.tp_dealloc = tp_dealloc::<T>();
 
     // type size
     type_object.tp_basicsize = std::mem::size_of::<T::Layout>() as ffi::Py_ssize_t;

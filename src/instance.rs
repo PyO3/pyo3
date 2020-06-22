@@ -59,7 +59,7 @@ where
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         let initializer = value.into();
-        let obj = unsafe { initializer.create_cell(py)? };
+        let obj = initializer.create_cell(py)?;
         let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
         Ok(ob)
     }

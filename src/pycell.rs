@@ -334,13 +334,16 @@ impl<T: PyClass> PyCell<T> {
         std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
-    /// Allocates new PyCell without initilizing value.
+    /// Allocates a new PyCell given a type object `subtype`. Used by our `tp_new` implementation.
     /// Requires `T::BaseLayout: PyBorrowFlagLayout<T::BaseType>` to ensure `self` has a borrow flag.
-    pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
+    pub(crate) unsafe fn internal_new(
+        py: Python,
+        subtype: *mut ffi::PyTypeObject,
+    ) -> PyResult<*mut Self>
     where
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
-        let base = T::alloc(py);
+        let base = T::new(py, subtype);
         if base.is_null() {
             return Err(PyErr::fetch(py));
         }
