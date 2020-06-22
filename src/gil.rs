@@ -372,7 +372,8 @@ extern "C" fn finalize() {
 
 /// Ensure the GIL is held, useful in implementation of APIs like PyErr::new where it's
 /// inconvenient to force the user to acquire the GIL.
-pub(crate) fn ensure_gil() -> EnsureGIL {
+#[doc(hidden)]
+pub fn ensure_gil() -> EnsureGIL {
     if gil_is_acquired() {
         EnsureGIL(None)
     } else {
@@ -381,7 +382,8 @@ pub(crate) fn ensure_gil() -> EnsureGIL {
 }
 
 /// Struct used internally which avoids acquiring the GIL where it's not necessary.
-pub(crate) struct EnsureGIL(Option<GILGuard>);
+#[doc(hidden)]
+pub struct EnsureGIL(Option<GILGuard>);
 
 impl EnsureGIL {
     /// Get the GIL token.
