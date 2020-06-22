@@ -198,14 +198,14 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             use pyo3::type_object::PyTypeInfo;
+            use std::convert::TryFrom;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             pyo3::callback_body_without_convert!(_py, {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                let _result = pyo3::derive_utils::IntoPyNewResult::into_pynew_result(#body)?;
-                let initializer = pyo3::PyClassInitializer::from(_result);
+                let initializer = pyo3::PyClassInitializer::try_from(#body)?;
                 let cell = initializer.create_cell_from_subtype(_py, subtype)?;
                 Ok(cell as *mut pyo3::ffi::PyObject)
             })
@@ -350,9 +350,9 @@ fn impl_call_setter(spec: &FnSpec) -> syn::Result<TokenStream> {
 
     let name = &spec.name;
     let fncall = if py_arg.is_some() {
-        quote!(pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name(_py, _val))?)
+        quote!(_slf.#name(_py, _val))
     } else {
-        quote!(pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name(_val))?)
+        quote!(_slf.#name(_val))
     };
 
     Ok(fncall)

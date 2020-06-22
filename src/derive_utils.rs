@@ -8,9 +8,8 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
-use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::{ffi, GILPool, IntoPy, PyCell, PyObject, Python};
+use crate::{ffi, GILPool, IntoPy, PyCell, Python};
 use std::cell::UnsafeCell;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -153,45 +152,6 @@ impl ModuleDef {
         module.add("__doc__", doc)?;
         initializer(py, module)?;
         Ok(crate::IntoPyPointer::into_ptr(module))
-    }
-}
-
-/// This trait wraps a T: IntoPy<PyObject> into PyResult<T> while PyResult<T> remains PyResult<T>.
-///
-/// This is necessary because proc macros run before typechecking and can't decide
-/// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
-/// the codegen is currently built on the assumption that all functions return a PyResult.
-pub trait IntoPyResult<T> {
-    fn into_py_result(self) -> PyResult<T>;
-}
-
-impl<T: IntoPy<PyObject>> IntoPyResult<T> for T {
-    fn into_py_result(self) -> PyResult<T> {
-        Ok(self)
-    }
-}
-
-impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
-    fn into_py_result(self) -> PyResult<T> {
-        self
-    }
-}
-
-/// Variant of IntoPyResult for the specific case of `#[new]`. In the case of returning (Sub, Base)
-/// from `#[new]`, IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
-pub trait IntoPyNewResult<T: PyClass, I: Into<PyClassInitializer<T>>> {
-    fn into_pynew_result(self) -> PyResult<I>;
-}
-
-impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for I {
-    fn into_pynew_result(self) -> PyResult<I> {
-        Ok(self)
-    }
-}
-
-impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyResult<I> {
-    fn into_pynew_result(self) -> PyResult<I> {
-        self
     }
 }
 
