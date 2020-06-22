@@ -927,7 +927,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     const FLAGS: usize = 0;
 
     #[inline]
-    fn type_object_raw(py: pyo3::Python) -> &'static pyo3::ffi::PyTypeObject {
+    fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
         use pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)

@@ -101,21 +101,16 @@ pub unsafe trait PyTypeInfo: Sized {
     type AsRefTarget: crate::PyNativeType;
 
     /// PyTypeObject instance for this type.
-    fn type_object_raw(py: Python) -> &'static ffi::PyTypeObject;
+    fn type_object_raw(py: Python) -> *mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
     fn is_instance(object: &PyAny) -> bool {
-        unsafe {
-            ffi::PyObject_TypeCheck(
-                object.as_ptr(),
-                Self::type_object(object.py()) as *const _ as _,
-            ) != 0
-        }
+        unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
     fn is_exact_instance(object: &PyAny) -> bool {
-        unsafe { (*object.as_ptr()).ob_type == Self::type_object(object.py()) as *const _ as _ }
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object_raw(object.py()) }
     }
 }
 
@@ -135,7 +130,7 @@ where
     T: PyTypeInfo,
 {
     fn type_object(py: Python) -> &PyType {
-        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as *const _ as _) }
+        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
     }
 }
 
@@ -143,7 +138,7 @@ where
 #[doc(hidden)]
 pub struct LazyStaticType {
     // Boxed because Python expects the type object to have a stable address.
-    value: GILOnceCell<Box<ffi::PyTypeObject>>,
+    value: GILOnceCell<*mut ffi::PyTypeObject>,
     // Threads which have begun initialization. Used for reentrant initialization detection.
     initializing_threads: Mutex<Vec<ThreadId>>,
 }
@@ -156,42 +151,38 @@ impl LazyStaticType {
         }
     }
 
-    pub fn get_or_init<T: PyClass>(&self, py: Python) -> &ffi::PyTypeObject {
-        self.value
-            .get_or_init(py, || {
-                {
-                    // Code evaluated at class init time, such as class attributes, might lead to
-                    // recursive initalization of the type object if the class attribute is the same
-                    // type as the class.
-                    //
-                    // That could lead to all sorts of unsafety such as using incomplete type objects
-                    // to initialize class instances, so recursive initialization is prevented.
-                    let thread_id = thread::current().id();
-                    let mut threads = self.initializing_threads.lock();
-                    if threads.contains(&thread_id) {
-                        panic!("Recursive initialization of type_object for {}", T::NAME);
-                    } else {
-                        threads.push(thread_id)
-                    }
+    pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
+        *self.value.get_or_init(py, || {
+            {
+                // Code evaluated at class init time, such as class attributes, might lead to
+                // recursive initalization of the type object if the class attribute is the same
+                // type as the class.
+                //
+                // That could lead to all sorts of unsafety such as using incomplete type objects
+                // to initialize class instances, so recursive initialization is prevented.
+                let thread_id = thread::current().id();
+                let mut threads = self.initializing_threads.lock();
+                if threads.contains(&thread_id) {
+                    panic!("Recursive initialization of type_object for {}", T::NAME);
+                } else {
+                    threads.push(thread_id)
                 }
+            }
 
-                // Okay, not recursive initialization - can proceed safely.
-                let mut type_object = Box::new(ffi::PyTypeObject_INIT);
+            // Okay, not recursive initialization - can proceed safely.
+            let mut type_object = Box::new(ffi::PyTypeObject_INIT);
 
-                initialize_type_object::<T>(py, T::MODULE, type_object.as_mut()).unwrap_or_else(
-                    |e| {
-                        e.print(py);
-                        panic!("An error occurred while initializing class {}", T::NAME)
-                    },
-                );
+            initialize_type_object::<T>(py, T::MODULE, type_object.as_mut()).unwrap_or_else(|e| {
+                e.print(py);
+                panic!("An error occurred while initializing class {}", T::NAME)
+            });
 
-                // Initialization successfully complete, can clear the thread list.
-                // (No futher calls to get_or_init() will try to init, on any thread.)
-                *self.initializing_threads.lock() = Vec::new();
+            // Initialization successfully complete, can clear the thread list.
+            // (No futher calls to get_or_init() will try to init, on any thread.)
+            *self.initializing_threads.lock() = Vec::new();
 
-                type_object
-            })
-            .as_ref()
+            Box::into_raw(type_object)
+        })
     }
 }
 

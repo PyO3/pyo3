@@ -120,7 +120,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         T: PyClass,
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
-        unsafe { self.create_cell_from_subtype(py, T::type_object_raw(py) as *const _ as _) }
+        unsafe { self.create_cell_from_subtype(py, T::type_object_raw(py)) }
     }
 
     /// Create a new PyCell and initialize it given a typeobject `subtype`.
