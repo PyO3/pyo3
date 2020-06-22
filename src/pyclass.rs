@@ -1,10 +1,10 @@
 //! `PyClass` trait
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
 use crate::class::proto_methods::PyProtoMethods;
-use crate::conversion::{AsPyPointer, FromPyPointer, IntoPyPointer, ToPyObject};
+use crate::conversion::{AsPyPointer, FromPyPointer};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::types::{PyAny, PyDict};
+use crate::types::PyAny;
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -188,21 +188,12 @@ where
     // buffer protocol
     type_object.tp_as_buffer = T::buffer_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
 
-    let (new, call, mut methods, attrs) = py_class_method_defs::<T>();
+    let (new, call, mut methods) = py_class_method_defs::<T>();
 
     // normal methods
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as _;
-    }
-
-    // class attributes
-    if !attrs.is_empty() {
-        let dict = PyDict::new(py);
-        for attr in attrs {
-            dict.set_item(attr.name, (attr.meth)(py))?;
-        }
-        type_object.tp_dict = dict.to_object(py).into_ptr();
     }
 
     // __new__ method
@@ -248,14 +239,19 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
+pub(crate) fn py_class_attributes<T: PyMethods>() -> impl Iterator<Item = PyClassAttributeDef> {
+    T::py_methods().into_iter().filter_map(|def| match def {
+        PyMethodDefType::ClassAttribute(attr) => Some(*attr),
+        _ => None,
+    })
+}
+
 fn py_class_method_defs<T: PyMethods>() -> (
     Option<ffi::newfunc>,
     Option<ffi::PyCFunctionWithKeywords>,
     Vec<ffi::PyMethodDef>,
-    Vec<PyClassAttributeDef>,
 ) {
     let mut defs = Vec::new();
-    let mut attrs = Vec::new();
     let mut call = None;
     let mut new = None;
 
@@ -278,14 +274,11 @@ fn py_class_method_defs<T: PyMethods>() -> (
             | PyMethodDefType::Static(ref def) => {
                 defs.push(def.as_method_def());
             }
-            PyMethodDefType::ClassAttribute(def) => {
-                attrs.push(def);
-            }
             _ => (),
         }
     }
 
-    (new, call, defs, attrs)
+    (new, call, defs)
 }
 
 fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {

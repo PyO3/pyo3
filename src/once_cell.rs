@@ -58,6 +58,10 @@ impl<T> GILOnceCell<T> {
     ///     calling `f()`. Even when this happens `GILOnceCell` guarantees that only **one** write
     ///     to the cell ever occurs - other threads will simply discard the value they compute and
     ///     return the result of the first complete computation.
+    ///  3) if f() does not release the GIL and does not panic, it is guaranteed to be called
+    ///     exactly once, even if multiple threads attempt to call `get_or_init`
+    ///  4) if f() can panic but still does not release the GIL, it may be called multiple times,
+    ///     but it is guaranteed that f() will never be called concurrently
     pub fn get_or_init<F>(&self, py: Python, f: F) -> &T
     where
         F: FnOnce() -> T,
