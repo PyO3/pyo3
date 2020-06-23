@@ -195,6 +195,12 @@ mod python;
 pub mod type_object;
 pub mod types;
 
+/// Internal utilities exposed for rust-numpy
+#[doc(hidden)]
+pub mod internal_utils {
+    pub use crate::gil::{ensure_gil, EnsureGIL};
+}
+
 /// The proc macros, which are also part of the prelude.
 #[cfg(feature = "macros")]
 pub mod proc_macro {
