@@ -808,10 +808,9 @@ It includes two methods `__iter__` and `__next__`:
   * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
   * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
-Returning `Ok(None)` from `__next__` indicates that that there are no further items.
+Returning `None` from `__next__` indicates that that there are no further items.
 These two methods can be take either `PyRef<Self>` or `PyRefMut<Self>` as their
 first argument, so that mutable borrow can be avoided if needed.
-
 
 Example:
 
@@ -890,6 +889,14 @@ impl PyIterProtocol for Container {
 
 For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
 documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
+
+#### Returning a value from iteration
+
+This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.
+In Python a generator can also return a value. To express this in Rust, PyO3 provides the
+[`IterNextOutput`](https://docs.rs/pyo3/latest/pyo3/class/iter/enum.IterNextOutput.html) enum to
+both `Yield` values and `Return` a final value - see its docs for further details and an example.
+
 
 ## How methods are implemented
 

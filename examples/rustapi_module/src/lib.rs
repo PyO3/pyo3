@@ -3,4 +3,5 @@ pub mod datetime;
 pub mod dict_iter;
 pub mod objstore;
 pub mod othermod;
+pub mod pyclass_iter;
 pub mod subclassing;
