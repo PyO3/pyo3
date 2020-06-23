@@ -143,8 +143,11 @@ macro_rules! pyobject_native_type_convert(
             const MODULE: Option<&'static str> = $module;
 
             #[inline]
-            fn type_object_raw(_py: Python) -> &'static $crate::ffi::PyTypeObject {
-                unsafe{ &$typeobject }
+            fn type_object_raw(_py: Python) -> *mut $crate::ffi::PyTypeObject {
+                // Create a very short lived mutable reference and directly
+                // cast it to a pointer: no mutable references can be aliasing
+                // because we hold the GIL.
+                unsafe { &mut $typeobject }
             }
 
             #[allow(unused_unsafe)]

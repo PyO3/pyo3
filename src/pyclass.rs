@@ -18,7 +18,7 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
         let base_tp = T::BaseType::type_object_raw(py);
-        if let Some(base_new) = base_tp.tp_new {
+        if let Some(base_new) = (*base_tp).tp_new {
             return base_new(subtype, ptr::null_mut(), ptr::null_mut());
         }
     }
@@ -122,7 +122,7 @@ where
         s => CString::new(s)?.into_raw(),
     };
 
-    type_object.tp_base = T::BaseType::type_object_raw(py) as *const _ as _;
+    type_object.tp_base = T::BaseType::type_object_raw(py);
 
     type_object.tp_name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
