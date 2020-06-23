@@ -689,7 +689,7 @@ Python object behavior, you need to implement the specific trait for your struct
 each protocol implementation block has to be annotated with the `#[pyproto]` attribute.
 
 All `#[pyproto]` methods which can be defined below can return `T` instead of `PyResult<T>` if the
-method implementation is infallible.
+method implementation is infallible. In addition, if the return type is `()`, it can be omitted altogether.
 
 ### Basic object customization
 

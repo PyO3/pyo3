@@ -54,17 +54,16 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRef<Self>) -> PyResult<PyObject> {
-        let py = unsafe { Python::assume_gil_acquired() };
-        Ok(slf.into_py(py))
+    fn __iter__(slf: PyRef<Self>) -> PyRef<'p, Self> {
+        slf
     }
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
-        let py = unsafe { Python::assume_gil_acquired() };
-        let bytes = slf.keys.as_ref(py).as_bytes();
+        let bytes = slf.keys.as_ref(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;
+                let py = slf.py();
                 let reader = slf.reader.as_ref(py);
                 let reader_ref = reader.try_borrow()?;
                 let res = reader_ref

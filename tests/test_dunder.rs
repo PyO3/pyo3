@@ -18,8 +18,8 @@ pub struct Len {
 
 #[pyproto]
 impl PyMappingProtocol for Len {
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.l)
+    fn __len__(&self) -> usize {
+        self.l
     }
 }
 
@@ -52,12 +52,12 @@ struct Iterator {
 
 #[pyproto]
 impl<'p> PyIterProtocol for Iterator {
-    fn __iter__(slf: PyRef<'p, Self>) -> PyResult<Py<Iterator>> {
-        Ok(slf.into())
+    fn __iter__(slf: PyRef<'p, Self>) -> Py<Iterator> {
+        slf.into()
     }
 
-    fn __next__(mut slf: PyRefMut<'p, Self>) -> PyResult<Option<i32>> {
-        Ok(slf.iter.next())
+    fn __next__(mut slf: PyRefMut<'p, Self>) -> Option<i32> {
+        slf.iter.next()
     }
 }
 
@@ -82,21 +82,21 @@ struct StringMethods {}
 
 #[pyproto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
-    fn __str__(&self) -> PyResult<&'static str> {
-        Ok("str")
+    fn __str__(&self) -> &'static str {
+        "str"
     }
 
-    fn __repr__(&self) -> PyResult<&'static str> {
-        Ok("repr")
+    fn __repr__(&self) -> &'static str {
+        "repr"
     }
 
-    fn __format__(&self, format_spec: String) -> PyResult<String> {
-        Ok(format!("format({})", format_spec))
+    fn __format__(&self, format_spec: String) -> String {
+        format!("format({})", format_spec)
     }
 
-    fn __bytes__(&self) -> PyResult<PyObject> {
+    fn __bytes__(&self) -> PyObject {
         let gil = GILGuard::acquire();
-        Ok(PyBytes::new(gil.python(), b"bytes").into())
+        PyBytes::new(gil.python(), b"bytes").into()
     }
 }
 
@@ -119,11 +119,11 @@ struct Comparisons {
 
 #[pyproto]
 impl PyObjectProtocol for Comparisons {
-    fn __hash__(&self) -> PyResult<isize> {
-        Ok(self.val as isize)
+    fn __hash__(&self) -> isize {
+        self.val as isize
     }
-    fn __bool__(&self) -> PyResult<bool> {
-        Ok(self.val != 0)
+    fn __bool__(&self) -> bool {
+        self.val != 0
     }
 }
 
@@ -162,8 +162,8 @@ impl Default for Sequence {
 
 #[pyproto]
 impl PySequenceProtocol for Sequence {
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.fields.len())
+    fn __len__(&self) -> usize {
+        self.fields.len()
     }
 
     fn __getitem__(&self, key: isize) -> PyResult<String> {
@@ -211,8 +211,8 @@ struct Callable {}
 #[pymethods]
 impl Callable {
     #[__call__]
-    fn __call__(&self, arg: i32) -> PyResult<i32> {
-        Ok(arg * 6)
+    fn __call__(&self, arg: i32) -> i32 {
+        arg * 6
     }
 }
 
@@ -238,10 +238,9 @@ struct SetItem {
 
 #[pyproto]
 impl PyMappingProtocol<'a> for SetItem {
-    fn __setitem__(&mut self, key: i32, val: i32) -> PyResult<()> {
+    fn __setitem__(&mut self, key: i32, val: i32) {
         self.key = key;
         self.val = val;
-        Ok(())
     }
 }
 
@@ -267,9 +266,8 @@ struct DelItem {
 
 #[pyproto]
 impl PyMappingProtocol<'a> for DelItem {
-    fn __delitem__(&mut self, key: i32) -> PyResult<()> {
+    fn __delitem__(&mut self, key: i32) {
         self.key = key;
-        Ok(())
     }
 }
 
@@ -294,14 +292,12 @@ struct SetDelItem {
 
 #[pyproto]
 impl PyMappingProtocol for SetDelItem {
-    fn __setitem__(&mut self, _key: i32, val: i32) -> PyResult<()> {
+    fn __setitem__(&mut self, _key: i32, val: i32) {
         self.val = Some(val);
-        Ok(())
     }
 
-    fn __delitem__(&mut self, _key: i32) -> PyResult<()> {
+    fn __delitem__(&mut self, _key: i32) {
         self.val = None;
-        Ok(())
     }
 }
 
@@ -326,8 +322,8 @@ struct Reversed {}
 
 #[pyproto]
 impl PyMappingProtocol for Reversed {
-    fn __reversed__(&self) -> PyResult<&'static str> {
-        Ok("I am reversed")
+    fn __reversed__(&self) -> &'static str {
+        "I am reversed"
     }
 }
 
@@ -345,8 +341,8 @@ struct Contains {}
 
 #[pyproto]
 impl PySequenceProtocol for Contains {
-    fn __contains__(&self, item: i32) -> PyResult<bool> {
-        Ok(item >= 0)
+    fn __contains__(&self, item: i32) -> bool {
+        item >= 0
     }
 }
 
@@ -368,8 +364,8 @@ struct ContextManager {
 
 #[pyproto]
 impl<'p> PyContextProtocol<'p> for ContextManager {
-    fn __enter__(&mut self) -> PyResult<i32> {
-        Ok(42)
+    fn __enter__(&mut self) -> i32 {
+        42
     }
 
     fn __exit__(
@@ -377,14 +373,10 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
         ty: Option<&'p PyType>,
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
-    ) -> PyResult<bool> {
+    ) -> bool {
         let gil = GILGuard::acquire();
         self.exit_called = true;
-        if ty == Some(gil.python().get_type::<ValueError>()) {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        ty == Some(gil.python().get_type::<ValueError>())
     }
 }
 
@@ -540,8 +532,8 @@ struct ClassWithGetAttr {
 
 #[pyproto]
 impl PyObjectProtocol for ClassWithGetAttr {
-    fn __getattr__(&self, _name: &str) -> PyResult<u32> {
-        Ok(self.data * 2)
+    fn __getattr__(&self, _name: &str) -> u32 {
+        self.data * 2
     }
 }
 
@@ -574,22 +566,22 @@ impl OnceFuture {
 
 #[pyproto]
 impl PyAsyncProtocol for OnceFuture {
-    fn __await__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
-        Ok(slf)
+    fn __await__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        slf
     }
 }
 
 #[pyproto]
 impl PyIterProtocol for OnceFuture {
-    fn __iter__(slf: PyRef<'p, Self>) -> PyResult<PyRef<'p, Self>> {
-        Ok(slf)
+    fn __iter__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        slf
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
         if !slf.polled {
             slf.polled = true;
-            Ok(Some(slf.future.clone()))
+            Some(slf.future.clone())
         } else {
-            Ok(None)
+            None
         }
     }
 }
@@ -645,17 +637,12 @@ impl PyDescrProtocol for DescrCounter {
         mut slf: PyRefMut<'p, Self>,
         _instance: &PyAny,
         _owner: Option<&'p PyType>,
-    ) -> PyResult<PyRefMut<'p, Self>> {
+    ) -> PyRefMut<'p, Self> {
         slf.count += 1;
-        Ok(slf)
+        slf
     }
-    fn __set__(
-        _slf: PyRef<'p, Self>,
-        _instance: &PyAny,
-        mut new_value: PyRefMut<'p, Self>,
-    ) -> PyResult<()> {
+    fn __set__(_slf: PyRef<'p, Self>, _instance: &PyAny, mut new_value: PyRefMut<'p, Self>) {
         new_value.count = _slf.count;
-        Ok(())
     }
 }
 
