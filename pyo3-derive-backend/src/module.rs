@@ -140,12 +140,14 @@ pub fn add_fn_to_module(
     pyfn_attrs: Vec<pyfunction::Argument>,
 ) -> syn::Result<TokenStream> {
     let mut arguments = Vec::new();
-    let mut self_ = None;
 
     for input in func.sig.inputs.iter() {
         match input {
-            syn::FnArg::Receiver(recv) => {
-                self_ = Some(recv.mutability.is_some());
+            syn::FnArg::Receiver(_) => {
+                return Err(syn::Error::new_spanned(
+                    input,
+                    "Unexpected receiver for #[pyfn]",
+                ))
             }
             syn::FnArg::Typed(ref cap) => {
                 arguments.push(wrap_fn_argument(cap, &func.sig.ident)?);
@@ -161,8 +163,7 @@ pub fn add_fn_to_module(
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
     let spec = method::FnSpec {
-        tp: method::FnType::Fn,
-        self_,
+        tp: method::FnType::FnStatic,
         name: &function_wrapper_ident,
         python_name,
         attrs: pyfn_attrs,

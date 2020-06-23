@@ -1,0 +1,14 @@
+error[E0277]: the trait bound `i32: std::convert::From<&pyo3::pycell::PyCell<MyClass>>` is not satisfied
+ --> $DIR/invalid_pymethod_receiver.rs:8:43
+  |
+8 |     fn method_with_invalid_self_type(slf: i32, py: Python, index: u32) {}
+  |                                           ^^^ the trait `std::convert::From<&pyo3::pycell::PyCell<MyClass>>` is not implemented for `i32`
+  |
+  = help: the following implementations were found:
+            <i32 as std::convert::From<bool>>
+            <i32 as std::convert::From<i16>>
+            <i32 as std::convert::From<i8>>
+            <i32 as std::convert::From<std::num::NonZeroI32>>
+          and 2 others
+  = note: required because of the requirements on the impl of `std::convert::Into<i32>` for `&pyo3::pycell::PyCell<MyClass>`
+  = note: required because of the requirements on the impl of `std::convert::TryFrom<&pyo3::pycell::PyCell<MyClass>>` for `i32`

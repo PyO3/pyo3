@@ -2,7 +2,7 @@
 
 use crate::defs;
 use crate::func::impl_method_proto;
-use crate::method::FnSpec;
+use crate::method::{FnSpec, FnType};
 use crate::pymethod;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -75,7 +75,16 @@ fn impl_proto_impl(
             if let Some(m) = proto.get_method(&met.sig.ident) {
                 let name = &met.sig.ident;
                 let fn_spec = FnSpec::parse(&met.sig, &mut met.attrs, false)?;
-                let method = pymethod::impl_proto_wrap(ty, &fn_spec);
+
+                let method = if let FnType::Fn(self_ty) = &fn_spec.tp {
+                    pymethod::impl_proto_wrap(ty, &fn_spec, &self_ty)
+                } else {
+                    return Err(syn::Error::new_spanned(
+                        &met.sig,
+                        "Expected method with receiver for #[pyproto] method",
+                    ));
+                };
+
                 let coexist = if m.can_coexist {
                     // We need METH_COEXIST here to prevent __add__  from overriding __radd__
                     quote!(pyo3::ffi::METH_COEXIST)

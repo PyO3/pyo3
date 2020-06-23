@@ -1,4 +1,4 @@
-error: name not allowed with this attribute
+error: name not allowed with this method type
   --> $DIR/invalid_pymethod_names.rs:10:5
    |
 10 |     #[name = "num"]
@@ -10,7 +10,7 @@ error: #[name] can not be specified multiple times
 17 |     #[name = "foo"]
    |     ^
 
-error: name not allowed with this attribute
+error: name not allowed with this method type
   --> $DIR/invalid_pymethod_names.rs:24:5
    |
 24 |     #[name = "makenew"]
