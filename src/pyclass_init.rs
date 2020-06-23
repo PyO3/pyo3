@@ -1,6 +1,7 @@
 //! Initialization utilities for `#[pyclass]`.
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::{PyCell, PyClass, PyResult, Python};
+use crate::{PyCell, PyClass, PyErr, PyResult, Python};
+use std::convert::TryFrom;
 use std::marker::PhantomData;
 
 /// Initializer for Python types.
@@ -176,5 +177,19 @@ where
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
+    }
+}
+
+// Implementation which propagates the error from input PyResult. Useful in proc macro
+// code where `#[new]` may or may not return PyResult.
+impl<T, U> TryFrom<PyResult<U>> for PyClassInitializer<T>
+where
+    T: PyClass,
+    U: Into<PyClassInitializer<T>>,
+{
+    type Error = PyErr;
+
+    fn try_from(result: PyResult<U>) -> PyResult<Self> {
+        result.map(Into::into)
     }
 }
