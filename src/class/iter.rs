@@ -30,14 +30,12 @@ pub trait PyIterProtocol<'p>: PyClass {
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
-    type Success: crate::IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
-    type Success: crate::IntoPy<PyObject>;
-    type Result: Into<PyResult<Option<Self::Success>>>;
+    type Result: IntoPyCallbackOutput<IterNextOutput>;
 }
 
 #[derive(Default)]
@@ -62,20 +60,26 @@ impl PyIterMethods {
     where
         T: for<'p> PyIterNextProtocol<'p>,
     {
-        self.tp_iternext = py_unarys_func!(PyIterNextProtocol, T::__next__, IterNextConverter);
+        self.tp_iternext = py_unarys_func!(PyIterNextProtocol, T::__next__);
     }
 }
 
-struct IterNextConverter<T>(Option<T>);
+pub struct IterNextOutput(Option<PyObject>);
 
-impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextConverter<T>
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self.0 {
+            Some(o) => Ok(o.into_ptr()),
+            None => Err(crate::exceptions::StopIteration::py_err(())),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<IterNextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
-        match self.0 {
-            Some(val) => Ok(val.into_py(py).into_ptr()),
-            None => Err(crate::exceptions::StopIteration::py_err(())),
-        }
+    fn convert(self, py: Python) -> PyResult<IterNextOutput> {
+        Ok(IterNextOutput(self.map(|o| o.into_py(py))))
     }
 }

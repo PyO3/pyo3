@@ -3,8 +3,9 @@
 //! Python Sequence Interface
 //! Trait and support implementation for implementing sequence
 
+use crate::callback::IntoPyCallbackOutput;
 use crate::conversion::{FromPyObject, IntoPy};
-use crate::err::{PyErr, PyResult};
+use crate::err::PyErr;
 use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
@@ -79,51 +80,52 @@ pub trait PySequenceProtocol<'p>: PyClass + Sized {
 // the existance of a slotted method.
 
 pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
-    type Result: Into<PyResult<usize>>;
+    type Result: IntoPyCallbackOutput<usize>;
 }
 
 pub trait PySequenceGetItemProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PySequenceSetItemProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
     type Value: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PySequenceDelItemProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PySequenceContainsProtocol<'p>: PySequenceProtocol<'p> {
     type Item: FromPyObject<'p>;
-    type Result: Into<PyResult<bool>>;
+    type Result: IntoPyCallbackOutput<bool>;
 }
 
 pub trait PySequenceConcatProtocol<'p>: PySequenceProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
+pub trait PySequenceInplaceConcatProtocol<'p>:
+    PySequenceProtocol<'p> + IntoPy<PyObject> + 'p
+{
     type Other: FromPyObject<'p>;
-    type Result: Into<PyResult<Self>>;
+    type Result: IntoPyCallbackOutput<Self>;
 }
 
-pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
+pub trait PySequenceInplaceRepeatProtocol<'p>:
+    PySequenceProtocol<'p> + IntoPy<PyObject> + 'p
+{
     type Index: FromPyObject<'p> + From<isize>;
-    type Result: Into<PyResult<Self>>;
+    type Result: IntoPyCallbackOutput<Self>;
 }
 
 #[doc(hidden)]
@@ -230,7 +232,7 @@ mod sq_ass_item_impl {
                 let mut slf = slf.try_borrow_mut()?;
                 let value = py.from_borrowed_ptr::<PyAny>(value);
                 let value = value.extract()?;
-                slf.__setitem__(key.into(), value).into()
+                crate::callback::convert(py, slf.__setitem__(key.into(), value))
             })
         }
         Some(wrap::<T>)
@@ -252,7 +254,7 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                 if value.is_null() {
-                    slf.borrow_mut().__delitem__(key.into()).into()
+                    crate::callback::convert(py, slf.borrow_mut().__delitem__(key.into()))
                 } else {
                     Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
@@ -280,12 +282,12 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                 if value.is_null() {
-                    call_mut!(slf, __delitem__; key.into())
+                    call_mut!(slf, __delitem__; key.into()).convert(py)
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
                     let mut slf_ = slf.try_borrow_mut()?;
                     let value = value.extract()?;
-                    slf_.__setitem__(key.into(), value).into()
+                    slf_.__setitem__(key.into(), value).convert(py)
                 }
             })
         }

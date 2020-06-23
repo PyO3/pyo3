@@ -8,10 +8,8 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
-use crate::callback::HashCallbackOutput;
-use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult,
-};
+use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
+use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult};
 use std::os::raw::c_int;
 
 /// Operators for the __richcmp__ method
@@ -100,45 +98,39 @@ pub trait PyObjectProtocol<'p>: PyClass {
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Format: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
-    type Result: Into<PyResult<isize>>;
+    type Result: IntoPyCallbackOutput<HashCallbackOutput>;
 }
 pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
-    type Result: Into<PyResult<bool>>;
+    type Result: IntoPyCallbackOutput<bool>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 /// All FFI functions for basic protocols.
@@ -180,12 +172,7 @@ impl PyObjectMethods {
     where
         T: for<'p> PyObjectHashProtocol<'p>,
     {
-        self.tp_hash = py_unary_func!(
-            PyObjectHashProtocol,
-            T::__hash__,
-            ffi::Py_hash_t,
-            HashCallbackOutput
-        );
+        self.tp_hash = py_unary_func!(PyObjectHashProtocol, T::__hash__, ffi::Py_hash_t);
     }
     pub fn set_getattr<T>(&mut self)
     where
@@ -255,7 +242,7 @@ where
 
             let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
-            call_ref!(slf, __getattr__, arg)
+            call_ref!(slf, __getattr__, arg).convert(py)
         })
     }
     Some(wrap::<T>)
@@ -293,7 +280,7 @@ where
             let op = extract_op(op)?;
             let arg = arg.extract()?;
 
-            slf.try_borrow()?.__richcmp__(arg, op).into()
+            slf.try_borrow()?.__richcmp__(arg, op).convert(py)
         })
     }
     Some(wrap::<T>)

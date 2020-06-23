@@ -3,8 +3,9 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
-use crate::err::{PyErr, PyResult};
-use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject};
+use crate::callback::IntoPyCallbackOutput;
+use crate::err::PyErr;
+use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -49,29 +50,27 @@ pub trait PyMappingProtocol<'p>: PyClass {
 // the existance of a slotted method.
 
 pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
-    type Result: Into<PyResult<usize>>;
+    type Result: IntoPyCallbackOutput<usize>;
 }
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 #[doc(hidden)]
