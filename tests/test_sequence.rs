@@ -33,8 +33,8 @@ impl ByteSequence {
 
 #[pyproto]
 impl PySequenceProtocol for ByteSequence {
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.elements.len())
+    fn __len__(&self) -> usize {
+        self.elements.len()
     }
 
     fn __getitem__(&self, idx: isize) -> PyResult<u8> {
@@ -44,9 +44,8 @@ impl PySequenceProtocol for ByteSequence {
             .ok_or_else(|| IndexError::py_err("list index out of range"))
     }
 
-    fn __setitem__(&mut self, idx: isize, value: u8) -> PyResult<()> {
+    fn __setitem__(&mut self, idx: isize, value: u8) {
         self.elements[idx as usize] = value;
-        Ok(())
     }
 
     fn __delitem__(&mut self, idx: isize) -> PyResult<()> {
@@ -58,17 +57,17 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __contains__(&self, other: &PyAny) -> PyResult<bool> {
+    fn __contains__(&self, other: &PyAny) -> bool {
         match u8::extract(other) {
-            Ok(ref x) => Ok(self.elements.contains(x)),
-            Err(_) => Ok(false),
+            Ok(ref x) => self.elements.contains(x),
+            Err(_) => false,
         }
     }
 
-    fn __concat__(&self, other: PyRef<'p, Self>) -> PyResult<Self> {
+    fn __concat__(&self, other: PyRef<'p, Self>) -> Self {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
-        Ok(Self { elements })
+        Self { elements }
     }
 
     fn __repeat__(&self, count: isize) -> PyResult<Self> {

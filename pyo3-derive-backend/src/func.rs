@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::utils::print_err;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::Token;
 
 // TODO:
@@ -75,21 +75,18 @@ pub(crate) fn impl_method_proto(
     sig: &mut syn::Signature,
     meth: &MethodProto,
 ) -> TokenStream {
-    if let MethodProto::Free { proto, .. } = meth {
-        let p: syn::Path = syn::parse_str(proto).unwrap();
-        return quote! {
-            impl<'p> #p<'p> for #cls {}
-        };
-    }
-
-    let ret_ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.output {
-        ty.clone()
-    } else {
-        panic!("fn return type is not supported")
+    let ret_ty = match &sig.output {
+        syn::ReturnType::Default => quote! { () },
+        syn::ReturnType::Type(_, ty) => ty.to_token_stream(),
     };
 
     match *meth {
-        MethodProto::Free { .. } => unreachable!(),
+        MethodProto::Free { proto, .. } => {
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            quote! {
+                impl<'p> #p<'p> for #cls {}
+            }
+        }
         MethodProto::Unary { proto, .. } => {
             let p: syn::Path = syn::parse_str(proto).unwrap();
 

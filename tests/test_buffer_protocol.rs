@@ -65,9 +65,7 @@ impl PyBufferProtocol for TestBufferClass {
         Ok(())
     }
 
-    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) -> PyResult<()> {
-        Ok(())
-    }
+    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) {}
 }
 
 impl Drop for TestBufferClass {

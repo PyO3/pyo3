@@ -32,8 +32,8 @@ impl Mapping {
 
 #[pyproto]
 impl PyMappingProtocol for Mapping {
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.index.len())
+    fn __len__(&self) -> usize {
+        self.index.len()
     }
 
     fn __getitem__(&self, query: String) -> PyResult<usize> {
@@ -43,9 +43,8 @@ impl PyMappingProtocol for Mapping {
             .ok_or_else(|| KeyError::py_err("unknown key"))
     }
 
-    fn __setitem__(&mut self, key: String, value: usize) -> PyResult<()> {
+    fn __setitem__(&mut self, key: String, value: usize) {
         self.index.insert(key, value);
-        Ok(())
     }
 
     fn __delitem__(&mut self, key: String) -> PyResult<()> {
@@ -57,14 +56,13 @@ impl PyMappingProtocol for Mapping {
     }
 
     /// not an actual reversed implementation, just to demonstrate that the method is callable.
-    fn __reversed__(&self) -> PyResult<PyObject> {
+    fn __reversed__(&self) -> PyObject {
         let gil = Python::acquire_gil();
-        Ok(self
-            .index
+        self.index
             .keys()
             .cloned()
             .collect::<Vec<String>>()
-            .into_py(gil.python()))
+            .into_py(gil.python())
     }
 }
 
