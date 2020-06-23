@@ -1,6 +1,5 @@
 use pyo3::class::PySequenceProtocol;
-use pyo3::exceptions::IndexError;
-use pyo3::exceptions::ValueError;
+use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList};
 
@@ -231,4 +230,39 @@ fn test_generic_list_set() {
         list.borrow().items,
         vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
     );
+}
+
+#[pyclass]
+struct OptionList {
+    #[pyo3(get, set)]
+    items: Vec<Option<i64>>,
+}
+
+#[pyproto]
+impl PySequenceProtocol for OptionList {
+    fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
+        match self.items.get(idx as usize) {
+            Some(x) => Ok(*x),
+            None => Err(PyErr::new::<IndexError, _>("Index out of bounds")),
+        }
+    }
+}
+
+#[test]
+fn test_option_list_get() {
+    // Regression test for #798
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let list = PyCell::new(
+        py,
+        OptionList {
+            items: vec![Some(1), None],
+        },
+    )
+    .unwrap();
+
+    py_assert!(py, list, "list[0] == 1");
+    py_assert!(py, list, "list[1] == None");
+    py_expect_exception!(py, list, "list[2]", IndexError);
 }

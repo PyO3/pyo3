@@ -688,6 +688,9 @@ mapping or number protocols. PyO3 defines separate traits for each of them. To p
 Python object behavior, you need to implement the specific trait for your struct. Important note,
 each protocol implementation block has to be annotated with the `#[pyproto]` attribute.
 
+All `#[pyproto]` methods which can be defined below can return `T` instead of `PyResult<T>` if the
+method implementation is infallible.
+
 ### Basic object customization
 
 The [`PyObjectProtocol`] trait provides several basic customizations.
@@ -823,11 +826,11 @@ struct MyIterator {
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<MyIterator>> {
-        Ok(slf.into())
+    fn __iter__(slf: PyRef<Self>) -> Py<MyIterator> {
+        slf.into()
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
-        Ok(slf.iter.next())
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+        slf.iter.next()
     }
 }
 ```
@@ -848,12 +851,12 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iter>> {
-        Ok(slf.into())
+    fn __iter__(slf: PyRefMut<Self>) -> Py<Iter> {
+        slf.into()
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<usize>> {
-        Ok(slf.inner.next())
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<usize> {
+        slf.inner.next()
     }
 }
 
@@ -868,7 +871,7 @@ impl PyIterProtocol for Container {
         let iter = Iter {
             inner: slf.iter.clone().into_iter(),
         };
-        PyCell::new(slf.py(), iter).map(Into::into)
+        Py::new(slf.py(), iter)
     }
 }
 

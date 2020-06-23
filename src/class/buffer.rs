@@ -4,7 +4,7 @@
 //!
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
-use crate::err::PyResult;
+use crate::callback::IntoPyCallbackOutput;
 use crate::{
     ffi::{self, PyBufferProcs},
     PyCell, PyClass, PyRefMut,
@@ -33,11 +33,11 @@ pub trait PyBufferProtocol<'p>: PyClass {
 }
 
 pub trait PyBufferGetBufferProtocol<'p>: PyBufferProtocol<'p> {
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 /// Set functions used by `#[pyproto]`.
@@ -71,7 +71,7 @@ where
     {
         crate::callback_body!(py, {
             let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-            T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into()
+            T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).convert(py)
         })
     }
     Some(wrap::<T>)
@@ -87,7 +87,7 @@ where
     {
         crate::callback_body!(py, {
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into()
+            T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).convert(py)
         })
     }
     Some(wrap::<T>)

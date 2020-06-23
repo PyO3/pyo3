@@ -15,33 +15,28 @@ pub enum MethodProto {
     },
     Unary {
         name: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     UnaryS {
         name: &'static str,
         arg: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     Binary {
         name: &'static str,
         arg: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     BinaryS {
         name: &'static str,
         arg1: &'static str,
         arg2: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     Ternary {
         name: &'static str,
         arg1: &'static str,
         arg2: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     TernaryS {
@@ -49,7 +44,6 @@ pub enum MethodProto {
         arg1: &'static str,
         arg2: &'static str,
         arg3: &'static str,
-        pyres: bool,
         proto: &'static str,
     },
     Quaternary {
@@ -88,7 +82,7 @@ pub(crate) fn impl_method_proto(
         };
     }
 
-    let ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.output {
+    let ret_ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.output {
         ty.clone()
     } else {
         panic!("fn return type is not supported")
@@ -96,9 +90,8 @@ pub(crate) fn impl_method_proto(
 
     match *meth {
         MethodProto::Free { .. } => unreachable!(),
-        MethodProto::Unary { pyres, proto, .. } => {
+        MethodProto::Unary { proto, .. } => {
             let p: syn::Path = syn::parse_str(proto).unwrap();
-            let (ty, succ) = get_res_success(ty);
 
             let tmp: syn::ItemFn = syn::parse_quote! {
                 fn test(&self) -> <#cls as #p<'p>>::Result {}
@@ -106,26 +99,14 @@ pub(crate) fn impl_method_proto(
             sig.output = tmp.sig.output;
             modify_self_ty(sig);
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type Result = #ret_ty;
                 }
             }
         }
-        MethodProto::UnaryS {
-            pyres, proto, arg, ..
-        } => {
+        MethodProto::UnaryS { proto, arg, .. } => {
             let p: syn::Path = syn::parse_str(proto).unwrap();
-            let (ty, succ) = get_res_success(ty);
 
             let slf_name = syn::Ident::new(arg, Span::call_site());
             let mut slf_ty = get_arg_ty(sig, 0);
@@ -156,29 +137,14 @@ pub(crate) fn impl_method_proto(
                 });
             }
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #slf_name = #slf_ty;
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #slf_name = #slf_ty;
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #slf_name = #slf_ty;
+                    type Result = #ret_ty;
                 }
             }
         }
-        MethodProto::Binary {
-            name,
-            arg,
-            pyres,
-            proto,
-        } => {
+        MethodProto::Binary { name, arg, proto } => {
             if sig.inputs.len() <= 1 {
                 println!("Not enough arguments for {}", name);
                 return TokenStream::new();
@@ -187,7 +153,6 @@ pub(crate) fn impl_method_proto(
             let p: syn::Path = syn::parse_str(proto).unwrap();
             let arg_name = syn::Ident::new(arg, Span::call_site());
             let arg_ty = get_arg_ty(sig, 1);
-            let (ty, succ) = get_res_success(ty);
 
             let tmp = extract_decl(syn::parse_quote! {
                 fn test(&self,arg: <#cls as #p<'p>>::#arg_name)-> <#cls as #p<'p>>::Result {}
@@ -200,20 +165,10 @@ pub(crate) fn impl_method_proto(
             modify_arg_ty(sig, 1, &tmp, &tmp2);
             modify_self_ty(sig);
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg_name = #arg_ty;
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg_name = #arg_ty;
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #arg_name = #arg_ty;
+                    type Result = #ret_ty;
                 }
             }
         }
@@ -221,7 +176,6 @@ pub(crate) fn impl_method_proto(
             name,
             arg1,
             arg2,
-            pyres,
             proto,
         } => {
             if sig.inputs.len() <= 1 {
@@ -233,7 +187,6 @@ pub(crate) fn impl_method_proto(
             let arg1_ty = get_arg_ty(sig, 0);
             let arg2_name = syn::Ident::new(arg2, Span::call_site());
             let arg2_ty = get_arg_ty(sig, 1);
-            let (ty, succ) = get_res_success(ty);
 
             // rewrite ty
             let tmp = extract_decl(syn::parse_quote! {fn test(
@@ -247,22 +200,11 @@ pub(crate) fn impl_method_proto(
             modify_arg_ty(sig, 0, &tmp, &tmp2);
             modify_arg_ty(sig, 1, &tmp, &tmp2);
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #arg1_name = #arg1_ty;
+                    type #arg2_name = #arg2_ty;
+                    type Result = #ret_ty;
                 }
             }
         }
@@ -270,7 +212,6 @@ pub(crate) fn impl_method_proto(
             name,
             arg1,
             arg2,
-            pyres,
             proto,
         } => {
             if sig.inputs.len() <= 2 {
@@ -282,7 +223,6 @@ pub(crate) fn impl_method_proto(
             let arg1_ty = get_arg_ty(sig, 1);
             let arg2_name = syn::Ident::new(arg2, Span::call_site());
             let arg2_ty = get_arg_ty(sig, 2);
-            let (ty, succ) = get_res_success(ty);
 
             // rewrite ty
             let tmp = extract_decl(syn::parse_quote! {fn test(
@@ -299,22 +239,11 @@ pub(crate) fn impl_method_proto(
             modify_arg_ty(sig, 2, &tmp, &tmp2);
             modify_self_ty(sig);
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #arg1_name = #arg1_ty;
+                    type #arg2_name = #arg2_ty;
+                    type Result = #ret_ty;
                 }
             }
         }
@@ -323,7 +252,6 @@ pub(crate) fn impl_method_proto(
             arg1,
             arg2,
             arg3,
-            pyres,
             proto,
         } => {
             if sig.inputs.len() <= 2 {
@@ -337,7 +265,6 @@ pub(crate) fn impl_method_proto(
             let arg2_ty = get_arg_ty(sig, 1);
             let arg3_name = syn::Ident::new(arg3, Span::call_site());
             let arg3_ty = get_arg_ty(sig, 2);
-            let (ty, succ) = get_res_success(ty);
 
             // rewrite ty
             let tmp = extract_decl(syn::parse_quote! {fn test(
@@ -354,24 +281,12 @@ pub(crate) fn impl_method_proto(
             modify_arg_ty(sig, 1, &tmp, &tmp2);
             modify_arg_ty(sig, 2, &tmp, &tmp2);
 
-            if pyres {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type #arg3_name = #arg3_ty;
-                        type Success = #succ;
-                        type Result = #ty;
-                    }
-                }
-            } else {
-                quote! {
-                    impl<'p> #p<'p> for #cls {
-                        type #arg1_name = #arg1_ty;
-                        type #arg2_name = #arg2_ty;
-                        type #arg3_name = #arg3_ty;
-                        type Result = #ty;
-                    }
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #arg1_name = #arg1_ty;
+                    type #arg2_name = #arg2_ty;
+                    type #arg3_name = #arg3_ty;
+                    type Result = #ret_ty;
                 }
             }
         }
@@ -393,7 +308,6 @@ pub(crate) fn impl_method_proto(
             let arg2_ty = get_arg_ty(sig, 2);
             let arg3_name = syn::Ident::new(arg3, Span::call_site());
             let arg3_ty = get_arg_ty(sig, 3);
-            let (ty, succ) = get_res_success(ty);
 
             // rewrite ty
             let tmp = extract_decl(syn::parse_quote! {fn test(
@@ -418,8 +332,7 @@ pub(crate) fn impl_method_proto(
                     type #arg1_name = #arg1_ty;
                     type #arg2_name = #arg2_ty;
                     type #arg3_name = #arg3_ty;
-                    type Success = #succ;
-                    type Result = #ty;
+                    type Result = #ret_ty;
                 }
             }
         }
@@ -458,62 +371,6 @@ fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Type {
     }
 
     ty
-}
-
-// Success
-fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
-    let mut result;
-    let mut succ;
-
-    match ty {
-        syn::Type::Path(ref typath) => {
-            if let Some(segment) = typath.path.segments.last() {
-                match segment.ident.to_string().as_str() {
-                    // check for PyResult<T>
-                    "PyResult" => match segment.arguments {
-                        syn::PathArguments::AngleBracketed(ref data) => {
-                            result = true;
-                            succ = data.args[0].clone();
-
-                            // check for PyResult<Option<T>>
-                            if let syn::GenericArgument::Type(syn::Type::Path(ref typath)) =
-                                data.args[0]
-                            {
-                                if let Some(segment) = typath.path.segments.last() {
-                                    if "Option" == segment.ident.to_string().as_str() {
-                                        // get T from Option<T>
-                                        if let syn::PathArguments::AngleBracketed(ref data) =
-                                            segment.arguments
-                                        {
-                                            result = false;
-                                            succ = data.args[0].clone();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        _ => panic!("fn result type is not supported"),
-                    },
-                    _ => panic!(
-                        "fn result type has to be PyResult or (), got {:?}",
-                        segment.ident
-                    ),
-                }
-            } else {
-                panic!("fn result is not supported {:?}", typath)
-            }
-        }
-        _ => panic!("not supported: {:?}", ty),
-    };
-
-    // result
-    let res = if result {
-        quote! {PyResult<#succ>}
-    } else {
-        quote! {#ty}
-    };
-
-    (res, succ)
 }
 
 fn extract_decl(spec: syn::Item) -> syn::Signature {

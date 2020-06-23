@@ -79,16 +79,37 @@ impl IntoPyCallbackOutput<()> for () {
     }
 }
 
-pub struct LenCallbackOutput(pub usize);
-
-impl IntoPyCallbackOutput<ffi::Py_ssize_t> for LenCallbackOutput {
+impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
     #[inline]
     fn convert(self, _py: Python) -> PyResult<ffi::Py_ssize_t> {
-        if self.0 <= (isize::MAX as usize) {
-            Ok(self.0 as isize)
+        if self <= (isize::MAX as usize) {
+            Ok(self as isize)
         } else {
             Err(OverflowError::py_err(()))
         }
+    }
+}
+
+// Converters needed for `#[pyproto]` implementations
+
+impl IntoPyCallbackOutput<bool> for bool {
+    fn convert(self, _: Python) -> PyResult<bool> {
+        Ok(self)
+    }
+}
+
+impl IntoPyCallbackOutput<usize> for usize {
+    fn convert(self, _: Python) -> PyResult<usize> {
+        Ok(self)
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyObject> for T
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyObject> {
+        Ok(self.into_py(py))
     }
 }
 
@@ -117,20 +138,27 @@ wrapping_cast!(i32, Py_hash_t);
 wrapping_cast!(isize, Py_hash_t);
 wrapping_cast!(i64, Py_hash_t);
 
-pub struct HashCallbackOutput<T>(pub T);
+pub struct HashCallbackOutput(Py_hash_t);
 
-impl<T> IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput<T>
-where
-    T: WrappingCastTo<Py_hash_t>,
-{
+impl IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput {
     #[inline]
     fn convert(self, _py: Python) -> PyResult<Py_hash_t> {
-        let hash = self.0.wrapping_cast();
+        let hash = self.0;
         if hash == -1 {
             Ok(-2)
         } else {
             Ok(hash)
         }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<HashCallbackOutput> for T
+where
+    T: WrappingCastTo<Py_hash_t>,
+{
+    #[inline]
+    fn convert(self, _py: Python) -> PyResult<HashCallbackOutput> {
+        Ok(HashCallbackOutput(self.wrapping_cast()))
     }
 }
 

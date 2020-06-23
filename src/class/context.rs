@@ -4,7 +4,7 @@
 //! Trait and support implementation for context manager api
 //!
 
-use crate::err::PyResult;
+use crate::callback::IntoPyCallbackOutput;
 use crate::{PyClass, PyObject};
 
 /// Context manager interface
@@ -31,14 +31,12 @@ pub trait PyContextProtocol<'p>: PyClass {
 }
 
 pub trait PyContextEnterProtocol<'p>: PyContextProtocol<'p> {
-    type Success: crate::IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
-    type Success: crate::IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }

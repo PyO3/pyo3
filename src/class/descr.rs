@@ -5,9 +5,9 @@
 //! [Python information](
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
-use crate::err::PyResult;
+use crate::callback::IntoPyCallbackOutput;
 use crate::types::PyAny;
-use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
+use crate::{ffi, FromPyObject, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Descriptor interface
@@ -50,25 +50,24 @@ pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
     type Receiver: crate::derive_utils::TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Owner: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
     type Receiver: crate::derive_utils::TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyDescrDeleteProtocol<'p>: PyDescrProtocol<'p> {
     type Inst: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
     type Inst: FromPyObject<'p>;
-    type Result: Into<PyResult<()>>;
+    type Result: IntoPyCallbackOutput<()>;
 }
 
 /// All FFI functions for description protocols.
