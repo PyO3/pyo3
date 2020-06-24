@@ -71,7 +71,7 @@ pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
-    type Result: IntoPyCallbackOutput<IterANextOutput>;
+    type Result: IntoPyCallbackOutput<PyIterANextOutput>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
@@ -107,23 +107,46 @@ impl ffi::PyAsyncMethods {
     }
 }
 
-pub struct IterANextOutput(Option<PyObject>);
+pub enum IterANextOutput<T, U> {
+    Yield(T),
+    Return(U),
+}
 
-impl IntoPyCallbackOutput<*mut ffi::PyObject> for IterANextOutput {
+pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
     fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
-        match self.0 {
-            Some(o) => Ok(o.into_ptr()),
-            None => Err(crate::exceptions::StopAsyncIteration::py_err(())),
+        match self {
+            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterANextOutput::Return(opt) => {
+                Err(crate::exceptions::StopAsyncIteration::py_err((opt,)))
+            }
         }
     }
 }
 
-impl<T> IntoPyCallbackOutput<IterANextOutput> for Option<T>
+impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
+            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<IterANextOutput> {
-        Ok(IterANextOutput(self.map(|o| o.into_py(py))))
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterANextOutput::Return(py.None())),
+        }
     }
 }
 
