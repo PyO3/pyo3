@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 - Remove `ManagedPyRef` (unused, and needs specialization) [#930](https://github.com/PyO3/pyo3/pull/930)
-- Disable `#[classattr]` where the class attribute is the same type as the class. (This may be re-enabled in the future; the previous implemenation was unsound.) [#975](https://github.com/PyO3/pyo3/pull/975)
 
 ### Fixed
 - Fix passing explicit `None` to `Option<T>` argument `#[pyfunction]` with a default value. [#936](https://github.com/PyO3/pyo3/pull/936)

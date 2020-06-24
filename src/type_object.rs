@@ -1,11 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
+use crate::conversion::IntoPyPointer;
 use crate::once_cell::GILOnceCell;
-use crate::pyclass::{initialize_type_object, PyClass};
+use crate::pyclass::{initialize_type_object, py_class_attributes, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, AsPyPointer, PyNativeType, Python};
+use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
 
@@ -139,8 +140,10 @@ where
 pub struct LazyStaticType {
     // Boxed because Python expects the type object to have a stable address.
     value: GILOnceCell<*mut ffi::PyTypeObject>,
-    // Threads which have begun initialization. Used for reentrant initialization detection.
+    // Threads which have begun initialization of the `tp_dict`. Used for
+    // reentrant initialization detection.
     initializing_threads: Mutex<Vec<ThreadId>>,
+    tp_dict_filled: GILOnceCell<PyResult<()>>,
 }
 
 impl LazyStaticType {
@@ -148,42 +151,97 @@ impl LazyStaticType {
         LazyStaticType {
             value: GILOnceCell::new(),
             initializing_threads: const_mutex(Vec::new()),
+            tp_dict_filled: GILOnceCell::new(),
         }
     }
 
     pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
-        *self.value.get_or_init(py, || {
-            {
-                // Code evaluated at class init time, such as class attributes, might lead to
-                // recursive initalization of the type object if the class attribute is the same
-                // type as the class.
-                //
-                // That could lead to all sorts of unsafety such as using incomplete type objects
-                // to initialize class instances, so recursive initialization is prevented.
-                let thread_id = thread::current().id();
-                let mut threads = self.initializing_threads.lock();
-                if threads.contains(&thread_id) {
-                    panic!("Recursive initialization of type_object for {}", T::NAME);
-                } else {
-                    threads.push(thread_id)
-                }
-            }
-
-            // Okay, not recursive initialization - can proceed safely.
+        let type_object = *self.value.get_or_init(py, || {
             let mut type_object = Box::new(ffi::PyTypeObject_INIT);
-
             initialize_type_object::<T>(py, T::MODULE, type_object.as_mut()).unwrap_or_else(|e| {
                 e.print(py);
                 panic!("An error occurred while initializing class {}", T::NAME)
             });
+            Box::into_raw(type_object)
+        });
+
+        // We might want to fill the `tp_dict` with python instances of `T`
+        // itself. In order to do so, we must first initialize the type object
+        // with an empty `tp_dict`: now we can create instances of `T`.
+        //
+        // Then we fill the `tp_dict`. Multiple threads may try to fill it at
+        // the same time, but only one of them will succeed.
+        //
+        // More importantly, if a thread is performing initialization of the
+        // `tp_dict`, it can still request the type object through `get_or_init`,
+        // but the `tp_dict` may appear empty of course.
+
+        if self.tp_dict_filled.get(py).is_some() {
+            // `tp_dict` is already filled: ok.
+            return type_object;
+        }
+
+        {
+            let thread_id = thread::current().id();
+            let mut threads = self.initializing_threads.lock();
+            if threads.contains(&thread_id) {
+                // Reentrant call: just return the type object, even if the
+                // `tp_dict` is not filled yet.
+                return type_object;
+            }
+            threads.push(thread_id);
+        }
+
+        // Pre-compute the class attribute objects: this can temporarily
+        // release the GIL since we're calling into arbitrary user code. It
+        // means that another thread can continue the initialization in the
+        // meantime: at worst, we'll just make a useless computation.
+        let mut items = vec![];
+        for attr in py_class_attributes::<T>() {
+            items.push((attr.name, (attr.meth)(py)));
+        }
+
+        // Now we hold the GIL and we can assume it won't be released until we
+        // return from the function.
+        let result = self.tp_dict_filled.get_or_init(py, move || {
+            let tp_dict = unsafe { (*type_object).tp_dict };
+            let result = initialize_tp_dict(py, tp_dict, items);
+            // See discussion on #982 for why we need this.
+            unsafe { ffi::PyType_Modified(type_object) };
 
             // Initialization successfully complete, can clear the thread list.
-            // (No futher calls to get_or_init() will try to init, on any thread.)
+            // (No further calls to get_or_init() will try to init, on any thread.)
             *self.initializing_threads.lock() = Vec::new();
+            result
+        });
 
-            Box::into_raw(type_object)
-        })
+        if let Err(err) = result {
+            err.clone_ref(py).print(py);
+            panic!("An error occured while initializing `{}.__dict__`", T::NAME);
+        }
+
+        type_object
     }
+}
+
+fn initialize_tp_dict(
+    py: Python,
+    tp_dict: *mut ffi::PyObject,
+    items: Vec<(&'static str, PyObject)>,
+) -> PyResult<()> {
+    use std::ffi::CString;
+
+    // We hold the GIL: the dictionary update can be considered atomic from
+    // the POV of other threads.
+    for (key, val) in items {
+        let ret = unsafe {
+            ffi::PyDict_SetItemString(tp_dict, CString::new(key)?.as_ptr(), val.into_ptr())
+        };
+        if ret < 0 {
+            return Err(PyErr::fetch(py));
+        }
+    }
+    Ok(())
 }
 
 // This is necessary for making static `LazyStaticType`s
