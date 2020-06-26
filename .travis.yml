@@ -30,14 +30,12 @@ jobs:
       python: "3.7"
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
-    - name: Nightly
     - python: 3.9-dev
 
 env:
   global:
     - TRAVIS_RUST_VERSION=stable
     - RUST_BACKTRACE=1
-    - RUN_LINT=0
 
 before_install:
   - source ./ci/travis/setup.sh
@@ -56,23 +54,21 @@ deploy:
     on:
       branch: master
       repo: PyO3/pyo3
-      python: 3.6
-      condition: $TRAVIS_EVENT_TYPE != "cron"
+      condition: $TRAVIS_JOB_NAME == "Nightly" && $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     script: ./ci/travis/guide.sh
     edge: true
     on:
       branch: master
       repo: PyO3/pyo3
-      python: 3.6
-      condition: $TRAVIS_EVENT_TYPE != "cron"
+      condition: $TRAVIS_JOB_NAME == "Python 3.7" && $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     script: ./ci/travis/guide.sh
     edge: true
     on:
       tags: true
       repo: PyO3/pyo3
-      python: 3.6
+      condition: $TRAVIS_JOB_NAME == "Python 3.7"
 
 notifications:
   email: false
