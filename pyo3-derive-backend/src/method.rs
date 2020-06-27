@@ -132,6 +132,23 @@ impl<'a> FnSpec<'a> {
         let mut arguments = Vec::new();
         let mut inputs_iter = sig.inputs.iter();
 
+        let mut parse_receiver = |msg: &'static str| {
+            inputs_iter
+                .next()
+                .ok_or_else(|| syn::Error::new_spanned(sig, msg))
+                .and_then(parse_method_receiver)
+        };
+
+        // strip get_ or set_
+        let strip_fn_name = |prefix: &'static str| {
+            let ident = sig.ident.unraw().to_string();
+            if ident.starts_with(prefix) {
+                Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
+            } else {
+                None
+            }
+        };
+
         // Parse receiver & function type for various method types
         let fn_type = match fn_type_attr {
             Some(MethodTypeAttribute::StaticMethod) => FnType::FnStatic,
@@ -150,67 +167,28 @@ impl<'a> FnSpec<'a> {
                 let _ = inputs_iter.next();
                 FnType::FnClass
             }
-            Some(MethodTypeAttribute::Call) => FnType::FnCall(
-                inputs_iter
-                    .next()
-                    .ok_or_else(|| syn::Error::new_spanned(sig, "expected receiver for #[call]"))
-                    .and_then(parse_method_receiver)?,
-            ),
+            Some(MethodTypeAttribute::Call) => {
+                FnType::FnCall(parse_receiver("expected receiver for #[call]")?)
+            }
             Some(MethodTypeAttribute::Getter) => {
                 // Strip off "get_" prefix if needed
                 if python_name.is_none() {
-                    const PREFIX: &str = "get_";
-
-                    let ident = sig.ident.unraw().to_string();
-                    if ident.starts_with(PREFIX) {
-                        python_name = Some(syn::Ident::new(&ident[PREFIX.len()..], ident.span()))
-                    }
+                    python_name = strip_fn_name("get_");
                 }
 
-                FnType::Getter(
-                    inputs_iter
-                        .next()
-                        .ok_or_else(|| {
-                            syn::Error::new_spanned(sig, "expected receiver for #[getter]")
-                        })
-                        .and_then(parse_method_receiver)?,
-                )
+                FnType::Getter(parse_receiver("expected receiver for #[getter]")?)
             }
             Some(MethodTypeAttribute::Setter) => {
+                // Strip off "set_" prefix if needed
                 if python_name.is_none() {
-                    const PREFIX: &str = "set_";
-
-                    let ident = sig.ident.unraw().to_string();
-                    if ident.starts_with(PREFIX) {
-                        python_name = Some(syn::Ident::new(&ident[PREFIX.len()..], ident.span()))
-                    }
+                    python_name = strip_fn_name("set_");
                 }
 
-                FnType::Setter(
-                    inputs_iter
-                        .next()
-                        .ok_or_else(|| {
-                            syn::Error::new_spanned(sig, "expected receiver for #[setter]")
-                        })
-                        .and_then(parse_method_receiver)?,
-                )
+                FnType::Setter(parse_receiver("expected receiver for #[setter]")?)
             }
-            None => {
-                FnType::Fn(
-                    inputs_iter
-                        .next()
-                        .ok_or_else(
-                            // No arguments - might be a static method?
-                            || {
-                                syn::Error::new_spanned(
-                                    sig,
-                                    "Static method needs #[staticmethod] attribute",
-                                )
-                            },
-                        )
-                        .and_then(parse_method_receiver)?,
-                )
-            }
+            None => FnType::Fn(parse_receiver(
+                "Static method needs #[staticmethod] attribute",
+            )?),
         };
 
         // parse rest of arguments
@@ -413,13 +391,11 @@ fn parse_method_attributes(
 
     macro_rules! set_ty {
         ($new_ty:expr, $ident:expr) => {
-            if ty.is_some() {
+            if ty.replace($new_ty).is_some() {
                 return Err(syn::Error::new_spanned(
                     $ident,
                     "Cannot specify a second method type",
                 ));
-            } else {
-                ty = Some($new_ty);
             }
         };
     }
@@ -548,17 +524,15 @@ fn parse_method_name_attribute(
     let name = parse_name_attribute(attrs)?;
 
     // Reject some invalid combinations
-    if let Some(name) = &name {
-        if let Some(ty) = ty {
-            match ty {
-                New | Call | Getter | Setter => {
-                    return Err(syn::Error::new_spanned(
-                        name,
-                        "name not allowed with this method type",
-                    ))
-                }
-                _ => {}
+    if let (Some(name), Some(ty)) = (&name, ty) {
+        match ty {
+            New | Call | Getter | Setter => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "name not allowed with this method type",
+                ))
             }
+            _ => {}
         }
     }
 
