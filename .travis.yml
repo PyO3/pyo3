@@ -26,9 +26,9 @@ jobs:
     - name: Minimum Stable
       python: "3.7"
       env: TRAVIS_RUST_VERSION=1.39.0
-    - name: PyPy3.5 7.0 # Tested via anaconda PyPy (since travis's PyPy version is too old)
-      python: "3.7"
-      env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
+    - name: PyPy3.6
+      python: "pypy3"
+      env: FEATURES="pypy"
   allow_failures:
     - python: 3.9-dev
 

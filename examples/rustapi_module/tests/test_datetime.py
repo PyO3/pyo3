@@ -69,7 +69,7 @@ else:
         MAX_DATETIME = pdt.datetime(9999, 12, 31, 18, 59, 59)
 
 PYPY = platform.python_implementation() == "PyPy"
-HAS_FOLD = getattr(pdt.datetime, "fold", False)
+HAS_FOLD = getattr(pdt.datetime, "fold", False) and not PYPY
 
 
 xfail_date_bounds = pytest.mark.xfail(
