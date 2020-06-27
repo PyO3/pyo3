@@ -7,7 +7,7 @@ if ! [[ $FEATURES == *"pypy"* ]]; then
   ( cd pyo3-derive-backend; cargo test )
 else
   # check that pypy at least builds
-  PYTHON_SYS_EXECUTABLE="/opt/anaconda/envs/pypy3/bin/pypy3" cargo build;
+  cargo build;
 fi
 
 if [[ $RUN_LINT == 1 ]]; then

@@ -12,28 +12,8 @@ if [[ $RUN_LINT == 1 ]]; then
     rustup component add rustfmt
 fi
 
-### Setup PyPy ################################################################
-
-if [[ $FEATURES == *"pypy"* ]]; then
-    wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    /bin/bash Miniconda3-latest-Linux-x86_64.sh -f -b -p /opt/anaconda && \
-    /opt/anaconda/bin/conda install --quiet --yes conda && \
-    /opt/anaconda/bin/conda config --system --add channels conda-forge && \
-    /opt/anaconda/bin/conda init bash && \
-    /opt/anaconda/bin/conda create -n pypy3 pypy3.5 -y && \
-    /opt/anaconda/envs/pypy3/bin/pypy3 -m ensurepip && \
-    /opt/anaconda/envs/pypy3/bin/pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox
-fi
-
 ### Setup python linker flags ##################################################
-
-if [[ $FEATURES == *"pypy"* ]]; then
-    PYTHON_BINARY="pypy3"
-else
-    PYTHON_BINARY="python"
-fi
-
-PYTHON_LIB=$($PYTHON_BINARY -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
 
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
 

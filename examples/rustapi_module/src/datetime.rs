@@ -77,7 +77,7 @@ fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     )
 }
 
-#[cfg(Py_3_6)]
+#[cfg(all(Py_3_6, not(PyPy)))]
 #[pyfunction]
 fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
@@ -156,7 +156,7 @@ fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     )
 }
 
-#[cfg(Py_3_6)]
+#[cfg(all(Py_3_6, not(PyPy)))]
 #[pyfunction]
 fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
@@ -230,8 +230,11 @@ fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[cfg(Py_3_6)]
     {
         m.add_wrapped(wrap_pyfunction!(time_with_fold))?;
-        m.add_wrapped(wrap_pyfunction!(get_time_tuple_fold))?;
-        m.add_wrapped(wrap_pyfunction!(get_datetime_tuple_fold))?;
+        #[cfg(not(PyPy))]
+        {
+            m.add_wrapped(wrap_pyfunction!(get_time_tuple_fold))?;
+            m.add_wrapped(wrap_pyfunction!(get_datetime_tuple_fold))?;
+        }
     }
 
     m.add_wrapped(wrap_pyfunction!(issue_219))?;
