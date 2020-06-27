@@ -4,8 +4,8 @@ use crate::pyfunction::Argument;
 use crate::pyfunction::{parse_name_attribute, PyFunctionAttr};
 use crate::utils;
 use proc_macro2::TokenStream;
-use quote::quote;
 use quote::ToTokens;
+use quote::{quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 
@@ -20,26 +20,72 @@ pub struct FnArg<'a> {
     pub reference: bool,
 }
 
+#[derive(Clone, PartialEq, Debug, Copy, Eq)]
+pub enum MethodTypeAttribute {
+    /// #[new]
+    New,
+    /// #[call]
+    Call,
+    /// #[classmethod]
+    ClassMethod,
+    /// #[classattr]
+    ClassAttribute,
+    /// #[staticmethod]
+    StaticMethod,
+    /// #[getter]
+    Getter,
+    /// #[setter]
+    Setter,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum FnType {
-    Getter,
-    Setter,
-    Fn,
+    Getter(SelfType),
+    Setter(SelfType),
+    Fn(SelfType),
+    FnCall(SelfType),
     FnNew,
-    FnCall,
     FnClass,
     FnStatic,
     ClassAttribute,
-    /// For methods taht have `self_: &PyCell<Self>` instead of self receiver
-    PySelfRef(syn::TypeReference),
-    /// For methods taht have `self_: PyRef<Self>` or `PyRefMut<Self>` instead of self receiver
-    PySelfPath(syn::TypePath),
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum SelfType {
+    Receiver { mutable: bool },
+    TryFromPyCell(syn::Type),
+}
+
+impl SelfType {
+    pub fn receiver(&self, cls: &syn::Type) -> TokenStream {
+        match self {
+            SelfType::Receiver { mutable: false } => {
+                quote! {
+                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let _ref = _cell.try_borrow()?;
+                    let _slf = &_ref;
+                }
+            }
+            SelfType::Receiver { mutable: true } => {
+                quote! {
+                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let mut _ref = _cell.try_borrow_mut()?;
+                    let _slf = &mut _ref;
+                }
+            }
+            SelfType::TryFromPyCell(ty) => {
+                quote_spanned! { ty.span() =>
+                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let _slf = std::convert::TryFrom::try_from(_cell)?;
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
-    pub self_: Option<bool>,
     // Rust function name
     pub name: &'a syn::Ident,
     // Wrapped python name. This should not have any leading r#.
@@ -58,15 +104,18 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
     }
 }
 
-impl<'a> FnSpec<'a> {
-    /// Generate the code for borrowing self
-    pub(crate) fn borrow_self(&self) -> TokenStream {
-        let is_mut = self
-            .self_
-            .expect("impl_borrow_self is called for non-self fn");
-        crate::utils::borrow_self(is_mut)
+pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
+    match arg {
+        syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
+            mutable: recv.mutability.is_some(),
+        }),
+        syn::FnArg::Typed(syn::PatType { ref ty, .. }) => {
+            Ok(SelfType::TryFromPyCell(ty.as_ref().clone()))
+        }
     }
+}
 
+impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
     pub fn parse(
         sig: &'a syn::Signature,
@@ -75,27 +124,85 @@ impl<'a> FnSpec<'a> {
     ) -> syn::Result<FnSpec<'a>> {
         let name = &sig.ident;
         let MethodAttributes {
-            ty: mut fn_type,
+            ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
         } = parse_method_attributes(meth_attrs, allow_custom_name)?;
 
-        let mut self_ = None;
         let mut arguments = Vec::new();
-        for input in sig.inputs.iter() {
+        let mut inputs_iter = sig.inputs.iter();
+
+        let mut parse_receiver = |msg: &'static str| {
+            inputs_iter
+                .next()
+                .ok_or_else(|| syn::Error::new_spanned(sig, msg))
+                .and_then(parse_method_receiver)
+        };
+
+        // strip get_ or set_
+        let strip_fn_name = |prefix: &'static str| {
+            let ident = sig.ident.unraw().to_string();
+            if ident.starts_with(prefix) {
+                Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
+            } else {
+                None
+            }
+        };
+
+        // Parse receiver & function type for various method types
+        let fn_type = match fn_type_attr {
+            Some(MethodTypeAttribute::StaticMethod) => FnType::FnStatic,
+            Some(MethodTypeAttribute::ClassAttribute) => {
+                if !sig.inputs.is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        name,
+                        "Class attribute methods cannot take arguments",
+                    ));
+                }
+                FnType::ClassAttribute
+            }
+            Some(MethodTypeAttribute::New) => FnType::FnNew,
+            Some(MethodTypeAttribute::ClassMethod) => {
+                // Skip first argument for classmethod - always &PyType
+                let _ = inputs_iter.next();
+                FnType::FnClass
+            }
+            Some(MethodTypeAttribute::Call) => {
+                FnType::FnCall(parse_receiver("expected receiver for #[call]")?)
+            }
+            Some(MethodTypeAttribute::Getter) => {
+                // Strip off "get_" prefix if needed
+                if python_name.is_none() {
+                    python_name = strip_fn_name("get_");
+                }
+
+                FnType::Getter(parse_receiver("expected receiver for #[getter]")?)
+            }
+            Some(MethodTypeAttribute::Setter) => {
+                // Strip off "set_" prefix if needed
+                if python_name.is_none() {
+                    python_name = strip_fn_name("set_");
+                }
+
+                FnType::Setter(parse_receiver("expected receiver for #[setter]")?)
+            }
+            None => FnType::Fn(parse_receiver(
+                "Static method needs #[staticmethod] attribute",
+            )?),
+        };
+
+        // parse rest of arguments
+        for input in inputs_iter {
             match input {
                 syn::FnArg::Receiver(recv) => {
-                    self_ = Some(recv.mutability.is_some());
+                    return Err(syn::Error::new_spanned(
+                        recv,
+                        "Unexpected receiver for method",
+                    ));
                 }
                 syn::FnArg::Typed(syn::PatType {
                     ref pat, ref ty, ..
                 }) => {
-                    // skip first argument (cls)
-                    if fn_type == FnType::FnClass && self_.is_none() {
-                        self_ = Some(false);
-                        continue;
-                    }
-
                     let (ident, by_ref, mutability) = match **pat {
                         syn::Pat::Ident(syn::PatIdent {
                             ref ident,
@@ -125,46 +232,6 @@ impl<'a> FnSpec<'a> {
         }
 
         let ty = get_return_info(&sig.output);
-
-        if fn_type == FnType::Fn && self_.is_none() {
-            if arguments.is_empty() {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "Static method needs #[staticmethod] attribute",
-                ));
-            }
-            fn_type = match arguments.remove(0).ty {
-                syn::Type::Reference(r) => FnType::PySelfRef(replace_self_in_ref(r)?),
-                syn::Type::Path(p) => FnType::PySelfPath(replace_self_in_path(p)),
-                x => return Err(syn::Error::new_spanned(x, "Invalid type as custom self")),
-            };
-        }
-
-        if let FnType::ClassAttribute = &fn_type {
-            if self_.is_some() || !arguments.is_empty() {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "Class attribute methods cannot take arguments",
-                ));
-            }
-        }
-
-        // "Tweak" getter / setter names: strip off set_ and get_ if needed
-        if let FnType::Getter | FnType::Setter = &fn_type {
-            if python_name.is_none() {
-                let prefix = match &fn_type {
-                    FnType::Getter => "get_",
-                    FnType::Setter => "set_",
-                    _ => unreachable!(),
-                };
-
-                let ident = sig.ident.unraw().to_string();
-                if ident.starts_with(prefix) {
-                    python_name = Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
-                }
-            }
-        }
-
         let python_name = python_name.unwrap_or_else(|| name.unraw());
 
         let mut parse_erroneous_text_signature = |error_msg: &str| {
@@ -179,16 +246,14 @@ impl<'a> FnSpec<'a> {
         };
 
         let text_signature = match &fn_type {
-            FnType::Fn
-            | FnType::PySelfRef(_)
-            | FnType::PySelfPath(_)
-            | FnType::FnClass
-            | FnType::FnStatic => utils::parse_text_signature_attrs(&mut *meth_attrs, name)?,
+            FnType::Fn(_) | FnType::FnClass | FnType::FnStatic => {
+                utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
+            }
             FnType::FnNew => parse_erroneous_text_signature(
                 "text_signature not allowed on __new__; if you want to add a signature on \
                  __new__, put it on the struct definition instead",
             )?,
-            FnType::FnCall | FnType::Getter | FnType::Setter | FnType::ClassAttribute => {
+            FnType::FnCall(_) | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => {
                 parse_erroneous_text_signature("text_signature not allowed with this attribute")?
             }
         };
@@ -197,7 +262,6 @@ impl<'a> FnSpec<'a> {
 
         Ok(FnSpec {
             tp: fn_type,
-            self_,
             name,
             python_name,
             attrs: fn_attrs,
@@ -311,7 +375,7 @@ pub(crate) fn check_ty_optional(ty: &syn::Type) -> Option<&syn::Type> {
 
 #[derive(Clone, PartialEq, Debug)]
 struct MethodAttributes {
-    ty: FnType,
+    ty: Option<MethodTypeAttribute>,
     args: Vec<Argument>,
     python_name: Option<syn::Ident>,
 }
@@ -322,27 +386,38 @@ fn parse_method_attributes(
 ) -> syn::Result<MethodAttributes> {
     let mut new_attrs = Vec::new();
     let mut args = Vec::new();
-    let mut res: Option<FnType> = None;
+    let mut ty: Option<MethodTypeAttribute> = None;
     let mut property_name = None;
+
+    macro_rules! set_ty {
+        ($new_ty:expr, $ident:expr) => {
+            if ty.replace($new_ty).is_some() {
+                return Err(syn::Error::new_spanned(
+                    $ident,
+                    "Cannot specify a second method type",
+                ));
+            }
+        };
+    }
 
     for attr in attrs.iter() {
         match attr.parse_meta()? {
             syn::Meta::Path(ref name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
-                    res = Some(FnType::FnNew)
+                    set_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
                     return Err(syn::Error::new_spanned(
                         name,
                         "#[init] is disabled since PyO3 0.9.0",
                     ));
                 } else if name.is_ident("call") || name.is_ident("__call__") {
-                    res = Some(FnType::FnCall)
+                    set_ty!(MethodTypeAttribute::Call, name);
                 } else if name.is_ident("classmethod") {
-                    res = Some(FnType::FnClass)
+                    set_ty!(MethodTypeAttribute::ClassMethod, name);
                 } else if name.is_ident("staticmethod") {
-                    res = Some(FnType::FnStatic)
+                    set_ty!(MethodTypeAttribute::StaticMethod, name);
                 } else if name.is_ident("classattr") {
-                    res = Some(FnType::ClassAttribute)
+                    set_ty!(MethodTypeAttribute::ClassAttribute, name);
                 } else if name.is_ident("setter") || name.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         return Err(syn::Error::new_spanned(
@@ -350,16 +425,10 @@ fn parse_method_attributes(
                             "Inner style attribute is not supported for setter and getter",
                         ));
                     }
-                    if res != None {
-                        return Err(syn::Error::new_spanned(
-                            attr,
-                            "setter/getter attribute can not be used mutiple times",
-                        ));
-                    }
                     if name.is_ident("setter") {
-                        res = Some(FnType::Setter)
+                        set_ty!(MethodTypeAttribute::Setter, name);
                     } else {
-                        res = Some(FnType::Getter)
+                        set_ty!(MethodTypeAttribute::Getter, name);
                     }
                 } else {
                     new_attrs.push(attr.clone())
@@ -371,25 +440,19 @@ fn parse_method_attributes(
                 ..
             }) => {
                 if path.is_ident("new") {
-                    res = Some(FnType::FnNew)
+                    set_ty!(MethodTypeAttribute::New, path);
                 } else if path.is_ident("init") {
                     return Err(syn::Error::new_spanned(
                         path,
                         "#[init] is disabled since PyO3 0.9.0",
                     ));
                 } else if path.is_ident("call") {
-                    res = Some(FnType::FnCall)
+                    set_ty!(MethodTypeAttribute::Call, path);
                 } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         return Err(syn::Error::new_spanned(
                             attr,
                             "Inner style attribute is not supported for setter and getter",
-                        ));
-                    }
-                    if res != None {
-                        return Err(syn::Error::new_spanned(
-                            attr,
-                            "setter/getter attribute can not be used mutiple times",
                         ));
                     }
                     if nested.len() != 1 {
@@ -399,10 +462,10 @@ fn parse_method_attributes(
                         ));
                     }
 
-                    res = if path.is_ident("setter") {
-                        Some(FnType::Setter)
+                    if path.is_ident("setter") {
+                        set_ty!(MethodTypeAttribute::Setter, path);
                     } else {
-                        Some(FnType::Getter)
+                        set_ty!(MethodTypeAttribute::Getter, path);
                     };
 
                     property_name = match nested.first().unwrap() {
@@ -439,9 +502,8 @@ fn parse_method_attributes(
     attrs.clear();
     attrs.extend(new_attrs);
 
-    let ty = res.unwrap_or(FnType::Fn);
     let python_name = if allow_custom_name {
-        parse_method_name_attribute(&ty, attrs, property_name)?
+        parse_method_name_attribute(ty.as_ref(), attrs, property_name)?
     } else {
         property_name
     };
@@ -454,19 +516,20 @@ fn parse_method_attributes(
 }
 
 fn parse_method_name_attribute(
-    ty: &FnType,
+    ty: Option<&MethodTypeAttribute>,
     attrs: &mut Vec<syn::Attribute>,
     property_name: Option<syn::Ident>,
 ) -> syn::Result<Option<syn::Ident>> {
+    use MethodTypeAttribute::*;
     let name = parse_name_attribute(attrs)?;
 
     // Reject some invalid combinations
-    if let Some(name) = &name {
+    if let (Some(name), Some(ty)) = (&name, ty) {
         match ty {
-            FnType::FnNew | FnType::FnCall | FnType::Getter | FnType::Setter => {
+            New | Call | Getter | Setter => {
                 return Err(syn::Error::new_spanned(
                     name,
-                    "name not allowed with this attribute",
+                    "name not allowed with this method type",
                 ))
             }
             _ => {}
@@ -475,56 +538,9 @@ fn parse_method_name_attribute(
 
     // Thanks to check above we can be sure that this generates the right python name
     Ok(match ty {
-        FnType::FnNew => Some(syn::Ident::new("__new__", proc_macro2::Span::call_site())),
-        FnType::FnCall => Some(syn::Ident::new("__call__", proc_macro2::Span::call_site())),
-        FnType::Getter | FnType::Setter => property_name,
+        Some(New) => Some(syn::Ident::new("__new__", proc_macro2::Span::call_site())),
+        Some(Call) => Some(syn::Ident::new("__call__", proc_macro2::Span::call_site())),
+        Some(Getter) | Some(Setter) => property_name,
         _ => name,
     })
-}
-
-// Replace &A<Self> with &A<_>
-fn replace_self_in_ref(refn: &syn::TypeReference) -> syn::Result<syn::TypeReference> {
-    let mut res = refn.to_owned();
-    let tp = match &mut *res.elem {
-        syn::Type::Path(p) => p,
-        _ => return Err(syn::Error::new_spanned(refn, "unsupported argument")),
-    };
-    replace_self_impl(tp);
-    res.lifetime = None;
-    Ok(res)
-}
-
-fn replace_self_in_path(tp: &syn::TypePath) -> syn::TypePath {
-    let mut res = tp.to_owned();
-    replace_self_impl(&mut res);
-    res
-}
-
-fn replace_self_impl(tp: &mut syn::TypePath) {
-    for seg in &mut tp.path.segments {
-        if let syn::PathArguments::AngleBracketed(ref mut g) = seg.arguments {
-            let mut args = syn::punctuated::Punctuated::new();
-            for arg in &g.args {
-                let mut add_arg = true;
-                if let syn::GenericArgument::Lifetime(_) = arg {
-                    add_arg = false;
-                }
-                if let syn::GenericArgument::Type(syn::Type::Path(p)) = arg {
-                    if p.path.segments.len() == 1 && p.path.segments[0].ident == "Self" {
-                        args.push(infer(p.span()));
-                        add_arg = false;
-                    }
-                }
-                if add_arg {
-                    args.push(arg.clone());
-                }
-            }
-            g.args = args;
-        }
-    }
-    fn infer(span: proc_macro2::Span) -> syn::GenericArgument {
-        syn::GenericArgument::Type(syn::Type::Infer(syn::TypeInfer {
-            underscore_token: syn::token::Underscore { spans: [span] },
-        }))
-    }
 }

@@ -106,3 +106,33 @@ fn getter_setter_autogen() {
         "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
     );
 }
+
+#[pyclass]
+struct RefGetterSetter {
+    num: i32,
+}
+
+#[pymethods]
+impl RefGetterSetter {
+    #[getter]
+    fn get_num(slf: PyRef<Self>) -> i32 {
+        slf.num
+    }
+
+    #[setter]
+    fn set_num(mut slf: PyRefMut<Self>, value: i32) {
+        slf.num = value;
+    }
+}
+
+#[test]
+fn ref_getter_setter() {
+    // Regression test for #837
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = Py::new(py, RefGetterSetter { num: 10 }).unwrap();
+
+    py_run!(py, inst, "assert inst.num == 10");
+    py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+}

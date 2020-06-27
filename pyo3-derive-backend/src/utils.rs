@@ -1,20 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::quote;
 use std::fmt::Display;
-
-pub(crate) fn borrow_self(is_mut: bool) -> TokenStream {
-    if is_mut {
-        quote! {
-            let mut _slf = _slf.try_borrow_mut()?;
-        }
-    } else {
-        quote! {
-            let _slf = _slf.try_borrow()?;
-        }
-    }
-}
 
 pub fn print_err(msg: String, t: TokenStream) {
     println!("Error: {} in '{}'", msg, t.to_string());

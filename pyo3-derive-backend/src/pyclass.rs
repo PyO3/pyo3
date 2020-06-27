@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::method::FnType;
+use crate::method::{FnType, SelfType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter, PropertyType,
 };
@@ -185,9 +185,9 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
                 for meta in list.nested.iter() {
                     if let syn::NestedMeta::Meta(ref metaitem) = meta {
                         if metaitem.path().is_ident("get") {
-                            descs.push(FnType::Getter);
+                            descs.push(FnType::Getter(SelfType::Receiver { mutable: false }));
                         } else if metaitem.path().is_ident("set") {
-                            descs.push(FnType::Setter);
+                            descs.push(FnType::Setter(SelfType::Receiver { mutable: true }));
                         } else {
                             return Err(syn::Error::new_spanned(
                                 metaitem,
@@ -450,16 +450,16 @@ fn impl_descriptors(
                     let doc = utils::get_doc(&field.attrs, None, true)
                         .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
 
-                    match *desc {
-                        FnType::Getter => Ok(impl_py_getter_def(
+                    match desc {
+                        FnType::Getter(self_ty) => Ok(impl_py_getter_def(
                             &name,
                             &doc,
-                            &impl_wrap_getter(&cls, PropertyType::Descriptor(&field))?,
+                            &impl_wrap_getter(&cls, PropertyType::Descriptor(&field), &self_ty)?,
                         )),
-                        FnType::Setter => Ok(impl_py_setter_def(
+                        FnType::Setter(self_ty) => Ok(impl_py_setter_def(
                             &name,
                             &doc,
-                            &impl_wrap_setter(&cls, PropertyType::Descriptor(&field))?,
+                            &impl_wrap_setter(&cls, PropertyType::Descriptor(&field), &self_ty)?,
                         )),
                         _ => unreachable!(),
                     }
