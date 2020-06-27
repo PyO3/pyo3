@@ -9,6 +9,26 @@ use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
 
+/// Holds temporally owned objects.
+struct ObjectHolder {
+    /// Objects owned by the current thread
+    obj: Vec<NonNull<ffi::PyObject>>,
+    /// Non-python objects(e.g., String) owned by the current thread
+    any: Vec<Box<dyn any::Any>>,
+}
+
+impl ObjectHolder {
+    fn new() -> Self {
+        Self {
+            obj: Vec::with_capacity(256),
+            any: Vec::with_capacity(4),
+        }
+    }
+    fn len(&self) -> (usize, usize) {
+        (self.obj.len(), self.any.len())
+    }
+}
+
 thread_local! {
     /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
     ///
@@ -20,12 +40,8 @@ thread_local! {
     /// pub(crate) because it is manipulated temporarily by Python::allow_threads
     pub(crate) static GIL_COUNT: Cell<u32> = Cell::new(0);
 
-    /// These are objects owned by the current thread, to be released when the GILPool drops.
-    static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
-
-    /// These are non-python objects such as (String) owned by the current thread, to be released
-    /// when the GILPool drops.
-    static OWNED_ANYS: RefCell<Vec<Box<dyn any::Any>>> = RefCell::new(Vec::with_capacity(256));
+    /// Temporally hold objects that will be released when the GILPool drops.
+    static OWNED_OBJECTS: RefCell<ObjectHolder> = RefCell::new(ObjectHolder::new());
 }
 
 /// Check whether the GIL is acquired.
@@ -87,6 +103,14 @@ pub fn prepare_freethreaded_python() {
                 ffi::Py_InitializeEx(0);
 
                 // Make sure Py_Finalize will be called before exiting.
+                extern "C" fn finalize() {
+                    unsafe {
+                        if ffi::Py_IsInitialized() != 0 {
+                            ffi::PyGILState_Ensure();
+                            ffi::Py_Finalize();
+                        }
+                    }
+                }
                 libc::atexit(finalize);
             }
 
@@ -226,9 +250,9 @@ static POOL: ReferencePool = ReferencePool::new();
 
 /// A RAII pool which PyO3 uses to store owned Python references.
 pub struct GILPool {
-    owned_objects_start: usize,
-    owned_anys_start: usize,
-    // Stable solution for impl !Send
+    /// Initial length of owned objects and anys.
+    /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
+    start: Option<(usize, usize)>,
     no_send: Unsendable,
 }
 
@@ -246,8 +270,7 @@ impl GILPool {
         // Update counts of PyObjects / Py that have been cloned or dropped since last acquisition
         POOL.update_counts(Python::assume_gil_acquired());
         GILPool {
-            owned_objects_start: OWNED_OBJECTS.with(|o| o.borrow().len()),
-            owned_anys_start: OWNED_ANYS.with(|o| o.borrow().len()),
+            start: OWNED_OBJECTS.try_with(|o| o.borrow().len()).ok(),
             no_send: Unsendable::default(),
         }
     }
@@ -261,22 +284,22 @@ impl GILPool {
 impl Drop for GILPool {
     fn drop(&mut self) {
         unsafe {
-            OWNED_OBJECTS.with(|owned_objects| {
-                // Note: inside this closure we must be careful to not hold a borrow too long, because
-                // while calling Py_DECREF we may cause other callbacks to run which will need to
-                // register objects into the GILPool.
-                let len = owned_objects.borrow().len();
-                if self.owned_objects_start < len {
-                    let rest = owned_objects
-                        .borrow_mut()
-                        .split_off(self.owned_objects_start);
-                    for obj in rest {
-                        ffi::Py_DECREF(obj.as_ptr());
+            if let Some((obj_len_start, any_len_start)) = self.start {
+                let dropping_obj = OWNED_OBJECTS.with(|holder| {
+                    // `holder` must be dropped before calling Py_DECREF, or Py_DECREF may call
+                    // `GILPool::drop` recursively, resulting in invalid borrowing.
+                    let mut holder = holder.borrow_mut();
+                    holder.any.truncate(any_len_start);
+                    if obj_len_start < holder.obj.len() {
+                        holder.obj.split_off(obj_len_start)
+                    } else {
+                        Vec::new()
                     }
+                });
+                for obj in dropping_obj {
+                    ffi::Py_DECREF(obj.as_ptr());
                 }
-            });
-
-            OWNED_ANYS.with(|owned_anys| owned_anys.borrow_mut().truncate(self.owned_anys_start));
+            }
         }
         decrement_gil_count();
     }
@@ -320,7 +343,8 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 /// The object must be an owned Python reference.
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
-    OWNED_OBJECTS.with(|objs| objs.borrow_mut().push(obj));
+    // Ignoring the error means we do nothing if the TLS is broken.
+    let _ = OWNED_OBJECTS.try_with(|holder| holder.borrow_mut().obj.push(obj));
 }
 
 /// Register any value inside the GILPool.
@@ -330,44 +354,33 @@ pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
 /// the Rust compiler to outlast the current GILPool.
 pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
     debug_assert!(gil_is_acquired());
-    OWNED_ANYS.with(|owned_anys| {
+    OWNED_OBJECTS.with(|holder| {
         let boxed = Box::new(obj);
-        let value_ref: &T = &*boxed;
-
-        // Sneaky - extend the lifetime of the reference so that the box can be moved
-        let value_ref_extended_lifetime = std::mem::transmute(value_ref);
-
-        owned_anys.borrow_mut().push(boxed);
-        value_ref_extended_lifetime
+        let value_ref: *const T = &*boxed;
+        holder.borrow_mut().any.push(boxed);
+        &*value_ref
     })
 }
 
 /// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
+// Ignores the error in case this function called from `atexit`.
 #[inline(always)]
 fn increment_gil_count() {
-    GIL_COUNT.with(|c| c.set(c.get() + 1))
+    let _ = GIL_COUNT.with(|c| c.set(c.get() + 1));
 }
 
 /// Decrement pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
+// Ignores the error in case this function called from `atexit`.
 #[inline(always)]
 fn decrement_gil_count() {
-    GIL_COUNT.with(|c| {
+    let _ = GIL_COUNT.try_with(|c| {
         let current = c.get();
         debug_assert!(
             current > 0,
             "Negative GIL count detected. Please report this error to the PyO3 repo as a bug."
         );
         c.set(current - 1);
-    })
-}
-
-extern "C" fn finalize() {
-    unsafe {
-        if ffi::Py_IsInitialized() != 0 {
-            ffi::PyGILState_Ensure();
-            ffi::Py_Finalize();
-        }
-    }
+    });
 }
 
 /// Ensure the GIL is held, useful in implementation of APIs like PyErr::new where it's
@@ -418,7 +431,7 @@ mod test {
     }
 
     fn owned_object_count() -> usize {
-        OWNED_OBJECTS.with(|objs| objs.borrow().len())
+        OWNED_OBJECTS.with(|holder| holder.borrow().obj.len())
     }
 
     #[test]
