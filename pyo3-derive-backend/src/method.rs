@@ -38,7 +38,7 @@ pub enum MethodTypeAttribute {
     Setter,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum FnType {
     Getter(SelfType),
     Setter(SelfType),
@@ -50,10 +50,10 @@ pub enum FnType {
     ClassAttribute,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum SelfType {
     Receiver { mutable: bool },
-    TryFromPyCell(syn::Type),
+    TryFromPyCell(proc_macro2::Span),
 }
 
 impl SelfType {
@@ -73,8 +73,8 @@ impl SelfType {
                     let _slf = &mut _ref;
                 }
             }
-            SelfType::TryFromPyCell(ty) => {
-                quote_spanned! { ty.span() =>
+            SelfType::TryFromPyCell(span) => {
+                quote_spanned! { *span =>
                     let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
                     let _slf = std::convert::TryFrom::try_from(_cell)?;
                 }
@@ -83,7 +83,7 @@ impl SelfType {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
@@ -109,9 +109,7 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
         syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
             mutable: recv.mutability.is_some(),
         }),
-        syn::FnArg::Typed(syn::PatType { ref ty, .. }) => {
-            Ok(SelfType::TryFromPyCell(ty.as_ref().clone()))
-        }
+        syn::FnArg::Typed(syn::PatType { ref ty, .. }) => Ok(SelfType::TryFromPyCell(ty.span())),
     }
 }
 
