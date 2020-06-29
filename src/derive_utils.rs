@@ -7,7 +7,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::instance::PyNativeType;
-use crate::pyclass::PyClass;
+use crate::pyclass::{PyClass, PyClassThreadChecker};
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyCell, Python};
 use std::cell::UnsafeCell;
@@ -157,11 +157,12 @@ impl ModuleDef {
 
 /// Utilities for basetype
 #[doc(hidden)]
-pub trait PyBaseTypeUtils {
+pub trait PyBaseTypeUtils: Sized {
     type Dict;
     type WeakRef;
     type LayoutAsBase;
     type BaseNativeType;
+    type ThreadChecker: PyClassThreadChecker<Self>;
 }
 
 impl<T: PyClass> PyBaseTypeUtils for T {
@@ -169,6 +170,7 @@ impl<T: PyClass> PyBaseTypeUtils for T {
     type WeakRef = T::WeakRef;
     type LayoutAsBase = crate::pycell::PyCellInner<T>;
     type BaseNativeType = T::BaseNativeType;
+    type ThreadChecker = T::ThreadChecker;
 }
 
 /// Utility trait to enable &PyClass as a pymethod/function argument

@@ -75,6 +75,7 @@ macro_rules! pyobject_native_type {
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
             type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
             type BaseNativeType = $name;
+            type ThreadChecker = $crate::pyclass::ThreadCheckerStub<$crate::PyObject>;
         }
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);

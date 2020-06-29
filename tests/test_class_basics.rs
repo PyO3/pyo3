@@ -163,3 +163,55 @@ fn class_with_object_field() {
     py_assert!(py, ty, "ty(5).value == 5");
     py_assert!(py, ty, "ty(None).value == None");
 }
+
+#[pyclass(unsendable)]
+struct UnsendableBase {
+    rc: std::rc::Rc<usize>,
+}
+
+#[pymethods]
+impl UnsendableBase {
+    fn value(&self) -> usize {
+        *self.rc.as_ref()
+    }
+}
+
+#[pyclass(extends=UnsendableBase)]
+struct UnsendableChild {}
+
+/// If a class is marked as `unsendable`, it panics when accessed by another thread.
+#[test]
+fn panic_unsendable() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let base = || UnsendableBase {
+        rc: std::rc::Rc::new(0),
+    };
+    let unsendable_base = PyCell::new(py, base()).unwrap();
+    let unsendable_child = PyCell::new(py, (UnsendableChild {}, base())).unwrap();
+
+    let source = pyo3::indoc::indoc!(
+        r#"
+def value():
+    return unsendable.value()
+
+import concurrent.futures
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+future = executor.submit(value)
+try:
+    result = future.result()
+    assert False, 'future must panic'
+except BaseException as e:
+    assert str(e) == 'test_class_basics::UnsendableBase is unsendable, but sent to another thread!'
+"#
+    );
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    let test = |unsendable| {
+        globals.set_item("unsendable", unsendable).unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    };
+    test(unsendable_base.as_ref());
+    test(unsendable_child.as_ref());
+}

@@ -124,6 +124,8 @@ If a custom class contains references to other Python objects that can be collec
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class.
 * `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
+* `unsendable` - Making it safe to expose `!Send` structs to Python, where all object can be accessed
+   by multiple threads. A class marked with `unsendable` panics when accessed by another thread.
 * `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
   will be a virtual member of the `builtins` module.
 
@@ -973,6 +975,10 @@ impl pyo3::class::proto_methods::HasProtoRegistry for MyClass {
             = pyo3::class::proto_methods::PyProtoRegistry::new();
         &REGISTRY
     }
+}
+
+impl pyo3::pyclass::PyClassSend for MyClass {
+    type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<MyClass>;
 }
 # let gil = Python::acquire_gil();
 # let py = gil.python();

@@ -22,7 +22,7 @@ error: Expected string literal (e.g., "my_mod")
 12 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: Expected one of gc/weakref/subclass/dict
+error: Expected one of gc/weakref/subclass/dict/unsendable
   --> $DIR/invalid_pyclass_args.rs:15:11
    |
 15 | #[pyclass(weakrev)]
