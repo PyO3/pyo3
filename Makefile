@@ -7,7 +7,6 @@ test: lint test_py
 	cargo test
 
 test_py:
-	tox -e py
 	for example in examples/*; do tox -e py -c $$example/tox.ini || exit 1; done
 
 fmt:
