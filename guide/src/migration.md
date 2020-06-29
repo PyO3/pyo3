@@ -44,7 +44,7 @@ struct ThreadSafe {
 Or in situations where you cannot change your `#[pyclass]` to automatically implement `Send`
 (e.g., when it contains a raw pointer), you can use `unsafe impl Send`.
 In such cases, care should be taken to ensure the struct is actually thread safe.
-See [the Rustnomicon](ttps://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
+See [the Rustnomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
 
 ### All `PyObject` and `Py<T>` methods now take `Python` as an argument
 Previously, a few methods such as `Object::get_refcnt` did not take `Python` as an argument (to
