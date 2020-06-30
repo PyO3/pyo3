@@ -23,7 +23,7 @@ ctor = { version = "0.1", optional = true }
 indoc = { version = "0.3.4", optional = true }
 inventory = { version = "0.1.4", optional = true }
 libc = "0.2.62"
-parking_lot = "0.10.2"
+parking_lot = "0.11.0"
 num-bigint = { version = "0.3", optional = true }
 num-complex = { version = "0.3", optional = true }
 paste = { version = "0.1.6", optional = true }
