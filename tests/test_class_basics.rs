@@ -182,6 +182,13 @@ struct UnsendableChild {}
 /// If a class is marked as `unsendable`, it panics when accessed by another thread.
 #[test]
 fn panic_unsendable() {
+    if option_env!("RUSTFLAGS")
+        .map(|s| s.contains("-Cpanic=abort"))
+        .unwrap_or(false)
+    {
+        return;
+    }
+
     let gil = Python::acquire_gil();
     let py = gil.python();
     let base = || UnsendableBase {
