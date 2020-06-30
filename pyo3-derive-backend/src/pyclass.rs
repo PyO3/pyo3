@@ -19,6 +19,7 @@ pub struct PyClassArgs {
     pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
     pub has_extends: bool,
+    pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
 }
 
@@ -45,6 +46,7 @@ impl Default for PyClassArgs {
             flags: vec![parse_quote! { 0 }],
             base: parse_quote! { pyo3::PyAny },
             has_extends: false,
+            has_unsendable: false,
         }
     }
 }
@@ -60,7 +62,7 @@ impl PyClassArgs {
         }
     }
 
-    /// Match a single flag
+    /// Match a key/value flag
     fn add_assign(&mut self, assign: &syn::ExprAssign) -> syn::Result<()> {
         let syn::ExprAssign { left, right, .. } = assign;
         let key = match &**left {
@@ -120,31 +122,27 @@ impl PyClassArgs {
         Ok(())
     }
 
-    /// Match a key/value flag
+    /// Match a single flag
     fn add_path(&mut self, exp: &syn::ExprPath) -> syn::Result<()> {
         let flag = exp.path.segments.first().unwrap().ident.to_string();
-        let path = match flag.as_str() {
-            "gc" => {
-                parse_quote! {pyo3::type_flags::GC}
-            }
-            "weakref" => {
-                parse_quote! {pyo3::type_flags::WEAKREF}
-            }
-            "subclass" => {
-                parse_quote! {pyo3::type_flags::BASETYPE}
-            }
-            "dict" => {
-                parse_quote! {pyo3::type_flags::DICT}
+        let mut push_flag = |flag| {
+            self.flags.push(syn::Expr::Path(flag));
+        };
+        match flag.as_str() {
+            "gc" => push_flag(parse_quote! {pyo3::type_flags::GC}),
+            "weakref" => push_flag(parse_quote! {pyo3::type_flags::WEAKREF}),
+            "subclass" => push_flag(parse_quote! {pyo3::type_flags::BASETYPE}),
+            "dict" => push_flag(parse_quote! {pyo3::type_flags::DICT}),
+            "unsendable" => {
+                self.has_unsendable = true;
             }
             _ => {
                 return Err(syn::Error::new_spanned(
                     &exp.path,
-                    "Expected one of gc/weakref/subclass/dict",
+                    "Expected one of gc/weakref/subclass/dict/unsendable",
                 ))
             }
         };
-
-        self.flags.push(syn::Expr::Path(path));
         Ok(())
     }
 }
@@ -386,6 +384,16 @@ fn impl_class(
         quote! {}
     };
 
+    let thread_checker = if attr.has_unsendable {
+        quote! { pyo3::pyclass::ThreadCheckerImpl<#cls> }
+    } else if attr.has_extends {
+        quote! {
+            pyo3::pyclass::ThreadCheckerInherited<#cls, <#cls as pyo3::type_object::PyTypeInfo>::BaseType>
+        }
+    } else {
+        quote! { pyo3::pyclass::ThreadCheckerStub<#cls> }
+    };
+
     Ok(quote! {
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
@@ -424,6 +432,10 @@ fn impl_class(
             type Target = pyo3::PyRefMut<'a, #cls>;
         }
 
+        impl pyo3::pyclass::PyClassSend for #cls {
+            type ThreadChecker = #thread_checker;
+        }
+
         #into_pyobject
 
         #impl_inventory
@@ -433,7 +445,6 @@ fn impl_class(
         #extra
 
         #gc_impl
-
     })
 }
 

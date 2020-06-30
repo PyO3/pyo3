@@ -1,14 +1,16 @@
-//! `PyClass` trait
+//! `PyClass` and related traits.
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
 use crate::class::proto_methods::PyProtoMethods;
 use crate::conversion::{AsPyPointer, FromPyPointer};
+use crate::derive_utils::PyBaseTypeUtils;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
 use crate::types::PyAny;
 use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
+use std::marker::PhantomData;
 use std::os::raw::c_void;
-use std::ptr;
+use std::{ptr, thread};
 
 #[inline]
 pub(crate) unsafe fn default_new<T: PyTypeInfo>(
@@ -91,10 +93,10 @@ pub(crate) unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 pub trait PyClass:
     PyTypeInfo<Layout = PyCell<Self>, AsRefTarget = PyCell<Self>>
     + Sized
+    + PyClassSend
     + PyClassAlloc
     + PyMethods
     + PyProtoMethods
-    + Send
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -307,4 +309,77 @@ fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
     }
 
     defs.values().cloned().collect()
+}
+
+/// This trait is implemented for `#[pyclass]` and handles following two situations:
+/// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
+///    This implementation is used by default. Compile fails if `T: !Send`.
+/// 2. In case `T` is `!Send`, `ThreadChecker` panics when `T` is accessed by another thread.
+///    This implementation is used when `#[pyclass(unsendable)]` is given.
+///    Panicking makes it safe to expose `T: !Send` to the Python interpreter, where all objects
+///    can be accessed by multiple threads by `threading` module.
+pub trait PyClassSend: Sized {
+    type ThreadChecker: PyClassThreadChecker<Self>;
+}
+
+#[doc(hidden)]
+pub trait PyClassThreadChecker<T>: Sized {
+    fn ensure(&self);
+    fn new() -> Self;
+    private_decl! {}
+}
+
+/// Stub checker for `Send` types.
+#[doc(hidden)]
+pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
+
+impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
+    fn ensure(&self) {}
+    fn new() -> Self {
+        ThreadCheckerStub(PhantomData)
+    }
+    private_impl! {}
+}
+
+impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
+    fn ensure(&self) {}
+    fn new() -> Self {
+        ThreadCheckerStub(PhantomData)
+    }
+    private_impl! {}
+}
+
+/// Thread checker for unsendable types.
+/// Panics when the value is accessed by another thread.
+#[doc(hidden)]
+pub struct ThreadCheckerImpl<T>(thread::ThreadId, PhantomData<T>);
+
+impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
+    fn ensure(&self) {
+        if thread::current().id() != self.0 {
+            panic!(
+                "{} is unsendable, but sent to another thread!",
+                std::any::type_name::<T>()
+            );
+        }
+    }
+    fn new() -> Self {
+        ThreadCheckerImpl(thread::current().id(), PhantomData)
+    }
+    private_impl! {}
+}
+
+/// Thread checker for types that have `Send` and `extends=...`.
+/// Ensures that `T: Send` and the parent is not accessed by another thread.
+#[doc(hidden)]
+pub struct ThreadCheckerInherited<T: Send, U: PyBaseTypeUtils>(PhantomData<T>, U::ThreadChecker);
+
+impl<T: Send, U: PyBaseTypeUtils> PyClassThreadChecker<T> for ThreadCheckerInherited<T, U> {
+    fn ensure(&self) {
+        self.1.ensure();
+    }
+    fn new() -> Self {
+        ThreadCheckerInherited(PhantomData, U::ThreadChecker::new())
+    }
+    private_impl! {}
 }

@@ -1,10 +1,11 @@
 //! Includes `PyCell` implementation.
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::pyclass::{PyClass, PyClassThreadChecker};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyAny;
-use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, FromPy, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -161,6 +162,7 @@ pub struct PyCell<T: PyClass> {
     inner: PyCellInner<T>,
     dict: T::Dict,
     weakref: T::WeakRef,
+    thread_checker: T::ThreadChecker,
 }
 
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
@@ -227,6 +229,7 @@ impl<T: PyClass> PyCell<T> {
     /// }
     /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
+        self.thread_checker.ensure();
         let flag = self.inner.get_borrow_flag();
         if flag == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
@@ -258,6 +261,7 @@ impl<T: PyClass> PyCell<T> {
     /// assert!(c.try_borrow_mut().is_ok());
     /// ```
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
+        self.thread_checker.ensure();
         if self.inner.get_borrow_flag() != BorrowFlag::UNUSED {
             Err(PyBorrowMutError { _private: () })
         } else {
@@ -296,6 +300,7 @@ impl<T: PyClass> PyCell<T> {
     /// }
     /// ```
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
+        self.thread_checker.ensure();
         if self.inner.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
         } else {
@@ -352,6 +357,7 @@ impl<T: PyClass> PyCell<T> {
         let self_ = base as *mut Self;
         (*self_).dict = T::Dict::new();
         (*self_).weakref = T::WeakRef::new();
+        (*self_).thread_checker = T::ThreadChecker::new();
         Ok(self_)
     }
 }
