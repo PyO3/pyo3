@@ -5,7 +5,7 @@ set -ex
 ### Setup latest mdbook version ################################################
 
 INSTALLED=$(echo $(mdbook --version 2>/dev/null || echo "mdbook none") | cut -d' ' -f1)
-PINNED=0.3.5
+PINNED=0.4.0
 
 if [ "$PINNED" != "$INSTALLED" ]; then
     URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-gnu.tar.gz
@@ -39,6 +39,7 @@ rm -rf "$TRAVIS_BRANCH"
 cp -r ../target/guide "$TRAVIS_BRANCH"
 cp -r ../target/doc "$TRAVIS_BRANCH"
 git add --all
-git commit -m "Upload documentation for $TRAVIS_BRANCH"
 
-git push -f
+if git commit -m "Upload documentation for $TRAVIS_BRANCH"; then
+    git push -f
+fi
