@@ -1,5 +1,22 @@
 # Python Classes
 
+PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs. This chapter will discuss the functionality and configuration they offer.
+
+For ease of discovery, below is a list of all custom attributes with links to the relevant section of this chapter:
+
+- [`#[pyclass]`](#defining-a-new-class)
+  - [`#[pyo3(get, set)]`](#object-properties-using-pyo3get-set)
+- [`#[pymethods]`](#instance-methods)
+  - [`#[new]`](#constructor)
+  - [`#[getter]`](#object-properties-using-getter-and-setter)
+  - [`#[setter]`](#object-properties-using-getter-and-setter)
+  - [`#[staticmethod]`](#static-methods)
+  - [`#[classmethod]`](#class-methods)
+  - [`#[call]`](#callable-objects)
+  - [`#[classattr]`](#class-attributes)
+  - [`#[args]`](#method-arguments)
+- [`#[pyproto]`](#class-customizations)
+
 ## Defining a new class
 
 To define a custom Python class, a Rust struct needs to be annotated with the
