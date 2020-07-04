@@ -40,6 +40,7 @@ pub use self::pycapsule::*;
 pub use self::pydebug::*;
 pub use self::pyerrors::*;
 pub use self::pyhash::*;
+pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pyport::*;
 pub use self::pystate::*;
@@ -107,8 +108,9 @@ mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.
                    // mod namespaceobject; TODO
 
 mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
+mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod pylifecycle;
 mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 #[cfg(Py_LIMITED_API)]

@@ -1,29 +1,11 @@
 use crate::ffi::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::pyarena::PyArena;
-use crate::ffi::pystate::PyThreadState;
-use libc::{wchar_t, FILE};
+use libc::FILE;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
 // TODO: PyCF_MASK etc. constants
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    // TODO: these moved to pylifecycle.h
-    pub fn Py_SetProgramName(arg1: *mut wchar_t);
-    #[cfg_attr(PyPy, link_name = "PyPy_GetProgramName")]
-    pub fn Py_GetProgramName() -> *mut wchar_t;
-    pub fn Py_SetPythonHome(arg1: *mut wchar_t);
-    pub fn Py_GetPythonHome() -> *mut wchar_t;
-    pub fn Py_Initialize();
-    pub fn Py_InitializeEx(arg1: c_int);
-    pub fn Py_Finalize();
-    #[cfg_attr(PyPy, link_name = "PyPy_IsInitialized")]
-    pub fn Py_IsInitialized() -> c_int;
-    pub fn Py_NewInterpreter() -> *mut PyThreadState;
-    pub fn Py_EndInterpreter(arg1: *mut PyThreadState);
-}
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -225,21 +207,4 @@ extern "C" {
     pub fn PyErr_PrintEx(arg1: c_int);
     #[cfg_attr(PyPy, link_name = "PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
-
-    // TODO: these moved to pylifecycle.h
-    #[cfg_attr(PyPy, link_name = "PyPy_AtExit")]
-    pub fn Py_AtExit(func: Option<extern "C" fn()>) -> c_int;
-    pub fn Py_Exit(arg1: c_int);
-    pub fn Py_Main(argc: c_int, argv: *mut *mut wchar_t) -> c_int;
-    pub fn Py_GetProgramFullPath() -> *mut wchar_t;
-    pub fn Py_GetPrefix() -> *mut wchar_t;
-    pub fn Py_GetExecPrefix() -> *mut wchar_t;
-    pub fn Py_GetPath() -> *mut wchar_t;
-    pub fn Py_SetPath(arg1: *const wchar_t);
-    #[cfg_attr(PyPy, link_name = "PyPy_GetVersion")]
-    pub fn Py_GetVersion() -> *const c_char;
-    pub fn Py_GetPlatform() -> *const c_char;
-    pub fn Py_GetCopyright() -> *const c_char;
-    pub fn Py_GetCompiler() -> *const c_char;
-    pub fn Py_GetBuildInfo() -> *const c_char;
 }

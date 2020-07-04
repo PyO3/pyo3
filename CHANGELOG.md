@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add FFI definitions `Py_FinalizeEx`, `PyOS_getsig`, `PyOS_setsig`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
+
+### Changed
+- Change FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 
 ## [0.11.1] - 2020-06-30
 ### Added
