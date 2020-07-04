@@ -6,7 +6,6 @@ use crate::{
     PyTryFrom, Python, ToPyObject,
 };
 use std::borrow::Cow;
-use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::str;
 
@@ -44,23 +43,17 @@ impl PyString {
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     #[inline]
-    pub fn as_bytes(&self) -> PyResult<&[u8]> {
+    pub fn to_str(&self) -> PyResult<&str> {
         unsafe {
             let mut size: ffi::Py_ssize_t = 0;
             let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
                 Err(PyErr::fetch(self.py()))
             } else {
-                Ok(std::slice::from_raw_parts(data, size as usize))
+                let slice = std::slice::from_raw_parts(data, size as usize);
+                Ok(std::str::from_utf8_unchecked(slice))
             }
         }
-    }
-
-    /// Converts the `PyString` into a Rust string.
-    pub fn to_string(&self) -> PyResult<Cow<str>> {
-        let bytes = self.as_bytes()?;
-        let string = std::str::from_utf8(bytes)?;
-        Ok(Cow::Borrowed(string))
     }
 
     /// Converts the `PyString` into a Rust string.
@@ -68,17 +61,15 @@ impl PyString {
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
     pub fn to_string_lossy(&self) -> Cow<str> {
-        match self.to_string() {
-            Ok(s) => s,
+        match self.to_str() {
+            Ok(s) => Cow::Borrowed(s),
             Err(_) => {
                 let bytes = unsafe {
                     self.py()
                         .from_owned_ptr::<PyBytes>(ffi::PyUnicode_AsEncodedString(
                             self.as_ptr(),
-                            CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
-                            CStr::from_bytes_with_nul(b"surrogatepass\0")
-                                .unwrap()
-                                .as_ptr(),
+                            b"utf-8\0" as *const _ as _,
+                            b"surrogatepass\0" as *const _ as _,
                         ))
                 };
                 String::from_utf8_lossy(bytes.as_bytes())
@@ -136,24 +127,9 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
+impl<'source> crate::FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(ob)?.to_string()
-    }
-}
-
-/// Allows extracting strings from Python objects.
-/// Accepts Python `str` and `unicode` objects.
-impl<'a> crate::FromPyObject<'a> for &'a str {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
-        let s: Cow<'a, str> = crate::FromPyObject::extract(ob)?;
-        match s {
-            Cow::Borrowed(r) => Ok(r),
-            Cow::Owned(r) => {
-                let r = ob.py().register_any(r);
-                Ok(r.as_str())
-            }
-        }
+        <PyString as PyTryFrom>::try_from(ob)?.to_str()
     }
 }
 
@@ -162,8 +138,8 @@ impl<'a> crate::FromPyObject<'a> for &'a str {
 impl<'source> FromPyObject<'source> for String {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(obj)?
-            .to_string()
-            .map(Cow::into_owned)
+            .to_str()
+            .map(ToOwned::to_owned)
     }
 }
 
@@ -174,7 +150,6 @@ mod test {
     use crate::object::PyObject;
     use crate::Python;
     use crate::{FromPyObject, PyTryFrom, ToPyObject};
-    use std::borrow::Cow;
 
     #[test]
     fn test_non_bmp() {
@@ -197,44 +172,32 @@ mod test {
     }
 
     #[test]
-    fn test_as_bytes() {
+    fn test_to_str_ascii() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "ascii 🐈";
         let obj: PyObject = PyString::new(py, s).into();
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert_eq!(s.as_bytes(), py_string.as_bytes().unwrap());
+        assert_eq!(s, py_string.to_str().unwrap());
     }
 
     #[test]
-    fn test_as_bytes_surrogate() {
+    fn test_to_str_surrogate() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert!(py_string.as_bytes().is_err());
+        assert!(py_string.to_str().is_err());
     }
 
     #[test]
-    fn test_to_string_ascii() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let s = "ascii";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert!(py_string.to_string().is_ok());
-        assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
-    }
-
-    #[test]
-    fn test_to_string_unicode() {
+    fn test_to_str_unicode() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "哈哈🐈";
         let obj: PyObject = PyString::new(py, s).into();
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert!(py_string.to_string().is_ok());
-        assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
+        assert_eq!(s, py_string.to_str().unwrap());
     }
 
     #[test]

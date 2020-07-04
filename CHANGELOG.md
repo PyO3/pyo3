@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 - Update `parking_lot` dependency to `0.11`. [#1010](https://github.com/PyO3/pyo3/pull/1010)
+- `PyString::to_string` is now renamed to `to_str` and returns `&str` instead of `Cow<str>`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
+
+### Removed
+- Remove `PyString::as_bytes` is removed. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 
 ## [0.11.0] - 2020-06-28
 ### Added
