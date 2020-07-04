@@ -101,7 +101,7 @@ impl<'p> Python<'p> {
     /// # Example
     /// ```
     /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict; use pyo3::wrap_pyfunction;
-    /// use pyo3::exceptions::RuntimeError;
+    /// use pyo3::exceptions::PyRuntimeError;
     /// use std::sync::Arc;
     /// use std::thread;
     /// #[pyfunction]
@@ -114,7 +114,7 @@ impl<'p> Python<'p> {
     ///             .collect();
     ///         let mut sum = 0;
     ///         for t in threads {
-    ///             sum += t.join().map_err(|_| PyErr::new::<RuntimeError, _>(()))?;
+    ///             sum += t.join().map_err(|_| PyErr::new::<PyRuntimeError, _>(()))?;
     ///         }
     ///         Ok(sum)
     ///     })

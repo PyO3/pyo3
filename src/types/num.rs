@@ -40,7 +40,7 @@ macro_rules! int_fits_larger_int {
             fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::OverflowError::py_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::py_err(e.to_string()))
             }
         }
     };
@@ -145,7 +145,7 @@ macro_rules! int_fits_c_long {
                     }
                 }?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::OverflowError::py_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::py_err(e.to_string()))
             }
         }
     };
@@ -551,7 +551,7 @@ mod test {
             );
             let obj = PyObject::from_owned_ptr_or_panic(py, obj);
             let err = obj.extract::<u128>(py).unwrap_err();
-            assert!(err.is_instance::<exceptions::OverflowError>(py));
+            assert!(err.is_instance::<exceptions::PyOverflowError>(py));
         }
     }
 
@@ -569,7 +569,7 @@ mod test {
 
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::TypeError>(py));
+                    assert!(err.is_instance::<exceptions::PyTypeError>(py));
                 }
 
                 #[test]
@@ -579,7 +579,7 @@ mod test {
 
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::TypeError>(py));
+                    assert!(err.is_instance::<exceptions::PyTypeError>(py));
                 }
 
                 #[test]

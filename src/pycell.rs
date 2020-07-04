@@ -1,7 +1,7 @@
 //! Includes `PyCell` implementation.
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::exceptions::PyRuntimeError;
 use crate::pyclass::{PyClass, PyClassThreadChecker};
-use crate::exceptions::RuntimeError;
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
@@ -708,7 +708,7 @@ impl fmt::Display for PyBorrowError {
 
 impl From<PyBorrowError> for PyErr {
     fn from(other: PyBorrowError) -> Self {
-        RuntimeError::py_err(other.to_string())
+        PyRuntimeError::py_err(other.to_string())
     }
 }
 
@@ -733,6 +733,6 @@ impl fmt::Display for PyBorrowMutError {
 
 impl From<PyBorrowMutError> for PyErr {
     fn from(other: PyBorrowMutError) -> Self {
-        RuntimeError::py_err(other.to_string())
+        PyRuntimeError::py_err(other.to_string())
     }
 }

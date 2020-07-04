@@ -384,13 +384,14 @@ where
 impl<T> std::error::Error for Py<T>
 where
     T: std::error::Error + PyTypeInfo,
-    T::AsRefTarget: std::fmt::Display
-{ }
+    T::AsRefTarget: std::fmt::Display,
+{
+}
 
 impl<T> std::fmt::Display for Py<T>
 where
     T: PyTypeInfo,
-    T::AsRefTarget: std::fmt::Display
+    T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let gil = Python::acquire_gil();

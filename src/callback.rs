@@ -3,7 +3,7 @@
 //! Utilities for a Python callable object that invokes a Rust function.
 
 use crate::err::PyResult;
-use crate::exceptions::OverflowError;
+use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
@@ -85,7 +85,7 @@ impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
         if self <= (isize::MAX as usize) {
             Ok(self as isize)
         } else {
-            Err(OverflowError::py_err(()))
+            Err(PyOverflowError::py_err(()))
         }
     }
 }

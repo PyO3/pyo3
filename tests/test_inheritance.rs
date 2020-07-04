@@ -100,7 +100,10 @@ fn mutation_fails() {
     let e = py
         .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
         .unwrap_err();
-    assert_eq!(&e.instance(py).to_string(), "RuntimeError: Already borrowed")
+    assert_eq!(
+        &e.instance(py).to_string(),
+        "RuntimeError: Already borrowed"
+    )
 }
 
 #[pyclass]

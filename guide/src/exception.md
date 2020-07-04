@@ -7,7 +7,7 @@ You can use the [`create_exception!`] macro to define a new exception type:
 ```rust
 use pyo3::create_exception;
 
-create_exception!(module, MyError, pyo3::exceptions::Exception);
+create_exception!(module, MyError, pyo3::exceptions::PyException);
 ```
 
 * `module` is the name of the containing module.
@@ -19,9 +19,9 @@ For example:
 use pyo3::prelude::*;
 use pyo3::create_exception;
 use pyo3::types::IntoPyDict;
-use pyo3::exceptions::Exception;
+use pyo3::exceptions::PyException;
 
-create_exception!(mymodule, CustomError, Exception);
+create_exception!(mymodule, CustomError, PyException);
 
 fn main() {
     let gil = Python::acquire_gil();
@@ -39,12 +39,12 @@ To raise an exception, first you need to obtain an exception type and construct 
 
 ```rust
 use pyo3::{Python, PyErr};
-use pyo3::exceptions;
+use pyo3::exceptions::PyTypeError;
 
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    PyErr::new::<exceptions::TypeError, _>("Error").restore(py);
+    PyErr::new::<PyTypeError, _>("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
 }
@@ -65,12 +65,12 @@ has a corresponding Rust type, exceptions defined by [`create_exception!`] and [
 have Rust types as well.
 
 ```rust
-# use pyo3::exceptions;
+# use pyo3::exceptions::PyValueError;
 # use pyo3::prelude::*;
 # fn check_for_error() -> bool {false}
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
-        Err(exceptions::ValueError::py_err("argument is wrong"))
+        Err(PyValueError::py_err("argument is wrong"))
     } else {
         Ok(())
     }
@@ -101,13 +101,13 @@ method to do the actual work.
 To check the type of an exception, you can simply do:
 
 ```rust
-# use pyo3::exceptions;
+# use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
 # fn main() {
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let err = exceptions::TypeError::py_err(());
-err.is_instance::<exceptions::TypeError>(py);
+# let err = PyTypeError::py_err(());
+err.is_instance::<PyTypeError>(py);
 # }
 ```
 
@@ -132,7 +132,8 @@ trait can be implemented. In that case, actual exception argument creation is de
 until a `Python` object is available.
 
 ```rust
-# use pyo3::{exceptions, PyErr, PyResult};
+# use pyo3::{PyErr, PyResult};
+# use pyo3::exceptions::PyOSError;
 # use std::error::Error;
 # use std::fmt;
 #
@@ -152,7 +153,7 @@ until a `Python` object is available.
 # }
 impl std::convert::From<CustomIOError> for PyErr {
     fn from(err: CustomIOError) -> PyErr {
-        exceptions::OSError::py_err(err.to_string())
+        PyOSError::py_err(err.to_string())
     }
 }
 
@@ -181,14 +182,15 @@ The code snippet above will raise a `ValueError` in Python if `String::parse()` 
 ## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
-The `import_exception!` macro allows importing a specific exception class and defines a zero-sized Rust type
+The `import_exception!` macro allows importing a specific exception class and defines a Rust type
 for that exception.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::import_exception;
 
-import_exception!(io, UnsupportedOperation);
+mod io {
+    pyo3::import_exception!(io, UnsupportedOperation);
+}
 
 fn tell(file: PyObject) -> PyResult<u64> {
     use pyo3::exceptions::*;
@@ -197,7 +199,7 @@ fn tell(file: PyObject) -> PyResult<u64> {
     let py = gil.python();
 
     match file.call_method0(py, "tell") {
-        Err(_) => Err(UnsupportedOperation::py_err("not supported: tell")),
+        Err(_) => Err(io::UnsupportedOperation::py_err("not supported: tell")),
         Ok(x) => x.extract::<u64>(py),
     }
 }

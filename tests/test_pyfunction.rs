@@ -47,7 +47,7 @@ a = array.array("i", [0, 1, 2, 3])
 b = array.array("I", [0, 1, 2, 3])
 f(a, b)
 "#,
-        BufferError
+        PyBufferError
     );
 
     pyo3::py_run!(

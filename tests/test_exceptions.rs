@@ -46,7 +46,7 @@ impl fmt::Display for CustomError {
 
 impl std::convert::From<CustomError> for PyErr {
     fn from(err: CustomError) -> PyErr {
-        exceptions::OSError::py_err(err.to_string())
+        exceptions::PyOSError::py_err(err.to_string())
     }
 }
 

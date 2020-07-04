@@ -273,7 +273,7 @@ fn meth_args() {
     py_run!(py, inst, "assert inst.get_default() == 10");
     py_run!(py, inst, "assert inst.get_default(100) == 100");
     py_run!(py, inst, "assert inst.get_kwarg() == 10");
-    py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_kwarg(100)", PyTypeError);
     py_run!(py, inst, "assert inst.get_kwarg(test=100) == 100");
     py_run!(py, inst, "assert inst.get_kwargs() == [(), None]");
     py_run!(py, inst, "assert inst.get_kwargs(1,2,3) == [(1,2,3), None]");
@@ -300,9 +300,9 @@ fn meth_args() {
         "assert inst.get_pos_arg_kw(1, b=2) == [1, (), {'b': 2}]"
     );
     py_run!(py, inst, "assert inst.get_pos_arg_kw(a=1) == [1, (), None]");
-    py_expect_exception!(py, inst, "inst.get_pos_arg_kw()", TypeError);
-    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", TypeError);
-    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw()", PyTypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", PyTypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", PyTypeError);
 
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
@@ -311,7 +311,7 @@ fn meth_args() {
         inst,
         "assert inst.get_pos_arg_kw_sep1(1, 2, c=13) == 16"
     );
-    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep1(1, 2, 3)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep1(1, 2, 3)", PyTypeError);
 
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep2(1) == 6");
     py_run!(
@@ -319,10 +319,10 @@ fn meth_args() {
         inst,
         "assert inst.get_pos_arg_kw_sep2(1, b=12, c=13) == 26"
     );
-    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep2(1, 2)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep2(1, 2)", PyTypeError);
 
     py_run!(py, inst, "assert inst.get_pos_kw(1, b=2) == [1, {'b': 2}]");
-    py_expect_exception!(py, inst, "inst.get_pos_kw(1,2)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_kw(1,2)", PyTypeError);
 
     py_run!(py, inst, "assert inst.args_as_vec(1,2,3) == 6");
 }

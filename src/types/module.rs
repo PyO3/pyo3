@@ -82,7 +82,7 @@ impl PyModule {
         match self.getattr("__all__") {
             Ok(idx) => idx.downcast().map_err(PyErr::from),
             Err(err) => {
-                if err.is_instance::<exceptions::AttributeError>(self.py()) {
+                if err.is_instance::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
                     self.setattr("__all__", l).map_err(PyErr::from)?;
                     Ok(l)
@@ -101,7 +101,7 @@ impl PyModule {
             match str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    exceptions::UnicodeDecodeError::new_utf8(self.py(), slice, e)?,
+                    exceptions::PyUnicodeDecodeError::new_utf8(self.py(), slice, e)?,
                 )),
             }
         }

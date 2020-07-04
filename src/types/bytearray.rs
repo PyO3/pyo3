@@ -210,7 +210,7 @@ mod test {
         let py = gil.python();
 
         if let Err(err) = PyByteArray::from(py, &py.None()) {
-            assert!(err.is_instance::<exceptions::TypeError>(py));
+            assert!(err.is_instance::<exceptions::PyTypeError>(py));
         } else {
             panic!("error");
         }

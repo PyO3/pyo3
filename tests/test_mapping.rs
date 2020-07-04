@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use pyo3::exceptions::KeyError;
+use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
@@ -40,7 +40,7 @@ impl PyMappingProtocol for Mapping {
         self.index
             .get(&query)
             .copied()
-            .ok_or_else(|| KeyError::py_err("unknown key"))
+            .ok_or_else(|| PyKeyError::py_err("unknown key"))
     }
 
     fn __setitem__(&mut self, key: String, value: usize) {
@@ -49,7 +49,7 @@ impl PyMappingProtocol for Mapping {
 
     fn __delitem__(&mut self, key: String) -> PyResult<()> {
         if self.index.remove(&key).is_none() {
-            KeyError::py_err("unknown key").into()
+            PyKeyError::py_err("unknown key").into()
         } else {
             Ok(())
         }

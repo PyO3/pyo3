@@ -223,7 +223,7 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                 if value.is_null() {
-                    return Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
+                    return Err(PyErr::new::<exceptions::PyNotImplementedError, _>(format!(
                         "Item deletion is not supported by {:?}",
                         stringify!(T)
                     )));
@@ -256,7 +256,7 @@ mod sq_ass_item_impl {
                 if value.is_null() {
                     crate::callback::convert(py, slf.borrow_mut().__delitem__(key.into()))
                 } else {
-                    Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
+                    Err(PyErr::new::<exceptions::PyNotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
                         stringify!(T)
                     )))

@@ -1,5 +1,4 @@
-use crate::exceptions::BaseException;
-
+use crate::exceptions::PyBaseException;
 
 pyo3_exception!(
     "
@@ -10,5 +9,5 @@ pyo3_exception!(
     Python interpreter to exit.
     ",
     PanicException,
-    BaseException
+    PyBaseException
 );

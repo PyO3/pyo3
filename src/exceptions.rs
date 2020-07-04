@@ -2,8 +2,8 @@
 
 //! Exception types defined by Python.
 
-use crate::types::{PyAny, PyTuple};
 use crate::type_object::PySizedLayout;
+use crate::types::{PyAny, PyTuple};
 use crate::{ffi, AsPyPointer, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
@@ -65,7 +65,7 @@ macro_rules! impl_exception_boilerplate {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 unsafe {
                     use $crate::{AsPyPointer, PyNativeType};
-                    let cause: &$crate::exceptions::BaseException = self
+                    let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
 
@@ -132,7 +132,7 @@ macro_rules! import_exception {
             unsafe fn check(ptr: *mut $crate::ffi::PyObject) -> $crate::libc::c_int {
                 $crate::ffi::PyObject_TypeCheck(
                     ptr,
-                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _
+                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _,
                 )
             }
 
@@ -171,16 +171,16 @@ macro_rules! import_exception {
 ///
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
-/// * `BaseException` is the superclass of `MyError`, usually `pyo3::exceptions::Exception`.
+/// * `BaseException` is the superclass of `MyError`, usually `pyo3::exceptions::PyException`.
 ///
 /// # Example
 /// ```
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
 /// use pyo3::types::IntoPyDict;
-/// use pyo3::exceptions::Exception;
+/// use pyo3::exceptions::PyException;
 ///
-/// create_exception!(mymodule, CustomError, Exception);
+/// create_exception!(mymodule, CustomError, PyException);
 ///
 /// fn main() {
 ///     let gil = Python::acquire_gil();
@@ -235,7 +235,7 @@ macro_rules! create_exception_type_object {
             unsafe fn check(ptr: *mut $crate::ffi::PyObject) -> $crate::libc::c_int {
                 $crate::ffi::PyObject_TypeCheck(
                     ptr,
-                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _
+                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _,
                 )
             }
 
@@ -265,8 +265,11 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $layout:path) => (
+    ($name:ident, $legacy_name:ident, $exc_name:ident, $layout:path) => (
         pub struct $name($crate::PyAny);
+
+        #[deprecated(note = "Exceptions now have a `Py` prefix, e.g. `PyException`, `PyTypeError`")]
+        pub type $legacy_name = $crate::Py<$name>;
 
         $crate::impl_exception_boilerplate!($name);
 
@@ -282,80 +285,168 @@ macro_rules! impl_native_exception (
 
         $crate::pyobject_native_type_core!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject), Some("builtins"), $name::check);
     );
-    ($name:ident, $exc_name:ident) => (
-        impl_native_exception!($name, $exc_name, ffi::PyBaseExceptionObject);
+    ($name:ident, $legacy_name:ident, $exc_name:ident) => (
+        impl_native_exception!($name, $legacy_name, $exc_name, ffi::PyBaseExceptionObject);
     )
 );
 
-impl PySizedLayout<BaseException> for ffi::PyBaseExceptionObject {}
+impl PySizedLayout<PyBaseException> for ffi::PyBaseExceptionObject {}
 
-impl_native_exception!(BaseException, PyExc_BaseException);
-impl_native_exception!(Exception, PyExc_Exception);
-impl_native_exception!(StopAsyncIteration, PyExc_StopAsyncIteration);
+impl_native_exception!(PyBaseException, BaseException, PyExc_BaseException);
+impl_native_exception!(PyException, Exception, PyExc_Exception);
 impl_native_exception!(
+    PyStopAsyncIteration,
+    StopAsyncIteration,
+    PyExc_StopAsyncIteration
+);
+impl_native_exception!(
+    PyStopIteration,
     StopIteration,
     PyExc_StopIteration,
     ffi::PyStopIterationObject
 );
-impl_native_exception!(GeneratorExit, PyExc_GeneratorExit);
-impl_native_exception!(ArithmeticError, PyExc_ArithmeticError);
-impl_native_exception!(LookupError, PyExc_LookupError);
+impl_native_exception!(PyGeneratorExit, GeneratorExit, PyExc_GeneratorExit);
+impl_native_exception!(PyArithmeticError, ArithmeticError, PyExc_ArithmeticError);
+impl_native_exception!(PyLookupError, LookupError, PyExc_LookupError);
 
-impl_native_exception!(AssertionError, PyExc_AssertionError);
-impl_native_exception!(AttributeError, PyExc_AttributeError);
-impl_native_exception!(BufferError, PyExc_BufferError);
-impl_native_exception!(EOFError, PyExc_EOFError);
-impl_native_exception!(FloatingPointError, PyExc_FloatingPointError);
-impl_native_exception!(OSError, PyExc_OSError, ffi::PyOSErrorObject);
-impl_native_exception!(ImportError, PyExc_ImportError);
+impl_native_exception!(PyAssertionError, AssertionError, PyExc_AssertionError);
+impl_native_exception!(PyAttributeError, AttributeError, PyExc_AttributeError);
+impl_native_exception!(PyBufferError, BufferError, PyExc_BufferError);
+impl_native_exception!(PyEOFError, EOFError, PyExc_EOFError);
+impl_native_exception!(
+    PyFloatingPointError,
+    FloatingPointError,
+    PyExc_FloatingPointError
+);
+impl_native_exception!(PyOSError, OSError, PyExc_OSError, ffi::PyOSErrorObject);
+impl_native_exception!(PyImportError, ImportError, PyExc_ImportError);
 
 #[cfg(Py_3_6)]
-impl_native_exception!(ModuleNotFoundError, PyExc_ModuleNotFoundError);
+impl_native_exception!(
+    PyModuleNotFoundError,
+    ModuleNotFoundError,
+    PyExc_ModuleNotFoundError
+);
 
-impl_native_exception!(IndexError, PyExc_IndexError);
-impl_native_exception!(KeyError, PyExc_KeyError);
-impl_native_exception!(KeyboardInterrupt, PyExc_KeyboardInterrupt);
-impl_native_exception!(MemoryError, PyExc_MemoryError);
-impl_native_exception!(NameError, PyExc_NameError);
-impl_native_exception!(OverflowError, PyExc_OverflowError);
-impl_native_exception!(RuntimeError, PyExc_RuntimeError);
-impl_native_exception!(RecursionError, PyExc_RecursionError);
-impl_native_exception!(NotImplementedError, PyExc_NotImplementedError);
-impl_native_exception!(SyntaxError, PyExc_SyntaxError, ffi::PySyntaxErrorObject);
-impl_native_exception!(ReferenceError, PyExc_ReferenceError);
-impl_native_exception!(SystemError, PyExc_SystemError);
-impl_native_exception!(SystemExit, PyExc_SystemExit, ffi::PySystemExitObject);
-impl_native_exception!(TypeError, PyExc_TypeError);
-impl_native_exception!(UnboundLocalError, PyExc_UnboundLocalError);
-impl_native_exception!(UnicodeError, PyExc_UnicodeError, ffi::PyUnicodeErrorObject);
-impl_native_exception!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
-impl_native_exception!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
-impl_native_exception!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
-impl_native_exception!(ValueError, PyExc_ValueError);
-impl_native_exception!(ZeroDivisionError, PyExc_ZeroDivisionError);
+impl_native_exception!(PyIndexError, IndexError, PyExc_IndexError);
+impl_native_exception!(PyKeyError, KeyError, PyExc_KeyError);
+impl_native_exception!(
+    PyKeyboardInterrupt,
+    KeyboardInterrupt,
+    PyExc_KeyboardInterrupt
+);
+impl_native_exception!(PyMemoryError, MemoryError, PyExc_MemoryError);
+impl_native_exception!(PyNameError, NameError, PyExc_NameError);
+impl_native_exception!(PyOverflowError, OverflowError, PyExc_OverflowError);
+impl_native_exception!(PyRuntimeError, RuntimeError, PyExc_RuntimeError);
+impl_native_exception!(PyRecursionError, RecursionError, PyExc_RecursionError);
+impl_native_exception!(
+    PyNotImplementedError,
+    NotImplementedError,
+    PyExc_NotImplementedError
+);
+impl_native_exception!(
+    PySyntaxError,
+    SyntaxError,
+    PyExc_SyntaxError,
+    ffi::PySyntaxErrorObject
+);
+impl_native_exception!(PyReferenceError, ReferenceError, PyExc_ReferenceError);
+impl_native_exception!(PySystemError, SystemError, PyExc_SystemError);
+impl_native_exception!(
+    PySystemExit,
+    SystemExit,
+    PyExc_SystemExit,
+    ffi::PySystemExitObject
+);
+impl_native_exception!(PyTypeError, TypeError, PyExc_TypeError);
+impl_native_exception!(
+    PyUnboundLocalError,
+    UnboundLocalError,
+    PyExc_UnboundLocalError
+);
+impl_native_exception!(
+    PyUnicodeError,
+    UnicodeError,
+    PyExc_UnicodeError,
+    ffi::PyUnicodeErrorObject
+);
+impl_native_exception!(
+    PyUnicodeDecodeError,
+    UnicodeDecodeError,
+    PyExc_UnicodeDecodeError
+);
+impl_native_exception!(
+    PyUnicodeEncodeError,
+    UnicodeEncodeError,
+    PyExc_UnicodeEncodeError
+);
+impl_native_exception!(
+    PyUnicodeTranslateError,
+    UnicodeTranslateError,
+    PyExc_UnicodeTranslateError
+);
+impl_native_exception!(PyValueError, ValueError, PyExc_ValueError);
+impl_native_exception!(
+    PyZeroDivisionError,
+    ZeroDivisionError,
+    PyExc_ZeroDivisionError
+);
 
-impl_native_exception!(BlockingIOError, PyExc_BlockingIOError);
-impl_native_exception!(BrokenPipeError, PyExc_BrokenPipeError);
-impl_native_exception!(ChildProcessError, PyExc_ChildProcessError);
-impl_native_exception!(ConnectionError, PyExc_ConnectionError);
-impl_native_exception!(ConnectionAbortedError, PyExc_ConnectionAbortedError);
-impl_native_exception!(ConnectionRefusedError, PyExc_ConnectionRefusedError);
-impl_native_exception!(ConnectionResetError, PyExc_ConnectionResetError);
-impl_native_exception!(FileExistsError, PyExc_FileExistsError);
-impl_native_exception!(FileNotFoundError, PyExc_FileNotFoundError);
-impl_native_exception!(InterruptedError, PyExc_InterruptedError);
-impl_native_exception!(IsADirectoryError, PyExc_IsADirectoryError);
-impl_native_exception!(NotADirectoryError, PyExc_NotADirectoryError);
-impl_native_exception!(PermissionError, PyExc_PermissionError);
-impl_native_exception!(ProcessLookupError, PyExc_ProcessLookupError);
-impl_native_exception!(TimeoutError, PyExc_TimeoutError);
+impl_native_exception!(PyBlockingIOError, BlockingIOError, PyExc_BlockingIOError);
+impl_native_exception!(PyBrokenPipeError, BrokenPipeError, PyExc_BrokenPipeError);
+impl_native_exception!(
+    PyChildProcessError,
+    ChildProcessError,
+    PyExc_ChildProcessError
+);
+impl_native_exception!(PyConnectionError, ConnectionError, PyExc_ConnectionError);
+impl_native_exception!(
+    PyConnectionAbortedError,
+    ConnectionAbortedError,
+    PyExc_ConnectionAbortedError
+);
+impl_native_exception!(
+    PyConnectionRefusedError,
+    ConnectionRefusedError,
+    PyExc_ConnectionRefusedError
+);
+impl_native_exception!(
+    PyConnectionResetError,
+    ConnectionResetError,
+    PyExc_ConnectionResetError
+);
+impl_native_exception!(PyFileExistsError, FileExistsError, PyExc_FileExistsError);
+impl_native_exception!(
+    PyFileNotFoundError,
+    FileNotFoundError,
+    PyExc_FileNotFoundError
+);
+impl_native_exception!(PyInterruptedError, InterruptedError, PyExc_InterruptedError);
+impl_native_exception!(
+    PyIsADirectoryError,
+    IsADirectoryError,
+    PyExc_IsADirectoryError
+);
+impl_native_exception!(
+    PyNotADirectoryError,
+    NotADirectoryError,
+    PyExc_NotADirectoryError
+);
+impl_native_exception!(PyPermissionError, PermissionError, PyExc_PermissionError);
+impl_native_exception!(
+    PyProcessLookupError,
+    ProcessLookupError,
+    PyExc_ProcessLookupError
+);
+impl_native_exception!(PyTimeoutError, TimeoutError, PyExc_TimeoutError);
 
-impl_native_exception!(EnvironmentError, PyExc_EnvironmentError);
-impl_native_exception!(IOError, PyExc_IOError);
+impl_native_exception!(PyEnvironmentError, EnvironmentError, PyExc_EnvironmentError);
+impl_native_exception!(PyIOError, IOError, PyExc_IOError);
 #[cfg(target_os = "windows")]
-impl_native_exception!(WindowsError, PyExc_WindowsError);
+impl_native_exception!(PyWindowsError, WindowsError, PyExc_WindowsError);
 
-impl UnicodeDecodeError {
+impl PyUnicodeDecodeError {
     pub fn new_err<'p>(
         py: Python<'p>,
         encoding: &CStr,
@@ -383,7 +474,7 @@ impl UnicodeDecodeError {
         err: std::str::Utf8Error,
     ) -> PyResult<&'p PyAny> {
         let pos = err.valid_up_to();
-        UnicodeDecodeError::new_err(
+        PyUnicodeDecodeError::new_err(
             py,
             CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
             input,
@@ -393,7 +484,7 @@ impl UnicodeDecodeError {
     }
 }
 
-impl StopIteration {
+impl PyStopIteration {
     pub fn stop_iteration(_py: Python, args: &PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
@@ -424,7 +515,7 @@ pub mod socket {
 
 #[cfg(test)]
 mod test {
-    use crate::exceptions::Exception;
+    use crate::exceptions::PyException;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{AsPyPointer, PyErr, Python};
     use std::error::Error;
@@ -487,7 +578,7 @@ mod test {
 
     #[test]
     fn custom_exception() {
-        create_exception!(mymodule, CustomError, Exception);
+        create_exception!(mymodule, CustomError, PyException);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -536,7 +627,7 @@ mod test {
         write!(&mut out, "{}", err).expect("successful format");
         assert_eq!(out, "Exception: banana");
         out.clear();
-        let convert_ref: &super::BaseException =
+        let convert_ref: &super::PyBaseException =
             unsafe { &*(err.as_ptr() as *const _ as *const _) };
         let source = convert_ref.source().expect("cause should exist");
         write!(&mut out, "{}", source).expect("successful format");
