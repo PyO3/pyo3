@@ -435,13 +435,6 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
-    #[doc(hidden)]
-    /// Passes value ownership to `Python` object and get reference back.
-    /// Value get cleaned up on the GIL release.
-    pub fn register_any<T: 'static>(self, ob: T) -> &'p T {
-        unsafe { gil::register_any(ob) }
-    }
-
     /// Releases a PyObject reference.
     #[inline]
     pub fn release<T>(self, ob: T)
