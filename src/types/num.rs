@@ -279,24 +279,28 @@ mod bigint_conversion {
             }
             impl<'source> FromPyObject<'source> for $rust_ty {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
+                    use crate::instance::AsPyRef;
+                    let py = ob.py();
                     unsafe {
                         let num = ffi::PyNumber_Index(ob.as_ptr());
                         if num.is_null() {
-                            return Err(PyErr::fetch(ob.py()));
+                            return Err(PyErr::fetch(py));
                         }
                         let n_bits = ffi::_PyLong_NumBits(num);
                         let n_bytes = if n_bits < 0 {
-                            return Err(PyErr::fetch(ob.py()));
+                            return Err(PyErr::fetch(py));
                         } else if n_bits == 0 {
                             0
                         } else {
                             (n_bits as usize - 1 + $is_signed) / 8 + 1
                         };
+                        let ob = PyObject::from_owned_ptr(py, num);
                         if n_bytes <= 128 {
-                            extract_small(ob, n_bytes, $is_signed)
+                            extract_small(ob.as_ref(py), n_bytes, $is_signed)
                                 .map(|b| $from_bytes(&b[..n_bytes]))
                         } else {
-                            extract_large(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
+                            extract_large(ob.as_ref(py), n_bytes, $is_signed)
+                                .map(|b| $from_bytes(&b))
                         }
                     }
                 }
