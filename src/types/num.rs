@@ -397,6 +397,30 @@ mod bigint_conversion {
             assert_eq!(rs_result, py_result);
         }
 
+        fn python_index_class(py: Python) -> &PyModule {
+            let index_code = indoc!(
+                r#"
+                class C:
+                    def __init__(self, x):
+                        self.x = x
+                    def __index__(self):
+                        return self.x
+                "#
+            );
+            PyModule::from_code(py, index_code, "index.py", "index").unwrap()
+        }
+
+        #[test]
+        fn convert_index_class() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let index = python_index_class(py);
+            let locals = PyDict::new(py);
+            locals.set_item("index", index).unwrap();
+            let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
+            let _: BigInt = FromPyObject::extract(ob).unwrap();
+        }
+
         #[test]
         fn handle_zero() {
             let gil = Python::acquire_gil();
