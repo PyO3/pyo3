@@ -192,7 +192,7 @@ and `PyString::to_string_lossy` [#642](https://github.com/PyO3/pyo3/pull/642).
 ### Added
 - `module` argument to `pyclass` macro. [#499](https://github.com/PyO3/pyo3/pull/499)
 - `py_run!` macro [#512](https://github.com/PyO3/pyo3/pull/512)
-- Use existing fields and methods before calling custom __getattr__. [#505](https://github.com/PyO3/pyo3/pull/512)
+- Use existing fields and methods before calling custom __getattr__. [#505](https://github.com/PyO3/pyo3/pull/505)
 - `PyBytes` can now be indexed just like `Vec<u8>`
 - Implement `IntoPy<PyObject>` for `PyRef` and `PyRefMut`.
 
