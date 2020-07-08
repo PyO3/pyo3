@@ -173,7 +173,7 @@ mod test {
         slice[0..5].copy_from_slice(b"Hi...");
 
         assert_eq!(
-            &bytearray.str().unwrap().to_string().unwrap(),
+            bytearray.str().unwrap().to_str().unwrap(),
             "bytearray(b'Hi... Python')"
         );
     }
