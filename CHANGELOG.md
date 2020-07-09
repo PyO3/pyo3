@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 - Change FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
+- Rename `PyString::to_string` to `to_str`, change return type `Cow<str>` to `&str`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
+
+### Removed
+- Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
+- Remove `Python::register_any`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 
 ### Fixed
 - Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)
@@ -20,11 +25,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 - Update `parking_lot` dependency to `0.11`. [#1010](https://github.com/PyO3/pyo3/pull/1010)
-- `PyString::to_string` is now renamed `to_str` and returns `&str` instead of `Cow<str>`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
-
-### Removed
-- Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
-- Remove `Python::register_gil`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 
 ## [0.11.0] - 2020-06-28
 ### Added
