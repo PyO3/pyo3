@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Change FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 
+### Fixed
+- Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)
+
 ## [0.11.1] - 2020-06-30
 ### Added
 - `#[pyclass(unsendable)]`. [#1009](https://github.com/PyO3/pyo3/pull/1009)
