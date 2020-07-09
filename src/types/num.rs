@@ -81,10 +81,10 @@ macro_rules! int_convert_128 {
                     if num.is_null() {
                         return Err(PyErr::fetch(ob.py()));
                     }
-                    let buffer: [c_uchar; $byte_size] = [0; $byte_size];
+                    let mut buffer = [0; $byte_size];
                     let ok = ffi::_PyLong_AsByteArray(
                         num as *mut ffi::PyLongObject,
-                        buffer.as_ptr() as *const c_uchar,
+                        buffer.as_mut_ptr(),
                         $byte_size,
                         IS_LITTLE_ENDIAN,
                         $is_signed,
@@ -222,38 +222,20 @@ int_convert_128!(u128, 16, 0);
 #[cfg(all(feature = "num-bigint", not(Py_LIMITED_API)))]
 mod bigint_conversion {
     use super::*;
+    use crate::{err, Py};
     use num_bigint::{BigInt, BigUint};
 
-    unsafe fn extract_small(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<[c_uchar; 128]> {
-        let buffer = [0; 128];
-        let ok = ffi::_PyLong_AsByteArray(
-            ob.as_ptr() as *mut ffi::PyLongObject,
-            buffer.as_ptr() as *const c_uchar,
-            n,
-            1,
-            is_signed,
-        );
-        if ok == -1 {
-            Err(PyErr::fetch(ob.py()))
-        } else {
-            Ok(buffer)
-        }
-    }
-
-    unsafe fn extract_large(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
-        let buffer = vec![0; n];
-        let ok = ffi::_PyLong_AsByteArray(
-            ob.as_ptr() as *mut ffi::PyLongObject,
-            buffer.as_ptr() as *const c_uchar,
-            n,
-            1,
-            is_signed,
-        );
-        if ok == -1 {
-            Err(PyErr::fetch(ob.py()))
-        } else {
-            Ok(buffer)
-        }
+    unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
+        err::error_on_minusone(
+            ob.py(),
+            ffi::_PyLong_AsByteArray(
+                ob.as_ptr() as *mut ffi::PyLongObject,
+                buffer.as_mut_ptr(),
+                buffer.len(),
+                1,
+                is_signed,
+            ),
+        )
     }
 
     macro_rules! bigint_conversion {
@@ -294,13 +276,15 @@ mod bigint_conversion {
                         } else {
                             (n_bits as usize - 1 + $is_signed) / 8 + 1
                         };
-                        let ob = PyObject::from_owned_ptr(py, num);
+                        let num: Py<PyLong> = Py::from_owned_ptr(py, num);
                         if n_bytes <= 128 {
-                            extract_small(ob.as_ref(py), n_bytes, $is_signed)
-                                .map(|b| $from_bytes(&b[..n_bytes]))
+                            let mut buffer = [0; 128];
+                            extract(num.as_ref(py), &mut buffer[..n_bytes], $is_signed)?;
+                            Ok($from_bytes(&buffer[..n_bytes]))
                         } else {
-                            extract_large(ob.as_ref(py), n_bytes, $is_signed)
-                                .map(|b| $from_bytes(&b))
+                            let mut buffer = vec![0; n_bytes];
+                            extract(num.as_ref(py), &mut buffer, $is_signed)?;
+                            Ok($from_bytes(&buffer))
                         }
                     }
                 }

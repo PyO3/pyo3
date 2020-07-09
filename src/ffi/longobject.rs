@@ -95,7 +95,7 @@ extern "C" {
 
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,
-        bytes: *const c_uchar,
+        bytes: *mut c_uchar,
         n: size_t,
         little_endian: c_int,
         is_signed: c_int,
