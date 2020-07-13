@@ -569,8 +569,7 @@ fn buffer_readonly_error() -> PyResult<()> {
 
 impl<T> Drop for PyBuffer<T> {
     fn drop(&mut self) {
-        let _gil_guard = Python::acquire_gil();
-        unsafe { ffi::PyBuffer_Release(&mut *self.0) }
+        Python::with_gil(|_| unsafe { ffi::PyBuffer_Release(&mut *self.0) });
     }
 }
 

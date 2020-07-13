@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Added
 - Add FFI definitions `Py_FinalizeEx`, `PyOS_getsig`, `PyOS_setsig`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
+- Add `Python::with_gil` for executing a closure with the Python GIL. [#1037](https://github.com/PyO3/pyo3/pull/1037)
 
 ### Changed
 - Correct FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)

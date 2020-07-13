@@ -108,12 +108,12 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 fn main() -> Result<(), ()> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    main_(py).map_err(|e| {
-        // We can't display Python exceptions via std::fmt::Display,
-        // so print the error here manually.
-        e.print_and_set_sys_last_vars(py);
+    Python::with_gil(|py| {
+        main_(py).map_err(|e| {
+          // We can't display Python exceptions via std::fmt::Display,
+          // so print the error here manually.
+          e.print_and_set_sys_last_vars(py);
+        })
     })
 }
 

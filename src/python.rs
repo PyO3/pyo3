@@ -46,6 +46,31 @@ pub use gil::prepare_freethreaded_python;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
+impl Python<'_> {
+    /// Acquires the global interpreter lock, which allows access to the Python runtime. The
+    /// provided closure F will be executed with the acquired `Python` marker token.
+    ///
+    /// If the Python runtime is not already initialized, this function will initialize it.
+    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    ///
+    /// # Example
+    /// ```
+    /// use pyo3::prelude::*;
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let x: i32 = py.eval("5", None, None)?.extract()?;
+    ///     assert_eq!(x, 5);
+    ///     Ok(())
+    /// });
+    /// ```
+    #[inline]
+    pub fn with_gil<F, R>(f: F) -> R
+    where
+        F: for<'p> FnOnce(Python<'p>) -> R,
+    {
+        f(unsafe { gil::ensure_gil().python() })
+    }
+}
+
 impl<'p> Python<'p> {
     /// Retrieves a Python instance under the assumption that the GIL is already
     /// acquired at this point, and stays acquired for the lifetime `'p`.
