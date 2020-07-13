@@ -4,7 +4,7 @@ use pyo3::class::{
 };
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBytes, PySlice, PyType};
+use pyo3::types::{IntoPyDict, PySlice, PyType};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::convert::TryFrom;
 use std::{isize, iter};
@@ -94,9 +94,8 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         format!("format({})", format_spec)
     }
 
-    fn __bytes__(&self) -> PyObject {
-        let gil = GILGuard::acquire();
-        PyBytes::new(gil.python(), b"bytes").into()
+    fn __bytes__(&self) -> &'static [u8] {
+        b"bytes"
     }
 }
 
@@ -374,7 +373,7 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
     ) -> bool {
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         self.exit_called = true;
         ty == Some(gil.python().get_type::<PyValueError>())
     }
@@ -426,16 +425,15 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        let gil = GILGuard::acquire();
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_py(gil.python()));
+                return Ok("slice");
             }
         } else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_py(gil.python()));
+                return Ok("int");
             }
         }
         Err(PyErr::new::<PyValueError, _>("error"))

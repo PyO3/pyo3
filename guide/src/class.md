@@ -879,12 +879,8 @@ impl PyGCProtocol for ClassWithGCSupport {
     }
 
     fn __clear__(&mut self) {
-        if let Some(obj) = self.obj.take() {
-            // Release reference, this decrements ref counter.
-            let gil = GILGuard::acquire();
-            let py = gil.python();
-            py.release(obj);
-        }
+        // Clear reference, this decrements ref counter.
+        self.obj = None;
     }
 }
 ```

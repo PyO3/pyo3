@@ -238,7 +238,7 @@ fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
 fn test_module_nesting() {
     use pyo3::wrap_pymodule;
 
-    let gil = GILGuard::acquire();
+    let gil = Python::acquire_gil();
     let py = gil.python();
     let supermodule = wrap_pymodule!(supermodule)(py);
 

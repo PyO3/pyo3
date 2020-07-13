@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Correct FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 - Rename `PyString::to_string` to `to_str`, change return type `Cow<str>` to `&str`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Correct FFI definition `_PyLong_AsByteArray` `*mut c_uchar` argument instead of `*const c_uchar`. [#1029](https://github.com/PyO3/pyo3/pull/1029)
+- Add `T: Send` bound to the return value of `Python::allow_threads`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
 - Rename `PYTHON_SYS_EXECUTABLE` to `PYO3_PYTHON`. The old name will continue to work but will be undocumented, and will be removed in a future release. [#1039](https://github.com/PyO3/pyo3/pull/1039)
 - `PyType::as_type_ptr` is no longer `unsafe`. [#1047](https://github.com/PyO3/pyo3/pull/1047)
 - Change `PyIterator::from_object` to return `PyResult<PyIterator>` instead of `Result<PyIterator, PyDowncastError>`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `Python::register_any`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
+- Remove `GILGuard::acquire` from the public API. Use `Python::acquire_gil` or `Python::with_gil`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
 
 ### Fixed
 - Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)

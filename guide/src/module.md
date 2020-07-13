@@ -77,14 +77,12 @@ fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn nested_call() {
-    let gil = GILGuard::acquire();
-    let py = gil.python();
-    let supermodule = wrap_pymodule!(supermodule)(py);
-    let ctx = [("supermodule", supermodule)].into_py_dict(py);
-
-    py.run("assert supermodule.submodule.subfunction() == 'Subfunction'", None, Some(&ctx)).unwrap();
-}
+# Python::with_gil(|py| {
+#    let supermodule = wrap_pymodule!(supermodule)(py);
+#    let ctx = [("supermodule", supermodule)].into_py_dict(py);
+#
+#    py.run("assert supermodule.submodule.subfunction() == 'Subfunction'", None, Some(&ctx)).unwrap();
+# })
 ```
 
 This way, you can create a module hierarchy within a single extension module.
