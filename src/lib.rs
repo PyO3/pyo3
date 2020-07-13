@@ -37,7 +37,9 @@
 //!
 //! ## Using Rust from Python
 //!
-//! PyO3 can be used to generate a native Python module.
+//! PyO3 can be used to generate a native Python module. For a zero-configuration
+//! package to aid with compiling and packaging the module, see
+//! [`maturin`](https://github.com/PyO3/maturin).
 //!
 //! **`Cargo.toml`**
 //!
@@ -53,7 +55,6 @@
 //!
 //! [dependencies.pyo3]
 //! version = "0.11.1"
-//! features = ["extension-module"]
 //! ```
 //!
 //! **`src/lib.rs`**

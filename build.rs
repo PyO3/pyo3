@@ -485,7 +485,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
 
     check_target_architecture(interpreter_config)?;
 
-    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    let is_extension_module = env::var_os("PYO3_MAKE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
         println!("{}", get_rustc_link_lib(&interpreter_config)?);
         if let Some(libdir) = &interpreter_config.libdir {
