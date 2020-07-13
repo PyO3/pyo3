@@ -17,13 +17,4 @@ PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` bu
 
 ## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
-Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
-
-```toml
-[dependencies.pyo3]
-version = "*"
-
-[features]
-extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
-```
+If `PYO3_MAKE_EXTENSION_MODULE` environment variable is non-empty, PyO3 will not link against libpython. This will lead to errors like the above at link time.

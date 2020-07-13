@@ -48,7 +48,6 @@ crate-type = ["cdylib"]
 
 [dependencies.pyo3]
 version = "0.11.1"
-features = ["extension-module"]
 ```
 
 **`src/lib.rs`**

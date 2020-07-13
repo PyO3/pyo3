@@ -8,35 +8,15 @@ PyO3 uses a build script to determine the Python version and set the correct lin
 
 Different linker arguments must be set for libraries/extension modules and binaries, which includes both standalone binaries and tests. (More specifically, binaries must be told where to find libpython and libraries must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance).
 
-Since PyO3's build script can't know whether you're building a binary or a library, you have to activate the `extension-module` feature to get the build options for a library, or it'll default to binary.
-
-If you have e.g. a library crate and a profiling crate alongside, you need to use optional features. E.g. you put the following in the library crate:
-
-```toml
-[dependencies]
-pyo3 = "0.6"
-
-[lib]
-name = "hyperjson"
-crate-type = ["rlib", "cdylib"]
-
-[features]
-default = ["pyo3/extension-module"]
-```
-
-And this in the profiling crate:
-
-```toml
-[dependencies]
-my_main_crate = { path = "..", default-features = false }
-pyo3 = "0.6"
-```
+Since PyO3's build script can't know whether you're building a binary or a library, it defaults to building for binaries. To build a library, you should set the `PYO3_MAKE_EXTENSION_MODULE` environment variable to a nonempty value.
 
 On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a Python installation.
 
 ## Distribution
 
-There are two ways to distribute your module as a Python package: The old, [setuptools-rust](https://github.com/PyO3/setuptools-rust), and the new, [maturin](https://github.com/pyo3/maturin). setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). maturin doesn't need any configuration files, however it does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)) and requires a rigid project structure, while setuptools-rust allows (and sometimes requires) configuration with python code.
+There are two ways to distribute your module as a Python package:
+- [`maturin`](https://github.com/pyo3/maturin) is the typical way to build and package PyO3 extension modules. It is deliberately opinionated about project structure, which allows it to need minimal configuration.
+- [`setuptools-rust`](https://github.com/PyO3/setuptools-rust), in contrast, needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). This complexity comes at added flexibility, allowing configuration using python code.
 
 ## Cross Compiling
 
