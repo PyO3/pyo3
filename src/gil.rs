@@ -538,7 +538,7 @@ mod test {
 
     #[test]
     fn test_allow_threads() {
-        // allow_threads should temporarily release GIL in Py03's internal tracking too.
+        // allow_threads should temporarily release GIL in PyO3's internal tracking too.
         let gil = Python::acquire_gil();
         let py = gil.python();
 
