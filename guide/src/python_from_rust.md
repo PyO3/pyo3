@@ -13,12 +13,12 @@ module available in your environment.
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let builtins = PyModule::import(py, "builtins")?;
-    let total: i32 = builtins.call1("sum", (vec![1, 2, 3],))?.extract()?;
-    assert_eq!(total, 6);
-    Ok(())
+    Python::with_gil(|py| {
+        let builtins = PyModule::import(py, "builtins")?;
+        let total: i32 = builtins.call1("sum", (vec![1, 2, 3],))?.extract()?;
+        assert_eq!(total, 6);
+        Ok(())
+    })
 }
 ```
 
@@ -33,14 +33,14 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 fn main() -> Result<(), ()> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let result = py.eval("[i * 10 for i in range(5)]", None, None).map_err(|e| {
-        e.print_and_set_sys_last_vars(py);
-    })?;
-    let res: Vec<i64> = result.extract().unwrap();
-    assert_eq!(res, vec![0, 10, 20, 30, 40]);
-    Ok(())
+    Python::with_gil(|py| {
+        let result = py.eval("[i * 10 for i in range(5)]", None, None).map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })?;
+        let res: Vec<i64> = result.extract().unwrap();
+        assert_eq!(res, vec![0, 10, 20, 30, 40]);
+        Ok(())
+    })
 }
 ```
 
@@ -76,18 +76,19 @@ impl PyObjectProtocol for UserData {
         Ok(format!("User {}(id: {})", self.name, self.id))
     }
 }
-let gil = Python::acquire_gil();
-let py = gil.python();
-let userdata = UserData {
-    id: 34,
-    name: "Yu".to_string(),
-};
-let userdata = PyCell::new(py, userdata).unwrap();
-let userdata_as_tuple = (34, "Yu");
-py_run!(py, userdata userdata_as_tuple, r#"
+
+Python::with_gil(|py| {
+    let userdata = UserData {
+        id: 34,
+        name: "Yu".to_string(),
+    };
+    let userdata = PyCell::new(py, userdata).unwrap();
+    let userdata_as_tuple = (34, "Yu");
+    py_run!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"
 assert userdata.as_tuple() == userdata_as_tuple
-"#);
+    "#);
+})
 # }
 ```
 
@@ -100,26 +101,27 @@ can be used to generate a Python module which can then be used just as if it was
 ```rust
 use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
 #  fn main() -> PyResult<()> {
-let gil = Python::acquire_gil();
-let py = gil.python();
-let activators = PyModule::from_code(py, r#"
+Python::with_gil(|py| {
+    let activators = PyModule::from_code(py, r#"
 def relu(x):
     """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-"#, "activators.py", "activators")?;
+    "#, "activators.py", "activators")?;
 
-let relu_result: f64 = activators.call1("relu", (-1.0,))?.extract()?;
-assert_eq!(relu_result, 0.0);
+    let relu_result: f64 = activators.call1("relu", (-1.0,))?.extract()?;
+    assert_eq!(relu_result, 0.0);
 
-let kwargs = [("slope", 0.2)].into_py_dict(py);
-let lrelu_result: f64 = activators
-    .call("leaky_relu", (-1.0,), Some(kwargs))?
-    .extract()?;
-assert_eq!(lrelu_result, -0.2);
-# Ok(()) }
+    let kwargs = [("slope", 0.2)].into_py_dict(py);
+    let lrelu_result: f64 = activators
+        .call("leaky_relu", (-1.0,), Some(kwargs))?
+        .extract()?;
+    assert_eq!(lrelu_result, -0.2);
+#    Ok(())
+})
+# }
 ```
 
 [`Python::run`]: https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run
