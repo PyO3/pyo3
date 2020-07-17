@@ -21,4 +21,4 @@ pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInt
 // PyModule is only part of the prelude because we need it for the pymodule function
 pub use crate::types::{PyAny, PyModule};
 #[cfg(feature = "macros")]
-pub use pyo3cls::{pyclass, pyfunction, pymethods, pymodule, pyproto};
+pub use pyo3cls::{pyclass, pyenum, pyfunction, pymethods, pymodule, pyproto};
