@@ -24,7 +24,7 @@ impl PyType {
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
-    pub unsafe fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.as_ptr() as *mut ffi::PyTypeObject
     }
 

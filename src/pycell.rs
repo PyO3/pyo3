@@ -79,7 +79,7 @@ impl<T: PyClass> PySizedLayout<T> for PyCellInner<T> {}
 unsafe impl<T: PyClass> PyBorrowFlagLayout<T> for PyCellInner<T> {}
 
 impl<T: PyClass> PyCellInner<T> {
-    unsafe fn get_ptr(&self) -> *mut T {
+    fn get_ptr(&self) -> *mut T {
         self.value.get()
     }
     fn get_borrow_flag(&self) -> BorrowFlag {
