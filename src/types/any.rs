@@ -366,13 +366,13 @@ impl PyAny {
 
     /// Returns the Python type object for this object's type.
     pub fn get_type(&self) -> &PyType {
-        unsafe { PyType::from_type_ptr(self.py(), (*self.as_ptr()).ob_type) }
+        unsafe { PyType::from_type_ptr(self.py(), ffi::Py_TYPE(self.as_ptr())) }
     }
 
     /// Returns the Python type pointer for this object.
     #[inline]
     pub fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        unsafe { (*self.as_ptr()).ob_type }
+        unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
     /// Casts the PyObject to a concrete Python object type.

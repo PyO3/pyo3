@@ -98,7 +98,7 @@ extern "C" {
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
-    let tp_as_buffer = (*(*o).ob_type).tp_as_buffer;
+    let tp_as_buffer = (*Py_TYPE(o)).tp_as_buffer;
     (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
 }
 
@@ -158,7 +158,7 @@ extern "C" {
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    (match (*(*o).ob_type).tp_iternext {
+    (match (*Py_TYPE(o)).tp_iternext {
         Some(tp_iternext) => {
             tp_iternext as *const c_void
                 != crate::ffi::object::_PyObject_NextNotImplemented as *const c_void
@@ -217,7 +217,7 @@ extern "C" {
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyIndex_Check")]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
-    let tp_as_number = (*(*o).ob_type).tp_as_number;
+    let tp_as_number = (*Py_TYPE(o)).tp_as_number;
     (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
