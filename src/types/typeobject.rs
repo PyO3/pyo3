@@ -29,8 +29,10 @@ impl PyType {
     }
 
     /// Retrieves the `PyType` instance for the given FFI pointer.
-    /// This increments the reference count on the type object.
-    /// Undefined behavior if the pointer is NULL or invalid.
+    ///
+    /// # Safety
+    /// - The pointer must be non-null.
+    /// - The pointer must be valid for the entire of the lifetime for which the reference is used.
     #[inline]
     pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
