@@ -76,6 +76,7 @@ impl SelfType {
             SelfType::TryFromPyCell(span) => {
                 quote_spanned! { *span =>
                     let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
                     let _slf = std::convert::TryFrom::try_from(_cell)?;
                 }
             }
