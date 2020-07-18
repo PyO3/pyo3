@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
 
 /// A Python iterator object.
 ///
@@ -25,34 +25,26 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct PyIterator<'p>(&'p PyAny);
 
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
+    pub fn from_object<T>(py: Python<'p>, obj: &T) -> PyResult<PyIterator<'p>>
     where
         T: AsPyPointer,
     {
-        unsafe {
-            let ptr = ffi::PyObject_GetIter(obj.as_ptr());
-            // Returns NULL if an object cannot be iterated.
-            if ptr.is_null() {
-                PyErr::fetch(py);
-                return Err(PyDowncastError);
-            }
+        let iter = unsafe {
+            // This looks suspicious, but is actually correct. Even though ptr is an owned
+            // reference, PyIterator takes ownership of the reference and decreases the count
+            // in its Drop implementation.
+            //
+            // Therefore we must use from_borrowed_ptr_or_err instead of from_owned_ptr_or_err so
+            // that the GILPool does not take ownership of the reference.
+            py.from_borrowed_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr()))?
+        };
 
-            if ffi::PyIter_Check(ptr) != 0 {
-                // This looks suspicious, but is actually correct. Even though ptr is an owned
-                // reference, PyIterator takes ownership of the reference and decreases the count
-                // in its Drop implementation.
-                //
-                // Therefore we must use from_borrowed_ptr instead of from_owned_ptr so that the
-                // GILPool does not take ownership of the reference.
-                Ok(PyIterator(py.from_borrowed_ptr(ptr)))
-            } else {
-                Err(PyDowncastError)
-            }
-        }
+        Ok(PyIterator(iter))
     }
 }
 
@@ -90,6 +82,8 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
+    use super::PyIterator;
+    use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::types::{PyDict, PyList};
@@ -185,5 +179,16 @@ mod tests {
             let actual = actual.unwrap().extract::<usize>().unwrap();
             assert_eq!(actual, *expected)
         }
+    }
+
+    #[test]
+    fn int_not_iterable() {
+        let gil = GILGuard::acquire();
+        let py = gil.python();
+
+        let x = 5.to_object(py);
+        let err = PyIterator::from_object(py, &x).unwrap_err();
+
+        assert!(err.is_instance::<PyTypeError>(py))
     }
 }

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Add FFI definitions `Py_FinalizeEx`, `PyOS_getsig`, `PyOS_setsig`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 - Add `Python::with_gil` for executing a closure with the Python GIL. [#1037](https://github.com/PyO3/pyo3/pull/1037)
+- Implement `Debug` for `PyIterator`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Rename `PyString::to_string` to `to_str`, change return type `Cow<str>` to `&str`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Correct FFI definition `_PyLong_AsByteArray` `*mut c_uchar` argument instead of `*const c_uchar`. [#1029](https://github.com/PyO3/pyo3/pull/1029)
 - `PyType::as_type_ptr` is no longer `unsafe`. [#1047](https://github.com/PyO3/pyo3/pull/1047)
+- Change `PyIterator::from_object` to return `PyResult<PyIterator>` instead of `Result<PyIterator, PyDowncastError>`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
 
 ### Removed
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
