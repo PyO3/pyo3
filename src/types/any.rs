@@ -484,7 +484,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = py.eval("42", None, None).unwrap();
-        assert_eq!(unsafe { obj.get_type().as_type_ptr() }, obj.get_type_ptr())
+        assert_eq!(obj.get_type().as_type_ptr(), obj.get_type_ptr())
     }
 
     #[test]
