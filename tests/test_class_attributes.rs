@@ -56,7 +56,7 @@ fn class_attributes_are_immutable() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let foo_obj = py.get_type::<Foo>();
-    py_expect_exception!(py, foo_obj, "foo_obj.a = 6", TypeError);
+    py_expect_exception!(py, foo_obj, "foo_obj.a = 6", PyTypeError);
 }
 
 #[pymethods]

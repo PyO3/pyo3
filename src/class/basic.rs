@@ -260,7 +260,7 @@ where
             ffi::Py_NE => Ok(CompareOp::Ne),
             ffi::Py_GT => Ok(CompareOp::Gt),
             ffi::Py_GE => Ok(CompareOp::Ge),
-            _ => Err(PyErr::new::<exceptions::ValueError, _>(
+            _ => Err(PyErr::new::<exceptions::PyValueError, _>(
                 "tp_richcompare called with invalid comparison operator",
             )),
         }

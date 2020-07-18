@@ -75,14 +75,14 @@ impl PyErr {
     ///
     /// Example:
     /// ```ignore
-    /// return Err(PyErr::new::<exceptions::TypeError, _>("Error message"));
+    /// return Err(PyErr::new::<exceptions::PyTypeError, _>("Error message"));
     /// ```
     ///
     /// In most cases, you can use a concrete exception's constructors instead:
     /// the example is equivalent to
     /// ```ignore
-    /// return Err(exceptions::TypeError::py_err("Error message"));
-    /// return exceptions::TypeError::into("Error message");
+    /// return Err(exceptions::PyTypeError::py_err("Error message"));
+    /// return exceptions::PyTypeError::into("Error message");
     /// ```
     pub fn new<T, V>(value: V) -> PyErr
     where
@@ -105,7 +105,7 @@ impl PyErr {
     /// Constructs a new error, with the usual lazy initialization of Python exceptions.
     ///
     /// `exc` is the exception type; usually one of the standard exceptions
-    /// like `exceptions::RuntimeError`.
+    /// like `exceptions::PyRuntimeError`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
     pub fn from_type<A>(exc: &PyType, args: A) -> PyErr
     where
@@ -161,7 +161,7 @@ impl PyErr {
             }
         } else {
             PyErr {
-                ptype: exceptions::TypeError::type_object(obj.py()).into(),
+                ptype: exceptions::PyTypeError::type_object(obj.py()).into(),
                 pvalue: PyErrValue::ToObject(Box::new("exceptions must derive from BaseException")),
                 ptraceback: None,
             }
@@ -257,7 +257,7 @@ impl PyErr {
         };
 
         let ptype = if ptype.is_null() {
-            <exceptions::SystemError as PyTypeObject>::type_object(py).into()
+            <exceptions::PySystemError as PyTypeObject>::type_object(py).into()
         } else {
             Py::from_owned_ptr(py, ptype)
         };
@@ -344,11 +344,16 @@ impl PyErr {
     ///
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    fn instance(mut self, py: Python) -> PyObject {
+    pub fn instance(mut self, py: Python) -> &exceptions::PyBaseException {
         self.normalize(py);
         match self.pvalue {
-            PyErrValue::Value(ref instance) => instance.clone_ref(py),
-            _ => py.None(),
+            PyErrValue::Value(ref instance) => {
+                let any: &PyAny = unsafe { py.from_owned_ptr(instance.clone_ref(py).into_ptr()) };
+                any.downcast()
+                    .expect("Normalized error instance should be a BaseException")
+            }
+            PyErrValue::None => panic!("This exception is not an instance"),
+            _ => unreachable!(),
         }
     }
 
@@ -430,28 +435,34 @@ impl std::fmt::Debug for PyErr {
 
 impl FromPy<PyErr> for PyObject {
     fn from_py(other: PyErr, py: Python) -> Self {
-        other.instance(py)
+        other.instance(py).into()
+    }
+}
+
+impl FromPy<PyErr> for Py<exceptions::PyBaseException> {
+    fn from_py(other: PyErr, py: Python) -> Self {
+        other.instance(py).into()
     }
 }
 
 impl ToPyObject for PyErr {
     fn to_object(&self, py: Python) -> PyObject {
         let err = self.clone_ref(py);
-        err.instance(py)
+        err.instance(py).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
     fn into_py(self, py: Python) -> PyObject {
         let err = self.clone_ref(py);
-        err.instance(py)
+        err.instance(py).into()
     }
 }
 
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl std::convert::From<PyDowncastError> for PyErr {
     fn from(_err: PyDowncastError) -> PyErr {
-        exceptions::TypeError.into()
+        exceptions::PyTypeError::py_err(())
     }
 }
 
@@ -504,28 +515,30 @@ impl std::convert::From<io::Error> for PyErr {
         }
         match err.kind() {
             io::ErrorKind::BrokenPipe => {
-                PyErr::from_value::<exceptions::BrokenPipeError>(err_value!())
+                PyErr::from_value::<exceptions::PyBrokenPipeError>(err_value!())
             }
             io::ErrorKind::ConnectionRefused => {
-                PyErr::from_value::<exceptions::ConnectionRefusedError>(err_value!())
+                PyErr::from_value::<exceptions::PyConnectionRefusedError>(err_value!())
             }
             io::ErrorKind::ConnectionAborted => {
-                PyErr::from_value::<exceptions::ConnectionAbortedError>(err_value!())
+                PyErr::from_value::<exceptions::PyConnectionAbortedError>(err_value!())
             }
             io::ErrorKind::ConnectionReset => {
-                PyErr::from_value::<exceptions::ConnectionResetError>(err_value!())
+                PyErr::from_value::<exceptions::PyConnectionResetError>(err_value!())
             }
             io::ErrorKind::Interrupted => {
-                PyErr::from_value::<exceptions::InterruptedError>(err_value!())
+                PyErr::from_value::<exceptions::PyInterruptedError>(err_value!())
             }
             io::ErrorKind::NotFound => {
-                PyErr::from_value::<exceptions::FileNotFoundError>(err_value!())
+                PyErr::from_value::<exceptions::PyFileNotFoundError>(err_value!())
             }
             io::ErrorKind::WouldBlock => {
-                PyErr::from_value::<exceptions::BlockingIOError>(err_value!())
+                PyErr::from_value::<exceptions::PyBlockingIOError>(err_value!())
             }
-            io::ErrorKind::TimedOut => PyErr::from_value::<exceptions::TimeoutError>(err_value!()),
-            _ => PyErr::from_value::<exceptions::OSError>(err_value!()),
+            io::ErrorKind::TimedOut => {
+                PyErr::from_value::<exceptions::PyTimeoutError>(err_value!())
+            }
+            _ => PyErr::from_value::<exceptions::PyOSError>(err_value!()),
         }
     }
 }
@@ -538,7 +551,7 @@ impl PyErrArguments for io::Error {
 
 impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>> for PyErr {
     fn from(err: std::io::IntoInnerError<W>) -> PyErr {
-        PyErr::from_value::<exceptions::OSError>(PyErrValue::from_err_args(err))
+        PyErr::from_value::<exceptions::PyOSError>(PyErrValue::from_err_args(err))
     }
 }
 
@@ -556,22 +569,28 @@ impl PyErrArguments for std::convert::Infallible {
 
 impl std::convert::From<std::convert::Infallible> for PyErr {
     fn from(_: std::convert::Infallible) -> PyErr {
-        PyErr::new::<exceptions::ValueError, _>("Infalliable!")
+        PyErr::new::<exceptions::PyValueError, _>("Infalliable!")
     }
 }
 
-impl_to_pyerr!(std::array::TryFromSliceError, exceptions::ValueError);
-impl_to_pyerr!(std::num::ParseIntError, exceptions::ValueError);
-impl_to_pyerr!(std::num::ParseFloatError, exceptions::ValueError);
-impl_to_pyerr!(std::num::TryFromIntError, exceptions::ValueError);
-impl_to_pyerr!(std::str::ParseBoolError, exceptions::ValueError);
-impl_to_pyerr!(std::ffi::IntoStringError, exceptions::UnicodeDecodeError);
-impl_to_pyerr!(std::ffi::NulError, exceptions::ValueError);
-impl_to_pyerr!(std::str::Utf8Error, exceptions::UnicodeDecodeError);
-impl_to_pyerr!(std::string::FromUtf8Error, exceptions::UnicodeDecodeError);
-impl_to_pyerr!(std::string::FromUtf16Error, exceptions::UnicodeDecodeError);
-impl_to_pyerr!(std::char::DecodeUtf16Error, exceptions::UnicodeDecodeError);
-impl_to_pyerr!(std::net::AddrParseError, exceptions::ValueError);
+impl_to_pyerr!(std::array::TryFromSliceError, exceptions::PyValueError);
+impl_to_pyerr!(std::num::ParseIntError, exceptions::PyValueError);
+impl_to_pyerr!(std::num::ParseFloatError, exceptions::PyValueError);
+impl_to_pyerr!(std::num::TryFromIntError, exceptions::PyValueError);
+impl_to_pyerr!(std::str::ParseBoolError, exceptions::PyValueError);
+impl_to_pyerr!(std::ffi::IntoStringError, exceptions::PyUnicodeDecodeError);
+impl_to_pyerr!(std::ffi::NulError, exceptions::PyValueError);
+impl_to_pyerr!(std::str::Utf8Error, exceptions::PyUnicodeDecodeError);
+impl_to_pyerr!(std::string::FromUtf8Error, exceptions::PyUnicodeDecodeError);
+impl_to_pyerr!(
+    std::string::FromUtf16Error,
+    exceptions::PyUnicodeDecodeError
+);
+impl_to_pyerr!(
+    std::char::DecodeUtf16Error,
+    exceptions::PyUnicodeDecodeError
+);
+impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
 
 pub fn panic_after_error(_py: Python) -> ! {
     unsafe {
@@ -600,7 +619,7 @@ mod tests {
     fn set_typeerror() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let err: PyErr = exceptions::TypeError.into();
+        let err: PyErr = exceptions::PyTypeError::py_err(());
         err.restore(py);
         assert!(PyErr::occurred(py));
         drop(PyErr::fetch(py));

@@ -3,9 +3,9 @@ use crate::conversion::{
     AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::exceptions::TypeError;
+use crate::exceptions::PyTypeError;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
+use crate::{err, ffi, Py, PyNativeType, PyObject};
 use libc::c_int;
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
@@ -64,6 +64,8 @@ pyobject_native_type_convert!(
 );
 
 pyobject_native_type_extract!(PyAny);
+
+pyobject_native_type_fmt!(PyAny);
 
 impl PyAny {
     /// Convert this PyAny to a concrete Python type.
@@ -161,7 +163,7 @@ impl PyAny {
             } else if do_compare(other, ffi::Py_GT)? {
                 Ok(Ordering::Greater)
             } else {
-                Err(TypeError::py_err(
+                Err(PyTypeError::py_err(
                     "PyAny::compare(): All comparisons returned false",
                 ))
             }

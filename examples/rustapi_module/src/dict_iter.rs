@@ -1,4 +1,4 @@
-use pyo3::exceptions::RuntimeError;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -33,7 +33,7 @@ impl DictSize {
         if seen == self.expected {
             Ok(seen)
         } else {
-            Err(PyErr::new::<RuntimeError, _>(format!(
+            Err(PyErr::new::<PyRuntimeError, _>(format!(
                 "Expected {} iterations - performed {}",
                 self.expected, seen
             )))

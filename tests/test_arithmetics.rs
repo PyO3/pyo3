@@ -404,22 +404,22 @@ fn rich_comparisons_python_3_type_error() {
     let py = gil.python();
 
     let c2 = PyCell::new(py, RichComparisons2 {}).unwrap();
-    py_expect_exception!(py, c2, "c2 < c2", TypeError);
-    py_expect_exception!(py, c2, "c2 < 1", TypeError);
-    py_expect_exception!(py, c2, "1 < c2", TypeError);
-    py_expect_exception!(py, c2, "c2 <= c2", TypeError);
-    py_expect_exception!(py, c2, "c2 <= 1", TypeError);
-    py_expect_exception!(py, c2, "1 <= c2", TypeError);
+    py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
+    py_expect_exception!(py, c2, "1 < c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 <= c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 <= 1", PyTypeError);
+    py_expect_exception!(py, c2, "1 <= c2", PyTypeError);
     py_run!(py, c2, "assert (c2 == c2) == True");
     py_run!(py, c2, "assert (c2 == 1) == True");
     py_run!(py, c2, "assert (1 == c2) == True");
     py_run!(py, c2, "assert (c2 != c2) == False");
     py_run!(py, c2, "assert (c2 != 1) == False");
     py_run!(py, c2, "assert (1 != c2) == False");
-    py_expect_exception!(py, c2, "c2 > c2", TypeError);
-    py_expect_exception!(py, c2, "c2 > 1", TypeError);
-    py_expect_exception!(py, c2, "1 > c2", TypeError);
-    py_expect_exception!(py, c2, "c2 >= c2", TypeError);
-    py_expect_exception!(py, c2, "c2 >= 1", TypeError);
-    py_expect_exception!(py, c2, "1 >= c2", TypeError);
+    py_expect_exception!(py, c2, "c2 > c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 > 1", PyTypeError);
+    py_expect_exception!(py, c2, "1 > c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 >= c2", PyTypeError);
+    py_expect_exception!(py, c2, "c2 >= 1", PyTypeError);
+    py_expect_exception!(py, c2, "1 >= c2", PyTypeError);
 }

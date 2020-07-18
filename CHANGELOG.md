@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `Python::with_gil` for executing a closure with the Python GIL. [#1037](https://github.com/PyO3/pyo3/pull/1037)
 
 ### Changed
+- Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
 - Correct FFI definitions `Py_SetProgramName` and `Py_SetPythonHome` to take `*const` argument instead of `*mut`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 - Rename `PyString::to_string` to `to_str`, change return type `Cow<str>` to `&str`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Correct FFI definition `_PyLong_AsByteArray` `*mut c_uchar` argument instead of `*const c_uchar`. [#1029](https://github.com/PyO3/pyo3/pull/1029)

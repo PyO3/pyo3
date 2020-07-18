@@ -1,6 +1,6 @@
 use pyo3::buffer::PyBuffer;
 use pyo3::class::PyBufferProtocol;
-use pyo3::exceptions::BufferError;
+use pyo3::exceptions::PyBufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
@@ -21,11 +21,11 @@ struct TestBufferClass {
 impl PyBufferProtocol for TestBufferClass {
     fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
-            return Err(BufferError::py_err("View is null"));
+            return Err(PyBufferError::py_err("View is null"));
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(BufferError::py_err("Object is not writable"));
+            return Err(PyBufferError::py_err("Object is not writable"));
         }
 
         unsafe {

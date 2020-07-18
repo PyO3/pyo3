@@ -1,5 +1,5 @@
 use pyo3::class::PySequenceProtocol;
-use pyo3::exceptions::{IndexError, ValueError};
+use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList};
 
@@ -41,7 +41,7 @@ impl PySequenceProtocol for ByteSequence {
         self.elements
             .get(idx as usize)
             .copied()
-            .ok_or_else(|| IndexError::py_err("list index out of range"))
+            .ok_or_else(|| PyIndexError::py_err("list index out of range"))
     }
 
     fn __setitem__(&mut self, idx: isize, value: u8) {
@@ -53,7 +53,7 @@ impl PySequenceProtocol for ByteSequence {
             self.elements.remove(idx as usize);
             Ok(())
         } else {
-            Err(IndexError::py_err("list index out of range"))
+            Err(PyIndexError::py_err("list index out of range"))
         }
     }
 
@@ -78,7 +78,7 @@ impl PySequenceProtocol for ByteSequence {
             }
             Ok(Self { elements })
         } else {
-            Err(ValueError::py_err("invalid repeat count"))
+            Err(PyValueError::py_err("invalid repeat count"))
         }
     }
 }
@@ -242,7 +242,7 @@ impl PySequenceProtocol for OptionList {
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),
-            None => Err(PyErr::new::<IndexError, _>("Index out of bounds")),
+            None => Err(PyIndexError::py_err("Index out of bounds")),
         }
     }
 }
@@ -263,5 +263,5 @@ fn test_option_list_get() {
 
     py_assert!(py, list, "list[0] == 1");
     py_assert!(py, list, "list[1] == None");
-    py_expect_exception!(py, list, "list[2]", IndexError);
+    py_expect_exception!(py, list, "list[2]", PyIndexError);
 }

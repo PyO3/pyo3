@@ -1,5 +1,6 @@
 //! Includes `PyCell` implementation.
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::exceptions::PyRuntimeError;
 use crate::pyclass::{PyClass, PyClassThreadChecker};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
@@ -705,6 +706,12 @@ impl fmt::Display for PyBorrowError {
     }
 }
 
+impl From<PyBorrowError> for PyErr {
+    fn from(other: PyBorrowError) -> Self {
+        PyRuntimeError::py_err(other.to_string())
+    }
+}
+
 /// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
 ///
 /// In Python, you can catch this error by `except RuntimeError`.
@@ -724,5 +731,8 @@ impl fmt::Display for PyBorrowMutError {
     }
 }
 
-pyo3_exception!(PyBorrowError, crate::exceptions::RuntimeError);
-pyo3_exception!(PyBorrowMutError, crate::exceptions::RuntimeError);
+impl From<PyBorrowMutError> for PyErr {
+    fn from(other: PyBorrowMutError) -> Self {
+        PyRuntimeError::py_err(other.to_string())
+    }
+}

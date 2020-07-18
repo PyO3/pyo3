@@ -2,7 +2,7 @@ use pyo3::class::{
     PyAsyncProtocol, PyContextProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol,
     PyObjectProtocol, PySequenceProtocol,
 };
-use pyo3::exceptions::{IndexError, ValueError};
+use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PySlice, PyType};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
@@ -42,7 +42,7 @@ fn len() {
         },
     )
     .unwrap();
-    py_expect_exception!(py, inst, "len(inst)", OverflowError);
+    py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
 }
 
 #[pyclass]
@@ -171,7 +171,7 @@ impl PySequenceProtocol for Sequence {
         if let Some(s) = self.fields.get(idx) {
             Ok(s.clone())
         } else {
-            Err(PyErr::new::<IndexError, _>(()))
+            Err(PyErr::new::<PyIndexError, _>(()))
         }
     }
 
@@ -181,7 +181,7 @@ impl PySequenceProtocol for Sequence {
             *elem = value;
             Ok(())
         } else {
-            Err(PyErr::new::<IndexError, _>(()))
+            Err(PyErr::new::<PyIndexError, _>(()))
         }
     }
 }
@@ -202,7 +202,7 @@ fn sequence() {
     assert c[0] == 'H'
 "#
     );
-    py_expect_exception!(py, c, "c['abc']", TypeError);
+    py_expect_exception!(py, c, "c['abc']", PyTypeError);
 }
 
 #[pyclass]
@@ -256,7 +256,7 @@ fn setitem() {
         assert_eq!(c.key, 1);
         assert_eq!(c.val, 2);
     }
-    py_expect_exception!(py, c, "del c[1]", NotImplementedError);
+    py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
 }
 
 #[pyclass]
@@ -282,7 +282,7 @@ fn delitem() {
         let c = c.borrow();
         assert_eq!(c.key, 1);
     }
-    py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
+    py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
 }
 
 #[pyclass]
@@ -354,7 +354,7 @@ fn contains() {
     let c = Py::new(py, Contains {}).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
-    py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
+    py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
 }
 
 #[pyclass]
@@ -376,7 +376,7 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
     ) -> bool {
         let gil = GILGuard::acquire();
         self.exit_called = true;
-        ty == Some(gil.python().get_type::<ValueError>())
+        ty == Some(gil.python().get_type::<PyValueError>())
     }
 }
 
@@ -402,7 +402,7 @@ fn context_manager() {
         py,
         c,
         "with c as x: raise NotImplementedError",
-        NotImplementedError
+        PyNotImplementedError
     );
     let c = c.borrow();
     assert!(c.exit_called);
@@ -438,7 +438,7 @@ impl<'p> PyMappingProtocol<'p> for Test {
                 return Ok("int".into_py(gil.python()));
             }
         }
-        Err(PyErr::new::<ValueError, _>("error"))
+        Err(PyErr::new::<PyValueError, _>("error"))
     }
 }
 

@@ -119,7 +119,7 @@ impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
         match self {
             IterANextOutput::Yield(o) => Ok(o.into_ptr()),
             IterANextOutput::Return(opt) => {
-                Err(crate::exceptions::StopAsyncIteration::py_err((opt,)))
+                Err(crate::exceptions::PyStopAsyncIteration::py_err((opt,)))
             }
         }
     }
