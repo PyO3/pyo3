@@ -69,13 +69,13 @@ pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
-    PyType_FastSubclass((*x).ob_type, Py_TPFLAGS_BASE_EXC_SUBCLASS)
+    PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS)
 }
 
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyExceptionInstance_Class")]
 pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
-    (*x).ob_type as *mut PyObject
+    Py_TYPE(x) as *mut PyObject
 }
 
 // ported from cpython exception.c (line 2096)

@@ -111,7 +111,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
     fn is_exact_instance(object: &PyAny) -> bool {
-        unsafe { (*object.as_ptr()).ob_type == Self::type_object_raw(object.py()) }
+        unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
     }
 }
 
