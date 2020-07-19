@@ -41,10 +41,8 @@ where
 {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        match *self {
-            Some(ref t) => t.as_ptr(),
-            None => std::ptr::null_mut(),
-        }
+        self.as_ref()
+            .map_or_else(std::ptr::null_mut, |t| t.into_ptr())
     }
 }
 
@@ -55,10 +53,7 @@ where
 {
     #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
-        match self {
-            Some(t) => t.into_ptr(),
-            None => std::ptr::null_mut(),
-        }
+        self.map_or_else(std::ptr::null_mut, |t| t.into_ptr())
     }
 }
 
@@ -218,10 +213,8 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
-        match *self {
-            Some(ref val) => val.to_object(py),
-            None => py.None(),
-        }
+        self.as_ref()
+            .map_or_else(|| py.None(), |val| val.to_object(py))
     }
 }
 
@@ -230,10 +223,7 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python) -> PyObject {
-        match self {
-            Some(val) => val.into_py(py),
-            None => py.None(),
-        }
+        self.map_or_else(|| py.None(), |val| val.into_py(py))
     }
 }
 
@@ -307,10 +297,7 @@ where
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
-            match T::extract(obj) {
-                Ok(v) => Ok(Some(v)),
-                Err(e) => Err(e),
-            }
+            T::extract(obj).map(Some)
         }
     }
 }
@@ -427,27 +414,18 @@ impl FromPy<()> for Py<PyTuple> {
 pub unsafe trait FromPyPointer<'p>: Sized {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        match Self::from_owned_ptr_or_opt(py, ptr) {
-            Some(s) => s,
-            None => err::panic_after_error(py),
-        }
+        Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_owned_ptr_or_panic(py, ptr)
     }
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
-        match Self::from_owned_ptr_or_opt(py, ptr) {
-            Some(s) => Ok(s),
-            None => Err(err::PyErr::fetch(py)),
-        }
+        Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
         -> Option<&'p Self>;
     unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
-        match Self::from_borrowed_ptr_or_opt(py, ptr) {
-            Some(s) => s,
-            None => err::panic_after_error(py),
-        }
+        Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
     unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_panic(py, ptr)
@@ -456,10 +434,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         py: Python<'p>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<&'p Self> {
-        match Self::from_borrowed_ptr_or_opt(py, ptr) {
-            Some(s) => Ok(s),
-            None => Err(err::PyErr::fetch(py)),
-        }
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
 }
 
