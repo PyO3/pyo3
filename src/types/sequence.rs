@@ -372,18 +372,18 @@ where
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
             } else {
-                Err(PyDowncastError)
+                Err(PyDowncastError::new(value, "Sequence"))
             }
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 

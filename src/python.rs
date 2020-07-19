@@ -375,7 +375,7 @@ impl<'p> Python<'p> {
 
 impl<'p> Python<'p> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
+    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
     where
         T: PyTryFrom<'p>,
     {
