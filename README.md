@@ -137,6 +137,7 @@ about this topic.
  * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html)_
  * [rust-numpy](https://github.com/PyO3/rust-numpy) _Rust binding of NumPy C-API_
  * [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
+ * [pyo3-log](https://github.com/vorner/pyo3-log) _Bridge from Rust to Python logging_
 
 ## Examples
 
