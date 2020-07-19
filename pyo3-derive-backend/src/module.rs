@@ -25,10 +25,10 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
             use pyo3::derive_utils::ModuleDef;
             const NAME: &'static str = concat!(stringify!(#name), "\0");
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME) };
-            match MODULE_DEF.make_module(#doc, #fnname) {
-                Ok(m) => m,
-                Err(e) => e.restore_and_null(unsafe { pyo3::Python::assume_gil_acquired() }),
-            }
+
+            let pool = pyo3::GILPool::new();
+            let py = pool.python();
+            pyo3::callback_body!(_py, { MODULE_DEF.make_module(#doc, #fnname) })
         }
     }
 }
