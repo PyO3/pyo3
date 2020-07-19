@@ -10,6 +10,7 @@ use crate::{
     Python, ToBorrowedObject, ToPyObject,
 };
 use libc::c_int;
+use std::borrow::Cow;
 use std::ffi::CString;
 use std::io;
 use std::os::raw::c_char;
@@ -56,7 +57,20 @@ pub struct PyErr {
 pub type PyResult<T> = Result<T, PyErr>;
 
 /// Marker type that indicates an error while downcasting
-pub struct PyDowncastError;
+#[derive(Debug)]
+pub struct PyDowncastError<'a> {
+    from: &'a PyAny,
+    to: Cow<'static, str>,
+}
+
+impl<'a> PyDowncastError<'a> {
+    pub fn new(from: &'a PyAny, to: impl Into<Cow<'static, str>>) -> Self {
+        PyDowncastError {
+            from,
+            to: to.into(),
+        }
+    }
+}
 
 /// Helper conversion trait that allows to use custom arguments for exception constructor.
 pub trait PyErrArguments {
@@ -460,15 +474,25 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
 }
 
 /// Convert `PyDowncastError` to Python `TypeError`.
-impl std::convert::From<PyDowncastError> for PyErr {
-    fn from(_err: PyDowncastError) -> PyErr {
-        exceptions::PyTypeError::py_err(())
+impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
+    fn from(err: PyDowncastError) -> PyErr {
+        exceptions::PyTypeError::py_err(err.to_string())
     }
 }
 
-impl<'p> std::fmt::Debug for PyDowncastError {
+impl<'a> std::error::Error for PyDowncastError<'a> {}
+
+impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        f.write_str("PyDowncastError")
+        write!(
+            f,
+            "Can't convert {} to {}",
+            self.from
+                .repr()
+                .map(|s| s.to_string_lossy())
+                .unwrap_or_else(|_| self.from.get_type().name()),
+            self.to
+        )
     }
 }
 
