@@ -85,6 +85,11 @@ fn impl_enum(
 
         impl pyo3::pyclass::PyClassAlloc for #enum_ {}
 
+        // TODO: handle not in send
+        impl pyo3::pyclass::PyClassSend for #enum_ {
+            type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<#enum_>;
+        }
+
         #inventory
     })
 }
