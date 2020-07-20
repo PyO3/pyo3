@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 - Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)
+- Fix segfault with #[pyclass(dict, unsendable)] [#1058](https://github.com/PyO3/pyo3/pull/1058)
 
 ## [0.11.1] - 2020-06-30
 ### Added
