@@ -161,9 +161,9 @@ impl<T: PyClass> PyCellInner<T> {
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
     inner: PyCellInner<T>,
+    thread_checker: T::ThreadChecker,
     dict: T::Dict,
     weakref: T::WeakRef,
-    thread_checker: T::ThreadChecker,
 }
 
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
