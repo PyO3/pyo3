@@ -2,11 +2,9 @@
 //! Mainly used by our proc-macro codes.
 use crate::{ffi, Python};
 
-const POINTER_SIZE: isize = std::mem::size_of::<*mut ffi::PyObject>() as _;
-
 /// Represents `__dict__` field for `#[pyclass]`.
 pub trait PyClassDict {
-    const OFFSET: Option<isize> = None;
+    const IS_DUMMY: bool = true;
     fn new() -> Self;
     unsafe fn clear_dict(&mut self, _py: Python) {}
     private_decl! {}
@@ -14,7 +12,7 @@ pub trait PyClassDict {
 
 /// Represents `__weakref__` field for `#[pyclass]`.
 pub trait PyClassWeakRef {
-    const OFFSET: Option<isize> = None;
+    const IS_DUMMY: bool = true;
     fn new() -> Self;
     unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
     private_decl! {}
@@ -45,7 +43,7 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
     private_impl! {}
-    const OFFSET: Option<isize> = Some(-POINTER_SIZE);
+    const IS_DUMMY: bool = false;
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
@@ -64,7 +62,7 @@ pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {
     private_impl! {}
-    const OFFSET: Option<isize> = Some(-POINTER_SIZE);
+    const IS_DUMMY: bool = false;
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
