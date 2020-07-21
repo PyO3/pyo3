@@ -2,7 +2,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
+use crate::instance::PyObject;
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;

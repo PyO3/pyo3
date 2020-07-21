@@ -266,9 +266,7 @@ mod int128_conversion {
 
         #[test]
         fn test_u128_overflow() {
-            use crate::exceptions;
-            use crate::ffi;
-            use crate::object::PyObject;
+            use crate::{exceptions, ffi, PyObject};
             use std::os::raw::c_uchar;
             let gil = Python::acquire_gil();
             let py = gil.python();

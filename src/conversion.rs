@@ -2,7 +2,7 @@
 
 //! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
-use crate::object::PyObject;
+use crate::instance::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
@@ -383,7 +383,7 @@ where
 /// Converts `()` to an empty Python tuple.
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py).into_py(py)
+        PyTuple::empty(py).into()
     }
 }
 

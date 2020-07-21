@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{
-    ffi, AsPyPointer, IntoPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 

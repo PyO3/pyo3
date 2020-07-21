@@ -2,8 +2,8 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
-    PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyNativeType,
+    PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
 

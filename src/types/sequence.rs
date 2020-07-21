@@ -397,7 +397,7 @@ impl<'v> PyTryFrom<'v> for PySequence {
 #[cfg(test)]
 mod test {
     use crate::instance::AsPyRef;
-    use crate::object::PyObject;
+    use crate::instance::PyObject;
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
