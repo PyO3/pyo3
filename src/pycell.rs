@@ -8,9 +8,9 @@ use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo
 use crate::types::PyAny;
 use crate::{ffi, FromPy, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
-use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
+use std::{fmt, mem};
 
 /// Base layout of PyCell.
 /// This is necessary for sharing BorrowFlag between parents and children.
@@ -162,8 +162,30 @@ impl<T: PyClass> PyCellInner<T> {
 pub struct PyCell<T: PyClass> {
     inner: PyCellInner<T>,
     thread_checker: T::ThreadChecker,
+    // DO NOT CHANGE THE ORDER OF THESE FIELDS WITHOUT CHANGING PyCell::dict_offset()
+    // AND PyCell::weakref_offset()
     dict: T::Dict,
     weakref: T::WeakRef,
+}
+
+impl<T: PyClass> PyCell<T> {
+    /// Get the offset of the dictionary from the start of the struct in bytes.
+    pub(crate) fn dict_offset() -> Option<usize> {
+        if T::Dict::IS_DUMMY {
+            None
+        } else {
+            Some(mem::size_of::<Self>() - mem::size_of::<T::Dict>() - mem::size_of::<T::WeakRef>())
+        }
+    }
+
+    /// Get the offset of the weakref list from the start of the struct in bytes.
+    pub(crate) fn weakref_offset() -> Option<usize> {
+        if T::WeakRef::IS_DUMMY {
+            None
+        } else {
+            Some(mem::size_of::<Self>() - mem::size_of::<T::WeakRef>())
+        }
+    }
 }
 
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}

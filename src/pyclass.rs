@@ -137,18 +137,14 @@ where
     // type size
     type_object.tp_basicsize = std::mem::size_of::<T::Layout>() as ffi::Py_ssize_t;
 
-    let mut offset = type_object.tp_basicsize;
-
     // __dict__ support
-    if let Some(dict_offset) = T::Dict::OFFSET {
-        offset += dict_offset as ffi::Py_ssize_t;
-        type_object.tp_dictoffset = offset;
+    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+        type_object.tp_dictoffset = dict_offset as ffi::Py_ssize_t;
     }
 
     // weakref support
-    if let Some(weakref_offset) = T::WeakRef::OFFSET {
-        offset += weakref_offset as ffi::Py_ssize_t;
-        type_object.tp_weaklistoffset = offset;
+    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+        type_object.tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
     }
 
     // GC support
@@ -206,7 +202,7 @@ where
     // properties
     let mut props = py_class_properties::<T>();
 
-    if T::Dict::OFFSET.is_some() {
+    if !T::Dict::IS_DUMMY {
         props.push(ffi::PyGetSetDef_DICT);
     }
     if !props.is_empty() {
