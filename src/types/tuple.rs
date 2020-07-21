@@ -2,7 +2,7 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
+    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
     PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
@@ -126,12 +126,6 @@ impl<'a> IntoIterator for &'a PyTuple {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-impl<'a> FromPy<&'a PyTuple> for Py<PyTuple> {
-    fn from_py(tuple: &'a PyTuple, _py: Python) -> Py<PyTuple> {
-        unsafe { Py::from_borrowed_ptr(tuple.py(), tuple.as_ptr()) }
     }
 }
 

@@ -132,33 +132,10 @@ where
     }
 }
 
-/// Similar to [std::convert::From], just that it requires a gil token.
-pub trait FromPy<T>: Sized {
-    /// Performs the conversion.
-    fn from_py(_: T, py: Python) -> Self;
-}
-
 /// Similar to [std::convert::Into], just that it requires a gil token.
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
-}
-
-// From implies Into
-impl<T, U> IntoPy<U> for T
-where
-    U: FromPy<T>,
-{
-    fn into_py(self, py: Python) -> U {
-        U::from_py(self, py)
-    }
-}
-
-// From (and thus Into) is reflexive
-impl<T> FromPy<T> for T {
-    fn from_py(t: T, _: Python) -> T {
-        t
-    }
 }
 
 /// `FromPyObject` is implemented by various types that can be extracted from
@@ -234,19 +211,19 @@ impl ToPyObject for () {
     }
 }
 
-impl FromPy<()> for PyObject {
-    fn from_py(_: (), py: Python) -> Self {
+impl IntoPy<PyObject> for () {
+    fn into_py(self, py: Python) -> PyObject {
         py.None()
     }
 }
 
-impl<'a, T> FromPy<&'a T> for PyObject
+impl<T> IntoPy<PyObject> for &'_ T
 where
     T: AsPyPointer,
 {
     #[inline]
-    fn from_py(other: &'a T, py: Python) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, other.as_ptr()) }
+    fn into_py(self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
@@ -404,9 +381,9 @@ where
 }
 
 /// Converts `()` to an empty Python tuple.
-impl FromPy<()> for Py<PyTuple> {
-    fn from_py(_: (), py: Python) -> Py<PyTuple> {
-        Py::from_py(PyTuple::empty(py), py)
+impl IntoPy<Py<PyTuple>> for () {
+    fn into_py(self, py: Python) -> Py<PyTuple> {
+        PyTuple::empty(py).into_py(py)
     }
 }
 

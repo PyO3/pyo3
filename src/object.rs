@@ -259,6 +259,12 @@ impl PyObject {
     }
 }
 
+impl IntoPy<PyObject> for PyObject {
+    fn into_py(self, _py: Python) -> PyObject {
+        self
+    }
+}
+
 impl AsPyRef for PyObject {
     type Target = PyAny;
     fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p PyAny {
