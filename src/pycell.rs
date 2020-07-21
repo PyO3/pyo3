@@ -361,6 +361,20 @@ impl<T: PyClass> PyCell<T> {
         (*self_).thread_checker = T::ThreadChecker::new();
         Ok(self_)
     }
+
+    /// Calculate the offset of the `dict` from the end of the struct.
+    /// E.g., in 64bit devices, offset is -4 (without weakref) or -8 (without weakref).
+    /// Please take care that the offset depends on the order of the members.
+    pub(crate) fn dict_offset() -> Option<isize> {
+        T::Dict::OFFSET.map(|o| o + T::WeakRef::OFFSET.unwrap_or(0))
+    }
+
+    /// Calculate the offset of the `weakref` from the end of the struct.
+    /// E.g., in 64bit devices, offset is -4.
+    /// Please take care that the offset depends on the order of the members.
+    pub(crate) fn weakref_offset() -> Option<isize> {
+        T::WeakRef::OFFSET
+    }
 }
 
 unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {

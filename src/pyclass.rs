@@ -137,18 +137,15 @@ where
     // type size
     type_object.tp_basicsize = std::mem::size_of::<T::Layout>() as ffi::Py_ssize_t;
 
-    let mut offset = type_object.tp_basicsize;
-
     // __dict__ support
-    if let Some(dict_offset) = T::Dict::OFFSET {
-        offset += dict_offset as ffi::Py_ssize_t;
-        type_object.tp_dictoffset = offset;
+    if let Some(dict_offset) = T::Layout::dict_offset() {
+        type_object.tp_dictoffset = type_object.tp_basicsize + dict_offset as ffi::Py_ssize_t;
     }
 
     // weakref support
-    if let Some(weakref_offset) = T::WeakRef::OFFSET {
-        offset += weakref_offset as ffi::Py_ssize_t;
-        type_object.tp_weaklistoffset = offset;
+    if let Some(weakref_offset) = T::Layout::weakref_offset() {
+        type_object.tp_weaklistoffset =
+            type_object.tp_basicsize + weakref_offset as ffi::Py_ssize_t;
     }
 
     // GC support
