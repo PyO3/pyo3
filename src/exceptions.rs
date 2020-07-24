@@ -26,10 +26,12 @@ macro_rules! impl_exception_boilerplate {
         }
 
         impl $name {
-            pub fn py_err<V: $crate::ToPyObject + 'static>(args: V) -> $crate::PyErr {
+            pub fn py_err<V: $crate::ToPyObject + Send + Sync + 'static>(args: V) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, V>(args)
             }
-            pub fn into<R, V: $crate::ToPyObject + 'static>(args: V) -> $crate::PyResult<R> {
+            pub fn into<R, V: $crate::ToPyObject + Send + Sync + 'static>(
+                args: V,
+            ) -> $crate::PyResult<R> {
                 $crate::PyErr::new::<$name, V>(args).into()
             }
         }
