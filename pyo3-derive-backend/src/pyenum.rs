@@ -32,14 +32,83 @@ fn impl_enum(
     variants: Vec<(syn::Ident, syn::ExprLit)>,
 ) -> syn::Result<TokenStream> {
     let enum_cls = impl_class(enum_)?;
-    let variant_cls = variants
+    let variant_names: Vec<syn::Ident> = variants
         .iter()
-        .map(|(ident, _)| impl_class(ident))
+        .map(|(ident, _)| variant_enumname(enum_, ident))
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    let variant_cls = variant_names
+        .iter()
+        .map(impl_class)
+        .collect::<syn::Result<Vec<_>>>()?;
+    let variant_consts = variants
+        .iter()
+        .map(|(ident, _)| impl_const(enum_, ident))
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    let to_py = impl_to_py(enum_, variants)?;
+
+    Ok(quote! {
+
+        #enum_cls
+
+        #(
+            struct #variant_names;
+        )*
+
+        #(
+            #variant_cls
+        )*
+
+        #to_py
+
+        #[pymethods]
+        impl #enum_ {
+            #(
+                #variant_consts
+            )*
+        }
+
+    })
+}
+
+fn impl_to_py(
+    enum_: &syn::Ident,
+    variants: Vec<(syn::Ident, syn::ExprLit)>,
+) -> syn::Result<TokenStream> {
+    let matches = variants
+        .iter()
+        .map(|(ident, _)| {
+            variant_enumname(enum_, ident).map(|cls| {
+                quote! {
+                    #enum_::#ident => <#cls as pyo3::type_object::PyTypeObject>::type_object(py).to_object(py),
+                }
+            })
+        })
         .collect::<syn::Result<Vec<_>>>()?;
 
     Ok(quote! {
-        #enum_cls
-        #(#variant_cls)*
+        impl pyo3::FromPy<#enum_> for pyo3::PyObject {
+            fn from_py(v: #enum_, py: Python) -> Self {
+                match v {
+                    #(
+                        #matches
+                    )*
+                }
+            }
+        }
+    })
+}
+
+fn variant_enumname(enum_: &syn::Ident, cls: &syn::Ident) -> syn::Result<syn::Ident> {
+    let name = format!("{}_EnumVariant_{}", enum_, cls);
+    syn::parse_str(&name)
+}
+
+fn impl_const(enum_: &syn::Ident, cls: &syn::Ident) -> syn::Result<TokenStream> {
+    Ok(quote! {
+        #[classattr]
+        const #cls: #enum_ = #enum_::#cls;
     })
 }
 

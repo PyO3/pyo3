@@ -251,7 +251,6 @@ fn impl_class(
         let path = syn::Path::from(syn::PathSegment::from(cls.clone()));
         let ty = syn::Type::from(syn::TypePath { path, qself: None });
         let desc_impls = impl_descriptors(&ty, descriptors)?;
-        use crate::common::{impl_extractext, impl_methods_inventory, impl_proto_registry};
         quote! {
             #desc_impls
             #extra

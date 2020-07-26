@@ -9,7 +9,6 @@ pub enum MyEnum {
 }
 
 #[test]
-
 fn test_reflexive() {
     let gil = Python::acquire_gil();
     let py = gil.python();
