@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::pyclass::impl_methods_inventory;
+use crate::common::{impl_extractext, impl_methods_inventory, impl_proto_registry};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -29,15 +29,30 @@ pub fn build_py_enum(enum_: &syn::ItemEnum) -> syn::Result<TokenStream> {
 
 fn impl_enum(
     enum_: &syn::Ident,
-    _variants: Vec<(syn::Ident, syn::ExprLit)>,
+    variants: Vec<(syn::Ident, syn::ExprLit)>,
 ) -> syn::Result<TokenStream> {
-    let inventory = impl_methods_inventory(enum_);
-
-    let enum_name = enum_.to_string();
+    let enum_cls = impl_class(enum_)?;
+    let variant_cls = variants
+        .iter()
+        .map(|(ident, _)| impl_class(ident))
+        .collect::<syn::Result<Vec<_>>>()?;
 
     Ok(quote! {
-        unsafe impl pyo3::type_object::PyTypeInfo for #enum_ {
-            type Type = #enum_;
+        #enum_cls
+        #(#variant_cls)*
+    })
+}
+
+fn impl_class(cls: &syn::Ident) -> syn::Result<TokenStream> {
+    let inventory = impl_methods_inventory(cls);
+    let extractext = impl_extractext(cls);
+    let protoregistry = impl_proto_registry(cls);
+
+    let clsname = cls.to_string();
+
+    Ok(quote! {
+        unsafe impl pyo3::type_object::PyTypeInfo for #cls {
+            type Type = #cls;
             type BaseType = pyo3::PyAny;
             type Layout = pyo3::PyCell<Self>;
             type BaseLayout = pyo3::pycell::PyCellBase<pyo3::PyAny>;
@@ -45,7 +60,7 @@ fn impl_enum(
             type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
             type AsRefTarget = pyo3::PyCell<Self>;
 
-            const NAME: &'static str = #enum_name;
+            const NAME: &'static str = #clsname;
             const MODULE: Option<&'static str> = None;
             const DESCRIPTION: &'static str = "y'know, an enum\0"; // TODO
             const FLAGS: usize = 0;
@@ -59,35 +74,21 @@ fn impl_enum(
 
         }
 
-        impl pyo3::PyClass for #enum_ {
+        impl pyo3::PyClass for #cls {
             type Dict =  pyo3::pyclass_slots::PyClassDummySlot ;
             type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
             type BaseNativeType = pyo3::PyAny;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a #enum_
-        {
-            type Target = pyo3::PyRef<'a, #enum_>;
-        }
+        #protoregistry
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #enum_
-        {
-            type Target = pyo3::PyRefMut<'a, #enum_>;
-        }
+        #extractext
 
-        impl pyo3::class::proto_methods::HasProtoRegistry for #enum_ {
-            fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
-                static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
-                    = pyo3::class::proto_methods::PyProtoRegistry::new();
-                &REGISTRY
-            }
-        }
-
-        impl pyo3::pyclass::PyClassAlloc for #enum_ {}
+        impl pyo3::pyclass::PyClassAlloc for #cls {}
 
         // TODO: handle not in send
-        impl pyo3::pyclass::PyClassSend for #enum_ {
-            type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<#enum_>;
+        impl pyo3::pyclass::PyClassSend for #cls {
+            type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<#cls>;
         }
 
         #inventory

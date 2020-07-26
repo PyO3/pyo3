@@ -1,9 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::common::{impl_extractext, impl_methods_inventory, impl_proto_registry};
 use crate::method::{FnType, SelfType};
 use crate::pymethod::{
     impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter, PropertyType,
 };
+
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -206,47 +208,6 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     Ok(descs)
 }
 
-/// To allow multiple #[pymethods]/#[pyproto] block, we define inventory types.
-pub fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
-    // Try to build a unique type for better error messages
-    let name = format!("Pyo3MethodsInventoryFor{}", cls);
-    let inventory_cls = syn::Ident::new(&name, Span::call_site());
-
-    quote! {
-        #[doc(hidden)]
-        pub struct #inventory_cls {
-            methods: &'static [pyo3::class::PyMethodDefType],
-        }
-        impl pyo3::class::methods::PyMethodsInventory for #inventory_cls {
-            fn new(methods: &'static [pyo3::class::PyMethodDefType]) -> Self {
-                Self { methods }
-            }
-            fn get(&self) -> &'static [pyo3::class::PyMethodDefType] {
-                self.methods
-            }
-        }
-
-        impl pyo3::class::methods::HasMethodsInventory for #cls {
-            type Methods = #inventory_cls;
-        }
-
-        pyo3::inventory::collect!(#inventory_cls);
-    }
-}
-
-/// Implement `HasProtoRegistry` for the class for lazy protocol initialization.
-fn impl_proto_registry(cls: &syn::Ident) -> TokenStream {
-    quote! {
-        impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
-            fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
-                static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
-                    = pyo3::class::proto_methods::PyProtoRegistry::new();
-                &REGISTRY
-            }
-        }
-    }
-}
-
 fn get_class_python_name(cls: &syn::Ident, attr: &PyClassArgs) -> TokenStream {
     match &attr.name {
         Some(name) => quote! { #name },
@@ -290,6 +251,7 @@ fn impl_class(
         let path = syn::Path::from(syn::PathSegment::from(cls.clone()));
         let ty = syn::Type::from(syn::TypePath { path, qself: None });
         let desc_impls = impl_descriptors(&ty, descriptors)?;
+        use crate::common::{impl_extractext, impl_methods_inventory, impl_proto_registry};
         quote! {
             #desc_impls
             #extra
@@ -394,6 +356,8 @@ fn impl_class(
         quote! { pyo3::pyclass::ThreadCheckerStub<#cls> }
     };
 
+    let extractext = impl_extractext(cls);
+
     Ok(quote! {
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
@@ -422,15 +386,7 @@ fn impl_class(
             type BaseNativeType = #base_nativetype;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a #cls
-        {
-            type Target = pyo3::PyRef<'a, #cls>;
-        }
-
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
-        {
-            type Target = pyo3::PyRefMut<'a, #cls>;
-        }
+        #extractext
 
         impl pyo3::pyclass::PyClassSend for #cls {
             type ThreadChecker = #thread_checker;

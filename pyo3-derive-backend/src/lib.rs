@@ -3,6 +3,7 @@
 
 #![recursion_limit = "1024"]
 
+mod common;
 mod defs;
 mod func;
 mod konst;
