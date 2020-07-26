@@ -31,22 +31,23 @@ fn impl_enum(
     enum_: &syn::Ident,
     variants: Vec<(syn::Ident, syn::ExprLit)>,
 ) -> syn::Result<TokenStream> {
-    let enum_cls = impl_class(enum_)?;
+    let enum_cls = impl_class(enum_, None)?;
     let variant_names: Vec<syn::Ident> = variants
         .iter()
         .map(|(ident, _)| variant_enumname(enum_, ident))
         .collect::<syn::Result<Vec<_>>>()?;
 
-    let variant_cls = variant_names
+    let variant_cls = variants
         .iter()
-        .map(impl_class)
+        .map(|(ident, _)| impl_class(ident, Some(enum_)))
         .collect::<syn::Result<Vec<_>>>()?;
     let variant_consts = variants
         .iter()
         .map(|(ident, _)| impl_const(enum_, ident))
         .collect::<syn::Result<Vec<_>>>()?;
 
-    let to_py = impl_to_py(enum_, variants)?;
+    let to_py = impl_to_py(enum_, &variants)?;
+    let from_py = impl_from_py(enum_, &variants)?;
 
     Ok(quote! {
 
@@ -61,6 +62,7 @@ fn impl_enum(
         )*
 
         #to_py
+        #from_py
 
         #[pymethods]
         impl #enum_ {
@@ -73,9 +75,47 @@ fn impl_enum(
     })
 }
 
+fn impl_from_py(
+    enum_: &syn::Ident,
+    variants: &Vec<(syn::Ident, syn::ExprLit)>,
+) -> syn::Result<TokenStream> {
+    let matches = variants
+        .iter()
+        .map(|(ident, _)| {
+            variant_enumname(enum_, ident).map(|cls| {
+                let name = cls.to_string();
+                // TODO: this should be
+                // #cls as pyo3::type_object::PyTypeObject>::type_object(py).compare()
+                // but I can't figure out how to get py inside extract()
+                quote! {
+                    if typ_name == #name {
+                        return Ok(#enum_::#ident)
+                    }
+                }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    let errormsg = format!("Could not convert to {} enum", enum_);
+
+    Ok(quote! {
+        impl pyo3::conversion::FromPyObject<'_> for #enum_ {
+            fn extract(ob: &pyo3::PyAny) -> pyo3::PyResult<Self> {
+                let typ: &pyo3::types::PyType = ob.extract();
+                let typ_name = typ.name();
+                #(
+                    #matches
+                )*
+
+                Err(pyo3::exceptions::PyValueError::into(#errormsg))
+            }
+        }
+    })
+}
+
 fn impl_to_py(
     enum_: &syn::Ident,
-    variants: Vec<(syn::Ident, syn::ExprLit)>,
+    variants: &Vec<(syn::Ident, syn::ExprLit)>,
 ) -> syn::Result<TokenStream> {
     let matches = variants
         .iter()
@@ -90,7 +130,7 @@ fn impl_to_py(
 
     Ok(quote! {
         impl pyo3::FromPy<#enum_> for pyo3::PyObject {
-            fn from_py(v: #enum_, py: Python) -> Self {
+            fn from_py(v: #enum_, py: pyo3::Python) -> Self {
                 match v {
                     #(
                         #matches
@@ -113,16 +153,25 @@ fn impl_const(enum_: &syn::Ident, cls: &syn::Ident) -> syn::Result<TokenStream> 
     })
 }
 
-fn impl_class(cls: &syn::Ident) -> syn::Result<TokenStream> {
-    let inventory = impl_methods_inventory(cls);
-    let extractext = impl_extractext(cls);
-    let protoregistry = impl_proto_registry(cls);
+fn impl_class(cls: &syn::Ident, parent: Option<&syn::Ident>) -> syn::Result<TokenStream> {
+    let (typ, desc) = if let Some(p) = parent {
+        (
+            variant_enumname(p, cls)?,
+            format!("variant {} of enum {}", cls, p),
+        )
+    } else {
+        // Clone is just to align the types
+        (cls.clone(), format!("enum {}", cls))
+    };
 
     let clsname = cls.to_string();
+    let inventory = impl_methods_inventory(&typ);
+    let extractext = impl_extractext(&typ);
+    let protoregistry = impl_proto_registry(&typ);
 
     Ok(quote! {
-        unsafe impl pyo3::type_object::PyTypeInfo for #cls {
-            type Type = #cls;
+        unsafe impl pyo3::type_object::PyTypeInfo for #typ {
+            type Type = #typ;
             type BaseType = pyo3::PyAny;
             type Layout = pyo3::PyCell<Self>;
             type BaseLayout = pyo3::pycell::PyCellBase<pyo3::PyAny>;
@@ -132,7 +181,7 @@ fn impl_class(cls: &syn::Ident) -> syn::Result<TokenStream> {
 
             const NAME: &'static str = #clsname;
             const MODULE: Option<&'static str> = None;
-            const DESCRIPTION: &'static str = "y'know, an enum\0"; // TODO
+            const DESCRIPTION: &'static str = #desc;
             const FLAGS: usize = 0;
 
             #[inline]
@@ -141,10 +190,9 @@ fn impl_class(cls: &syn::Ident) -> syn::Result<TokenStream> {
                 static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
                 TYPE_OBJECT.get_or_init::<Self>(py)
             }
-
         }
 
-        impl pyo3::PyClass for #cls {
+        impl pyo3::PyClass for #typ {
             type Dict =  pyo3::pyclass_slots::PyClassDummySlot ;
             type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
             type BaseNativeType = pyo3::PyAny;
@@ -154,11 +202,11 @@ fn impl_class(cls: &syn::Ident) -> syn::Result<TokenStream> {
 
         #extractext
 
-        impl pyo3::pyclass::PyClassAlloc for #cls {}
+        impl pyo3::pyclass::PyClassAlloc for #typ {}
 
         // TODO: handle not in send
-        impl pyo3::pyclass::PyClassSend for #cls {
-            type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<#cls>;
+        impl pyo3::pyclass::PyClassSend for #typ {
+            type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<#typ>;
         }
 
         #inventory

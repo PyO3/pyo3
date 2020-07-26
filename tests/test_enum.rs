@@ -4,6 +4,7 @@ use pyo3::{py_run, wrap_pyfunction};
 mod common;
 
 #[pyenum]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MyEnum {
     Variant = 1,
     OtherVariant = 2,
@@ -31,4 +32,19 @@ fn test_return_enum() {
     let mynum = py.get_type::<MyEnum>();
 
     py_run!(py, f mynum, "assert f() == mynum.Variant")
+}
+
+#[pyfunction]
+fn enum_arg(e: MyEnum) {
+    assert_eq!(MyEnum::OtherVariant, e)
+}
+
+#[test]
+fn test_enum_arg() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let f = wrap_pyfunction!(enum_arg)(py);
+    let mynum = py.get_type::<MyEnum>();
+
+    py_run!(py, f mynum, "f(mynum.Variant)")
 }
