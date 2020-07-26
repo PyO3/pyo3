@@ -65,6 +65,7 @@ fn impl_enum(
         #[pymethods]
         impl #enum_ {
             #(
+                #[allow(non_upper_case_globals)]
                 #variant_consts
             )*
         }
