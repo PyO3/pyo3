@@ -215,7 +215,7 @@ pub mod proc_macro {
 #[macro_export]
 macro_rules! wrap_pyfunction {
     ($function_name: ident) => {{
-        &pyo3::paste::expr! { [<__pyo3_get_function_ $function_name>] }
+        &pyo3::paste::paste! { [<__pyo3_get_function_ $function_name>] }
     }};
 }
 
@@ -225,7 +225,7 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
-        pyo3::paste::expr! {
+        pyo3::paste::paste! {
             &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
         }
     }};
