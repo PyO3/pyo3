@@ -112,7 +112,7 @@ fn impl_wrap_common(
             }
         }
     } else {
-        let body = impl_arg_params(&spec, body);
+        let body = impl_arg_params(&spec, Some(cls), body);
 
         quote! {
             unsafe extern "C" fn __wrap(
@@ -138,7 +138,7 @@ fn impl_wrap_common(
 pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -> TokenStream {
     let python_name = &spec.python_name;
     let cb = impl_call(cls, &spec);
-    let body = impl_arg_params(&spec, cb);
+    let body = impl_arg_params(&spec, Some(cls), cb);
     let slf = self_ty.receiver(cls);
 
     quote! {
@@ -166,7 +166,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
-    let body = impl_arg_params(spec, cb);
+    let body = impl_arg_params(spec, Some(cls), cb);
 
     quote! {
         #[allow(unused_mut)]
@@ -198,7 +198,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(&_cls, #(#names),*) };
 
-    let body = impl_arg_params(spec, cb);
+    let body = impl_arg_params(spec, Some(cls), cb);
 
     quote! {
         #[allow(unused_mut)]
@@ -226,7 +226,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
 
-    let body = impl_arg_params(spec, cb);
+    let body = impl_arg_params(spec, Some(cls), cb);
 
     quote! {
         #[allow(unused_mut)]
@@ -383,7 +383,11 @@ fn impl_call(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     quote! { #cls::#fname(_slf, #(#names),*) }
 }
 
-pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
+pub fn impl_arg_params(
+    spec: &FnSpec<'_>,
+    self_: Option<&syn::Type>,
+    body: TokenStream,
+) -> TokenStream {
     if spec.args.is_empty() {
         return quote! {
             #body
@@ -412,7 +416,7 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
     for (idx, arg) in spec.args.iter().enumerate() {
-        param_conversion.push(impl_arg_param(&arg, &spec, idx, &mut option_pos));
+        param_conversion.push(impl_arg_param(&arg, &spec, idx, self_, &mut option_pos));
     }
 
     let (mut accept_args, mut accept_kwargs) = (false, false);
@@ -458,6 +462,7 @@ fn impl_arg_param(
     arg: &FnArg<'_>,
     spec: &FnSpec<'_>,
     idx: usize,
+    self_: Option<&syn::Type>,
     option_pos: &mut usize,
 ) -> TokenStream {
     let arg_name = syn::Ident::new(&format!("arg{}", idx), Span::call_site());
@@ -491,7 +496,7 @@ fn impl_arg_param(
             quote! { None }
         };
         if let syn::Type::Reference(tref) = ty {
-            let (tref, mut_) = tref_preprocess(tref);
+            let (tref, mut_) = preprocess_tref(tref, self_);
             // To support Rustc 1.39.0, we don't use as_deref here...
             let tmp_as_deref = if mut_.is_some() {
                 quote! { _tmp.as_mut().map(std::ops::DerefMut::deref_mut) }
@@ -524,7 +529,7 @@ fn impl_arg_param(
             };
         }
     } else if let syn::Type::Reference(tref) = arg.ty {
-        let (tref, mut_) = tref_preprocess(tref);
+        let (tref, mut_) = preprocess_tref(tref, self_);
         // Get &T from PyRef<T>
         quote! {
             let #mut_ _tmp: <#tref as pyo3::derive_utils::ExtractExt>::Target
@@ -537,11 +542,33 @@ fn impl_arg_param(
         }
     };
 
-    fn tref_preprocess(tref: &syn::TypeReference) -> (syn::TypeReference, Option<syn::token::Mut>) {
+    /// Replace `Self`, remove lifetime and get mutability from the type
+    fn preprocess_tref(
+        tref: &syn::TypeReference,
+        self_: Option<&syn::Type>,
+    ) -> (syn::TypeReference, Option<syn::token::Mut>) {
         let mut tref = tref.to_owned();
+        if let Some(syn::Type::Path(tpath)) = self_ {
+            replace_self(&mut tref, &tpath.path);
+        }
         tref.lifetime = None;
         let mut_ = tref.mutability;
         (tref, mut_)
+    }
+
+    /// Replace `Self` with the exact type name since it is used out of the impl block
+    fn replace_self(tref: &mut syn::TypeReference, self_path: &syn::Path) {
+        match &mut *tref.elem {
+            syn::Type::Reference(tref_inner) => replace_self(tref_inner, self_path),
+            syn::Type::Path(ref mut tpath) => {
+                if let Some(ident) = tpath.path.get_ident() {
+                    if ident == "Self" {
+                        tpath.path = self_path.to_owned();
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 

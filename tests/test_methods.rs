@@ -16,6 +16,11 @@ impl InstanceMethod {
     fn method(&self) -> PyResult<i32> {
         Ok(self.member)
     }
+
+    // Checks that &Self works
+    fn add_other(&self, other: &Self) -> i32 {
+        self.member + other.member
+    }
 }
 
 #[test]
@@ -26,10 +31,9 @@ fn instance_method() {
     let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method().unwrap(), 42);
-    let d = [("obj", obj)].into_py_dict(py);
-    py.run("assert obj.method() == 42", None, Some(d)).unwrap();
-    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d))
-        .unwrap();
+    py_assert!(py, obj, "obj.method() == 42");
+    py_assert!(py, obj, "obj.add_other(obj) == 84");
+    py_assert!(py, obj, "obj.method.__doc__ == 'Test method'");
 }
 
 #[pyclass]
