@@ -211,7 +211,7 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
         #name(#(#names),*)
     };
 
-    let body = pymethod::impl_arg_params(spec, cb);
+    let body = pymethod::impl_arg_params(spec, None, cb);
 
     quote! {
         unsafe extern "C" fn __wrap(
