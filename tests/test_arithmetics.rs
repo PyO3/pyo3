@@ -423,3 +423,132 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "c2 >= 1", PyTypeError);
     py_expect_exception!(py, c2, "1 >= c2", PyTypeError);
 }
+
+// Checks that binary operations for which the arguments don't match the
+// required type, return NotImplemented.
+mod return_not_implemented {
+    use super::*;
+
+    #[pyclass]
+    struct RichComparisonToSelf {}
+
+    #[pyproto]
+    impl<'p> PyObjectProtocol<'p> for RichComparisonToSelf {
+        fn __repr__(&self) -> &'static str {
+            "RC_Self"
+        }
+
+        fn __richcmp__(&self, other: PyRef<'p, Self>, _op: CompareOp) -> PyObject {
+            other.py().None()
+        }
+    }
+
+    fn test_dunder(operator: &str) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_run!(
+            py,
+            c2,
+            &format!(
+                "\
+class Other:
+    def __eq__(self, other):
+        return True
+    __ne__ = __lt__ = __le__ = __gt__ = __ge__ = __eq__
+
+    def __radd__(self, other):
+        return self
+    __rand__ = __ror__ = __rxor__ = __radd__
+    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
+    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
+
+c2 {} Other()",
+                operator
+            )
+        );
+        py_expect_exception!(
+            py,
+            c2,
+            &format!("class Other: pass; c2 {} Other()", operator),
+            PyTypeError
+        );
+    }
+
+    macro_rules! not_implemented_test {
+        ($dunder: ident, $operator: literal) => {
+            #[test]
+            fn $dunder() {
+				test_dunder($operator)
+            }
+        };
+
+        [$( ($dunder: ident, $operator: literal) ),*] => {
+            $(not_implemented_test!{$dunder, $operator})*
+        };
+
+        [$( ($dunder: ident, $operator: literal) ),* ,] => {
+            $(not_implemented_test!{$dunder, $operator})*
+        };
+
+    }
+
+    mod richcmp {
+        use super::*;
+
+        not_implemented_test![
+            (eq, "=="),
+            (ne, "!="),
+            (lt, "<"),
+            (le, "<="),
+            (gt, ">"),
+            (ge, ">="),
+        ];
+    }
+
+    #[cfg(feature = "remove-this-when-implemented")]
+    mod reversed {
+        use super::*;
+
+        // The pyclass returns NotImplemented, so the other object gets is
+        // reversed dunder method called.
+        not_implemented_test![
+            (rand, "&"),
+            (ror, "|"),
+            (rxor, "^"),
+            (radd, "+"),
+            (rsub, "-"),
+            (rmul, "*"),
+            (rmatmul, "@"),
+            (rtruediv, "/"),
+            (rfloordiv, "//"),
+            (rmod, "%"),
+            (rpow, "**"),
+            (rlshift, "<<"),
+            (rshift, ">>"),
+        ];
+    }
+
+    #[cfg(feature = "remove-this-when-implemented")]
+    mod inplace {
+        use super::*;
+
+        // The pyclass returns NotImplemented for the in-place operator, so the
+        // other object gets is reversed dunder method called.
+        not_implemented_test![
+            (rand, "&="),
+            (ror, "|="),
+            (rxor, "^="),
+            (radd, "+="),
+            (rsub, "-="),
+            (rmul, "*="),
+            (rmatmul, "@="),
+            (rtruediv, "/="),
+            (rfloordiv, "//="),
+            (rmod, "%="),
+            (rpow, "**="),
+            (rlshift, "<<="),
+            (rshift, ">>="),
+        ];
+    }
+}
