@@ -278,8 +278,10 @@ where
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
             let op = extract_op(op)?;
-            let arg = arg.extract()?;
-
+            let arg = match arg.extract() {
+                Ok(param) => param,
+                _ => return py.NotImplemented().convert(py),
+            };
             slf.try_borrow()?.__richcmp__(arg, op).convert(py)
         })
     }

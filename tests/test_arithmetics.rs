@@ -467,12 +467,12 @@ c2 {} Other()",
                 operator
             )
         );
-        py_expect_exception!(
-            py,
-            c2,
-            &format!("class Other: pass; c2 {} Other()", operator),
-            PyTypeError
-        );
+        // py_expect_exception!(
+        //     py,
+        //     c2,
+        //     &format!("class Other: pass; c2 {} Other()", operator),
+        //     PyTypeError
+        // );
     }
 
     macro_rules! not_implemented_test {
