@@ -92,8 +92,11 @@ macro_rules! py_binary_num_func {
             $crate::callback_body!(py, {
                 let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
                 let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
-
-                $class::$f(lhs.extract()?, rhs.extract()?).convert(py)
+                let param = match rhs.extract::<<$class as $trait>::Right>() {
+                    Ok(param) => param,
+                    _ => return py.NotImplemented().convert(py),
+                };
+                $class::$f(lhs.extract()?, param).convert(py)
             })
         }
         Some(wrap::<$class>)

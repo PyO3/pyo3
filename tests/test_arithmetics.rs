@@ -523,7 +523,6 @@ c2 {} Other()",
         not_implemented_test![(lt, "<"), (le, "<="), (gt, ">"), (ge, ">="),];
     }
 
-    #[cfg(feature = "remove-this-when-implemented")]
     mod reversed {
         use super::*;
 
