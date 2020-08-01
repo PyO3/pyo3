@@ -443,7 +443,7 @@ mod return_not_implemented {
         }
     }
 
-    fn test_dunder(operator: &str) {
+    fn test_dunder(operator: &str, raises_typeerror: bool) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
@@ -467,43 +467,60 @@ c2 {} Other()",
                 operator
             )
         );
-        // py_expect_exception!(
-        //     py,
-        //     c2,
-        //     &format!("class Other: pass; c2 {} Other()", operator),
-        //     PyTypeError
-        // );
+
+        if raises_typeerror {
+            py_expect_exception!(
+                py,
+                c2,
+                &format!("class Other: pass\nc2 {} Other()", operator),
+                PyTypeError
+            );
+        }
     }
 
     macro_rules! not_implemented_test {
+        ($dunder: ident without TypeError, $operator: literal) => {
+            #[test]
+            fn $dunder() {
+                test_dunder($operator, false)
+            }
+        };
+
         ($dunder: ident, $operator: literal) => {
             #[test]
             fn $dunder() {
-				test_dunder($operator)
+                test_dunder($operator, true)
             }
         };
+
 
         [$( ($dunder: ident, $operator: literal) ),*] => {
             $(not_implemented_test!{$dunder, $operator})*
         };
 
+        [$( ($dunder: ident without TypeError, $operator: literal) ),*] => {
+            $(not_implemented_test!{$dunder without TypeError, $operator})*
+        };
+
+
         [$( ($dunder: ident, $operator: literal) ),* ,] => {
             $(not_implemented_test!{$dunder, $operator})*
         };
 
+        [$( ($dunder: ident without TypeError, $operator: literal) ),* ,] => {
+            $(not_implemented_test!{$dunder without TypeError, $operator})*
+        };
     }
 
     mod richcmp {
         use super::*;
 
+        // eq and ne, never fail.
         not_implemented_test![
-            (eq, "=="),
-            (ne, "!="),
-            (lt, "<"),
-            (le, "<="),
-            (gt, ">"),
-            (ge, ">="),
+            (eq without TypeError, "=="),
+            (ne without TypeError, "!="),
         ];
+        not_implemented_test![(lt, "<"), (le, "<="), (gt, ">"), (ge, ">="),];
     }
 
     #[cfg(feature = "remove-this-when-implemented")]
