@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `Python::with_gil` for executing a closure with the Python GIL. [#1037](https://github.com/PyO3/pyo3/pull/1037)
 - Implement `Debug` for `PyIterator`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
 - Implement type information for conversion failures. [#1050](https://github.com/PyO3/pyo3/pull/1050)
+- Add `PyBytes::new_with` and `PyBytes::new_with_uninit` for initialising Python allocated bytes inside Rust. [#1074](https://github.com/PyO3/pyo3/pull/1074)
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
