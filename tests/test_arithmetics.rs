@@ -478,6 +478,17 @@ mod return_not_implemented {
         fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
             lhs
         }
+
+        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
     fn _test_bool_operator(operator: &str) {
@@ -543,6 +554,37 @@ assert (c2 {} Other()) is c2",
         )
     }
 
+    fn _test_inplace_num_operator(operator: &str) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_run!(
+            py,
+            c2,
+            &format!(
+                "\
+class Other:
+    def __radd__(self, other):
+        return other
+    __rand__ = __ror__ = __rxor__ = __radd__
+    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
+    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
+
+tmp = c2
+c2 {} Other()
+assert tmp is c2",
+                operator
+            )
+        );
+
+        py_expect_exception!(
+            py,
+            c2,
+            &format!("class Other: pass\nc2 {} Other()", operator),
+            PyTypeError
+        )
+    }
+
     #[test]
     fn equality() {
         _test_bool_operator("==");
@@ -576,5 +618,32 @@ assert (c2 {} Other()) is c2",
         _test_binary_num_operator("//");
         _test_binary_num_operator("%");
         _test_binary_num_operator("**");
+    }
+
+    #[test]
+    fn inplace_bitwise() {
+        _test_inplace_num_operator("&=");
+        _test_inplace_num_operator("|=");
+        _test_inplace_num_operator("^=");
+        _test_inplace_num_operator("<<=");
+        _test_inplace_num_operator(">>=");
+    }
+
+    #[test]
+    fn inplace_arith() {
+        _test_inplace_num_operator("+=");
+        _test_inplace_num_operator("-=");
+        _test_inplace_num_operator("*=");
+        _test_inplace_num_operator("@=");
+        _test_inplace_num_operator("/=");
+        _test_inplace_num_operator("//=");
+        _test_inplace_num_operator("%=");
+    }
+
+    #[test]
+    #[ignore]
+    fn ipow() {
+        // TODO: Move to `inplace_arith` when it passes
+        _test_inplace_num_operator("**=");
     }
 }
