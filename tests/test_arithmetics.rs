@@ -466,6 +466,9 @@ mod return_not_implemented {
         fn __mod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
             lhs
         }
+        fn __pow__(lhs: &'p PyAny, _other: u8, _modulo: Option<u8>) -> &'p PyAny {
+            lhs
+        }
         fn __lshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
             lhs
         }
@@ -475,20 +478,9 @@ mod return_not_implemented {
         fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
             lhs
         }
-
-        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
-    fn test_dunder(operator: &str, raises_typeerror: bool) {
+    fn _test_bool_operator(operator: &str) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
@@ -502,114 +494,87 @@ class Other:
         return True
     __ne__ = __lt__ = __le__ = __gt__ = __ge__ = __eq__
 
+assert (c2 {} Other()) is True",
+                operator
+            )
+        );
+    }
+
+    fn _test_logical_operator(operator: &str) {
+        _test_bool_operator(operator);
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_expect_exception!(
+            py,
+            c2,
+            &format!("class Other: pass\nc2 {} Other()", operator),
+            PyTypeError
+        )
+    }
+
+    fn _test_binary_num_operator(operator: &str) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_run!(
+            py,
+            c2,
+            &format!(
+                "\
+class Other:
     def __radd__(self, other):
-        return self
+        return other
     __rand__ = __ror__ = __rxor__ = __radd__
     __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
     __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
 
-c2 {} Other()",
+assert (c2 {} Other()) is c2",
                 operator
             )
         );
 
-        if raises_typeerror {
-            py_expect_exception!(
-                py,
-                c2,
-                &format!("class Other: pass\nc2 {} Other()", operator),
-                PyTypeError
-            );
-        }
+        py_expect_exception!(
+            py,
+            c2,
+            &format!("class Other: pass\nc2 {} Other()", operator),
+            PyTypeError
+        )
     }
 
-    macro_rules! not_implemented_test {
-        ($dunder: ident without TypeError, $operator: literal) => {
-            #[test]
-            fn $dunder() {
-                test_dunder($operator, false)
-            }
-        };
-
-        ($dunder: ident, $operator: literal) => {
-            #[test]
-            fn $dunder() {
-                test_dunder($operator, true)
-            }
-        };
-
-
-        [$( ($dunder: ident, $operator: literal) ),*] => {
-            $(not_implemented_test!{$dunder, $operator})*
-        };
-
-        [$( ($dunder: ident without TypeError, $operator: literal) ),*] => {
-            $(not_implemented_test!{$dunder without TypeError, $operator})*
-        };
-
-
-        [$( ($dunder: ident, $operator: literal) ),* ,] => {
-            $(not_implemented_test!{$dunder, $operator})*
-        };
-
-        [$( ($dunder: ident without TypeError, $operator: literal) ),* ,] => {
-            $(not_implemented_test!{$dunder without TypeError, $operator})*
-        };
+    #[test]
+    fn equality() {
+        _test_bool_operator("==");
+        _test_bool_operator("!=");
     }
 
-    mod richcmp {
-        use super::*;
-
-        // eq and ne, never fail.
-        not_implemented_test![
-            (eq without TypeError, "=="),
-            (ne without TypeError, "!="),
-        ];
-        not_implemented_test![(lt, "<"), (le, "<="), (gt, ">"), (ge, ">="),];
+    #[test]
+    fn ordering() {
+        _test_logical_operator("<");
+        _test_logical_operator("<=");
+        _test_logical_operator(">");
+        _test_logical_operator(">=");
     }
 
-    mod reversed {
-        use super::*;
-
-        // The pyclass returns NotImplemented, so the other object gets is
-        // reversed dunder method called.
-        not_implemented_test![
-            (rand, "&"),
-            (ror, "|"),
-            (rxor, "^"),
-            (radd, "+"),
-            (rsub, "-"),
-            (rmul, "*"),
-            (rmatmul, "@"),
-            (rtruediv, "/"),
-            (rfloordiv, "//"),
-            (rmod, "%"),
-            (rpow, "**"),
-            (rlshift, "<<"),
-            (rshift, ">>"),
-        ];
+    #[test]
+    fn bitwise() {
+        _test_binary_num_operator("&");
+        _test_binary_num_operator("|");
+        _test_binary_num_operator("^");
+        _test_binary_num_operator("<<");
+        _test_binary_num_operator(">>");
     }
 
-    #[cfg(feature = "remove-this-when-implemented")]
-    mod inplace {
-        use super::*;
-
-        // The pyclass returns NotImplemented for the in-place operator, so the
-        // other object gets is reversed dunder method called.
-        not_implemented_test![
-            (rand, "&="),
-            (ror, "|="),
-            (rxor, "^="),
-            (radd, "+="),
-            (rsub, "-="),
-            (rmul, "*="),
-            (rmatmul, "@="),
-            (rtruediv, "/="),
-            (rfloordiv, "//="),
-            (rmod, "%="),
-            (rpow, "**="),
-            (rlshift, "<<="),
-            (rshift, ">>="),
-        ];
+    #[test]
+    fn arith() {
+        _test_binary_num_operator("+");
+        _test_binary_num_operator("-");
+        _test_binary_num_operator("*");
+        _test_binary_num_operator("@");
+        _test_binary_num_operator("/");
+        _test_binary_num_operator("//");
+        _test_binary_num_operator("%");
+        _test_binary_num_operator("**");
     }
 }
