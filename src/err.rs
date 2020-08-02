@@ -26,12 +26,15 @@ use std::ptr::NonNull;
 pub enum PyErrValue {
     None,
     Value(PyObject),
-    ToArgs(Box<dyn PyErrArguments>),
-    ToObject(Box<dyn ToPyObject>),
+    ToArgs(Box<dyn PyErrArguments + Send + Sync>),
+    ToObject(Box<dyn ToPyObject + Send + Sync>),
 }
 
 impl PyErrValue {
-    pub fn from_err_args<T: 'static + PyErrArguments>(value: T) -> Self {
+    pub fn from_err_args<T>(value: T) -> Self
+    where
+        T: PyErrArguments + Send + Sync + 'static,
+    {
         let _ = Python::acquire_gil();
         PyErrValue::ToArgs(Box::new(value))
     }
@@ -85,6 +88,8 @@ impl PyErr {
     /// * a tuple: the exception instance will be created using Python `T(*tuple)`
     /// * any other value: the exception instance will be created using Python `T(value)`
     ///
+    /// Note: if `value` is not `Send` or `Sync`, consider using `PyErr::from_value` instead.
+    ///
     /// Panics if `T` is not a Python class derived from `BaseException`.
     ///
     /// Example:
@@ -101,7 +106,7 @@ impl PyErr {
     pub fn new<T, V>(value: V) -> PyErr
     where
         T: PyTypeObject,
-        V: ToPyObject + 'static,
+        V: ToPyObject + Send + Sync + 'static,
     {
         let gil = ensure_gil();
         let py = unsafe { gil.python() };
@@ -123,7 +128,7 @@ impl PyErr {
     /// `args` is the a tuple of arguments to pass to the exception constructor.
     pub fn from_type<A>(exc: &PyType, args: A) -> PyErr
     where
-        A: ToPyObject + 'static,
+        A: ToPyObject + Send + Sync + 'static,
     {
         PyErr {
             ptype: exc.into(),
@@ -559,13 +564,15 @@ impl PyErrArguments for io::Error {
     }
 }
 
-impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>> for PyErr {
+impl<W: 'static + Send + Sync + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>>
+    for PyErr
+{
     fn from(err: std::io::IntoInnerError<W>) -> PyErr {
         PyErr::from_value::<exceptions::PyOSError>(PyErrValue::from_err_args(err))
     }
 }
 
-impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
+impl<W: Send + Sync + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
     fn arguments(&self, py: Python) -> PyObject {
         self.to_string().to_object(py)
     }
@@ -653,5 +660,14 @@ mod tests {
         let started_unwind =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| PyErr::fetch(py))).is_err();
         assert!(started_unwind);
+    }
+
+    #[test]
+    fn test_pyerr_send_sync() {
+        fn is_send<T: Send>() {}
+        fn is_sync<T: Sync>() {}
+
+        is_send::<PyErr>();
+        is_sync::<PyErr>();
     }
 }
