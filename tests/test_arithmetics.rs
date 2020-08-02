@@ -2,6 +2,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::types::PyDict;
 
 mod common;
 
@@ -491,23 +492,38 @@ mod return_not_implemented {
         fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
-    fn _test_bool_operator(operator: &str) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        py_run!(
-            py,
-            c2,
-            &format!(
-                "\
+    fn get_other_type(py: Python) -> &PyAny {
+        let locals = PyDict::new(py);
+        py.run(
+            "\
 class Other:
     def __eq__(self, other):
         return True
     __ne__ = __lt__ = __le__ = __gt__ = __ge__ = __eq__
 
-assert (c2 {} Other()) is True",
-                operator
-            )
+    def __radd__(self, other):
+        return other
+    __rand__ = __ror__ = __rxor__ = __radd__
+    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
+    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
+
+",
+            None,
+            Some(locals),
+        )
+        .unwrap();
+        locals.get_item("Other").unwrap()
+    }
+
+    fn _test_bool_operator(operator: &str) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        let other = get_other_type(py);
+        py_run!(
+            py,
+            c2 other,
+            &format!("assert (c2 {} other()) is True", operator)
         );
     }
 
@@ -529,19 +545,12 @@ assert (c2 {} Other()) is True",
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        let other = get_other_type(py);
         py_run!(
             py,
-            c2,
+            c2 other,
             &format!(
-                "\
-class Other:
-    def __radd__(self, other):
-        return other
-    __rand__ = __ror__ = __rxor__ = __radd__
-    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
-    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
-
-assert (c2 {} Other()) is c2",
+                "assert (c2 {} other()) is c2",
                 operator
             )
         );
@@ -558,20 +567,14 @@ assert (c2 {} Other()) is c2",
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        let other = get_other_type(py);
         py_run!(
             py,
-            c2,
+            c2 other,
             &format!(
                 "\
-class Other:
-    def __radd__(self, other):
-        return other
-    __rand__ = __ror__ = __rxor__ = __radd__
-    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
-    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
-
 tmp = c2
-c2 {} Other()
+c2 {} other()
 assert tmp is c2",
                 operator
             )
