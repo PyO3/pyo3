@@ -1,12 +1,15 @@
 Thank you for contributing to pyo3!
 
-Here are some things you should check for submitting your pull request:
+Please consider adding the following to your pull request:
+ - an entry in CHANGELOG.md
+ - docs to all new functions and / or detail in the guide
+ - tests for all new or changed functions
 
- - Run `cargo fmt` (This is checked by travis ci)
- - Run `cargo clippy` and check there are no hard errors (There are a bunch of existing warnings; This is also checked by travis)
- - If applicable, add an entry in the changelog.
- - If applicable, add documentation to all new items and extend the guide.
- - If applicable, add tests for all new or fixed functions
- - If you changed any python code, run `black .`. You can install black with `pip install black`)
+Be aware the CI pipeline will check your pull request for the following:
+ - Rust tests (Just `cargo test` or `make test` if you need to test examples)
+ - Rust lints (`make clippy`)
+ - Rust formatting (`cargo fmt`)
+ - Python formatting (`black . --check`. You can install black with `pip install black`)
+ - Compatibility with all supported Python versions for all examples. This uses `tox`; you can do run it using `make test_py`.
 
-You might want to run `tox` (`pip install tox`) locally to check compatibility with all supported python versions. If you're using linux or mac you might find the Makefile helpful for testing.
+You can run a similar set of checks as the CI pipeline using `make test`.
