@@ -54,7 +54,7 @@ impl PyBytes {
     ///
     /// # Example
     /// ```
-    /// use crate::prelude::*;
+    /// use pyo3::{prelude::*, types::PyBytes};
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
@@ -83,7 +83,7 @@ impl PyBytes {
     ///
     /// # Example
     /// ```
-    /// use pyo3::prelude::*;
+    /// use pyo3::{prelude::*, types::PyBytes};
     /// use std::mem::MaybeUninit;
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytes =
