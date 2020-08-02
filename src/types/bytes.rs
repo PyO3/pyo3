@@ -90,7 +90,7 @@ impl PyBytes {
     ///         unsafe { PyBytes::new_with_uninit(py, 10, |uninit_bytes: &mut [MaybeUninit<u8>]| {
     ///             uninit_bytes
     ///                 .iter_mut()
-    ///                 .zip(b"Hello Rust".into_iter())
+    ///                 .zip(b"Hello Rust".iter())
     ///                 .for_each(|(ub, b)| *ub = MaybeUninit::new(*b));
     ///         }) };
     ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
@@ -204,7 +204,7 @@ mod test {
             PyBytes::new_with_uninit(py, 10, |uninit_bytes: &mut [MaybeUninit<u8>]| {
                 uninit_bytes
                     .iter_mut()
-                    .zip(b"Hello Rust".into_iter())
+                    .zip(b"Hello Rust".iter())
                     .for_each(|(ub, b)| *ub = MaybeUninit::new(*b));
             })
         };
