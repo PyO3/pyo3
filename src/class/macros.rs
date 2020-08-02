@@ -225,13 +225,14 @@ macro_rules! py_ternary_num_func {
                 let arg1 = py
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
                     .extract()?;
-                let arg2 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg2)
-                    .extract()?;
-                let arg3 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg3)
-                    .extract()?;
-
+                let arg2 = match py.from_borrowed_ptr::<$crate::types::PyAny>(arg2).extract() {
+                    Ok(arg) => arg,
+                    _ => return py.NotImplemented().convert(py),
+                };
+                let arg3 = match py.from_borrowed_ptr::<$crate::types::PyAny>(arg3).extract() {
+                    Ok(arg) => arg,
+                    _ => return py.NotImplemented().convert(py),
+                };
                 $class::$f(arg1, arg2, arg3).convert(py)
             })
         }
