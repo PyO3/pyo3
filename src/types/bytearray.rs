@@ -21,6 +21,39 @@ impl PyByteArray {
         unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
     }
 
+    /// Creates a new Python bytearray object.
+    /// The bytearray is zero-initialised and can be read inside `init`.
+    /// The `init` closure can further initialise the bytearray.
+    ///
+    /// Panics if out of memory.
+    ///
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyByteArray};
+    /// Python::with_gil(|py| {
+    ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
+    ///         bytes.copy_from_slice(b"Hello Rust");
+    ///     });
+    ///     let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+    ///     assert_eq!(bytearray, b"Hello Rust");
+    /// });
+    /// ```
+    pub fn new_with<F: Fn(&mut [u8])>(py: Python<'_>, len: usize, init: F) -> &PyByteArray {
+        unsafe {
+            let length = len as ffi::Py_ssize_t;
+            let pyptr = ffi::PyByteArray_FromStringAndSize(std::ptr::null(), length);
+            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
+            let pybytearray = py.from_owned_ptr(pyptr);
+            let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
+            debug_assert!(!buffer.is_null());
+            // Zero-initialise the uninitialised bytearray
+            std::ptr::write_bytes(buffer, 0u8, len);
+            // (Furher) Initialise the bytearray in init
+            init(std::slice::from_raw_parts_mut(buffer, len));
+            pybytearray
+        }
+    }
+
     /// Creates a new Python bytearray object from another PyObject that
     /// implements the buffer protocol.
     pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
@@ -226,5 +259,25 @@ mod test {
 
         bytearray.resize(20).unwrap();
         assert_eq!(20, bytearray.len());
+    }
+
+    #[test]
+    fn test_byte_array_new_with() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
+            b.copy_from_slice(b"Hello Rust");
+        });
+        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+        assert_eq!(bytearray, b"Hello Rust");
+    }
+
+    #[test]
+    fn test_byte_array_new_with_zero_initialised() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| ());
+        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+        assert_eq!(bytearray, &[0; 10]);
     }
 }

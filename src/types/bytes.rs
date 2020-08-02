@@ -2,7 +2,6 @@ use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
-use std::mem::MaybeUninit;
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -27,25 +26,6 @@ impl PyBytes {
         unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
-    /// Creates a new Python bytestring object and a mutable slice to its underlying buffer.
-    /// The bytestring is uninitialised and must not be read.
-    ///
-    /// Panics if out of memory.
-    #[inline]
-    unsafe fn new_with_uninit_impl(
-        py: Python<'_>,
-        len: usize,
-    ) -> (&mut [MaybeUninit<u8>], &PyBytes) {
-        let length = len as ffi::Py_ssize_t;
-        let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), length);
-        // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
-        let pybytes = py.from_owned_ptr(pyptr);
-        let buffer = ffi::PyBytes_AsString(pyptr) as *mut MaybeUninit<u8>;
-        debug_assert!(!buffer.is_null());
-        let slice = std::slice::from_raw_parts_mut(buffer, len);
-        (slice, pybytes)
-    }
-
     /// Creates a new Python bytestring object.
     /// The bytestring is zero-initialised and can be read inside `init`.
     /// The `init` closure can further initialise the bytestring.
@@ -65,47 +45,19 @@ impl PyBytes {
     /// });
     /// ```
     pub fn new_with<F: Fn(&mut [u8])>(py: Python<'_>, len: usize, init: F) -> &PyBytes {
-        let (slice, pybytes) = unsafe { Self::new_with_uninit_impl(py, len) };
-        slice.iter_mut().for_each(|x| *x = MaybeUninit::zeroed());
-        let slice: &mut [u8] = unsafe { &mut *(slice as *mut [MaybeUninit<u8>] as *mut [u8]) };
-        init(slice);
-        pybytes
-    }
-
-    /// Creates a new Python bytestring object.
-    ///
-    /// # Safety
-    /// * The bytestring is uninitialised and must not be read inside `init`.
-    /// * The entire bytestring must be written to inside `init` such that any code that
-    /// follows does not read uninitialised memory.
-    ///
-    /// Panics if out of memory.
-    ///
-    /// # Example
-    /// ```
-    /// use pyo3::{prelude::*, types::PyBytes};
-    /// use std::mem::MaybeUninit;
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let py_bytes =
-    ///         unsafe { PyBytes::new_with_uninit(py, 10, |uninit_bytes: &mut [MaybeUninit<u8>]| {
-    ///             uninit_bytes
-    ///                 .iter_mut()
-    ///                 .zip(b"Hello Rust".iter())
-    ///                 .for_each(|(ub, b)| *ub = MaybeUninit::new(*b));
-    ///         }) };
-    ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
-    ///     assert_eq!(bytes, b"Hello Rust");
-    ///     Ok(())
-    /// });
-    /// ```
-    pub unsafe fn new_with_uninit<F: Fn(&mut [MaybeUninit<u8>])>(
-        py: Python<'_>,
-        len: usize,
-        init: F,
-    ) -> &PyBytes {
-        let (slice, pybytes) = Self::new_with_uninit_impl(py, len);
-        init(slice);
-        pybytes
+        unsafe {
+            let length = len as ffi::Py_ssize_t;
+            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), length);
+            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
+            let pybytes = py.from_owned_ptr(pyptr);
+            let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
+            debug_assert!(!buffer.is_null());
+            // Zero-initialise the uninitialised bytestring
+            std::ptr::write_bytes(buffer, 0u8, len);
+            // (Furher) Initialise the bytestring in init
+            init(std::slice::from_raw_parts_mut(buffer, len));
+            pybytes
+        }
     }
 
     /// Creates a new Python byte string object from a raw pointer and length.
@@ -192,23 +144,5 @@ mod test {
         let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| ());
         let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
         assert_eq!(bytes, &[0; 10]);
-    }
-
-    #[test]
-    fn test_bytes_new_uninit() {
-        use std::mem::MaybeUninit;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytes = unsafe {
-            PyBytes::new_with_uninit(py, 10, |uninit_bytes: &mut [MaybeUninit<u8>]| {
-                uninit_bytes
-                    .iter_mut()
-                    .zip(b"Hello Rust".iter())
-                    .for_each(|(ub, b)| *ub = MaybeUninit::new(*b));
-            })
-        };
-        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
-        assert_eq!(bytes, b"Hello Rust");
     }
 }
