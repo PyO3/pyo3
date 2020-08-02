@@ -275,13 +275,9 @@ where
     {
         crate::callback_body!(py, {
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let arg = py.from_borrowed_ptr::<PyAny>(arg);
-
+            let arg = extract_or_return_not_implemented!(py, arg);
             let op = extract_op(op)?;
-            let arg = match arg.extract() {
-                Ok(param) => param,
-                _ => return py.NotImplemented().convert(py),
-            };
+
             slf.try_borrow()?.__richcmp__(arg, op).convert(py)
         })
     }

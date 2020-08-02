@@ -91,12 +91,8 @@ macro_rules! py_binary_num_func {
         {
             $crate::callback_body!(py, {
                 let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
-                let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
-                let param = match rhs.extract::<<$class as $trait>::Right>() {
-                    Ok(param) => param,
-                    _ => return py.NotImplemented().convert(py),
-                };
-                $class::$f(lhs.extract()?, param).convert(py)
+                let rhs = extract_or_return_not_implemented!(py, rhs);
+                $class::$f(lhs.extract()?, rhs).convert(py)
             })
         }
         Some(wrap::<$class>)
@@ -225,14 +221,8 @@ macro_rules! py_ternary_num_func {
                 let arg1 = py
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
                     .extract()?;
-                let arg2 = match py.from_borrowed_ptr::<$crate::types::PyAny>(arg2).extract() {
-                    Ok(arg) => arg,
-                    _ => return py.NotImplemented().convert(py),
-                };
-                let arg3 = match py.from_borrowed_ptr::<$crate::types::PyAny>(arg3).extract() {
-                    Ok(arg) => arg,
-                    _ => return py.NotImplemented().convert(py),
-                };
+                let arg2 = extract_or_return_not_implemented!(py, arg2);
+                let arg3 = extract_or_return_not_implemented!(py, arg3);
                 $class::$f(arg1, arg2, arg3).convert(py)
             })
         }
@@ -377,6 +367,18 @@ macro_rules! py_func_set_del {
         }
         Some(wrap::<$generic>)
     }};
+}
+
+macro_rules! extract_or_return_not_implemented {
+    ($py: ident, $arg: ident) => {
+        match $py
+            .from_borrowed_ptr::<$crate::types::PyAny>($arg)
+            .extract()
+        {
+            Ok(value) => value,
+            Err(_) => return $py.NotImplemented().convert($py),
+        }
+    };
 }
 
 macro_rules! _call_impl {
