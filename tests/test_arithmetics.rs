@@ -443,6 +443,51 @@ mod return_not_implemented {
         }
     }
 
+    #[pyproto]
+    impl<'p> PyNumberProtocol<'p> for RichComparisonToSelf {
+        fn __add__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __sub__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __mul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __matmul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __truediv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __floordiv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __mod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __lshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __rshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+
+        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+    }
+
     fn test_dunder(operator: &str, raises_typeerror: bool) {
         let gil = Python::acquire_gil();
         let py = gil.python();
