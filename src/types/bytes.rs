@@ -26,6 +26,42 @@ impl PyBytes {
         unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
+    /// Creates a new Python `bytes` object with an `init` closure to write its contents.
+    /// Before calling `init` the bytes' contents are zero-initialised.
+    ///
+    /// Panics if out of memory.
+    ///
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyBytes};
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
+    ///         bytes.copy_from_slice(b"Hello Rust");
+    ///     });
+    ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+    ///     assert_eq!(bytes, b"Hello Rust");
+    ///     Ok(())
+    /// });
+    /// ```
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyBytes
+    where
+        F: FnOnce(&mut [u8]),
+    {
+        unsafe {
+            let length = len as ffi::Py_ssize_t;
+            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), length);
+            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
+            let pybytes = py.from_owned_ptr(pyptr);
+            let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
+            debug_assert!(!buffer.is_null());
+            // Zero-initialise the uninitialised bytestring
+            std::ptr::write_bytes(buffer, 0u8, len);
+            // (Further) Initialise the bytestring in init
+            init(std::slice::from_raw_parts_mut(buffer, len));
+            pybytes
+        }
+    }
+
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
@@ -90,5 +126,25 @@ mod test {
         let py = gil.python();
         let bytes = PyBytes::new(py, b"Hello World");
         assert_eq!(bytes[1], b'e');
+    }
+
+    #[test]
+    fn test_bytes_new_with() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
+            b.copy_from_slice(b"Hello Rust");
+        });
+        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+        assert_eq!(bytes, b"Hello Rust");
+    }
+
+    #[test]
+    fn test_bytes_new_with_zero_initialised() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| ());
+        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+        assert_eq!(bytes, &[0; 10]);
     }
 }
