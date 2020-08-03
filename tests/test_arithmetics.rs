@@ -479,6 +479,15 @@ mod return_not_implemented {
         fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
             lhs
         }
+        fn __and__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __or__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __xor__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
 
         fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
@@ -490,6 +499,9 @@ mod return_not_implemented {
         fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __iand__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ior__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ixor__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
     fn get_other_type(py: Python) -> &PyAny {
@@ -515,7 +527,7 @@ class Other:
         locals.get_item("Other").unwrap()
     }
 
-    fn _test_bool_operator(operator: &str) {
+    fn _test_bool_operator(operator: &str, dunder: &str) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
@@ -523,12 +535,17 @@ class Other:
         py_run!(
             py,
             c2 other,
+            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
+        );
+        py_run!(
+            py,
+            c2 other,
             &format!("assert (c2 {} other()) is True", operator)
         );
     }
 
-    fn _test_logical_operator(operator: &str) {
-        _test_bool_operator(operator);
+    fn _test_logical_operator(operator: &str, dunder: &str) {
+        _test_bool_operator(operator, dunder);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -541,11 +558,16 @@ class Other:
         )
     }
 
-    fn _test_binary_num_operator(operator: &str) {
+    fn _test_binary_num_operator(operator: &str, dunder: &str) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
         let other = get_other_type(py);
+        py_run!(
+            py,
+            c2 other,
+            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
+        );
         py_run!(
             py,
             c2 other,
@@ -554,7 +576,6 @@ class Other:
                 operator
             )
         );
-
         py_expect_exception!(
             py,
             c2,
@@ -563,11 +584,16 @@ class Other:
         )
     }
 
-    fn _test_inplace_num_operator(operator: &str) {
+    fn _test_inplace_num_operator(operator: &str, dunder: &str) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
         let other = get_other_type(py);
+        py_run!(
+            py,
+            c2 other,
+            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
+        );
         py_run!(
             py,
             c2 other,
@@ -590,57 +616,57 @@ assert tmp is c2",
 
     #[test]
     fn equality() {
-        _test_bool_operator("==");
-        _test_bool_operator("!=");
+        _test_bool_operator("==", "eq");
+        _test_bool_operator("!=", "ne");
     }
 
     #[test]
     fn ordering() {
-        _test_logical_operator("<");
-        _test_logical_operator("<=");
-        _test_logical_operator(">");
-        _test_logical_operator(">=");
+        _test_logical_operator("<", "lt");
+        _test_logical_operator("<=", "le");
+        _test_logical_operator(">", "gt");
+        _test_logical_operator(">=", "ge");
     }
 
     #[test]
     fn bitwise() {
-        _test_binary_num_operator("&");
-        _test_binary_num_operator("|");
-        _test_binary_num_operator("^");
-        _test_binary_num_operator("<<");
-        _test_binary_num_operator(">>");
+        _test_binary_num_operator("&", "and");
+        _test_binary_num_operator("|", "or");
+        _test_binary_num_operator("^", "xor");
+        _test_binary_num_operator("<<", "lshift");
+        _test_binary_num_operator(">>", "rshift");
     }
 
     #[test]
     fn arith() {
-        _test_binary_num_operator("+");
-        _test_binary_num_operator("-");
-        _test_binary_num_operator("*");
-        _test_binary_num_operator("@");
-        _test_binary_num_operator("/");
-        _test_binary_num_operator("//");
-        _test_binary_num_operator("%");
-        _test_binary_num_operator("**");
+        _test_binary_num_operator("+", "add");
+        _test_binary_num_operator("-", "sub");
+        _test_binary_num_operator("*", "mul");
+        _test_binary_num_operator("@", "matmul");
+        _test_binary_num_operator("/", "truediv");
+        _test_binary_num_operator("//", "floordiv");
+        _test_binary_num_operator("%", "mod");
+        _test_binary_num_operator("**", "pow");
     }
 
     #[test]
     fn inplace_bitwise() {
-        _test_inplace_num_operator("&=");
-        _test_inplace_num_operator("|=");
-        _test_inplace_num_operator("^=");
-        _test_inplace_num_operator("<<=");
-        _test_inplace_num_operator(">>=");
+        _test_inplace_num_operator("&=", "iand");
+        _test_inplace_num_operator("|=", "ior");
+        _test_inplace_num_operator("^=", "ixor");
+        _test_inplace_num_operator("<<=", "ilshift");
+        _test_inplace_num_operator(">>=", "irshift");
     }
 
     #[test]
     fn inplace_arith() {
-        _test_inplace_num_operator("+=");
-        _test_inplace_num_operator("-=");
-        _test_inplace_num_operator("*=");
-        _test_inplace_num_operator("@=");
-        _test_inplace_num_operator("/=");
-        _test_inplace_num_operator("//=");
-        _test_inplace_num_operator("%=");
+        _test_inplace_num_operator("+=", "iadd");
+        _test_inplace_num_operator("-=", "isub");
+        _test_inplace_num_operator("*=", "imul");
+        _test_inplace_num_operator("@=", "imatmul");
+        _test_inplace_num_operator("/=", "itruediv");
+        _test_inplace_num_operator("//=", "ifloordiv");
+        _test_inplace_num_operator("%=", "imod");
     }
 
     #[test]
