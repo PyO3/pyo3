@@ -2,7 +2,6 @@ use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::types::PyDict;
 
 mod common;
 
@@ -489,6 +488,51 @@ mod return_not_implemented {
             lhs
         }
 
+        // Reverse operations
+        fn __radd__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rsub__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rmul__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rmatmul__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rtruediv__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rfloordiv__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rmod__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rpow__(&'p self, other: PyRef<'p, Self>, _modulo: Option<u8>) -> PyObject {
+            other.py().None()
+        }
+        fn __rlshift__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rrshift__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rdivmod__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rand__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __ror__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+        fn __rxor__(&'p self, other: PyRef<'p, Self>) -> PyObject {
+            other.py().None()
+        }
+
+        // Inplace assignments
         fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
@@ -504,78 +548,26 @@ mod return_not_implemented {
         fn __ixor__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
-    fn get_other_type(py: Python) -> &PyAny {
-        let locals = PyDict::new(py);
-        py.run(
-            "\
-class Other:
-    def __eq__(self, other):
-        return True
-    __ne__ = __lt__ = __le__ = __gt__ = __ge__ = __eq__
-
-    def __radd__(self, other):
-        return other
-    __rand__ = __ror__ = __rxor__ = __radd__
-    __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = __rpow__ = __radd__
-    __rmatmul__ = __rlshift__ = __rrshift__ = __rmod__ = __rdivmod__ = __radd__
-
-",
-            None,
-            Some(locals),
-        )
-        .unwrap();
-        locals.get_item("Other").unwrap()
-    }
-
-    fn _test_bool_operator(operator: &str, dunder: &str) {
+    fn _test_binary_dunder(dunder: &str) {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        let other = get_other_type(py);
         py_run!(
-            py,
-            c2 other,
-            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
-        );
-        py_run!(
-            py,
-            c2 other,
-            &format!("assert (c2 {} other()) is True", operator)
-        );
-    }
-
-    fn _test_logical_operator(operator: &str, dunder: &str) {
-        _test_bool_operator(operator, dunder);
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        py_expect_exception!(
             py,
             c2,
-            &format!("class Other: pass\nc2 {} Other()", operator),
-            PyTypeError
-        )
-    }
-
-    fn _test_binary_num_operator(operator: &str, dunder: &str) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        let other = get_other_type(py);
-        py_run!(
-            py,
-            c2 other,
-            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
-        );
-        py_run!(
-            py,
-            c2 other,
             &format!(
-                "assert (c2 {} other()) is c2",
-                operator
+                "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
+                dunder
             )
         );
+    }
+
+    fn _test_binary_operator(operator: &str, dunder: &str) {
+        _test_binary_dunder(dunder);
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
         py_expect_exception!(
             py,
             c2,
@@ -584,103 +576,76 @@ class Other:
         )
     }
 
-    fn _test_inplace_num_operator(operator: &str, dunder: &str) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        let other = get_other_type(py);
-        py_run!(
-            py,
-            c2 other,
-            &format!("assert c2.__{}__(other()) is NotImplemented", dunder)
-        );
-        py_run!(
-            py,
-            c2 other,
-            &format!(
-                "\
-tmp = c2
-c2 {} other()
-assert tmp is c2",
-                operator
-            )
-        );
-
-        py_expect_exception!(
-            py,
-            c2,
-            &format!("class Other: pass\nc2 {} Other()", operator),
-            PyTypeError
-        )
+    fn _test_inplace_binary_operator(operator: &str, dunder: &str) {
+        _test_binary_operator(operator, dunder);
     }
 
     #[test]
     fn equality() {
-        _test_bool_operator("==", "eq");
-        _test_bool_operator("!=", "ne");
+        _test_binary_dunder("eq");
+        _test_binary_dunder("ne");
     }
 
     #[test]
     fn ordering() {
-        _test_logical_operator("<", "lt");
-        _test_logical_operator("<=", "le");
-        _test_logical_operator(">", "gt");
-        _test_logical_operator(">=", "ge");
+        _test_binary_operator("<", "lt");
+        _test_binary_operator("<=", "le");
+        _test_binary_operator(">", "gt");
+        _test_binary_operator(">=", "ge");
     }
 
     #[test]
     fn bitwise() {
-        _test_binary_num_operator("&", "and");
-        _test_binary_num_operator("|", "or");
-        _test_binary_num_operator("^", "xor");
-        _test_binary_num_operator("<<", "lshift");
-        _test_binary_num_operator(">>", "rshift");
+        _test_binary_operator("&", "and");
+        _test_binary_operator("|", "or");
+        _test_binary_operator("^", "xor");
+        _test_binary_operator("<<", "lshift");
+        _test_binary_operator(">>", "rshift");
     }
 
     #[test]
     fn arith() {
-        _test_binary_num_operator("+", "add");
-        _test_binary_num_operator("-", "sub");
-        _test_binary_num_operator("*", "mul");
-        _test_binary_num_operator("@", "matmul");
-        _test_binary_num_operator("/", "truediv");
-        _test_binary_num_operator("//", "floordiv");
-        _test_binary_num_operator("%", "mod");
-        _test_binary_num_operator("**", "pow");
+        _test_binary_operator("+", "add");
+        _test_binary_operator("-", "sub");
+        _test_binary_operator("*", "mul");
+        _test_binary_operator("@", "matmul");
+        _test_binary_operator("/", "truediv");
+        _test_binary_operator("//", "floordiv");
+        _test_binary_operator("%", "mod");
+        _test_binary_operator("**", "pow");
+    }
+
+    #[test]
+    #[ignore]
+    fn reverse_arith() {
+        _test_binary_dunder("radd");
+        _test_binary_dunder("rsub");
+        _test_binary_dunder("rmul");
+        _test_binary_dunder("rmatmul");
+        _test_binary_dunder("rtruediv");
+        _test_binary_dunder("rfloordiv");
+        _test_binary_dunder("rmod");
+        _test_binary_dunder("rpow");
     }
 
     #[test]
     fn inplace_bitwise() {
-        _test_inplace_num_operator("&=", "iand");
-        _test_inplace_num_operator("|=", "ior");
-        _test_inplace_num_operator("^=", "ixor");
-        _test_inplace_num_operator("<<=", "ilshift");
-        _test_inplace_num_operator(">>=", "irshift");
+        _test_inplace_binary_operator("&=", "iand");
+        _test_inplace_binary_operator("|=", "ior");
+        _test_inplace_binary_operator("^=", "ixor");
+        _test_inplace_binary_operator("<<=", "ilshift");
+        _test_inplace_binary_operator(">>=", "irshift");
     }
 
     #[test]
     fn inplace_arith() {
-        _test_inplace_num_operator("+=", "iadd");
-        _test_inplace_num_operator("-=", "isub");
-        _test_inplace_num_operator("*=", "imul");
-        _test_inplace_num_operator("@=", "imatmul");
-        _test_inplace_num_operator("/=", "itruediv");
-        _test_inplace_num_operator("//=", "ifloordiv");
-        _test_inplace_num_operator("%=", "imod");
-    }
-
-    #[test]
-    fn ipow() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        let other = get_other_type(py);
-        py_run!(
-            py,
-            c2 other,
-            "assert (c2.__ipow__(other())) is NotImplemented"
-        );
-
-        py_expect_exception!(py, c2, "class Other: pass\nc2 **= Other()", PyTypeError)
+        _test_inplace_binary_operator("+=", "iadd");
+        _test_inplace_binary_operator("-=", "isub");
+        _test_inplace_binary_operator("*=", "imul");
+        _test_inplace_binary_operator("@=", "imatmul");
+        _test_inplace_binary_operator("/=", "itruediv");
+        _test_inplace_binary_operator("//=", "ifloordiv");
+        _test_inplace_binary_operator("%=", "imod");
+        _test_inplace_binary_operator("**=", "ipow");
     }
 }
