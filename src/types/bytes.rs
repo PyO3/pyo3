@@ -27,7 +27,7 @@ impl PyBytes {
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
-    /// Before calling `init` the contents are zero-initialised.
+    /// Before calling `init` the bytes' contents are zero-initialised.
     ///
     /// Panics if out of memory.
     ///
@@ -45,7 +45,7 @@ impl PyBytes {
     /// ```
     pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyBytes
     where
-        F: FnOnce(&mut [u8])
+        F: FnOnce(&mut [u8]),
     {
         unsafe {
             let length = len as ffi::Py_ssize_t;

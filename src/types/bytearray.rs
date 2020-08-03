@@ -39,7 +39,7 @@ impl PyByteArray {
     /// ```
     pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyByteArray
     where
-        F: FnOnce(&mut [u8])
+        F: FnOnce(&mut [u8]),
     {
         unsafe {
             let length = len as ffi::Py_ssize_t;
