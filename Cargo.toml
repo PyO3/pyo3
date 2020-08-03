@@ -20,7 +20,7 @@ appveyor = { repository = "fafhrd91/pyo3" }
 
 [dependencies]
 ctor = { version = "0.1", optional = true }
-indoc = { version = "0.3.4", optional = true }
+indoc = { version = "1.0.2", optional = true }
 inventory = { version = "0.1.4", optional = true }
 libc = "0.2.62"
 parking_lot = "0.11.0"
