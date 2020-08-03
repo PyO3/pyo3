@@ -26,9 +26,8 @@ impl PyBytes {
         unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
-    /// Creates a new Python bytestring object.
-    /// The bytestring is zero-initialised and can be read inside `init`.
-    /// The `init` closure can further initialise the bytestring.
+    /// Creates a new Python `bytes` object with an `init` closure to write its contents.
+    /// Before calling `init` the contents are zero-initialised.
     ///
     /// Panics if out of memory.
     ///
@@ -44,7 +43,10 @@ impl PyBytes {
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F: Fn(&mut [u8])>(py: Python<'_>, len: usize, init: F) -> &PyBytes {
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyBytes
+    where
+        F: FnOnce(&mut [u8])
+    {
         unsafe {
             let length = len as ffi::Py_ssize_t;
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), length);
@@ -54,7 +56,7 @@ impl PyBytes {
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
-            // (Furher) Initialise the bytestring in init
+            // (Further) Initialise the bytestring in init
             init(std::slice::from_raw_parts_mut(buffer, len));
             pybytes
         }

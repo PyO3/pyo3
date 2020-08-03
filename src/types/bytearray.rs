@@ -21,9 +21,8 @@ impl PyByteArray {
         unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
     }
 
-    /// Creates a new Python bytearray object.
-    /// The bytearray is zero-initialised and can be read inside `init`.
-    /// The `init` closure can further initialise the bytearray.
+    /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
+    /// Before calling `init` the bytearray is zero-initialised.
     ///
     /// Panics if out of memory.
     ///
@@ -38,7 +37,10 @@ impl PyByteArray {
     ///     assert_eq!(bytearray, b"Hello Rust");
     /// });
     /// ```
-    pub fn new_with<F: Fn(&mut [u8])>(py: Python<'_>, len: usize, init: F) -> &PyByteArray {
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyByteArray
+    where
+        F: FnOnce(&mut [u8])
+    {
         unsafe {
             let length = len as ffi::Py_ssize_t;
             let pyptr = ffi::PyByteArray_FromStringAndSize(std::ptr::null(), length);
@@ -48,7 +50,7 @@ impl PyByteArray {
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
-            // (Furher) Initialise the bytearray in init
+            // (Further) Initialise the bytearray in init
             init(std::slice::from_raw_parts_mut(buffer, len));
             pybytearray
         }
