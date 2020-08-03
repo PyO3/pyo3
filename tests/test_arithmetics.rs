@@ -644,9 +644,17 @@ assert tmp is c2",
     }
 
     #[test]
-    #[ignore]
     fn ipow() {
-        // TODO: Move to `inplace_arith` when it passes
-        _test_inplace_num_operator("**=");
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        let other = get_other_type(py);
+        py_run!(
+            py,
+            c2 other,
+            "assert (c2.__ipow__(other())) is NotImplemented"
+        );
+
+        py_expect_exception!(py, c2, "class Other: pass\nc2 **= Other()", PyTypeError)
     }
 }
