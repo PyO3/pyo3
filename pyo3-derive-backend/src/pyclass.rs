@@ -374,7 +374,7 @@ fn impl_class(
     // If #cls is not extended type, we allow Self->PyObject conversion
     let into_pyobject = if !attr.has_extends {
         quote! {
-            impl pyo3::IntoPy<PyObject> for #cls {
+            impl pyo3::IntoPy<pyo3::PyObject> for #cls {
                 fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
                     pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
                 }
