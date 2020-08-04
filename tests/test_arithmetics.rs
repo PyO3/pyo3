@@ -488,50 +488,6 @@ mod return_not_implemented {
             lhs
         }
 
-        // Reverse operations
-        fn __radd__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rsub__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rmul__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rmatmul__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rtruediv__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rfloordiv__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rmod__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rpow__(&'p self, other: PyRef<'p, Self>, _modulo: Option<u8>) -> PyObject {
-            other.py().None()
-        }
-        fn __rlshift__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rrshift__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rdivmod__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rand__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __ror__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-        fn __rxor__(&'p self, other: PyRef<'p, Self>) -> PyObject {
-            other.py().None()
-        }
-
         // Inplace assignments
         fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
