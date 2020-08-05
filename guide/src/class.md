@@ -803,6 +803,11 @@ The reflected operations are also available:
 The code generated for these methods expect that all arguments match the
 signature, or raise a TypeError.
 
+*Note*: Currently implementing the method for a binary arithmetic operations
+(e.g, `__add__`) shadows the reflected operation (e.g, `__radd__`).  This is
+being addressed in [#844](https://github.com/PyO3/pyo3/issues/844).  to make
+these methods
+
 
 This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
 `*=`, `@=`, `/=`, `//=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `|=`):
