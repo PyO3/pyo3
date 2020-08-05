@@ -169,6 +169,7 @@ pub mod buffer;
 pub mod callback;
 pub mod class;
 pub mod conversion;
+#[macro_use]
 #[doc(hidden)]
 pub mod derive_utils;
 mod err;

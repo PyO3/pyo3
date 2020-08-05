@@ -423,3 +423,185 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "c2 >= 1", PyTypeError);
     py_expect_exception!(py, c2, "1 >= c2", PyTypeError);
 }
+
+// Checks that binary operations for which the arguments don't match the
+// required type, return NotImplemented.
+mod return_not_implemented {
+    use super::*;
+
+    #[pyclass]
+    struct RichComparisonToSelf {}
+
+    #[pyproto]
+    impl<'p> PyObjectProtocol<'p> for RichComparisonToSelf {
+        fn __repr__(&self) -> &'static str {
+            "RC_Self"
+        }
+
+        fn __richcmp__(&self, other: PyRef<'p, Self>, _op: CompareOp) -> PyObject {
+            other.py().None()
+        }
+    }
+
+    #[pyproto]
+    impl<'p> PyNumberProtocol<'p> for RichComparisonToSelf {
+        fn __add__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __sub__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __mul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __matmul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __truediv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __floordiv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __mod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __pow__(lhs: &'p PyAny, _other: u8, _modulo: Option<u8>) -> &'p PyAny {
+            lhs
+        }
+        fn __lshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __rshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __and__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __or__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+        fn __xor__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
+        }
+
+        // Inplace assignments
+        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __iand__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ior__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ixor__(&'p mut self, _other: PyRef<'p, Self>) {}
+    }
+
+    fn _test_binary_dunder(dunder: &str) {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_run!(
+            py,
+            c2,
+            &format!(
+                "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
+                dunder
+            )
+        );
+    }
+
+    fn _test_binary_operator(operator: &str, dunder: &str) {
+        _test_binary_dunder(dunder);
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+        py_expect_exception!(
+            py,
+            c2,
+            &format!("class Other: pass\nc2 {} Other()", operator),
+            PyTypeError
+        )
+    }
+
+    fn _test_inplace_binary_operator(operator: &str, dunder: &str) {
+        _test_binary_operator(operator, dunder);
+    }
+
+    #[test]
+    fn equality() {
+        _test_binary_dunder("eq");
+        _test_binary_dunder("ne");
+    }
+
+    #[test]
+    fn ordering() {
+        _test_binary_operator("<", "lt");
+        _test_binary_operator("<=", "le");
+        _test_binary_operator(">", "gt");
+        _test_binary_operator(">=", "ge");
+    }
+
+    #[test]
+    fn bitwise() {
+        _test_binary_operator("&", "and");
+        _test_binary_operator("|", "or");
+        _test_binary_operator("^", "xor");
+        _test_binary_operator("<<", "lshift");
+        _test_binary_operator(">>", "rshift");
+    }
+
+    #[test]
+    fn arith() {
+        _test_binary_operator("+", "add");
+        _test_binary_operator("-", "sub");
+        _test_binary_operator("*", "mul");
+        _test_binary_operator("@", "matmul");
+        _test_binary_operator("/", "truediv");
+        _test_binary_operator("//", "floordiv");
+        _test_binary_operator("%", "mod");
+        _test_binary_operator("**", "pow");
+    }
+
+    #[test]
+    #[ignore]
+    fn reverse_arith() {
+        _test_binary_dunder("radd");
+        _test_binary_dunder("rsub");
+        _test_binary_dunder("rmul");
+        _test_binary_dunder("rmatmul");
+        _test_binary_dunder("rtruediv");
+        _test_binary_dunder("rfloordiv");
+        _test_binary_dunder("rmod");
+        _test_binary_dunder("rpow");
+    }
+
+    #[test]
+    fn inplace_bitwise() {
+        _test_inplace_binary_operator("&=", "iand");
+        _test_inplace_binary_operator("|=", "ior");
+        _test_inplace_binary_operator("^=", "ixor");
+        _test_inplace_binary_operator("<<=", "ilshift");
+        _test_inplace_binary_operator(">>=", "irshift");
+    }
+
+    #[test]
+    fn inplace_arith() {
+        _test_inplace_binary_operator("+=", "iadd");
+        _test_inplace_binary_operator("-=", "isub");
+        _test_inplace_binary_operator("*=", "imul");
+        _test_inplace_binary_operator("@=", "imatmul");
+        _test_inplace_binary_operator("/=", "itruediv");
+        _test_inplace_binary_operator("//=", "ifloordiv");
+        _test_inplace_binary_operator("%=", "imod");
+        _test_inplace_binary_operator("**=", "ipow");
+    }
+}
