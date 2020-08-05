@@ -758,7 +758,7 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
 
 ### Emulating numeric types
 
-The [`PyNumberProtocol`] trait allows [emulate numeric types](https://docs.python.org/3/reference/datamodel.html?highlight=__ipow__#emulating-numeric-types).
+The [`PyNumberProtocol`] trait allows [emulate numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
 
   * `fn __add__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
   * `fn __sub__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
@@ -775,9 +775,8 @@ The [`PyNumberProtocol`] trait allows [emulate numeric types](https://docs.pytho
   * `fn __or__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
   * `fn __xor__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
-These methods are called to implement the binary arithmetic operations (`+`,
-`-`, `*`, `@`, `/`, `//`, `%`, `divmod()`, `pow()` and `**`, `<<`, `>>`, `&`,
-`^`, and `|`).
+These methods are called to implement the binary arithmetic operations
+(`+`, `-`, `*`, `@`, `/`, `//`, `%`, `divmod()`, `pow()` and `**`, `<<`, `>>`, `&`, `^`, and `|`).
 
 If `rhs` is not of the type specified in the signature, the generated code
 will automatically `return NotImplemented`.  This is not the case for `lhs`
@@ -822,8 +821,7 @@ This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
   * `fn __ior__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ixor__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
 
-The following implement the unary arithmetic operations (`-`, `+`, `abs()` and
-`~`):
+The following methods implement the unary arithmetic operations (`-`, `+`, `abs()` and `~`):
 
   * `fn __neg__(&'p self) -> PyResult<impl ToPyObject>`
   * `fn __pos__(&'p self) -> PyResult<impl ToPyObject>`
