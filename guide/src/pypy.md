@@ -6,9 +6,9 @@ Support is only provided for building Rust extension for code running under PyPy
 
 This is a limitation of cpyext and support for embedding cpyext is not planned.
 
-Compilation against PyPy is done by exporting the `PYTHON_SYS_EXECUTABLE` to point to a PyPy binary or by compiling in a PyPy virtualenv.
+Compilation against PyPy is done by exporting `PYO3_PYTHON` to point to a PyPy binary or by compiling in a PyPy virtualenv.
 
-For example, `PYTHON_SYS_EXECUTABLE="/path/to/pypy3" /path/to/pypy3 setup.py install`
+For example, `PYO3_PYTHON="/path/to/pypy3" /path/to/pypy3 setup.py install`
 
 
 ## Unsupported features

@@ -2,7 +2,7 @@
 
 ## Python version
 
-PyO3 uses a build script to determine the Python version and set the correct linker arguments. By default it uses the `python3` executable. You can override the Python interpreter by setting `PYTHON_SYS_EXECUTABLE`, e.g., `PYTHON_SYS_EXECUTABLE=python3.6`.
+PyO3 uses a build script to determine the Python version and set the correct linker arguments. By default it uses the `python3` executable. You can override the Python interpreter by setting `PYO3_PYTHON`, e.g., `PYO3_PYTHON=python3.6`.
 
 ## Linking
 
