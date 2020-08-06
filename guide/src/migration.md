@@ -3,6 +3,65 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
 
+## from 0.11.* to 0.12
+
+### `FromPy` has been removed
+To simplify the PyO3 public conversion trait hierarchy, the `FromPy` has been removed. In PyO3
+`0.11` there were two ways to define the to-Python conversion for a type: `FromPy<T> for PyObject`,
+and `IntoPy<PyObject> for T`.
+
+Now, the canonical implementation is always `IntoPy`, so downstream crates may need to adjust
+accordingly.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+struct MyPyObjectWrapper(PyObject);
+
+impl FromPy<MyPyObjectWrapper> for PyObject {
+    fn from_py(other: MyPyObjectWrapper, _py: Python) -> Self {
+        other.0
+    }
+}
+```
+
+After
+
+```rust
+# use pyo3::prelude::*;
+struct MyPyObjectWrapper(PyObject);
+
+impl IntoPy<PyObject> for MyPyObjectWrapper {
+    fn into_py(self, _py: Python) -> PyObject {
+        self.0
+    }
+}
+```
+
+Similarly, code which was using the `FromPy` trait can be trivially rewritten to use `IntoPy`.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# Python::with_gil(|py| {
+let obj = PyObject::from_py(1.234, py);
+# })
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+# Python::with_gil(|py| {
+let obj: PyObject = 1.234.into_py(py);
+# })
+```
+
+### `PyObject` is now a type alias of `Py<PyAny>`
+This should change very little from a usage perspective. If you implemented traits for both
+`PyObject` and `Py<T>`, you may find you can just remove the `PyObject` implementation.
+
 ## from 0.10.* to 0.11
 
 ### Stable Rust

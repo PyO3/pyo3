@@ -187,5 +187,5 @@ If you have a static function, you can expose it with `#[pyfunction]` and use [`
 [`PyAny::call`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call
 [`PyAny::call0`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call0
 [`PyAny::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call1
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
 [`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html

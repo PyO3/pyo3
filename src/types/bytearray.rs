@@ -166,9 +166,8 @@ impl PyByteArray {
 #[cfg(test)]
 mod test {
     use crate::exceptions;
-    use crate::instance::PyObject;
     use crate::types::PyByteArray;
-    use crate::Python;
+    use crate::{PyObject, Python};
 
     #[test]
     fn test_len() {

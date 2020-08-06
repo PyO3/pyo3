@@ -147,9 +147,8 @@ impl<'source> FromPyObject<'source> for String {
 mod test {
     use super::PyString;
     use crate::instance::AsPyRef;
-    use crate::instance::PyObject;
     use crate::Python;
-    use crate::{FromPyObject, PyTryFrom, ToPyObject};
+    use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
 
     #[test]
     fn test_non_bmp() {

@@ -2,10 +2,11 @@
 
 //! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
-use crate::instance::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
-use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
+use crate::{
+    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+};
 use std::ptr::NonNull;
 
 /// This trait represents that **we can do zero-cost conversion from the object
@@ -133,6 +134,9 @@ where
 }
 
 /// Similar to [std::convert::Into], just that it requires a gil token.
+///
+/// `IntoPy<PyObject>` (aka `IntoPy<Py<PyAny>>`) should be implemented to define a conversion from
+/// Rust to Python which can be used by most of PyO3's methods.
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
@@ -141,10 +145,10 @@ pub trait IntoPy<T>: Sized {
 /// `FromPyObject` is implemented by various types that can be extracted from
 /// a Python object reference.
 ///
-/// Normal usage is through the helper methods `PyObject::extract` or
-/// `PyAny::extract`:
+/// Normal usage is through the helper methods `Py::extract` or `PyAny::extract`:
 ///
-/// ```let obj: PyObject = ...;
+/// ```rust,ignore
+/// let obj: Py<PyAny> = ...;
 /// let value: &TargetType = obj.extract(py)?;
 ///
 /// let any: &PyAny = ...;
@@ -160,9 +164,6 @@ pub trait IntoPy<T>: Sized {
 /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
 /// Since which case applies depends on the runtime type of the Python object,
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
-///
-/// In cases where the result does not depend on the `'prepared` lifetime,
-/// the inherent method `PyObject::extract()` can be used.
 ///
 /// The trait's conversion method takes a `&PyAny` argument but is called
 /// `FromPyObject` for historical reasons.
