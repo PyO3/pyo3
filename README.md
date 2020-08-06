@@ -13,6 +13,8 @@
 
 * API Documentation: [stable](https://docs.rs/pyo3/) |  [master](https://pyo3.rs/master/doc)
 
+* Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/master/Contributing.md)
+
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
 ## Usage
