@@ -173,7 +173,7 @@ where
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObject::from_owned_ptr_or_panic(py, ptr)
+            PyObject::from_owned_ptr(py, ptr)
         }
     }
 }
@@ -218,7 +218,7 @@ where
                 let obj = e.into_py(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObject::from_owned_ptr_or_panic(py, ptr)
+            PyObject::from_owned_ptr(py, ptr)
         }
     }
 }

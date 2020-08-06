@@ -149,7 +149,7 @@ mod complex_conversion {
                     unsafe {
                         let raw_obj =
                             ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
-                        PyObject::from_owned_ptr_or_panic(py, raw_obj)
+                        PyObject::from_owned_ptr(py, raw_obj)
                     }
                 }
             }

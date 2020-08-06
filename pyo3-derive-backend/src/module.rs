@@ -190,7 +190,7 @@ pub fn add_fn_to_module(
             };
 
             let function = unsafe {
-                pyo3::PyObject::from_owned_ptr_or_panic(
+                pyo3::PyObject::from_owned_ptr(
                     py,
                     pyo3::ffi::PyCFunction_New(
                         Box::into_raw(Box::new(_def.as_method_def())),

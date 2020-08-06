@@ -144,7 +144,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             }
         }
     }
@@ -153,7 +153,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             }
         }
     }
@@ -163,7 +163,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                Py::from_owned_ptr_or_panic(py, ptr)
+                Py::from_owned_ptr(py, ptr)
             }
         }
     }

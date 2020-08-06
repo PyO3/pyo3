@@ -115,64 +115,6 @@ where
 }
 
 impl<T> Py<T> {
-    /// For internal conversions
-    pub(crate) unsafe fn from_not_null(ptr: NonNull<ffi::PyObject>) -> Self {
-        Self(ptr, PhantomData)
-    }
-
-    /// Creates a `Py<T>` instance for the given FFI pointer.
-    ///
-    /// This moves ownership over the pointer into the `Py<T>`.
-    /// Undefined behavior if the pointer is NULL or invalid.
-    #[inline]
-    pub unsafe fn from_owned_ptr(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
-        debug_assert!(
-            !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
-            format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
-        );
-        Py(NonNull::new_unchecked(ptr), PhantomData)
-    }
-
-    /// Creates a `Py<T>` instance for the given FFI pointer.
-    ///
-    /// Panics if the pointer is NULL.
-    /// Undefined behavior if the pointer is invalid.
-    #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
-            None => {
-                crate::err::panic_after_error(_py);
-            }
-        }
-    }
-
-    /// Construct `Py<T>` from the result of a Python FFI call that
-    ///
-    /// Returns a new reference (owned pointer).
-    /// Returns `Err(PyErr)` if the pointer is NULL.
-    /// Unsafe because the pointer might be invalid.
-    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
-            None => Err(PyErr::fetch(py)),
-        }
-    }
-
-    /// Creates a `Py<T>` instance for the given Python FFI pointer.
-    ///
-    /// Calls `Py_INCREF()` on the ptr.
-    /// Undefined behavior if the pointer is NULL or invalid.
-    #[inline]
-    pub unsafe fn from_borrowed_ptr(_py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
-        debug_assert!(
-            !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
-            format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
-        );
-        ffi::Py_INCREF(ptr);
-        Py(NonNull::new_unchecked(ptr), PhantomData)
-    }
-
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
     pub fn get_refcnt(&self, _py: Python) -> isize {
@@ -183,47 +125,6 @@ impl<T> Py<T> {
     #[inline]
     pub fn clone_ref(&self, py: Python) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
-    }
-
-    /// Returns the inner pointer without decreasing the refcount.
-    ///
-    /// This will eventually move into its own trait.
-    pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
-        let pointer = self.0;
-        mem::forget(self);
-        pointer
-    }
-
-    /// Constructs a `PyObject` from the result of a Python FFI call that
-    /// returns a new reference (owned pointer).
-    /// Returns `None` if the pointer is NULL.
-    pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Some(Py(nonnull_ptr, PhantomData)),
-            None => None,
-        }
-    }
-
-    /// Creates a `PyObject` instance for the given Python FFI pointer.
-    /// Calls `Py_INCREF()` on the ptr.
-    /// Returns `Err(PyErr)` if the pointer is NULL.
-    pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Self> {
-        if ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(Self::from_borrowed_ptr(py, ptr))
-        }
-    }
-
-    /// Creates a `PyObject` instance for the given Python FFI pointer.
-    /// Calls `Py_INCREF()` on the ptr.
-    /// Returns `None` if the pointer is NULL.
-    pub unsafe fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(Self::from_borrowed_ptr(py, ptr))
-        }
     }
 
     /// Returns whether the object is considered to be None.
@@ -243,16 +144,6 @@ impl<T> Py<T> {
         } else {
             Ok(v != 0)
         }
-    }
-
-    /// Casts the PyObject to a concrete Python object type.
-    ///
-    /// This can cast only to native Python types, not types implemented in Rust.
-    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
-    where
-        D: PyTryFrom<'p>,
-    {
-        D::try_from(unsafe { py.from_borrowed_ptr::<PyAny>(self.as_ptr()) })
     }
 
     /// Extracts some type from the Python object.
@@ -355,6 +246,113 @@ impl<T> Py<T> {
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
         self.call_method(py, name, (), None)
     }
+
+    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// # Panics
+    /// Panics if `ptr` is null.
+    #[inline]
+    pub unsafe fn from_owned_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
+            None => crate::err::panic_after_error(py),
+        }
+    }
+
+    /// Deprecated alias for [`from_owned_ptr`](#method.from_owned_ptr).
+    #[inline]
+    #[deprecated = "this is a deprecated alias for Py::from_owned_ptr"]
+    pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
+        Py::from_owned_ptr(py, ptr)
+    }
+
+    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
+    ///
+    /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.
+    ///
+    /// # Safety
+    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
+            None => Err(PyErr::fetch(py)),
+        }
+    }
+
+    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
+    ///
+    /// If `ptr` is null then `None` is returned.
+    ///
+    /// # Safety
+    /// If non-null, `ptr` must be a pointer to a Python object of type T.
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => Some(Py(nonnull_ptr, PhantomData)),
+            None => None,
+        }
+    }
+
+    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// # Panics
+    /// Panics if `ptr` is null.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
+        match Self::from_borrowed_ptr_or_opt(py, ptr) {
+            Some(slf) => slf,
+            None => crate::err::panic_after_error(py),
+        }
+    }
+
+    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    ///
+    /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py))
+    }
+
+    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
+    ///
+    /// If `ptr` is null then `None` is returned.
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|nonnull_ptr| {
+            ffi::Py_INCREF(ptr);
+            Py(nonnull_ptr, PhantomData)
+        })
+    }
+
+    /// For internal conversions.
+    ///
+    /// # Safety
+    /// `ptr` must point to a Python object of type T.
+    #[inline]
+    unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData)
+    }
+
+    /// Returns the inner pointer without decreasing the refcount.
+    #[inline]
+    fn into_non_null(self) -> NonNull<ffi::PyObject> {
+        let pointer = self.0;
+        mem::forget(self);
+        pointer
+    }
 }
 
 /// Retrieves `&'py` types from `Py<T>` or `PyObject`.
@@ -421,7 +419,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python) -> PyObject {
-        unsafe { PyObject::from_not_null(self.into_non_null()) }
+        unsafe { PyObject::from_non_null(self.into_non_null()) }
     }
 }
 
@@ -565,6 +563,19 @@ impl<T> std::fmt::Debug for Py<T> {
 ///
 /// See the documentation for [`Py`](struct.Py.html).
 pub type PyObject = Py<PyAny>;
+
+impl PyObject {
+    /// Casts the PyObject to a concrete Python object type.
+    ///
+    /// This can cast only to native Python types, not types implemented in Rust. For a more
+    /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
+    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
+    where
+        D: PyTryFrom<'p>,
+    {
+        D::try_from(unsafe { py.from_borrowed_ptr::<PyAny>(self.as_ptr()) })
+    }
+}
 
 #[cfg(test)]
 mod test {
