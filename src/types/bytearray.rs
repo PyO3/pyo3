@@ -23,36 +23,55 @@ impl PyByteArray {
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
     /// Before calling `init` the bytearray is zero-initialised.
+    /// * If `init` returns `Err(e)`, `new_with` will return `Err(e)`.
+    /// * If `init` returns `Ok(new_len)`, the allocated bytearray will be truncated to length
+    ///   `new_len` and `new_with` will return `Ok(&PyByteArray)`.
+    /// * If `init` returns `Ok(None)`, `new_with` will return `Ok(&PyByteArray)`.
     ///
-    /// Panics if out of memory.
+    /// Iff Python raises a MemoryError on the allocation, `new_with` will return it inside `Err`.
     ///
     /// # Example
     /// ```
     /// use pyo3::{prelude::*, types::PyByteArray};
-    /// Python::with_gil(|py| {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
-    ///     });
+    ///         Ok(None)
+    ///     })?;
     ///     let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
     ///     assert_eq!(bytearray, b"Hello Rust");
+    ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyByteArray
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
     where
-        F: FnOnce(&mut [u8]),
+        F: FnOnce(&mut [u8]) -> PyResult<Option<usize>>,
     {
         unsafe {
-            let length = len as ffi::Py_ssize_t;
-            let pyptr = ffi::PyByteArray_FromStringAndSize(std::ptr::null(), length);
-            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
-            let pybytearray = py.from_owned_ptr(pyptr);
+            let pyptr =
+                ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            if pyptr.is_null() {
+                return Err(PyErr::fetch(py));
+            }
             let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytearray in init
-            init(std::slice::from_raw_parts_mut(buffer, len));
-            pybytearray
+            match init(std::slice::from_raw_parts_mut(buffer, len)) {
+                Ok(Some(new_len)) if new_len < len => {
+                    if ffi::PyByteArray_Resize(pyptr, new_len as ffi::Py_ssize_t) != 0 {
+                        return Err(PyErr::fetch(py));
+                    }
+                }
+                Ok(_) => (),
+                Err(e) => {
+                    // Deallocate pyptr to avoid leaking the bytearray
+                    ffi::Py_DECREF(pyptr);
+                    return Err(e);
+                }
+            };
+            Ok(py.from_owned_ptr(pyptr))
         }
     }
 
@@ -264,22 +283,110 @@ mod test {
     }
 
     #[test]
-    fn test_byte_array_new_with() {
+    fn test_byte_array_new_with() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
             b.copy_from_slice(b"Hello Rust");
-        });
+            Ok(None)
+        })?;
         let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
         assert_eq!(bytearray, b"Hello Rust");
+        Ok(())
     }
 
     #[test]
-    fn test_byte_array_new_with_zero_initialised() {
+    fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| ());
+        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(None))?;
         let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
         assert_eq!(bytearray, &[0; 10]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_byte_array_new_with_truncated() -> super::PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
+            b.copy_from_slice(b"Hello Rust");
+            Ok(Some(5))
+        })?;
+        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+        assert_eq!(bytearray, b"Hello");
+        Ok(())
+    }
+
+    #[test]
+    fn test_byte_array_new_with_no_growing() -> super::PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
+            b.copy_from_slice(b"Hello Rust");
+            Ok(Some(15))
+        })?;
+        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+        assert_eq!(bytearray, b"Hello Rust");
+        Ok(())
+    }
+
+    #[test]
+    fn test_byte_array_new_with_error() -> super::PyResult<()> {
+        use crate::exceptions::PyValueError;
+        use crate::types::PyDict;
+
+        let alloc_size = 1024 * 1024;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = PyDict::new(py);
+
+        py.run(
+            r#"
+import tracemalloc
+
+tracemalloc.start()
+memory_usage_before = sum(
+    alloc.size
+    for alloc in tracemalloc.take_snapshot()
+    .filter_traces((tracemalloc.Filter(True, "<unknown>"),))
+    .statistics("filename")
+)
+"#,
+            None,
+            Some(locals),
+        )?;
+
+        let err = PyValueError::py_err("Hello Crustaceans!");
+        let py_bytearray_result = PyByteArray::new_with(py, alloc_size, |_b: &mut [u8]| Err(err));
+
+        assert!(py_bytearray_result.is_err());
+        assert!(py_bytearray_result
+            .err()
+            .unwrap()
+            .is_instance::<PyValueError>(py));
+
+        py.run(
+            r#"
+memory_usage_after = sum(
+    alloc.size
+    for alloc in tracemalloc.take_snapshot()
+    .filter_traces((tracemalloc.Filter(True, "<unknown>"),))
+    .statistics("filename")
+)
+tracemalloc.stop()
+"#,
+            None,
+            Some(locals),
+        )?;
+
+        let memory_usage_before: usize =
+            locals.get_item("memory_usage_before").unwrap().extract()?;
+        let memory_usage_after: usize = locals.get_item("memory_usage_after").unwrap().extract()?;
+
+        assert!((memory_usage_after - memory_usage_before) < alloc_size);
+
+        Ok(())
     }
 }
