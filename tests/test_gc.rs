@@ -94,7 +94,7 @@ impl PyGCProtocol for GCIntegration {
     }
 
     fn __clear__(&mut self) {
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         self.self_ref = gil.python().None();
     }
 }

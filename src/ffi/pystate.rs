@@ -52,7 +52,7 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PyGILState_STATE {
     PyGILState_LOCKED,
     PyGILState_UNLOCKED,

@@ -130,7 +130,7 @@ impl PyByteArray {
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     /// # use pyo3::types::IntoPyDict;
-    /// # let gil = GILGuard::acquire();
+    /// # let gil = Python::acquire_gil();
     /// # let py = gil.python();
     /// #
     /// let bytearray = PyByteArray::new(py, b"Hello World.");

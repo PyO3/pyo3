@@ -12,13 +12,13 @@ static START: sync::Once = sync::Once::new();
 thread_local! {
     /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
     ///
-    /// It will be incremented whenever a GILPool is created, and decremented whenever they are
-    /// dropped.
+    /// It will be incremented whenever a GILGuard or GILPool is created, and decremented whenever
+    /// they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
     ///
     /// pub(crate) because it is manipulated temporarily by Python::allow_threads
-    pub(crate) static GIL_COUNT: Cell<u32> = Cell::new(0);
+    pub(crate) static GIL_COUNT: Cell<usize> = Cell::new(0);
 
     /// Temporally hold objects that will be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
@@ -110,7 +110,8 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
-/// RAII type that represents the Global Interpreter Lock acquisition.
+/// RAII type that represents the Global Interpreter Lock acquisition. To get hold of a value
+/// of this type, see [`Python::acquire_gil`](struct.Python.html#method.acquire_gil).
 ///
 /// # Example
 /// ```
@@ -128,15 +129,17 @@ pub struct GILGuard {
 }
 
 impl GILGuard {
-    /// Acquires the global interpreter lock, which allows access to the Python runtime. This is
-    /// safe to call multiple times without causing a deadlock.
-    ///
-    /// If the Python runtime is not already initialized, this function will initialize it.
-    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    /// Retrieves the marker type that proves that the GIL was acquired.
+    #[inline]
+    pub fn python(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
+
+    /// PyO3 internal API for acquiring the GIL. The public API is Python::acquire_gil.
     ///
     /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this
     /// new `GILGuard` will also contain a `GILPool`.
-    pub fn acquire() -> GILGuard {
+    pub(crate) fn acquire() -> GILGuard {
         prepare_freethreaded_python();
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
@@ -146,6 +149,8 @@ impl GILGuard {
         let pool = if !gil_is_acquired() {
             Some(unsafe { GILPool::new() })
         } else {
+            // As no GILPool was created, need to update the gil count manually.
+            increment_gil_count();
             None
         };
 
@@ -154,20 +159,35 @@ impl GILGuard {
             pool: ManuallyDrop::new(pool),
         }
     }
-
-    /// Retrieves the marker type that proves that the GIL was acquired.
-    #[inline]
-    pub fn python(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
-    }
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
+        // First up, try to detect if the order of destruction is correct.
+        let _ = GIL_COUNT.try_with(|c| {
+            if self.gstate == ffi::PyGILState_STATE::PyGILState_UNLOCKED && c.get() != 1 {
+                // XXX: this panic commits to leaking all objects in the pool as well as
+                // potentially meaning the GIL never releases. Perhaps should be an abort?
+                // Unfortunately abort UX is much worse than panic.
+                panic!("The first GILGuard acquired must be the last one dropped.");
+            }
+        });
+
+        // If this GILGuard doesn't own a pool, then need to decrease the count after dropping
+        // all objects from the pool.
+        let should_decrement = self.pool.is_none();
+
+        // Drop the objects in the pool before attempting to release the thread state
         unsafe {
-            // Must drop the objects in the pool before releasing the GILGuard
             ManuallyDrop::drop(&mut self.pool);
+        }
+
+        if should_decrement {
+            decrement_gil_count();
+        }
+
+        unsafe {
             ffi::PyGILState_Release(self.gstate);
         }
     }
@@ -328,7 +348,7 @@ pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
 #[inline(always)]
 fn increment_gil_count() {
     // Ignores the error in case this function called from `atexit`.
-    let _ = GIL_COUNT.with(|c| c.set(c.get() + 1));
+    let _ = GIL_COUNT.try_with(|c| c.set(c.get() + 1));
 }
 
 /// Decrement pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
@@ -522,14 +542,13 @@ mod test {
         drop(pool);
         assert_eq!(get_gil_count(), 2);
 
-        // Creating a new GILGuard should not increment the gil count if a GILPool already exists
         let gil2 = Python::acquire_gil();
+        assert_eq!(get_gil_count(), 3);
+
+        drop(gil2);
         assert_eq!(get_gil_count(), 2);
 
         drop(pool2);
-        assert_eq!(get_gil_count(), 1);
-
-        drop(gil2);
         assert_eq!(get_gil_count(), 1);
 
         drop(gil);

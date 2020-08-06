@@ -91,6 +91,18 @@ impl<'p> Python<'p> {
     ///
     /// If the Python runtime is not already initialized, this function will initialize it.
     /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    ///
+    /// Most users should not need to use this API directly, and should prefer one of two options:
+    /// 1. When implementing `#[pymethods]` or `#[pyfunction]` add a function argument
+    ///    `py: Python` to receive access to the GIL context in which the function is running.
+    /// 2. Use [`Python::with_gil`](#method.with_gil) to run a closure with the GIL, acquiring
+    ///    only if needed.
+    ///
+    /// **Note:** This return type from this function, `GILGuard`, is implemented as a RAII guard
+    /// around the C-API Python_EnsureGIL. This means that multiple `acquire_gil()` calls are
+    /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
+    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
+    /// an irrecoverable panic.
     #[inline]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()
@@ -135,6 +147,11 @@ impl<'p> Python<'p> {
     /// cannot be used in the closure.  This includes `&PyAny` and all the
     /// concrete-typed siblings, like `&PyString`.
     ///
+    /// This is achieved via the `Send` bound on the closure and the return type. This is slightly
+    /// more restrictive than necessary, but it's the most fitting solution available in stable
+    /// Rust. In the future this bound may be relaxed by a new "auto-trait", if auto-traits
+    /// become a stable feature of the Rust language.
+    ///
     /// You can convert such references to e.g. `PyObject` or `Py<PyString>`,
     /// which makes them independent of the GIL lifetime.  However, you cannot
     /// do much with those without a `Python<'p>` token, for which you'd need to
@@ -154,24 +171,28 @@ impl<'p> Python<'p> {
     pub fn allow_threads<T, F>(self, f: F) -> T
     where
         F: Send + FnOnce() -> T,
+        T: Send,
     {
         // The `Send` bound on the closure prevents the user from
         // transferring the `Python` token into the closure.
+        let count = gil::GIL_COUNT.with(|c| c.replace(0));
+        let tstate = unsafe { ffi::PyEval_SaveThread() };
+        // Unwinding right here corrupts the Python interpreter state and leads to weird
+        // crashes such as stack overflows. We will catch the unwind and resume as soon as
+        // we've restored the GIL state.
+        //
+        // Because we will resume unwinding as soon as the GIL state is fixed, we can assert
+        // that the closure is unwind safe.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+
+        // Restore GIL state
+        gil::GIL_COUNT.with(|c| c.set(count));
         unsafe {
-            let count = gil::GIL_COUNT.with(|c| c.replace(0));
-            let save = ffi::PyEval_SaveThread();
-            // Unwinding right here corrupts the Python interpreter state and leads to weird
-            // crashes such as stack overflows. We will catch the unwind and resume as soon as
-            // we've restored the GIL state.
-            //
-            // Because we will resume unwinding as soon as the GIL state is fixed, we can assert
-            // that the closure is unwind safe.
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
-            ffi::PyEval_RestoreThread(save);
-            gil::GIL_COUNT.with(|c| c.set(count));
-            // Now that the GIL state has been safely reset, we can unwind if a panic was caught.
-            result.unwrap_or_else(|payload| std::panic::resume_unwind(payload))
+            ffi::PyEval_RestoreThread(tstate);
         }
+
+        // Now that the GIL state has been safely reset, we can unwind if a panic was caught.
+        result.unwrap_or_else(|payload| std::panic::resume_unwind(payload))
     }
 
     /// Evaluates a Python expression in the given context and returns the result.

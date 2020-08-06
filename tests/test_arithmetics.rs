@@ -2,6 +2,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::PyNativeType;
 
 mod common;
 
@@ -361,13 +362,11 @@ impl PyObjectProtocol for RichComparisons2 {
         "RC2"
     }
 
-    fn __richcmp__(&self, _other: &PyAny, op: CompareOp) -> PyObject {
-        let gil = GILGuard::acquire();
-        let py = gil.python();
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyObject {
         match op {
-            CompareOp::Eq => true.into_py(py),
-            CompareOp::Ne => false.into_py(py),
-            _ => py.NotImplemented(),
+            CompareOp::Eq => true.into_py(other.py()),
+            CompareOp::Ne => false.into_py(other.py()),
+            _ => other.py().NotImplemented(),
         }
     }
 }
