@@ -22,7 +22,6 @@ pub struct PyThreadState {
     pub interp: *mut PyInterpreterState,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     pub fn PyInterpreterState_Clear(arg1: *mut PyInterpreterState);
@@ -58,7 +57,6 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
     pub fn PyGILState_Ensure() -> PyGILState_STATE;

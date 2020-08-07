@@ -1,7 +1,6 @@
 use crate::ffi::object::PyObject;
 use std::os::raw::{c_char, c_double, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyOS_string_to_double")]
     pub fn PyOS_string_to_double(

@@ -77,7 +77,6 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);
@@ -312,7 +311,9 @@ extern "C" {
     pub static mut PyExc_BytesWarning: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_ResourceWarning")]
     pub static mut PyExc_ResourceWarning: *mut PyObject;
+}
 
+extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadArgument")]
     pub fn PyErr_BadArgument() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_NoMemory")]

@@ -14,7 +14,6 @@ pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PyCapsule_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCapsule_New")]
     pub fn PyCapsule_New(

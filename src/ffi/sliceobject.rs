@@ -2,7 +2,6 @@ use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
@@ -34,7 +33,6 @@ pub struct PySliceObject {
     pub step: *mut PyObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_New")]
     pub fn PySlice_New(

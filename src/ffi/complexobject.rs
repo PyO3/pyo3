@@ -17,7 +17,6 @@ pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyComplex_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyComplex_FromDoubles")]
     pub fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyObject;
@@ -42,7 +41,6 @@ pub struct PyComplexObject {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn _Py_c_sum(left: Py_complex, right: Py_complex) -> Py_complex;
     pub fn _Py_c_diff(left: Py_complex, right: Py_complex) -> Py_complex;

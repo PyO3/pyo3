@@ -27,7 +27,6 @@ pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyLong_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromLong")]
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
@@ -81,7 +80,6 @@ extern "C" {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
 

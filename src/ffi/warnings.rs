@@ -2,7 +2,6 @@ use crate::ffi::object::PyObject;
 use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyErr_WarnEx(
         category: *mut PyObject,

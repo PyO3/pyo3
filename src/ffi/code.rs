@@ -77,6 +77,9 @@ pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
+}
+
+extern "C" {
     #[cfg(Py_3_6)]
     pub fn _PyCode_GetExtra(
         code: *mut PyObject,

@@ -2,7 +2,6 @@ use libc::size_t;
 use std::os::raw::c_void;
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
@@ -14,7 +13,6 @@ extern "C" {
     pub fn PyMem_RawFree(ptr: *mut c_void);
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_Malloc")]
     pub fn PyMem_Malloc(size: size_t) -> *mut c_void;
@@ -49,7 +47,6 @@ pub struct PyMemAllocatorEx {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyMem_GetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);
     pub fn PyMem_SetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);

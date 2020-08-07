@@ -29,7 +29,6 @@ pub unsafe fn PyFloat_AS_DOUBLE(op: *mut PyObject) -> c_double {
     (*(op as *mut PyFloatObject)).ob_fval
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyFloat_GetMax() -> c_double;
     pub fn PyFloat_GetMin() -> c_double;
