@@ -18,7 +18,6 @@ pub struct PyStructSequence_Desc {
     pub n_in_sequence: c_int,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc) -> *mut PyTypeObject;
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;

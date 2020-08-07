@@ -7,6 +7,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
+
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
@@ -61,7 +62,6 @@ pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
     kwds: *mut PyObject,
 ) -> *mut PyObject;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
@@ -102,7 +102,6 @@ pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut 
     PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
     pub fn PyCFunction_NewEx(
@@ -137,7 +136,6 @@ be specified alone or with METH_KEYWORDS. */
 #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
 pub const METH_FASTCALL: c_int = 0x0080;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }

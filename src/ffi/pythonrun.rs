@@ -18,7 +18,6 @@ pub struct PyCompilerFlags {
 pub enum _mod {}
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
     pub fn PyRun_AnyFileFlags(
@@ -105,7 +104,6 @@ pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int
     PyParser_SimpleParseFileFlags(fp, s, b, 0)
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyParser_SimpleParseStringFlags(
         arg1: *const c_char,
@@ -170,7 +168,6 @@ pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int
     Py_CompileStringFlags(string, p, s, ptr::null_mut())
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]
     #[cfg(not(PyPy))]

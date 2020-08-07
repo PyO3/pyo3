@@ -31,7 +31,6 @@ pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;

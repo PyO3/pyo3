@@ -713,7 +713,6 @@ impl Default for PyType_Spec {
     }
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_FromSpec")]
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
@@ -724,7 +723,6 @@ extern "C" {
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int) -> *mut c_void;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_IsSubtype")]
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
@@ -745,7 +743,9 @@ extern "C" {
     pub static mut PyBaseObject_Type: PyTypeObject;
     /// built-in 'super'
     pub static mut PySuper_Type: PyTypeObject;
+}
 
+extern "C" {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 }
 
@@ -759,7 +759,6 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyType_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_Ready")]
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
@@ -919,7 +918,6 @@ pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     PyType_HasFeature(t, f)
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     pub fn _Py_Dealloc(arg1: *mut PyObject);
@@ -970,13 +968,15 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     }
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
     pub fn Py_IncRef(o: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
+}
 
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPy_NotImplementedStruct")]

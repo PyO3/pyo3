@@ -65,7 +65,6 @@ pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
     (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;

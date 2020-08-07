@@ -56,7 +56,9 @@ extern "C" {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
+}
 
+extern "C" {
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)

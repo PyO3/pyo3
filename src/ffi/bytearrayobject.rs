@@ -20,7 +20,6 @@ pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyByteArray_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_FromObject")]
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
