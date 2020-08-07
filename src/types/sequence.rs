@@ -556,6 +556,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_seq_count() {
         let gil = Python::acquire_gil();
         let py = gil.python();

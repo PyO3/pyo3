@@ -443,9 +443,11 @@ impl_native_exception!(
 );
 impl_native_exception!(PyTimeoutError, TimeoutError, PyExc_TimeoutError);
 
+#[cfg(not(all(windows, PyPy)))]
 impl_native_exception!(PyEnvironmentError, EnvironmentError, PyExc_EnvironmentError);
+#[cfg(not(all(windows, PyPy)))]
 impl_native_exception!(PyIOError, IOError, PyExc_IOError);
-#[cfg(target_os = "windows")]
+#[cfg(all(windows, not(PyPy)))]
 impl_native_exception!(PyWindowsError, WindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {

@@ -84,7 +84,7 @@ extern "C" {
     pub fn PySet_Pop(set: *mut PyObject) -> *mut PyObject;
 
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "_PySet_NextEntry")]
+    #[cfg_attr(PyPy, link_name = "_PyPySet_NextEntry")]
     pub fn _PySet_NextEntry(
         set: *mut PyObject,
         pos: *mut Py_ssize_t,

@@ -360,7 +360,9 @@ mod test {
     use crate::conversion::IntoPy;
     use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
-    use crate::types::{PyDict, PyList, PyTuple};
+    #[cfg(not(PyPy))]
+    use crate::types::PyList;
+    use crate::types::{PyDict, PyTuple};
     use crate::PyObject;
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
@@ -380,6 +382,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_from_sequence() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -394,6 +397,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_from_sequence_err() {
         let gil = Python::acquire_gil();
         let py = gil.python();

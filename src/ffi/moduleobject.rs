@@ -26,7 +26,9 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
+    #[cfg(not(all(windows, PyPy)))]
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDef")]
