@@ -1,8 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::defs;
-use crate::func::impl_method_proto;
 use crate::method::{FnSpec, FnType};
+use crate::proto_method::impl_method_proto;
 use crate::pymethod;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;

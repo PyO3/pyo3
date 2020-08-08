@@ -1,5 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::func::MethodProto;
+use crate::proto_method::MethodProto;
 
 /// Predicates for `#[pyproto]`.
 pub struct Proto {

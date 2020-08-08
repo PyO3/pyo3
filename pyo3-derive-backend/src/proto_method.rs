@@ -6,7 +6,6 @@ use syn::Token;
 
 // TODO:
 //   Add lifetime support for args with Rptr
-
 #[derive(Debug)]
 pub enum MethodProto {
     Free {
@@ -77,7 +76,11 @@ pub(crate) fn impl_method_proto(
 ) -> TokenStream {
     let ret_ty = match &sig.output {
         syn::ReturnType::Default => quote! { () },
-        syn::ReturnType::Type(_, ty) => ty.to_token_stream(),
+        syn::ReturnType::Type(_, ty) => {
+            let mut ty = ty.clone();
+            insert_lifetime(&mut ty);
+            ty.to_token_stream()
+        }
     };
 
     match *meth {
@@ -106,22 +109,7 @@ pub(crate) fn impl_method_proto(
             let p: syn::Path = syn::parse_str(proto).unwrap();
 
             let slf_name = syn::Ident::new(arg, Span::call_site());
-            let mut slf_ty = get_arg_ty(sig, 0);
-
-            // update the type if no lifetime was given:
-            // PyRef<Self> --> PyRef<'p, Self>
-            if let syn::Type::Path(ref mut path) = slf_ty {
-                if let syn::PathArguments::AngleBracketed(ref mut args) =
-                    path.path.segments[0].arguments
-                {
-                    if let syn::GenericArgument::Lifetime(_) = args.args[0] {
-                    } else {
-                        let lt = syn::parse_quote! {'p};
-                        args.args.insert(0, lt);
-                    }
-                }
-            }
-
+            let slf_ty = get_arg_ty(sig, 0);
             let tmp: syn::ItemFn = syn::parse_quote! {
                 fn test(&self) -> <#cls as #p<'p>>::Result {}
             };
@@ -336,38 +324,62 @@ pub(crate) fn impl_method_proto(
     }
 }
 
-// TODO: better arg ty detection
+/// Some hacks for arguments: get `T` from `Option<T>` and insert lifetime
 fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Type {
-    let mut ty = match sig.inputs[idx] {
-        syn::FnArg::Typed(ref cap) => {
-            match *cap.ty {
-                syn::Type::Path(ref ty) => {
-                    // use only last path segment for Option<>
-                    let seg = ty.path.segments.last().unwrap().clone();
-                    if seg.ident == "Option" {
-                        if let syn::PathArguments::AngleBracketed(ref data) = seg.arguments {
-                            if let Some(pair) = data.args.last() {
-                                match pair {
-                                    syn::GenericArgument::Type(ref ty) => return ty.clone(),
-                                    _ => panic!("Option only accepted for concrete types"),
-                                }
-                            };
-                        }
-                    }
-                    *cap.ty.clone()
+    fn get_option_ty(path: &syn::Path) -> Option<syn::Type> {
+        let seg = path.segments.last()?;
+        if seg.ident == "Option" {
+            if let syn::PathArguments::AngleBracketed(ref data) = seg.arguments {
+                if let Some(syn::GenericArgument::Type(ref ty)) = data.args.last() {
+                    return Some(ty.to_owned());
                 }
-                _ => *cap.ty.clone(),
             }
         }
-        _ => panic!("fn arg type is not supported"),
-    };
-
-    // Add a lifetime if there is none
-    if let syn::Type::Reference(ref mut r) = ty {
-        r.lifetime.get_or_insert(syn::parse_quote! {'p});
+        None
     }
 
+    let mut ty = match &sig.inputs[idx] {
+        syn::FnArg::Typed(ref cap) => match &*cap.ty {
+            // For `Option<T>`, we use `T` as an associated type for the protocol.
+            syn::Type::Path(ref ty) => get_option_ty(&ty.path).unwrap_or_else(|| *cap.ty.clone()),
+            _ => *cap.ty.clone(),
+        },
+        ty => panic!("Unsupported argument type: {:?}", ty),
+    };
+    insert_lifetime(&mut ty);
     ty
+}
+
+/// Insert lifetime `'p` to `PyRef<Self>` or references (e.g., `&PyType`).
+fn insert_lifetime(ty: &mut syn::Type) {
+    fn insert_lifetime_for_path(path: &mut syn::TypePath) {
+        if let Some(seg) = path.path.segments.last_mut() {
+            if let syn::PathArguments::AngleBracketed(ref mut args) = seg.arguments {
+                let mut has_lifetime = false;
+                for arg in &mut args.args {
+                    match arg {
+                        // Insert `'p` recursively for `Option<PyRef<Self>>` or so.
+                        syn::GenericArgument::Type(ref mut ty) => insert_lifetime(ty),
+                        syn::GenericArgument::Lifetime(_) => has_lifetime = true,
+                        _ => {}
+                    }
+                }
+                // Insert lifetime to PyRef (i.e., PyRef<Self> -> PyRef<'p, Self>)
+                if !has_lifetime && (seg.ident == "PyRef" || seg.ident == "PyRefMut") {
+                    args.args.insert(0, syn::parse_quote! {'p});
+                }
+            }
+        }
+    }
+
+    match ty {
+        syn::Type::Reference(ref mut r) => {
+            r.lifetime.get_or_insert(syn::parse_quote! {'p});
+            insert_lifetime(&mut *r.elem);
+        }
+        syn::Type::Path(ref mut path) => insert_lifetime_for_path(path),
+        _ => {}
+    }
 }
 
 fn extract_decl(spec: syn::Item) -> syn::Signature {

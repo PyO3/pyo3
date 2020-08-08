@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Don't rely on the order of structmembers to compute offsets in PyCell. Related to
   [#1058](https://github.com/PyO3/pyo3/pull/1058). [#1059](https://github.com/PyO3/pyo3/pull/1059)
 - Allows `&Self` as a `#[pymethods]` argument again. [#1071](https://github.com/PyO3/pyo3/pull/1071)
+- Improve lifetime insertion in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
 
 ## [0.11.1] - 2020-06-30
 ### Added
