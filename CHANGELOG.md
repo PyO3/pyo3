@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PyObject` is now just a type alias for `Py<PyAny>`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 - Implement `Send + Sync` for `PyErr`. `PyErr::new`, `PyErr::from_type`, `PyException::py_err` and `PyException::into` have had these bounds added to their arguments. [#1067](https://github.com/PyO3/pyo3/pull/1067)
 - Change `#[pyproto]` to return NotImplemented for operators for which Python can try a reversed operation. [1072](https://github.com/PyO3/pyo3/pull/1072)
+- Change method for getting cross-compilation configurations using the file which provides the `sysconfig` module with its data, `_sysconfig_*.py` located in the lib directory. [1077](https://github.com/PyO3/pyo3/issues/1077)
 
 ### Removed
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Allows `&Self` as a `#[pymethods]` argument again. [#1071](https://github.com/PyO3/pyo3/pull/1071)
 - Fix best-effort build against PyPy 3.6. #[1092](https://github.com/PyO3/pyo3/pull/1092)
 - Improve lifetime elision in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
+- Linking against libpython when compiling for android even with `extension-module` set[#1082](https://github.com/PyO3/pyo3/issues/1082)
 
 ## [0.11.1] - 2020-06-30
 ### Added

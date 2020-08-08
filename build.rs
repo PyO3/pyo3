@@ -175,7 +175,6 @@ fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, 
 }
 
 fn load_cross_compile_from_sysconfigdata(
-    python_include_dir: &Path,
     python_lib_dir: &str,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     // find info from sysconfig
@@ -207,7 +206,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let (major, minor) = match config_map.get("VERSION") {
         Some(s) => {
-            let split = s.split(".").collect::<Vec<&str>>();
+            let split = s.split('.').collect::<Vec<&str>>();
             (split[0].parse::<u8>()?, split[1].parse::<u8>()?)
         }
         None => bail!("Could not find python version"),
@@ -237,9 +236,10 @@ fn load_cross_compile_from_sysconfigdata(
 }
 
 fn load_cross_compile_from_headers(
-    python_include_dir: &Path,
+    python_include_dir: &str,
     python_lib_dir: &str,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
     let major = match patchlevel_defines
@@ -294,13 +294,12 @@ fn load_cross_compile_info(
     python_include_dir: String,
     python_lib_dir: String,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let python_include_dir = Path::new(&python_include_dir);
     // Try to configure from the sysconfigdata file which is more accurate for the information
     // provided at python's compile time
-    match load_cross_compile_from_sysconfigdata(python_include_dir, &python_lib_dir) {
+    match load_cross_compile_from_sysconfigdata(&python_lib_dir) {
         Ok(ret) => Ok(ret),
         // If the config could not be loaded by sysconfigdata, failover to configuring from headers
-        Err(_) => load_cross_compile_from_headers(python_include_dir, &python_lib_dir),
+        Err(_) => load_cross_compile_from_headers(&python_include_dir, &python_lib_dir),
     }
 }
 
