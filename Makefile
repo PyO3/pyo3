@@ -1,8 +1,5 @@
 .PHONY: test test_py publish clippy lint fmt
 
-# Constant used in clippy target
-CLIPPY_LINTS_TO_DENY := warnings
-
 test: lint test_py
 	cargo test
 
@@ -15,8 +12,7 @@ fmt:
 
 clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
-	cargo clippy --features="default num-bigint num-complex" --tests -- \
-		$(addprefix -D ,${CLIPPY_LINTS_TO_DENY})
+	cargo clippy --features="default num-bigint num-complex" --tests -- -Dwarnings
 	for example in examples/*; do (cd $$example/; cargo clippy) || exit 1; done
 
 lint: fmt clippy
