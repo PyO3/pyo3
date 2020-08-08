@@ -46,7 +46,7 @@ There can be two fixes:
    ```
 
    In situations where you cannot change your `#[pyclass]` to automatically implement `Send`
-   (e.g., when it contains a raw pointer), you can use `unsafe impl Send`. 
+   (e.g., when it contains a raw pointer), you can use `unsafe impl Send`.
    In such cases, care should be taken to ensure the struct is actually thread safe.
    See [the Rustnomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
 
@@ -216,7 +216,7 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
 To upgrade code, please use
-[`PyCell::new`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html#method.new) instead.
+[`PyCell::new`](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html#method.new) instead.
 If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 

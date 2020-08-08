@@ -249,7 +249,7 @@ This trait marks structs that mirror native Python types, such as `PyList`.
 
 [eval]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.eval
 [clone_ref]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#method.clone_ref
-[pyo3::types]: https://pyo3.rs/master/doc/pyo3/types/index.html
+[pyo3::types]: https://docs.rs/pyo3/latest/pyo3/types/index.html
 [PyAny]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
 [PyList_append]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
