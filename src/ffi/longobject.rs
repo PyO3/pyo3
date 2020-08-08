@@ -81,6 +81,7 @@ extern "C" {
 
 #[cfg(not(Py_LIMITED_API))]
 extern "C" {
+    #[cfg(not(PyPy))]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
@@ -91,6 +92,7 @@ extern "C" {
         is_signed: c_int,
     ) -> *mut PyObject;
 
+    #[cfg(not(PyPy))]
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,
         bytes: *mut c_uchar,

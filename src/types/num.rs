@@ -8,7 +8,7 @@ use crate::{
 };
 use std::convert::TryFrom;
 use std::i64;
-use std::os::raw::{c_int, c_long, c_uchar};
+use std::os::raw::c_long;
 
 fn err_if_invalid_value<T: PartialEq>(
     py: Python,
@@ -41,61 +41,6 @@ macro_rules! int_fits_larger_int {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::py_err(e.to_string()))
-            }
-        }
-    };
-}
-
-// manual implementation for 128bit integers
-#[cfg(target_endian = "little")]
-const IS_LITTLE_ENDIAN: c_int = 1;
-#[cfg(not(target_endian = "little"))]
-const IS_LITTLE_ENDIAN: c_int = 0;
-
-// for 128bit Integers
-macro_rules! int_convert_128 {
-    ($rust_type: ty, $byte_size: expr, $is_signed: expr) => {
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
-                (*self).into_py(py)
-            }
-        }
-        impl IntoPy<PyObject> for $rust_type {
-            fn into_py(self, py: Python) -> PyObject {
-                unsafe {
-                    let bytes = self.to_ne_bytes();
-                    let obj = ffi::_PyLong_FromByteArray(
-                        bytes.as_ptr() as *const c_uchar,
-                        $byte_size,
-                        IS_LITTLE_ENDIAN,
-                        $is_signed,
-                    );
-                    PyObject::from_owned_ptr_or_panic(py, obj)
-                }
-            }
-        }
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
-                unsafe {
-                    let num = ffi::PyNumber_Index(ob.as_ptr());
-                    if num.is_null() {
-                        return Err(PyErr::fetch(ob.py()));
-                    }
-                    let mut buffer = [0; $byte_size];
-                    let ok = ffi::_PyLong_AsByteArray(
-                        num as *mut ffi::PyLongObject,
-                        buffer.as_mut_ptr(),
-                        $byte_size,
-                        IS_LITTLE_ENDIAN,
-                        $is_signed,
-                    );
-                    if ok == -1 {
-                        Err(PyErr::fetch(ob.py()))
-                    } else {
-                        Ok(<$rust_type>::from_ne_bytes(buffer))
-                    }
-                }
             }
         }
     };
@@ -216,17 +161,141 @@ int_convert_u64_or_i64!(
     ffi::PyLong_AsUnsignedLongLong
 );
 
-#[cfg(not(Py_LIMITED_API))]
-int_convert_128!(i128, 16, 1);
-#[cfg(not(Py_LIMITED_API))]
-int_convert_128!(u128, 16, 0);
+// manual implementation for 128bit integers
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+mod int128_conversion {
+    use crate::{
+        ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
+        Python, ToPyObject,
+    };
+    use std::os::raw::{c_int, c_uchar};
 
-#[cfg(all(feature = "num-bigint", not(Py_LIMITED_API)))]
+    #[cfg(target_endian = "little")]
+    const IS_LITTLE_ENDIAN: c_int = 1;
+    #[cfg(not(target_endian = "little"))]
+    const IS_LITTLE_ENDIAN: c_int = 0;
+
+    // for 128bit Integers
+    macro_rules! int_convert_128 {
+        ($rust_type: ty, $byte_size: expr, $is_signed: expr) => {
+            impl ToPyObject for $rust_type {
+                #[inline]
+                fn to_object(&self, py: Python) -> PyObject {
+                    (*self).into_py(py)
+                }
+            }
+            impl IntoPy<PyObject> for $rust_type {
+                fn into_py(self, py: Python) -> PyObject {
+                    unsafe {
+                        let bytes = self.to_ne_bytes();
+                        let obj = ffi::_PyLong_FromByteArray(
+                            bytes.as_ptr() as *const c_uchar,
+                            $byte_size,
+                            IS_LITTLE_ENDIAN,
+                            $is_signed,
+                        );
+                        PyObject::from_owned_ptr_or_panic(py, obj)
+                    }
+                }
+            }
+
+            impl<'source> FromPyObject<'source> for $rust_type {
+                fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+                    unsafe {
+                        let num = ffi::PyNumber_Index(ob.as_ptr());
+                        if num.is_null() {
+                            return Err(PyErr::fetch(ob.py()));
+                        }
+                        let mut buffer = [0; $byte_size];
+                        let ok = ffi::_PyLong_AsByteArray(
+                            num as *mut ffi::PyLongObject,
+                            buffer.as_mut_ptr(),
+                            $byte_size,
+                            IS_LITTLE_ENDIAN,
+                            $is_signed,
+                        );
+                        if ok == -1 {
+                            Err(PyErr::fetch(ob.py()))
+                        } else {
+                            Ok(<$rust_type>::from_ne_bytes(buffer))
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    int_convert_128!(i128, 16, 1);
+    int_convert_128!(u128, 16, 0);
+
+    #[cfg(test)]
+    mod test {
+        use crate::{Python, ToPyObject};
+
+        #[test]
+        fn test_i128_max() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let v = std::i128::MAX;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<i128>(py).unwrap());
+            assert_eq!(v as u128, obj.extract::<u128>(py).unwrap());
+            assert!(obj.extract::<u64>(py).is_err());
+        }
+
+        #[test]
+        fn test_i128_min() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let v = std::i128::MIN;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<i128>(py).unwrap());
+            assert!(obj.extract::<i64>(py).is_err());
+            assert!(obj.extract::<u128>(py).is_err());
+        }
+
+        #[test]
+        fn test_u128_max() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let v = std::u128::MAX;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<u128>(py).unwrap());
+            assert!(obj.extract::<i128>(py).is_err());
+        }
+
+        #[test]
+        fn test_u128_overflow() {
+            use crate::exceptions;
+            use crate::ffi;
+            use crate::object::PyObject;
+            use std::os::raw::c_uchar;
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let overflow_bytes: [c_uchar; 20] = [255; 20];
+            unsafe {
+                let obj = ffi::_PyLong_FromByteArray(
+                    overflow_bytes.as_ptr() as *const c_uchar,
+                    20,
+                    super::IS_LITTLE_ENDIAN,
+                    0,
+                );
+                let obj = PyObject::from_owned_ptr_or_panic(py, obj);
+                let err = obj.extract::<u128>(py).unwrap_err();
+                assert!(err.is_instance::<exceptions::PyOverflowError>(py));
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
 mod bigint_conversion {
     use super::*;
     use crate::{err, Py};
     use num_bigint::{BigInt, BigUint};
+    use std::os::raw::{c_int, c_uchar};
 
+    #[cfg(not(all(windows, PyPy)))]
     unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
         err::error_on_minusone(
             ob.py(),
@@ -497,64 +566,6 @@ mod test {
         assert!(obj.extract::<i64>(py).is_err());
     }
 
-    #[test]
-    #[cfg(not(Py_LIMITED_API))]
-    fn test_i128_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i128::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i128>(py).unwrap());
-        assert_eq!(v as u128, obj.extract::<u128>(py).unwrap());
-        assert!(obj.extract::<u64>(py).is_err());
-    }
-
-    #[test]
-    #[cfg(not(Py_LIMITED_API))]
-    fn test_i128_min() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i128::MIN;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i128>(py).unwrap());
-        assert!(obj.extract::<i64>(py).is_err());
-        assert!(obj.extract::<u128>(py).is_err());
-    }
-
-    #[test]
-    #[cfg(not(Py_LIMITED_API))]
-    fn test_u128_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::u128::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<u128>(py).unwrap());
-        assert!(obj.extract::<i128>(py).is_err());
-    }
-
-    #[test]
-    #[cfg(not(Py_LIMITED_API))]
-    fn test_u128_overflow() {
-        use crate::exceptions;
-        use crate::ffi;
-        use crate::object::PyObject;
-        use std::os::raw::c_uchar;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let overflow_bytes: [c_uchar; 20] = [255; 20];
-        unsafe {
-            let obj = ffi::_PyLong_FromByteArray(
-                overflow_bytes.as_ptr() as *const c_uchar,
-                20,
-                super::IS_LITTLE_ENDIAN,
-                0,
-            );
-            let obj = PyObject::from_owned_ptr_or_panic(py, obj);
-            let err = obj.extract::<u128>(py).unwrap_err();
-            assert!(err.is_instance::<exceptions::PyOverflowError>(py));
-        }
-    }
-
     macro_rules! test_common (
         ($test_mod_name:ident, $t:ty) => (
             mod $test_mod_name {
@@ -605,8 +616,8 @@ mod test {
     test_common!(u64, u64);
     test_common!(isize, isize);
     test_common!(usize, usize);
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     test_common!(i128, i128);
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     test_common!(u128, u128);
 }

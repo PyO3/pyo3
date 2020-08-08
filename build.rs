@@ -306,12 +306,7 @@ fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
             Some(minor) => format!("{}", minor),
             None => String::new(),
         };
-        match version.implementation {
-            PythonInterpreterKind::CPython => {
-                format!("python{}{}", version.major, minor_or_empty_string)
-            }
-            PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
-        }
+        format!("python{}{}", version.major, minor_or_empty_string)
     } else {
         match version.implementation {
             PythonInterpreterKind::CPython => format!("python{}", ld_version),
@@ -338,6 +333,11 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
 
 #[cfg(target_os = "macos")]
 fn get_macos_linkmodel(config: &InterpreterConfig) -> Result<String> {
+    // PyPy 3.6 ships with a shared library, but doesn't have Py_ENABLE_SHARED.
+    if config.version.implementation == PythonInterpreterKind::PyPy {
+        return Ok("shared".to_string());
+    }
+
     let script = r#"
 import sysconfig
 
