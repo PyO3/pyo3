@@ -134,10 +134,112 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
     config_map
 }
 
-fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let python_include_dir = env::var("PYO3_CROSS_INCLUDE_DIR")?;
-    let python_include_dir = Path::new(&python_include_dir);
+fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
+    let config_reader = BufReader::new(File::open(config_path)?);
+    let mut entries = HashMap::new();
+    let entry_re = regex::Regex::new(r#"'([a-zA-Z_0-9]*)': ((?:"|')([\S ]*)(?:"|')|\d+)($|,$)"#)?;
+    let subsequent_re = regex::Regex::new(r#"\s+(?:"|')([\S ]*)(?:"|')($|,)"#)?;
+    let mut previous_finished = None;
+    for maybe_line in config_reader.lines() {
+        let line = maybe_line?;
+        if previous_finished.is_none() {
+            let captures = match entry_re.captures(&line) {
+                Some(c) => c,
+                None => continue,
+            };
+            let key = captures[1].to_owned();
+            let val = if let Some(val) = captures.get(3) {
+                val.as_str().to_owned()
+            } else {
+                captures[2].to_owned()
+            };
+            if &captures[4] != "," && &captures[4] != "}" {
+                previous_finished = Some(key.clone());
+            }
+            entries.insert(key, val);
+        } else if let Some(ref key) = previous_finished {
+            let captures = match subsequent_re.captures(&line) {
+                Some(c) => c,
+                None => continue,
+            };
+            let prev = entries.remove(key).unwrap();
+            entries.insert(key.clone(), prev + &captures[1]);
 
+            if &captures[2] == "," || &captures[2] == "}" {
+                previous_finished = None;
+            }
+        }
+    }
+
+    Ok(entries)
+}
+
+fn load_cross_compile_from_sysconfigdata(
+    python_include_dir: &Path,
+    python_lib_dir: &str,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    // find info from sysconfig
+    // first find sysconfigdata file
+    let sysconfig_re = regex::Regex::new(r"_sysconfigdata_m?_linux_([a-z_\-0-9]*)?\.py$")?;
+    let mut walker = walkdir::WalkDir::new(&python_lib_dir).into_iter();
+    let sysconfig_path = loop {
+        let entry = match walker.next() {
+            Some(Ok(entry)) => entry,
+            None => bail!("Could not find sysconfigdata file"),
+            _ => continue,
+        };
+        let entry = entry.into_path();
+        if sysconfig_re.is_match(entry.to_str().unwrap()) {
+            break entry;
+        }
+    };
+    let config_map = parse_sysconfigdata(sysconfig_path)?;
+
+    let shared = match config_map
+        .get("Py_ENABLE_SHARED")
+        .map(|x| x.as_str())
+        .ok_or("Py_ENABLE_SHARED is not defined")?
+    {
+        "1" | "true" | "True" => true,
+        "0" | "false" | "False" => false,
+        _ => panic!("Py_ENABLE_SHARED must be a bool (1/true/True or 0/false/False"),
+    };
+
+    let (major, minor) = match config_map.get("VERSION") {
+        Some(s) => {
+            let split = s.split(".").collect::<Vec<&str>>();
+            (split[0].parse::<u8>()?, split[1].parse::<u8>()?)
+        }
+        None => bail!("Could not find python version"),
+    };
+
+    let ld_version = match config_map.get("LDVERSION") {
+        Some(s) => s.clone(),
+        None => format!("{}.{}", major, minor),
+    };
+    let python_version = PythonVersion {
+        major,
+        minor: Some(minor),
+        implementation: PythonInterpreterKind::CPython,
+    };
+
+    let interpreter_config = InterpreterConfig {
+        version: python_version,
+        libdir: Some(python_lib_dir.to_owned()),
+        shared,
+        ld_version,
+        base_prefix: "".to_string(),
+        executable: PathBuf::new(),
+        calcsize_pointer: None,
+    };
+
+    Ok((interpreter_config, fix_config_map(config_map)))
+}
+
+fn load_cross_compile_from_headers(
+    python_include_dir: &Path,
+    python_lib_dir: &str,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
     let major = match patchlevel_defines
@@ -177,15 +279,29 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(env::var("PYO3_CROSS_LIB_DIR")?),
+        libdir: Some(python_lib_dir.to_owned()),
         shared,
-        ld_version: "".to_string(),
+        ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer: None,
     };
 
     Ok((interpreter_config, fix_config_map(config_map)))
+}
+
+fn load_cross_compile_info(
+    python_include_dir: String,
+    python_lib_dir: String,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let python_include_dir = Path::new(&python_include_dir);
+    // Try to configure from the sysconfigdata file which is more accurate for the information
+    // provided at python's compile time
+    match load_cross_compile_from_sysconfigdata(python_include_dir, &python_lib_dir) {
+        Ok(ret) => Ok(ret),
+        // If the config could not be loaded by sysconfigdata, failover to configuring from headers
+        Err(_) => load_cross_compile_from_headers(python_include_dir, &python_lib_dir),
+    }
 }
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -567,10 +683,27 @@ fn main() -> Result<()> {
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let cross_compiling =
-        env::var("PYO3_CROSS_INCLUDE_DIR").is_ok() && env::var("PYO3_CROSS_LIB_DIR").is_ok();
+    //
+    // Detecting if cross-compiling by checking if the target triple is different from the host
+    // rustc's triple.
+    let cross_compiling = env::var("TARGET") != env::var("HOST");
     let (interpreter_config, mut config_map) = if cross_compiling {
-        load_cross_compile_info()?
+        // If cross compiling we need the path to the cross-compiled include dir and lib dir, else
+        // fail quickly and loudly
+        let python_include_dir = match env::var("PYO3_CROSS_INCLUDE_DIR") {
+            Ok(v) => v,
+            Err(_) => bail!(
+                "Must provide PYO3_CROSS_INCLUDE_DIR environment variable when cross-compiling"
+            ),
+        };
+        let python_lib_dir = match env::var("PYO3_CROSS_LIB_DIR") {
+            Ok(v) => v,
+            Err(_) => {
+                bail!("Must provide PYO3_CROSS_LIB_DIR environment variable when cross-compiling")
+            }
+        };
+
+        load_cross_compile_info(python_include_dir, python_lib_dir)?
     } else {
         find_interpreter_and_get_config()?
     };
