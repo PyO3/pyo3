@@ -85,7 +85,6 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
-    use crate::instance::AsPyRef;
     use crate::types::{PyDict, PyList};
     use crate::Python;
     use crate::ToPyObject;

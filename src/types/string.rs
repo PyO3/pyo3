@@ -146,7 +146,6 @@ impl<'source> FromPyObject<'source> for String {
 #[cfg(test)]
 mod test {
     use super::PyString;
-    use crate::instance::AsPyRef;
     use crate::Python;
     use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
 

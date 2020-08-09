@@ -357,7 +357,6 @@ where
 #[cfg(test)]
 mod test {
     use crate::conversion::IntoPy;
-    use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
     #[cfg(not(PyPy))]
     use crate::types::PyList;

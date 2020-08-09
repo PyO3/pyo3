@@ -225,7 +225,6 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::instance::AsPyRef;
     use crate::types::PyList;
     use crate::Python;
     use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};

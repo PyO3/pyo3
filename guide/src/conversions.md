@@ -46,7 +46,7 @@ There are also a few special types related to the GIL and Rust-defined `#[pyclas
 | What          | Description |
 | ------------- | ------------------------------------- |
 | `Python`      | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL |
-| `Py<T>`       | A Python object isolated from the GIL lifetime. This can be sent to other threads. To call Python APIs using this object, it must be used with `AsPyRef::as_ref` to get an `&T` reference bound to the GIL. |
+| `Py<T>`       | A Python object isolated from the GIL lifetime. This can be sent to other threads. |
 | `PyObject`    | An alias for `Py<PyAny>`              |
 | `&PyCell<T>`  | A `#[pyclass]` value owned by Python. |
 | `PyRef<T>`    | A `#[pyclass]` borrowed immutably.    |

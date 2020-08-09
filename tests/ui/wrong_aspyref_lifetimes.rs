@@ -1,4 +1,4 @@
-use pyo3::{types::PyDict, AsPyRef, Py, PyNativeType, Python};
+use pyo3::{types::PyDict, Py, PyNativeType, Python};
 
 fn main() {
     let gil = Python::acquire_gil();
