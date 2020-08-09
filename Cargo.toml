@@ -32,8 +32,8 @@ trybuild = "1.0.23"
 rustversion = "1.0"
 
 [build-dependencies]
-walkdir = "~2.3"
-regex = "~1.3"
+walkdir = {version = "~2.3", optional = true }
+regex = { version = "~1.3", optional = true }
 
 [features]
 default = ["macros"]
@@ -53,6 +53,9 @@ extension-module = []
 # many compilation errors. Pull Requests working towards fixing that
 # are welcome.
 # abi3 = []
+
+# Use this feature when cross-compiling the library
+cross-compile = ["walkdir", "regex"]
 
 [workspace]
 members = [

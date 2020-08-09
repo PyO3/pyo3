@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     convert::AsRef,
     env, fmt,
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -76,6 +76,57 @@ impl FromStr for PythonInterpreterKind {
     }
 }
 
+struct PythonPaths {
+    lib_dir: String,
+    include_dir: Option<String>,
+}
+
+impl PythonPaths {
+    fn both() -> Result<Self> {
+        Ok(PythonPaths {
+            include_dir: Some(PythonPaths::validate_variable("PYO3_CROSS_INCLUDE_DIR")?),
+            ..PythonPaths::lib_only()?
+        })
+    }
+
+    fn lib_only() -> Result<Self> {
+        Ok(PythonPaths {
+            lib_dir: PythonPaths::validate_variable("PYO3_CROSS_LIB_DIR")?,
+            include_dir: None,
+        })
+    }
+
+    fn validate_variable(var: &str) -> Result<String> {
+        let path = match env::var(var) {
+            Ok(v) => v,
+            Err(_) => bail!(
+                "Must provide {} environment variable when cross-compiling",
+                var
+            ),
+        };
+
+        if fs::metadata(&path).is_err() {
+            bail!("{} value of {} does not exist", var, path)
+        }
+
+        Ok(path)
+    }
+}
+
+fn cross_compiling() -> Result<Option<PythonPaths>> {
+    if env::var("TARGET")? == env::var("HOST")? {
+        return Ok(None);
+    }
+
+    if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
+        Ok(Some(PythonPaths::both()?))
+    } else if cfg!(feature = "cross-compile") {
+        Ok(Some(PythonPaths::lib_only()?))
+    } else {
+        bail!("Cross compiling PyO3 for a unix platform requires the cross-compile feature to be enabled")
+    }
+}
+
 /// A list of python interpreter compile-time preprocessor defines that
 /// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
 /// this allows using them conditional cfg attributes in the .rs files, so
@@ -134,11 +185,57 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
     config_map
 }
 
+/// Parse sysconfigdata file
+///
+/// The sysconfigdata is basically a dictionary, and since we can't really use this library to read
+/// it for us, egg and chicken type thing, we parse it with some regex. Here there are two regex's.
+/// The first one is to match an entry in the dictionary (`entry_re`). Then when the entry is on
+/// multiple lines we use the second regex to capture the additional string entry and add it to the
+/// previously captured key. We detect if this is a multi line entry by checking if the last capture
+/// group contains either `,` or `}`.
+///
+/// ## entry_re
+///
+/// The first part `'([a-zA-Z_0-9]*)'` we match a key in the dictionary and extract it without the quotes,
+/// The second capture group is `((?:"|')([\S ]*)(?:"|')|\d+)` we can split this capture group into 2,
+///
+/// * `(?:"|')([\S ]*)(?:"|')` here we have non capturing groups for the quotes `(?:'|")` and the
+///   capture group which matches all non-whitespace characters and any normal space characters.
+///   Since this is a capture group within another capture group, this is considered the third group
+///   and might be None if the value is not a string.
+/// * `\d+` matches any one or more digit characters.
+///
+/// The last capture `($|,|})`group allows us to check if the entry is finished or not. This is done
+/// by matching either:
+/// * The end of line `$`
+/// * The `,` to allow the entry of a new key
+/// * The end of the dictionary `}`
+///
+/// ## subsequent_re
+///
+/// Here we have the same string matching group as we have in `entry_re` with the end of entry detection.
+/// The only addition to this sub-regex is the matching of one or more whitespace characters `\s+`.
+///
+/// # Example matches
+///
+/// ```py
+/// build_time_vars = {'ABIFLAGS': 'm',
+/// 'AC_APPLE_UNIVERSAL_BUILD': 0,
+/// 'AIX_GENUINE_CPLUSPLUS': 0,
+/// 'ANDROID_API_LEVEL': 26,
+/// 'AR': 'arm-linux-androideabi-ar',
+/// 'ARFLAGS': 'rcs',
+/// 'BASECFLAGS': '-mfloat-abi=softfp -mfpu=vfpv3-d16 -Wno-unused-result '
+///               '-Wsign-compare -Wunreachable-code',
+/// 'BASECPPFLAGS': '-IObjects -IInclude -IPython'}
+/// ```
+#[cfg(feature = "cross-compile")]
 fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
     let config_reader = BufReader::new(File::open(config_path)?);
     let mut entries = HashMap::new();
-    let entry_re = regex::Regex::new(r#"'([a-zA-Z_0-9]*)': ((?:"|')([\S ]*)(?:"|')|\d+)($|,$)"#)?;
-    let subsequent_re = regex::Regex::new(r#"\s+(?:"|')([\S ]*)(?:"|')($|,)"#)?;
+
+    let entry_re = regex::Regex::new(r#"'([a-zA-Z_0-9]*)': ((?:"|')([\S ]*)(?:"|')|\d+)($|,|})"#)?;
+    let subsequent_re = regex::Regex::new(r#"\s+(?:"|')([\S ]*)(?:"|')($|,|})"#)?;
     let mut previous_finished = None;
     for maybe_line in config_reader.lines() {
         let line = maybe_line?;
@@ -174,13 +271,35 @@ fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, 
     Ok(entries)
 }
 
+/// Find cross compilation information from sysconfigdata file
+///
+/// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
+///
+/// The ABI flags can be either u, d, or m according to PEP3148. Default flags became empty since
+/// m was removed in python 3.8. (?:u|d|m|) a non capturing group for these flags
+///
+/// platform follows the output from [sys.platform][2]
+/// [a-z0-9]+
+///
+/// Multi-arch is the target triple. ([a-z_\-0-9]*)? capturing group which might not be present.
+///
+/// # Examples
+/// ```txt
+/// _sysconfigdata__freebsd_.py
+/// _sysconfigdata_m_linux_x86_64-linux-gnu.py
+/// _sysconfigdata_d_darwin_x86_64-apple-darwin.py
+/// _sysconfigdata_u_windows_i686-pc-windows-gnu.py
+/// ```
+///
+/// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
+/// [2]: https://docs.python.org/3/library/sys.html#sys.platform
+#[cfg(feature = "cross-compile")]
 fn load_cross_compile_from_sysconfigdata(
-    python_lib_dir: &str,
+    python_paths: PythonPaths,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    // find info from sysconfig
-    // first find sysconfigdata file
-    let sysconfig_re = regex::Regex::new(r"_sysconfigdata_m?_linux_([a-z_\-0-9]*)?\.py$")?;
-    let mut walker = walkdir::WalkDir::new(&python_lib_dir).into_iter();
+    let sysconfig_re =
+        regex::Regex::new(r"_sysconfigdata_(?:u|d|m|)_[a-z0-9]+_([a-z_\-0-9]*)?\.py$")?;
+    let mut walker = walkdir::WalkDir::new(&python_paths.lib_dir).into_iter();
     let sysconfig_path = loop {
         let entry = match walker.next() {
             Some(Ok(entry)) => entry,
@@ -224,7 +343,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_lib_dir.to_owned()),
+        libdir: Some(python_paths.lib_dir.to_owned()),
         shared,
         ld_version,
         base_prefix: "".to_string(),
@@ -236,9 +355,9 @@ fn load_cross_compile_from_sysconfigdata(
 }
 
 fn load_cross_compile_from_headers(
-    python_include_dir: &str,
-    python_lib_dir: &str,
+    python_paths: PythonPaths,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let python_include_dir = python_paths.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
@@ -279,7 +398,7 @@ fn load_cross_compile_from_headers(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_lib_dir.to_owned()),
+        libdir: Some(python_paths.lib_dir.to_owned()),
         shared,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
@@ -290,17 +409,27 @@ fn load_cross_compile_from_headers(
     Ok((interpreter_config, fix_config_map(config_map)))
 }
 
+#[allow(unused_variables)]
 fn load_cross_compile_info(
-    python_include_dir: String,
-    python_lib_dir: String,
+    python_paths: PythonPaths,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    // Try to configure from the sysconfigdata file which is more accurate for the information
-    // provided at python's compile time
-    match load_cross_compile_from_sysconfigdata(&python_lib_dir) {
-        Ok(ret) => Ok(ret),
-        // If the config could not be loaded by sysconfigdata, failover to configuring from headers
-        Err(_) => load_cross_compile_from_headers(&python_include_dir, &python_lib_dir),
+    let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
+    // Because compiling for windows on linux still includes the unix target family
+    if target_family == "unix" && cfg!(feature = "cross-compile") {
+        // Configure for unix platforms using the sysconfigdata file
+        #[cfg(feature = "cross-compile")]
+        {
+            return load_cross_compile_from_sysconfigdata(python_paths);
+        }
+    } else if target_family == "windows" {
+        // Must configure by headers on windows platform
+        return load_cross_compile_from_headers(python_paths);
     }
+
+    // If you get here you were on unix without cross-compile capabilities
+    bail!(
+        "Cross compiling PyO3 for a unix platform requires the cross-compile feature to be enabled"
+    );
 }
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -685,24 +814,11 @@ fn main() -> Result<()> {
     //
     // Detecting if cross-compiling by checking if the target triple is different from the host
     // rustc's triple.
-    let cross_compiling = env::var("TARGET") != env::var("HOST");
-    let (interpreter_config, mut config_map) = if cross_compiling {
+    let (interpreter_config, mut config_map) = if let Some(paths) = cross_compiling()? {
         // If cross compiling we need the path to the cross-compiled include dir and lib dir, else
         // fail quickly and loudly
-        let python_include_dir = match env::var("PYO3_CROSS_INCLUDE_DIR") {
-            Ok(v) => v,
-            Err(_) => bail!(
-                "Must provide PYO3_CROSS_INCLUDE_DIR environment variable when cross-compiling"
-            ),
-        };
-        let python_lib_dir = match env::var("PYO3_CROSS_LIB_DIR") {
-            Ok(v) => v,
-            Err(_) => {
-                bail!("Must provide PYO3_CROSS_LIB_DIR environment variable when cross-compiling")
-            }
-        };
 
-        load_cross_compile_info(python_include_dir, python_lib_dir)?
+        load_cross_compile_info(paths)?
     } else {
         find_interpreter_and_get_config()?
     };
