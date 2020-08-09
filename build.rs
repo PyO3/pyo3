@@ -392,7 +392,7 @@ fn find_interpreter() -> Result<PathBuf> {
                 }
             })
             .map(PathBuf::from)
-            .ok_or("Python 3.x interpreter not found".into())
+            .ok_or_else(|| "Python 3.x interpreter not found".into())
     }
 }
 
