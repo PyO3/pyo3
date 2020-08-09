@@ -2,7 +2,7 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
     PyTryFrom, Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -112,9 +112,9 @@ impl ToPyObject for String {
     }
 }
 
-impl FromPy<String> for PyObject {
-    fn from_py(other: String, py: Python) -> Self {
-        PyString::new(py, &other).into()
+impl IntoPy<PyObject> for String {
+    fn into_py(self, py: Python) -> PyObject {
+        PyString::new(py, &self).into()
     }
 }
 
@@ -147,9 +147,8 @@ impl<'source> FromPyObject<'source> for String {
 mod test {
     use super::PyString;
     use crate::instance::AsPyRef;
-    use crate::object::PyObject;
     use crate::Python;
-    use crate::{FromPyObject, PyTryFrom, ToPyObject};
+    use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
 
     #[test]
     fn test_non_bmp() {

@@ -1,13 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyErr, PyResult};
-use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyNativeType, PyObject, PyTryFrom, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;

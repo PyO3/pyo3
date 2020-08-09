@@ -25,9 +25,8 @@ use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use crate::object::PyObject;
 use crate::types::PyTuple;
-use crate::{AsPyPointer, PyAny, Python, ToPyObject};
+use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr;

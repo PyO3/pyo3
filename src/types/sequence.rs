@@ -397,11 +397,10 @@ impl<'v> PyTryFrom<'v> for PySequence {
 #[cfg(test)]
 mod test {
     use crate::instance::AsPyRef;
-    use crate::object::PyObject;
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::{PyObject, PyTryFrom, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

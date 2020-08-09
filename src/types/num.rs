@@ -50,7 +50,7 @@ macro_rules! int_fits_larger_int {
 ///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`](trait.ToPyObject.html)
-/// and [extract](struct.PyObject.html#method.extract)
+/// and [extract](struct.PyAny.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
 pub struct PyLong(PyAny);
@@ -62,17 +62,13 @@ macro_rules! int_fits_c_long {
         impl ToPyObject for $rust_type {
             #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn to_object(&self, py: Python) -> PyObject {
-                unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(*self as c_long))
-                }
+                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
             #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn into_py(self, py: Python) -> PyObject {
-                unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))
-                }
+                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
         }
 
@@ -101,13 +97,13 @@ macro_rules! int_convert_u64_or_i64 {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self)) }
+                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self)) }
+                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
@@ -194,7 +190,7 @@ mod int128_conversion {
                             IS_LITTLE_ENDIAN,
                             $is_signed,
                         );
-                        PyObject::from_owned_ptr_or_panic(py, obj)
+                        PyObject::from_owned_ptr(py, obj)
                     }
                 }
             }
@@ -266,9 +262,7 @@ mod int128_conversion {
 
         #[test]
         fn test_u128_overflow() {
-            use crate::exceptions;
-            use crate::ffi;
-            use crate::object::PyObject;
+            use crate::{exceptions, ffi, PyObject};
             use std::os::raw::c_uchar;
             let gil = Python::acquire_gil();
             let py = gil.python();
@@ -280,7 +274,7 @@ mod int128_conversion {
                     super::IS_LITTLE_ENDIAN,
                     0,
                 );
-                let obj = PyObject::from_owned_ptr_or_panic(py, obj);
+                let obj = PyObject::from_owned_ptr(py, obj);
                 let err = obj.extract::<u128>(py).unwrap_err();
                 assert!(err.is_instance::<exceptions::PyOverflowError>(py));
             }
@@ -321,7 +315,7 @@ mod bigint_conversion {
                             1,
                             $is_signed,
                         );
-                        PyObject::from_owned_ptr_or_panic(py, obj)
+                        PyObject::from_owned_ptr(py, obj)
                     }
                 }
             }

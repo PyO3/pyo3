@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
     ToPyObject,
 };
 use std::os::raw::c_double;
@@ -11,7 +11,7 @@ use std::os::raw::c_double;
 ///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`](trait.ToPyObject.html)
-/// and [extract](struct.PyObject.html#method.extract)
+/// and [extract](struct.PyAny.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -41,9 +41,9 @@ impl ToPyObject for f64 {
     }
 }
 
-impl FromPy<f64> for PyObject {
-    fn from_py(other: f64, py: Python) -> Self {
-        PyFloat::new(py, other).into()
+impl IntoPy<PyObject> for f64 {
+    fn into_py(self, py: Python) -> PyObject {
+        PyFloat::new(py, self).into()
     }
 }
 
@@ -67,9 +67,9 @@ impl ToPyObject for f32 {
     }
 }
 
-impl FromPy<f32> for PyObject {
-    fn from_py(other: f32, py: Python) -> Self {
-        PyFloat::new(py, f64::from(other)).into()
+impl IntoPy<PyObject> for f32 {
+    fn into_py(self, py: Python) -> PyObject {
+        PyFloat::new(py, f64::from(self)).into()
     }
 }
 
