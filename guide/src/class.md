@@ -266,7 +266,7 @@ impl SubSubClass {
 ```
 
 You can also inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`](https://pyo3.rs/master/doc/pyo3/type_object/trait.PySizedLayout.html).
+[`PySizedLayout`](https://docs.rs/pyo3/latest/pyo3/type_object/trait.PySizedLayout.html).
 
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
@@ -1094,11 +1094,11 @@ impl pyo3::pyclass::PyClassSend for MyClass {
 [`PyTypeInfo`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeInfo.html
 [`PyTypeObject`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeObject.html
 
-[`PyCell`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html
-[`PyClass`]: https://pyo3.rs/master/doc/pyo3/pyclass/trait.PyClass.html
-[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
-[`PyClassInitializer<T>`]: https://pyo3.rs/master/doc/pyo3/pyclass_init/struct.PyClassInitializer.html
+[`PyCell`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html
+[`PyClass`]: https://docs.rs/pyo3/latest/pyo3/pyclass/trait.PyClass.html
+[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
+[`PyClassInitializer<T>`]: https://docs.rs/pyo3/latest/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 

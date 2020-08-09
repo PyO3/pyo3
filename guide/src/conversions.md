@@ -236,7 +236,7 @@ Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [
 [`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
 
-[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
+[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
 
 [^1]: Requires the `num-complex` optional feature.
