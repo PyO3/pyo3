@@ -111,6 +111,37 @@ where
         let any = self.as_ptr() as *const PyAny;
         unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
+
+    /// Similar to [`as_ref`](#method.as_ref), but instead consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    ///
+    /// # Examples
+    /// Create `&PyList` from `Py<PyList>`:
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyList;
+    /// # Python::with_gil(|py| {
+    /// let list: Py<PyList> = PyList::empty(py).into();
+    /// let list: &PyList = list.into_ref(py);
+    /// assert_eq!(list.len(), 0);
+    /// # });
+    /// ```
+    ///
+    /// Create `&PyCell<MyClass>` from `Py<MyClass>`:
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct MyClass { }
+    /// # Python::with_gil(|py| {
+    /// let my_class: Py<MyClass> = Py::new(py, MyClass { }).unwrap();
+    /// let my_class_cell: &PyCell<MyClass> = my_class.into_ref(py);
+    /// assert!(my_class_cell.try_borrow().is_ok());
+    /// # });
+    /// ```
+    pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
 }
 
 impl<T> Py<T>

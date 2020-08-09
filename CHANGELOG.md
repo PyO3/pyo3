@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Implement `Debug` for `PyIterator`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
 - Implement type information for conversion failures. [#1050](https://github.com/PyO3/pyo3/pull/1050)
 - Add `PyBytes::new_with` and `PyByteArray::new_with` for initialising Python-allocated bytes and bytearrays using a closure. [#1074](https://github.com/PyO3/pyo3/pull/1074)
+- Add `Py::as_ref` and `Py::into_ref`. [#1098](https://github.com/PyO3/pyo3/pull/1098)
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `Python::register_any`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `GILGuard::acquire` from the public API. Use `Python::acquire_gil` or `Python::with_gil`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
 - Remove `FromPy`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
+- Remove `AsPyRef`. [#1098](https://github.com/PyO3/pyo3/pull/1098)
 
 ### Fixed
 - Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)

@@ -140,9 +140,10 @@ Can be cloned using Python reference counts with `.clone()`.
 # let py = gil.python();
 let list: Py<PyList> = PyList::empty(py).into();
 
-// Access the native type using Py::as_ref(py)
-// (For #[pyclass] types, as_ref() will return &PyCell<T>)
+// Access the native type using Py::as_ref(py) or Py::into_ref(py)
+// (For #[pyclass] types, these will return &PyCell<T>)
 let _: &PyList = list.as_ref(py);
+let _: &PyList = list.clone().into_ref(py);
 
 // Convert to PyObject with .into()
 let _: PyObject = list.into();
