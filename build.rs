@@ -356,19 +356,11 @@ else:
 fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
+    let link_name = get_library_link_name(&config.version, &config.ld_version);
     match get_macos_linkmodel(config)?.as_ref() {
-        "static" => Ok(format!(
-            "cargo:rustc-link-lib=static={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
-        "shared" => Ok(format!(
-            "cargo:rustc-link-lib={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
-        "framework" => Ok(format!(
-            "cargo:rustc-link-lib={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
+        "static" => Ok(format!("cargo:rustc-link-lib=static={}", link_name,)),
+        "shared" => Ok(format!("cargo:rustc-link-lib={}", link_name)),
+        "framework" => Ok(format!("cargo:rustc-link-lib={}", link_name,)),
         other => bail!("unknown linkmodel {}", other),
     }
 }
@@ -380,6 +372,28 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
         "cargo:rustc-link-lib=pythonXY:{}",
         get_library_link_name(&config.version, &config.ld_version)
     ))
+}
+
+fn find_interpreter() -> Result<PathBuf> {
+    if let Some(exe) = env::var_os("PYO3_PYTHON") {
+        Ok(exe.into())
+    } else if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        // Backwards-compatible name for PYO3_PYTHON; this may be removed at some point in the future.
+        Ok(exe.into())
+    } else {
+        ["python", "python3"]
+            .iter()
+            .find(|bin| {
+                if let Ok(out) = Command::new(bin).arg("--version").output() {
+                    // begin with `Python 3.X.X :: additional info`
+                    out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
+                } else {
+                    false
+                }
+            })
+            .map(PathBuf::from)
+            .ok_or("Python 3.x interpreter not found".into())
+    }
 }
 
 /// Locate a suitable python interpreter and extract config from it.
@@ -394,27 +408,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
 ///
 /// If none of the above works, an error is returned
 fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let python_interpreter = if let Some(exe) = env::var_os("PYO3_PYTHON") {
-        exe.into()
-    } else if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        // Backwards-compatible name for PYO3_PYTHON; this may be removed at some point in the future.
-        exe.into()
-    } else {
-        PathBuf::from(
-            ["python", "python3"]
-                .iter()
-                .find(|bin| {
-                    if let Ok(out) = Command::new(bin).arg("--version").output() {
-                        // begin with `Python 3.X.X :: additional info`
-                        out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
-                    } else {
-                        false
-                    }
-                })
-                .ok_or("Python 3.x interpreter not found")?,
-        )
-    };
-
+    let python_interpreter = find_interpreter()?;
     let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
     if interpreter_config.version.major == 3 {
         return Ok((interpreter_config, get_config_vars(&python_interpreter)?));
@@ -426,7 +420,6 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
-import json
 import platform
 import struct
 import sys
