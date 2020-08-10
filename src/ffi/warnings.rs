@@ -3,6 +3,7 @@ use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnEx")]
     pub fn PyErr_WarnEx(
         category: *mut PyObject,
         message: *const c_char,

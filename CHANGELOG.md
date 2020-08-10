@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Rename `PYTHON_SYS_EXECUTABLE` to `PYO3_PYTHON`. The old name will continue to work but will be undocumented, and will be removed in a future release. [#1039](https://github.com/PyO3/pyo3/pull/1039)
 - `PyType::as_type_ptr` is no longer `unsafe`. [#1047](https://github.com/PyO3/pyo3/pull/1047)
 - Change `PyIterator::from_object` to return `PyResult<PyIterator>` instead of `Result<PyIterator, PyDowncastError>`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
+- `IntoPy` is no longer implied by `FromPy`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
+- `PyObject` is now just a type alias for `Py<PyAny>`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 - Implement `Send + Sync` for `PyErr`. `PyErr::new`, `PyErr::from_type`, `PyException::py_err` and `PyException::into` have had these bounds added to their arguments. [#1067](https://github.com/PyO3/pyo3/pull/1067)
 - Change `#[pyproto]` to return NotImplemented for operators for which Python can try a reversed operation. [1072](https://github.com/PyO3/pyo3/pull/1072)
 
@@ -28,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `Python::register_any`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `GILGuard::acquire` from the public API. Use `Python::acquire_gil` or `Python::with_gil`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
+- Remove `FromPy`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 
 ### Fixed
 - Conversion from types with an `__index__` method to Rust BigInts. [#1027](https://github.com/PyO3/pyo3/pull/1027)
@@ -35,7 +38,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Don't rely on the order of structmembers to compute offsets in PyCell. Related to
   [#1058](https://github.com/PyO3/pyo3/pull/1058). [#1059](https://github.com/PyO3/pyo3/pull/1059)
 - Allows `&Self` as a `#[pymethods]` argument again. [#1071](https://github.com/PyO3/pyo3/pull/1071)
-- Improve lifetime insertion in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
+- Fix best-effort build against PyPy 3.6. #[1092](https://github.com/PyO3/pyo3/pull/1092)
+- Improve lifetime elision in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
 
 ## [0.11.1] - 2020-06-30
 ### Added

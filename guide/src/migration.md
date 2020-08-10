@@ -3,6 +3,65 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
 
+## from 0.11.* to 0.12
+
+### `FromPy` has been removed
+To simplify the PyO3 public conversion trait hierarchy, the `FromPy` has been removed. In PyO3
+`0.11` there were two ways to define the to-Python conversion for a type: `FromPy<T> for PyObject`,
+and `IntoPy<PyObject> for T`.
+
+Now, the canonical implementation is always `IntoPy`, so downstream crates may need to adjust
+accordingly.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+struct MyPyObjectWrapper(PyObject);
+
+impl FromPy<MyPyObjectWrapper> for PyObject {
+    fn from_py(other: MyPyObjectWrapper, _py: Python) -> Self {
+        other.0
+    }
+}
+```
+
+After
+
+```rust
+# use pyo3::prelude::*;
+struct MyPyObjectWrapper(PyObject);
+
+impl IntoPy<PyObject> for MyPyObjectWrapper {
+    fn into_py(self, _py: Python) -> PyObject {
+        self.0
+    }
+}
+```
+
+Similarly, code which was using the `FromPy` trait can be trivially rewritten to use `IntoPy`.
+
+Before:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# Python::with_gil(|py| {
+let obj = PyObject::from_py(1.234, py);
+# })
+```
+
+After:
+```rust
+# use pyo3::prelude::*;
+# Python::with_gil(|py| {
+let obj: PyObject = 1.234.into_py(py);
+# })
+```
+
+### `PyObject` is now a type alias of `Py<PyAny>`
+This should change very little from a usage perspective. If you implemented traits for both
+`PyObject` and `Py<T>`, you may find you can just remove the `PyObject` implementation.
+
 ## from 0.10.* to 0.11
 
 ### Stable Rust
@@ -46,7 +105,7 @@ There can be two fixes:
    ```
 
    In situations where you cannot change your `#[pyclass]` to automatically implement `Send`
-   (e.g., when it contains a raw pointer), you can use `unsafe impl Send`. 
+   (e.g., when it contains a raw pointer), you can use `unsafe impl Send`.
    In such cases, care should be taken to ensure the struct is actually thread safe.
    See [the Rustnomicon](https://doc.rust-lang.org/nomicon/send-and-sync.html) for more.
 
@@ -216,7 +275,7 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
 To upgrade code, please use
-[`PyCell::new`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html#method.new) instead.
+[`PyCell::new`](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html#method.new) instead.
 If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 

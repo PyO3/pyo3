@@ -16,8 +16,6 @@ jobs:
       python: "3.7"
     - name: Python 3.8
       python: "3.8"
-      # Run clippy and rustfmt
-      env: RUN_LINT=1
     - name: Python 3.9-dev
       python: "3.9-dev"
     - name: Nightly

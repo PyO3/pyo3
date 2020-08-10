@@ -44,13 +44,13 @@ The table below contains the Python type and the corresponding function argument
 There are also a few special types related to the GIL and Rust-defined `#[pyclass]`es which may come in useful:
 
 | What          | Description |
-| ------------- | ------------------------------- |
+| ------------- | ------------------------------------- |
 | `Python`      | A GIL token, used to pass to PyO3 constructors to prove ownership of the GIL |
-| `PyObject`    | A Python object isolated from the GIL lifetime. This can be sent to other threads. To call Python APIs using this object, it must be used with `AsPyRef::as_ref` to get a `&PyAny` reference. |
-| `Py<T>`       | Same as above, for a specific Python type or `#[pyclass]` T. |
+| `Py<T>`       | A Python object isolated from the GIL lifetime. This can be sent to other threads. To call Python APIs using this object, it must be used with `AsPyRef::as_ref` to get an `&T` reference bound to the GIL. |
+| `PyObject`    | An alias for `Py<PyAny>`              |
 | `&PyCell<T>`  | A `#[pyclass]` value owned by Python. |
-| `PyRef<T>`    | A `#[pyclass]` borrowed immutably. |
-| `PyRefMut<T>` | A `#[pyclass]` borrowed mutably. |
+| `PyRef<T>`    | A `#[pyclass]` borrowed immutably.    |
+| `PyRefMut<T>` | A `#[pyclass]` borrowed mutably.      |
 
 For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](class.md).
 
@@ -119,6 +119,28 @@ mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
 and [`PyRefMut`].  They work like the reference wrappers of
 `std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
 
+### `IntoPy<T>`
+
+This trait defines the to-python conversion for a Rust type. It is usually implemented as
+`IntoPy<PyObject>`, which is the trait needed for returning a value from `#[pyfunction]` and
+`#[pymethods]`.
+
+All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use `extends`.
+
+Occasionally you may choose to implement this for custom types which are mapped to Python types
+_without_ having a unique python type.
+
+```
+use pyo3::prelude::*;
+
+struct MyPyObjectWrapper(PyObject);
+
+impl IntoPy<PyObject> for MyPyObjectWrapper {
+    fn into_py(self, py: Python) -> PyObject {
+        self.0
+    }
+}
+```
 
 ### The `ToPyObject` trait
 
@@ -216,27 +238,15 @@ fn main() {
 }
 ```
 
-### `FromPy<T>` and `IntoPy<T>`
-
-Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token.
-The [`FromPy`] trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument.
-I.e. `FromPy<T>` could be converting a Rust object into a Python object even though it is called [`FromPy`] - it doesn't say anything about which side of the conversion is a Python object.
-
-Just like `From<T>`, if you implement `FromPy<T>` you gain a blanket implementation of [`IntoPy`] for free.
-
-Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [`FromPy`] trait will be added that will implement
-[`IntoPy`], just like with `From` and `Into`.
-
 [`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.IntoPy.html
-[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPy.html
 [`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
 [`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.ToPyObject.html
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
 [`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
 [`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
 
-[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
+[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
 
 [^1]: Requires the `num-complex` optional feature.

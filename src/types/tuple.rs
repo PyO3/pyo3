@@ -2,8 +2,8 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
-    PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyNativeType,
+    PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
 
@@ -129,12 +129,6 @@ impl<'a> IntoIterator for &'a PyTuple {
     }
 }
 
-impl<'a> FromPy<&'a PyTuple> for Py<PyTuple> {
-    fn from_py(tuple: &'a PyTuple, _py: Python) -> Py<PyTuple> {
-        unsafe { Py::from_borrowed_ptr(tuple.py(), tuple.as_ptr()) }
-    }
-}
-
 fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!(
         "Expected tuple of length {}, but got tuple of length {}.",
@@ -150,7 +144,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             }
         }
     }
@@ -159,7 +153,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             }
         }
     }
@@ -169,7 +163,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                Py::from_owned_ptr_or_panic(py, ptr)
+                Py::from_owned_ptr(py, ptr)
             }
         }
     }

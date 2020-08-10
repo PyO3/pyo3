@@ -135,13 +135,12 @@
 
 pub use crate::class::*;
 pub use crate::conversion::{
-    AsPyPointer, FromPy, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
+    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{GILGuard, GILPool};
-pub use crate::instance::{AsPyRef, Py, PyNativeType};
-pub use crate::object::PyObject;
+pub use crate::instance::{AsPyRef, Py, PyNativeType, PyObject};
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -184,7 +183,6 @@ mod instance;
 #[macro_use]
 mod internal_tricks;
 pub mod marshal;
-mod object;
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;

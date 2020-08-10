@@ -62,6 +62,23 @@ macro_rules! pyobject_native_type_named (
                 self.as_ptr() == o.as_ptr()
             }
         }
+
+        impl<$($type_param,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
+            #[inline]
+            fn into_py(self, py: $crate::Python) -> $crate::Py<$name> {
+                use $crate::AsPyPointer;
+                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
+            }
+        }
+
+        impl<$($type_param,)*> From<&'_ $name> for $crate::Py<$name> {
+            #[inline]
+            fn from(other: &$name) -> Self {
+                use $crate::AsPyPointer;
+                use $crate::PyNativeType;
+                unsafe { $crate::Py::from_borrowed_ptr(other.py(), other.as_ptr()) }
+            }
+        }
     };
 );
 
