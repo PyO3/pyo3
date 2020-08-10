@@ -60,9 +60,12 @@ This should change very little from a usage perspective. If you implemented trai
 `PyObject` and `Py<T>`, you may find you can just remove the `PyObject` implementation.
 
 ### `AsPyRef` has been removed
-The only implementor of `AsPyRef` was `Py<T>`, so the `AsPyRef::as_ref` method has been moved to
-`Py::as_ref`. This should require no code changes except removing the old `use` for code which
-did not use `pyo3::prelude`.
+As `PyObject` has been changed to be just a type alias, the only remaining implementor of `AsPyRef`
+was `Py<T>`. This removed the need for a trait, so the `AsPyRef::as_ref` method has been moved to
+`Py::as_ref`.
+
+This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use
+`pyo3::prelude::*`.
 
 Before:
 ```rust,ignore
