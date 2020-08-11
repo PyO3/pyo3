@@ -33,16 +33,21 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A Python object of known type.
+/// A Python object of known type T.
 ///
-/// Accessing this object is thread-safe, since any access to its API requires a
-/// `Python<'py>` GIL token.
+/// Accessing this object is thread-safe, since any access to its API requires a `Python<'py>` GIL
+/// token. There are a few different ways to use the Python object contained:
+///  - [`Py::as_ref`](#method.as_ref) to borrow a GIL-bound reference to the contained object.
+///  - [`Py::borrow`](#method.borrow), [`Py::try_borrow`](#method.try_borrow),
+///    [`Py::borrow_mut`](#method.borrow_mut), or [`Py::try_borrow_mut`](#method.try_borrow_mut),
+///    to directly access a `#[pyclass]` value (which has RefCell-like behavior, see
+///    [the `PyCell` guide entry](https://pyo3.rs/master/class.html#pycell-and-interior-mutability)
+///    ).
+///  - Use methods directly on `Py`, such as [`Py::call`](#method.call) and
+///    [`Py::call_method`](#method.call_method).
 ///
 /// See [the guide](https://pyo3.rs/master/types.html) for an explanation
 /// of the different Python object types.
-///
-/// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>` with
-/// specified type information.
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -63,7 +68,74 @@ where
         let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
         Ok(ob)
     }
+}
 
+impl<T> Py<T>
+where
+    T: PyTypeInfo,
+{
+    /// Borrows a GIL-bound reference to the contained `T`. By binding to the GIL lifetime, this
+    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    ///
+    /// For native types, this reference is `&T`. For pyclasses, this is `&PyCell<T>`.
+    ///
+    /// # Examples
+    /// Get access to `&PyList` from `Py<PyList>`:
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyList;
+    /// # Python::with_gil(|py| {
+    /// let list: Py<PyList> = PyList::empty(py).into();
+    /// let list: &PyList = list.as_ref(py);
+    /// assert_eq!(list.len(), 0);
+    /// # });
+    /// ```
+    ///
+    /// Get access to `&PyCell<MyClass>` from `Py<MyClass>`:
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct MyClass { }
+    /// # Python::with_gil(|py| {
+    /// let my_class: Py<MyClass> = Py::new(py, MyClass { }).unwrap();
+    /// let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
+    /// assert!(my_class_cell.try_borrow().is_ok());
+    /// # });
+    /// ```
+    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
+    }
+
+    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    ///
+    /// # Example
+    ///
+    /// Useful when returning GIL-bound references from functions. In the snippet below, note that
+    /// the `'py` lifetime of the input GIL lifetime is also given to the returned reference:
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<PyObject>) -> &'py PyAny {
+    ///     let obj: PyObject = value.into_py(py);
+    ///
+    ///     // .as_ref(py) would not be suitable here, because a reference to `obj` may not be
+    ///     // returned from the function.
+    ///     obj.into_ref(py)
+    /// }
+    /// ```
+    pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
+impl<T> Py<T>
+where
+    T: PyClass,
+{
     /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
     ///
     /// Equivalent to `self.as_ref(py).borrow()` -
@@ -352,58 +424,6 @@ impl<T> Py<T> {
         let pointer = self.0;
         mem::forget(self);
         pointer
-    }
-}
-
-/// Retrieves `&'py` types from `Py<T>` or `PyObject`.
-///
-/// # Examples
-/// `PyObject::as_ref` returns `&PyAny`.
-/// ```
-/// # use pyo3::prelude::*;
-/// let obj: PyObject = {
-///     let gil = Python::acquire_gil();
-///     let py = gil.python();
-///     py.eval("[]", None, None).unwrap().to_object(py)
-/// };
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);
-/// ```
-///
-/// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
-/// for `#[pyclass]`.
-/// ```
-/// # use pyo3::prelude::*;
-/// #[pyclass]
-/// struct Counter {
-///     count: usize,
-/// }
-/// let counter = {
-///     let gil = Python::acquire_gil();
-///     let py = gil.python();
-///     Py::new(py, Counter { count: 0}).unwrap()
-/// };
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// let counter_cell: &PyCell<Counter> = counter.as_ref(py);
-/// let counter_ref = counter_cell.borrow();
-/// assert_eq!(counter_ref.count, 0);
-/// ```
-pub trait AsPyRef: Sized {
-    type Target;
-    /// Return reference to object.
-    fn as_ref<'p>(&'p self, py: Python<'p>) -> &'p Self::Target;
-}
-
-impl<T> AsPyRef for Py<T>
-where
-    T: PyTypeInfo,
-{
-    type Target = T::AsRefTarget;
-    fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p Self::Target {
-        let any = self.as_ptr() as *const PyAny;
-        unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
 }
 

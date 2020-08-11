@@ -242,7 +242,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod test {
     use crate::types::{PyAny, PyTuple};
-    use crate::{AsPyRef, PyTryFrom, Python, ToPyObject};
+    use crate::{PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]

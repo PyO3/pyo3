@@ -14,7 +14,6 @@ Now, the canonical implementation is always `IntoPy`, so downstream crates may n
 accordingly.
 
 Before:
-
 ```rust,ignore
 # use pyo3::prelude::*;
 struct MyPyObjectWrapper(PyObject);
@@ -27,7 +26,6 @@ impl FromPy<MyPyObjectWrapper> for PyObject {
 ```
 
 After
-
 ```rust
 # use pyo3::prelude::*;
 struct MyPyObjectWrapper(PyObject);
@@ -42,7 +40,6 @@ impl IntoPy<PyObject> for MyPyObjectWrapper {
 Similarly, code which was using the `FromPy` trait can be trivially rewritten to use `IntoPy`.
 
 Before:
-
 ```rust,ignore
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
@@ -61,6 +58,33 @@ let obj: PyObject = 1.234.into_py(py);
 ### `PyObject` is now a type alias of `Py<PyAny>`
 This should change very little from a usage perspective. If you implemented traits for both
 `PyObject` and `Py<T>`, you may find you can just remove the `PyObject` implementation.
+
+### `AsPyRef` has been removed
+As `PyObject` has been changed to be just a type alias, the only remaining implementor of `AsPyRef`
+was `Py<T>`. This removed the need for a trait, so the `AsPyRef::as_ref` method has been moved to
+`Py::as_ref`.
+
+This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use
+`pyo3::prelude::*`.
+
+Before:
+```rust,ignore
+use pyo3::{AsPyRef, Py, types::PyList};
+# pyo3::Python::with_gil(|py| {
+let list_py: Py<PyList> = PyList::empty(py).into();
+let list_ref: &PyList = list_py.as_ref(py);
+# })
+```
+
+After:
+```rust
+use pyo3::{Py, types::PyList};
+# pyo3::Python::with_gil(|py| {
+let list_py: Py<PyList> = PyList::empty(py).into();
+let list_ref: &PyList = list_py.as_ref(py);
+# })
+```
+
 
 ## from 0.10.* to 0.11
 

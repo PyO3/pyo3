@@ -326,7 +326,6 @@ mod bigint_conversion {
             }
             impl<'source> FromPyObject<'source> for $rust_ty {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
-                    use crate::instance::AsPyRef;
                     let py = ob.py();
                     unsafe {
                         let num = ffi::PyNumber_Index(ob.as_ptr());

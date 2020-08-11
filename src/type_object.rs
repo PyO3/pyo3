@@ -98,7 +98,7 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;
 
-    /// Utility type to make AsPyRef work
+    /// Utility type to make Py::as_ref work
     type AsRefTarget: crate::PyNativeType;
 
     /// PyTypeObject instance for this type.
