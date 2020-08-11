@@ -33,6 +33,23 @@ fn main() {
 }
 ```
 
+When using PyO3 to create an extension module, you can add the new exception to
+the module like this, so that it is importable from Python:
+
+```rust,ignore
+
+create_exception!(mymodule, CustomError, PyException);
+
+#[pymodule]
+fn mymodule(py: Python, m: &PyModule) -> PyResult<()> {
+    // ... other elements added to module ...
+    m.add("CustomError", py.get_type::<CustomError>())?;
+
+    Ok(())
+}
+
+```
+
 ## Raising an exception
 
 To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`], then call the [`PyErr::restore`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
@@ -192,15 +209,12 @@ mod io {
     pyo3::import_exception!(io, UnsupportedOperation);
 }
 
-fn tell(file: PyObject) -> PyResult<u64> {
+fn tell(file: &PyAny) -> PyResult<u64> {
     use pyo3::exceptions::*;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    match file.call_method0(py, "tell") {
+    match file.call_method0("tell") {
         Err(_) => Err(io::UnsupportedOperation::py_err("not supported: tell")),
-        Ok(x) => x.extract::<u64>(py),
+        Ok(x) => x.extract::<u64>(),
     }
 }
 

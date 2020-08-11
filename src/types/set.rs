@@ -3,7 +3,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
@@ -185,15 +185,15 @@ where
     }
 }
 
-impl<K, S> FromPy<HashSet<K, S>> for PyObject
+impl<K, S> IntoPy<PyObject> for HashSet<K, S>
 where
     K: IntoPy<PyObject> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn from_py(src: HashSet<K, S>, py: Python) -> Self {
+    fn into_py(self, py: Python) -> PyObject {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
-            for val in src {
+            for val in self {
                 set.add(val.into_py(py)).expect("Failed to add to set");
             }
         }
@@ -212,14 +212,14 @@ where
     }
 }
 
-impl<K> FromPy<BTreeSet<K>> for PyObject
+impl<K> IntoPy<PyObject> for BTreeSet<K>
 where
-    K: IntoPy<PyObject> + cmp::Ord + ToPyObject,
+    K: IntoPy<PyObject> + cmp::Ord,
 {
-    fn from_py(src: BTreeSet<K>, py: Python) -> Self {
+    fn into_py(self, py: Python) -> PyObject {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
-            for val in src {
+            for val in self {
                 set.add(val.into_py(py)).expect("Failed to add to set");
             }
         }
@@ -303,7 +303,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 

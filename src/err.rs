@@ -6,8 +6,8 @@ use crate::type_object::PyTypeObject;
 use crate::types::PyType;
 use crate::{exceptions, ffi};
 use crate::{
-    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyNativeType, PyObject,
-    Python, ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyNativeType, PyObject, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use libc::c_int;
 use std::borrow::Cow;
@@ -438,15 +438,15 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl FromPy<PyErr> for PyObject {
-    fn from_py(other: PyErr, py: Python) -> Self {
-        other.instance(py).into()
+impl IntoPy<PyObject> for PyErr {
+    fn into_py(self, py: Python) -> PyObject {
+        self.instance(py).into()
     }
 }
 
-impl FromPy<PyErr> for Py<exceptions::PyBaseException> {
-    fn from_py(other: PyErr, py: Python) -> Self {
-        other.instance(py).into()
+impl IntoPy<Py<exceptions::PyBaseException>> for PyErr {
+    fn into_py(self, py: Python) -> Py<exceptions::PyBaseException> {
+        self.instance(py).into()
     }
 }
 

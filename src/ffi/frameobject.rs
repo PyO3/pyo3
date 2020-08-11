@@ -55,7 +55,6 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyFrame_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFrame_New")]
     pub fn PyFrame_New(

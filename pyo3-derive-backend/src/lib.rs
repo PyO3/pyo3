@@ -4,10 +4,10 @@
 #![recursion_limit = "1024"]
 
 mod defs;
-mod func;
 mod konst;
 mod method;
 mod module;
+mod proto_method;
 mod pyclass;
 mod pyfunction;
 mod pyimpl;

@@ -3,7 +3,6 @@ use crate::ffi::pyport::Py_ssize_t;
 use libc::size_t;
 use std::os::raw::{c_int, c_void};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
@@ -48,7 +47,6 @@ impl Default for PyObjectArenaAllocator {
     }
 }
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
     pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
@@ -72,7 +70,6 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
         }) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 

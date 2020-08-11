@@ -1,5 +1,5 @@
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyErr, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 use std::ops::Index;
@@ -53,22 +53,14 @@ impl PyBytes {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            if pyptr.is_null() {
-                return Err(PyErr::fetch(py));
-            }
+            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
             let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
-            match init(std::slice::from_raw_parts_mut(buffer, len)) {
-                Ok(()) => Ok(py.from_owned_ptr(pyptr)),
-                Err(e) => {
-                    // Deallocate pyptr to avoid leaking the bytestring
-                    ffi::Py_DECREF(pyptr);
-                    Err(e)
-                }
-            }
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytes.into_ref(py))
         }
     }
 
@@ -103,9 +95,9 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-impl<'a> FromPy<&'a [u8]> for PyObject {
-    fn from_py(other: &'a [u8], py: Python) -> Self {
-        PyBytes::new(py, other).to_object(py)
+impl<'a> IntoPy<PyObject> for &'a [u8] {
+    fn into_py(self, py: Python) -> PyObject {
+        PyBytes::new(py, self).to_object(py)
     }
 }
 

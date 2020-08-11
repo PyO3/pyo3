@@ -1,13 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyErr, PyResult};
-use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyNativeType, PyObject, PyTryFrom, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
@@ -358,9 +357,10 @@ where
 #[cfg(test)]
 mod test {
     use crate::conversion::IntoPy;
-    use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
-    use crate::types::{PyDict, PyList, PyTuple};
+    #[cfg(not(PyPy))]
+    use crate::types::PyList;
+    use crate::types::{PyDict, PyTuple};
     use crate::PyObject;
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
@@ -380,6 +380,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_from_sequence() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -394,6 +395,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_from_sequence_err() {
         let gil = Python::acquire_gil();
         let py = gil.python();

@@ -3,41 +3,91 @@ name: Test
 on: [push, pull_request]
 
 jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+      - run: pip install black==19.10b0
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Check python formatting (black)
+        run: black --check .
+      - name: Check rust formatting (rustfmt)
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: make clippy
+
   build:
+    needs: [fmt] # don't wait for clippy as fails rarely and takes longer
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       max-parallel: 12
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8, pypy3]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "windows-latest", python-architecture: "x64", rust-target: "x86_64-pc-windows-msvc" },
           { os: "windows-latest", python-architecture: "x86", rust-target: "i686-pc-windows-msvc" },
         ]
+        exclude:
+          # There is no 64-bit pypy on windows
+          - python-version: pypy3
+            platform: { os: "windows-latest", python-architecture: "x64" }
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Rust
+          architecture: ${{ matrix.platform.python-architecture }}
+
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          default: true
+          target: ${{ matrix.platform.rust-target }}
+
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
+
       - name: Build without default features
         run: cargo build --no-default-features --verbose
+
       - name: Build with default features
-        run: cargo build --verbose
-      - name: Install test dependencies
+        run: cargo build --features "num-bigint num-complex" --verbose
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: matrix.python-version != 'pypy3'
+        name: Test
+        run: cargo test --features "num-bigint num-complex"
+
+      - name: Test proc-macro code
+        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml
+
+      - name: Install python test dependencies
         run: |
           python -m pip install -U pip setuptools
           pip install setuptools-rust pytest pytest-benchmark tox tox-venv
-      - name: Test
-        run: ci/actions/test.sh
+
+      - name: Test example extension modules
         shell: bash
+        run: |
+          for example_dir in examples/*; do
+              cd $example_dir
+              tox -c "tox.ini" -e py
+              cd -
+          done
+
     env:
       RUST_BACKTRACE: 1

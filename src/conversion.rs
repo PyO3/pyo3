@@ -2,10 +2,11 @@
 
 //! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
-use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
-use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
+use crate::{
+    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+};
 use std::ptr::NonNull;
 
 /// This trait represents that **we can do zero-cost conversion from the object
@@ -132,42 +133,22 @@ where
     }
 }
 
-/// Similar to [std::convert::From], just that it requires a gil token.
-pub trait FromPy<T>: Sized {
-    /// Performs the conversion.
-    fn from_py(_: T, py: Python) -> Self;
-}
-
 /// Similar to [std::convert::Into], just that it requires a gil token.
+///
+/// `IntoPy<PyObject>` (aka `IntoPy<Py<PyAny>>`) should be implemented to define a conversion from
+/// Rust to Python which can be used by most of PyO3's methods.
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
 }
 
-// From implies Into
-impl<T, U> IntoPy<U> for T
-where
-    U: FromPy<T>,
-{
-    fn into_py(self, py: Python) -> U {
-        U::from_py(self, py)
-    }
-}
-
-// From (and thus Into) is reflexive
-impl<T> FromPy<T> for T {
-    fn from_py(t: T, _: Python) -> T {
-        t
-    }
-}
-
 /// `FromPyObject` is implemented by various types that can be extracted from
 /// a Python object reference.
 ///
-/// Normal usage is through the helper methods `PyObject::extract` or
-/// `PyAny::extract`:
+/// Normal usage is through the helper methods `Py::extract` or `PyAny::extract`:
 ///
-/// ```let obj: PyObject = ...;
+/// ```rust,ignore
+/// let obj: Py<PyAny> = ...;
 /// let value: &TargetType = obj.extract(py)?;
 ///
 /// let any: &PyAny = ...;
@@ -183,9 +164,6 @@ impl<T> FromPy<T> for T {
 /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
 /// Since which case applies depends on the runtime type of the Python object,
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
-///
-/// In cases where the result does not depend on the `'prepared` lifetime,
-/// the inherent method `PyObject::extract()` can be used.
 ///
 /// The trait's conversion method takes a `&PyAny` argument but is called
 /// `FromPyObject` for historical reasons.
@@ -234,19 +212,19 @@ impl ToPyObject for () {
     }
 }
 
-impl FromPy<()> for PyObject {
-    fn from_py(_: (), py: Python) -> Self {
+impl IntoPy<PyObject> for () {
+    fn into_py(self, py: Python) -> PyObject {
         py.None()
     }
 }
 
-impl<'a, T> FromPy<&'a T> for PyObject
+impl<T> IntoPy<PyObject> for &'_ T
 where
     T: AsPyPointer,
 {
     #[inline]
-    fn from_py(other: &'a T, py: Python) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, other.as_ptr()) }
+    fn into_py(self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
@@ -404,9 +382,9 @@ where
 }
 
 /// Converts `()` to an empty Python tuple.
-impl FromPy<()> for Py<PyTuple> {
-    fn from_py(_: (), py: Python) -> Py<PyTuple> {
-        Py::from_py(PyTuple::empty(py), py)
+impl IntoPy<Py<PyTuple>> for () {
+    fn into_py(self, py: Python) -> Py<PyTuple> {
+        PyTuple::empty(py).into()
     }
 }
 

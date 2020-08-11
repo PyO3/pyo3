@@ -48,7 +48,6 @@ pub unsafe fn PyList_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject
     *(*(op as *mut PyListObject)).ob_item.offset(i as isize) = v;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyList_New")]
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;

@@ -306,12 +306,7 @@ fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
             Some(minor) => format!("{}", minor),
             None => String::new(),
         };
-        match version.implementation {
-            PythonInterpreterKind::CPython => {
-                format!("python{}{}", version.major, minor_or_empty_string)
-            }
-            PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
-        }
+        format!("python{}{}", version.major, minor_or_empty_string)
     } else {
         match version.implementation {
             PythonInterpreterKind::CPython => format!("python{}", ld_version),
@@ -338,6 +333,11 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
 
 #[cfg(target_os = "macos")]
 fn get_macos_linkmodel(config: &InterpreterConfig) -> Result<String> {
+    // PyPy 3.6 ships with a shared library, but doesn't have Py_ENABLE_SHARED.
+    if config.version.implementation == PythonInterpreterKind::PyPy {
+        return Ok("shared".to_string());
+    }
+
     let script = r#"
 import sysconfig
 
@@ -356,19 +356,11 @@ else:
 fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
+    let link_name = get_library_link_name(&config.version, &config.ld_version);
     match get_macos_linkmodel(config)?.as_ref() {
-        "static" => Ok(format!(
-            "cargo:rustc-link-lib=static={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
-        "shared" => Ok(format!(
-            "cargo:rustc-link-lib={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
-        "framework" => Ok(format!(
-            "cargo:rustc-link-lib={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        )),
+        "static" => Ok(format!("cargo:rustc-link-lib=static={}", link_name,)),
+        "shared" => Ok(format!("cargo:rustc-link-lib={}", link_name)),
+        "framework" => Ok(format!("cargo:rustc-link-lib={}", link_name,)),
         other => bail!("unknown linkmodel {}", other),
     }
 }
@@ -382,11 +374,33 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     ))
 }
 
+fn find_interpreter() -> Result<PathBuf> {
+    if let Some(exe) = env::var_os("PYO3_PYTHON") {
+        Ok(exe.into())
+    } else if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        // Backwards-compatible name for PYO3_PYTHON; this may be removed at some point in the future.
+        Ok(exe.into())
+    } else {
+        ["python", "python3"]
+            .iter()
+            .find(|bin| {
+                if let Ok(out) = Command::new(bin).arg("--version").output() {
+                    // begin with `Python 3.X.X :: additional info`
+                    out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
+                } else {
+                    false
+                }
+            })
+            .map(PathBuf::from)
+            .ok_or_else(|| "Python 3.x interpreter not found".into())
+    }
+}
+
 /// Locate a suitable python interpreter and extract config from it.
 ///
 /// The following locations are checked in the order listed:
 ///
-/// 1. If `PYTHON_SYS_EXECUTABLE` is set, this intepreter is used and an error is raised if the
+/// 1. If `PYO3_PYTHON` is set, this intepreter is used and an error is raised if the
 /// version doesn't match.
 /// 2. `python`
 /// 3. `python{major version}`
@@ -394,24 +408,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
 ///
 /// If none of the above works, an error is returned
 fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let python_interpreter = if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        exe.into()
-    } else {
-        PathBuf::from(
-            ["python", "python3"]
-                .iter()
-                .find(|bin| {
-                    if let Ok(out) = Command::new(bin).arg("--version").output() {
-                        // begin with `Python 3.X.X :: additional info`
-                        out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
-                    } else {
-                        false
-                    }
-                })
-                .ok_or("Python 3.x interpreter not found")?,
-        )
-    };
-
+    let python_interpreter = find_interpreter()?;
     let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
     if interpreter_config.version.major == 3 {
         return Ok((interpreter_config, get_config_vars(&python_interpreter)?));
@@ -423,7 +420,6 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
-import json
 import platform
 import struct
 import sys
@@ -506,7 +502,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
     };
 
     if interpreter_config.version.major == 2 {
-        // fail PYTHON_SYS_EXECUTABLE=python2 cargo ...
+        // fail PYO3_PYTHON=python2 cargo ...
         bail!("Python 2 is not supported");
     }
 
@@ -637,7 +633,13 @@ fn main() -> Result<()> {
         // TODO: Find out how we can set -undefined dynamic_lookup here (if this is possible)
     }
 
-    let env_vars = ["LD_LIBRARY_PATH", "PATH", "PYTHON_SYS_EXECUTABLE", "LIB"];
+    let env_vars = [
+        "LD_LIBRARY_PATH",
+        "PATH",
+        "PYTHON_SYS_EXECUTABLE",
+        "PYO3_PYTHON",
+        "LIB",
+    ];
 
     for var in env_vars.iter() {
         println!("cargo:rerun-if-env-changed={}", var);

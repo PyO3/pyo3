@@ -65,7 +65,6 @@ pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
         || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySet_New")]
     pub fn PySet_New(arg1: *mut PyObject) -> *mut PyObject;
@@ -85,7 +84,7 @@ extern "C" {
     pub fn PySet_Pop(set: *mut PyObject) -> *mut PyObject;
 
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "_PySet_NextEntry")]
+    #[cfg_attr(PyPy, link_name = "_PyPySet_NextEntry")]
     pub fn _PySet_NextEntry(
         set: *mut PyObject,
         pos: *mut Py_ssize_t,

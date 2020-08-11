@@ -25,7 +25,6 @@ pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTuple_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;

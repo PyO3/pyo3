@@ -85,9 +85,7 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
-    use crate::instance::AsPyRef;
     use crate::types::{PyDict, PyList};
-    use crate::GILGuard;
     use crate::Python;
     use crate::ToPyObject;
     use indoc::indoc;
@@ -168,7 +166,7 @@ mod tests {
         "#
         );
 
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         let py = gil.python();
 
         let context = PyDict::new(py);
@@ -183,7 +181,7 @@ mod tests {
 
     #[test]
     fn int_not_iterable() {
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         let py = gil.python();
 
         let x = 5.to_object(py);

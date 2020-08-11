@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction, AsPyRef, PyCell};
+use pyo3::{py_run, wrap_pyfunction, PyCell};
 
 mod common;
 
@@ -167,17 +167,4 @@ fn test_pickle() {
         assert inst2.__dict__ == {'a': 1}
     "#
     );
-}
-
-#[test]
-fn incorrect_iter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let int = 13isize.to_object(py);
-    let int_ref = int.as_ref(py);
-    // Should not segfault.
-    assert!(int_ref.iter().is_err());
-    assert!(py
-        .eval("print('Exception state should not be set.')", None, None)
-        .is_ok());
 }

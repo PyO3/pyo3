@@ -3,7 +3,6 @@ use crate::ffi::pyport::Py_ssize_t;
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn Py_DecodeLocale(arg1: *const c_char, arg2: Py_ssize_t) -> *mut wchar_t;
     #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]

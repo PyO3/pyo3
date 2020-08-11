@@ -33,7 +33,6 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyGen_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
     pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;

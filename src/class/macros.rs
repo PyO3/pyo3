@@ -91,9 +91,8 @@ macro_rules! py_binary_num_func {
         {
             $crate::callback_body!(py, {
                 let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
-                let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
-
-                $class::$f(lhs.extract()?, rhs.extract()?).convert(py)
+                let rhs = extract_or_return_not_implemented!(py, rhs);
+                $class::$f(lhs.extract()?, rhs).convert(py)
             })
         }
         Some(wrap::<$class>)
@@ -138,7 +137,7 @@ macro_rules! py_binary_self_func {
             $crate::callback_body!(py, {
                 let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
-                call_mut!(slf_, $f, arg).convert(py)?;
+                call_operator_mut!(py, slf_, $f, arg).convert(py)?;
                 ffi::Py_INCREF(slf);
                 Ok(slf)
             })
@@ -222,13 +221,8 @@ macro_rules! py_ternary_num_func {
                 let arg1 = py
                     .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
                     .extract()?;
-                let arg2 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg2)
-                    .extract()?;
-                let arg3 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg3)
-                    .extract()?;
-
+                let arg2 = extract_or_return_not_implemented!(py, arg2);
+                let arg3 = extract_or_return_not_implemented!(py, arg3);
                 $class::$f(arg1, arg2, arg3).convert(py)
             })
         }
@@ -279,7 +273,7 @@ macro_rules! py_dummy_ternary_self_func {
             $crate::callback_body!(py, {
                 let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-                call_mut!(slf_cell, $f, arg1).convert(py)?;
+                call_operator_mut!(py, slf_cell, $f, arg1).convert(py)?;
                 ffi::Py_INCREF(slf);
                 Ok(slf)
             })
@@ -375,6 +369,18 @@ macro_rules! py_func_set_del {
     }};
 }
 
+macro_rules! extract_or_return_not_implemented {
+    ($py: ident, $arg: ident) => {
+        match $py
+            .from_borrowed_ptr::<$crate::types::PyAny>($arg)
+            .extract()
+        {
+            Ok(value) => value,
+            Err(_) => return $py.NotImplemented().convert($py),
+        }
+    };
+}
+
 macro_rules! _call_impl {
     ($slf: expr, $fn: ident $(; $args: expr)*) => {
         $slf.$fn($($args,)*)
@@ -382,6 +388,16 @@ macro_rules! _call_impl {
     ($slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
         _call_impl!($slf, $fn $(,$raw_args)* $(;$args)* ;$raw_arg.extract()?)
     };
+    (op $py:ident; $slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
+        _call_impl!(
+            $slf, $fn ;
+            (match $raw_arg.extract() {
+                Ok(res) => res,
+                _=> return Ok($py.NotImplemented().convert($py)?)
+            })
+            $(;$args)*
+        )
+    }
 }
 
 /// Call `slf.try_borrow()?.$fn(...)`
@@ -395,5 +411,11 @@ macro_rules! call_ref {
 macro_rules! call_mut {
     ($slf: expr, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
         _call_impl!($slf.try_borrow_mut()?, $fn $(,$raw_args)* $(;$args)*)
+    };
+}
+
+macro_rules! call_operator_mut {
+    ($py:ident, $slf: expr, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
+        _call_impl!(op $py; $slf.try_borrow_mut()?, $fn $(,$raw_args)* $(;$args)*)
     };
 }

@@ -4,7 +4,6 @@ use crate::ffi::object::PyObject;
 use crate::ffi::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int, c_void};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallObjectWithKeywords")]
     pub fn PyEval_CallObjectWithKeywords(
@@ -19,7 +18,6 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
     PyEval_CallObjectWithKeywords(func, arg, ::std::ptr::null_mut())
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
@@ -49,6 +47,10 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_GetRecursionLimit")]
     pub fn Py_GetRecursionLimit() -> c_int;
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
+}
+
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     static mut _Py_CheckRecursionLimit: c_int;
 }
 
@@ -57,7 +59,6 @@ extern "C" {
 pub type _PyFrameEvalFunction =
     extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
@@ -78,7 +79,6 @@ extern "C" {
 }
 
 #[cfg(py_sys_config = "WITH_THREAD")]
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
     pub fn PyEval_ThreadsInitialized() -> c_int;

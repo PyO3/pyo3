@@ -2,7 +2,6 @@ use crate::ffi::pystate::PyThreadState;
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn Py_Initialize();
     pub fn Py_InitializeEx(arg1: c_int);
@@ -49,7 +48,6 @@ extern "C" {
 
 type PyOS_sighandler_t = unsafe extern "C" fn(arg1: c_int);
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyOS_getsig(arg1: c_int) -> PyOS_sighandler_t;
     pub fn PyOS_setsig(arg1: c_int, arg2: PyOS_sighandler_t) -> PyOS_sighandler_t;

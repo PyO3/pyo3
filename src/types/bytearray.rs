@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
 
@@ -49,22 +49,14 @@ impl PyByteArray {
             let pyptr =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            if pyptr.is_null() {
-                return Err(PyErr::fetch(py));
-            }
+            let pypybytearray: Py<PyByteArray> = Py::from_owned_ptr_or_err(py, pyptr)?;
             let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytearray in init
-            match init(std::slice::from_raw_parts_mut(buffer, len)) {
-                Ok(()) => Ok(py.from_owned_ptr(pyptr)),
-                Err(e) => {
-                    // Deallocate pyptr to avoid leaking the bytearray
-                    ffi::Py_DECREF(pyptr);
-                    Err(e)
-                }
-            }
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytearray.into_ref(py))
         }
     }
 
@@ -142,7 +134,7 @@ impl PyByteArray {
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     /// # use pyo3::types::IntoPyDict;
-    /// # let gil = GILGuard::acquire();
+    /// # let gil = Python::acquire_gil();
     /// # let py = gil.python();
     /// #
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
@@ -178,9 +170,8 @@ impl PyByteArray {
 #[cfg(test)]
 mod test {
     use crate::exceptions;
-    use crate::object::PyObject;
     use crate::types::PyByteArray;
-    use crate::Python;
+    use crate::{PyObject, Python};
 
     #[test]
     fn test_len() {

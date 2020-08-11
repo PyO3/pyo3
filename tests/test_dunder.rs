@@ -4,7 +4,7 @@ use pyo3::class::{
 };
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyBytes, PySlice, PyType};
+use pyo3::types::{IntoPyDict, PySlice, PyType};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::convert::TryFrom;
 use std::{isize, iter};
@@ -51,12 +51,12 @@ struct Iterator {
 }
 
 #[pyproto]
-impl<'p> PyIterProtocol for Iterator {
-    fn __iter__(slf: PyRef<'p, Self>) -> Py<Iterator> {
-        slf.into()
+impl PyIterProtocol for Iterator {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
     }
 
-    fn __next__(mut slf: PyRefMut<'p, Self>) -> Option<i32> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<i32> {
         slf.iter.next()
     }
 }
@@ -81,7 +81,7 @@ fn iterator() {
 struct StringMethods {}
 
 #[pyproto]
-impl<'p> PyObjectProtocol<'p> for StringMethods {
+impl PyObjectProtocol for StringMethods {
     fn __str__(&self) -> &'static str {
         "str"
     }
@@ -94,9 +94,8 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         format!("format({})", format_spec)
     }
 
-    fn __bytes__(&self) -> PyObject {
-        let gil = GILGuard::acquire();
-        PyBytes::new(gil.python(), b"bytes").into()
+    fn __bytes__(&self) -> &'static [u8] {
+        b"bytes"
     }
 }
 
@@ -237,7 +236,7 @@ struct SetItem {
 }
 
 #[pyproto]
-impl PyMappingProtocol<'a> for SetItem {
+impl PyMappingProtocol for SetItem {
     fn __setitem__(&mut self, key: i32, val: i32) {
         self.key = key;
         self.val = val;
@@ -363,18 +362,18 @@ struct ContextManager {
 }
 
 #[pyproto]
-impl<'p> PyContextProtocol<'p> for ContextManager {
+impl PyContextProtocol for ContextManager {
     fn __enter__(&mut self) -> i32 {
         42
     }
 
     fn __exit__(
         &mut self,
-        ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        ty: Option<&PyType>,
+        _value: Option<&PyAny>,
+        _traceback: Option<&PyAny>,
     ) -> bool {
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         self.exit_called = true;
         ty == Some(gil.python().get_type::<PyValueError>())
     }
@@ -426,16 +425,15 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        let gil = GILGuard::acquire();
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_py(gil.python()));
+                return Ok("slice");
             }
         } else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_py(gil.python()));
+                return Ok("int");
             }
         }
         Err(PyErr::new::<PyValueError, _>("error"))
@@ -566,14 +564,14 @@ impl OnceFuture {
 
 #[pyproto]
 impl PyAsyncProtocol for OnceFuture {
-    fn __await__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+    fn __await__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
 }
 
 #[pyproto]
 impl PyIterProtocol for OnceFuture {
-    fn __iter__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
     fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
@@ -634,14 +632,14 @@ impl DescrCounter {
 #[pyproto]
 impl PyDescrProtocol for DescrCounter {
     fn __get__(
-        mut slf: PyRefMut<'p, Self>,
+        mut slf: PyRefMut<Self>,
         _instance: &PyAny,
-        _owner: Option<&'p PyType>,
-    ) -> PyRefMut<'p, Self> {
+        _owner: Option<&PyType>,
+    ) -> PyRefMut<Self> {
         slf.count += 1;
         slf
     }
-    fn __set__(_slf: PyRef<'p, Self>, _instance: &PyAny, mut new_value: PyRefMut<'p, Self>) {
+    fn __set__(_slf: PyRef<Self>, _instance: &PyAny, mut new_value: PyRefMut<Self>) {
         new_value.count = _slf.count;
     }
 }

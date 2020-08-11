@@ -6,12 +6,11 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::{AsPyPointer, IntoPy, Py, Python, ToPyObject};
+use crate::{AsPyPointer, IntoPy, Py, PyObject, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -117,6 +116,7 @@ impl PyModule {
     /// Returns the module's filename.
     ///
     /// May fail if the module does not have a `__file__` attribute.
+    #[cfg(not(all(windows, PyPy)))]
     pub fn filename(&self) -> PyResult<&str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }

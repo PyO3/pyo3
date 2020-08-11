@@ -1,7 +1,7 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::{AsPyRef, PyCell, PyIterProtocol};
+use pyo3::{PyCell, PyIterProtocol};
 use std::collections::HashMap;
 
 mod common;
