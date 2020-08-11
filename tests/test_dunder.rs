@@ -51,12 +51,12 @@ struct Iterator {
 }
 
 #[pyproto]
-impl<'p> PyIterProtocol for Iterator {
-    fn __iter__(slf: PyRef<'p, Self>) -> Py<Iterator> {
-        slf.into()
+impl PyIterProtocol for Iterator {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
     }
 
-    fn __next__(mut slf: PyRefMut<'p, Self>) -> Option<i32> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<i32> {
         slf.iter.next()
     }
 }
@@ -81,7 +81,7 @@ fn iterator() {
 struct StringMethods {}
 
 #[pyproto]
-impl<'p> PyObjectProtocol<'p> for StringMethods {
+impl PyObjectProtocol for StringMethods {
     fn __str__(&self) -> &'static str {
         "str"
     }
@@ -236,7 +236,7 @@ struct SetItem {
 }
 
 #[pyproto]
-impl PyMappingProtocol<'a> for SetItem {
+impl PyMappingProtocol for SetItem {
     fn __setitem__(&mut self, key: i32, val: i32) {
         self.key = key;
         self.val = val;
@@ -362,16 +362,16 @@ struct ContextManager {
 }
 
 #[pyproto]
-impl<'p> PyContextProtocol<'p> for ContextManager {
+impl PyContextProtocol for ContextManager {
     fn __enter__(&mut self) -> i32 {
         42
     }
 
     fn __exit__(
         &mut self,
-        ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        ty: Option<&PyType>,
+        _value: Option<&PyAny>,
+        _traceback: Option<&PyAny>,
     ) -> bool {
         let gil = Python::acquire_gil();
         self.exit_called = true;
@@ -564,14 +564,14 @@ impl OnceFuture {
 
 #[pyproto]
 impl PyAsyncProtocol for OnceFuture {
-    fn __await__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+    fn __await__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
 }
 
 #[pyproto]
 impl PyIterProtocol for OnceFuture {
-    fn __iter__(slf: PyRef<'p, Self>) -> PyRef<'p, Self> {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
     fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
@@ -632,14 +632,14 @@ impl DescrCounter {
 #[pyproto]
 impl PyDescrProtocol for DescrCounter {
     fn __get__(
-        mut slf: PyRefMut<'p, Self>,
+        mut slf: PyRefMut<Self>,
         _instance: &PyAny,
-        _owner: Option<&'p PyType>,
-    ) -> PyRefMut<'p, Self> {
+        _owner: Option<&PyType>,
+    ) -> PyRefMut<Self> {
         slf.count += 1;
         slf
     }
-    fn __set__(_slf: PyRef<'p, Self>, _instance: &PyAny, mut new_value: PyRefMut<'p, Self>) {
+    fn __set__(_slf: PyRef<Self>, _instance: &PyAny, mut new_value: PyRefMut<Self>) {
         new_value.count = _slf.count;
     }
 }
