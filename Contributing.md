@@ -47,7 +47,7 @@ Here are a few things to note when you are writing PRs.
 
 ### Continuous Integration
 
-The PyO3 repo uses a mixture of Github actions and Travis CI. PRs are blocked from merging if CI is not successful.
+The PyO3 repo uses Github Actions. PRs are blocked from merging if CI is not successful.
 
 Formatting, linting and tests are checked for all Rust and Python code. Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.8 with the minimum supported Rust version.
 

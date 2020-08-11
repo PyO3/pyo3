@@ -10,13 +10,9 @@ repository = "https://github.com/pyo3/pyo3"
 documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
-exclude = ["/.gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
+exclude = ["/.gitignore", ".cargo/config"]
 build = "build.rs"
 edition = "2018"
-
-[badges]
-travis-ci = { repository = "PyO3/pyo3", branch = "master" }
-appveyor = { repository = "fafhrd91/pyo3" }
 
 [dependencies]
 ctor = { version = "0.1", optional = true }

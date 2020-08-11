@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 on: [push, pull_request]
 
@@ -31,11 +31,11 @@ jobs:
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
-      max-parallel: 12
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8, pypy3]
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9-dev, pypy3]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
+          { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
           { os: "windows-latest", python-architecture: "x64", rust-target: "x86_64-pc-windows-msvc" },
           { os: "windows-latest", python-architecture: "x86", rust-target: "i686-pc-windows-msvc" },
         ]
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.platform.python-architecture }}
@@ -58,6 +58,10 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.platform.rust-target }}
+
+      - name: Prepare LD_LIBRARY_PATH (Ubuntu only)
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: echo ::set-env name=LD_LIBRARY_PATH::${pythonLocation}/lib
 
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
 
@@ -91,3 +95,27 @@ jobs:
 
     env:
       RUST_BACKTRACE: 1
+
+  coverage:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features "num-bigint num-complex" --no-fail-fast
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      - uses: actions-rs/grcov@v0.1
+        id: coverage
+      - run: echo ${{ steps.coverage.outputs.report }}
+      - uses: codecov/codecov-action@v1
+        with:
+          file: ${{ steps.coverage.outputs.report }}
