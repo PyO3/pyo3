@@ -1,0 +1,42 @@
+name: gh-pages
+
+on:
+  push:
+    branches:
+      - master
+  release:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: '0.4.1'
+
+      # This builds the book in target/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
+      - name: Build the guide
+        run: mdbook build -d ../target/guide guide
+
+        # This builds the doc in target/doc
+      - name: Build the doc
+        run: |
+          cargo doc --features="default num-bigint num-complex" --no-deps
+          echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/doc/index.html
+
+      - name: Prepare tag
+        id: prepare_tag
+        run: |
+          TAG_NAME="${GITHUB_REF##*/}"
+          echo "::set-output name=tag_name::${TAG_NAME}"
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3.7.0-8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/
+          destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
+          full_commit_message: 'Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}'
