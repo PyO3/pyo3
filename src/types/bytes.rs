@@ -1,5 +1,5 @@
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 use std::ops::Index;
@@ -28,8 +28,10 @@ impl PyBytes {
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
     /// Before calling `init` the bytes' contents are zero-initialised.
-    ///
-    /// Panics if out of memory.
+    /// * If Python raises a MemoryError on the allocation, `new_with` will return
+    ///   it inside `Err`.
+    /// * If `init` returns `Err(e)`, `new_with` will return `Err(e)`.
+    /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyBytes)`.
     ///
     /// # Example
     /// ```
@@ -37,28 +39,28 @@ impl PyBytes {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
-    ///     });
+    ///         Ok(())
+    ///     })?;
     ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
     ///     assert_eq!(bytes, b"Hello Rust");
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyBytes
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyBytes>
     where
-        F: FnOnce(&mut [u8]),
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
-            let length = len as ffi::Py_ssize_t;
-            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), length);
-            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
-            let pybytes = py.from_owned_ptr(pyptr);
+            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            // Check for an allocation error and return it
+            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
             let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
-            init(std::slice::from_raw_parts_mut(buffer, len));
-            pybytes
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytes.into_ref(py))
         }
     }
 
@@ -129,22 +131,40 @@ mod test {
     }
 
     #[test]
-    fn test_bytes_new_with() {
+    fn test_bytes_new_with() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
             b.copy_from_slice(b"Hello Rust");
-        });
-        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+            Ok(())
+        })?;
+        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
         assert_eq!(bytes, b"Hello Rust");
+        Ok(())
     }
 
     #[test]
-    fn test_bytes_new_with_zero_initialised() {
+    fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| ());
-        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+        let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
         assert_eq!(bytes, &[0; 10]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_bytes_new_with_error() {
+        use crate::exceptions::PyValueError;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
+            Err(PyValueError::py_err("Hello Crustaceans!"))
+        });
+        assert!(py_bytes_result.is_err());
+        assert!(py_bytes_result
+            .err()
+            .unwrap()
+            .is_instance::<PyValueError>(py));
     }
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, Py, PyAny, Python};
 use std::os::raw::c_char;
 use std::slice;
 
@@ -23,36 +23,40 @@ impl PyByteArray {
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
     /// Before calling `init` the bytearray is zero-initialised.
-    ///
-    /// Panics if out of memory.
+    /// * If Python raises a MemoryError on the allocation, `new_with` will return
+    ///   it inside `Err`.
+    /// * If `init` returns `Err(e)`, `new_with` will return `Err(e)`.
+    /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyByteArray)`.
     ///
     /// # Example
     /// ```
     /// use pyo3::{prelude::*, types::PyByteArray};
-    /// Python::with_gil(|py| {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
-    ///     });
+    ///         Ok(())
+    ///     })?;
     ///     let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
     ///     assert_eq!(bytearray, b"Hello Rust");
+    ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> &PyByteArray
+    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
     where
-        F: FnOnce(&mut [u8]),
+        F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
-            let length = len as ffi::Py_ssize_t;
-            let pyptr = ffi::PyByteArray_FromStringAndSize(std::ptr::null(), length);
-            // Iff pyptr is null, py.from_owned_ptr(pyptr) will panic
-            let pybytearray = py.from_owned_ptr(pyptr);
+            let pyptr =
+                ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            // Check for an allocation error and return it
+            let pypybytearray: Py<PyByteArray> = Py::from_owned_ptr_or_err(py, pyptr)?;
             let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytearray in init
-            init(std::slice::from_raw_parts_mut(buffer, len));
-            pybytearray
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytearray.into_ref(py))
         }
     }
 
@@ -263,22 +267,40 @@ mod test {
     }
 
     #[test]
-    fn test_byte_array_new_with() {
+    fn test_byte_array_new_with() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
             b.copy_from_slice(b"Hello Rust");
-        });
+            Ok(())
+        })?;
         let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
         assert_eq!(bytearray, b"Hello Rust");
+        Ok(())
     }
 
     #[test]
-    fn test_byte_array_new_with_zero_initialised() {
+    fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| ());
+        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
         let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
         assert_eq!(bytearray, &[0; 10]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_byte_array_new_with_error() {
+        use crate::exceptions::PyValueError;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
+            Err(PyValueError::py_err("Hello Crustaceans!"))
+        });
+        assert!(py_bytearray_result.is_err());
+        assert!(py_bytearray_result
+            .err()
+            .unwrap()
+            .is_instance::<PyValueError>(py));
     }
 }
