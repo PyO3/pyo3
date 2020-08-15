@@ -333,6 +333,58 @@ fn lhs_override_rhs() {
 }
 
 #[pyclass]
+#[derive(Debug)]
+struct Lhs2Rhs {}
+
+#[pyproto]
+impl PyNumberProtocol for Lhs2Rhs {
+    fn __add__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+        format!("{:?} + {:?}", lhs, rhs)
+    }
+    fn __sub__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+        format!("{:?} - {:?}", lhs, rhs)
+    }
+    fn __pow__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny, _mod: Option<usize>) -> String {
+        format!("{:?} ** {:?}", lhs, rhs)
+    }
+    fn __matmul__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+        format!("{:?} @ {:?}", lhs, rhs)
+    }
+
+    fn __radd__(&self, other: &PyAny) -> String {
+        format!("{:?} + RA", other)
+    }
+    fn __rsub__(&self, rhs: &PyAny) -> String {
+        format!("{:?} - RA", rhs)
+    }
+    fn __rpow__(&self, rhs: &PyAny, _mod: Option<usize>) -> String {
+        format!("{:?} ** RA", rhs)
+    }
+    fn __rmatmul__(&self, rhs: &PyAny) -> String {
+        format!("{:?} @ RA", rhs)
+    }
+}
+
+#[pyproto]
+impl PyObjectProtocol for Lhs2Rhs {
+    fn __repr__(&self) -> &'static str {
+        "BA"
+    }
+}
+
+#[test]
+fn lhs_fallbacked_to_rhs() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = PyCell::new(py, Lhs2Rhs {}).unwrap();
+    // Fallbacked to RHS because of type mismatching
+    py_run!(py, c, "assert 1 + c == '1 + RA'");
+    py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+}
+
+#[pyclass]
 struct RichComparisons {}
 
 #[pyproto]

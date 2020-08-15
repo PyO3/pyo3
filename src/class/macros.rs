@@ -112,10 +112,39 @@ macro_rules! py_binary_reversed_num_func {
         {
             $crate::callback_body!(py, {
                 // Swap lhs <-> rhs
-                let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(rhs);
-                let arg = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
+                let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(py, rhs);
+                let arg = extract_or_return_not_implemented!(py, lhs);
+                $class::$f(&*slf.try_borrow()?, arg).convert(py)
+            })
+        }
+        Some(wrap::<$class>)
+    }};
+}
 
-                $class::$f(&*slf.try_borrow()?, arg.extract()?).convert(py)
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_binary_fallbacked_num_func {
+    ($class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {{
+        unsafe extern "C" fn wrap<T>(
+            lhs: *mut ffi::PyObject,
+            rhs: *mut ffi::PyObject,
+        ) -> *mut $crate::ffi::PyObject
+        where
+            T: for<'p> $lop_trait<'p> + for<'p> $rop_trait<'p>,
+        {
+            $crate::callback_body!(py, {
+                let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
+                let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
+                // First, try the left hand method (e.g., __add__)
+                match (lhs.extract(), rhs.extract()) {
+                    (Ok(l), Ok(r)) => $class::$lop(l, r).convert(py),
+                    _ => {
+                        // Next, try the right hand method (e.g., __add__)
+                        let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(rhs);
+                        let arg = extract_or_return_not_implemented!(lhs);
+                        $class::$rop(&*slf.try_borrow()?, arg).convert(py)
+                    }
+                }
             })
         }
         Some(wrap::<$class>)
@@ -203,57 +232,6 @@ macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident) => {
         py_ternarys_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
     };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_ternary_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            arg1: *mut $crate::ffi::PyObject,
-            arg2: *mut $crate::ffi::PyObject,
-            arg3: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                let arg1 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
-                    .extract()?;
-                let arg2 = extract_or_return_not_implemented!(py, arg2);
-                let arg3 = extract_or_return_not_implemented!(py, arg3);
-                $class::$f(arg1, arg2, arg3).convert(py)
-            })
-        }
-
-        Some(wrap::<T>)
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_ternary_reversed_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            arg1: *mut $crate::ffi::PyObject,
-            arg2: *mut $crate::ffi::PyObject,
-            arg3: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                // Swap lhs <-> rhs
-                let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(arg2);
-                let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-                let arg2 = py.from_borrowed_ptr::<$crate::PyAny>(arg3);
-
-                $class::$f(&*slf.try_borrow()?, arg1.extract()?, arg2.extract()?).convert(py)
-            })
-        }
-        Some(wrap::<$class>)
-    }};
 }
 
 // NOTE(kngwyu): Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract arg2,
@@ -370,6 +348,16 @@ macro_rules! py_func_set_del {
 }
 
 macro_rules! extract_or_return_not_implemented {
+    ($arg: ident) => {
+        match $arg.extract() {
+            Ok(value) => value,
+            Err(_) => {
+                let res = $crate::ffi::Py_NotImplemented();
+                ffi::Py_INCREF(res);
+                return Ok(res);
+            }
+        }
+    };
     ($py: ident, $arg: ident) => {
         match $py
             .from_borrowed_ptr::<$crate::types::PyAny>($arg)
