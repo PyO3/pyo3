@@ -926,7 +926,25 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberIPowProtocol<'p>,
     {
-        self.nb_inplace_power = py_dummy_ternary_self_func!(PyNumberIPowProtocol, T::__ipow__)
+        // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
+        // so we ignore it. It's the same as what CPython does.
+        unsafe extern "C" fn wrap_ipow<T>(
+            slf: *mut crate::ffi::PyObject,
+            other: *mut crate::ffi::PyObject,
+            _modulo: *mut crate::ffi::PyObject,
+        ) -> *mut crate::ffi::PyObject
+        where
+            T: for<'p> PyNumberIPowProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+                let other = py.from_borrowed_ptr::<crate::PyAny>(other);
+                call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
+                ffi::Py_INCREF(slf);
+                Ok(slf)
+            })
+        }
+        self.nb_inplace_power = Some(wrap_ipow::<T>);
     }
     pub fn set_ilshift<T>(&mut self)
     where

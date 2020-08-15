@@ -1,7 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_unary_func {
     ($trait: ident, $class:ident :: $f:ident, $call:ident, $ret_type: ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
@@ -24,8 +22,6 @@ macro_rules! py_unary_func {
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_unarys_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
@@ -45,16 +41,12 @@ macro_rules! py_unarys_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_len_func {
     ($trait:ident, $class:ident :: $f:ident) => {
         py_unary_func!($trait, $class::$f, $crate::ffi::Py_ssize_t)
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_func {
     // Use call_ref! by default
     ($trait:ident, $class:ident :: $f:ident, $return:ty, $call:ident) => {{
@@ -78,8 +70,6 @@ macro_rules! py_binary_func {
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -99,8 +89,6 @@ macro_rules! py_binary_num_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_reversed_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -121,8 +109,6 @@ macro_rules! py_binary_reversed_num_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_fallbacked_num_func {
     ($class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -152,8 +138,6 @@ macro_rules! py_binary_fallbacked_num_func {
 }
 
 // NOTE(kngwyu): This macro is used only for inplace operations, so I used call_mut here.
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_self_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -175,8 +159,6 @@ macro_rules! py_binary_self_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_ssizearg_func {
     // Use call_ref! by default
     ($trait:ident, $class:ident :: $f:ident) => {
@@ -199,8 +181,6 @@ macro_rules! py_ssizearg_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident, $return_type:ty) => {{
         unsafe extern "C" fn wrap<T>(
@@ -232,32 +212,6 @@ macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident) => {
         py_ternarys_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
     };
-}
-
-// NOTE(kngwyu): Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract arg2,
-// so we ignore it. It's the same as what CPython does.
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_dummy_ternary_self_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut $crate::ffi::PyObject,
-            arg1: *mut $crate::ffi::PyObject,
-            _arg2: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-                let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-                call_operator_mut!(py, slf_cell, $f, arg1).convert(py)?;
-                ffi::Py_INCREF(slf);
-                Ok(slf)
-            })
-        }
-        Some(wrap::<$class>)
-    }};
 }
 
 macro_rules! py_func_set {
