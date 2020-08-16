@@ -280,22 +280,10 @@ fn rhs_arithmetic() {
 }
 
 #[pyclass]
-struct LhsAndRhsArithmetic {}
+struct LhsOverridesRhs {}
 
 #[pyproto]
-impl PyNumberProtocol for LhsAndRhsArithmetic {
-    fn __radd__(&self, other: &PyAny) -> String {
-        format!("{:?} + RA", other)
-    }
-
-    fn __rsub__(&self, other: &PyAny) -> String {
-        format!("{:?} - RA", other)
-    }
-
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
-        format!("{:?} ** RA", other)
-    }
-
+impl PyNumberProtocol for LhsOverridesRhs {
     fn __add__(lhs: &PyAny, rhs: &PyAny) -> String {
         format!("{:?} + {:?}", lhs, rhs)
     }
@@ -304,83 +292,215 @@ impl PyNumberProtocol for LhsAndRhsArithmetic {
         format!("{:?} - {:?}", lhs, rhs)
     }
 
-    fn __pow__(lhs: &PyAny, rhs: &PyAny, _mod: Option<u32>) -> String {
+    fn __mul__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} * {:?}", lhs, rhs)
+    }
+
+    fn __lshift__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} << {:?}", lhs, rhs)
+    }
+
+    fn __rshift__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} >> {:?}", lhs, rhs)
+    }
+
+    fn __and__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} & {:?}", lhs, rhs)
+    }
+
+    fn __xor__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} ^ {:?}", lhs, rhs)
+    }
+
+    fn __or__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} | {:?}", lhs, rhs)
+    }
+
+    fn __pow__(lhs: &PyAny, rhs: &PyAny, _mod: Option<&PyAny>) -> String {
         format!("{:?} ** {:?}", lhs, rhs)
+    }
+
+    fn __radd__(&self, other: &PyAny) -> String {
+        format!("{:?} + RA", other)
+    }
+
+    fn __rsub__(&self, other: &PyAny) -> String {
+        format!("{:?} - RA", other)
+    }
+
+    fn __rmul__(&self, other: &PyAny) -> String {
+        format!("{:?} * RA", other)
+    }
+
+    fn __rlshift__(&self, other: &PyAny) -> String {
+        format!("{:?} << RA", other)
+    }
+
+    fn __rrshift__(&self, other: &PyAny) -> String {
+        format!("{:?} >> RA", other)
+    }
+
+    fn __rand__(&self, other: &PyAny) -> String {
+        format!("{:?} & RA", other)
+    }
+
+    fn __rxor__(&self, other: &PyAny) -> String {
+        format!("{:?} ^ RA", other)
+    }
+
+    fn __ror__(&self, other: &PyAny) -> String {
+        format!("{:?} | RA", other)
+    }
+
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
+        format!("{:?} ** RA", other)
     }
 }
 
 #[pyproto]
-impl PyObjectProtocol for LhsAndRhsArithmetic {
+impl PyObjectProtocol for LhsOverridesRhs {
     fn __repr__(&self) -> &'static str {
         "BA"
     }
 }
 
 #[test]
-fn lhs_override_rhs() {
+fn lhs_overrides_rhs() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new(py, LhsAndRhsArithmetic {}).unwrap();
+    let c = PyCell::new(py, LhsOverridesRhs {}).unwrap();
     // Not overrided
     py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
     py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
+    py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
+    py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
+    py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
+    py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
+    py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
+    py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
     py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
     // Overrided
     py_run!(py, c, "assert 1 + c == '1 + BA'");
     py_run!(py, c, "assert 1 - c == '1 - BA'");
+    py_run!(py, c, "assert 1 * c == '1 * BA'");
+    py_run!(py, c, "assert 1 << c == '1 << BA'");
+    py_run!(py, c, "assert 1 >> c == '1 >> BA'");
+    py_run!(py, c, "assert 1 & c == '1 & BA'");
+    py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
+    py_run!(py, c, "assert 1 | c == '1 | BA'");
     py_run!(py, c, "assert 1 ** c == '1 ** BA'");
 }
 
 #[pyclass]
 #[derive(Debug)]
-struct Lhs2Rhs {}
+struct LhsFellbackToRhs {}
 
 #[pyproto]
-impl PyNumberProtocol for Lhs2Rhs {
-    fn __add__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+impl PyNumberProtocol for LhsFellbackToRhs {
+    fn __add__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
         format!("{:?} + {:?}", lhs, rhs)
     }
-    fn __sub__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+
+    fn __sub__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
         format!("{:?} - {:?}", lhs, rhs)
     }
-    fn __pow__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny, _mod: Option<usize>) -> String {
+
+    fn __mul__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} * {:?}", lhs, rhs)
+    }
+
+    fn __lshift__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} << {:?}", lhs, rhs)
+    }
+
+    fn __rshift__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} >> {:?}", lhs, rhs)
+    }
+
+    fn __and__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} & {:?}", lhs, rhs)
+    }
+
+    fn __xor__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} ^ {:?}", lhs, rhs)
+    }
+
+    fn __or__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} | {:?}", lhs, rhs)
+    }
+
+    fn __pow__(lhs: PyRef<Self>, rhs: &PyAny, _mod: Option<usize>) -> String {
         format!("{:?} ** {:?}", lhs, rhs)
     }
-    fn __matmul__(lhs: PyRef<Lhs2Rhs>, rhs: &PyAny) -> String {
+
+    fn __matmul__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
         format!("{:?} @ {:?}", lhs, rhs)
     }
 
     fn __radd__(&self, other: &PyAny) -> String {
         format!("{:?} + RA", other)
     }
-    fn __rsub__(&self, rhs: &PyAny) -> String {
-        format!("{:?} - RA", rhs)
+
+    fn __rsub__(&self, other: &PyAny) -> String {
+        format!("{:?} - RA", other)
     }
-    fn __rpow__(&self, rhs: &PyAny, _mod: Option<usize>) -> String {
-        format!("{:?} ** RA", rhs)
+
+    fn __rmul__(&self, other: &PyAny) -> String {
+        format!("{:?} * RA", other)
     }
-    fn __rmatmul__(&self, rhs: &PyAny) -> String {
-        format!("{:?} @ RA", rhs)
+
+    fn __rlshift__(&self, other: &PyAny) -> String {
+        format!("{:?} << RA", other)
+    }
+
+    fn __rrshift__(&self, other: &PyAny) -> String {
+        format!("{:?} >> RA", other)
+    }
+
+    fn __rand__(&self, other: &PyAny) -> String {
+        format!("{:?} & RA", other)
+    }
+
+    fn __rxor__(&self, other: &PyAny) -> String {
+        format!("{:?} ^ RA", other)
+    }
+
+    fn __ror__(&self, other: &PyAny) -> String {
+        format!("{:?} | RA", other)
+    }
+
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
+        format!("{:?} ** RA", other)
+    }
+
+    fn __rmatmul__(&self, other: &PyAny) -> String {
+        format!("{:?} @ RA", other)
     }
 }
 
 #[pyproto]
-impl PyObjectProtocol for Lhs2Rhs {
+impl PyObjectProtocol for LhsFellbackToRhs {
     fn __repr__(&self) -> &'static str {
         "BA"
     }
 }
 
 #[test]
-fn lhs_fallbacked_to_rhs() {
+fn lhs_fellback_to_rhs() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new(py, Lhs2Rhs {}).unwrap();
+    let c = PyCell::new(py, LhsFellbackToRhs {}).unwrap();
     // Fallbacked to RHS because of type mismatching
     py_run!(py, c, "assert 1 + c == '1 + RA'");
     py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert 1 * c == '1 * RA'");
+    py_run!(py, c, "assert 1 << c == '1 << RA'");
+    py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+    py_run!(py, c, "assert 1 & c == '1 & RA'");
+    py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+    py_run!(py, c, "assert 1 | c == '1 | RA'");
     py_run!(py, c, "assert 1 ** c == '1 ** RA'");
 }
 

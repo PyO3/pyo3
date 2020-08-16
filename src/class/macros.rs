@@ -109,7 +109,7 @@ macro_rules! py_binary_reversed_num_func {
     }};
 }
 
-macro_rules! py_binary_fallbacked_num_func {
+macro_rules! py_binary_fallback_num_func {
     ($class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {{
         unsafe extern "C" fn wrap<T>(
             lhs: *mut ffi::PyObject,

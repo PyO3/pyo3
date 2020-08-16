@@ -589,7 +589,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,
     {
-        self.nb_add = py_binary_fallbacked_num_func!(
+        self.nb_add = py_binary_fallback_num_func!(
             T,
             PyNumberAddProtocol::__add__,
             PyNumberRAddProtocol::__radd__
@@ -611,7 +611,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberSubProtocol<'p> + for<'p> PyNumberRSubProtocol<'p>,
     {
-        self.nb_subtract = py_binary_fallbacked_num_func!(
+        self.nb_subtract = py_binary_fallback_num_func!(
             T,
             PyNumberSubProtocol::__sub__,
             PyNumberRSubProtocol::__rsub__
@@ -633,7 +633,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberMulProtocol<'p> + for<'p> PyNumberRMulProtocol<'p>,
     {
-        self.nb_multiply = py_binary_fallbacked_num_func!(
+        self.nb_multiply = py_binary_fallback_num_func!(
             T,
             PyNumberMulProtocol::__mul__,
             PyNumberRMulProtocol::__rmul__
@@ -661,7 +661,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberDivmodProtocol<'p> + for<'p> PyNumberRDivmodProtocol<'p>,
     {
-        self.nb_divmod = py_binary_fallbacked_num_func!(
+        self.nb_divmod = py_binary_fallback_num_func!(
             T,
             PyNumberDivmodProtocol::__divmod__,
             PyNumberRDivmodProtocol::__rdivmod__
@@ -780,7 +780,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberLShiftProtocol<'p> + for<'p> PyNumberRLShiftProtocol<'p>,
     {
-        self.nb_lshift = py_binary_fallbacked_num_func!(
+        self.nb_lshift = py_binary_fallback_num_func!(
             T,
             PyNumberLShiftProtocol::__lshift__,
             PyNumberRLShiftProtocol::__rlshift__
@@ -802,7 +802,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberRShiftProtocol<'p> + for<'p> PyNumberRRShiftProtocol<'p>,
     {
-        self.nb_rshift = py_binary_fallbacked_num_func!(
+        self.nb_rshift = py_binary_fallback_num_func!(
             T,
             PyNumberRShiftProtocol::__rshift__,
             PyNumberRRShiftProtocol::__rrshift__
@@ -824,7 +824,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberAndProtocol<'p> + for<'p> PyNumberRAndProtocol<'p>,
     {
-        self.nb_and = py_binary_fallbacked_num_func!(
+        self.nb_and = py_binary_fallback_num_func!(
             T,
             PyNumberAndProtocol::__and__,
             PyNumberRAndProtocol::__rand__
@@ -846,7 +846,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberXorProtocol<'p> + for<'p> PyNumberRXorProtocol<'p>,
     {
-        self.nb_xor = py_binary_fallbacked_num_func!(
+        self.nb_xor = py_binary_fallback_num_func!(
             T,
             PyNumberXorProtocol::__xor__,
             PyNumberRXorProtocol::__rxor__
@@ -868,7 +868,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberOrProtocol<'p> + for<'p> PyNumberROrProtocol<'p>,
     {
-        self.nb_or = py_binary_fallbacked_num_func!(
+        self.nb_or = py_binary_fallback_num_func!(
             T,
             PyNumberOrProtocol::__or__,
             PyNumberROrProtocol::__ror__
@@ -980,7 +980,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberFloordivProtocol<'p> + for<'p> PyNumberRFloordivProtocol<'p>,
     {
-        self.nb_floor_divide = py_binary_fallbacked_num_func!(
+        self.nb_floor_divide = py_binary_fallback_num_func!(
             T,
             PyNumberFloordivProtocol::__floordiv__,
             PyNumberRFloordivProtocol::__rfloordiv__
@@ -1003,7 +1003,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberTruedivProtocol<'p> + for<'p> PyNumberRTruedivProtocol<'p>,
     {
-        self.nb_true_divide = py_binary_fallbacked_num_func!(
+        self.nb_true_divide = py_binary_fallback_num_func!(
             T,
             PyNumberTruedivProtocol::__truediv__,
             PyNumberRTruedivProtocol::__rtruediv__
@@ -1046,7 +1046,7 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberMatmulProtocol<'p> + for<'p> PyNumberRMatmulProtocol<'p>,
     {
-        self.nb_matrix_multiply = py_binary_fallbacked_num_func!(
+        self.nb_matrix_multiply = py_binary_fallback_num_func!(
             T,
             PyNumberMatmulProtocol::__matmul__,
             PyNumberRMatmulProtocol::__rmatmul__
