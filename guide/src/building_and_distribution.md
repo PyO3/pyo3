@@ -45,21 +45,28 @@ Cross compiling PyO3 modules is relatively straightforward and requires a few pi
 * A toolchain for your target.
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
 * A Python interpreter that's already been compiled for your target.
+* A Python interpreter that is built for your host and available through the `PATH`.
 * The headers that match the above interpreter.
 
 See https://github.com/japaric/rust-cross for a primer on cross compiling Rust in general.
 
 After you've obtained the above, you can build a cross compiled PyO3 module by setting a few extra environment variables:
 
-* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's Python interpreter. It is only necessary if compiling for Windows platforms
+* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's Python interpreter. **It is only necessary if targeting Windows platforms**
 * `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO.
-* If compiling for unix platforms, the `cross-compile` feature must be set.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 
 ```sh
-export PYO3_CROSS_INCLUDE_DIR="/home/pyo3/cross/sysroot/usr/include"
 export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target armv7-unknown-linux-gnueabihf
+```
+
+Or another example with the same sys root but building for windows:
+```sh
+export PYO3_CROSS_INCLUDE_DIR="/home/pyo3/cross/sysroot/usr/include"
+export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
+
+cargo build --target x86_64-pc-windows-gnu
 ```
