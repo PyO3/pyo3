@@ -270,12 +270,10 @@ fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossPython) -> Option<Pat
                 } else {
                     &cross.os
                 }) {
-                    println!("{:?}", f);
                     continue;
                 }
                 // Check if right arch
                 if !name.to_string_lossy().contains(&cross.arch) {
-                    println!("{:?}", f);
                     continue;
                 }
                 find_sysconfigdata(f.path(), cross)
@@ -316,7 +314,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_paths.lib_dir.to_owned()),
+        libdir: Some(python_paths.lib_dir),
         shared,
         ld_version,
         base_prefix: "".to_string(),
@@ -363,7 +361,7 @@ fn load_cross_compile_from_headers(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_paths.lib_dir.to_owned()),
+        libdir: Some(python_paths.lib_dir),
         shared,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
@@ -382,10 +380,10 @@ fn load_cross_compile_info(
     // Because compiling for windows on linux still includes the unix target family
     if target_family == "unix" {
         // Configure for unix platforms using the sysconfigdata file
-        return load_cross_compile_from_sysconfigdata(python_paths);
+        load_cross_compile_from_sysconfigdata(python_paths)
     } else {
         // Must configure by headers on windows platform
-        return load_cross_compile_from_headers(python_paths);
+        load_cross_compile_from_headers(python_paths)
     }
 }
 
