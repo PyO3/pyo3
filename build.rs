@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     convert::AsRef,
     env, fmt,
-    fs::{self, File},
+    fs::{self, DirEntry, File},
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -76,23 +76,27 @@ impl FromStr for PythonInterpreterKind {
     }
 }
 
-struct PythonPaths {
+struct CrossPython {
     lib_dir: String,
     include_dir: Option<String>,
+    os: String,
+    arch: String,
 }
 
-impl PythonPaths {
+impl CrossPython {
     fn both() -> Result<Self> {
-        Ok(PythonPaths {
-            include_dir: Some(PythonPaths::validate_variable("PYO3_CROSS_INCLUDE_DIR")?),
-            ..PythonPaths::lib_only()?
+        Ok(CrossPython {
+            include_dir: Some(CrossPython::validate_variable("PYO3_CROSS_INCLUDE_DIR")?),
+            ..CrossPython::lib_only()?
         })
     }
 
     fn lib_only() -> Result<Self> {
-        Ok(PythonPaths {
-            lib_dir: PythonPaths::validate_variable("PYO3_CROSS_LIB_DIR")?,
+        Ok(CrossPython {
+            lib_dir: CrossPython::validate_variable("PYO3_CROSS_LIB_DIR")?,
             include_dir: None,
+            os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
+            arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
         })
     }
 
@@ -113,17 +117,15 @@ impl PythonPaths {
     }
 }
 
-fn cross_compiling() -> Result<Option<PythonPaths>> {
+fn cross_compiling() -> Result<Option<CrossPython>> {
     if env::var("TARGET")? == env::var("HOST")? {
         return Ok(None);
     }
 
     if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
-        Ok(Some(PythonPaths::both()?))
-    } else if cfg!(feature = "cross-compile") {
-        Ok(Some(PythonPaths::lib_only()?))
+        Ok(Some(CrossPython::both()?))
     } else {
-        bail!("Cross compiling PyO3 for a unix platform requires the cross-compile feature to be enabled")
+        Ok(Some(CrossPython::lib_only()?))
     }
 }
 
@@ -185,6 +187,36 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
     config_map
 }
 
+fn parse_script_output(output: &str) -> HashMap<String, String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let mut i = line.splitn(2, ' ');
+            Some((i.next()?.into(), i.next()?.into()))
+        })
+        .collect()
+}
+
+fn as_bool(config: &HashMap<String, String>, key: &str) -> Result<bool> {
+    match config
+        .get(key)
+        .map(|x| x.as_str())
+        .ok_or(format!("{} is not defined", key))?
+    {
+        "1" | "true" | "True" => Ok(true),
+        "0" | "false" | "False" => Ok(false),
+        _ => Err(format!("{} must be a bool (1/true/True or 0/false/False", key).into()),
+    }
+}
+
+fn as_numeric<T: FromStr>(config: &HashMap<String, String>, key: &str) -> Result<T> {
+    config
+        .get(key)
+        .ok_or(format!("{} is not defined", key))?
+        .parse::<T>()
+        .map_err(|_| format!("Could not parse value of {}", key).into())
+}
+
 /// Parse sysconfigdata file
 ///
 /// The sysconfigdata is basically a dictionary, and since we can't really use this library to read
@@ -193,148 +225,89 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
 /// multiple lines we use the second regex to capture the additional string entry and add it to the
 /// previously captured key. We detect if this is a multi line entry by checking if the last capture
 /// group contains either `,` or `}`.
-///
-/// ## entry_re
-///
-/// The first part `'([a-zA-Z_0-9]*)'` we match a key in the dictionary and extract it without the quotes,
-/// The second capture group is `((?:"|')([\S ]*)(?:"|')|\d+)` we can split this capture group into 2,
-///
-/// * `(?:"|')([\S ]*)(?:"|')` here we have non capturing groups for the quotes `(?:'|")` and the
-///   capture group which matches all non-whitespace characters and any normal space characters.
-///   Since this is a capture group within another capture group, this is considered the third group
-///   and might be None if the value is not a string.
-/// * `\d+` matches any one or more digit characters.
-///
-/// The last capture `($|,|})`group allows us to check if the entry is finished or not. This is done
-/// by matching either:
-/// * The end of line `$`
-/// * The `,` to allow the entry of a new key
-/// * The end of the dictionary `}`
-///
-/// ## subsequent_re
-///
-/// Here we have the same string matching group as we have in `entry_re` with the end of entry detection.
-/// The only addition to this sub-regex is the matching of one or more whitespace characters `\s+`.
-///
-/// # Example matches
-///
-/// ```py
-/// build_time_vars = {'ABIFLAGS': 'm',
-/// 'AC_APPLE_UNIVERSAL_BUILD': 0,
-/// 'AIX_GENUINE_CPLUSPLUS': 0,
-/// 'ANDROID_API_LEVEL': 26,
-/// 'AR': 'arm-linux-androideabi-ar',
-/// 'ARFLAGS': 'rcs',
-/// 'BASECFLAGS': '-mfloat-abi=softfp -mfpu=vfpv3-d16 -Wno-unused-result '
-///               '-Wsign-compare -Wunreachable-code',
-/// 'BASECPPFLAGS': '-IObjects -IInclude -IPython'}
-/// ```
-#[cfg(feature = "cross-compile")]
 fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
-    let config_reader = BufReader::new(File::open(config_path)?);
-    let mut entries = HashMap::new();
+    let mut script = fs::read_to_string(config_path)?;
+    script += r#"
+print("version_major", build_time_vars["VERSION"][0])  # 3
+print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
+if "WITH_THREAD" in build_time_vars:
+    print("WITH_THREAD", build_time_vars["WITH_THREAD"])
+if "Py_TRACE_REFS" in build_time_vars:
+    print("Py_TRACE_REFS", build_time_vars["Py_TRACE_REFS"])
+if "COUNT_ALLOCS" in build_time_vars:
+    print("COUNT_ALLOCS", build_time_vars["COUNT_ALLOCS"])
+if "Py_REF_DEBUG" in build_time_vars:
+    print("Py_REF_DEBUG", build_time_vars["Py_REF_DEBUG"])
+print("Py_DEBUG", build_time_vars["Py_DEBUG"])
+print("Py_ENABLE_SHARED", build_time_vars["Py_ENABLE_SHARED"])
+print("LDVERSION", build_time_vars["LDVERSION"])
+print("SIZEOF_VOID_P", build_time_vars["SIZEOF_VOID_P"])
+"#;
+    let output = run_python_script(&find_interpreter()?, &script)?;
 
-    let entry_re = regex::Regex::new(r#"'([a-zA-Z_0-9]*)': ((?:"|')([\S ]*)(?:"|')|\d+)($|,|})"#)?;
-    let subsequent_re = regex::Regex::new(r#"\s+(?:"|')([\S ]*)(?:"|')($|,|})"#)?;
-    let mut previous_finished = None;
-    for maybe_line in config_reader.lines() {
-        let line = maybe_line?;
-        if previous_finished.is_none() {
-            let captures = match entry_re.captures(&line) {
-                Some(c) => c,
-                None => continue,
-            };
-            let key = captures[1].to_owned();
-            let val = if let Some(val) = captures.get(3) {
-                val.as_str().to_owned()
-            } else {
-                captures[2].to_owned()
-            };
-            if &captures[4] != "," && &captures[4] != "}" {
-                previous_finished = Some(key.clone());
-            }
-            entries.insert(key, val);
-        } else if let Some(ref key) = previous_finished {
-            let captures = match subsequent_re.captures(&line) {
-                Some(c) => c,
-                None => continue,
-            };
-            let prev = entries.remove(key).unwrap();
-            entries.insert(key.clone(), prev + &captures[1]);
+    Ok(parse_script_output(&output))
+}
 
-            if &captures[2] == "," || &captures[2] == "}" {
-                previous_finished = None;
+fn starts_with(entry: &DirEntry, pat: &str) -> bool {
+    let name = entry.file_name();
+    name.to_string_lossy().starts_with(pat)
+}
+fn ends_with(entry: &DirEntry, pat: &str) -> bool {
+    let name = entry.file_name();
+    name.to_string_lossy().ends_with(pat)
+}
+
+fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossPython) -> Option<PathBuf> {
+    for f in fs::read_dir(path).expect("Path does not exist") {
+        return match f {
+            Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => Some(f.path()),
+            Ok(ref f) if starts_with(f, "build") => find_sysconfigdata(f.path(), cross),
+            Ok(ref f) if starts_with(f, "lib.") => {
+                let name = f.file_name();
+                // check if right target os
+                if !name.to_string_lossy().contains(if cross.os == "android" {
+                    "linux"
+                } else {
+                    &cross.os
+                }) {
+                    println!("{:?}", f);
+                    continue;
+                }
+                // Check if right arch
+                if !name.to_string_lossy().contains(&cross.arch) {
+                    println!("{:?}", f);
+                    continue;
+                }
+                find_sysconfigdata(f.path(), cross)
             }
-        }
+            _ => continue,
+        };
     }
-
-    Ok(entries)
+    None
 }
 
 /// Find cross compilation information from sysconfigdata file
 ///
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
-///
-/// The ABI flags can be either u, d, or m according to PEP3148. Default flags became empty since
-/// m was removed in python 3.8. (?:u|d|m|) a non capturing group for these flags
-///
-/// platform follows the output from [sys.platform][2]
-/// [a-z0-9]+
-///
-/// Multi-arch is the target triple. ([a-z_\-0-9]*)? capturing group which might not be present.
-///
-/// # Examples
-/// ```txt
-/// _sysconfigdata__freebsd_.py
-/// _sysconfigdata_m_linux_x86_64-linux-gnu.py
-/// _sysconfigdata_d_darwin_x86_64-apple-darwin.py
-/// _sysconfigdata_u_windows_i686-pc-windows-gnu.py
-/// ```
+/// on python 3.6 or greater. On python 3.5 it is simply `_sysconfigdata.py`.
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
-/// [2]: https://docs.python.org/3/library/sys.html#sys.platform
-#[cfg(feature = "cross-compile")]
 fn load_cross_compile_from_sysconfigdata(
-    python_paths: PythonPaths,
+    python_paths: CrossPython,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let sysconfig_re =
-        regex::Regex::new(r"_sysconfigdata_(?:u|d|m|)_[a-z0-9]+_([a-z_\-0-9]*)?\.py$")?;
-    let mut walker = walkdir::WalkDir::new(&python_paths.lib_dir).into_iter();
-    let sysconfig_path = loop {
-        let entry = match walker.next() {
-            Some(Ok(entry)) => entry,
-            None => bail!("Could not find sysconfigdata file"),
-            _ => continue,
-        };
-        let entry = entry.into_path();
-        if sysconfig_re.is_match(entry.to_str().unwrap()) {
-            break entry;
-        }
-    };
+    let sysconfig_path = find_sysconfigdata(&python_paths.lib_dir, &python_paths)
+        .expect("_sysconfigdata*.py not found");
     let config_map = parse_sysconfigdata(sysconfig_path)?;
 
-    let shared = match config_map
-        .get("Py_ENABLE_SHARED")
-        .map(|x| x.as_str())
-        .ok_or("Py_ENABLE_SHARED is not defined")?
-    {
-        "1" | "true" | "True" => true,
-        "0" | "false" | "False" => false,
-        _ => panic!("Py_ENABLE_SHARED must be a bool (1/true/True or 0/false/False"),
-    };
-
-    let (major, minor) = match config_map.get("VERSION") {
-        Some(s) => {
-            let split = s.split('.').collect::<Vec<&str>>();
-            (split[0].parse::<u8>()?, split[1].parse::<u8>()?)
-        }
-        None => bail!("Could not find python version"),
-    };
-
+    let shared = as_bool(&config_map, "Py_ENABLE_SHARED")?;
+    let major = as_numeric(&config_map, "version_major")?;
+    let minor = as_numeric(&config_map, "version_minor")?;
     let ld_version = match config_map.get("LDVERSION") {
         Some(s) => s.clone(),
         None => format!("{}.{}", major, minor),
     };
+    let calcsize_pointer = as_numeric(&config_map, "SIZEOF_VOID_P").ok();
+
     let python_version = PythonVersion {
         major,
         minor: Some(minor),
@@ -348,14 +321,14 @@ fn load_cross_compile_from_sysconfigdata(
         ld_version,
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
-        calcsize_pointer: None,
+        calcsize_pointer,
     };
 
     Ok((interpreter_config, fix_config_map(config_map)))
 }
 
 fn load_cross_compile_from_headers(
-    python_paths: PythonPaths,
+    python_paths: CrossPython,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let python_include_dir = python_paths.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
@@ -386,15 +359,7 @@ fn load_cross_compile_from_headers(
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
-    let shared = match config_map
-        .get("Py_ENABLE_SHARED")
-        .map(|x| x.as_str())
-        .ok_or("Py_ENABLE_SHARED is not defined")?
-    {
-        "1" | "true" | "True" => true,
-        "0" | "false" | "False" => false,
-        _ => panic!("Py_ENABLE_SHARED must be a bool (1/true/True or 0/false/False"),
-    };
+    let shared = as_bool(&config_map, "Py_ENABLE_SHARED")?;
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
@@ -411,25 +376,17 @@ fn load_cross_compile_from_headers(
 
 #[allow(unused_variables)]
 fn load_cross_compile_info(
-    python_paths: PythonPaths,
+    python_paths: CrossPython,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
     // Because compiling for windows on linux still includes the unix target family
-    if target_family == "unix" && cfg!(feature = "cross-compile") {
+    if target_family == "unix" {
         // Configure for unix platforms using the sysconfigdata file
-        #[cfg(feature = "cross-compile")]
-        {
-            return load_cross_compile_from_sysconfigdata(python_paths);
-        }
-    } else if target_family == "windows" {
+        return load_cross_compile_from_sysconfigdata(python_paths);
+    } else {
         // Must configure by headers on windows platform
         return load_cross_compile_from_headers(python_paths);
     }
-
-    // If you get here you were on unix without cross-compile capabilities
-    bail!(
-        "Cross compiling PyO3 for a unix platform requires the cross-compile feature to be enabled"
-    );
 }
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -690,13 +647,7 @@ print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
     let output = run_python_script(interpreter, script)?;
-    let map: HashMap<String, String> = output
-        .lines()
-        .filter_map(|line| {
-            let mut i = line.splitn(2, ' ');
-            Some((i.next()?.into(), i.next()?.into()))
-        })
-        .collect();
+    let map: HashMap<String, String> = parse_script_output(&output);
     Ok(InterpreterConfig {
         version: PythonVersion {
             major: map["version_major"].parse()?,
