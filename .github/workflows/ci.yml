@@ -1,17 +1,23 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v2
       - run: pip install black==19.10b0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
+          components: rustfmt
       - name: Check python formatting (black)
         run: black --check .
       - name: Check rust formatting (rustfmt)
@@ -24,14 +30,17 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
+          components: clippy
       - run: make clippy
 
   build:
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
-    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }}
+    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} ${{ matrix.msrv }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
+        rust: [stable]
         python-version: [3.5, 3.6, 3.7, 3.8, 3.9-dev, pypy3]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
@@ -43,6 +52,12 @@ jobs:
           # There is no 64-bit pypy on windows
           - python-version: pypy3
             platform: { os: "windows-latest", python-architecture: "x64" }
+        include:
+          # Test minimal supported Rust version
+          - rust: 1.39.0
+            python-version: 3.8
+            platform: { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" }
+            msrv: "MSRV"
 
     steps:
       - uses: actions/checkout@v2
@@ -56,11 +71,12 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
           target: ${{ matrix.platform.rust-target }}
+          profile: minimal
 
-      - name: Prepare LD_LIBRARY_PATH (Ubuntu only)
-        if: matrix.platform.os == 'ubuntu-latest'
+      - if: matrix.platform.os == 'ubuntu-latest'
+        name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo ::set-env name=LD_LIBRARY_PATH::${pythonLocation}/lib
 
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
@@ -100,22 +116,22 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
+          profile: minimal
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --features "num-bigint num-complex" --no-fail-fast
         env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+          RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
       - uses: actions-rs/grcov@v0.1
         id: coverage
-      - run: echo ${{ steps.coverage.outputs.report }}
       - uses: codecov/codecov-action@v1
         with:
           file: ${{ steps.coverage.outputs.report }}
