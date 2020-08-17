@@ -76,56 +76,84 @@ impl FromStr for PythonInterpreterKind {
     }
 }
 
-struct CrossPython {
-    lib_dir: String,
-    include_dir: Option<String>,
+trait GetPrimitive {
+    fn get_bool(&self, key: &str) -> Result<bool>;
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>;
+}
+
+impl GetPrimitive for HashMap<String, String> {
+    fn get_bool(&self, key: &str) -> Result<bool> {
+        match self
+            .get(key)
+            .map(|x| x.as_str())
+            .ok_or(format!("{} is not defined", key))?
+        {
+            "1" | "true" | "True" => Ok(true),
+            "0" | "false" | "False" => Ok(false),
+            _ => Err(format!("{} must be a bool (1/true/True or 0/false/False", key).into()),
+        }
+    }
+
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T> {
+        self.get(key)
+            .ok_or(format!("{} is not defined", key))?
+            .parse::<T>()
+            .map_err(|_| format!("Could not parse value of {}", key).into())
+    }
+}
+
+struct CrossCompileConfig {
+    lib_dir: PathBuf,
+    include_dir: Option<PathBuf>,
     os: String,
     arch: String,
 }
 
-impl CrossPython {
+impl CrossCompileConfig {
     fn both() -> Result<Self> {
-        Ok(CrossPython {
-            include_dir: Some(CrossPython::validate_variable("PYO3_CROSS_INCLUDE_DIR")?),
-            ..CrossPython::lib_only()?
+        Ok(CrossCompileConfig {
+            include_dir: Some(CrossCompileConfig::validate_variable(
+                "PYO3_CROSS_INCLUDE_DIR",
+            )?),
+            ..CrossCompileConfig::lib_only()?
         })
     }
 
     fn lib_only() -> Result<Self> {
-        Ok(CrossPython {
-            lib_dir: CrossPython::validate_variable("PYO3_CROSS_LIB_DIR")?,
+        Ok(CrossCompileConfig {
+            lib_dir: CrossCompileConfig::validate_variable("PYO3_CROSS_LIB_DIR")?,
             include_dir: None,
             os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
             arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
         })
     }
 
-    fn validate_variable(var: &str) -> Result<String> {
-        let path = match env::var(var) {
-            Ok(v) => v,
-            Err(_) => bail!(
+    fn validate_variable(var: &str) -> Result<PathBuf> {
+        let path = match env::var_os(var) {
+            Some(v) => v,
+            None => bail!(
                 "Must provide {} environment variable when cross-compiling",
                 var
             ),
         };
 
         if fs::metadata(&path).is_err() {
-            bail!("{} value of {} does not exist", var, path)
+            bail!("{} value of {:?} does not exist", var, path)
         }
 
-        Ok(path)
+        Ok(path.into())
     }
 }
 
-fn cross_compiling() -> Result<Option<CrossPython>> {
+fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
     if env::var("TARGET")? == env::var("HOST")? {
         return Ok(None);
     }
 
     if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
-        Ok(Some(CrossPython::both()?))
+        Ok(Some(CrossCompileConfig::both()?))
     } else {
-        Ok(Some(CrossPython::lib_only()?))
+        Ok(Some(CrossCompileConfig::lib_only()?))
     }
 }
 
@@ -197,26 +225,6 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
         .collect()
 }
 
-fn as_bool(config: &HashMap<String, String>, key: &str) -> Result<bool> {
-    match config
-        .get(key)
-        .map(|x| x.as_str())
-        .ok_or(format!("{} is not defined", key))?
-    {
-        "1" | "true" | "True" => Ok(true),
-        "0" | "false" | "False" => Ok(false),
-        _ => Err(format!("{} must be a bool (1/true/True or 0/false/False", key).into()),
-    }
-}
-
-fn as_numeric<T: FromStr>(config: &HashMap<String, String>, key: &str) -> Result<T> {
-    config
-        .get(key)
-        .ok_or(format!("{} is not defined", key))?
-        .parse::<T>()
-        .map_err(|_| format!("Could not parse value of {}", key).into())
-}
-
 /// Parse sysconfigdata file
 ///
 /// The sysconfigdata is basically a dictionary, and since we can't really use this library to read
@@ -257,7 +265,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
     name.to_string_lossy().ends_with(pat)
 }
 
-fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossPython) -> Option<PathBuf> {
+fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Option<PathBuf> {
     for f in fs::read_dir(path).expect("Path does not exist") {
         return match f {
             Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => Some(f.path()),
@@ -291,20 +299,20 @@ fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossPython) -> Option<Pat
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 fn load_cross_compile_from_sysconfigdata(
-    python_paths: CrossPython,
+    python_paths: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let sysconfig_path = find_sysconfigdata(&python_paths.lib_dir, &python_paths)
         .expect("_sysconfigdata*.py not found");
     let config_map = parse_sysconfigdata(sysconfig_path)?;
 
-    let shared = as_bool(&config_map, "Py_ENABLE_SHARED")?;
-    let major = as_numeric(&config_map, "version_major")?;
-    let minor = as_numeric(&config_map, "version_minor")?;
+    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
+    let major = config_map.get_numeric("version_major")?;
+    let minor = config_map.get_numeric("version_minor")?;
     let ld_version = match config_map.get("LDVERSION") {
         Some(s) => s.clone(),
         None => format!("{}.{}", major, minor),
     };
-    let calcsize_pointer = as_numeric(&config_map, "SIZEOF_VOID_P").ok();
+    let calcsize_pointer = config_map.get_numeric("SIZEOF_VOID_P").ok();
 
     let python_version = PythonVersion {
         major,
@@ -314,7 +322,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_paths.lib_dir),
+        libdir: python_paths.lib_dir.to_str().map(String::from),
         shared,
         ld_version,
         base_prefix: "".to_string(),
@@ -326,29 +334,14 @@ fn load_cross_compile_from_sysconfigdata(
 }
 
 fn load_cross_compile_from_headers(
-    python_paths: CrossPython,
+    python_paths: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let python_include_dir = python_paths.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
-    let major = match patchlevel_defines
-        .get("PY_MAJOR_VERSION")
-        .map(|major| major.parse::<u8>())
-    {
-        Some(Ok(major)) => major,
-        Some(Err(e)) => bail!("Failed to parse PY_MAJOR_VERSION: {}", e),
-        None => bail!("PY_MAJOR_VERSION undefined"),
-    };
-
-    let minor = match patchlevel_defines
-        .get("PY_MINOR_VERSION")
-        .map(|minor| minor.parse::<u8>())
-    {
-        Some(Ok(minor)) => minor,
-        Some(Err(e)) => bail!("Failed to parse PY_MINOR_VERSION: {}", e),
-        None => bail!("PY_MINOR_VERSION undefined"),
-    };
+    let major = patchlevel_defines.get_numeric("PY_MAJOR_VERSION")?;
+    let minor = patchlevel_defines.get_numeric("PY_MINOR_VERSION")?;
 
     let python_version = PythonVersion {
         major,
@@ -357,11 +350,11 @@ fn load_cross_compile_from_headers(
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
-    let shared = as_bool(&config_map, "Py_ENABLE_SHARED")?;
+    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(python_paths.lib_dir),
+        libdir: python_paths.lib_dir.to_str().map(String::from),
         shared,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
@@ -372,9 +365,8 @@ fn load_cross_compile_from_headers(
     Ok((interpreter_config, fix_config_map(config_map)))
 }
 
-#[allow(unused_variables)]
 fn load_cross_compile_info(
-    python_paths: CrossPython,
+    python_paths: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
     let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
     // Because compiling for windows on linux still includes the unix target family

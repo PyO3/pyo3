@@ -45,7 +45,7 @@ Cross compiling PyO3 modules is relatively straightforward and requires a few pi
 * A toolchain for your target.
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
 * A Python interpreter that's already been compiled for your target.
-* A Python interpreter that is built for your host and available through the `PATH`.
+* A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#python-version) variable.
 * The headers that match the above interpreter.
 
 See https://github.com/japaric/rust-cross for a primer on cross compiling Rust in general.
