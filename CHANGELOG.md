@@ -42,8 +42,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Allows `&Self` as a `#[pymethods]` argument again. [#1071](https://github.com/PyO3/pyo3/pull/1071)
 - Fix best-effort build against PyPy 3.6. #[1092](https://github.com/PyO3/pyo3/pull/1092)
 - Improve lifetime elision in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
-- Fix python configuration detection when cross-compiling. [1077](https://github.com/PyO3/pyo3/issues/1077)
-- Link against libpython on android with `extension-module` set. [#1082](https://github.com/PyO3/pyo3/issues/1082)
+- Fix python configuration detection when cross-compiling. [#1095](https://github.com/PyO3/pyo3/pull/1095)
+- Link against libpython on android with `extension-module` set. [#1095](https://github.com/PyO3/pyo3/pull/1095)
 
 ## [0.11.1] - 2020-06-30
 ### Added

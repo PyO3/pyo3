@@ -227,12 +227,9 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 
 /// Parse sysconfigdata file
 ///
-/// The sysconfigdata is basically a dictionary, and since we can't really use this library to read
-/// it for us, egg and chicken type thing, we parse it with some regex. Here there are two regex's.
-/// The first one is to match an entry in the dictionary (`entry_re`). Then when the entry is on
-/// multiple lines we use the second regex to capture the additional string entry and add it to the
-/// previously captured key. We detect if this is a multi line entry by checking if the last capture
-/// group contains either `,` or `}`.
+/// The sysconfigdata is simply a dictionary containing all the build time variables used for the
+/// python executable and library. Here it is read and added to a script to extract only what is
+/// necessary. This necessitates a python interpreter for the host machine to work.
 fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
     let mut script = fs::read_to_string(config_path)?;
     script += r#"
@@ -265,6 +262,37 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
     name.to_string_lossy().ends_with(pat)
 }
 
+/// Finds the `_sysconfigdata*.py` file in the library path
+///
+/// From the python source this file is always going to be located at `build/lib.{PLATFORM}-{PY_MINOR_VERSION}`
+/// when built from source. The [exact line][1] is defined as:
+///
+/// ```py
+/// pybuilddir = 'build/lib.%s-%s' % (get_platform(), sys.version_info[:2])
+/// ```
+///
+/// Where get_platform returns a kebab-case formated string containing the os, the architecture and
+/// possibly the os' kernel version (not the case on linux). However, when installed using a package
+/// manager, the `_sysconfigdata*.py` file is installed in the `${PREFIX}/lib/python3.Y/` directory.
+/// The `_sysconfigdata*.py` is generally in a sub-directory of the location of `libpython3.Y.so`.
+/// So we must find the file in the following possible locations:
+///
+/// ```sh
+/// # distribution from package manager, lib_dir should include lib/
+/// ${INSTALL_PREFIX}/lib/python3.Y/_sysconfigdata*.py
+/// ${INSTALL_PREFIX}/lib/libpython3.Y.so
+/// ${INSTALL_PREFIX}/lib/python3.Y/config-3.Y-${HOST_TRIPLE}/libpython3.Y.so
+///
+/// # Built from source from host
+/// ${CROSS_COMPILED_LOCATION}/build/lib.linux-x86_64-Y/_sysconfigdata*.py
+/// ${CROSS_COMPILED_LOCATION}/libpython3.Y.so
+///
+/// # if cross compiled, kernel release is only present on certain OS targets.
+/// ${CROSS_COMPILED_LOCATION}/build/lib.{OS}(-{OS-KERNEL-RELEASE})?-{ARCH}-Y/_sysconfigdata*.py
+/// ${CROSS_COMPILED_LOCATION}/libpython3.Y.so
+/// ```
+///
+/// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Option<PathBuf> {
     for f in fs::read_dir(path).expect("Path does not exist") {
         return match f {
@@ -665,9 +693,10 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
     }
 
     check_target_architecture(interpreter_config)?;
+    let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    if !is_extension_module || cfg!(target_os = "windows") {
+    if !is_extension_module || target_os == "windows" || target_os == "android" {
         println!("{}", get_rustc_link_lib(&interpreter_config)?);
         if let Some(libdir) = &interpreter_config.libdir {
             println!("cargo:rustc-link-search=native={}", libdir);
