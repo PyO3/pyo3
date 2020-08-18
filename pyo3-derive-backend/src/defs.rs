@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::proto_method::MethodProto;
+use std::collections::HashSet;
 
 /// Predicates for `#[pyproto]`.
 pub struct Proto {
@@ -14,7 +15,7 @@ pub struct Proto {
     /// All methods registered as normal methods like `#[pymethods]`.
     pub py_methods: &'static [PyMethod],
     /// All methods registered to the slot table.
-    pub slot_setters: &'static [SlotSetter],
+    slot_setters: &'static [SlotSetter],
 }
 
 impl Proto {
@@ -29,6 +30,28 @@ impl Proto {
         Q: PartialEq<&'static str>,
     {
         self.py_methods.iter().find(|m| query == m.name)
+    }
+    // Since the order matters, we expose only the iterator instead of the slice.
+    pub(crate) fn setters(
+        &self,
+        mut implemented_protocols: HashSet<String>,
+    ) -> impl Iterator<Item = &'static str> {
+        self.slot_setters.iter().filter_map(move |setter| {
+            // If any required method is not implemented, we skip this setter.
+            if setter
+                .proto_names
+                .iter()
+                .any(|name| !implemented_protocols.contains(*name))
+            {
+                return None;
+            }
+            // To use 'paired' setter in priority, we remove used protocols.
+            // For example, if set_add_radd is already used, we shouldn't use set_add and set_radd.
+            for name in setter.proto_names {
+                implemented_protocols.remove(*name);
+            }
+            Some(setter.set_function)
+        })
     }
 }
 
@@ -59,7 +82,7 @@ impl PyMethod {
 }
 
 /// Represents a setter used to register a method to the method table.
-pub struct SlotSetter {
+struct SlotSetter {
     /// Protocols necessary for invoking this setter.
     /// E.g., we need `__setattr__` and `__delattr__` for invoking `set_setdelitem`.
     pub proto_names: &'static [&'static str],

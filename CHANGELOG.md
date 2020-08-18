@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Improve lifetime elision in `#[pyproto]`. [#1093](https://github.com/PyO3/pyo3/pull/1093)
 - Fix python configuration detection when cross-compiling. [#1095](https://github.com/PyO3/pyo3/pull/1095)
 - Link against libpython on android with `extension-module` set. [#1095](https://github.com/PyO3/pyo3/pull/1095)
+- Fix support for both `__add__` and `__radd__`  in the `+` operator when both are defined in `PyNumberProtocol`
+  (and similar for all other reversible operators). [#1107](https://github.com/PyO3/pyo3/pull/1107)
 
 ## [0.11.1] - 2020-06-30
 ### Added

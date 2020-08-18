@@ -125,7 +125,7 @@ macro_rules! py_binary_fallback_num_func {
                 match (lhs.extract(), rhs.extract()) {
                     (Ok(l), Ok(r)) => $class::$lop(l, r).convert(py),
                     _ => {
-                        // Next, try the right hand method (e.g., __add__)
+                        // Next, try the right hand method (e.g., __radd__)
                         let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(rhs);
                         let arg = extract_or_return_not_implemented!(lhs);
                         $class::$rop(&*slf.try_borrow()?, arg).convert(py)
