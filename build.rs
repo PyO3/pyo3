@@ -126,7 +126,7 @@ impl CrossCompileConfig {
             include_dir: None,
             os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
             arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
-            version: env::var_os("PYO3_PYTHON_VERSION").map(|s| s.into_string().unwrap()),
+            version: env::var_os("PYO3_CROSS_PYTHON_VERSION").map(|s| s.into_string().unwrap()),
         })
     }
 
@@ -296,7 +296,12 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
-    let mut sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let mut sysconfig_paths = sysconfig_paths
+        .iter()
+        .filter_map(|p| fs::canonicalize(p).ok())
+        .collect::<Vec<PathBuf>>();
+    sysconfig_paths.dedup();
     if sysconfig_paths.is_empty() {
         bail!(
             "Could not find either libpython.so or _sysconfigdata*.py in {}",
@@ -378,7 +383,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: python_paths.lib_dir.to_str().map(String::from), //libpython_path.to_str().map(String::from),
+        libdir: python_paths.lib_dir.to_str().map(String::from),
         shared,
         ld_version,
         base_prefix: "".to_string(),
