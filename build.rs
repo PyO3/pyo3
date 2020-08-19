@@ -105,6 +105,7 @@ impl GetPrimitive for HashMap<String, String> {
 struct CrossCompileConfig {
     lib_dir: PathBuf,
     include_dir: Option<PathBuf>,
+    version: Option<String>,
     os: String,
     arch: String,
 }
@@ -125,6 +126,7 @@ impl CrossCompileConfig {
             include_dir: None,
             os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
             arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
+            version: env::var_os("PYO3_PYTHON_VERSION").map(|s| s.into_string().unwrap()),
         })
     }
 
@@ -262,10 +264,10 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
     name.to_string_lossy().ends_with(pat)
 }
 
-/// Finds the `_sysconfigdata*.py` file in the library path
+/// Finds the `_sysconfigdata*.py` file in the library path.
 ///
-/// From the python source this file is always going to be located at `build/lib.{PLATFORM}-{PY_MINOR_VERSION}`
-/// when built from source. The [exact line][1] is defined as:
+/// From the python source for `_sysconfigdata*.py` is always going to be located at
+/// `build/lib.{PLATFORM}-{PY_MINOR_VERSION}` when built from source. The [exact line][1] is defined as:
 ///
 /// ```py
 /// pybuilddir = 'build/lib.%s-%s' % (get_platform(), sys.version_info[:2])
@@ -293,11 +295,36 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// ```
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
-fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Option<PathBuf> {
+fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+    let mut sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    if sysconfig_paths.len() == 0 {
+        bail!(
+            "Could not find either libpython.so or _sysconfigdata*.py in {}",
+            cross.lib_dir.display()
+        );
+    } else if sysconfig_paths.len() > 1 {
+        bail!(
+            "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
+            variable to the wanted version on your system\nsysconfigdata paths = {:?}",
+            sysconfig_paths
+        )
+    }
+
+    Ok(sysconfig_paths.remove(0))
+}
+
+/// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
+fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
+    let mut sysconfig_paths = vec![];
+    let version_pat = if let Some(ref v) = cross.version {
+        format!("python{}", v)
+    } else {
+        "python3.".into()
+    };
     for f in fs::read_dir(path).expect("Path does not exist") {
-        return match f {
-            Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => Some(f.path()),
-            Ok(ref f) if starts_with(f, "build") => find_sysconfigdata(f.path(), cross),
+        let sysc = match f {
+            Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
+            Ok(ref f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
             Ok(ref f) if starts_with(f, "lib.") => {
                 let name = f.file_name();
                 // check if right target os
@@ -312,12 +339,14 @@ fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Opt
                 if !name.to_string_lossy().contains(&cross.arch) {
                     continue;
                 }
-                find_sysconfigdata(f.path(), cross)
+                search_lib_dir(f.path(), cross)
             }
+            Ok(ref f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
             _ => continue,
         };
+        sysconfig_paths.extend(sysc);
     }
-    None
+    sysconfig_paths
 }
 
 /// Find cross compilation information from sysconfigdata file
@@ -329,8 +358,7 @@ fn find_sysconfigdata(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Opt
 fn load_cross_compile_from_sysconfigdata(
     python_paths: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let sysconfig_path = find_sysconfigdata(&python_paths.lib_dir, &python_paths)
-        .expect("_sysconfigdata*.py not found");
+    let sysconfig_path = find_sysconfigdata(&python_paths)?;
     let config_map = parse_sysconfigdata(sysconfig_path)?;
 
     let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
@@ -350,7 +378,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: python_paths.lib_dir.to_str().map(String::from),
+        libdir: python_paths.lib_dir.to_str().map(String::from), //libpython_path.to_str().map(String::from),
         shared,
         ld_version,
         base_prefix: "".to_string(),
