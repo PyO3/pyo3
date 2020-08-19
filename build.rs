@@ -297,7 +297,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let mut sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
-    if sysconfig_paths.len() == 0 {
+    if sysconfig_paths.is_empty() {
         bail!(
             "Could not find either libpython.so or _sysconfigdata*.py in {}",
             cross.lib_dir.display()
