@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     convert::AsRef,
     env, fmt,
-    fs::File,
+    fs::{self, DirEntry, File},
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -76,6 +76,89 @@ impl FromStr for PythonInterpreterKind {
     }
 }
 
+trait GetPrimitive {
+    fn get_bool(&self, key: &str) -> Result<bool>;
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>;
+}
+
+impl GetPrimitive for HashMap<String, String> {
+    fn get_bool(&self, key: &str) -> Result<bool> {
+        match self
+            .get(key)
+            .map(|x| x.as_str())
+            .ok_or(format!("{} is not defined", key))?
+        {
+            "1" | "true" | "True" => Ok(true),
+            "0" | "false" | "False" => Ok(false),
+            _ => Err(format!("{} must be a bool (1/true/True or 0/false/False", key).into()),
+        }
+    }
+
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T> {
+        self.get(key)
+            .ok_or(format!("{} is not defined", key))?
+            .parse::<T>()
+            .map_err(|_| format!("Could not parse value of {}", key).into())
+    }
+}
+
+struct CrossCompileConfig {
+    lib_dir: PathBuf,
+    include_dir: Option<PathBuf>,
+    version: Option<String>,
+    os: String,
+    arch: String,
+}
+
+impl CrossCompileConfig {
+    fn both() -> Result<Self> {
+        Ok(CrossCompileConfig {
+            include_dir: Some(CrossCompileConfig::validate_variable(
+                "PYO3_CROSS_INCLUDE_DIR",
+            )?),
+            ..CrossCompileConfig::lib_only()?
+        })
+    }
+
+    fn lib_only() -> Result<Self> {
+        Ok(CrossCompileConfig {
+            lib_dir: CrossCompileConfig::validate_variable("PYO3_CROSS_LIB_DIR")?,
+            include_dir: None,
+            os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
+            arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
+            version: env::var_os("PYO3_CROSS_PYTHON_VERSION").map(|s| s.into_string().unwrap()),
+        })
+    }
+
+    fn validate_variable(var: &str) -> Result<PathBuf> {
+        let path = match env::var_os(var) {
+            Some(v) => v,
+            None => bail!(
+                "Must provide {} environment variable when cross-compiling",
+                var
+            ),
+        };
+
+        if fs::metadata(&path).is_err() {
+            bail!("{} value of {:?} does not exist", var, path)
+        }
+
+        Ok(path.into())
+    }
+}
+
+fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
+    if env::var("TARGET")? == env::var("HOST")? {
+        return Ok(None);
+    }
+
+    if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
+        Ok(Some(CrossCompileConfig::both()?))
+    } else {
+        Ok(Some(CrossCompileConfig::lib_only()?))
+    }
+}
+
 /// A list of python interpreter compile-time preprocessor defines that
 /// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
 /// this allows using them conditional cfg attributes in the .rs files, so
@@ -134,29 +217,192 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
     config_map
 }
 
-fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, String>)> {
-    let python_include_dir = env::var("PYO3_CROSS_INCLUDE_DIR")?;
-    let python_include_dir = Path::new(&python_include_dir);
+fn parse_script_output(output: &str) -> HashMap<String, String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let mut i = line.splitn(2, ' ');
+            Some((i.next()?.into(), i.next()?.into()))
+        })
+        .collect()
+}
 
+/// Parse sysconfigdata file
+///
+/// The sysconfigdata is simply a dictionary containing all the build time variables used for the
+/// python executable and library. Here it is read and added to a script to extract only what is
+/// necessary. This necessitates a python interpreter for the host machine to work.
+fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
+    let mut script = fs::read_to_string(config_path)?;
+    script += r#"
+print("version_major", build_time_vars["VERSION"][0])  # 3
+print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
+if "WITH_THREAD" in build_time_vars:
+    print("WITH_THREAD", build_time_vars["WITH_THREAD"])
+if "Py_TRACE_REFS" in build_time_vars:
+    print("Py_TRACE_REFS", build_time_vars["Py_TRACE_REFS"])
+if "COUNT_ALLOCS" in build_time_vars:
+    print("COUNT_ALLOCS", build_time_vars["COUNT_ALLOCS"])
+if "Py_REF_DEBUG" in build_time_vars:
+    print("Py_REF_DEBUG", build_time_vars["Py_REF_DEBUG"])
+print("Py_DEBUG", build_time_vars["Py_DEBUG"])
+print("Py_ENABLE_SHARED", build_time_vars["Py_ENABLE_SHARED"])
+print("LDVERSION", build_time_vars["LDVERSION"])
+print("SIZEOF_VOID_P", build_time_vars["SIZEOF_VOID_P"])
+"#;
+    let output = run_python_script(&find_interpreter()?, &script)?;
+
+    Ok(parse_script_output(&output))
+}
+
+fn starts_with(entry: &DirEntry, pat: &str) -> bool {
+    let name = entry.file_name();
+    name.to_string_lossy().starts_with(pat)
+}
+fn ends_with(entry: &DirEntry, pat: &str) -> bool {
+    let name = entry.file_name();
+    name.to_string_lossy().ends_with(pat)
+}
+
+/// Finds the `_sysconfigdata*.py` file in the library path.
+///
+/// From the python source for `_sysconfigdata*.py` is always going to be located at
+/// `build/lib.{PLATFORM}-{PY_MINOR_VERSION}` when built from source. The [exact line][1] is defined as:
+///
+/// ```py
+/// pybuilddir = 'build/lib.%s-%s' % (get_platform(), sys.version_info[:2])
+/// ```
+///
+/// Where get_platform returns a kebab-case formated string containing the os, the architecture and
+/// possibly the os' kernel version (not the case on linux). However, when installed using a package
+/// manager, the `_sysconfigdata*.py` file is installed in the `${PREFIX}/lib/python3.Y/` directory.
+/// The `_sysconfigdata*.py` is generally in a sub-directory of the location of `libpython3.Y.so`.
+/// So we must find the file in the following possible locations:
+///
+/// ```sh
+/// # distribution from package manager, lib_dir should include lib/
+/// ${INSTALL_PREFIX}/lib/python3.Y/_sysconfigdata*.py
+/// ${INSTALL_PREFIX}/lib/libpython3.Y.so
+/// ${INSTALL_PREFIX}/lib/python3.Y/config-3.Y-${HOST_TRIPLE}/libpython3.Y.so
+///
+/// # Built from source from host
+/// ${CROSS_COMPILED_LOCATION}/build/lib.linux-x86_64-Y/_sysconfigdata*.py
+/// ${CROSS_COMPILED_LOCATION}/libpython3.Y.so
+///
+/// # if cross compiled, kernel release is only present on certain OS targets.
+/// ${CROSS_COMPILED_LOCATION}/build/lib.{OS}(-{OS-KERNEL-RELEASE})?-{ARCH}-Y/_sysconfigdata*.py
+/// ${CROSS_COMPILED_LOCATION}/libpython3.Y.so
+/// ```
+///
+/// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
+fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+    let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let mut sysconfig_paths = sysconfig_paths
+        .iter()
+        .filter_map(|p| fs::canonicalize(p).ok())
+        .collect::<Vec<PathBuf>>();
+    sysconfig_paths.dedup();
+    if sysconfig_paths.is_empty() {
+        bail!(
+            "Could not find either libpython.so or _sysconfigdata*.py in {}",
+            cross.lib_dir.display()
+        );
+    } else if sysconfig_paths.len() > 1 {
+        bail!(
+            "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
+            variable to the wanted version on your system\nsysconfigdata paths = {:?}",
+            sysconfig_paths
+        )
+    }
+
+    Ok(sysconfig_paths.remove(0))
+}
+
+/// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
+fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
+    let mut sysconfig_paths = vec![];
+    let version_pat = if let Some(ref v) = cross.version {
+        format!("python{}", v)
+    } else {
+        "python3.".into()
+    };
+    for f in fs::read_dir(path).expect("Path does not exist") {
+        let sysc = match f {
+            Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
+            Ok(ref f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
+            Ok(ref f) if starts_with(f, "lib.") => {
+                let name = f.file_name();
+                // check if right target os
+                if !name.to_string_lossy().contains(if cross.os == "android" {
+                    "linux"
+                } else {
+                    &cross.os
+                }) {
+                    continue;
+                }
+                // Check if right arch
+                if !name.to_string_lossy().contains(&cross.arch) {
+                    continue;
+                }
+                search_lib_dir(f.path(), cross)
+            }
+            Ok(ref f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
+            _ => continue,
+        };
+        sysconfig_paths.extend(sysc);
+    }
+    sysconfig_paths
+}
+
+/// Find cross compilation information from sysconfigdata file
+///
+/// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
+/// on python 3.6 or greater. On python 3.5 it is simply `_sysconfigdata.py`.
+///
+/// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
+fn load_cross_compile_from_sysconfigdata(
+    python_paths: CrossCompileConfig,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let sysconfig_path = find_sysconfigdata(&python_paths)?;
+    let config_map = parse_sysconfigdata(sysconfig_path)?;
+
+    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
+    let major = config_map.get_numeric("version_major")?;
+    let minor = config_map.get_numeric("version_minor")?;
+    let ld_version = match config_map.get("LDVERSION") {
+        Some(s) => s.clone(),
+        None => format!("{}.{}", major, minor),
+    };
+    let calcsize_pointer = config_map.get_numeric("SIZEOF_VOID_P").ok();
+
+    let python_version = PythonVersion {
+        major,
+        minor: Some(minor),
+        implementation: PythonInterpreterKind::CPython,
+    };
+
+    let interpreter_config = InterpreterConfig {
+        version: python_version,
+        libdir: python_paths.lib_dir.to_str().map(String::from),
+        shared,
+        ld_version,
+        base_prefix: "".to_string(),
+        executable: PathBuf::new(),
+        calcsize_pointer,
+    };
+
+    Ok((interpreter_config, fix_config_map(config_map)))
+}
+
+fn load_cross_compile_from_headers(
+    python_paths: CrossCompileConfig,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let python_include_dir = python_paths.include_dir.unwrap();
+    let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
-    let major = match patchlevel_defines
-        .get("PY_MAJOR_VERSION")
-        .map(|major| major.parse::<u8>())
-    {
-        Some(Ok(major)) => major,
-        Some(Err(e)) => bail!("Failed to parse PY_MAJOR_VERSION: {}", e),
-        None => bail!("PY_MAJOR_VERSION undefined"),
-    };
-
-    let minor = match patchlevel_defines
-        .get("PY_MINOR_VERSION")
-        .map(|minor| minor.parse::<u8>())
-    {
-        Some(Ok(minor)) => minor,
-        Some(Err(e)) => bail!("Failed to parse PY_MINOR_VERSION: {}", e),
-        None => bail!("PY_MINOR_VERSION undefined"),
-    };
+    let major = patchlevel_defines.get_numeric("PY_MAJOR_VERSION")?;
+    let minor = patchlevel_defines.get_numeric("PY_MINOR_VERSION")?;
 
     let python_version = PythonVersion {
         major,
@@ -165,27 +411,33 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
-    let shared = match config_map
-        .get("Py_ENABLE_SHARED")
-        .map(|x| x.as_str())
-        .ok_or("Py_ENABLE_SHARED is not defined")?
-    {
-        "1" | "true" | "True" => true,
-        "0" | "false" | "False" => false,
-        _ => panic!("Py_ENABLE_SHARED must be a bool (1/true/True or 0/false/False"),
-    };
+    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: Some(env::var("PYO3_CROSS_LIB_DIR")?),
+        libdir: python_paths.lib_dir.to_str().map(String::from),
         shared,
-        ld_version: "".to_string(),
+        ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer: None,
     };
 
     Ok((interpreter_config, fix_config_map(config_map)))
+}
+
+fn load_cross_compile_info(
+    python_paths: CrossCompileConfig,
+) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+    let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
+    // Because compiling for windows on linux still includes the unix target family
+    if target_family == "unix" {
+        // Configure for unix platforms using the sysconfigdata file
+        load_cross_compile_from_sysconfigdata(python_paths)
+    } else {
+        // Must configure by headers on windows platform
+        load_cross_compile_from_headers(python_paths)
+    }
 }
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -446,13 +698,7 @@ print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
     let output = run_python_script(interpreter, script)?;
-    let map: HashMap<String, String> = output
-        .lines()
-        .filter_map(|line| {
-            let mut i = line.splitn(2, ' ');
-            Some((i.next()?.into(), i.next()?.into()))
-        })
-        .collect();
+    let map: HashMap<String, String> = parse_script_output(&output);
     Ok(InterpreterConfig {
         version: PythonVersion {
             major: map["version_major"].parse()?,
@@ -480,9 +726,10 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
     }
 
     check_target_architecture(interpreter_config)?;
+    let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    if !is_extension_module || cfg!(target_os = "windows") {
+    if !is_extension_module || target_os == "windows" || target_os == "android" {
         println!("{}", get_rustc_link_lib(&interpreter_config)?);
         if let Some(libdir) = &interpreter_config.libdir {
             println!("cargo:rustc-link-search=native={}", libdir);
@@ -567,10 +814,14 @@ fn main() -> Result<()> {
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let cross_compiling =
-        env::var("PYO3_CROSS_INCLUDE_DIR").is_ok() && env::var("PYO3_CROSS_LIB_DIR").is_ok();
-    let (interpreter_config, mut config_map) = if cross_compiling {
-        load_cross_compile_info()?
+    //
+    // Detecting if cross-compiling by checking if the target triple is different from the host
+    // rustc's triple.
+    let (interpreter_config, mut config_map) = if let Some(paths) = cross_compiling()? {
+        // If cross compiling we need the path to the cross-compiled include dir and lib dir, else
+        // fail quickly and loudly
+
+        load_cross_compile_info(paths)?
     } else {
         find_interpreter_and_get_config()?
     };
