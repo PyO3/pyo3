@@ -1,7 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_unary_func {
     ($trait: ident, $class:ident :: $f:ident, $call:ident, $ret_type: ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
@@ -24,8 +22,6 @@ macro_rules! py_unary_func {
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_unarys_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
@@ -45,16 +41,12 @@ macro_rules! py_unarys_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_len_func {
     ($trait:ident, $class:ident :: $f:ident) => {
         py_unary_func!($trait, $class::$f, $crate::ffi::Py_ssize_t)
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_func {
     // Use call_ref! by default
     ($trait:ident, $class:ident :: $f:ident, $return:ty, $call:ident) => {{
@@ -78,8 +70,6 @@ macro_rules! py_binary_func {
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -99,8 +89,6 @@ macro_rules! py_binary_num_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_reversed_num_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -112,10 +100,37 @@ macro_rules! py_binary_reversed_num_func {
         {
             $crate::callback_body!(py, {
                 // Swap lhs <-> rhs
-                let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(rhs);
-                let arg = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
+                let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(py, rhs);
+                let arg = extract_or_return_not_implemented!(py, lhs);
+                $class::$f(&*slf.try_borrow()?, arg).convert(py)
+            })
+        }
+        Some(wrap::<$class>)
+    }};
+}
 
-                $class::$f(&*slf.try_borrow()?, arg.extract()?).convert(py)
+macro_rules! py_binary_fallback_num_func {
+    ($class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {{
+        unsafe extern "C" fn wrap<T>(
+            lhs: *mut ffi::PyObject,
+            rhs: *mut ffi::PyObject,
+        ) -> *mut $crate::ffi::PyObject
+        where
+            T: for<'p> $lop_trait<'p> + for<'p> $rop_trait<'p>,
+        {
+            $crate::callback_body!(py, {
+                let lhs = py.from_borrowed_ptr::<$crate::PyAny>(lhs);
+                let rhs = py.from_borrowed_ptr::<$crate::PyAny>(rhs);
+                // First, try the left hand method (e.g., __add__)
+                match (lhs.extract(), rhs.extract()) {
+                    (Ok(l), Ok(r)) => $class::$lop(l, r).convert(py),
+                    _ => {
+                        // Next, try the right hand method (e.g., __radd__)
+                        let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(rhs);
+                        let arg = extract_or_return_not_implemented!(lhs);
+                        $class::$rop(&*slf.try_borrow()?, arg).convert(py)
+                    }
+                }
             })
         }
         Some(wrap::<$class>)
@@ -123,8 +138,6 @@ macro_rules! py_binary_reversed_num_func {
 }
 
 // NOTE(kngwyu): This macro is used only for inplace operations, so I used call_mut here.
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_binary_self_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
@@ -146,8 +159,6 @@ macro_rules! py_binary_self_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_ssizearg_func {
     // Use call_ref! by default
     ($trait:ident, $class:ident :: $f:ident) => {
@@ -170,8 +181,6 @@ macro_rules! py_ssizearg_func {
     }};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident, $return_type:ty) => {{
         unsafe extern "C" fn wrap<T>(
@@ -203,83 +212,6 @@ macro_rules! py_ternarys_func {
     ($trait:ident, $class:ident :: $f:ident) => {
         py_ternarys_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
     };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_ternary_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            arg1: *mut $crate::ffi::PyObject,
-            arg2: *mut $crate::ffi::PyObject,
-            arg3: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                let arg1 = py
-                    .from_borrowed_ptr::<$crate::types::PyAny>(arg1)
-                    .extract()?;
-                let arg2 = extract_or_return_not_implemented!(py, arg2);
-                let arg3 = extract_or_return_not_implemented!(py, arg3);
-                $class::$f(arg1, arg2, arg3).convert(py)
-            })
-        }
-
-        Some(wrap::<T>)
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_ternary_reversed_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            arg1: *mut $crate::ffi::PyObject,
-            arg2: *mut $crate::ffi::PyObject,
-            arg3: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                // Swap lhs <-> rhs
-                let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(arg2);
-                let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-                let arg2 = py.from_borrowed_ptr::<$crate::PyAny>(arg3);
-
-                $class::$f(&*slf.try_borrow()?, arg1.extract()?, arg2.extract()?).convert(py)
-            })
-        }
-        Some(wrap::<$class>)
-    }};
-}
-
-// NOTE(kngwyu): Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract arg2,
-// so we ignore it. It's the same as what CPython does.
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_dummy_ternary_self_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut $crate::ffi::PyObject,
-            arg1: *mut $crate::ffi::PyObject,
-            _arg2: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject
-        where
-            T: for<'p> $trait<'p>,
-        {
-            $crate::callback_body!(py, {
-                let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-                let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-                call_operator_mut!(py, slf_cell, $f, arg1).convert(py)?;
-                ffi::Py_INCREF(slf);
-                Ok(slf)
-            })
-        }
-        Some(wrap::<$class>)
-    }};
 }
 
 macro_rules! py_func_set {
@@ -370,6 +302,16 @@ macro_rules! py_func_set_del {
 }
 
 macro_rules! extract_or_return_not_implemented {
+    ($arg: ident) => {
+        match $arg.extract() {
+            Ok(value) => value,
+            Err(_) => {
+                let res = $crate::ffi::Py_NotImplemented();
+                ffi::Py_INCREF(res);
+                return Ok(res);
+            }
+        }
+    };
     ($py: ident, $arg: ident) => {
         match $py
             .from_borrowed_ptr::<$crate::types::PyAny>($arg)

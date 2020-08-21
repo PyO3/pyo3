@@ -134,25 +134,11 @@ fn slot_initialization(
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
-    // Some setters cannot coexist.
-    // E.g., if we have `__add__`, we need to skip `set_radd`.
-    let mut skipped_setters = Vec::new();
     // Collect initializers
     let mut initializers: Vec<TokenStream> = vec![];
-    'outer_loop: for m in proto.slot_setters {
-        if skipped_setters.contains(&m.set_function) {
-            continue;
-        }
-        for name in m.proto_names {
-            // If this `#[pyproto]` block doesn't provide all required methods,
-            // let's skip implementing this method.
-            if !method_names.contains(*name) {
-                continue 'outer_loop;
-            }
-        }
-        skipped_setters.extend_from_slice(m.skipped_setters);
+    for setter in proto.setters(method_names) {
         // Add slot methods to PyProtoRegistry
-        let set = syn::Ident::new(m.set_function, Span::call_site());
+        let set = syn::Ident::new(setter, Span::call_site());
         initializers.push(quote! { table.#set::<#ty>(); });
     }
     if initializers.is_empty() {

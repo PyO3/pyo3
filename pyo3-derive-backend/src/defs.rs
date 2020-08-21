@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::proto_method::MethodProto;
+use std::collections::HashSet;
 
 /// Predicates for `#[pyproto]`.
 pub struct Proto {
@@ -14,7 +15,7 @@ pub struct Proto {
     /// All methods registered as normal methods like `#[pymethods]`.
     pub py_methods: &'static [PyMethod],
     /// All methods registered to the slot table.
-    pub slot_setters: &'static [SlotSetter],
+    slot_setters: &'static [SlotSetter],
 }
 
 impl Proto {
@@ -29,6 +30,28 @@ impl Proto {
         Q: PartialEq<&'static str>,
     {
         self.py_methods.iter().find(|m| query == m.name)
+    }
+    // Since the order matters, we expose only the iterator instead of the slice.
+    pub(crate) fn setters(
+        &self,
+        mut implemented_protocols: HashSet<String>,
+    ) -> impl Iterator<Item = &'static str> {
+        self.slot_setters.iter().filter_map(move |setter| {
+            // If any required method is not implemented, we skip this setter.
+            if setter
+                .proto_names
+                .iter()
+                .any(|name| !implemented_protocols.contains(*name))
+            {
+                return None;
+            }
+            // To use 'paired' setter in priority, we remove used protocols.
+            // For example, if set_add_radd is already used, we shouldn't use set_add and set_radd.
+            for name in setter.proto_names {
+                implemented_protocols.remove(*name);
+            }
+            Some(setter.set_function)
+        })
     }
 }
 
@@ -59,24 +82,19 @@ impl PyMethod {
 }
 
 /// Represents a setter used to register a method to the method table.
-pub struct SlotSetter {
+struct SlotSetter {
     /// Protocols necessary for invoking this setter.
     /// E.g., we need `__setattr__` and `__delattr__` for invoking `set_setdelitem`.
     pub proto_names: &'static [&'static str],
     /// The name of the setter called to the method table.
     pub set_function: &'static str,
-    /// Represents a set of setters disabled by this setter.
-    /// E.g., `set_setdelitem` have to disable `set_setitem` and `set_delitem`.
-    pub skipped_setters: &'static [&'static str],
 }
 
 impl SlotSetter {
-    const EMPTY_SETTERS: &'static [&'static str] = &[];
     const fn new(names: &'static [&'static str], set_function: &'static str) -> Self {
         SlotSetter {
             proto_names: names,
             set_function,
-            skipped_setters: Self::EMPTY_SETTERS,
         }
     }
 }
@@ -144,11 +162,7 @@ pub const OBJECT: Proto = Proto {
         SlotSetter::new(&["__hash__"], "set_hash"),
         SlotSetter::new(&["__getattr__"], "set_getattr"),
         SlotSetter::new(&["__richcmp__"], "set_richcompare"),
-        SlotSetter {
-            proto_names: &["__setattr__", "__delattr__"],
-            set_function: "set_setdelattr",
-            skipped_setters: &["set_setattr", "set_delattr"],
-        },
+        SlotSetter::new(&["__setattr__", "__delattr__"], "set_setdelattr"),
         SlotSetter::new(&["__setattr__"], "set_setattr"),
         SlotSetter::new(&["__delattr__"], "set_delattr"),
         SlotSetter::new(&["__bool__"], "set_bool"),
@@ -379,11 +393,7 @@ pub const MAPPING: Proto = Proto {
     slot_setters: &[
         SlotSetter::new(&["__len__"], "set_length"),
         SlotSetter::new(&["__getitem__"], "set_getitem"),
-        SlotSetter {
-            proto_names: &["__setitem__", "__delitem__"],
-            set_function: "set_setdelitem",
-            skipped_setters: &["set_setitem", "set_delitem"],
-        },
+        SlotSetter::new(&["__setitem__", "__delitem__"], "set_setdelitem"),
         SlotSetter::new(&["__setitem__"], "set_setitem"),
         SlotSetter::new(&["__delitem__"], "set_delitem"),
     ],
@@ -446,11 +456,7 @@ pub const SEQ: Proto = Proto {
         SlotSetter::new(&["__concat__"], "set_concat"),
         SlotSetter::new(&["__repeat__"], "set_repeat"),
         SlotSetter::new(&["__getitem__"], "set_getitem"),
-        SlotSetter {
-            proto_names: &["__setitem__", "__delitem__"],
-            set_function: "set_setdelitem",
-            skipped_setters: &["set_setitem", "set_delitem"],
-        },
+        SlotSetter::new(&["__setitem__", "__delitem__"], "set_setdelitem"),
         SlotSetter::new(&["__setitem__"], "set_setitem"),
         SlotSetter::new(&["__delitem__"], "set_delitem"),
         SlotSetter::new(&["__contains__"], "set_contains"),
@@ -766,71 +772,40 @@ pub const NUM: Proto = Proto {
         ),
     ],
     slot_setters: &[
-        SlotSetter {
-            proto_names: &["__add__"],
-            set_function: "set_add",
-            skipped_setters: &["set_radd"],
-        },
+        SlotSetter::new(&["__add__", "__radd__"], "set_add_radd"),
+        SlotSetter::new(&["__add__"], "set_add"),
         SlotSetter::new(&["__radd__"], "set_radd"),
-        SlotSetter {
-            proto_names: &["__sub__"],
-            set_function: "set_sub",
-            skipped_setters: &["set_rsub"],
-        },
+        SlotSetter::new(&["__sub__", "__rsub__"], "set_sub_rsub"),
+        SlotSetter::new(&["__sub__"], "set_sub"),
         SlotSetter::new(&["__rsub__"], "set_rsub"),
-        SlotSetter {
-            proto_names: &["__mul__"],
-            set_function: "set_mul",
-            skipped_setters: &["set_rmul"],
-        },
+        SlotSetter::new(&["__mul__", "__rmul__"], "set_mul_rmul"),
+        SlotSetter::new(&["__mul__"], "set_mul"),
         SlotSetter::new(&["__rmul__"], "set_rmul"),
         SlotSetter::new(&["__mod__"], "set_mod"),
-        SlotSetter {
-            proto_names: &["__divmod__"],
-            set_function: "set_divmod",
-            skipped_setters: &["set_rdivmod"],
-        },
+        SlotSetter::new(&["__divmod__", "__rdivmod__"], "set_divmod_rdivmod"),
+        SlotSetter::new(&["__divmod__"], "set_divmod"),
         SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
-        SlotSetter {
-            proto_names: &["__pow__"],
-            set_function: "set_pow",
-            skipped_setters: &["set_rpow"],
-        },
+        SlotSetter::new(&["__pow__", "__rpow__"], "set_pow_rpow"),
+        SlotSetter::new(&["__pow__"], "set_pow"),
         SlotSetter::new(&["__rpow__"], "set_rpow"),
         SlotSetter::new(&["__neg__"], "set_neg"),
         SlotSetter::new(&["__pos__"], "set_pos"),
         SlotSetter::new(&["__abs__"], "set_abs"),
         SlotSetter::new(&["__invert__"], "set_invert"),
-        SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
-        SlotSetter {
-            proto_names: &["__lshift__"],
-            set_function: "set_lshift",
-            skipped_setters: &["set_rlshift"],
-        },
+        SlotSetter::new(&["__lshift__", "__rlshift__"], "set_lshift_rlshift"),
+        SlotSetter::new(&["__lshift__"], "set_lshift"),
         SlotSetter::new(&["__rlshift__"], "set_rlshift"),
-        SlotSetter {
-            proto_names: &["__rshift__"],
-            set_function: "set_rshift",
-            skipped_setters: &["set_rrshift"],
-        },
+        SlotSetter::new(&["__rshift__", "__rrshift__"], "set_rshift_rrshift"),
+        SlotSetter::new(&["__rshift__"], "set_rshift"),
         SlotSetter::new(&["__rrshift__"], "set_rrshift"),
-        SlotSetter {
-            proto_names: &["__and__"],
-            set_function: "set_and",
-            skipped_setters: &["set_rand"],
-        },
+        SlotSetter::new(&["__and__", "__rand__"], "set_and_rand"),
+        SlotSetter::new(&["__and__"], "set_and"),
         SlotSetter::new(&["__rand__"], "set_rand"),
-        SlotSetter {
-            proto_names: &["__xor__"],
-            set_function: "set_xor",
-            skipped_setters: &["set_rxor"],
-        },
+        SlotSetter::new(&["__xor__", "__rxor__"], "set_xor_rxor"),
+        SlotSetter::new(&["__xor__"], "set_xor"),
         SlotSetter::new(&["__rxor__"], "set_rxor"),
-        SlotSetter {
-            proto_names: &["__or__"],
-            set_function: "set_or",
-            skipped_setters: &["set_ror"],
-        },
+        SlotSetter::new(&["__or__", "__ror__"], "set_or_ror"),
+        SlotSetter::new(&["__or__"], "set_or"),
         SlotSetter::new(&["__ror__"], "set_ror"),
         SlotSetter::new(&["__int__"], "set_int"),
         SlotSetter::new(&["__float__"], "set_float"),
@@ -844,26 +819,17 @@ pub const NUM: Proto = Proto {
         SlotSetter::new(&["__iand__"], "set_iand"),
         SlotSetter::new(&["__ixor__"], "set_ixor"),
         SlotSetter::new(&["__ior__"], "set_ior"),
-        SlotSetter {
-            proto_names: &["__floordiv__"],
-            set_function: "set_floordiv",
-            skipped_setters: &["set_rfloordiv"],
-        },
+        SlotSetter::new(&["__floordiv__", "__rfloordiv__"], "set_floordiv_rfloordiv"),
+        SlotSetter::new(&["__floordiv__"], "set_floordiv"),
         SlotSetter::new(&["__rfloordiv__"], "set_rfloordiv"),
-        SlotSetter {
-            proto_names: &["__truediv__"],
-            set_function: "set_truediv",
-            skipped_setters: &["set_rtruediv"],
-        },
+        SlotSetter::new(&["__truediv__", "__rtruediv__"], "set_truediv_rtruediv"),
+        SlotSetter::new(&["__truediv__"], "set_truediv"),
         SlotSetter::new(&["__rtruediv__"], "set_rtruediv"),
         SlotSetter::new(&["__ifloordiv__"], "set_ifloordiv"),
         SlotSetter::new(&["__itruediv__"], "set_itruediv"),
         SlotSetter::new(&["__index__"], "set_index"),
-        SlotSetter {
-            proto_names: &["__matmul__"],
-            set_function: "set_matmul",
-            skipped_setters: &["set_rmatmul"],
-        },
+        SlotSetter::new(&["__matmul__", "__rmatmul__"], "set_matmul_rmatmul"),
+        SlotSetter::new(&["__matmul__"], "set_matmul"),
         SlotSetter::new(&["__rmatmul__"], "set_rmatmul"),
         SlotSetter::new(&["__imatmul__"], "set_imatmul"),
     ],

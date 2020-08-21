@@ -280,10 +280,56 @@ fn rhs_arithmetic() {
 }
 
 #[pyclass]
-struct LhsAndRhsArithmetic {}
+struct LhsAndRhs {}
+
+impl std::fmt::Debug for LhsAndRhs {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "LR")
+    }
+}
 
 #[pyproto]
-impl PyNumberProtocol for LhsAndRhsArithmetic {
+impl PyNumberProtocol for LhsAndRhs {
+    fn __add__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} + {:?}", lhs, rhs)
+    }
+
+    fn __sub__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} - {:?}", lhs, rhs)
+    }
+
+    fn __mul__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} * {:?}", lhs, rhs)
+    }
+
+    fn __lshift__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} << {:?}", lhs, rhs)
+    }
+
+    fn __rshift__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} >> {:?}", lhs, rhs)
+    }
+
+    fn __and__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} & {:?}", lhs, rhs)
+    }
+
+    fn __xor__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} ^ {:?}", lhs, rhs)
+    }
+
+    fn __or__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} | {:?}", lhs, rhs)
+    }
+
+    fn __pow__(lhs: PyRef<Self>, rhs: &PyAny, _mod: Option<usize>) -> String {
+        format!("{:?} ** {:?}", lhs, rhs)
+    }
+
+    fn __matmul__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} @ {:?}", lhs, rhs)
+    }
+
     fn __radd__(&self, other: &PyAny) -> String {
         format!("{:?} + RA", other)
     }
@@ -292,44 +338,74 @@ impl PyNumberProtocol for LhsAndRhsArithmetic {
         format!("{:?} - RA", other)
     }
 
+    fn __rmul__(&self, other: &PyAny) -> String {
+        format!("{:?} * RA", other)
+    }
+
+    fn __rlshift__(&self, other: &PyAny) -> String {
+        format!("{:?} << RA", other)
+    }
+
+    fn __rrshift__(&self, other: &PyAny) -> String {
+        format!("{:?} >> RA", other)
+    }
+
+    fn __rand__(&self, other: &PyAny) -> String {
+        format!("{:?} & RA", other)
+    }
+
+    fn __rxor__(&self, other: &PyAny) -> String {
+        format!("{:?} ^ RA", other)
+    }
+
+    fn __ror__(&self, other: &PyAny) -> String {
+        format!("{:?} | RA", other)
+    }
+
     fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
         format!("{:?} ** RA", other)
     }
 
-    fn __add__(lhs: &PyAny, rhs: &PyAny) -> String {
-        format!("{:?} + {:?}", lhs, rhs)
-    }
-
-    fn __sub__(lhs: &PyAny, rhs: &PyAny) -> String {
-        format!("{:?} - {:?}", lhs, rhs)
-    }
-
-    fn __pow__(lhs: &PyAny, rhs: &PyAny, _mod: Option<u32>) -> String {
-        format!("{:?} ** {:?}", lhs, rhs)
+    fn __rmatmul__(&self, other: &PyAny) -> String {
+        format!("{:?} @ RA", other)
     }
 }
 
 #[pyproto]
-impl PyObjectProtocol for LhsAndRhsArithmetic {
+impl PyObjectProtocol for LhsAndRhs {
     fn __repr__(&self) -> &'static str {
         "BA"
     }
 }
 
 #[test]
-fn lhs_override_rhs() {
+fn lhs_fellback_to_rhs() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new(py, LhsAndRhsArithmetic {}).unwrap();
-    // Not overrided
-    py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
-    py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
-    py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
-    // Overrided
-    py_run!(py, c, "assert 1 + c == '1 + BA'");
-    py_run!(py, c, "assert 1 - c == '1 - BA'");
-    py_run!(py, c, "assert 1 ** c == '1 ** BA'");
+    let c = PyCell::new(py, LhsAndRhs {}).unwrap();
+    // If the light hand value is `LhsAndRhs`, LHS is used.
+    py_run!(py, c, "assert c + 1 == 'LR + 1'");
+    py_run!(py, c, "assert c - 1 == 'LR - 1'");
+    py_run!(py, c, "assert c * 1 == 'LR * 1'");
+    py_run!(py, c, "assert c << 1 == 'LR << 1'");
+    py_run!(py, c, "assert c >> 1 == 'LR >> 1'");
+    py_run!(py, c, "assert c & 1 == 'LR & 1'");
+    py_run!(py, c, "assert c ^ 1 == 'LR ^ 1'");
+    py_run!(py, c, "assert c | 1 == 'LR | 1'");
+    py_run!(py, c, "assert c ** 1 == 'LR ** 1'");
+    py_run!(py, c, "assert c @ 1 == 'LR @ 1'");
+    // Fellback to RHS because of type mismatching
+    py_run!(py, c, "assert 1 + c == '1 + RA'");
+    py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert 1 * c == '1 * RA'");
+    py_run!(py, c, "assert 1 << c == '1 << RA'");
+    py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+    py_run!(py, c, "assert 1 & c == '1 & RA'");
+    py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+    py_run!(py, c, "assert 1 | c == '1 | RA'");
+    py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+    py_run!(py, c, "assert 1 @ c == '1 @ RA'");
 }
 
 #[pyclass]

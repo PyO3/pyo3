@@ -585,6 +585,16 @@ impl ffi::PyNumberMethods {
         nm.nb_bool = Some(nb_bool);
         Box::into_raw(Box::new(nm))
     }
+    pub fn set_add_radd<T>(&mut self)
+    where
+        T: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,
+    {
+        self.nb_add = py_binary_fallback_num_func!(
+            T,
+            PyNumberAddProtocol::__add__,
+            PyNumberRAddProtocol::__radd__
+        );
+    }
     pub fn set_add<T>(&mut self)
     where
         T: for<'p> PyNumberAddProtocol<'p>,
@@ -597,6 +607,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_add = py_binary_reversed_num_func!(PyNumberRAddProtocol, T::__radd__);
     }
+    pub fn set_sub_rsub<T>(&mut self)
+    where
+        T: for<'p> PyNumberSubProtocol<'p> + for<'p> PyNumberRSubProtocol<'p>,
+    {
+        self.nb_subtract = py_binary_fallback_num_func!(
+            T,
+            PyNumberSubProtocol::__sub__,
+            PyNumberRSubProtocol::__rsub__
+        );
+    }
     pub fn set_sub<T>(&mut self)
     where
         T: for<'p> PyNumberSubProtocol<'p>,
@@ -608,6 +628,16 @@ impl ffi::PyNumberMethods {
         T: for<'p> PyNumberRSubProtocol<'p>,
     {
         self.nb_subtract = py_binary_reversed_num_func!(PyNumberRSubProtocol, T::__rsub__);
+    }
+    pub fn set_mul_rmul<T>(&mut self)
+    where
+        T: for<'p> PyNumberMulProtocol<'p> + for<'p> PyNumberRMulProtocol<'p>,
+    {
+        self.nb_multiply = py_binary_fallback_num_func!(
+            T,
+            PyNumberMulProtocol::__mul__,
+            PyNumberRMulProtocol::__rmul__
+        );
     }
     pub fn set_mul<T>(&mut self)
     where
@@ -627,6 +657,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_remainder = py_binary_num_func!(PyNumberModProtocol, T::__mod__);
     }
+    pub fn set_divmod_rdivmod<T>(&mut self)
+    where
+        T: for<'p> PyNumberDivmodProtocol<'p> + for<'p> PyNumberRDivmodProtocol<'p>,
+    {
+        self.nb_divmod = py_binary_fallback_num_func!(
+            T,
+            PyNumberDivmodProtocol::__divmod__,
+            PyNumberRDivmodProtocol::__rdivmod__
+        );
+    }
     pub fn set_divmod<T>(&mut self)
     where
         T: for<'p> PyNumberDivmodProtocol<'p>,
@@ -639,17 +679,78 @@ impl ffi::PyNumberMethods {
     {
         self.nb_divmod = py_binary_reversed_num_func!(PyNumberRDivmodProtocol, T::__rdivmod__);
     }
+    pub fn set_pow_rpow<T>(&mut self)
+    where
+        T: for<'p> PyNumberPowProtocol<'p> + for<'p> PyNumberRPowProtocol<'p>,
+    {
+        unsafe extern "C" fn wrap_pow_and_rpow<T>(
+            lhs: *mut crate::ffi::PyObject,
+            rhs: *mut crate::ffi::PyObject,
+            modulo: *mut crate::ffi::PyObject,
+        ) -> *mut crate::ffi::PyObject
+        where
+            T: for<'p> PyNumberPowProtocol<'p> + for<'p> PyNumberRPowProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let lhs = py.from_borrowed_ptr::<crate::PyAny>(lhs);
+                let rhs = py.from_borrowed_ptr::<crate::PyAny>(rhs);
+                let modulo = py.from_borrowed_ptr::<crate::PyAny>(modulo);
+                // First, try __pow__
+                match (lhs.extract(), rhs.extract(), modulo.extract()) {
+                    (Ok(l), Ok(r), Ok(m)) => T::__pow__(l, r, m).convert(py),
+                    _ => {
+                        // Then try __rpow__
+                        let slf: &crate::PyCell<T> = extract_or_return_not_implemented!(rhs);
+                        let arg = extract_or_return_not_implemented!(lhs);
+                        let modulo = extract_or_return_not_implemented!(modulo);
+                        slf.try_borrow()?.__rpow__(arg, modulo).convert(py)
+                    }
+                }
+            })
+        }
+        self.nb_power = Some(wrap_pow_and_rpow::<T>);
+    }
     pub fn set_pow<T>(&mut self)
     where
         T: for<'p> PyNumberPowProtocol<'p>,
     {
-        self.nb_power = py_ternary_num_func!(PyNumberPowProtocol, T::__pow__);
+        unsafe extern "C" fn wrap_pow<T>(
+            lhs: *mut crate::ffi::PyObject,
+            rhs: *mut crate::ffi::PyObject,
+            modulo: *mut crate::ffi::PyObject,
+        ) -> *mut crate::ffi::PyObject
+        where
+            T: for<'p> PyNumberPowProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let lhs = extract_or_return_not_implemented!(py, lhs);
+                let rhs = extract_or_return_not_implemented!(py, rhs);
+                let modulo = extract_or_return_not_implemented!(py, modulo);
+                T::__pow__(lhs, rhs, modulo).convert(py)
+            })
+        }
+        self.nb_power = Some(wrap_pow::<T>);
     }
     pub fn set_rpow<T>(&mut self)
     where
         T: for<'p> PyNumberRPowProtocol<'p>,
     {
-        self.nb_power = py_ternary_reversed_num_func!(PyNumberRPowProtocol, T::__rpow__);
+        unsafe extern "C" fn wrap_rpow<T>(
+            arg: *mut crate::ffi::PyObject,
+            slf: *mut crate::ffi::PyObject,
+            modulo: *mut crate::ffi::PyObject,
+        ) -> *mut crate::ffi::PyObject
+        where
+            T: for<'p> PyNumberRPowProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let slf: &crate::PyCell<T> = extract_or_return_not_implemented!(py, slf);
+                let arg = extract_or_return_not_implemented!(py, arg);
+                let modulo = extract_or_return_not_implemented!(py, modulo);
+                slf.try_borrow()?.__rpow__(arg, modulo).convert(py)
+            })
+        }
+        self.nb_power = Some(wrap_rpow::<T>);
     }
     pub fn set_neg<T>(&mut self)
     where
@@ -675,6 +776,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_invert = py_unary_func!(PyNumberInvertProtocol, T::__invert__);
     }
+    pub fn set_lshift_rlshift<T>(&mut self)
+    where
+        T: for<'p> PyNumberLShiftProtocol<'p> + for<'p> PyNumberRLShiftProtocol<'p>,
+    {
+        self.nb_lshift = py_binary_fallback_num_func!(
+            T,
+            PyNumberLShiftProtocol::__lshift__,
+            PyNumberRLShiftProtocol::__rlshift__
+        );
+    }
     pub fn set_lshift<T>(&mut self)
     where
         T: for<'p> PyNumberLShiftProtocol<'p>,
@@ -686,6 +797,16 @@ impl ffi::PyNumberMethods {
         T: for<'p> PyNumberRLShiftProtocol<'p>,
     {
         self.nb_lshift = py_binary_reversed_num_func!(PyNumberRLShiftProtocol, T::__rlshift__);
+    }
+    pub fn set_rshift_rrshift<T>(&mut self)
+    where
+        T: for<'p> PyNumberRShiftProtocol<'p> + for<'p> PyNumberRRShiftProtocol<'p>,
+    {
+        self.nb_rshift = py_binary_fallback_num_func!(
+            T,
+            PyNumberRShiftProtocol::__rshift__,
+            PyNumberRRShiftProtocol::__rrshift__
+        );
     }
     pub fn set_rshift<T>(&mut self)
     where
@@ -699,6 +820,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_rshift = py_binary_reversed_num_func!(PyNumberRRShiftProtocol, T::__rrshift__);
     }
+    pub fn set_and_rand<T>(&mut self)
+    where
+        T: for<'p> PyNumberAndProtocol<'p> + for<'p> PyNumberRAndProtocol<'p>,
+    {
+        self.nb_and = py_binary_fallback_num_func!(
+            T,
+            PyNumberAndProtocol::__and__,
+            PyNumberRAndProtocol::__rand__
+        );
+    }
     pub fn set_and<T>(&mut self)
     where
         T: for<'p> PyNumberAndProtocol<'p>,
@@ -711,6 +842,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_and = py_binary_reversed_num_func!(PyNumberRAndProtocol, T::__rand__);
     }
+    pub fn set_xor_rxor<T>(&mut self)
+    where
+        T: for<'p> PyNumberXorProtocol<'p> + for<'p> PyNumberRXorProtocol<'p>,
+    {
+        self.nb_xor = py_binary_fallback_num_func!(
+            T,
+            PyNumberXorProtocol::__xor__,
+            PyNumberRXorProtocol::__rxor__
+        );
+    }
     pub fn set_xor<T>(&mut self)
     where
         T: for<'p> PyNumberXorProtocol<'p>,
@@ -722,6 +863,16 @@ impl ffi::PyNumberMethods {
         T: for<'p> PyNumberRXorProtocol<'p>,
     {
         self.nb_xor = py_binary_reversed_num_func!(PyNumberRXorProtocol, T::__rxor__);
+    }
+    pub fn set_or_ror<T>(&mut self)
+    where
+        T: for<'p> PyNumberOrProtocol<'p> + for<'p> PyNumberROrProtocol<'p>,
+    {
+        self.nb_or = py_binary_fallback_num_func!(
+            T,
+            PyNumberOrProtocol::__or__,
+            PyNumberROrProtocol::__ror__
+        );
     }
     pub fn set_or<T>(&mut self)
     where
@@ -775,7 +926,25 @@ impl ffi::PyNumberMethods {
     where
         T: for<'p> PyNumberIPowProtocol<'p>,
     {
-        self.nb_inplace_power = py_dummy_ternary_self_func!(PyNumberIPowProtocol, T::__ipow__)
+        // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
+        // so we ignore it. It's the same as what CPython does.
+        unsafe extern "C" fn wrap_ipow<T>(
+            slf: *mut crate::ffi::PyObject,
+            other: *mut crate::ffi::PyObject,
+            _modulo: *mut crate::ffi::PyObject,
+        ) -> *mut crate::ffi::PyObject
+        where
+            T: for<'p> PyNumberIPowProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+                let other = py.from_borrowed_ptr::<crate::PyAny>(other);
+                call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
+                ffi::Py_INCREF(slf);
+                Ok(slf)
+            })
+        }
+        self.nb_inplace_power = Some(wrap_ipow::<T>);
     }
     pub fn set_ilshift<T>(&mut self)
     where
@@ -807,6 +976,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_inplace_or = py_binary_self_func!(PyNumberIOrProtocol, T::__ior__);
     }
+    pub fn set_floordiv_rfloordiv<T>(&mut self)
+    where
+        T: for<'p> PyNumberFloordivProtocol<'p> + for<'p> PyNumberRFloordivProtocol<'p>,
+    {
+        self.nb_floor_divide = py_binary_fallback_num_func!(
+            T,
+            PyNumberFloordivProtocol::__floordiv__,
+            PyNumberRFloordivProtocol::__rfloordiv__
+        );
+    }
     pub fn set_floordiv<T>(&mut self)
     where
         T: for<'p> PyNumberFloordivProtocol<'p>,
@@ -819,6 +998,16 @@ impl ffi::PyNumberMethods {
     {
         self.nb_floor_divide =
             py_binary_reversed_num_func!(PyNumberRFloordivProtocol, T::__rfloordiv__);
+    }
+    pub fn set_truediv_rtruediv<T>(&mut self)
+    where
+        T: for<'p> PyNumberTruedivProtocol<'p> + for<'p> PyNumberRTruedivProtocol<'p>,
+    {
+        self.nb_true_divide = py_binary_fallback_num_func!(
+            T,
+            PyNumberTruedivProtocol::__truediv__,
+            PyNumberRTruedivProtocol::__rtruediv__
+        );
     }
     pub fn set_truediv<T>(&mut self)
     where
@@ -852,6 +1041,16 @@ impl ffi::PyNumberMethods {
         T: for<'p> PyNumberIndexProtocol<'p>,
     {
         self.nb_index = py_unary_func!(PyNumberIndexProtocol, T::__index__);
+    }
+    pub fn set_matmul_rmatmul<T>(&mut self)
+    where
+        T: for<'p> PyNumberMatmulProtocol<'p> + for<'p> PyNumberRMatmulProtocol<'p>,
+    {
+        self.nb_matrix_multiply = py_binary_fallback_num_func!(
+            T,
+            PyNumberMatmulProtocol::__matmul__,
+            PyNumberRMatmulProtocol::__rmatmul__
+        );
     }
     pub fn set_matmul<T>(&mut self)
     where
