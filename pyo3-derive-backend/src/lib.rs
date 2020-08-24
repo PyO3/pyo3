@@ -4,6 +4,7 @@
 #![recursion_limit = "1024"]
 
 mod defs;
+mod frompy;
 mod konst;
 mod method;
 mod module;
@@ -15,6 +16,7 @@ mod pymethod;
 mod pyproto;
 mod utils;
 
+pub use frompy::build_derive_from_pyobject;
 pub use module::{add_fn_to_module, process_functions_in_module, py_init};
 pub use pyclass::{build_py_class, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionAttr};
