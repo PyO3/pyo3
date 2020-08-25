@@ -79,3 +79,7 @@ export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target x86_64-pc-windows-gnu
 ```
+
+## Bazel
+
+For an example of how to build python extensions using Bazel, see https://github.com/TheButlah/rules_pyo3
