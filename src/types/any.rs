@@ -163,7 +163,7 @@ impl PyAny {
             } else if do_compare(other, ffi::Py_GT)? {
                 Ok(Ordering::Greater)
             } else {
-                Err(PyTypeError::py_err(
+                Err(PyTypeError::new_err(
                     "PyAny::compare(): All comparisons returned false",
                 ))
             }

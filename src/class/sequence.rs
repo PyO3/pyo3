@@ -223,7 +223,7 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                 if value.is_null() {
-                    return Err(PyErr::new::<exceptions::PyNotImplementedError, _>(format!(
+                    return Err(exceptions::PyNotImplementedError::new_err(format!(
                         "Item deletion is not supported by {:?}",
                         stringify!(T)
                     )));

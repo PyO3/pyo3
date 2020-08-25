@@ -40,7 +40,7 @@ macro_rules! int_fits_larger_int {
             fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::PyOverflowError::py_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
         }
     };
@@ -86,7 +86,7 @@ macro_rules! int_fits_c_long {
                     }
                 }?;
                 <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::PyOverflowError::py_err(e.to_string()))
+                    .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
         }
     };

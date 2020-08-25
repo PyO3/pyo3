@@ -43,7 +43,7 @@ pub fn parse_fn_args<'p>(
     let nargs = args.len();
     let mut used_args = 0;
     macro_rules! raise_error {
-        ($s: expr $(,$arg:expr)*) => (return Err(PyTypeError::py_err(format!(
+        ($s: expr $(,$arg:expr)*) => (return Err(PyTypeError::new_err(format!(
             concat!("{} ", $s), fname.unwrap_or("function") $(,$arg)*
         ))))
     }

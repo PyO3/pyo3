@@ -365,10 +365,8 @@ fn decrement_gil_count() {
     });
 }
 
-/// Ensure the GIL is held, useful in implementation of APIs like PyErr::new where it's
-/// inconvenient to force the user to acquire the GIL.
-#[doc(hidden)]
-pub fn ensure_gil() -> EnsureGIL {
+/// Ensure the GIL is held, used in the implementation of Python::with_gil
+pub(crate) fn ensure_gil() -> EnsureGIL {
     if gil_is_acquired() {
         EnsureGIL(None)
     } else {
@@ -377,8 +375,7 @@ pub fn ensure_gil() -> EnsureGIL {
 }
 
 /// Struct used internally which avoids acquiring the GIL where it's not necessary.
-#[doc(hidden)]
-pub struct EnsureGIL(Option<GILGuard>);
+pub(crate) struct EnsureGIL(Option<GILGuard>);
 
 impl EnsureGIL {
     /// Get the GIL token.

@@ -191,7 +191,7 @@ impl fmt::Display for MyError {
 /// Important for the automatic conversion to `PyErr`.
 impl From<MyError> for PyErr {
     fn from(err: MyError) -> pyo3::PyErr {
-        pyo3::exceptions::PyOSError::py_err(err.to_string())
+        pyo3::exceptions::PyOSError::new_err(err.to_string())
     }
 }
 

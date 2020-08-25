@@ -86,7 +86,7 @@ impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
         if self <= (isize::MAX as usize) {
             Ok(self as isize)
         } else {
-            Err(PyOverflowError::py_err(()))
+            Err(PyOverflowError::new_err(()))
         }
     }
 }
@@ -244,11 +244,11 @@ macro_rules! callback_body_without_convert {
             Err(e) => {
                 // Try to format the error in the same way panic does
                 if let Some(string) = e.downcast_ref::<String>() {
-                    Err($crate::panic::PanicException::py_err((string.clone(),)))
+                    Err($crate::panic::PanicException::new_err((string.clone(),)))
                 } else if let Some(s) = e.downcast_ref::<&str>() {
-                    Err($crate::panic::PanicException::py_err((s.to_string(),)))
+                    Err($crate::panic::PanicException::new_err((s.to_string(),)))
                 } else {
-                    Err($crate::panic::PanicException::py_err((
+                    Err($crate::panic::PanicException::new_err((
                         "panic from Rust code",
                     )))
                 }

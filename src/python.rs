@@ -126,7 +126,7 @@ impl<'p> Python<'p> {
     ///             .collect();
     ///         let mut sum = 0;
     ///         for t in threads {
-    ///             sum += t.join().map_err(|_| PyErr::new::<PyRuntimeError, _>(()))?;
+    ///             sum += t.join().map_err(|_| PyRuntimeError::new_err(()))?;
     ///         }
     ///         Ok(sum)
     ///     })

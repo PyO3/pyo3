@@ -5,13 +5,88 @@ For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/p
 
 ## from 0.11.* to 0.12
 
-### `FromPy` has been removed
-To simplify the PyO3 public conversion trait hierarchy, the `FromPy` has been removed. In PyO3
-`0.11` there were two ways to define the to-Python conversion for a type: `FromPy<T> for PyObject`,
-and `IntoPy<PyObject> for T`.
+### `PyErr` has been reworked
 
-Now, the canonical implementation is always `IntoPy`, so downstream crates may need to adjust
-accordingly.
+In PyO3 `0.12` the `PyErr` type has been re-implemented to be significantly more compatible with
+the standard Rust error handling ecosystem. Specificially `PyErr` now implements
+`Error + Send + Sync`, which are the standard traits used for error types.
+
+While this has necessitated the removal of a number of APIs, the resulting `PyErr` type should now
+be much more easier to work with. The following sections list the changes in detail and how to
+migrate to the new APIs.
+
+#### `PyErr::new` and `PyErr::from_type` now require `Send + Sync` for their argument
+
+For most uses no change will be needed. If you are trying to construct `PyErr` from a value that is
+not `Send + Sync`, you will need to first create the Python object and then use
+`PyErr::from_instance`.
+
+Similarly, any types which implemented `PyErrArguments` will now need to be `Send + Sync`.
+
+#### `PyErr`'s contents are now private
+
+It is no longer possible to access the fields `.ptype`, `.pvalue` and `.ptraceback` of a `PyErr`.
+You should instead now use the new methods `PyErr::ptype()`, `PyErr::pvalue()` and `PyErr::ptraceback()`.
+
+#### `PyErrValue` and `PyErr::from_value` have been removed
+
+As these were part the internals of `PyErr` which have been reworked, these APIs no longer exist.
+
+If you used this API, it is recommended to use `PyException::new_err` (see [the section on
+Exception types](#exception-types-have-been-reworked)).
+
+#### `Into<PyResult<T>>` for `PyErr` has been removed
+
+This implementation was redundant. Just construct the `Result::Err` variant directly.
+
+Before:
+```rust,ignore
+let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
+```
+
+After (also using the new reworked exception types; see the following section):
+```rust
+# use pyo3::{PyErr, PyResult, exceptions::PyTypeError};
+let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
+```
+
+### Exception types have been reworked
+
+Previously exception types were zero-sized marker types purely used to construct `PyErr`. In PyO3
+0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc. This
+makes it possible to interact with Python exception objects.
+
+The new types also have names starting with the "Py" prefix. For example, before:
+
+```rust,ignore
+let err: PyErr = TypeError::py_err("error message");
+```
+
+After:
+
+```
+# use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
+# use pyo3::exceptions::{PyBaseException, PyTypeError};
+# Python::with_gil(|py| -> PyResult<()> {
+let err: PyErr = PyTypeError::new_err("error message");
+
+// Uses Display for PyErr, new for PyO3 0.12
+assert_eq!(err.to_string(), "TypeError: error message");
+
+// Now possible to interact with exception instances, new for PyO3 0.12
+let instance: &PyBaseException = err.instance(py);
+assert_eq!(instance.getattr("__class__")?, PyTypeError::type_object(py).as_ref());
+# Ok(())
+# }).unwrap();
+```
+
+### `FromPy` has been removed
+To simplify the PyO3 conversion traits, the `FromPy` trait has been removed. Previously there were
+two ways to define the to-Python conversion for a type:
+`FromPy<T> for PyObject` and `IntoPy<PyObject> for T`.
+
+Now there is only one way to define the conversion, `IntoPy`, so downstream crates may need to
+adjust accordingly.
 
 Before:
 ```rust,ignore
@@ -84,7 +159,6 @@ let list_py: Py<PyList> = PyList::empty(py).into();
 let list_ref: &PyList = list_py.as_ref(py);
 # })
 ```
-
 
 ## from 0.10.* to 0.11
 
