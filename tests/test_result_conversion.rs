@@ -28,7 +28,6 @@ impl fmt::Display for MyError {
     }
 }
 
-
 impl From<MyError> for PyErr {
     fn from(err: MyError) -> pyo3::PyErr {
         pyo3::exceptions::PyOSError::py_err(err.to_string())
@@ -36,8 +35,7 @@ impl From<MyError> for PyErr {
 }
 
 #[pyfunction]
-fn should_work() -> Result<(), MyError> {
-}
+fn should_work() -> Result<(), MyError> {}
 
 #[test]
 fn test_result_conversion() {

@@ -40,7 +40,7 @@ pub trait IntoPyCallbackOutput<Target> {
 impl<T, E, U> IntoPyCallbackOutput<U> for Result<T, E>
 where
     T: IntoPyCallbackOutput<U>,
-    E: Into<PyErr>
+    E: Into<PyErr>,
 {
     fn convert(self, py: Python) -> PyResult<U> {
         self.map_err(Into::into).and_then(|t| t.convert(py))

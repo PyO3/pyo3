@@ -3,8 +3,8 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
-use crate::err::PyErr;
 use crate::callback::IntoPyCallbackOutput;
+use crate::err::PyErr;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
 
 /// Number interface
