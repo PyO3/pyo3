@@ -8,11 +8,11 @@ mod common;
 
 #[derive(Debug, FromPyObject)]
 pub struct A<'a> {
-    #[extract(getattr)]
+    #[pyo3(attribute)]
     s: String,
-    #[extract(get_item)]
+    #[pyo3(item)]
     t: &'a PyString,
-    #[extract(getattr("foo"))]
+    #[pyo3(attribute = "foo")]
     p: &'a PyAny,
 }
 
@@ -51,7 +51,7 @@ fn test_named_fields_struct() {
 }
 
 #[derive(Debug, FromPyObject)]
-#[transparent]
+#[pyo3(transparent)]
 pub struct B {
     test: String,
 }
@@ -69,7 +69,7 @@ fn test_transparent_named_field_struct() {
 }
 
 #[derive(Debug, FromPyObject)]
-#[transparent]
+#[pyo3(transparent)]
 pub struct D<T> {
     test: T,
 }
@@ -121,7 +121,7 @@ fn test_generic_named_fields_struct() {
 
 #[derive(Debug, FromPyObject)]
 pub struct C {
-    #[extract(getattr("test"))]
+    #[pyo3(attribute = "test")]
     test: String,
 }
 
@@ -155,17 +155,18 @@ fn test_tuple_struct() {
 }
 
 #[derive(FromPyObject)]
+#[pyo3(transparent)]
 pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let tup = PyTuple::new(py, &[1.into_py(py)]);
-    let tup = TransparentTuple::extract(tup.as_ref());
+    let tup: PyObject = 1.into_py(py);
+    let tup = TransparentTuple::extract(tup.as_ref(py));
     assert!(tup.is_err());
-    let tup = PyTuple::new(py, &["test".into_py(py)]);
-    let tup = TransparentTuple::extract(tup.as_ref())
+    let test = "test".into_py(py);
+    let tup = TransparentTuple::extract(test.as_ref(py))
         .expect("Failed to extract TransparentTuple from PyTuple");
     assert_eq!(tup.0, "test");
 }
@@ -176,25 +177,25 @@ pub enum Foo<'a> {
     StructVar {
         test: &'a PyString,
     },
-    #[transparent]
+    #[pyo3(transparent)]
     TransparentTuple(usize),
-    #[transparent]
+    #[pyo3(transparent)]
     TransparentStructVar {
         a: Option<String>,
     },
     StructVarGetAttrArg {
-        #[extract(getattr("bla"))]
+        #[pyo3(attribute = "bla")]
         a: bool,
     },
     StructWithGetItem {
-        #[extract(get_item)]
+        #[pyo3(item)]
         a: String,
     },
     StructWithGetItemArg {
-        #[extract(get_item("foo"))]
+        #[pyo3(item = "foo")]
         a: String,
     },
-    #[transparent]
+    #[pyo3(transparent)]
     CatchAll(&'a PyAny),
 }
 
@@ -279,11 +280,11 @@ fn test_enum() {
 
 #[derive(FromPyObject)]
 pub enum Bar {
-    #[rename_err = "str"]
+    #[pyo3(annotation = "str")]
     A(String),
-    #[rename_err = "uint"]
+    #[pyo3(annotation = "uint")]
     B(usize),
-    #[rename_err = "int"]
+    #[pyo3(annotation = "int", transparent)]
     C(isize),
 }
 

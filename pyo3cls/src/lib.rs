@@ -92,10 +92,10 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(FromPyObject, attributes(transparent, extract, rename_err))]
+#[proc_macro_derive(FromPyObject, attributes(pyo3, extract))]
 pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
-    let mut ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded = build_derive_from_pyobject(&mut ast).unwrap_or_else(|e| e.to_compile_error());
+    let ast = parse_macro_input!(item as syn::DeriveInput);
+    let expanded = build_derive_from_pyobject(&ast).unwrap_or_else(|e| e.to_compile_error());
     quote!(
         #expanded
     )
