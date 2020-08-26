@@ -3,6 +3,7 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
+use crate::err::PyErr;
 use crate::callback::IntoPyCallbackOutput;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
 
@@ -941,7 +942,7 @@ impl ffi::PyNumberMethods {
                 let other = py.from_borrowed_ptr::<crate::PyAny>(other);
                 call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
                 ffi::Py_INCREF(slf);
-                Ok(slf)
+                Ok::<_, PyErr>(slf)
             })
         }
         self.nb_inplace_power = Some(wrap_ipow::<T>);

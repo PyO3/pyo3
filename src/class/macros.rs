@@ -152,7 +152,7 @@ macro_rules! py_binary_self_func {
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
                 call_operator_mut!(py, slf_, $f, arg).convert(py)?;
                 ffi::Py_INCREF(slf);
-                Ok(slf)
+                Ok::<_, $crate::err::PyErr>(slf)
             })
         }
         Some(wrap::<$class>)
