@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Implement type information for conversion failures. [#1050](https://github.com/PyO3/pyo3/pull/1050)
 - Add `PyBytes::new_with` and `PyByteArray::new_with` for initialising Python-allocated bytes and bytearrays using a closure. [#1074](https://github.com/PyO3/pyo3/pull/1074)
 - Add `Py::as_ref` and `Py::into_ref`. [#1098](https://github.com/PyO3/pyo3/pull/1098)
+- Allow other `Result` types when using `#[pyfunction]`. [#1106](https://github.com/PyO3/pyo3/issues/1106).
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
