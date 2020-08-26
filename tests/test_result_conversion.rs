@@ -13,21 +13,17 @@ mod common;
 
 /// A basic error type for the tests.
 #[derive(Debug)]
-enum MyError {
-    Custom(String),
-    Unexpected(String),
+struct MyError {
+    pub descr: String,
 }
 
 impl fmt::Display for MyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use MyError::*;
-        match self {
-            Custom(e) => write!(f, "My error message: {}", e),
-            Unexpected(e) => write!(f, "Unexpected: {}", e),
-        }
+        write!(f, "My error message: {}", self.descr)
     }
 }
 
+/// Important for the automatic conversion to `PyErr`.
 impl From<MyError> for PyErr {
     fn from(err: MyError) -> pyo3::PyErr {
         pyo3::exceptions::PyOSError::py_err(err.to_string())
@@ -35,11 +31,15 @@ impl From<MyError> for PyErr {
 }
 
 #[pyfunction]
-fn should_work() -> Result<(), MyError> {}
+fn should_work() -> Result<(), MyError> {
+    Err(MyError {
+        descr: "something went wrong".to_string(),
+    })
+}
 
 #[test]
 fn test_result_conversion() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let f = wrap_pyfunction!(should_work)(py);
+    wrap_pyfunction!(should_work)(py);
 }

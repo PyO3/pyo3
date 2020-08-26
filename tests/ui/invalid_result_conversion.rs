@@ -6,31 +6,26 @@ use pyo3::wrap_pyfunction;
 
 use std::fmt;
 
-mod common;
-
+/// A basic error type for the tests. It's missing `From<MyError> for PyErr`,
+/// though, so it shouldn't work.
 #[derive(Debug)]
-enum MyError {
-    Custom(String),
-    Unexpected(String),
+struct MyError {
+    pub descr: String,
 }
 
 impl fmt::Display for MyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use MyError::*;
-        match self {
-            Custom(e) => write!(f, "My error message: {}", e),
-            Unexpected(e) => write!(f, "Unexpected: {}", e),
-        }
+        write!(f, "My error message: {}", self.descr)
     }
 }
 
 #[pyfunction]
-fn should_not_work() -> Result<(), MyError> {
+fn should_work() -> Result<(), MyError> {
+    Err(MyError { descr: "something went wrong".to_string() })
 }
 
-#[test]
-fn test_result_conversion() {
+fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let f = wrap_pyfunction!(should_not_work)(py);
+    wrap_pyfunction!(should_not_work)(py);
 }

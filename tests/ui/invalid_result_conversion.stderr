@@ -1,0 +1,25 @@
+error[E0425]: cannot find value `__pyo3_get_function_should_not_work` in this scope
+  --> $DIR/invalid_result_conversion.rs:30:5
+   |
+22 | #[pyfunction]
+   | ------------- similarly named function `__pyo3_get_function_should_work` defined here
+...
+30 |     wrap_pyfunction!(should_not_work)(py);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: a function with a similar name exists: `__pyo3_get_function_should_work`
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `std::result::Result<(), MyError>: pyo3::callback::IntoPyCallbackOutput<_>` is not satisfied
+   --> $DIR/invalid_result_conversion.rs:22:1
+    |
+22  | #[pyfunction]
+    | ^^^^^^^^^^^^^ the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<(), MyError>`
+    |
+   ::: $WORKSPACE/src/callback.rs
+    |
+    |     T: IntoPyCallbackOutput<U>,
+    |        ----------------------- required by this bound in `pyo3::callback::convert`
+    |
+    = help: the following implementations were found:
+              <std::result::Result<T, E> as pyo3::callback::IntoPyCallbackOutput<U>>
+    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
