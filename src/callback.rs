@@ -2,7 +2,7 @@
 
 //! Utilities for a Python callable object that invokes a Rust function.
 
-use crate::err::PyResult;
+use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::IntoPyPointer;
@@ -37,12 +37,13 @@ pub trait IntoPyCallbackOutput<Target> {
     fn convert(self, py: Python) -> PyResult<Target>;
 }
 
-impl<T, U> IntoPyCallbackOutput<U> for PyResult<T>
+impl<T, E, U> IntoPyCallbackOutput<U> for Result<T, E>
 where
     T: IntoPyCallbackOutput<U>,
+    E: Into<PyErr>
 {
     fn convert(self, py: Python) -> PyResult<U> {
-        self.and_then(|t| t.convert(py))
+        self.map_err(Into::into).and_then(|t| t.convert(py))
     }
 }
 
