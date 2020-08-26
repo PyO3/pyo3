@@ -300,6 +300,80 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
     }
 }
 
+#[cfg(feature = "hashbrown")]
+mod hashbrown_hashset_conversion {
+    use super::*;
+    use crate::{FromPyObject, PyObject, PyResult, ToPyObject};
+
+    impl<T> ToPyObject for hashbrown::HashSet<T>
+    where
+        T: hash::Hash + Eq + ToPyObject,
+    {
+        fn to_object(&self, py: Python) -> PyObject {
+            let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
+            {
+                for val in self {
+                    set.add(val).expect("Failed to add to set");
+                }
+            }
+            set.into()
+        }
+    }
+
+    impl<K, S> IntoPy<PyObject> for hashbrown::HashSet<K, S>
+    where
+        K: IntoPy<PyObject> + Eq + hash::Hash,
+        S: hash::BuildHasher + Default,
+    {
+        fn into_py(self, py: Python) -> PyObject {
+            let set = PySet::empty(py).expect("Failed to construct empty set");
+            {
+                for val in self {
+                    set.add(val.into_py(py)).expect("Failed to add to set");
+                }
+            }
+            set.into()
+        }
+    }
+
+    impl<'source, K, S> FromPyObject<'source> for hashbrown::HashSet<K, S>
+    where
+        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+        S: hash::BuildHasher + Default,
+    {
+        fn extract(ob: &'source PyAny) -> PyResult<Self> {
+            let set: &PySet = ob.downcast()?;
+            set.iter().map(K::extract).collect()
+        }
+    }
+
+    #[test]
+    fn test_extract_hashbrown_hashset() {
+        use std::iter::FromIterator;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+        let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+        assert_eq!(
+            hash_set,
+            hashbrown::HashSet::from_iter([1, 2, 3, 4, 5].iter().copied())
+        );
+    }
+
+    #[test]
+    fn test_hashbrown_hashset_into_py() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+
+        let hso: PyObject = hs.clone().into_py(py);
+
+        assert_eq!(hs, hso.extract(py).unwrap());
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
