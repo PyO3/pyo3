@@ -179,7 +179,7 @@ fn test_pickle() {
 /// enum type, see `ui/invalid_result_conversion.py`.
 #[derive(Debug)]
 struct MyError {
-    pub descr: String,
+    pub descr: &'static str,
 }
 
 impl fmt::Display for MyError {
@@ -198,7 +198,7 @@ impl From<MyError> for PyErr {
 #[pyfunction]
 fn result_conversion_function() -> Result<(), MyError> {
     Err(MyError {
-        descr: "something went wrong".to_string(),
+        descr: "something went wrong",
     })
 }
 

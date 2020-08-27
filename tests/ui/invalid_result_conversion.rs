@@ -10,7 +10,7 @@ use std::fmt;
 /// though, so it shouldn't work.
 #[derive(Debug)]
 struct MyError {
-    pub descr: String,
+    pub descr: &'static str,
 }
 
 impl fmt::Display for MyError {
@@ -20,8 +20,8 @@ impl fmt::Display for MyError {
 }
 
 #[pyfunction]
-fn should_work() -> Result<(), MyError> {
-    Err(MyError { descr: "something went wrong".to_string() })
+fn should_not_work() -> Result<(), MyError> {
+    Err(MyError { descr: "something went wrong" })
 }
 
 fn main() {
