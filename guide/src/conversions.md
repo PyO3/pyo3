@@ -24,10 +24,10 @@ The table below contains the Python type and the corresponding function argument
 | `float`       | `f32`, `f64`                    | `&PyFloat`           |
 | `complex`     | `num_complex::Complex`[^1]      | `&PyComplex`         |
 | `list[T]`     | `Vec<T>`                        | `&PyList`            |
-| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>` | `&PyDict`          |
+| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2] | `&PyDict` |
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `&PyTuple`           |
-| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`     | `&PySet`             |
-| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`    | `&PyFrozenSet`       |
+| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PySet` |
+| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^2] | `&PyFrozenSet` |
 | `bytearray`   | `Vec<u8>`                       | `&PyByteArray`       |
 | `slice`       | -                               | `&PySlice`           |
 | `type`        | -                               | `&PyType`            |
@@ -250,3 +250,4 @@ fn main() {
 [`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
 
 [^1]: Requires the `num-complex` optional feature.
+[^2]: Requires the `hashbrown` optional feature.

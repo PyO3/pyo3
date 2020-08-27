@@ -70,7 +70,7 @@ pub struct PyClassInitializer<T: PyClass> {
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
-    /// Constract new initialzer from value `T` and base class' initializer.
+    /// Construct new initializer from value `T` and base class' initializer.
     ///
     /// We recommend to mainly use `add_subclass`, instead of directly call `new`.
     pub fn new(init: T, super_init: <T::BaseType as PyTypeInfo>::Initializer) -> Self {
