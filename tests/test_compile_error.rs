@@ -6,18 +6,25 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
-    t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
-    t.compile_fail("tests/ui/missing_clone.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
-    t.compile_fail("tests/ui/invalid_result_conversion.rs");
 
-    skip_min_stable(&t);
+    tests_rust_1_43(&t);
+    tests_rust_1_46(&t);
 
     #[rustversion::since(1.43)]
-    fn skip_min_stable(t: &trybuild::TestCases) {
+    fn tests_rust_1_43(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/static_ref.rs");
     }
     #[rustversion::before(1.43)]
-    fn skip_min_stable(_t: &trybuild::TestCases) {}
+    fn tests_rust_1_43(_t: &trybuild::TestCases) {}
+
+    #[rustversion::since(1.46)]
+    fn tests_rust_1_46(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+        t.compile_fail("tests/ui/invalid_result_conversion.rs");
+        t.compile_fail("tests/ui/missing_clone.rs");
+    }
+    #[rustversion::before(1.46)]
+    fn tests_rust_1_46(_t: &trybuild::TestCases) {}
 }
