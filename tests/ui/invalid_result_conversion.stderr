@@ -4,9 +4,9 @@ error[E0277]: the trait bound `std::result::Result<(), MyError>: pyo3::callback:
 22  | #[pyfunction]
     | ^^^^^^^^^^^^^ the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<(), MyError>`
     |
-   ::: $WORKSPACE/src/callback.rs
+   ::: $WORKSPACE/src/callback.rs:170:8
     |
-    |     T: IntoPyCallbackOutput<U>,
+170 |     T: IntoPyCallbackOutput<U>,
     |        ----------------------- required by this bound in `pyo3::callback::convert`
     |
     = help: the following implementations were found:
