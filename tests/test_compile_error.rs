@@ -10,6 +10,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/missing_clone.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
+    t.compile_fail("tests/ui/invalid_result_conversion.rs");
 
     skip_min_stable(&t);
 

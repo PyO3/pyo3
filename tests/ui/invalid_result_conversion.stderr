@@ -1,0 +1,14 @@
+error[E0277]: the trait bound `std::result::Result<(), MyError>: pyo3::callback::IntoPyCallbackOutput<_>` is not satisfied
+   --> $DIR/invalid_result_conversion.rs:22:1
+    |
+22  | #[pyfunction]
+    | ^^^^^^^^^^^^^ the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<(), MyError>`
+    |
+   ::: $WORKSPACE/src/callback.rs
+    |
+    |     T: IntoPyCallbackOutput<U>,
+    |        ----------------------- required by this bound in `pyo3::callback::convert`
+    |
+    = help: the following implementations were found:
+              <std::result::Result<T, E> as pyo3::callback::IntoPyCallbackOutput<U>>
+    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

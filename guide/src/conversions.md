@@ -72,7 +72,7 @@ When returning values from functions callable from Python, Python-native types (
 
 Because these types are references, in some situations the Rust compiler may ask for lifetime annotations. If this is the case, you should use `Py<PyAny>`, `Py<PyDict>` etc. instead - which are also zero-cost. For all of these Python-native types `T`, `Py<T>` can be created from `T` with an `.into()` conversion.
 
-If your function is fallible, it should return `PyResult<T>`, which will raise a `Python` exception if the `Err` variant is returned.
+If your function is fallible, it should return `PyResult<T>` or `Result<T, E>` where `E` implements `From<E> for PyErr`. This will raise a `Python` exception if the `Err` variant is returned.
 
 Finally, the following Rust types are also able to convert to Python as return values:
 
