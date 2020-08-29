@@ -12,7 +12,7 @@ pub struct A<'a> {
     s: String,
     #[pyo3(item)]
     t: &'a PyString,
-    #[pyo3(attribute = "foo")]
+    #[pyo3(attribute("foo"))]
     p: &'a PyAny,
 }
 
@@ -121,7 +121,7 @@ fn test_generic_named_fields_struct() {
 
 #[derive(Debug, FromPyObject)]
 pub struct C {
-    #[pyo3(attribute = "test")]
+    #[pyo3(attribute("test"))]
     test: String,
 }
 
@@ -184,7 +184,7 @@ pub enum Foo<'a> {
         a: Option<String>,
     },
     StructVarGetAttrArg {
-        #[pyo3(attribute = "bla")]
+        #[pyo3(attribute("bla"))]
         a: bool,
     },
     StructWithGetItem {
@@ -192,7 +192,7 @@ pub enum Foo<'a> {
         a: String,
     },
     StructWithGetItemArg {
-        #[pyo3(item = "foo")]
+        #[pyo3(item("foo"))]
         a: String,
     },
     #[pyo3(transparent)]

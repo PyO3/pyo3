@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, Attribute, DataEnum, DeriveInput, ExprCall, Fields, Ident, Result};
+use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Meta, Result};
 
 /// Describes derivation input of an enum.
 #[derive(Debug)]
@@ -148,7 +148,7 @@ impl<'a> Container<'a> {
                         .as_ref()
                         .expect("Named fields should have identifiers");
                     let attr = FieldAttribute::parse_attrs(&field.attrs)?
-                        .unwrap_or_else(|| FieldAttribute::Ident(parse_quote!(getattr)));
+                        .unwrap_or_else(|| FieldAttribute::GetAttr(None));
                     fields.push((ident, attr))
                 }
                 ContainerType::Struct(fields)
@@ -242,10 +242,19 @@ impl<'a> Container<'a> {
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for (ident, attr) in tups {
             let ext_fn = match attr {
-                FieldAttribute::IdentWithArg(expr) => quote!(#expr),
-                FieldAttribute::Ident(meth) => {
-                    let arg = ident.to_string();
-                    quote!(#meth(#arg))
+                FieldAttribute::GetAttr(name) => {
+                    if let Some(name) = name.as_ref() {
+                        quote!(getattr(#name))
+                    } else {
+                        quote!(getattr(stringify!(#ident)))
+                    }
+                }
+                FieldAttribute::GetItem(key) => {
+                    if let Some(key) = key.as_ref() {
+                        quote!(get_item(#key))
+                    } else {
+                        quote!(get_item(stringify!(#ident)))
+                    }
                 }
             };
             fields.push(quote!(#ident: obj.#ext_fn?.extract()?));
@@ -329,9 +338,8 @@ impl ContainerAttribute {
 /// Attributes for deriving FromPyObject scoped on fields.
 #[derive(Clone, Debug)]
 enum FieldAttribute {
-    /// How a specific field should be extracted.
-    Ident(Ident),
-    IdentWithArg(ExprCall),
+    GetItem(Option<syn::Lit>),
+    GetAttr(Option<syn::LitStr>),
 }
 
 impl FieldAttribute {
@@ -340,67 +348,88 @@ impl FieldAttribute {
     /// Currently fails if more than 1 attribute is passed in `pyo3`
     fn parse_attrs(attrs: &[Attribute]) -> Result<Option<Self>> {
         let list = get_pyo3_meta_list(attrs)?;
+        if list.nested.is_empty() {
+            return Ok(None);
+        }
         if list.nested.len() > 1 {
             return Err(syn::Error::new_spanned(
                 list,
-                "Only one of `item`, `attribute` can be provided, possibly as \
-                a key-value pair: `attribute = \"name\"`.",
+                "Only one of `item`, `attribute` can be provided, possibly with an \
+                additional argument: `item(\"key\")` or `attribute(\"name\").",
             ));
         }
-        let meta = if let Some(attr) = list.nested.first() {
-            attr
-        } else {
-            return Ok(None);
-        };
-        if let syn::NestedMeta::Meta(metaitem) = meta {
-            let path = metaitem.path();
-            let ident = Self::check_valid_ident(path)?;
-            match metaitem {
-                syn::Meta::NameValue(nv) => Self::get_ident_with_arg(ident, &nv.lit).map(Some),
-                syn::Meta::Path(_) => Ok(Some(FieldAttribute::Ident(parse_quote!(#ident)))),
-                _ => Err(syn::Error::new_spanned(
-                    metaitem,
-                    "`item` or `attribute` need to be passed alone or as key-value \
-                        pairs, e.g. `attribute = \"name\"`.",
-                )),
+        let metaitem = list.nested.into_iter().next().unwrap();
+        let meta = match metaitem {
+            syn::NestedMeta::Meta(meta) => meta,
+            syn::NestedMeta::Lit(lit) => {
+                return Err(syn::Error::new_spanned(
+                    lit,
+                    "Expected `attribute` or `item`, not a literal.",
+                ))
             }
-        } else {
-            Err(syn::Error::new_spanned(meta, "Unexpected literal."))
-        }
-    }
-
-    /// Verify the attribute path and return it if it is valid.
-    fn check_valid_ident(path: &syn::Path) -> Result<Ident> {
-        if path.is_ident("item") {
-            Ok(parse_quote!(get_item))
-        } else if path.is_ident("attribute") {
-            Ok(parse_quote!(getattr))
+        };
+        let path = meta.path();
+        if path.is_ident("attribute") {
+            Ok(Some(FieldAttribute::GetAttr(Self::attribute_arg(meta)?)))
+        } else if path.is_ident("item") {
+            Ok(Some(FieldAttribute::GetItem(Self::item_arg(meta)?)))
         } else {
             Err(syn::Error::new_spanned(
-                path,
-                "Expected `item` or `attribute`",
+                meta,
+                "Expected `attribute` or `item`.",
             ))
         }
     }
 
-    /// Try to build `IdentWithArg` based on identifier and literal.
-    fn get_ident_with_arg(ident: Ident, lit: &syn::Lit) -> Result<Self> {
-        if ident == "getattr" {
-            if let syn::Lit::Str(s) = lit {
-                return Ok(FieldAttribute::IdentWithArg(parse_quote!(#ident(#s))));
-            } else {
-                return Err(syn::Error::new_spanned(lit, "Expected string literal."));
+    fn attribute_arg(meta: syn::Meta) -> syn::Result<Option<syn::LitStr>> {
+        let arg_list = match meta {
+            syn::Meta::List(list) => list,
+            syn::Meta::Path(_) => return Ok(None),
+            Meta::NameValue(nv) => {
+                let err_msg = "Expected a string literal or no argument: `pyo3(attribute(\"name\") or `pyo3(attribute)`";
+                return Err(syn::Error::new_spanned(nv, err_msg));
+            }
+        };
+        if arg_list.nested.len() != 1 {
+            return Err(syn::Error::new_spanned(
+                arg_list,
+                "Expected a single string literal.",
+            ));
+        }
+        let first = arg_list.nested.first().unwrap();
+        if let syn::NestedMeta::Lit(lit) = first {
+            if let syn::Lit::Str(litstr) = lit {
+                return Ok(Some(parse_quote!(#litstr)));
             }
         }
-        if ident == "get_item" {
-            return Ok(FieldAttribute::IdentWithArg(parse_quote!(#ident(#lit))));
-        }
-
-        // path is already checked in the `parse_attrs` loop, returning the error here anyways.
         Err(syn::Error::new_spanned(
-            ident,
-            "Expected `item` or `attribute`.",
+            first,
+            "Expected a single string literal.",
         ))
+    }
+
+    fn item_arg(meta: syn::Meta) -> syn::Result<Option<syn::Lit>> {
+        let arg_list = match meta {
+            syn::Meta::List(list) => list,
+            syn::Meta::Path(_) => return Ok(None),
+            Meta::NameValue(nv) => {
+                return Err(syn::Error::new_spanned(
+                    nv,
+                    "Expected a literal or no argument: `pyo3(item(\"key\") or `pyo3(item)`",
+                ))
+            }
+        };
+        if arg_list.nested.len() != 1 {
+            return Err(syn::Error::new_spanned(
+                arg_list,
+                "Expected a single literal.",
+            ));
+        }
+        let first = arg_list.nested.first().unwrap();
+        if let syn::NestedMeta::Lit(lit) = first {
+            return Ok(Some(parse_quote!(#lit)));
+        }
+        Err(syn::Error::new_spanned(first, "Expected a literal."))
     }
 }
 
