@@ -171,7 +171,6 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
 ///
 /// (hrm, this is sort of re-implementing what distutils does, except
 /// by passing command line args instead of referring to a python.h)
-#[cfg(not(target_os = "windows"))]
 static SYSCONFIG_FLAGS: [&str; 7] = [
     "Py_USING_UNICODE",
     "Py_UNICODE_WIDE",
@@ -443,8 +442,11 @@ fn load_cross_compile_info(
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
-#[cfg(not(target_os = "windows"))]
 fn get_config_vars(python_path: &Path) -> Result<HashMap<String, String>> {
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+        return get_config_vars_windows(python_path);
+    }
+
     let mut script = "import sysconfig; \
                       config = sysconfig.get_config_vars();"
         .to_owned();
@@ -478,8 +480,7 @@ fn get_config_vars(python_path: &Path) -> Result<HashMap<String, String>> {
     Ok(fix_config_map(all_vars))
 }
 
-#[cfg(target_os = "windows")]
-fn get_config_vars(_: &Path) -> Result<HashMap<String, String>> {
+fn get_config_vars_windows(_: &Path) -> Result<HashMap<String, String>> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -567,9 +568,15 @@ fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-#[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
+    match env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+        "windows" => get_rustc_link_lib_windows(config),
+        "macos" => get_rustc_link_lib_macos(config),
+        _ => get_rustc_link_lib_unix(config),
+    }
+}
+
+fn get_rustc_link_lib_unix(config: &InterpreterConfig) -> Result<String> {
     if config.shared {
         Ok(format!(
             "cargo:rustc-link-lib={}",
@@ -583,7 +590,6 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     }
 }
 
-#[cfg(target_os = "macos")]
 fn get_macos_linkmodel(config: &InterpreterConfig) -> Result<String> {
     // PyPy 3.6 ships with a shared library, but doesn't have Py_ENABLE_SHARED.
     if config.version.implementation == PythonInterpreterKind::PyPy {
@@ -604,8 +610,7 @@ else:
     Ok(out.trim_end().to_owned())
 }
 
-#[cfg(target_os = "macos")]
-fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
+fn get_rustc_link_lib_macos(config: &InterpreterConfig) -> Result<String> {
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
     let link_name = get_library_link_name(&config.version, &config.ld_version);
@@ -617,8 +622,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
+fn get_rustc_link_lib_windows(config: &InterpreterConfig) -> Result<String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!(
         "cargo:rustc-link-lib=pythonXY:{}",
@@ -733,7 +737,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         println!("{}", get_rustc_link_lib(&interpreter_config)?);
         if let Some(libdir) = &interpreter_config.libdir {
             println!("cargo:rustc-link-search=native={}", libdir);
-        } else if cfg!(target_os = "windows") {
+        } else if target_os == "windows" {
             println!(
                 "cargo:rustc-link-search=native={}\\libs",
                 interpreter_config.base_prefix
@@ -818,9 +822,6 @@ fn main() -> Result<()> {
     // Detecting if cross-compiling by checking if the target triple is different from the host
     // rustc's triple.
     let (interpreter_config, mut config_map) = if let Some(paths) = cross_compiling()? {
-        // If cross compiling we need the path to the cross-compiled include dir and lib dir, else
-        // fail quickly and loudly
-
         load_cross_compile_info(paths)?
     } else {
         find_interpreter_and_get_config()?
