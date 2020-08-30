@@ -119,6 +119,147 @@ mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
 and [`PyRefMut`].  They work like the reference wrappers of
 `std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
 
+#### Deriving [`FromPyObject`]
+
+[`FromPyObject`] can be automatically derived for many kinds of structs and enums
+if the member types themselves implement `FromPyObject`. This even includes members
+with a generic type `T: FromPyObject`. Derivation for empty enums, enum variants and
+structs is not supported.
+
+#### Deriving [`FromPyObject`] for structs
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyStruct {
+    my_string: String,
+}
+```
+
+The derivation generates code that will per default access the attribute `my_string` on
+the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
+It is also possible to access the value on the Python object through `obj.get_item("my_string")`
+by setting the attribute `pyo3(item)` on the field:
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyStruct {
+    #[pyo3(item)]
+    my_string: String,
+}
+``` 
+
+The argument passed to `getattr` and `get_item` can also be configured:
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyStruct {
+    #[pyo3(item("key"))]
+    string_in_mapping: String,
+    #[pyo3(attribute("name"))]
+    string_attr: String,
+}
+```
+
+This tries to extract `string_attr` from the attribute `name` and `string_in_mapping`
+from a mapping with the key `"key"`. The arguments for `attribute` are restricted to
+non-empty string literals while `item` can take any valid literal that implements
+`ToBorrowedObject`.
+
+#### Deriving [`FromPyObject`] for tuple structs
+
+Tuple structs are also supported but do not allow customizing the extraction. The input is
+always assumed to be a Python tuple with the same length as the Rust type, the `n`th field
+is extracted from the `n`th item in the Python tuple.
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyTuple(String, String);
+```
+
+#### Deriving [`FromPyObject`] for wrapper types
+
+The `pyo3(transparent)` attribute can be used on structs with exactly one field. This results
+in extracting directly from the input object, i.e. `obj.extract()`, rather than trying to access
+an item or attribute.
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+#[pyo3(transparent)]
+struct RustyTransparentTuple(String);
+
+#[derive(FromPyObject)]
+#[pyo3(transparent)]
+struct RustyTransparentStruct {
+    inner: String,
+}
+```
+
+#### Deriving [`FromPyObject`] for enums
+
+The `FromPyObject` derivation for enums generates code that tries to extract the variants in the
+order of the fields. As soon as a variant can be extracted succesfully, that variant is returned.
+
+The same customizations and restrictions described for struct derivations apply to enum variants,
+i.e. a tuple variant assumes that the input is a Python tuple, and a struct variant defaults to
+extracting fields as attributes but can be configured in the same manner. The `transparent`
+attribute can be applied to single-field-variants.
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+enum RustyEnum<'a> {
+    #[pyo3(transparent)]
+    Int(usize), // input is a positive int
+    #[pyo3(transparent)]
+    String(String), // input is a string
+    IntTuple(usize, usize), // input is a 2-tuple with positive ints
+    StringIntTuple(String, usize), // innput is a 2-tuple with String and int
+    Coordinates3d { // needs to be in front of 2d
+        x: usize,
+        y: usize,
+        z: usize,
+    },
+    Coordinates2d { // only gets checked if the input did not have `z`
+        #[pyo3(attribute("x"))]
+        a: usize,
+        #[pyo3(attribute("y"))]
+        b: usize,
+    },
+    #[pyo3(transparent)]
+    CatchAll(&'a PyAny), // This extraction never fails
+}
+```
+
+If none of the enum variants match, a `PyValueError` containing the names of the
+tested variants is returned. The names reported in the error message can be customized
+through the `pyo3(annotation = "name")` attribute, e.g. to use conventional Python type
+names:
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+enum RustyEnum {
+    #[pyo3(transparent, annotation = "str")]
+    String(String),
+    #[pyo3(transparent, annotation = "int")]
+    Int(isize),
+}
+```
+
+If the input is neither a string nor an integer, the error message will be:
+`"Can't convert <INPUT> to str, int"`, where `<INPUT>` is replaced by the type name and
+`repr()` of the input object. 
+
 ### `IntoPy<T>`
 
 This trait defines the to-python conversion for a Rust type. It is usually implemented as
