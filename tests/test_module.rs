@@ -285,3 +285,23 @@ fn test_vararg_module() {
     py_assert!(py, m, "m.int_vararg_fn() == [5, ()]");
     py_assert!(py, m, "m.int_vararg_fn(1, 2) == [1, (2,)]");
 }
+
+#[test]
+fn test_module_with_constant() {
+    // Regression test for #1102
+
+    #[pymodule]
+    fn module_with_constant(_py: Python, m: &PyModule) -> PyResult<()> {
+        const ANON: AnonClass = AnonClass {};
+
+        m.add("ANON", ANON)?;
+        m.add_class::<AnonClass>()?;
+
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(module_with_constant)(py);
+        py_assert!(py, m, "isinstance(m.ANON, m.AnonClass)");
+    });
+}

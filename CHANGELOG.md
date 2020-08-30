@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `IntoPy` is no longer implied by `FromPy`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 - `PyObject` is now just a type alias for `Py<PyAny>`. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 - Implement `Send + Sync` for `PyErr`. `PyErr::new`, `PyErr::from_type`, `PyException::py_err` and `PyException::into` have had these bounds added to their arguments. [#1067](https://github.com/PyO3/pyo3/pull/1067)
-- Change `#[pyproto]` to return NotImplemented for operators for which Python can try a reversed operation. [1072](https://github.com/PyO3/pyo3/pull/1072)
+- Change `#[pyproto]` to return NotImplemented for operators for which Python can try a reversed operation. #[1072](https://github.com/PyO3/pyo3/pull/1072)
+- `PyModule::add` now uses `IntoPy<PyObject>` instead of `ToPyObject`. #[1124](https://github.com/PyO3/pyo3/pull/1124)
 
 ### Removed
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
