@@ -155,7 +155,6 @@ fn test_tuple_struct() {
 }
 
 #[derive(FromPyObject)]
-#[pyo3(transparent)]
 pub struct TransparentTuple(String);
 
 #[test]
@@ -301,7 +300,7 @@ fn test_err_rename() {
             PyErrValue::ToObject(to) => {
                 let o = to.to_object(py);
                 let s = String::extract(o.as_ref(py)).expect("Err val is not a string");
-                assert_eq!(s, "Can't convert {} (dict) to str, uint, int")
+                assert_eq!(s, "Can't convert {} (dict) to Union[str, uint, int]")
             }
             _ => panic!("Expected PyErrValue::ToObject"),
         },

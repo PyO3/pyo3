@@ -183,17 +183,28 @@ use pyo3::prelude::*;
 struct RustyTuple(String, String);
 ```
 
-#### Deriving [`FromPyObject`] for wrapper types
-
-The `pyo3(transparent)` attribute can be used on structs with exactly one field. This results
-in extracting directly from the input object, i.e. `obj.extract()`, rather than trying to access
-an item or attribute.
+Tuple structs with a single field are treated as wrapper types which are described in the
+following section. To override this behaviour and ensure that the input is in fact a tuple,
+specify the struct as 
 ```
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
-#[pyo3(transparent)]
-struct RustyTransparentTuple(String);
+struct RustyTuple((String,));
+```
+
+#### Deriving [`FromPyObject`] for wrapper types
+
+The `pyo3(transparent)` attribute can be used on structs with exactly one field. This results
+in extracting directly from the input object, i.e. `obj.extract()`, rather than trying to access
+an item or attribute. This behaviour is enabled per default for newtype structs and tuple-variants
+with a single field.
+
+```
+use pyo3::prelude::*;
+
+#[derive(FromPyObject)]
+struct RustyTransparentTupleStruct(String);
 
 #[derive(FromPyObject)]
 #[pyo3(transparent)]
@@ -217,12 +228,10 @@ use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
 enum RustyEnum<'a> {
-    #[pyo3(transparent)]
     Int(usize), // input is a positive int
-    #[pyo3(transparent)]
     String(String), // input is a string
     IntTuple(usize, usize), // input is a 2-tuple with positive ints
-    StringIntTuple(String, usize), // innput is a 2-tuple with String and int
+    StringIntTuple(String, usize), // input is a 2-tuple with String and int
     Coordinates3d { // needs to be in front of 2d
         x: usize,
         y: usize,
@@ -257,8 +266,27 @@ enum RustyEnum {
 ```
 
 If the input is neither a string nor an integer, the error message will be:
-`"Can't convert <INPUT> to str, int"`, where `<INPUT>` is replaced by the type name and
+`"Can't convert <INPUT> to Union[str, int]"`, where `<INPUT>` is replaced by the type name and
 `repr()` of the input object. 
+
+#### `#[derive(FromPyObject)]` Container Attributes
+- `pyo3(transparent)`
+    - extract the field directly from the object as `obj.extract()` instead of `get_item()` or
+      `getattr()`
+    - Newtype structs and tuple-variants are treated as transparent per default.
+    - only supported for single-field structs and enum variants
+- `pyo3(annotation = "name")`
+    - changes the name of the failed variant in the generated error message in case of failure.
+    - e.g. `pyo3("int")` reports the variant's type as `int`.
+    - only supported for enum variants
+
+#### `#[derive(FromPyObject)]` Field Attributes
+- `pyo3(attribute)`, `pyo3(attribute("name"))`
+    - retrieve the field from an attribute, possibly with a custom name specified as an argument
+    - argument must be a string-literal.
+- `pyo3(item)`, `pyo3(item("key"))`
+    - retrieve the field from a mapping, possibly with the custom key specified as an argument.
+    - can be any literal that implements `ToBorrowedObject`
 
 ### `IntoPy<T>`
 

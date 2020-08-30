@@ -65,6 +65,11 @@ impl<'a> Enum<'a> {
                 error_names.push_str(", ");
             }
         }
+        let error_names = if self.variants.len() > 1 {
+            format!("Union[{}]", error_names)
+        } else {
+            error_names
+        };
         quote!(
             #(#var_extracts)*
             let type_name = obj.get_type().name();
@@ -134,7 +139,13 @@ impl<'a> Container<'a> {
         }
         let style = match (fields, transparent) {
             (Fields::Unnamed(_), true) => ContainerType::TupleNewtype,
-            (Fields::Unnamed(unnamed), false) => ContainerType::Tuple(unnamed.unnamed.len()),
+            (Fields::Unnamed(unnamed), false) => {
+                if unnamed.unnamed.len() == 1 {
+                    ContainerType::TupleNewtype
+                } else {
+                    ContainerType::Tuple(unnamed.unnamed.len())
+                }
+            }
             (Fields::Named(named), true) => {
                 let field = named
                     .named
@@ -321,7 +332,8 @@ impl ContainerAttribute {
             if let syn::NestedMeta::Meta(metaitem) = &meta {
                 match metaitem {
                     Meta::Path(p) if p.is_ident("transparent") => {
-                        attrs.push(ContainerAttribute::Transparent)
+                        attrs.push(ContainerAttribute::Transparent);
+                        continue;
                     }
                     Meta::NameValue(nv) if nv.path.is_ident("annotation") => {
                         if let syn::Lit::Str(s) = &nv.lit {
@@ -329,21 +341,13 @@ impl ContainerAttribute {
                         } else {
                             return Err(spanned_err(&nv.lit, "Expected string literal."));
                         }
+                        continue;
                     }
-                    other => {
-                        return Err(spanned_err(
-                            other,
-                            "Expected `transparent` or `annotation = \"name\"`",
-                        ))
-                    }
+                    _ => {} // return Err below
                 }
-            } else {
-                return Err(spanned_err(
-                    meta,
-                    "Unknown container attribute, expected `transparent` or \
-                    `annotation(\"err_name\")`",
-                ));
             }
+
+            return Err(spanned_err(meta, "Unrecognized `pyo3` container attribute"));
         }
         Ok(attrs)
     }
@@ -514,7 +518,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         syn::Data::Union(_) => {
             return Err(spanned_err(
                 tokens,
-                "FromPyObject can not be derived for unions.",
+                "#[derive(FromPyObject)] is not supported for unions.",
             ))
         }
     };

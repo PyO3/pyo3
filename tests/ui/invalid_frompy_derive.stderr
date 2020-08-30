@@ -132,7 +132,7 @@ error: Only one of `item`, `attribute` can be provided, possibly with an additio
 118 |     #[pyo3(item, attribute)]
     |            ^^^^^^^^^^^^^^^
 
-error: Expected `transparent` or `annotation = "name"`
+error: Unrecognized `pyo3` container attribute
    --> $DIR/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
@@ -156,7 +156,7 @@ error: FromPyObject can be derived with at most one lifetime parameter.
 141 | enum TooManyLifetimes<'a, 'b> {
     |                      ^^^^^^^^
 
-error: FromPyObject can not be derived for unions.
+error: #[derive(FromPyObject)] is not supported for unions.
    --> $DIR/invalid_frompy_derive.rs:147:1
     |
 147 | / union Union {
