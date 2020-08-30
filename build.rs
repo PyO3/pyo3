@@ -575,9 +575,19 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
     }
 }
 
-fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
-    let link_name = if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        if is_abi3() {
+fn get_library_link_name_unix(config: &InterpreterConfig) -> Result<String> {
+    match config.implementation {
+        PythonImplementation::CPython => match &config.ld_version {
+            Some(ld_version) => Ok(format!("python{}", ld_version)),
+            None => bail!("failed to configure `ld_version` when compiling for unix"),
+        },
+        PythonImplementation::PyPy => Ok(format!("pypy{}-c", config.version.major)),
+    }
+}
+
+fn get_library_link_name(config: &InterpreterConfig) -> Result<String> {
+    if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+        Ok(if is_abi3() {
             // Link against python3.lib for the stable ABI on Windows.
             // See https://www.python.org/dev/peps/pep-0384/#linkage
             //
@@ -594,22 +604,10 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
                 "pythonXY:python{}{}",
                 config.version.major, config.version.minor
             )
-        }
+        })
     } else {
-        match config.implementation {
-            PythonImplementation::CPython => match &config.ld_version {
-                Some(ld_version) => format!("python{}", ld_version),
-                None => bail!("failed to configure `ld_version` when compiling for unix"),
-            },
-            PythonImplementation::PyPy => format!("pypy{}-c", config.version.major),
-        }
-    };
-
-    Ok(format!(
-        "cargo:rustc-link-lib={link_model}{link_name}",
-        link_model = if config.shared { "" } else { "static=" },
-        link_name = link_name
-    ))
+        get_library_link_name_unix(config)
+    }
 }
 
 fn get_venv_path() -> Option<PathBuf> {
@@ -748,45 +746,65 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 
 fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+
+    // Library search paths
+
+    if let Some(libdir) = &interpreter_config.libdir {
+        println!("cargo:rustc-link-search=native={}", libdir);
+    }
+    if target_os == "windows" {
+        // libdir is only present on windows when cross-compiling, base_prefix is used on
+        // windows hosts
+        if let Some(base_prefix) = &interpreter_config.base_prefix {
+            println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
+        }
+    }
+
+    if interpreter_config.implementation == PythonImplementation::PyPy {
+        // PyPy 7.3.4 changed LIBDIR to point to base_prefix/lib as a regression, so need
+        // to hard-code /bin search path too: https://foss.heptapod.net/pypy/pypy/-/issues/3442
+        //
+        // TODO: this workaround can probably be removed when PyPy 7.3.5 is released (and we
+        // can call it a PyPy bug).
+        if let Some(base_prefix) = &interpreter_config.base_prefix {
+            println!("cargo:rustc-link-search=native={}/bin", base_prefix);
+        }
+    }
+
+    // Link libpython (if appropriate)
+
     let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     match (is_extension_module, target_os.as_str()) {
-        (_, "windows") => {
-            // always link on windows, even with extension module
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
-            // Set during cross-compiling.
-            if let Some(libdir) = &interpreter_config.libdir {
-                println!("cargo:rustc-link-search=native={}", libdir);
-            }
-            // Set if we have an interpreter to use.
-            if let Some(base_prefix) = &interpreter_config.base_prefix {
-                println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
-            }
+        (_, "windows") | (_, "android") | (false, _) => {
+            // windows or android - always link to libpython
+            // other systems - only link libs if not extension module
+            println!(
+                "cargo:rustc-link-lib={link_model}{link_name}",
+                link_model = if interpreter_config.shared {
+                    ""
+                } else {
+                    "static="
+                },
+                link_name = get_library_link_name(&interpreter_config)?
+            );
         }
-        (true, "macos") => {
-            // with extension module on macos some extra linker arguments are needed
-            println!("cargo:rustc-cdylib-link-arg=-undefined");
-            println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
-        }
-        (false, _) | (_, "android") => {
-            // other systems, only link libs if not extension module
-            // android always link.
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
-            if let Some(libdir) = &interpreter_config.libdir {
-                println!("cargo:rustc-link-search=native={}", libdir);
+        (true, _) => {
+            // Extension module on unix system - only link non-lib targets
+            if target_os == "macos" {
+                // with extension module on macos some extra linker arguments are needed
+                println!("cargo:rustc-cdylib-link-arg=-undefined");
+                println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
             }
-            if interpreter_config.implementation == PythonImplementation::PyPy {
-                // PyPy 7.3.4 changed LIBDIR to point to base_prefix/lib as a regression, so need
-                // to hard-code /bin search path too: https://foss.heptapod.net/pypy/pypy/-/issues/3442
-                //
-                // TODO: this workaround can probably be removed when PyPy 7.3.5 is released (and we
-                // can call it a PyPy bug).
-                if let Some(base_prefix) = &interpreter_config.base_prefix {
-                    println!("cargo:rustc-link-search=native={}/bin", base_prefix);
-                }
-            }
+
+            let lib_name = get_library_link_name_unix(&interpreter_config)?;
+            println!("cargo:rustc-link-arg-bins=-l{}", lib_name);
+            println!("cargo:rustc-link-arg-tests=-l{}", lib_name);
+            println!("cargo:rustc-link-arg-benches=-l{}", lib_name);
+            println!("cargo:rustc-link-arg-examples=-l{}", lib_name);
         }
-        _ => {}
     }
+
+    // Sanity checks to prevent newcomers attempting static embedding
 
     if env::var_os("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
         ensure!(
@@ -807,12 +825,14 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 
         // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
         // currently cause `auto-initialize` to be enabled in CI.
-        // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
+        // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove the check on the env var.
         ensure!(
             !interpreter_config.is_pypy() || env::var_os("PYO3_CI").is_some(),
             "The `auto-initialize` feature is not supported with PyPy."
         );
     }
+
+    // Py_LIMITED_API cfg
 
     let is_abi3 = is_abi3();
 
@@ -842,9 +862,13 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
         interpreter_config.version.minor
     };
 
+    // Py_3_x cfgs
+
     for i in MINIMUM_SUPPORTED_VERSION.minor..=minor {
         println!("cargo:rustc-cfg=Py_3_{}", i);
     }
+
+    // py_sys_config cfgs
 
     for flag in &interpreter_config.build_flags.0 {
         println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)

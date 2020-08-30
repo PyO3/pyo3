@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality.
 
 ### Fixed
+- Fix `cargo test` with `extension-module` feature. (Requires `cargo +nightly -Zextra-link-arg test` for now.) #[1123](https://github.com/PyO3/pyo3/pull/1123)
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - `PYO3_CROSS_LIB_DIR` enviroment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
 - Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
