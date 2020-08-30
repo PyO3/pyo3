@@ -97,10 +97,10 @@ error: Expected a single string literal argument.
    |                      ^
 
 error: Expected a single string literal argument.
-  --> $DIR/invalid_frompy_derive.rs:88:22
+  --> $DIR/invalid_frompy_derive.rs:88:12
    |
 88 |     #[pyo3(attribute("a", "b"))]
-   |                      ^^^^^^^^
+   |            ^^^^^^^^^^^^^^^^^^^
 
 error: Attribute name cannot be empty.
   --> $DIR/invalid_frompy_derive.rs:94:22

@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Meta, Result};
+use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Meta, MetaList, Result};
 
 /// Describes derivation input of an enum.
 #[derive(Debug)]
@@ -264,20 +264,10 @@ impl<'a> Container<'a> {
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for (ident, attr) in tups {
             let ext_fn = match attr {
-                FieldAttribute::GetAttr(name) => {
-                    if let Some(name) = name.as_ref() {
-                        quote!(getattr(#name))
-                    } else {
-                        quote!(getattr(stringify!(#ident)))
-                    }
-                }
-                FieldAttribute::GetItem(key) => {
-                    if let Some(key) = key.as_ref() {
-                        quote!(get_item(#key))
-                    } else {
-                        quote!(get_item(stringify!(#ident)))
-                    }
-                }
+                FieldAttribute::GetAttr(Some(name)) => quote!(getattr(#name)),
+                FieldAttribute::GetAttr(None) => quote!(getattr(stringify!(#ident))),
+                FieldAttribute::GetItem(Some(key)) => quote!(get_item(#key)),
+                FieldAttribute::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
             fields.push(quote!(#ident: obj.#ext_fn?.extract()?));
         }
@@ -330,10 +320,10 @@ impl ContainerAttribute {
         for meta in list.nested {
             if let syn::NestedMeta::Meta(metaitem) = &meta {
                 match metaitem {
-                    syn::Meta::Path(p) if p.is_ident("transparent") => {
+                    Meta::Path(p) if p.is_ident("transparent") => {
                         attrs.push(ContainerAttribute::Transparent)
                     }
-                    syn::Meta::NameValue(nv) if nv.path.is_ident("annotation") => {
+                    Meta::NameValue(nv) if nv.path.is_ident("annotation") => {
                         if let syn::Lit::Str(s) = &nv.lit {
                             attrs.push(ContainerAttribute::ErrorAnnotation(s.value()))
                         } else {
@@ -372,17 +362,17 @@ impl FieldAttribute {
     /// Currently fails if more than 1 attribute is passed in `pyo3`
     fn parse_attrs(attrs: &[Attribute]) -> Result<Option<Self>> {
         let list = get_pyo3_meta_list(attrs)?;
-        if list.nested.is_empty() {
-            return Ok(None);
-        }
-        if list.nested.len() > 1 {
-            return Err(spanned_err(
-                list.nested,
-                "Only one of `item`, `attribute` can be provided, possibly with an \
-                additional argument: `item(\"key\")` or `attribute(\"name\").",
-            ));
-        }
-        let metaitem = list.nested.into_iter().next().unwrap();
+        let metaitem = match list.nested.len() {
+            0 => return Ok(None),
+            1 => list.nested.into_iter().next().unwrap(),
+            _ => {
+                return Err(spanned_err(
+                    list.nested,
+                    "Only one of `item`, `attribute` can be provided, possibly with an \
+                     additional argument: `item(\"key\")` or `attribute(\"name\").",
+                ))
+            }
+        };
         let meta = match metaitem {
             syn::NestedMeta::Meta(meta) => meta,
             syn::NestedMeta::Lit(lit) => {
@@ -402,37 +392,33 @@ impl FieldAttribute {
         }
     }
 
-    fn attribute_arg(meta: syn::Meta) -> syn::Result<Option<syn::LitStr>> {
+    fn attribute_arg(meta: Meta) -> syn::Result<Option<syn::LitStr>> {
         let arg_list = match meta {
-            syn::Meta::List(list) => list,
-            syn::Meta::Path(_) => return Ok(None),
+            Meta::List(list) => list,
+            Meta::Path(_) => return Ok(None),
             Meta::NameValue(nv) => {
                 let err_msg = "Expected a string literal or no argument: `pyo3(attribute(\"name\") or `pyo3(attribute)`";
                 return Err(spanned_err(nv, err_msg));
             }
         };
         let arg_msg = "Expected a single string literal argument.";
-        if arg_list.nested.is_empty() {
-            return Err(spanned_err(arg_list, arg_msg));
-        } else if arg_list.nested.len() > 1 {
-            return Err(spanned_err(arg_list.nested, arg_msg));
-        }
-        let first = arg_list.nested.first().unwrap();
-        if let syn::NestedMeta::Lit(lit) = first {
-            if let syn::Lit::Str(litstr) = lit {
-                if litstr.value().is_empty() {
-                    return Err(spanned_err(litstr, "Attribute name cannot be empty."));
-                }
-                return Ok(Some(parse_quote!(#litstr)));
+        let first = match arg_list.nested.len() {
+            1 => arg_list.nested.first().unwrap(),
+            _ => return Err(spanned_err(arg_list, arg_msg)),
+        };
+        if let syn::NestedMeta::Lit(syn::Lit::Str(litstr)) = first {
+            if litstr.value().is_empty() {
+                return Err(spanned_err(litstr, "Attribute name cannot be empty."));
             }
+            return Ok(Some(parse_quote!(#litstr)));
         }
         Err(spanned_err(first, arg_msg))
     }
 
-    fn item_arg(meta: syn::Meta) -> syn::Result<Option<syn::Lit>> {
+    fn item_arg(meta: Meta) -> syn::Result<Option<syn::Lit>> {
         let arg_list = match meta {
-            syn::Meta::List(list) => list,
-            syn::Meta::Path(_) => return Ok(None),
+            Meta::List(list) => list,
+            Meta::Path(_) => return Ok(None),
             Meta::NameValue(nv) => {
                 return Err(spanned_err(
                     nv,
@@ -459,11 +445,11 @@ fn spanned_err<T: ToTokens>(tokens: T, msg: &str) -> syn::Error {
 }
 
 /// Extract pyo3 metalist, flattens multiple lists into a single one.
-fn get_pyo3_meta_list(attrs: &[Attribute]) -> Result<syn::MetaList> {
+fn get_pyo3_meta_list(attrs: &[Attribute]) -> Result<MetaList> {
     let mut list: Punctuated<syn::NestedMeta, syn::Token![,]> = Punctuated::new();
     for value in attrs {
         match value.parse_meta()? {
-            syn::Meta::List(ml) if value.path.is_ident("pyo3") => {
+            Meta::List(ml) if value.path.is_ident("pyo3") => {
                 for meta in ml.nested {
                     list.push(meta);
                 }
@@ -471,7 +457,7 @@ fn get_pyo3_meta_list(attrs: &[Attribute]) -> Result<syn::MetaList> {
             _ => continue,
         }
     }
-    Ok(syn::MetaList {
+    Ok(MetaList {
         path: parse_quote!(pyo3),
         paren_token: syn::token::Paren::default(),
         nested: list,
