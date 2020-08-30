@@ -38,10 +38,7 @@ macro_rules! impl_exception_boilerplate {
 
         impl std::fmt::Debug for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                use $crate::AsPyPointer;
-                let py_type_name =
-                    unsafe { std::ffi::CStr::from_ptr((*(*self.as_ptr()).ob_type).tp_name) };
-                let type_name = py_type_name.to_string_lossy();
+                let type_name = self.get_type().name();
                 f.debug_struct(&*type_name)
                     // TODO: print out actual fields!
                     .finish()
@@ -50,10 +47,7 @@ macro_rules! impl_exception_boilerplate {
 
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                use $crate::AsPyPointer;
-                let py_type_name =
-                    unsafe { std::ffi::CStr::from_ptr((*(*self.as_ptr()).ob_type).tp_name) };
-                let type_name = py_type_name.to_string_lossy();
+                let type_name = self.get_type().name();
                 write!(f, "{}", type_name)?;
                 if let Ok(s) = self.str() {
                     write!(f, ": {}", &s.to_string_lossy())
