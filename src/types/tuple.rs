@@ -42,7 +42,7 @@ impl PyTuple {
     pub fn len(&self) -> usize {
         unsafe {
             // non-negative Py_ssize_t should always fit into Rust uint
-            ffi::PyTuple_GET_SIZE(self.as_ptr()) as usize
+            ffi::PyTuple_Size(self.as_ptr()) as usize
         }
     }
 
@@ -62,8 +62,7 @@ impl PyTuple {
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
     pub fn split_from(&self, low: isize) -> &PyTuple {
         unsafe {
-            let ptr =
-                ffi::PyTuple_GetSlice(self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
+            let ptr = ffi::PyTuple_GetSlice(self.as_ptr(), low, self.len() as Py_ssize_t);
             self.py().from_owned_ptr(ptr)
         }
     }
@@ -75,11 +74,14 @@ impl PyTuple {
         assert!(index < self.len());
         unsafe {
             self.py()
-                .from_borrowed_ptr(ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+                .from_borrowed_ptr(ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
     /// Returns `self` as a slice of objects.
+    ///
+    /// Not available when compiled with Py_LIMITED_API.
+    #[cfg(not(Py_LIMITED_API))]
     pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -93,16 +95,18 @@ impl PyTuple {
     /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyTupleIterator {
         PyTupleIterator {
-            slice: self.as_slice(),
+            tuple: self,
             index: 0,
+            length: self.len(),
         }
     }
 }
 
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
-    slice: &'a [&'a PyAny],
+    tuple: &'a PyTuple,
     index: usize,
+    length: usize,
 }
 
 impl<'a> Iterator for PyTupleIterator<'a> {
@@ -110,8 +114,8 @@ impl<'a> Iterator for PyTupleIterator<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
-        if self.index < self.slice.len() {
-            let item = self.slice[self.index];
+        if self.index < self.length {
+            let item = self.tuple.get_item(self.index);
             self.index += 1;
             Some(item)
         } else {
@@ -172,10 +176,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn extract(obj: &'s PyAny) -> PyResult<Self>
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
-            let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $(slice[$n].extract::<$T>()?,)+
+                    $(t.get_item($n).extract::<$T>()?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
@@ -295,5 +298,20 @@ mod test {
         for (i, item) in tuple.iter().enumerate() {
             assert_eq!(i + 1, item.extract().unwrap());
         }
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_as_slice() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let ob = (1, 2, 3).to_object(py);
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        let slice = tuple.as_slice();
+        assert_eq!(3, slice.len());
+        assert_eq!(1, slice[0].extract().unwrap());
+        assert_eq!(2, slice[1].extract().unwrap());
+        assert_eq!(3, slice[2].extract().unwrap());
     }
 }
