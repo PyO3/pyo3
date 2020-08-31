@@ -235,7 +235,8 @@ fn initialize_tp_dict(
     // the POV of other threads.
     for (key, val) in items {
         let ret = unsafe {
-            ffi::PyDict_SetItemString(tp_dict, CString::new(key)?.as_ptr(), val.into_ptr())
+            let key_cstr = CString::new(key)?;
+            ffi::PyDict_SetItemString(tp_dict, key_cstr.as_ptr(), val.into_ptr())
         };
         if ret < 0 {
             return Err(PyErr::fetch(py));
