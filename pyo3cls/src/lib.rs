@@ -5,7 +5,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use pyo3_derive_backend::{
-    build_py_class, build_py_function, build_py_methods, build_py_proto, get_doc,
+    build_py_class, build_py_enum, build_py_function, build_py_methods, build_py_proto, get_doc,
     process_functions_in_module, py_init, PyClassArgs, PyFunctionAttr,
 };
 use quote::quote;
@@ -58,6 +58,18 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemStruct);
     let args = parse_macro_input!(attr as PyClassArgs);
     let expanded = build_py_class(&mut ast, &args).unwrap_or_else(|e| e.to_compile_error());
+
+    quote!(
+        #ast
+        #expanded
+    )
+    .into()
+}
+
+#[proc_macro_attribute]
+pub fn pyenum(_: TokenStream, input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::ItemEnum);
+    let expanded = build_py_enum(&ast).unwrap_or_else(|e| e.to_compile_error());
 
     quote!(
         #ast
