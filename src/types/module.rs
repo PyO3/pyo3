@@ -10,7 +10,7 @@ use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::{AsPyPointer, IntoPy, Py, PyObject, Python, ToPyObject};
+use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -159,12 +159,12 @@ impl PyModule {
     /// This is a convenience function which can be used from the module's initialization function.
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<()>
     where
-        V: ToPyObject,
+        V: IntoPy<PyObject>,
     {
         self.index()?
             .append(name)
             .expect("could not append __name__ to __all__");
-        self.setattr(name, value)
+        self.setattr(name, value.into_py(self.py()))
     }
 
     /// Adds a new extension type to the module.
