@@ -40,6 +40,7 @@ The table below contains the Python type and the corresponding function argument
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
 | `typing.Iterator[Any]` | -                      | `&PyIterator`        |
+| `typing.Union[...]` | See [`#[derive(FromPyObject)]`](#deriving-a-hrefhttpsdocsrspyo3latestpyo3conversiontraitfrompyobjecthtmlfrompyobjecta-for-enums) | - |
 
 There are also a few special types related to the GIL and Rust-defined `#[pyclass]`es which may come in useful:
 
@@ -149,7 +150,7 @@ struct RustyStruct {
     #[pyo3(item)]
     my_string: String,
 }
-``` 
+```
 
 The argument passed to `getattr` and `get_item` can also be configured:
 
@@ -185,7 +186,7 @@ struct RustyTuple(String, String);
 
 Tuple structs with a single field are treated as wrapper types which are described in the
 following section. To override this behaviour and ensure that the input is in fact a tuple,
-specify the struct as 
+specify the struct as
 ```
 use pyo3::prelude::*;
 
@@ -217,6 +218,7 @@ struct RustyTransparentStruct {
 
 The `FromPyObject` derivation for enums generates code that tries to extract the variants in the
 order of the fields. As soon as a variant can be extracted succesfully, that variant is returned.
+This makes it possible to extract Python types like `Union[str, int]`.
 
 The same customizations and restrictions described for struct derivations apply to enum variants,
 i.e. a tuple variant assumes that the input is a Python tuple, and a struct variant defaults to
@@ -267,7 +269,7 @@ enum RustyEnum {
 
 If the input is neither a string nor an integer, the error message will be:
 `"Can't convert <INPUT> to Union[str, int]"`, where `<INPUT>` is replaced by the type name and
-`repr()` of the input object. 
+`repr()` of the input object.
 
 #### `#[derive(FromPyObject)]` Container Attributes
 - `pyo3(transparent)`
