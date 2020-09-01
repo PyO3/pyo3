@@ -40,7 +40,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     for stmt in func.block.stmts.iter_mut() {
         if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
             if let Some((module_name, python_name, pyfn_attrs)) =
-                extract_pyfn_attrs(&mut func.attrs)
+                extract_pyfn_attrs(&mut func.attrs)?
             {
                 let function_to_python = add_fn_to_module(func, python_name, pyfn_attrs)?;
                 let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
@@ -76,14 +76,14 @@ fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> syn::Result<m
         ty: &cap.ty,
         optional: opt,
         py,
-        reference: method::is_ref(&name, &cap.ty),
+        reference: method::is_ref(&name, &cap.ty)?,
     })
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
 fn extract_pyfn_attrs(
     attrs: &mut Vec<syn::Attribute>,
-) -> Option<(syn::Path, Ident, Vec<pyfunction::Argument>)> {
+) -> syn::Result<Option<(syn::Path, Ident, Vec<pyfunction::Argument>)>> {
     let mut new_attrs = Vec::new();
     let mut fnname = None;
     let mut modname = None;
@@ -99,14 +99,24 @@ fn extract_pyfn_attrs(
                         syn::NestedMeta::Meta(syn::Meta::Path(ref path)) => {
                             modname = Some(path.clone())
                         }
-                        _ => panic!("The first parameter of pyfn must be a MetaItem"),
+                        _ => {
+                            return Err(syn::Error::new_spanned(
+                                &meta[0],
+                                "The first parameter of pyfn must be a MetaItem",
+                            ))
+                        }
                     }
                     // read Python function name
                     match meta[1] {
                         syn::NestedMeta::Lit(syn::Lit::Str(ref lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
-                        _ => panic!("The second parameter of pyfn must be a Literal"),
+                        _ => {
+                            return Err(syn::Error::new_spanned(
+                                &meta[1],
+                                "The second parameter of pyfn must be a Literal",
+                            ))
+                        }
                     }
                     // Read additional arguments
                     if list.nested.len() >= 3 {
@@ -115,7 +125,10 @@ fn extract_pyfn_attrs(
                             .arguments;
                     }
                 } else {
-                    panic!("can not parse 'pyfn' params {:?}", attr);
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        format!("can not parse 'pyfn' params {:?}", attr),
+                    ));
                 }
             }
             _ => new_attrs.push(attr.clone()),
@@ -123,7 +136,10 @@ fn extract_pyfn_attrs(
     }
 
     *attrs = new_attrs;
-    Some((modname?, fnname?, fn_attrs))
+    match (modname, fnname) {
+        (Some(modname), Some(fnname)) => Ok(Some((modname, fnname, fn_attrs))),
+        _ => Ok(None),
+    }
 }
 
 /// Coordinates the naming of a the add-function-to-python-module function
