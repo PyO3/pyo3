@@ -224,7 +224,7 @@ impl<'a> FnSpec<'a> {
                         ty,
                         optional: opt,
                         py,
-                        reference: is_ref(name, ty),
+                        reference: is_ref(name, ty)?,
                     });
                 }
             }
@@ -323,30 +323,32 @@ impl<'a> FnSpec<'a> {
     }
 }
 
-pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
+pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> syn::Result<bool> {
     match ty {
-        syn::Type::Reference(_) => return true,
+        syn::Type::Reference(_) => return Ok(true),
         syn::Type::Path(syn::TypePath { ref path, .. }) => {
             if let Some(segment) = path.segments.last() {
                 if "Option" == segment.ident.to_string().as_str() {
                     match segment.arguments {
                         syn::PathArguments::AngleBracketed(ref params) => {
                             if params.args.len() != 1 {
-                                panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                       name,
-                                       ty,
-                                       path);
+                                let msg = format!("argument type is not supported by python method: {:?} ({:?}) {:?}",
+                                                  name,
+                                                  ty,
+                                                  path);
+                                syn::Error::new_spanned(segment, msg);
                             }
                             let last = &params.args[params.args.len() - 1];
                             if let syn::GenericArgument::Type(syn::Type::Reference(_)) = last {
-                                return true;
+                                return Ok(true);
                             }
                         }
                         _ => {
-                            panic!(
+                            let msg = format!(
                                 "argument type is not supported by python method: {:?} ({:?}) {:?}",
                                 name, ty, path
                             );
+                            syn::Error::new_spanned(segment, msg);
                         }
                     }
                 }
@@ -354,7 +356,7 @@ pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
         }
         _ => (),
     }
-    false
+    Ok(false)
 }
 
 pub(crate) fn check_ty_optional(ty: &syn::Type) -> Option<&syn::Type> {
