@@ -78,6 +78,24 @@ impl PyString {
     }
 }
 
+/// Convenience for calling Python APIs with a temporary string
+/// object created from a given Rust string.
+pub(crate) fn with_tmp_string<F, R>(py: Python, s: &str, f: F) -> PyResult<R>
+where
+    F: FnOnce(*mut ffi::PyObject) -> PyResult<R>,
+{
+    unsafe {
+        let s_obj =
+            ffi::PyUnicode_FromStringAndSize(s.as_ptr() as *const _, s.len() as ffi::Py_ssize_t);
+        if s_obj.is_null() {
+            return Err(PyErr::fetch(py));
+        }
+        let ret = f(s_obj);
+        ffi::Py_DECREF(s_obj);
+        ret
+    }
+}
+
 /// Converts a Rust `str` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
