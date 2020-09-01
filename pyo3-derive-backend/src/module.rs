@@ -26,8 +26,6 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
             const NAME: &'static str = concat!(stringify!(#name), "\0");
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME) };
 
-            let pool = pyo3::GILPool::new();
-            let py = pool.python();
             pyo3::callback_body!(_py, { MODULE_DEF.make_module(#doc, #fnname) })
         }
     }
