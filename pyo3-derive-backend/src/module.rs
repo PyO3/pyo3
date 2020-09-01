@@ -59,22 +59,19 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> syn::Result<method::FnArg<'a>> {
+fn wrap_fn_argument<'a>(cap: &'a syn::PatType) -> syn::Result<method::FnArg<'a>> {
     let (mutability, by_ref, ident) = match *cap.pat {
         syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),
     };
 
-    let py = crate::utils::if_type_is_python(&cap.ty);
-    let opt = method::check_ty_optional(&cap.ty);
     Ok(method::FnArg {
         name: ident,
         mutability,
         by_ref,
         ty: &cap.ty,
-        optional: opt,
-        py,
-        reference: method::is_ref(&name, &cap.ty)?,
+        optional: utils::option_type_argument(&cap.ty),
+        py: utils::is_python(&cap.ty),
     })
 }
 
@@ -164,7 +161,7 @@ pub fn add_fn_to_module(
                 ))
             }
             syn::FnArg::Typed(ref cap) => {
-                arguments.push(wrap_fn_argument(cap, &func.sig.ident)?);
+                arguments.push(wrap_fn_argument(cap)?);
             }
         }
     }
