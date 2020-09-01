@@ -1,6 +1,7 @@
 import datetime as pdt
 import platform
 import struct
+import re
 import sys
 
 import pytest
@@ -327,4 +328,5 @@ def test_tz_class_introspection():
     tzi = rdt.TzClass()
 
     assert tzi.__class__ == rdt.TzClass
-    assert repr(tzi).startswith("<TzClass object at")
+    # PyPy generate <importlib.bootstrap.TzClass ...> for some reason.
+    assert re.match(r"^<[\w\.]*TzClass object at", repr(tzi))

@@ -6,9 +6,10 @@
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
 use crate::callback::IntoPyCallbackOutput;
+use crate::pyclass::maybe_push_slot;
 use crate::types::PyAny;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
 
 /// Descriptor interface
 #[allow(unused_variables)]
@@ -79,9 +80,17 @@ pub struct PyDescrMethods {
 
 #[doc(hidden)]
 impl PyDescrMethods {
-    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
-        type_object.tp_descr_get = self.tp_descr_get;
-        type_object.tp_descr_set = self.tp_descr_set;
+    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
+        maybe_push_slot(
+            slots,
+            ffi::Py_tp_descr_get,
+            self.tp_descr_get.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_tp_descr_set,
+            self.tp_descr_set.map(|v| v as *mut c_void),
+        );
     }
     pub fn set_descr_get<T>(&mut self)
     where

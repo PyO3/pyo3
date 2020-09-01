@@ -3,7 +3,7 @@
 
 use crate::conversion::IntoPyPointer;
 use crate::once_cell::GILOnceCell;
-use crate::pyclass::{initialize_type_object, py_class_attributes, PyClass};
+use crate::pyclass::{create_type_object, py_class_attributes, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
@@ -157,12 +157,10 @@ impl LazyStaticType {
 
     pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
         let type_object = *self.value.get_or_init(py, || {
-            let mut type_object = Box::new(ffi::PyTypeObject_INIT);
-            initialize_type_object::<T>(py, T::MODULE, type_object.as_mut()).unwrap_or_else(|e| {
+            create_type_object::<T>(py, T::MODULE).unwrap_or_else(|e| {
                 e.print(py);
                 panic!("An error occurred while initializing class {}", T::NAME)
-            });
-            Box::into_raw(type_object)
+            })
         });
 
         // We might want to fill the `tp_dict` with python instances of `T`

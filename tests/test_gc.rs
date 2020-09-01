@@ -146,7 +146,7 @@ fn gc_integration2() {
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
-#[pyclass(weakref)]
+#[pyclass(weakref, subclass)]
 struct WeakRefSupport {}
 
 #[test]
@@ -179,7 +179,7 @@ fn inherited_weakref() {
     );
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClassWithDrop {
     data: Option<Arc<AtomicBool>>,
 }
