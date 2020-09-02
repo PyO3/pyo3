@@ -1,4 +1,4 @@
-# The PyO3 Guide
+# The PyO3 user guide
 
 Welcome to the PyO3 user guide! This book is a companion to [PyO3's API docs](https://docs.rs/pyo3). It contains examples and documentation to explain all of PyO3's use cases in detail.
 
