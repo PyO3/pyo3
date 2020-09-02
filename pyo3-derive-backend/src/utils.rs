@@ -8,7 +8,7 @@ pub fn print_err(msg: String, t: TokenStream) {
 }
 
 /// Check if the given type `ty` is `pyo3::Python`.
-pub fn if_type_is_python(ty: &syn::Type) -> bool {
+pub fn is_python(ty: &syn::Type) -> bool {
     match ty {
         syn::Type::Path(ref typath) => typath
             .path
@@ -18,6 +18,19 @@ pub fn if_type_is_python(ty: &syn::Type) -> bool {
             .unwrap_or(false),
         _ => false,
     }
+}
+
+/// If `ty` is Option<T>, return `Some(T)`, else None.
+pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
+    if let syn::Type::Path(syn::TypePath { path, .. }) = ty {
+        let seg = path.segments.last().filter(|s| s.ident == "Option")?;
+        if let syn::PathArguments::AngleBracketed(params) = &seg.arguments {
+            if let syn::GenericArgument::Type(ty) = params.args.first()? {
+                return Some(ty);
+            }
+        }
+    }
+    None
 }
 
 pub fn is_text_signature_attr(attr: &syn::Attribute) -> bool {
