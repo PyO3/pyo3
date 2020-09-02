@@ -1,6 +1,6 @@
 use crate::ffi::object::{PyObject, PyTypeObject, Py_TYPE};
+use std::mem;
 use std::os::raw::{c_char, c_int};
-use std::{mem, ptr};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -96,19 +96,16 @@ impl Default for PyMethodDef {
     }
 }
 
-#[inline]
-pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
-    PyCFunction_NewEx(ml, slf, ptr::null_mut())
-}
-
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
     pub fn PyCFunction_NewEx(
-        arg1: *mut PyMethodDef,
-        arg2: *mut PyObject,
-        arg3: *mut PyObject,
+        ml: *mut PyMethodDef,
+        slf: *mut PyObject,
+        module: *mut PyObject,
     ) -> *mut PyObject;
+
+    #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
+    pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
 }
 
 /* Flag passed to newmethodobject */
