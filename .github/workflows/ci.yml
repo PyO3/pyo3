@@ -6,6 +6,9 @@ on:
       - master
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   fmt:
     runs-on: ubuntu-latest
