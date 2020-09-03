@@ -25,6 +25,7 @@ extern "C" {
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
