@@ -166,6 +166,7 @@ fn slot_initialization(
         Span::call_site(),
     );
     Ok(quote! {
+        #[allow(non_snake_case)]
         #[pyo3::ctor::ctor]
         fn #init() {
             let mut table = #table::default();
