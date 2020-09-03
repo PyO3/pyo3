@@ -4,6 +4,7 @@ fn test_compile_errors() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/ui/invalid_frompy_derive.rs");
     t.compile_fail("tests/ui/invalid_macro_args.rs");
+    t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
