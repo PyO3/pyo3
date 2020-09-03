@@ -192,7 +192,7 @@ pub fn add_fn_to_module(
     Ok(quote! {
         fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
-        ) -> pyo3::PyObject {
+        ) -> pyo3::PyResult<pyo3::PyObject> {
             let arg = args.into();
             let (py, maybe_module) = arg.into_py_and_maybe_module();
             #wrapper
@@ -206,12 +206,8 @@ pub fn add_fn_to_module(
 
             let (mod_ptr, name) = if let Some(m) = maybe_module {
                 let mod_ptr = <pyo3::types::PyModule as ::pyo3::conversion::AsPyPointer>::as_ptr(m);
-                let name = match m.name() {
-                    Ok(name) => <&str as pyo3::conversion::IntoPy<PyObject>>::into_py(name, py),
-                    Err(err) => {
-                        return <PyErr as pyo3::conversion::IntoPy<PyObject>>::into_py(err, py);
-                    }
-                };
+                let name = m.name()?;
+                let name = <&str as pyo3::conversion::IntoPy<PyObject>>::into_py(name, py);
                 (mod_ptr, <PyObject as pyo3::AsPyPointer>::as_ptr(&name))
             } else {
                 (std::ptr::null_mut(), std::ptr::null_mut())
@@ -228,7 +224,7 @@ pub fn add_fn_to_module(
                 )
             };
 
-            function
+            Ok(function)
         }
     })
 }

@@ -14,7 +14,7 @@ fn test_unicode_encode_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let take_str = wrap_pyfunction!(take_str)(py);
+    let take_str = wrap_pyfunction!(take_str)(py).unwrap();
     py_run!(
         py,
         take_str,

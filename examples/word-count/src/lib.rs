@@ -55,7 +55,7 @@ fn count_line(line: &str, needle: &str) -> usize {
 
 #[pymodule]
 fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(search))?;
+    m.add_wrapped(wrap_pyfunction!(search))?;
     m.add_function(wrap_pyfunction!(search_sequential))?;
     m.add_function(wrap_pyfunction!(search_sequential_allow_threads))?;
 

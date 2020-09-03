@@ -61,7 +61,7 @@ fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("foo", "bar").unwrap();
 
     m.add_function(wrap_pyfunction!(double)).unwrap();
-    m.add("also_double", wrap_pyfunction!(double)(m)).unwrap();
+    m.add("also_double", wrap_pyfunction!(double)(m)?).unwrap();
 
     Ok(())
 }

@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
@@ -197,8 +198,11 @@ impl PyModule {
     ///
     /// **This function will be deprecated in the next release. Please use the specific
     /// [add_function] and [add_module] functions instead.**
-    pub fn add_wrapped<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
-        let function = wrapper(self.py());
+    pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
+    where
+        T: IntoPyCallbackOutput<PyObject>,
+    {
+        let function = wrapper(self.py()).convert(self.py())?;
         let name = function.getattr(self.py(), "__name__")?;
         self.add(name.extract(self.py())?, function)
     }
@@ -211,9 +215,9 @@ impl PyModule {
     /// m.add_module(wrap_pymodule!(utils));
     /// ```
     pub fn add_module<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
-        let function = wrapper(self.py());
-        let name = function.getattr(self.py(), "__name__")?;
-        self.add(name.extract(self.py())?, function)
+        let module = wrapper(self.py());
+        let name = module.getattr(self.py(), "__name__")?;
+        self.add(name.extract(self.py())?, module)
     }
 
     /// Adds a function to a module, using the functions __name__ as name.
@@ -229,8 +233,11 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_pyfunction!(double)(py, m));
     /// ```
-    pub fn add_function<'a>(&'a self, wrapper: &impl Fn(&'a Self) -> PyObject) -> PyResult<()> {
-        let function = wrapper(self);
+    pub fn add_function<'a>(
+        &'a self,
+        wrapper: &impl Fn(&'a Self) -> PyResult<PyObject>,
+    ) -> PyResult<()> {
+        let function = wrapper(self)?;
         let name = function.getattr(self.py(), "__name__")?;
         self.add(name.extract(self.py())?, function)
     }
