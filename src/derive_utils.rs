@@ -215,6 +215,18 @@ pub enum WrapPyFunctionArguments<'a> {
     PyModule(&'a PyModule),
 }
 
+impl<'a> WrapPyFunctionArguments<'a> {
+    pub fn into_py_and_maybe_module(self) -> (Python<'a>, Option<&'a PyModule>) {
+        match self {
+            WrapPyFunctionArguments::Python(py) => (py, None),
+            WrapPyFunctionArguments::PyModule(module) => {
+                let py = module.py();
+                (py, Some(module))
+            }
+        }
+    }
+}
+
 impl<'a> From<Python<'a>> for WrapPyFunctionArguments<'a> {
     fn from(py: Python<'a>) -> WrapPyFunctionArguments<'a> {
         WrapPyFunctionArguments::Python(py)

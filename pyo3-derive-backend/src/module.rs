@@ -194,13 +194,7 @@ pub fn add_fn_to_module(
             args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
         ) -> pyo3::PyObject {
             let arg = args.into();
-            let (py, maybe_module) = match arg {
-                pyo3::derive_utils::WrapPyFunctionArguments::Python(py) => (py, None),
-                pyo3::derive_utils::WrapPyFunctionArguments::PyModule(module) => {
-                    let py = <pyo3::types::PyModule as pyo3::PyNativeType>::py(module);
-                    (py, Some(module))
-                }
-            };
+            let (py, maybe_module) = arg.into_py_and_maybe_module();
             #wrapper
 
             let _def = pyo3::class::PyMethodDef {

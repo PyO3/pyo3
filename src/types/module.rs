@@ -199,10 +199,8 @@ impl PyModule {
     /// [add_function] and [add_module] functions instead.**
     pub fn add_wrapped<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());
-        let name = function
-            .getattr(self.py(), "__name__")
-            .expect("A function or module must have a __name__");
-        self.add(name.extract(self.py()).unwrap(), function)
+        let name = function.getattr(self.py(), "__name__")?;
+        self.add(name.extract(self.py())?, function)
     }
 
     /// Adds a (sub)module to a module.
@@ -214,10 +212,8 @@ impl PyModule {
     /// ```
     pub fn add_module<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());
-        let name = function
-            .getattr(self.py(), "__name__")
-            .expect("A module must have a __name__");
-        self.add(name.extract(self.py()).unwrap(), function)
+        let name = function.getattr(self.py(), "__name__")?;
+        self.add(name.extract(self.py())?, function)
     }
 
     /// Adds a function to a module, using the functions __name__ as name.
@@ -235,9 +231,7 @@ impl PyModule {
     /// ```
     pub fn add_function<'a>(&'a self, wrapper: &impl Fn(&'a Self) -> PyObject) -> PyResult<()> {
         let function = wrapper(self);
-        let name = function
-            .getattr(self.py(), "__name__")
-            .expect("A function or module must have a __name__");
-        self.add(name.extract(self.py()).unwrap(), function)
+        let name = function.getattr(self.py(), "__name__")?;
+        self.add(name.extract(self.py())?, function)
     }
 }
