@@ -207,3 +207,22 @@ where
         <R as std::convert::TryFrom<&'a PyCell<T>>>::try_from(cell)
     }
 }
+
+/// Enum to abstract over the arguments of Python function wrappers.
+#[doc(hidden)]
+pub enum WrapPyFunctionArguments<'a> {
+    Python(Python<'a>),
+    PyModule(&'a PyModule),
+}
+
+impl<'a> From<Python<'a>> for WrapPyFunctionArguments<'a> {
+    fn from(py: Python<'a>) -> WrapPyFunctionArguments<'a> {
+        WrapPyFunctionArguments::Python(py)
+    }
+}
+
+impl<'a> From<&'a PyModule> for WrapPyFunctionArguments<'a> {
+    fn from(module: &'a PyModule) -> WrapPyFunctionArguments<'a> {
+        WrapPyFunctionArguments::PyModule(module)
+    }
+}

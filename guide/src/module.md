@@ -67,13 +67,13 @@ fn subfunction() -> String {
 
 #[pymodule]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pyfunction!(subfunction))?;
+    module.add_function(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pymodule!(submodule))?;
+    module.add_module(wrap_pymodule!(submodule))?;
     Ok(())
 }
 

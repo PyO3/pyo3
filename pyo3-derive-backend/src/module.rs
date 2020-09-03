@@ -45,7 +45,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
                 let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
-                        #module_name.add_wrapped(&#function_wrapper_ident)?;
+                        #module_name.add_function(&#function_wrapper_ident)?;
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());
@@ -190,7 +190,17 @@ pub fn add_fn_to_module(
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
 
     Ok(quote! {
-        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::PyObject {
+        fn #function_wrapper_ident<'a>(
+            args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
+        ) -> pyo3::PyObject {
+            let arg = args.into();
+            let (py, maybe_module) = match arg {
+                pyo3::derive_utils::WrapPyFunctionArguments::Python(py) => (py, None),
+                pyo3::derive_utils::WrapPyFunctionArguments::PyModule(module) => {
+                    let py = <pyo3::types::PyModule as pyo3::PyNativeType>::py(module);
+                    (py, Some(module))
+                }
+            };
             #wrapper
 
             let _def = pyo3::class::PyMethodDef {
@@ -200,12 +210,26 @@ pub fn add_fn_to_module(
                 ml_doc: #doc,
             };
 
+            let (mod_ptr, name) = if let Some(m) = maybe_module {
+                let mod_ptr = <pyo3::types::PyModule as ::pyo3::conversion::AsPyPointer>::as_ptr(m);
+                let name = match m.name() {
+                    Ok(name) => <&str as pyo3::conversion::IntoPy<PyObject>>::into_py(name, py),
+                    Err(err) => {
+                        return <PyErr as pyo3::conversion::IntoPy<PyObject>>::into_py(err, py);
+                    }
+                };
+                (mod_ptr, <PyObject as pyo3::AsPyPointer>::as_ptr(&name))
+            } else {
+                (std::ptr::null_mut(), std::ptr::null_mut())
+            };
+
             let function = unsafe {
                 pyo3::PyObject::from_owned_ptr(
                     py,
-                    pyo3::ffi::PyCFunction_New(
+                    pyo3::ffi::PyCFunction_NewEx(
                         Box::into_raw(Box::new(_def.as_method_def())),
-                        ::std::ptr::null_mut()
+                        mod_ptr,
+                        name
                     )
                 )
             };

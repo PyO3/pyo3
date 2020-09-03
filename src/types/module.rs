@@ -194,8 +194,47 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_pyfunction!(double)(py));
     /// ```
-    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) -> PyResult<()> {
+    ///
+    /// **This function will be deprecated in the next release. Please use the specific
+    /// [add_function] and [add_module] functions instead.**
+    pub fn add_wrapped<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());
+        let name = function
+            .getattr(self.py(), "__name__")
+            .expect("A function or module must have a __name__");
+        self.add(name.extract(self.py()).unwrap(), function)
+    }
+
+    /// Adds a (sub)module to a module.
+    ///
+    /// Use this together with `#[pymodule]` and [wrap_pymodule!].
+    ///
+    /// ```rust,ignore
+    /// m.add_module(wrap_pymodule!(utils));
+    /// ```
+    pub fn add_module<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
+        let function = wrapper(self.py());
+        let name = function
+            .getattr(self.py(), "__name__")
+            .expect("A module must have a __name__");
+        self.add(name.extract(self.py()).unwrap(), function)
+    }
+
+    /// Adds a function to a module, using the functions __name__ as name.
+    ///
+    /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!].
+    ///
+    /// ```rust,ignore
+    /// m.add_function(wrap_pyfunction!(double));
+    /// ```
+    ///
+    /// You can also add a function with a custom name using [add](PyModule::add):
+    ///
+    /// ```rust,ignore
+    /// m.add("also_double", wrap_pyfunction!(double)(py, m));
+    /// ```
+    pub fn add_function<'a>(&'a self, wrapper: &impl Fn(&'a Self) -> PyObject) -> PyResult<()> {
+        let function = wrapper(self);
         let name = function
             .getattr(self.py(), "__name__")
             .expect("A function or module must have a __name__");

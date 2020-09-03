@@ -36,7 +36,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(double)).unwrap();
+    m.add_function(wrap_pyfunction!(double)).unwrap();
 
     Ok(())
 }
@@ -65,7 +65,7 @@ fn num_kwds(kwds: Option<&PyDict>) -> usize {
 
 #[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(num_kwds)).unwrap();
+    m.add_function(wrap_pyfunction!(num_kwds)).unwrap();
     Ok(())
 }
 
