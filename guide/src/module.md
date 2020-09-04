@@ -73,7 +73,7 @@ fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
 
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_module(wrap_pymodule!(submodule))?;
+    module.add_submodule(wrap_pymodule!(submodule))?;
     Ok(())
 }
 

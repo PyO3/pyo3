@@ -197,7 +197,7 @@ impl PyModule {
     /// ```
     ///
     /// **This function will be deprecated in the next release. Please use the specific
-    /// [add_function] and [add_module] functions instead.**
+    /// [add_function] and [add_submodule] functions instead.**
     pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<PyObject>,
@@ -207,20 +207,20 @@ impl PyModule {
         self.add(name.extract(self.py())?, function)
     }
 
-    /// Adds a (sub)module to a module.
+    /// Add a submodule to a module.
     ///
     /// Use this together with `#[pymodule]` and [wrap_pymodule!].
     ///
     /// ```rust,ignore
-    /// m.add_module(wrap_pymodule!(utils));
+    /// m.add_submodule(wrap_pymodule!(utils));
     /// ```
-    pub fn add_module<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
+    pub fn add_submodule<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
         let module = wrapper(self.py());
         let name = module.getattr(self.py(), "__name__")?;
         self.add(name.extract(self.py())?, module)
     }
 
-    /// Adds a function to a module, using the functions __name__ as name.
+    /// Add a function to a module.
     ///
     /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!].
     ///
