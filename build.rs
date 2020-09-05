@@ -757,7 +757,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         bail!("Python 2 is not supported");
     }
 
-    if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+    if env::var_os("CARGO_FEATURE_ALL_APIS").is_none() {
         println!("cargo:rustc-cfg=Py_LIMITED_API");
     }
 

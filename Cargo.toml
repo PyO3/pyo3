@@ -33,8 +33,12 @@ trybuild = "1.0.23"
 rustversion = "1.0"
 
 [features]
-default = ["macros"]
+default = ["macros", "all-apis"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
+# Enable the use of `not(Py_LIMITED_API)` s.
+# This is incompatible with abi3(PEP384). See https://www.python.org/dev/peps/pep-0384/ more.
+all-apis = []
+
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
@@ -45,11 +49,6 @@ python3 = []
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
 extension-module = []
-
-# The stable cpython abi as defined in PEP 384. Currently broken with
-# many compilation errors. Pull Requests working towards fixing that
-# are welcome.
-# abi3 = []
 
 [workspace]
 members = [
