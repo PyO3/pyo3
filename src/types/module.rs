@@ -228,20 +228,19 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// #[pymodule]
-    /// fn utils(_py: Python, _module: &PyModule) -> PyResult<()> {
-    ///     Ok(())
+    ///
+    /// fn init_utils(module: &PyModule) -> PyResult<()> {
+    ///     module.add("super_useful_constant", "important")
     /// }
     /// #[pymodule]
-    /// fn top_level(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add_submodule(pyo3::wrap_pymodule!(utils))
+    /// fn top_level(py: Python, module: &PyModule) -> PyResult<()> {
+    ///     let utils = PyModule::new(py, "utils")?;
+    ///     init_utils(utils)?;
+    ///     module.add_submodule(utils)
     /// }
     /// ```
-    pub fn add_submodule<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
-        let py = self.py();
-        let module = wrapper(py);
-        let name = module.getattr(py, "__name__")?;
-        let name = name.extract(py)?;
+    pub fn add_submodule(&self, module: &PyModule) -> PyResult<()> {
+        let name = module.name()?;
         self.add(name, module)
     }
 

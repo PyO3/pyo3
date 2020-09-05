@@ -218,8 +218,15 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
+fn submodule(module: &PyModule) -> PyResult<()> {
+    use pyo3::wrap_pyfunction;
+
+    module.add_function(wrap_pyfunction!(subfunction))?;
+    Ok(())
+}
+
 #[pymodule]
-fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
+fn submodule_with_init_fn(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
     module.add_function(wrap_pyfunction!(subfunction))?;
@@ -232,11 +239,16 @@ fn superfunction() -> String {
 }
 
 #[pymodule]
-fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    use pyo3::{wrap_pyfunction, wrap_pymodule};
+fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
+    use pyo3::wrap_pyfunction;
 
     module.add_function(wrap_pyfunction!(superfunction))?;
-    module.add_submodule(wrap_pymodule!(submodule))?;
+    let module_to_add = PyModule::new(py, "submodule")?;
+    submodule(module_to_add)?;
+    module.add_submodule(module_to_add)?;
+    let module_to_add = PyModule::new(py, "submodule_with_init_fn")?;
+    submodule_with_init_fn(py, module_to_add)?;
+    module.add_submodule(module_to_add)?;
     Ok(())
 }
 
@@ -257,6 +269,11 @@ fn test_module_nesting() {
         py,
         supermodule,
         "supermodule.submodule.subfunction() == 'Subfunction'"
+    );
+    py_assert!(
+        py,
+        supermodule,
+        "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
     );
 }
 
