@@ -6,7 +6,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PySet};
 mod common;
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClass {
     #[pyo3(get)]
     val1: usize,
@@ -106,7 +106,7 @@ fn mutation_fails() {
     )
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClassWithResult {
     _val: usize,
 }

@@ -31,7 +31,10 @@ fn class_with_docs() {
     py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
 }
 
+// Ignored because heap types don't have working __text_signature__:
+// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L864-L870
 #[test]
+#[ignore]
 fn class_with_docs_and_signature() {
     /// docs line1
     #[pyclass]
@@ -66,7 +69,10 @@ fn class_with_docs_and_signature() {
     );
 }
 
+// Ignored because heap types don't have working __text_signature__:
+// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L864-L870
 #[test]
+#[ignore]
 fn class_with_signature() {
     #[pyclass]
     #[text_signature = "(a, b=None, *, c=42)"]

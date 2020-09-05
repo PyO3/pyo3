@@ -5,7 +5,9 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
+use crate::pyclass::maybe_push_slot;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
+use std::os::raw::c_void;
 
 /// Python Iterator Interface.
 ///
@@ -79,9 +81,17 @@ pub struct PyIterMethods {
 
 #[doc(hidden)]
 impl PyIterMethods {
-    pub(crate) fn update_typeobj(&self, type_object: &mut ffi::PyTypeObject) {
-        type_object.tp_iter = self.tp_iter;
-        type_object.tp_iternext = self.tp_iternext;
+    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
+        maybe_push_slot(
+            slots,
+            ffi::Py_tp_iter,
+            self.tp_iter.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_tp_iternext,
+            self.tp_iternext.map(|v| v as *mut c_void),
+        );
     }
     pub fn set_iter<T>(&mut self)
     where

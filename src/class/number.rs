@@ -581,11 +581,6 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
 
 #[doc(hidden)]
 impl ffi::PyNumberMethods {
-    pub(crate) fn from_nb_bool(nb_bool: ffi::inquiry) -> *mut Self {
-        let mut nm = ffi::PyNumberMethods_INIT;
-        nm.nb_bool = Some(nb_bool);
-        Box::into_raw(Box::new(nm))
-    }
     pub fn set_add_radd<T>(&mut self)
     where
         T: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,

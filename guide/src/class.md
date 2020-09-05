@@ -205,7 +205,7 @@ or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 ```rust
 # use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClass {
     val1: usize,
 }
@@ -222,7 +222,7 @@ impl BaseClass {
     }
 }
 
-#[pyclass(extends=BaseClass)]
+#[pyclass(extends=BaseClass, subclass)]
 struct SubClass {
     val2: usize,
 }

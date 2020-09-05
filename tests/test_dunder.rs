@@ -453,7 +453,7 @@ fn test_cls_impl() {
         .unwrap();
 }
 
-#[pyclass(dict)]
+#[pyclass(dict, subclass)]
 struct DunderDictSupport {}
 
 #[test]

@@ -30,7 +30,7 @@ fn test_cloneable_pyclass() {
     assert_eq!(&c, &*mrc);
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 #[derive(Default)]
 struct BaseClass {
     value: i32,

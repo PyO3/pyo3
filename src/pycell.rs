@@ -455,7 +455,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// - You want to get super class.
 /// ```
 /// # use pyo3::prelude::*;
-/// #[pyclass]
+/// #[pyclass(subclass)]
 /// struct Parent {
 ///     basename: &'static str,
 /// }
@@ -516,11 +516,11 @@ where
     /// # Examples
     /// ```
     /// # use pyo3::prelude::*;
-    /// #[pyclass]
+    /// #[pyclass(subclass)]
     /// struct Base1 {
     ///     name1: &'static str,
     /// }
-    /// #[pyclass(extends=Base1)]
+    /// #[pyclass(extends=Base1, subclass)]
     /// struct Base2 {
     ///     name2: &'static str,
     ///  }
