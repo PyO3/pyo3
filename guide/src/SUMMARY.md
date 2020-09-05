@@ -23,7 +23,8 @@
 
 ---
 
-[Appendix A: PyO3 and rust-cpython](rust_cpython.md)
-[Appendix B: Migration Guide](migration.md)
+[Appendix A: Migration Guide](migration.md)
+[Appendix B: PyO3 and rust-cpython](rust_cpython.md)
 [Appendix C: Trait bounds](trait_bounds.md)
 [Appendix D: Logging](logging.md)
+[CHANGELOG](changelog.md)

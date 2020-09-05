@@ -1,7 +1,7 @@
-# Appendix B: Migrating from older PyO3 versions
+# Migrating from older PyO3 versions
 
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
-For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
+For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.11.* to 0.12
 
