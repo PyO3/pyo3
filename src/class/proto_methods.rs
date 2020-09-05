@@ -1,8 +1,7 @@
 use crate::class::{
-    basic::PyObjectMethods, descr::PyDescrMethods, gc::PyGCMethods, iter::PyIterMethods,
-};
-use crate::ffi::{
-    PyAsyncMethods, PyBufferProcs, PyMappingMethods, PyNumberMethods, PySequenceMethods,
+    basic::PyObjectMethods, buffer::PyBufferMethods, descr::PyDescrMethods, gc::PyGCMethods,
+    iter::PyIterMethods, mapping::PyMappingMethods, number::PyNumberMethods,
+    pyasync::PyAsyncMethods, sequence::PySequenceMethods,
 };
 use std::{
     ptr::{self, NonNull},
@@ -18,7 +17,7 @@ pub trait PyProtoMethods {
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
         None
     }
-    fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
+    fn buffer_methods() -> Option<NonNull<PyBufferMethods>> {
         None
     }
     fn descr_methods() -> Option<NonNull<PyDescrMethods>> {
@@ -54,7 +53,7 @@ impl<T: HasProtoRegistry> PyProtoMethods for T {
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
         NonNull::new(Self::registry().basic_methods.load(Ordering::Relaxed))
     }
-    fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
+    fn buffer_methods() -> Option<NonNull<PyBufferMethods>> {
         NonNull::new(Self::registry().buffer_methods.load(Ordering::Relaxed))
     }
     fn descr_methods() -> Option<NonNull<PyDescrMethods>> {
@@ -86,7 +85,7 @@ pub struct PyProtoRegistry {
     /// Basic protocols.
     basic_methods: AtomicPtr<PyObjectMethods>,
     /// Buffer protocols.
-    buffer_methods: AtomicPtr<PyBufferProcs>,
+    buffer_methods: AtomicPtr<PyBufferMethods>,
     /// Descr pProtocols.
     descr_methods: AtomicPtr<PyDescrMethods>,
     /// GC protocols.
@@ -123,7 +122,7 @@ impl PyProtoRegistry {
         self.basic_methods
             .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
-    pub fn set_buffer_methods(&self, methods: PyBufferProcs) {
+    pub fn set_buffer_methods(&self, methods: PyBufferMethods) {
         self.buffer_methods
             .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }

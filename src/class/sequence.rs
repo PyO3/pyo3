@@ -6,8 +6,9 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::PyErr;
+use crate::pyclass::maybe_push_slot;
 use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
 
 /// Sequence interface
 #[allow(unused_variables)]
@@ -128,8 +129,63 @@ pub trait PySequenceInplaceRepeatProtocol<'p>:
     type Result: IntoPyCallbackOutput<Self>;
 }
 
+#[derive(Default)]
+pub struct PySequenceMethods {
+    pub sq_length: Option<ffi::lenfunc>,
+    pub sq_concat: Option<ffi::binaryfunc>,
+    pub sq_repeat: Option<ffi::ssizeargfunc>,
+    pub sq_item: Option<ffi::ssizeargfunc>,
+    pub sq_ass_item: Option<ffi::ssizeobjargproc>,
+    pub sq_contains: Option<ffi::objobjproc>,
+    pub sq_inplace_concat: Option<ffi::binaryfunc>,
+    pub sq_inplace_repeat: Option<ffi::ssizeargfunc>,
+}
+
 #[doc(hidden)]
-impl ffi::PySequenceMethods {
+impl PySequenceMethods {
+    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_length,
+            self.sq_length.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_concat,
+            self.sq_concat.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_repeat,
+            self.sq_repeat.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_item,
+            self.sq_item.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_ass_item,
+            self.sq_ass_item.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_contains,
+            self.sq_contains.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_inplace_concat,
+            self.sq_inplace_concat.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_sq_inplace_repeat,
+            self.sq_inplace_repeat.map(|v| v as *mut c_void),
+        );
+    }
+
     pub fn set_len<T>(&mut self)
     where
         T: for<'p> PySequenceLenProtocol<'p>,

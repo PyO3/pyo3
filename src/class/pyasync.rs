@@ -11,7 +11,9 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
+use crate::pyclass::maybe_push_slot;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
+use std::os::raw::c_void;
 
 /// Python Async/Await support interface.
 ///
@@ -85,8 +87,33 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+#[derive(Default)]
+pub struct PyAsyncMethods {
+    pub am_await: Option<ffi::unaryfunc>,
+    pub am_aiter: Option<ffi::unaryfunc>,
+    pub am_anext: Option<ffi::unaryfunc>,
+}
+
 #[doc(hidden)]
-impl ffi::PyAsyncMethods {
+impl PyAsyncMethods {
+    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
+        maybe_push_slot(
+            slots,
+            ffi::Py_am_await,
+            self.am_await.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_am_aiter,
+            self.am_aiter.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_am_anext,
+            self.am_anext.map(|v| v as *mut c_void),
+        );
+    }
+
     pub fn set_await<T>(&mut self)
     where
         T: for<'p> PyAsyncAwaitProtocol<'p>,

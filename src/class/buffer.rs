@@ -5,10 +5,7 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::callback::IntoPyCallbackOutput;
-use crate::{
-    ffi::{self, PyBufferProcs},
-    PyCell, PyClass, PyRefMut,
-};
+use crate::{ffi, PyCell, PyClass, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -40,9 +37,15 @@ pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
     type Result: IntoPyCallbackOutput<()>;
 }
 
+#[derive(Default)]
+pub struct PyBufferMethods {
+    pub bf_getbuffer: Option<ffi::getbufferproc>,
+    pub bf_releasebuffer: Option<ffi::releasebufferproc>,
+}
+
 /// Set functions used by `#[pyproto]`.
 #[doc(hidden)]
-impl PyBufferProcs {
+impl PyBufferMethods {
     pub fn set_getbuffer<T>(&mut self)
     where
         T: for<'p> PyBufferGetBufferProtocol<'p>,

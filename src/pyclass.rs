@@ -118,264 +118,6 @@ pub(crate) fn maybe_push_slot(
     }
 }
 
-fn push_numbers_slots(slots: &mut Vec<ffi::PyType_Slot>, numbers: &ffi::PyNumberMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_add,
-        numbers.nb_add.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_subtract,
-        numbers.nb_subtract.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_multiply,
-        numbers.nb_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_remainder,
-        numbers.nb_remainder.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_divmod,
-        numbers.nb_divmod.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_power,
-        numbers.nb_power.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_negative,
-        numbers.nb_negative.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_positive,
-        numbers.nb_positive.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_absolute,
-        numbers.nb_absolute.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_bool,
-        numbers.nb_bool.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_invert,
-        numbers.nb_invert.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_lshift,
-        numbers.nb_lshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_rshift,
-        numbers.nb_rshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_and,
-        numbers.nb_and.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_xor,
-        numbers.nb_xor.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_or,
-        numbers.nb_or.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_int,
-        numbers.nb_int.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_float,
-        numbers.nb_float.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_add,
-        numbers.nb_inplace_add.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_subtract,
-        numbers.nb_inplace_subtract.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_multiply,
-        numbers.nb_inplace_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_remainder,
-        numbers.nb_inplace_remainder.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_power,
-        numbers.nb_inplace_power.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_lshift,
-        numbers.nb_inplace_lshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_rshift,
-        numbers.nb_inplace_rshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_and,
-        numbers.nb_inplace_and.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_xor,
-        numbers.nb_inplace_xor.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_or,
-        numbers.nb_inplace_or.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_floor_divide,
-        numbers.nb_floor_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_true_divide,
-        numbers.nb_true_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_floor_divide,
-        numbers.nb_inplace_floor_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_true_divide,
-        numbers.nb_inplace_true_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_index,
-        numbers.nb_index.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_matrix_multiply,
-        numbers.nb_matrix_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_matrix_multiply,
-        numbers.nb_inplace_matrix_multiply.map(|v| v as *mut c_void),
-    );
-}
-
-fn push_mapping_slots(slots: &mut Vec<ffi::PyType_Slot>, mapping: &ffi::PyMappingMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_length,
-        mapping.mp_length.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_subscript,
-        mapping.mp_subscript.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_ass_subscript,
-        mapping.mp_ass_subscript.map(|v| v as *mut c_void),
-    );
-}
-
-fn push_sequence_slots(slots: &mut Vec<ffi::PyType_Slot>, seq: &ffi::PySequenceMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_length,
-        seq.sq_length.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_concat,
-        seq.sq_concat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_repeat,
-        seq.sq_repeat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_item,
-        seq.sq_item.map(|v| v as *mut c_void),
-    );
-
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_ass_item,
-        seq.sq_ass_item.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_contains,
-        seq.sq_contains.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_inplace_concat,
-        seq.sq_inplace_concat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_inplace_repeat,
-        seq.sq_inplace_repeat.map(|v| v as *mut c_void),
-    );
-}
-
-fn push_async_slots(slots: &mut Vec<ffi::PyType_Slot>, asnc: &ffi::PyAsyncMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_await,
-        asnc.am_await.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_aiter,
-        asnc.am_aiter.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_anext,
-        asnc.am_anext.map(|v| v as *mut c_void),
-    );
-}
-
 pub(crate) fn create_type_object<T>(
     py: Python,
     module_name: Option<&str>,
@@ -436,8 +178,8 @@ where
         unsafe { basic.as_ref() }.update_slots(&mut slots);
     }
 
-    if let Some(number) = T::number_methods() {
-        push_numbers_slots(&mut slots, unsafe { number.as_ref() });
+    if let Some(numbers) = T::number_methods() {
+        unsafe { numbers.as_ref() }.update_slots(&mut slots);
     }
 
     // iterator methods
@@ -447,12 +189,12 @@ where
 
     // mapping methods
     if let Some(mapping) = T::mapping_methods() {
-        push_mapping_slots(&mut slots, unsafe { mapping.as_ref() });
+        unsafe { mapping.as_ref() }.update_slots(&mut slots);
     }
 
     // sequence methods
     if let Some(seq) = T::sequence_methods() {
-        push_sequence_slots(&mut slots, unsafe { seq.as_ref() });
+        unsafe { seq.as_ref() }.update_slots(&mut slots);
     }
 
     // descriptor protocol
@@ -462,7 +204,7 @@ where
 
     // async methods
     if let Some(asnc) = T::async_methods() {
-        push_async_slots(&mut slots, unsafe { asnc.as_ref() });
+        unsafe { asnc.as_ref() }.update_slots(&mut slots);
     }
 
     // GC support

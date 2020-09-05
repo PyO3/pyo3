@@ -5,7 +5,9 @@
 
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
+use crate::pyclass::maybe_push_slot;
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
+use std::os::raw::c_void;
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -73,8 +75,33 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+#[derive(Default)]
+pub struct PyMappingMethods {
+    pub mp_length: Option<ffi::lenfunc>,
+    pub mp_subscript: Option<ffi::binaryfunc>,
+    pub mp_ass_subscript: Option<ffi::objobjargproc>,
+}
+
 #[doc(hidden)]
-impl ffi::PyMappingMethods {
+impl PyMappingMethods {
+    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
+        maybe_push_slot(
+            slots,
+            ffi::Py_mp_length,
+            self.mp_length.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_mp_subscript,
+            self.mp_subscript.map(|v| v as *mut c_void),
+        );
+        maybe_push_slot(
+            slots,
+            ffi::Py_mp_ass_subscript,
+            self.mp_ass_subscript.map(|v| v as *mut c_void),
+        );
+    }
+
     pub fn set_length<T>(&mut self)
     where
         T: for<'p> PyMappingLenProtocol<'p>,
