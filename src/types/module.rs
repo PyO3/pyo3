@@ -185,15 +185,28 @@ impl PyModule {
     /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!] or `#[pymodule]` and
     /// [wrap_pymodule!].
     ///
-    /// ```rust,ignore
-    /// m.add_wrapped(wrap_pyfunction!(double));
-    /// m.add_wrapped(wrap_pymodule!(utils));
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pymodule]
+    /// fn utils(_py: Python, _module: &PyModule) -> PyResult<()> {
+    ///     Ok(())
+    /// }
+    ///
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn top_level(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_wrapped(pyo3::wrap_pymodule!(utils))?;
+    ///     module.add_wrapped(pyo3::wrap_pyfunction!(double))
+    /// }
     /// ```
     ///
     /// You can also add a function with a custom name using [add](PyModule::add):
     ///
     /// ```rust,ignore
-    /// m.add("also_double", wrap_pyfunction!(double)(py));
+    /// m.add("also_double", wrap_pyfunction!(double)(m)?)?;
     /// ```
     ///
     /// **This function will be deprecated in the next release. Please use the specific
@@ -202,43 +215,73 @@ impl PyModule {
     where
         T: IntoPyCallbackOutput<PyObject>,
     {
-        let function = wrapper(self.py()).convert(self.py())?;
-        let name = function.getattr(self.py(), "__name__")?;
-        self.add(name.extract(self.py())?, function)
+        let py = self.py();
+        let function = wrapper(py).convert(py)?;
+        let name = function.getattr(py, "__name__")?;
+        let name = name.extract(py)?;
+        self.add(name, function)
     }
 
     /// Add a submodule to a module.
     ///
     /// Use this together with `#[pymodule]` and [wrap_pymodule!].
     ///
-    /// ```rust,ignore
-    /// m.add_submodule(wrap_pymodule!(utils));
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pymodule]
+    /// fn utils(_py: Python, _module: &PyModule) -> PyResult<()> {
+    ///     Ok(())
+    /// }
+    /// #[pymodule]
+    /// fn top_level(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_submodule(pyo3::wrap_pymodule!(utils))
+    /// }
     /// ```
     pub fn add_submodule<'a>(&'a self, wrapper: &impl Fn(Python<'a>) -> PyObject) -> PyResult<()> {
-        let module = wrapper(self.py());
-        let name = module.getattr(self.py(), "__name__")?;
-        self.add(name.extract(self.py())?, module)
+        let py = self.py();
+        let module = wrapper(py);
+        let name = module.getattr(py, "__name__")?;
+        let name = name.extract(py)?;
+        self.add(name, module)
     }
 
     /// Add a function to a module.
     ///
     /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!].
     ///
-    /// ```rust,ignore
-    /// m.add_function(wrap_pyfunction!(double));
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_function(pyo3::wrap_pyfunction!(double))
+    /// }
     /// ```
     ///
     /// You can also add a function with a custom name using [add](PyModule::add):
     ///
-    /// ```rust,ignore
-    /// m.add("also_double", wrap_pyfunction!(double)(py, m));
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add("also_double", pyo3::wrap_pyfunction!(double)(module)?)
+    /// }
     /// ```
     pub fn add_function<'a>(
         &'a self,
         wrapper: &impl Fn(&'a Self) -> PyResult<PyObject>,
     ) -> PyResult<()> {
+        let py = self.py();
         let function = wrapper(self)?;
-        let name = function.getattr(self.py(), "__name__")?;
-        self.add(name.extract(self.py())?, function)
+        let name = function.getattr(py, "__name__")?;
+        let name = name.extract(py)?;
+        self.add(name, function)
     }
 }

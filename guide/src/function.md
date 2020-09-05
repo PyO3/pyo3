@@ -200,9 +200,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::prelude::*;
 
 #[pyfunction(pass_module)]
-fn pyfunction_with_module(
-    module: &PyModule
-) -> PyResult<&str> {
+fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
