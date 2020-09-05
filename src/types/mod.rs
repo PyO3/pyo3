@@ -13,6 +13,7 @@ pub use self::datetime::{
 };
 pub use self::dict::{IntoPyDict, PyDict};
 pub use self::floatob::PyFloat;
+pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::module::PyModule;
@@ -225,6 +226,7 @@ mod complex;
 mod datetime;
 mod dict;
 mod floatob;
+mod function;
 mod iterator;
 mod list;
 mod module;

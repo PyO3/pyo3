@@ -9,8 +9,8 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
+use crate::types::{PyCFunction, PyTuple};
 use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -275,12 +275,11 @@ impl PyModule {
     /// ```
     pub fn add_function<'a>(
         &'a self,
-        wrapper: &impl Fn(&'a Self) -> PyResult<PyObject>,
+        wrapper: &impl Fn(&'a Self) -> PyResult<&'a PyCFunction>,
     ) -> PyResult<()> {
-        let py = self.py();
         let function = wrapper(self)?;
-        let name = function.getattr(py, "__name__")?;
-        let name = name.extract(py)?;
+        let name = function.getattr("__name__")?;
+        let name = name.extract()?;
         self.add(name, function)
     }
 }

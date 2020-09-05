@@ -209,7 +209,7 @@ pub fn add_fn_to_module(
     Ok(quote! {
         fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
-        ) -> pyo3::PyResult<pyo3::PyObject> {
+        ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
             let arg = args.into();
             let (py, maybe_module) = arg.into_py_and_maybe_module();
             #wrapper
@@ -231,8 +231,7 @@ pub fn add_fn_to_module(
             };
 
             let function = unsafe {
-                pyo3::PyObject::from_owned_ptr(
-                    py,
+                py.from_owned_ptr::<pyo3::types::PyCFunction>(
                     pyo3::ffi::PyCFunction_NewEx(
                         Box::into_raw(Box::new(_def.as_method_def())),
                         mod_ptr,

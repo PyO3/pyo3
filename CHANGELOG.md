@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add macro attribute to `#[pyfn]` and `#[pyfunction]` to pass the module of a Python function to the function
   body. [#1143](https://github.com/PyO3/pyo3/pull/1143)
 - Add `add_function()` and `add_submodule()` functions to `PyModule` [#1143](https://github.com/PyO3/pyo3/pull/1143)
+- Add native `PyCFunction` and `PyFunction` types, change `add_function` to take a wrapper returning
+  a `&PyCFunction`instead of `PyObject`. [#1163](https://github.com/PyO3/pyo3/pull/1163)
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
