@@ -6,10 +6,9 @@
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::pyclass::maybe_push_slot;
 use crate::types::PyAny;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
-use std::os::raw::{c_int, c_void};
+use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
@@ -80,18 +79,6 @@ pub struct PyDescrMethods {
 
 #[doc(hidden)]
 impl PyDescrMethods {
-    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_descr_get,
-            self.tp_descr_get.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_descr_set,
-            self.tp_descr_set.map(|v| v as *mut c_void),
-        );
-    }
     pub fn set_descr_get<T>(&mut self)
     where
         T: for<'p> PyDescrGetProtocol<'p>,
@@ -103,5 +90,9 @@ impl PyDescrMethods {
         T: for<'p> PyDescrSetProtocol<'p>,
     {
         self.tp_descr_set = py_ternarys_func!(PyDescrSetProtocol, T::__set__, c_int);
+    }
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_tp_descr_get, self.tp_descr_get.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_descr_set, self.tp_descr_set.map(|v| v as _));
     }
 }

@@ -7,6 +7,17 @@ use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
+#[cfg(Py_LIMITED_API)]
+#[derive(Clone, Default)]
+pub struct PyMappingMethods {
+    pub mp_length: Option<ffi::lenfunc>,
+    pub mp_subscript: Option<ffi::binaryfunc>,
+    pub mp_ass_subscript: Option<ffi::objobjargproc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub use ffi::PyMappingMethods;
+
 /// Mapping interface
 #[allow(unused_variables)]
 pub trait PyMappingProtocol<'p>: PyClass {
@@ -74,7 +85,7 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 #[doc(hidden)]
-impl ffi::PyMappingMethods {
+impl PyMappingMethods {
     pub fn set_length<T>(&mut self)
     where
         T: for<'p> PyMappingLenProtocol<'p>,
@@ -109,6 +120,14 @@ impl ffi::PyMappingMethods {
             T,
             __setitem__,
             __delitem__
+        );
+    }
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_mp_length, self.mp_length.map(|v| v as _));
+        slots.maybe_push(ffi::Py_mp_subscript, self.mp_subscript.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_mp_ass_subscript,
+            self.mp_ass_subscript.map(|v| v as _),
         );
     }
 }

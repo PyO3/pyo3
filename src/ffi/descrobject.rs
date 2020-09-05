@@ -7,7 +7,6 @@ use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
 pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
-
 pub type setter =
     unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 

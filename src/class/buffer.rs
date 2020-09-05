@@ -5,11 +5,18 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::callback::IntoPyCallbackOutput;
-use crate::{
-    ffi::{self, PyBufferProcs},
-    PyCell, PyClass, PyRefMut,
-};
+use crate::{ffi, PyCell, PyClass, PyRefMut};
 use std::os::raw::c_int;
+
+#[cfg(Py_LIMITED_API)]
+#[derive(Clone, Default)]
+pub struct PyBufferProcs {
+    pub bf_getbuffer: Option<ffi::getbufferproc>,
+    pub bf_releasebuffer: Option<ffi::releasebufferproc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub use ffi::PyBufferProcs;
 
 /// Buffer protocol interface
 ///

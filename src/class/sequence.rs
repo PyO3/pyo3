@@ -9,6 +9,41 @@ use crate::err::PyErr;
 use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
+#[cfg(Py_LIMITED_API)]
+#[derive(Clone)]
+pub struct PySequenceMethods {
+    pub sq_length: Option<ffi::lenfunc>,
+    pub sq_concat: Option<ffi::binaryfunc>,
+    pub sq_repeat: Option<ffi::ssizeargfunc>,
+    pub sq_item: Option<ffi::ssizeargfunc>,
+    pub was_sq_slice: *mut c_void,
+    pub sq_ass_item: Option<ffi::ssizeobjargproc>,
+    pub was_sq_ass_slice: *mut c_void,
+    pub sq_contains: Option<ffi::objobjproc>,
+    pub sq_inplace_concat: Option<ffi::binaryfunc>,
+    pub sq_inplace_repeat: Option<ffi::ssizeargfunc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub use ffi::PySequenceMethods;
+
+impl Default for PySequenceMethods {
+    fn default() -> Self {
+        Self {
+            sq_length: None,
+            sq_concat: None,
+            sq_repeat: None,
+            sq_item: None,
+            was_sq_slice: std::ptr::null_mut(),
+            sq_ass_item: None,
+            was_sq_ass_slice: std::ptr::null_mut(),
+            sq_contains: None,
+            sq_inplace_concat: None,
+            sq_inplace_repeat: None,
+        }
+    }
+}
+
 /// Sequence interface
 #[allow(unused_variables)]
 pub trait PySequenceProtocol<'p>: PyClass + Sized {
@@ -129,7 +164,7 @@ pub trait PySequenceInplaceRepeatProtocol<'p>:
 }
 
 #[doc(hidden)]
-impl ffi::PySequenceMethods {
+impl PySequenceMethods {
     pub fn set_len<T>(&mut self)
     where
         T: for<'p> PySequenceLenProtocol<'p>,
@@ -198,6 +233,23 @@ impl ffi::PySequenceMethods {
             T::__inplace_repeat__,
             call_mut
         )
+    }
+
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_sq_length, self.sq_length.map(|v| v as _));
+        slots.maybe_push(ffi::Py_sq_concat, self.sq_concat.map(|v| v as _));
+        slots.maybe_push(ffi::Py_sq_repeat, self.sq_repeat.map(|v| v as _));
+        slots.maybe_push(ffi::Py_sq_item, self.sq_item.map(|v| v as _));
+        slots.maybe_push(ffi::Py_sq_ass_item, self.sq_ass_item.map(|v| v as _));
+        slots.maybe_push(ffi::Py_sq_contains, self.sq_contains.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_sq_inplace_concat,
+            self.sq_inplace_concat.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_sq_inplace_repeat,
+            self.sq_inplace_repeat.map(|v| v as _),
+        );
     }
 }
 

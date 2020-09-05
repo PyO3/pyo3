@@ -10,7 +10,7 @@ use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Pytho
 use std::convert::TryInto;
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::os::raw::{c_int, c_uint, c_void};
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::{ptr, thread};
 
 #[inline]
@@ -108,272 +108,37 @@ pub trait PyClass:
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 
-pub(crate) fn maybe_push_slot(
-    slots: &mut Vec<ffi::PyType_Slot>,
-    slot: c_int,
-    val: Option<*mut c_void>,
-) {
-    if let Some(v) = val {
-        slots.push(ffi::PyType_Slot { slot, pfunc: v });
+/// For collecting slot items.
+#[derive(Default)]
+pub(crate) struct TypeSlots(Vec<ffi::PyType_Slot>);
+
+impl TypeSlots {
+    fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
+        self.0.push(ffi::PyType_Slot { slot, pfunc });
+    }
+    pub(crate) fn maybe_push(&mut self, slot: c_int, value: Option<*mut c_void>) {
+        value.map(|v| self.push(slot, v));
     }
 }
 
-fn push_numbers_slots(slots: &mut Vec<ffi::PyType_Slot>, numbers: &ffi::PyNumberMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_add,
-        numbers.nb_add.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_subtract,
-        numbers.nb_subtract.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_multiply,
-        numbers.nb_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_remainder,
-        numbers.nb_remainder.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_divmod,
-        numbers.nb_divmod.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_power,
-        numbers.nb_power.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_negative,
-        numbers.nb_negative.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_positive,
-        numbers.nb_positive.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_absolute,
-        numbers.nb_absolute.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_bool,
-        numbers.nb_bool.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_invert,
-        numbers.nb_invert.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_lshift,
-        numbers.nb_lshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_rshift,
-        numbers.nb_rshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_and,
-        numbers.nb_and.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_xor,
-        numbers.nb_xor.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_or,
-        numbers.nb_or.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_int,
-        numbers.nb_int.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_float,
-        numbers.nb_float.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_add,
-        numbers.nb_inplace_add.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_subtract,
-        numbers.nb_inplace_subtract.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_multiply,
-        numbers.nb_inplace_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_remainder,
-        numbers.nb_inplace_remainder.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_power,
-        numbers.nb_inplace_power.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_lshift,
-        numbers.nb_inplace_lshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_rshift,
-        numbers.nb_inplace_rshift.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_and,
-        numbers.nb_inplace_and.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_xor,
-        numbers.nb_inplace_xor.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_or,
-        numbers.nb_inplace_or.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_floor_divide,
-        numbers.nb_floor_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_true_divide,
-        numbers.nb_true_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_floor_divide,
-        numbers.nb_inplace_floor_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_true_divide,
-        numbers.nb_inplace_true_divide.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_index,
-        numbers.nb_index.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_matrix_multiply,
-        numbers.nb_matrix_multiply.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_nb_inplace_matrix_multiply,
-        numbers.nb_inplace_matrix_multiply.map(|v| v as *mut c_void),
-    );
+fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
+    Ok(match T::DESCRIPTION {
+        "\0" => None,
+        s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
+        // If the description is not null-terminated, create CString and leak it
+        s => Some(CString::new(s)?.into_raw() as _),
+    })
 }
 
-fn push_mapping_slots(slots: &mut Vec<ffi::PyType_Slot>, mapping: &ffi::PyMappingMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_length,
-        mapping.mp_length.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_subscript,
-        mapping.mp_subscript.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_mp_ass_subscript,
-        mapping.mp_ass_subscript.map(|v| v as *mut c_void),
-    );
+fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_char> {
+    Ok(match module_name {
+        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
+        None => CString::new(T::NAME)?.into_raw(),
+    })
 }
 
-fn push_sequence_slots(slots: &mut Vec<ffi::PyType_Slot>, seq: &ffi::PySequenceMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_length,
-        seq.sq_length.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_concat,
-        seq.sq_concat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_repeat,
-        seq.sq_repeat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_item,
-        seq.sq_item.map(|v| v as *mut c_void),
-    );
-
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_ass_item,
-        seq.sq_ass_item.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_contains,
-        seq.sq_contains.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_inplace_concat,
-        seq.sq_inplace_concat.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_sq_inplace_repeat,
-        seq.sq_inplace_repeat.map(|v| v as *mut c_void),
-    );
-}
-
-fn push_async_slots(slots: &mut Vec<ffi::PyType_Slot>, asnc: &ffi::PyAsyncMethods) {
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_await,
-        asnc.am_await.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_aiter,
-        asnc.am_aiter.map(|v| v as *mut c_void),
-    );
-    maybe_push_slot(
-        slots,
-        ffi::Py_am_anext,
-        asnc.am_anext.map(|v| v as *mut c_void),
-    );
+fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
+    Box::into_raw(vec.into_boxed_slice()) as _
 }
 
 pub(crate) fn create_type_object<T>(
@@ -383,137 +148,88 @@ pub(crate) fn create_type_object<T>(
 where
     T: PyClass,
 {
-    let mut slots = vec![];
+    let mut slots = TypeSlots::default();
 
-    slots.push(ffi::PyType_Slot {
-        slot: ffi::Py_tp_base,
-        pfunc: T::BaseType::type_object_raw(py) as *mut c_void,
-    });
+    slots.push(ffi::Py_tp_base, T::BaseType::type_object_raw(py) as _);
+    slots.maybe_push(ffi::Py_tp_doc, tp_doc::<T>()?);
+    slots.maybe_push(ffi::Py_tp_dealloc, tp_dealloc::<T>().map(|v| v as _));
 
-    let doc = match T::DESCRIPTION {
-        "\0" => None,
-        s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
-        // If the description is not null-terminated, create CString and leak it
-        s => Some(CString::new(s)?.into_raw() as _),
-    };
-    maybe_push_slot(&mut slots, ffi::Py_tp_doc, doc);
-
-    maybe_push_slot(
-        &mut slots,
-        ffi::Py_tp_dealloc,
-        tp_dealloc::<T>().map(|v| v as *mut c_void),
-    );
-
-    let (new, call, mut methods) = py_class_method_defs::<T>();
-    maybe_push_slot(&mut slots, ffi::Py_tp_new, new.map(|v| v as *mut c_void));
-    maybe_push_slot(&mut slots, ffi::Py_tp_call, call.map(|v| v as *mut c_void));
+    let (new, call, methods) = py_class_method_defs::<T>();
+    slots.maybe_push(ffi::Py_tp_new, new.map(|v| v as _));
+    slots.maybe_push(ffi::Py_tp_call, call.map(|v| v as _));
     // normal methods
     if !methods.is_empty() {
-        methods.push(ffi::PyMethodDef_INIT);
-        maybe_push_slot(
-            &mut slots,
-            ffi::Py_tp_methods,
-            Some(Box::into_raw(methods.into_boxed_slice()) as *mut c_void),
-        );
+        slots.push(ffi::Py_tp_methods, into_raw(methods));
     }
 
     // properties
-    let mut props = py_class_properties::<T>();
-
-    if !T::Dict::IS_DUMMY {
-        props.push(ffi::PyGetSetDef_DICT);
-    }
+    let props = py_class_properties::<T>();
     if !props.is_empty() {
-        props.push(ffi::PyGetSetDef_INIT);
-        maybe_push_slot(
-            &mut slots,
-            ffi::Py_tp_getset,
-            Some(Box::into_raw(props.into_boxed_slice()) as *mut c_void),
-        );
+        slots.push(ffi::Py_tp_getset, into_raw(props));
     }
 
-    if let Some(basic) = T::basic_methods() {
-        unsafe { basic.as_ref() }.update_slots(&mut slots);
-    }
-
-    if let Some(number) = T::number_methods() {
-        push_numbers_slots(&mut slots, unsafe { number.as_ref() });
-    }
-
+    // basic methods
+    T::basic_methods().map(|basic| unsafe { basic.as_ref() }.update_slots(&mut slots));
+    // number methods
+    T::number_methods().map(|num| unsafe { num.as_ref() }.update_slots(&mut slots));
     // iterator methods
-    if let Some(iter) = T::iter_methods() {
-        unsafe { iter.as_ref() }.update_slots(&mut slots);
-    }
-
+    T::iter_methods().map(|iter| unsafe { iter.as_ref() }.update_slots(&mut slots));
     // mapping methods
-    if let Some(mapping) = T::mapping_methods() {
-        push_mapping_slots(&mut slots, unsafe { mapping.as_ref() });
-    }
-
+    T::mapping_methods().map(|map| unsafe { map.as_ref() }.update_slots(&mut slots));
     // sequence methods
-    if let Some(seq) = T::sequence_methods() {
-        push_sequence_slots(&mut slots, unsafe { seq.as_ref() });
-    }
-
+    T::sequence_methods().map(|seq| unsafe { seq.as_ref() }.update_slots(&mut slots));
     // descriptor protocol
-    if let Some(descr) = T::descr_methods() {
-        unsafe { descr.as_ref() }.update_slots(&mut slots);
-    }
-
+    T::descr_methods().map(|descr| unsafe { descr.as_ref() }.update_slots(&mut slots));
     // async methods
-    if let Some(asnc) = T::async_methods() {
-        push_async_slots(&mut slots, unsafe { asnc.as_ref() });
-    }
-
+    T::async_methods().map(|asnc| unsafe { asnc.as_ref() }.update_slots(&mut slots));
     // GC support
-    if let Some(gc) = T::gc_methods() {
-        unsafe { gc.as_ref() }.update_slots(&mut slots);
-    }
+    T::gc_methods().map(|gc| unsafe { gc.as_ref() }.update_slots(&mut slots));
 
-    slots.push(ffi::PyType_Slot {
-        slot: 0,
-        pfunc: ptr::null_mut(),
-    });
+    slots.push(0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {
-        name: match module_name {
-            Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
-            None => CString::new(T::NAME)?.into_raw(),
-        },
+        name: get_type_name::<T>(module_name)?,
         basicsize: std::mem::size_of::<T::Layout>() as c_int,
         itemsize: 0,
         flags: py_class_flags::<T>(),
-        slots: slots.as_mut_slice().as_mut_ptr(),
+        slots: slots.0.as_mut_slice().as_mut_ptr(),
     };
 
     let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
     if type_object.is_null() {
         PyErr::fetch(py).into()
     } else {
-        // Just patch the type objects for the things there's no
-        // PyType_FromSpec API for... there's no reason this should work,
-        // except for that it does and we have tests.
-        let mut type_object = type_object as *mut ffi::PyTypeObject;
-        if let Some(buffer) = T::buffer_methods() {
-            unsafe {
-                (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.as_ref().bf_getbuffer;
-                (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.as_ref().bf_releasebuffer;
-            }
-        }
-        // __dict__ support
-        if let Some(dict_offset) = PyCell::<T>::dict_offset() {
-            unsafe {
-                (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
-            }
-        }
-        // weakref support
-        if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
-            unsafe {
-                (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
-            }
-        }
-        Ok(type_object)
+        tp_init_additional::<T>(type_object as _);
+        Ok(type_object as _)
     }
 }
+
+#[cfg(not(Py_LIMITED_API))]
+fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
+    // Just patch the type objects for the things there's no
+    // PyType_FromSpec API for... there's no reason this should work,
+    // except for that it does and we have tests.
+    if let Some(buffer) = T::buffer_methods() {
+        unsafe {
+            (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.as_ref().bf_getbuffer;
+            (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.as_ref().bf_releasebuffer;
+        }
+    }
+    // __dict__ support
+    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+        unsafe {
+            (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+        }
+    }
+    // weakref support
+    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+        unsafe {
+            (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
+        }
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {}
 
 fn py_class_flags<T: PyClass + PyTypeInfo>() -> c_uint {
     let mut flags = if T::gc_methods().is_some() || T::FLAGS & type_flags::GC != 0 {
@@ -581,10 +297,14 @@ fn py_class_method_defs<T: PyMethods>() -> (
         }
     }
 
+    if !defs.is_empty() {
+        defs.push(ffi::PyMethodDef_INIT);
+    }
+
     (new, call, defs)
 }
 
-fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
+fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
     for def in T::py_methods() {
@@ -609,7 +329,11 @@ fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
         }
     }
 
-    defs.values().cloned().collect()
+    let mut props: Vec<_> = defs.values().cloned().collect();
+    if !T::Dict::IS_DUMMY {
+        props.push(ffi::PyGetSetDef_DICT);
+    }
+    props
 }
 
 /// This trait is implemented for `#[pyclass]` and handles following two situations:

@@ -171,7 +171,7 @@ pub const OBJECT: Proto = Proto {
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
-    slot_table: "pyo3::ffi::PyAsyncMethods",
+    slot_table: "pyo3::class::pyasync::PyAsyncMethods",
     set_slot_table: "set_async_methods",
     methods: &[
         MethodProto::UnaryS {
@@ -220,7 +220,7 @@ pub const ASYNC: Proto = Proto {
 
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
-    slot_table: "pyo3::ffi::PyBufferProcs",
+    slot_table: "pyo3::class::buffer::PyBufferProcs",
     set_slot_table: "set_buffer_methods",
     methods: &[
         MethodProto::Unary {
@@ -358,7 +358,7 @@ pub const ITER: Proto = Proto {
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
-    slot_table: "pyo3::ffi::PyMappingMethods",
+    slot_table: "pyo3::class::mapping::PyMappingMethods",
     set_slot_table: "set_mapping_methods",
     methods: &[
         MethodProto::Unary {
@@ -401,7 +401,7 @@ pub const MAPPING: Proto = Proto {
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
-    slot_table: "pyo3::ffi::PySequenceMethods",
+    slot_table: "pyo3::class::sequence::PySequenceMethods",
     set_slot_table: "set_sequence_methods",
     methods: &[
         MethodProto::Unary {
@@ -467,7 +467,7 @@ pub const SEQ: Proto = Proto {
 
 pub const NUM: Proto = Proto {
     name: "Number",
-    slot_table: "pyo3::ffi::PyNumberMethods",
+    slot_table: "pyo3::class::number::PyNumberMethods",
     set_slot_table: "set_number_methods",
     methods: &[
         MethodProto::BinaryS {

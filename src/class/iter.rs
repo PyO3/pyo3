@@ -5,9 +5,7 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
-use crate::pyclass::maybe_push_slot;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
-use std::os::raw::c_void;
 
 /// Python Iterator Interface.
 ///
@@ -81,18 +79,6 @@ pub struct PyIterMethods {
 
 #[doc(hidden)]
 impl PyIterMethods {
-    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_iter,
-            self.tp_iter.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_iternext,
-            self.tp_iternext.map(|v| v as *mut c_void),
-        );
-    }
     pub fn set_iter<T>(&mut self)
     where
         T: for<'p> PyIterIterProtocol<'p>,
@@ -104,6 +90,10 @@ impl PyIterMethods {
         T: for<'p> PyIterNextProtocol<'p>,
     {
         self.tp_iternext = py_unarys_func!(PyIterNextProtocol, T::__next__);
+    }
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_tp_iter, self.tp_iter.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_iternext, self.tp_iternext.map(|v| v as _));
     }
 }
 

@@ -3,7 +3,6 @@
 //! Python GC support
 //!
 
-use crate::pyclass::maybe_push_slot;
 use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
 use std::os::raw::{c_int, c_void};
 
@@ -28,17 +27,9 @@ pub struct PyGCMethods {
 
 #[doc(hidden)]
 impl PyGCMethods {
-    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_traverse,
-            self.tp_traverse.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_clear,
-            self.tp_clear.map(|v| v as *mut c_void),
-        );
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_tp_traverse, self.tp_traverse.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_clear, self.tp_clear.map(|v| v as _));
     }
 
     pub fn set_traverse<T>(&mut self)
@@ -57,7 +48,7 @@ impl PyGCMethods {
 }
 
 /// Object visitor for GC.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct PyVisit<'p> {
     visit: ffi::visitproc,
     arg: *mut c_void,

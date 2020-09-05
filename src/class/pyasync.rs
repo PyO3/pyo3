@@ -13,6 +13,17 @@ use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 
+#[cfg(Py_LIMITED_API)]
+#[derive(Clone, Default)]
+pub struct PyAsyncMethods {
+    pub am_await: Option<ffi::unaryfunc>,
+    pub am_aiter: Option<ffi::unaryfunc>,
+    pub am_anext: Option<ffi::unaryfunc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub use ffi::PyAsyncMethods;
+
 /// Python Async/Await support interface.
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
@@ -86,7 +97,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
 }
 
 #[doc(hidden)]
-impl ffi::PyAsyncMethods {
+impl PyAsyncMethods {
     pub fn set_await<T>(&mut self)
     where
         T: for<'p> PyAsyncAwaitProtocol<'p>,
@@ -104,6 +115,12 @@ impl ffi::PyAsyncMethods {
         T: for<'p> PyAsyncAnextProtocol<'p>,
     {
         self.am_anext = am_anext::<T>();
+    }
+
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_am_await, self.am_await.map(|v| v as _));
+        slots.maybe_push(ffi::Py_am_aiter, self.am_aiter.map(|v| v as _));
+        slots.maybe_push(ffi::Py_am_anext, self.am_anext.map(|v| v as _));
     }
 }
 

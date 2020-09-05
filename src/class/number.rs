@@ -2,10 +2,97 @@
 
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
-
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
+
+#[cfg(Py_LIMITED_API)]
+#[derive(Clone)]
+pub struct PyNumberMethods {
+    pub nb_add: Option<ffi::binaryfunc>,
+    pub nb_subtract: Option<ffi::binaryfunc>,
+    pub nb_multiply: Option<ffi::binaryfunc>,
+    pub nb_remainder: Option<ffi::binaryfunc>,
+    pub nb_divmod: Option<ffi::binaryfunc>,
+    pub nb_power: Option<ffi::ternaryfunc>,
+    pub nb_negative: Option<ffi::unaryfunc>,
+    pub nb_positive: Option<ffi::unaryfunc>,
+    pub nb_absolute: Option<ffi::unaryfunc>,
+    pub nb_bool: Option<ffi::inquiry>,
+    pub nb_invert: Option<ffi::unaryfunc>,
+    pub nb_lshift: Option<ffi::binaryfunc>,
+    pub nb_rshift: Option<ffi::binaryfunc>,
+    pub nb_and: Option<ffi::binaryfunc>,
+    pub nb_xor: Option<ffi::binaryfunc>,
+    pub nb_or: Option<ffi::binaryfunc>,
+    pub nb_int: Option<ffi::unaryfunc>,
+    pub nb_reserved: *mut c_void,
+    pub nb_float: Option<ffi::unaryfunc>,
+    pub nb_inplace_add: Option<ffi::binaryfunc>,
+    pub nb_inplace_subtract: Option<ffi::binaryfunc>,
+    pub nb_inplace_multiply: Option<ffi::binaryfunc>,
+    pub nb_inplace_remainder: Option<ffi::binaryfunc>,
+    pub nb_inplace_power: Option<ffi::ternaryfunc>,
+    pub nb_inplace_lshift: Option<ffi::binaryfunc>,
+    pub nb_inplace_rshift: Option<ffi::binaryfunc>,
+    pub nb_inplace_and: Option<ffi::binaryfunc>,
+    pub nb_inplace_xor: Option<ffi::binaryfunc>,
+    pub nb_inplace_or: Option<ffi::binaryfunc>,
+    pub nb_floor_divide: Option<ffi::binaryfunc>,
+    pub nb_true_divide: Option<ffi::binaryfunc>,
+    pub nb_inplace_floor_divide: Option<ffi::binaryfunc>,
+    pub nb_inplace_true_divide: Option<ffi::binaryfunc>,
+    pub nb_index: Option<ffi::unaryfunc>,
+    pub nb_matrix_multiply: Option<ffi::binaryfunc>,
+    pub nb_inplace_matrix_multiply: Option<ffi::binaryfunc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub use crate::ffi::PyNumberMethods;
+
+impl Default for PyNumberMethods {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            nb_add: None,
+            nb_subtract: None,
+            nb_multiply: None,
+            nb_remainder: None,
+            nb_divmod: None,
+            nb_power: None,
+            nb_negative: None,
+            nb_positive: None,
+            nb_absolute: None,
+            nb_bool: None,
+            nb_invert: None,
+            nb_lshift: None,
+            nb_rshift: None,
+            nb_and: None,
+            nb_xor: None,
+            nb_or: None,
+            nb_int: None,
+            nb_reserved: ::std::ptr::null_mut(),
+            nb_float: None,
+            nb_inplace_add: None,
+            nb_inplace_subtract: None,
+            nb_inplace_multiply: None,
+            nb_inplace_remainder: None,
+            nb_inplace_power: None,
+            nb_inplace_lshift: None,
+            nb_inplace_rshift: None,
+            nb_inplace_and: None,
+            nb_inplace_xor: None,
+            nb_inplace_or: None,
+            nb_floor_divide: None,
+            nb_true_divide: None,
+            nb_inplace_floor_divide: None,
+            nb_inplace_true_divide: None,
+            nb_index: None,
+            nb_matrix_multiply: None,
+            nb_inplace_matrix_multiply: None,
+        }
+    }
+}
 
 /// Number interface
 #[allow(unused_variables)]
@@ -580,7 +667,7 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
 }
 
 #[doc(hidden)]
-impl ffi::PyNumberMethods {
+impl PyNumberMethods {
     pub fn set_add_radd<T>(&mut self)
     where
         T: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,
@@ -1067,5 +1154,75 @@ impl ffi::PyNumberMethods {
     {
         self.nb_inplace_matrix_multiply =
             py_binary_self_func!(PyNumberIMatmulProtocol, T::__imatmul__);
+    }
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_nb_add, self.nb_add.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_subtract, self.nb_subtract.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_multiply, self.nb_multiply.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_remainder, self.nb_remainder.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_divmod, self.nb_divmod.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_power, self.nb_power.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_negative, self.nb_negative.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_positive, self.nb_positive.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_absolute, self.nb_absolute.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_bool, self.nb_bool.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_invert, self.nb_invert.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_lshift, self.nb_lshift.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_rshift, self.nb_rshift.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_and, self.nb_and.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_xor, self.nb_xor.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_or, self.nb_or.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_int, self.nb_int.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_float, self.nb_float.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_inplace_add, self.nb_inplace_add.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_nb_inplace_subtract,
+            self.nb_inplace_subtract.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_multiply,
+            self.nb_inplace_multiply.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_remainder,
+            self.nb_inplace_remainder.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_power,
+            self.nb_inplace_power.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_lshift,
+            self.nb_inplace_lshift.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_rshift,
+            self.nb_inplace_rshift.map(|v| v as _),
+        );
+        slots.maybe_push(ffi::Py_nb_inplace_and, self.nb_inplace_and.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_inplace_xor, self.nb_inplace_xor.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_inplace_or, self.nb_inplace_or.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_nb_floor_divide,
+            self.nb_floor_divide.map(|v| v as _),
+        );
+        slots.maybe_push(ffi::Py_nb_true_divide, self.nb_true_divide.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_nb_inplace_floor_divide,
+            self.nb_inplace_floor_divide.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_true_divide,
+            self.nb_inplace_true_divide.map(|v| v as _),
+        );
+        slots.maybe_push(ffi::Py_nb_index, self.nb_index.map(|v| v as _));
+        slots.maybe_push(
+            ffi::Py_nb_matrix_multiply,
+            self.nb_matrix_multiply.map(|v| v as _),
+        );
+        slots.maybe_push(
+            ffi::Py_nb_inplace_matrix_multiply,
+            self.nb_inplace_matrix_multiply.map(|v| v as _),
+        );
     }
 }

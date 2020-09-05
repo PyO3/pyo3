@@ -9,9 +9,8 @@
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
-use crate::pyclass::maybe_push_slot;
 use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult};
-use std::os::raw::{c_int, c_void};
+use std::os::raw::c_int;
 
 /// Operators for the __richcmp__ method
 #[derive(Debug)]
@@ -148,39 +147,6 @@ pub struct PyObjectMethods {
 
 #[doc(hidden)]
 impl PyObjectMethods {
-    pub(crate) fn update_slots(&self, slots: &mut Vec<ffi::PyType_Slot>) {
-        maybe_push_slot(slots, ffi::Py_tp_str, self.tp_str.map(|v| v as *mut c_void));
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_repr,
-            self.tp_repr.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_hash,
-            self.tp_hash.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_getattro,
-            self.tp_getattro.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_richcompare,
-            self.tp_richcompare.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_tp_setattro,
-            self.tp_setattro.map(|v| v as *mut c_void),
-        );
-        maybe_push_slot(
-            slots,
-            ffi::Py_nb_bool,
-            self.nb_bool.map(|v| v as *mut c_void),
-        );
-    }
     // Set functions used by `#[pyproto]`.
     pub fn set_str<T>(&mut self)
     where
@@ -241,6 +207,16 @@ impl PyObjectMethods {
         T: for<'p> PyObjectBoolProtocol<'p>,
     {
         self.nb_bool = py_unary_func!(PyObjectBoolProtocol, T::__bool__, c_int);
+    }
+
+    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
+        slots.maybe_push(ffi::Py_tp_str, self.tp_str.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_repr, self.tp_repr.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_hash, self.tp_hash.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_getattro, self.tp_getattro.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_richcompare, self.tp_richcompare.map(|v| v as _));
+        slots.maybe_push(ffi::Py_tp_setattro, self.tp_setattro.map(|v| v as _));
+        slots.maybe_push(ffi::Py_nb_bool, self.nb_bool.map(|v| v as _));
     }
 }
 

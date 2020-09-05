@@ -1,8 +1,7 @@
 use crate::class::{
-    basic::PyObjectMethods, descr::PyDescrMethods, gc::PyGCMethods, iter::PyIterMethods,
-};
-use crate::ffi::{
-    PyAsyncMethods, PyBufferProcs, PyMappingMethods, PyNumberMethods, PySequenceMethods,
+    basic::PyObjectMethods, buffer::PyBufferProcs, descr::PyDescrMethods, gc::PyGCMethods,
+    iter::PyIterMethods, mapping::PyMappingMethods, number::PyNumberMethods,
+    pyasync::PyAsyncMethods, sequence::PySequenceMethods,
 };
 use std::{
     ptr::{self, NonNull},
