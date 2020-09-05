@@ -192,15 +192,14 @@ If you have a static function, you can expose it with `#[pyfunction]` and use [`
 
 ### Accessing the module of a function
 
-Functions are usually associated with modules, in the C-API, the self parameter in a function call corresponds
-to the module of the function. It is possible to access the module of a `#[pyfunction]` and `#[pyfn]` in the
-function body by passing the `need_module` argument to the attribute:
+It is possible to access the module of a `#[pyfunction]` and `#[pyfn]` in the
+function body by passing the `pass_module` argument to the attribute:
 
 ```rust
 use pyo3::wrap_pyfunction;
 use pyo3::prelude::*;
 
-#[pyfunction(need_module)]
+#[pyfunction(pass_module)]
 fn pyfunction_with_module(
     module: &PyModule
 ) -> PyResult<&str> {
@@ -215,8 +214,8 @@ fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
-If `need_module` is set, the first argument **must** be the `&PyModule`. It is then possible to interact with
-the module.
+If `pass_module` is set, the first argument **must** be the `&PyModule`. It is then possible to use the module
+in the function body.
 
 The same works for `#[pyfn]`:
 
@@ -227,7 +226,7 @@ use pyo3::prelude::*;
 #[pymodule]
 fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
 
-    #[pyfn(m, "module_name", need_module)]
+    #[pyfn(m, "module_name", pass_module)]
     fn module_name(module: &PyModule) -> PyResult<&str> {
         module.name()
     }
@@ -236,6 +235,3 @@ fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
 
 # fn main() {}
 ```
-
-Within Python, the name of the module that a function belongs to can be accessed through the `__module__`
-attribute.

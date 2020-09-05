@@ -24,7 +24,7 @@ pub struct PyFunctionAttr {
     has_kw: bool,
     has_varargs: bool,
     has_kwargs: bool,
-    pub need_module: bool,
+    pub pass_module: bool,
 }
 
 impl syn::parse::Parse for PyFunctionAttr {
@@ -46,8 +46,8 @@ impl PyFunctionAttr {
 
     pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
         match item {
-            NestedMeta::Meta(syn::Meta::Path(ref ident)) if ident.is_ident("need_module") => {
-                self.need_module = true;
+            NestedMeta::Meta(syn::Meta::Path(ref ident)) if ident.is_ident("pass_module") => {
+                self.pass_module = true;
             }
             NestedMeta::Meta(syn::Meta::Path(ref ident)) => self.add_work(item, ident)?,
             NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {

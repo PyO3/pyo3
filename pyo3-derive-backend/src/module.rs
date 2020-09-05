@@ -158,7 +158,7 @@ pub fn add_fn_to_module(
                 ))
             }
             syn::FnArg::Typed(ref cap) => {
-                if pyfn_attrs.need_module && i == 0 {
+                if pyfn_attrs.pass_module && i == 0 {
                     if let syn::Type::Reference(tyref) = cap.ty.as_ref() {
                         if let syn::Type::Path(typath) = tyref.elem.as_ref() {
                             if typath
@@ -174,7 +174,7 @@ pub fn add_fn_to_module(
                     }
                     return Err(syn::Error::new_spanned(
                         cap,
-                        "Expected &PyModule as first argument with `need_module`.",
+                        "Expected &PyModule as first argument with `pass_module`.",
                     ));
                 } else {
                     arguments.push(wrap_fn_argument(cap)?);
@@ -204,7 +204,7 @@ pub fn add_fn_to_module(
 
     let python_name = &spec.python_name;
 
-    let wrapper = function_c_wrapper(&func.sig.ident, &spec, pyfn_attrs.need_module);
+    let wrapper = function_c_wrapper(&func.sig.ident, &spec, pyfn_attrs.pass_module);
 
     Ok(quote! {
         fn #function_wrapper_ident<'a>(
@@ -247,11 +247,11 @@ pub fn add_fn_to_module(
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>, need_module: bool) -> TokenStream {
+fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>, pass_module: bool) -> TokenStream {
     let names: Vec<Ident> = get_arg_names(&spec);
     let cb;
     let slf_module;
-    if need_module {
+    if pass_module {
         cb = quote! {
             #name(_slf, #(#names),*)
         };

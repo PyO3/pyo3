@@ -49,7 +49,7 @@ fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
         Ok(42)
     }
 
-    #[pyfn(m, "with_module", need_module)]
+    #[pyfn(m, "with_module", pass_module)]
     fn with_module(module: &PyModule) -> PyResult<&str> {
         module.name()
     }
@@ -312,12 +312,12 @@ fn test_module_with_constant() {
     });
 }
 
-#[pyfunction(need_module)]
+#[pyfunction(pass_module)]
 fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
-#[pyfunction(need_module)]
+#[pyfunction(pass_module)]
 fn pyfunction_with_module_and_py<'a>(
     module: &'a PyModule,
     _python: Python<'a>,
@@ -325,12 +325,12 @@ fn pyfunction_with_module_and_py<'a>(
     module.name()
 }
 
-#[pyfunction(need_module)]
+#[pyfunction(pass_module)]
 fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult<(&str, String)> {
     module.name().map(|s| (s, string))
 }
 
-#[pyfunction(need_module, string = "\"foo\"")]
+#[pyfunction(pass_module, string = "\"foo\"")]
 fn pyfunction_with_module_and_default_arg<'a>(
     module: &'a PyModule,
     string: &str,
@@ -338,7 +338,7 @@ fn pyfunction_with_module_and_default_arg<'a>(
     module.name().map(|s| (s, string.into()))
 }
 
-#[pyfunction(need_module, args = "*", kwargs = "**")]
+#[pyfunction(pass_module, args = "*", kwargs = "**")]
 fn pyfunction_with_module_and_args_kwargs<'a>(
     module: &'a PyModule,
     args: &PyTuple,

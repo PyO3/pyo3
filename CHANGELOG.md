@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add optional implementations of `ToPyObject`, `IntoPy`, and `FromPyObject` for [hashbrown](https://crates.io/crates/hashbrown)'s `HashMap` and `HashSet` types. The `hashbrown` feature must be enabled for these implementations to be built. [#1114](https://github.com/PyO3/pyo3/pull/1114/)
 - Allow other `Result` types when using `#[pyfunction]`. [#1106](https://github.com/PyO3/pyo3/issues/1106).
 - Add `#[derive(FromPyObject)]` macro for enums and structs. [#1065](https://github.com/PyO3/pyo3/pull/1065)
+- Add macro attribute to `#[pyfn]` and `#[pyfunction]` to pass the module of a Python function to the function
+  body. [#1143](https://github.com/PyO3/pyo3/pull/1143)
+- Add `add_function()` and `add_submodule()` functions to `PyModule` [#1143](https://github.com/PyO3/pyo3/pull/1143)
 
 ### Changed
 - Exception types have been renamed from e.g. `RuntimeError` to `PyRuntimeError`, and are now only accessible by `&T` or `Py<T>` similar to other Python-native types. The old names continue to exist but are deprecated. [#1024](https://github.com/PyO3/pyo3/pull/1024)
@@ -50,6 +53,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Link against libpython on android with `extension-module` set. [#1095](https://github.com/PyO3/pyo3/pull/1095)
 - Fix support for both `__add__` and `__radd__`  in the `+` operator when both are defined in `PyNumberProtocol`
   (and similar for all other reversible operators). [#1107](https://github.com/PyO3/pyo3/pull/1107)
+- Associate Python functions with their module by passing the Module and Module name [#1143](https://github.com/PyO3/pyo3/pull/1143)
 
 ## [0.11.1] - 2020-06-30
 ### Added
