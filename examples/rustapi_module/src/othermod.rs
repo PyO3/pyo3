@@ -31,7 +31,7 @@ fn double(x: i32) -> i32 {
 
 #[pymodule]
 fn othermod(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(double))?;
+    m.add_function(wrap_pyfunction!(double))?;
 
     m.add_class::<ModClass>()?;
 

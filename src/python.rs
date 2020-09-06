@@ -134,7 +134,7 @@ impl<'p> Python<'p> {
     /// let gil = Python::acquire_gil();
     /// let py = gil.python();
     /// let m = PyModule::new(py, "pcount").unwrap();
-    /// m.add_wrapped(wrap_pyfunction!(parallel_count)).unwrap();
+    /// m.add_function(wrap_pyfunction!(parallel_count)).unwrap();
     /// let locals = [("pcount", m)].into_py_dict(py);
     /// py.run(r#"
     ///    s = ["Flow", "my", "tears", "the", "Policeman", "Said"]

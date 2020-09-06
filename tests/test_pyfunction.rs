@@ -14,7 +14,7 @@ fn test_optional_bool() {
     // Regression test for issue #932
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let f = wrap_pyfunction!(optional_bool)(py);
+    let f = wrap_pyfunction!(optional_bool)(py).unwrap();
 
     py_assert!(py, f, "f() == 'Some(true)'");
     py_assert!(py, f, "f(True) == 'Some(true)'");
@@ -36,7 +36,7 @@ fn buffer_inplace_add(py: Python, x: PyBuffer<i32>, y: PyBuffer<i32>) {
 fn test_buffer_add() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let f = wrap_pyfunction!(buffer_inplace_add)(py);
+    let f = wrap_pyfunction!(buffer_inplace_add)(py).unwrap();
 
     py_expect_exception!(
         py,

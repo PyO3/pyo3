@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use pyo3::types::{IntoPyDict, PyTuple};
+use pyo3::types::{IntoPyDict, PyDict, PyTuple};
 
 mod common;
 
@@ -35,7 +35,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
     #[pyfn(m, "sum_as_string")]
@@ -49,6 +49,11 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
         Ok(42)
     }
 
+    #[pyfn(m, "with_module", pass_module)]
+    fn with_module(module: &PyModule) -> PyResult<&str> {
+        module.name()
+    }
+
     #[pyfn(m, "double_value")]
     fn double_value(v: &ValueClass) -> usize {
         v.value * 2
@@ -60,8 +65,8 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
-    m.add_wrapped(wrap_pyfunction!(double)).unwrap();
-    m.add("also_double", wrap_pyfunction!(double)(py)).unwrap();
+    m.add_function(wrap_pyfunction!(double)).unwrap();
+    m.add("also_double", wrap_pyfunction!(double)(m)?).unwrap();
 
     Ok(())
 }
@@ -97,6 +102,7 @@ fn test_module_with_functions() {
     run("assert module_with_functions.also_double(3) == 6");
     run("assert module_with_functions.also_double.__doc__ == 'Doubles the given value'");
     run("assert module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2");
+    run("assert module_with_functions.with_module() == 'module_with_functions'");
 }
 
 #[pymodule(other_name)]
@@ -157,7 +163,7 @@ fn r#move() -> usize {
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_wrapped(wrap_pyfunction!(r#move))
+    module.add_function(wrap_pyfunction!(r#move))
 }
 
 #[test]
@@ -182,7 +188,7 @@ fn custom_named_fn() -> usize {
 fn foobar_module(_py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    m.add_wrapped(wrap_pyfunction!(custom_named_fn))?;
+    m.add_function(wrap_pyfunction!(custom_named_fn))?;
     m.dict().set_item("yay", "me")?;
     Ok(())
 }
@@ -212,11 +218,18 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-#[pymodule]
-fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
+fn submodule(module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_wrapped(wrap_pyfunction!(subfunction))?;
+    module.add_function(wrap_pyfunction!(subfunction))?;
+    Ok(())
+}
+
+#[pymodule]
+fn submodule_with_init_fn(_py: Python, module: &PyModule) -> PyResult<()> {
+    use pyo3::wrap_pyfunction;
+
+    module.add_function(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
@@ -226,11 +239,16 @@ fn superfunction() -> String {
 }
 
 #[pymodule]
-fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    use pyo3::{wrap_pyfunction, wrap_pymodule};
+fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
+    use pyo3::wrap_pyfunction;
 
-    module.add_wrapped(wrap_pyfunction!(superfunction))?;
-    module.add_wrapped(wrap_pymodule!(submodule))?;
+    module.add_function(wrap_pyfunction!(superfunction))?;
+    let module_to_add = PyModule::new(py, "submodule")?;
+    submodule(module_to_add)?;
+    module.add_submodule(module_to_add)?;
+    let module_to_add = PyModule::new(py, "submodule_with_init_fn")?;
+    submodule_with_init_fn(py, module_to_add)?;
+    module.add_submodule(module_to_add)?;
     Ok(())
 }
 
@@ -252,6 +270,11 @@ fn test_module_nesting() {
         supermodule,
         "supermodule.submodule.subfunction() == 'Subfunction'"
     );
+    py_assert!(
+        py,
+        supermodule,
+        "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
+    );
 }
 
 // Test that argument parsing specification works for pyfunctions
@@ -268,7 +291,7 @@ fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
         ext_vararg_fn(py, a, vararg)
     }
 
-    m.add_wrapped(pyo3::wrap_pyfunction!(ext_vararg_fn))
+    m.add_function(pyo3::wrap_pyfunction!(ext_vararg_fn))
         .unwrap();
     Ok(())
 }
@@ -304,4 +327,83 @@ fn test_module_with_constant() {
         let m = pyo3::wrap_pymodule!(module_with_constant)(py);
         py_assert!(py, m, "isinstance(m.ANON, m.AnonClass)");
     });
+}
+
+#[pyfunction(pass_module)]
+fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
+    module.name()
+}
+
+#[pyfunction(pass_module)]
+fn pyfunction_with_module_and_py<'a>(
+    module: &'a PyModule,
+    _python: Python<'a>,
+) -> PyResult<&'a str> {
+    module.name()
+}
+
+#[pyfunction(pass_module)]
+fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult<(&str, String)> {
+    module.name().map(|s| (s, string))
+}
+
+#[pyfunction(pass_module, string = "\"foo\"")]
+fn pyfunction_with_module_and_default_arg<'a>(
+    module: &'a PyModule,
+    string: &str,
+) -> PyResult<(&'a str, String)> {
+    module.name().map(|s| (s, string.into()))
+}
+
+#[pyfunction(pass_module, args = "*", kwargs = "**")]
+fn pyfunction_with_module_and_args_kwargs<'a>(
+    module: &'a PyModule,
+    args: &PyTuple,
+    kwargs: Option<&PyDict>,
+) -> PyResult<(&'a str, usize, Option<usize>)> {
+    module
+        .name()
+        .map(|s| (s, args.len(), kwargs.map(|d| d.len())))
+}
+
+#[pymodule]
+fn module_with_functions_with_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module))?;
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_py))?;
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_arg))?;
+    m.add_function(pyo3::wrap_pyfunction!(
+        pyfunction_with_module_and_default_arg
+    ))?;
+    m.add_function(pyo3::wrap_pyfunction!(
+        pyfunction_with_module_and_args_kwargs
+    ))
+}
+
+#[test]
+fn test_module_functions_with_module() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let m = pyo3::wrap_pymodule!(module_with_functions_with_module)(py);
+    py_assert!(
+        py,
+        m,
+        "m.pyfunction_with_module() == 'module_with_functions_with_module'"
+    );
+    py_assert!(
+        py,
+        m,
+        "m.pyfunction_with_module_and_py() == 'module_with_functions_with_module'"
+    );
+    py_assert!(
+        py,
+        m,
+        "m.pyfunction_with_module_and_default_arg() \
+                        == ('module_with_functions_with_module', 'foo')"
+    );
+    py_assert!(
+        py,
+        m,
+        "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
+                        == ('module_with_functions_with_module', 1, 2)"
+    );
 }

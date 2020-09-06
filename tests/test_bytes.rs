@@ -14,7 +14,7 @@ fn test_pybytes_bytes_conversion() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let f = wrap_pyfunction!(bytes_pybytes_conversion)(py);
+    let f = wrap_pyfunction!(bytes_pybytes_conversion)(py).unwrap();
     py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
 }
 
@@ -28,7 +28,7 @@ fn test_pybytes_vec_conversion() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let f = wrap_pyfunction!(bytes_vec_conversion)(py);
+    let f = wrap_pyfunction!(bytes_vec_conversion)(py).unwrap();
     py_assert!(py, f, "f(b'Hello World') == b'Hello World'");
 }
 
@@ -37,6 +37,6 @@ fn test_bytearray_vec_conversion() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let f = wrap_pyfunction!(bytes_vec_conversion)(py);
+    let f = wrap_pyfunction!(bytes_vec_conversion)(py).unwrap();
     py_assert!(py, f, "f(bytearray(b'Hello World')) == b'Hello World'");
 }
