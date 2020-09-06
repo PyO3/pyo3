@@ -61,23 +61,54 @@ such as `getattr`, `setattr`, and `.call`.
 
 **Conversions:**
 
+For a `&PyAny` object reference `any` where the underlying object is a Python-native type such as
+a list:
+
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyList;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# use pyo3::{Py, Python, PyAny, PyResult, types::PyList};
+# Python::with_gil(|py| -> PyResult<()> {
 let obj: &PyAny = PyList::empty(py);
 
-// Convert to &ConcreteType using PyAny::downcast
-let _: &PyList = obj.downcast().unwrap();
+// To &PyList with PyAny::downcast
+let _: &PyList = obj.downcast()?;
 
-// Convert to Py<PyAny> (aka PyObject) using .into()
+// To Py<PyAny> (aka PyObject) with .into()
 let _: Py<PyAny> = obj.into();
 
-// Convert to Py<ConcreteType> using PyAny::extract
-let _: Py<PyList> = obj.extract().unwrap();
+// To Py<PyList> with PyAny::extract
+let _: Py<PyList> = obj.extract()?;
+# Ok(())
+# }).unwrap();
 ```
 
+For a `&PyAny` object reference `any` where the underlying object is a `#[pyclass]`:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::{Py, Python, PyAny, PyResult, types::PyList};
+# #[pyclass] #[derive(Clone)] struct MyClass { }
+# Python::with_gil(|py| -> PyResult<()> {
+let obj: &PyAny = Py::new(py, MyClass { })?.into_ref(py);
+
+// To &PyCell<MyClass> with PyAny::downcast
+let _: &PyCell<MyClass> = obj.downcast()?;
+
+// To Py<PyAny> (aka PyObject) with .into()
+let _: Py<PyAny> = obj.into();
+
+// To Py<MyClass> with PyAny::extract
+let _: Py<MyClass> = obj.extract()?;
+
+// To MyClass with PyAny::extract, if MyClass: Clone
+let _: MyClass = obj.extract()?;
+
+// To PyRef<MyClass> or PyRefMut<MyClass> with PyAny::extract
+let _: PyRef<MyClass> = obj.extract()?;
+let _: PyRefMut<MyClass> = obj.extract()?;
+# Ok(())
+# }).unwrap();
+```
 
 ### `PyTuple`, `PyDict`, and many more
 
@@ -99,29 +130,30 @@ To see all Python types exposed by `PyO3` you should consult the
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# Python::with_gil(|py| -> PyResult<()> {
 let list = PyList::empty(py);
 
-// Can use methods from PyAny on all Python types due to Deref implementation
-let _ = list.repr();
+// Use methods from PyAny on all Python types with Deref implementation
+let _ = list.repr()?;
 
-// Rust will convert &PyList etc. to &PyAny automatically due to Deref implementation
+// To &PyAny automatically with Deref implementation
 let _: &PyAny = list;
 
-// For more explicit &PyAny conversion, use .as_ref()
+// To &PyAny explicitly with .as_ref()
 let _: &PyAny = list.as_ref();
 
-// To convert to Py<T> use .into() or Py::from()
+// To Py<T> with .into() or Py::from()
 let _: Py<PyList> = list.into();
 
-// To convert to PyObject use .into() or .to_object(py)
+// To PyObject with .into() or .to_object(py)
 let _: PyObject = list.into();
+# Ok(())
+# }).unwrap();
 ```
 
-### `Py<T>`
+### `Py<T>` and `PyObject`
 
-**Represents:** a GIL independent reference to a Python object. This can be a Python native type
+**Represents:** a GIL-independent reference to a Python object. This can be a Python native type
 (like `PyTuple`), or a `pyclass` type implemented in Rust. The most commonly-used variant,
 `Py<PyAny>`, is also known as `PyObject`.
 
@@ -133,6 +165,8 @@ Can be cloned using Python reference counts with `.clone()`.
 
 **Conversions:**
 
+For a `Py<PyList>`, the conversions are as below:
+
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
@@ -140,20 +174,47 @@ Can be cloned using Python reference counts with `.clone()`.
 # let py = gil.python();
 let list: Py<PyList> = PyList::empty(py).into();
 
-// Access to the native type using Py::as_ref(py) or Py::into_ref(py)
-// (For #[pyclass] types T, these will return &PyCell<T>)
-
-// Py::as_ref() borrows the object
+// To &PyList with Py::as_ref() (borrows from the Py)
 let _: &PyList = list.as_ref(py);
 
-# let list_clone = list.clone(); // Just so that the .into() example for PyObject compiles.
-// Py::into_ref() moves the reference into pyo3's "object storage"; useful for making APIs
-// which return gil-bound references.
+# let list_clone = list.clone(); // Because `.into_ref()` will consume `list`.
+// To &PyList with Py::into_ref() (moves the pointer into PyO3's object storage)
 let _: &PyList = list.into_ref(py);
 
 # let list = list_clone;
-// Convert to PyObject with .into()
-let _: PyObject = list.into();
+// To Py<PyAny> (aka PyObject) with .into()
+let _: Py<PyAny> = list.into();
+```
+
+For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
+
+```rust
+# use pyo3::prelude::*;
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# #[pyclass] struct MyClass { }
+# Python::with_gil(|py| -> PyResult<()> {
+let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
+
+// To &PyCell<MyClass> with Py::as_ref() (borrows from the Py)
+let _: &PyCell<MyClass> = my_class.as_ref(py);
+
+# let my_class_clone = my_class.clone(); // Because `.into_ref()` will consume `my_class`.
+// To &PyCell<MyClass> with Py::into_ref() (moves the pointer into PyO3's object storage)
+let _: &PyCell<MyClass> = my_class.into_ref(py);
+
+# let my_class = my_class_clone.clone();
+// To Py<PyAny> (aka PyObject) with .into_py(py)
+let _: Py<PyAny> = my_class.into_py(py);
+
+# let my_class = my_class_clone;
+// To PyRef<MyClass> with Py::borrow or Py::try_borrow
+let _: PyRef<MyClass> = my_class.try_borrow(py)?;
+
+// To PyRefMut<MyClass> with Py::borrow_mut or Py::try_borrow_mut
+let _: PyRefMut<MyClass> = my_class.try_borrow_mut(py)?;
+# Ok(())
+# }).unwrap();
 ```
 
 ### `PyCell<SomeType>`
@@ -171,33 +232,46 @@ so it also exposes all of the methods on `PyAny`.
 
 **Conversions:**
 
+`PyCell<T>` can be used to access `&T` and `&mut T` via `PyRef<T>` and `PyRefMut<T>` respectively.
+
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
 # #[pyclass] struct MyClass { }
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { }).unwrap();
+# Python::with_gil(|py| -> PyResult<()> {
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
 
-// Obtain PyRef<T> with .try_borrow()
-let pr: PyRef<MyClass> = cell.try_borrow().unwrap();
-# drop(pr);
+// To PyRef<T> with .borrow() or .try_borrow()
+let py_ref: PyRef<MyClass> = cell.try_borrow()?;
+let _: &MyClass = &*py_ref;
+# drop(py_ref);
 
-// Obtain PyRefMut<T> with .try_borrow_mut()
-let prm: PyRefMut<MyClass> = cell.try_borrow_mut().unwrap();
-# drop(prm);
+// To PyRefMut<T> with .borrow_mut() or .try_borrow_mut()
+let mut py_ref_mut: PyRefMut<MyClass> = cell.try_borrow_mut()?;
+let _: &mut MyClass = &mut *py_ref_mut;
+# Ok(())
+# }).unwrap();
+```
 
-// Can use methods from PyAny on PyCell<T> due to Deref implementation
-let _ = cell.repr();
+`PyCell<T>` can also be accessed like a Python-native type.
 
-// Rust will convert &PyCell<T> to &PyAny automatically due to Deref implementation
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+# #[pyclass] struct MyClass { }
+# Python::with_gil(|py| -> PyResult<()> {
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
+
+// Use methods from PyAny on PyCell<T> with Deref implementation
+let _ = cell.repr()?;
+
+// To &PyAny automatically with Deref implementation
 let _: &PyAny = cell;
 
-// For more explicit &PyAny conversion, use .as_ref()
-let any: &PyAny = cell.as_ref();
-
-// To obtain a PyCell<T> from PyAny, use PyAny::downcast
-let _: &PyCell<MyClass> = any.downcast().unwrap();
+// To &PyAny explicitly with .as_ref()
+let _: &PyAny = cell.as_ref();
+# Ok(())
+# }).unwrap();
 ```
 
 ### `PyRef<SomeType>` and `PyRefMut<SomeType>`
