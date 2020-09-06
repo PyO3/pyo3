@@ -82,7 +82,7 @@ jobs:
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
 
       - name: Build without default features
-        run: cargo build --no-default-features --verbose
+        run: cargo build --no-default-features --features "unstable-api" --verbose
 
       - name: Build with default features
         run: cargo build --features "num-bigint num-complex" --verbose
