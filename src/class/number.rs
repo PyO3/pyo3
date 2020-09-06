@@ -5,6 +5,8 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
+#[cfg(Py_LIMITED_API)]
+use std::os::raw::c_void;
 
 #[cfg(Py_LIMITED_API)]
 #[derive(Clone)]
@@ -26,6 +28,7 @@ pub struct PyNumberMethods {
     pub nb_xor: Option<ffi::binaryfunc>,
     pub nb_or: Option<ffi::binaryfunc>,
     pub nb_int: Option<ffi::unaryfunc>,
+    #[allow(dead_code)]
     pub nb_reserved: *mut c_void,
     pub nb_float: Option<ffi::unaryfunc>,
     pub nb_inplace_add: Option<ffi::binaryfunc>,

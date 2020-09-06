@@ -8,6 +8,8 @@ use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::PyErr;
 use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
+#[cfg(Py_LIMITED_API)]
+use std::os::raw::c_void;
 
 #[cfg(Py_LIMITED_API)]
 #[derive(Clone)]
@@ -16,8 +18,10 @@ pub struct PySequenceMethods {
     pub sq_concat: Option<ffi::binaryfunc>,
     pub sq_repeat: Option<ffi::ssizeargfunc>,
     pub sq_item: Option<ffi::ssizeargfunc>,
+    #[allow(dead_code)]
     pub was_sq_slice: *mut c_void,
     pub sq_ass_item: Option<ffi::ssizeobjargproc>,
+    #[allow(dead_code)]
     pub was_sq_ass_slice: *mut c_void,
     pub sq_contains: Option<ffi::objobjproc>,
     pub sq_inplace_concat: Option<ffi::binaryfunc>,
