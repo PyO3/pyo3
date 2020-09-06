@@ -117,7 +117,9 @@ impl TypeSlots {
         self.0.push(ffi::PyType_Slot { slot, pfunc });
     }
     pub(crate) fn maybe_push(&mut self, slot: c_int, value: Option<*mut c_void>) {
-        value.map(|v| self.push(slot, v));
+        if let Some(v) = value {
+            self.push(slot, v);
+        }
     }
 }
 
@@ -169,21 +171,37 @@ where
     }
 
     // basic methods
-    T::basic_methods().map(|basic| unsafe { basic.as_ref() }.update_slots(&mut slots));
+    if let Some(basic) = T::basic_methods() {
+        unsafe { basic.as_ref() }.update_slots(&mut slots);
+    }
     // number methods
-    T::number_methods().map(|num| unsafe { num.as_ref() }.update_slots(&mut slots));
+    if let Some(number) = T::number_methods() {
+        unsafe { number.as_ref() }.update_slots(&mut slots);
+    }
     // iterator methods
-    T::iter_methods().map(|iter| unsafe { iter.as_ref() }.update_slots(&mut slots));
+    if let Some(iter) = T::iter_methods() {
+        unsafe { iter.as_ref() }.update_slots(&mut slots);
+    }
     // mapping methods
-    T::mapping_methods().map(|map| unsafe { map.as_ref() }.update_slots(&mut slots));
+    if let Some(mapping) = T::mapping_methods() {
+        unsafe { mapping.as_ref() }.update_slots(&mut slots);
+    }
     // sequence methods
-    T::sequence_methods().map(|seq| unsafe { seq.as_ref() }.update_slots(&mut slots));
+    if let Some(sequence) = T::sequence_methods() {
+        unsafe { sequence.as_ref() }.update_slots(&mut slots);
+    }
     // descriptor protocol
-    T::descr_methods().map(|descr| unsafe { descr.as_ref() }.update_slots(&mut slots));
+    if let Some(descr) = T::descr_methods() {
+        unsafe { descr.as_ref() }.update_slots(&mut slots);
+    }
     // async methods
-    T::async_methods().map(|asnc| unsafe { asnc.as_ref() }.update_slots(&mut slots));
-    // GC support
-    T::gc_methods().map(|gc| unsafe { gc.as_ref() }.update_slots(&mut slots));
+    if let Some(asnc) = T::async_methods() {
+        unsafe { asnc.as_ref() }.update_slots(&mut slots);
+    }
+    // gc methods
+    if let Some(gc) = T::gc_methods() {
+        unsafe { gc.as_ref() }.update_slots(&mut slots);
+    }
 
     slots.push(0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {
@@ -332,6 +350,9 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut props: Vec<_> = defs.values().cloned().collect();
     if !T::Dict::IS_DUMMY {
         props.push(ffi::PyGetSetDef_DICT);
+    }
+    if !props.is_empty() {
+        props.push(ffi::PyGetSetDef_INIT);
     }
     props
 }
