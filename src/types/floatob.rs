@@ -81,6 +81,7 @@ impl<'source> FromPyObject<'source> for f32 {
 
 #[cfg(test)]
 mod test {
+    #[cfg(not(Py_LIMITED_API))]
     use crate::ffi::PyFloat_AS_DOUBLE;
     use crate::{AsPyPointer, Python, ToPyObject};
 
@@ -103,6 +104,7 @@ mod test {
     num_to_py_object_and_back!(to_from_f32, f32, f32);
     num_to_py_object_and_back!(int_to_float, i32, f64);
 
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_as_double_macro() {
         use assert_approx_eq::assert_approx_eq;
