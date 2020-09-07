@@ -1,7 +1,9 @@
+#[cfg(not(Py_LIMITED_API))]
+use crate::class::buffer::PyBufferProcs;
 use crate::class::{
-    basic::PyObjectMethods, buffer::PyBufferProcs, descr::PyDescrMethods, gc::PyGCMethods,
-    iter::PyIterMethods, mapping::PyMappingMethods, number::PyNumberMethods,
-    pyasync::PyAsyncMethods, sequence::PySequenceMethods,
+    basic::PyObjectMethods, descr::PyDescrMethods, gc::PyGCMethods, iter::PyIterMethods,
+    mapping::PyMappingMethods, number::PyNumberMethods, pyasync::PyAsyncMethods,
+    sequence::PySequenceMethods,
 };
 use std::{
     ptr::{self, NonNull},
@@ -17,6 +19,7 @@ pub trait PyProtoMethods {
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
         None
     }
+    #[cfg(not(Py_LIMITED_API))]
     fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
         None
     }
@@ -53,6 +56,7 @@ impl<T: HasProtoRegistry> PyProtoMethods for T {
     fn basic_methods() -> Option<NonNull<PyObjectMethods>> {
         NonNull::new(Self::registry().basic_methods.load(Ordering::Relaxed))
     }
+    #[cfg(not(Py_LIMITED_API))]
     fn buffer_methods() -> Option<NonNull<PyBufferProcs>> {
         NonNull::new(Self::registry().buffer_methods.load(Ordering::Relaxed))
     }
@@ -85,6 +89,7 @@ pub struct PyProtoRegistry {
     /// Basic protocols.
     basic_methods: AtomicPtr<PyObjectMethods>,
     /// Buffer protocols.
+    #[cfg(not(Py_LIMITED_API))]
     buffer_methods: AtomicPtr<PyBufferProcs>,
     /// Descr pProtocols.
     descr_methods: AtomicPtr<PyDescrMethods>,
@@ -105,6 +110,7 @@ impl PyProtoRegistry {
         PyProtoRegistry {
             async_methods: AtomicPtr::new(ptr::null_mut()),
             basic_methods: AtomicPtr::new(ptr::null_mut()),
+            #[cfg(not(Py_LIMITED_API))]
             buffer_methods: AtomicPtr::new(ptr::null_mut()),
             descr_methods: AtomicPtr::new(ptr::null_mut()),
             gc_methods: AtomicPtr::new(ptr::null_mut()),
@@ -122,6 +128,7 @@ impl PyProtoRegistry {
         self.basic_methods
             .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
     }
+    #[cfg(not(Py_LIMITED_API))]
     pub fn set_buffer_methods(&self, methods: PyBufferProcs) {
         self.buffer_methods
             .store(Box::into_raw(Box::new(methods)), Ordering::Relaxed)
