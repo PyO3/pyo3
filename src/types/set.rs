@@ -2,6 +2,8 @@
 //
 
 use crate::err::{self, PyErr, PyResult};
+#[cfg(Py_LIMITED_API)]
+use crate::types::PyIterator;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
@@ -110,12 +112,32 @@ impl PySet {
     /// Returns an iterator of values in this set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    #[cfg(not(Py_LIMITED_API))]
     pub fn iter(&self) -> PySetIterator {
+        PySetIterator::new(self)
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+pub struct PySetIterator<'py> {
+    it: PyIterator<'py>,
+}
+
+#[cfg(Py_LIMITED_API)]
+impl PySetIterator<'_> {
+    fn new(set: &PyAny) -> PySetIterator {
         PySetIterator {
-            set: self.as_ref(),
-            pos: 0,
+            it: PyIterator::from_object(set.py(), set).unwrap(),
         }
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+impl<'py> Iterator for PySetIterator<'py> {
+    type Item = &'py super::PyAny;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.it.next().map(|p| p.unwrap())
     }
 }
 
@@ -123,6 +145,13 @@ impl PySet {
 pub struct PySetIterator<'py> {
     set: &'py super::PyAny,
     pos: isize,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+impl PySetIterator<'_> {
+    fn new(set: &PyAny) -> PySetIterator {
+        PySetIterator { set, pos: 0 }
+    }
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -145,7 +174,6 @@ impl<'py> Iterator for PySetIterator<'py> {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PySet {
     type Item = &'a PyAny;
     type IntoIter = PySetIterator<'a>;
@@ -281,22 +309,17 @@ impl PyFrozenSet {
     /// Returns an iterator of values in this frozen set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    #[cfg(not(Py_LIMITED_API))]
     pub fn iter(&self) -> PySetIterator {
-        self.into_iter()
+        PySetIterator::new(self.as_ref())
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
     type Item = &'a PyAny;
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PySetIterator {
-            set: self.as_ref(),
-            pos: 0,
-        }
+        self.iter()
     }
 }
 
