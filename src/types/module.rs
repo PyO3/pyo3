@@ -25,14 +25,16 @@ pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to name.
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+        // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
     }
 
     /// Imports the Python module with the specified name.
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name = CString::new(name)?;
-        unsafe { py.from_owned_ptr_or_err(ffi::PyImport_ImportModule(name.as_ptr())) }
+        crate::types::with_tmp_string(py, name, |name| unsafe {
+            py.from_owned_ptr_or_err(ffi::PyImport_Import(name))
+        })
     }
 
     /// Loads the Python code specified into a new module.
