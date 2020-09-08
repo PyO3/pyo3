@@ -1,7 +1,7 @@
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
 use pyo3::types::{PyCFunction, PyFunction};
-use pyo3::wrap_pyfunction;
+use pyo3::{raw_pycfunction, wrap_pyfunction};
 
 mod common;
 
@@ -93,4 +93,29 @@ fn test_functions_with_function_args() {
         assert py_cfunc_arg(bool_to_string) == "Some(true)"
         "#
     )
+}
+
+#[test]
+fn test_raw_function() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let raw_func = raw_pycfunction!(optional_bool);
+    let fun = PyCFunction::new_with_keywords(raw_func, "fun", "", None, py).unwrap();
+    let res = fun.call((), None).unwrap().extract::<&str>().unwrap();
+    assert_eq!(res, "Some(true)");
+    let res = fun.call((false,), None).unwrap().extract::<&str>().unwrap();
+    assert_eq!(res, "Some(false)");
+    let no_module = fun.getattr("__module__").unwrap().is_none();
+    assert!(no_module);
+
+    let module = PyModule::new(py, "cool_module").unwrap();
+    module.add_function(&|_| Ok(fun)).unwrap();
+    let res = module
+        .getattr("fun")
+        .unwrap()
+        .call((), None)
+        .unwrap()
+        .extract::<&str>()
+        .unwrap();
+    assert_eq!(res, "Some(true)");
 }

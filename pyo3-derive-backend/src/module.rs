@@ -204,49 +204,28 @@ pub fn add_fn_to_module(
 
     let python_name = &spec.python_name;
 
-    let wrapper = function_c_wrapper(&func.sig.ident, &spec, pyfn_attrs.pass_module);
-
+    let name = &func.sig.ident;
+    let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
+    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, pyfn_attrs.pass_module);
     Ok(quote! {
+        #wrapper
         fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
             let arg = args.into();
             let (py, maybe_module) = arg.into_py_and_maybe_module();
-            #wrapper
-
-            let _def = pyo3::class::PyMethodDef {
-                ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            };
-
-            let (mod_ptr, name) = if let Some(m) = maybe_module {
-                let mod_ptr = <pyo3::types::PyModule as ::pyo3::conversion::AsPyPointer>::as_ptr(m);
-                let name = m.name()?;
-                let name = <&str as pyo3::conversion::IntoPy<PyObject>>::into_py(name, py);
-                (mod_ptr, <PyObject as pyo3::AsPyPointer>::as_ptr(&name))
-            } else {
-                (std::ptr::null_mut(), std::ptr::null_mut())
-            };
-
-            let function = unsafe {
-                py.from_owned_ptr::<pyo3::types::PyCFunction>(
-                    pyo3::ffi::PyCFunction_NewEx(
-                        Box::into_raw(Box::new(_def.as_method_def())),
-                        mod_ptr,
-                        name
-                    )
-                )
-            };
-
-            Ok(function)
+            pyo3::types::PyCFunction::new_with_keywords(#wrapper_ident, stringify!(#python_name), #doc, maybe_module, py)
         }
     })
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>, pass_module: bool) -> TokenStream {
+fn function_c_wrapper(
+    name: &Ident,
+    wrapper_ident: &Ident,
+    spec: &method::FnSpec<'_>,
+    pass_module: bool,
+) -> TokenStream {
     let names: Vec<Ident> = get_arg_names(&spec);
     let cb;
     let slf_module;
@@ -264,9 +243,8 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>, pass_module: bool
         slf_module = None;
     };
     let body = pymethod::impl_arg_params(spec, None, cb);
-
     quote! {
-        unsafe extern "C" fn __wrap(
+        unsafe extern "C" fn #wrapper_ident(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject

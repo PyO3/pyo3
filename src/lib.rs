@@ -220,6 +220,16 @@ macro_rules! wrap_pyfunction {
     }};
 }
 
+/// Returns the function that is called in the C-FFI.
+///
+/// Use this together with `#[pyfunction]` and [types::PyCFunction].
+#[macro_export]
+macro_rules! raw_pycfunction {
+    ($function_name: ident) => {{
+        pyo3::paste::expr! { [<__pyo3_raw_ $function_name>] }
+    }};
+}
+
 /// Returns a function that takes a [Python] instance and returns a Python module.
 ///
 /// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
