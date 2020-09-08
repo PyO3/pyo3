@@ -202,10 +202,7 @@ impl LazyStaticType {
         // Now we hold the GIL and we can assume it won't be released until we
         // return from the function.
         let result = self.tp_dict_filled.get_or_init(py, move || {
-            let tp_dict = unsafe { (*type_object).tp_dict };
-            let result = initialize_tp_dict(py, tp_dict, items);
-            // See discussion on #982 for why we need this.
-            unsafe { ffi::PyType_Modified(type_object) };
+            let result = initialize_tp_dict(py, type_object as *mut ffi::PyObject, items);
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)
@@ -224,7 +221,7 @@ impl LazyStaticType {
 
 fn initialize_tp_dict(
     py: Python,
-    tp_dict: *mut ffi::PyObject,
+    type_object: *mut ffi::PyObject,
     items: Vec<(&'static str, PyObject)>,
 ) -> PyResult<()> {
     use std::ffi::CString;
@@ -233,7 +230,7 @@ fn initialize_tp_dict(
     // the POV of other threads.
     for (key, val) in items {
         let ret = unsafe {
-            ffi::PyDict_SetItemString(tp_dict, CString::new(key)?.as_ptr(), val.into_ptr())
+            ffi::PyObject_SetAttrString(type_object, CString::new(key)?.as_ptr(), val.into_ptr())
         };
         if ret < 0 {
             return Err(PyErr::fetch(py));
