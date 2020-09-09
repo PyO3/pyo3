@@ -63,6 +63,7 @@ pub unsafe fn PyImport_ImportModuleEx(
 
 extern "C" {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyImport_Import")]
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;

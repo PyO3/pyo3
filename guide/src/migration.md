@@ -1,7 +1,7 @@
-# Appendix B: Migrating from older PyO3 versions
+# Migrating from older PyO3 versions
 
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
-For a detailed list of all changes, see [CHANGELOG.md](https://github.com/PyO3/pyo3/blob/master/CHANGELOG.md)
+For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.11.* to 0.12
 
@@ -248,7 +248,7 @@ impl MyClass {
 ```
 
 Basically you can return `Self` or `Result<Self>` directly.
-For more, see [the constructor section](https://pyo3.rs/master/class.html#constructor) of this guide.
+For more, see [the constructor section](class.html#constructor) of this guide.
 
 ### PyCell
 PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper

@@ -6,6 +6,9 @@ on:
       - master
   release:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

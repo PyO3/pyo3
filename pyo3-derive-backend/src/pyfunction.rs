@@ -24,6 +24,7 @@ pub struct PyFunctionAttr {
     has_kw: bool,
     has_varargs: bool,
     has_kwargs: bool,
+    pub pass_module: bool,
 }
 
 impl syn::parse::Parse for PyFunctionAttr {
@@ -45,6 +46,9 @@ impl PyFunctionAttr {
 
     pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
         match item {
+            NestedMeta::Meta(syn::Meta::Path(ref ident)) if ident.is_ident("pass_module") => {
+                self.pass_module = true;
+            }
             NestedMeta::Meta(syn::Meta::Path(ref ident)) => self.add_work(item, ident)?,
             NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
                 self.add_name_value(item, nv)?;
@@ -204,7 +208,7 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
 pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Result<TokenStream> {
     let python_name =
         parse_name_attribute(&mut ast.attrs)?.unwrap_or_else(|| ast.sig.ident.unraw());
-    add_fn_to_module(ast, python_name, args.arguments)
+    add_fn_to_module(ast, python_name, args)
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 # Using in Python a Rust function with trait bounds
 
-PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](https://pyo3.rs/master/conversions.html)).
+PyO3 allows for easy conversion from Rust to Python for certain functions and classes (see the [conversion table](conversions/tables.html).
 However, it is not always straightforward to convert Rust code that requires a given trait implementation as an argument.
 
 This tutorial explains how to convert a Rust function that takes a trait as argument for use in Python with classes implementing the same methods as the trait.
@@ -488,7 +488,7 @@ pub struct UserModel {
 #[pymodule]
 fn trait_exposure(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<UserModel>()?;
-    m.add_wrapped(wrap_pyfunction!(solve_wrapper))?;
+    m.add_function(wrap_pyfunction!(solve_wrapper))?;
     Ok(())
 }
 

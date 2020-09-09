@@ -32,16 +32,22 @@ fn sum_as_string(a: i64, b: i64) -> String {
 # fn main() {}
 ```
 
-The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It can take as an argument the name of your module, which must be the name of the `.so` or `.pyd` file; the default is the Rust function's name.
+The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your 
+module to Python. It can take as an argument the name of your module, which must be the name of the `.so`
+or `.pyd` file; the default is the Rust function's name.
 
-If the name of the module (the default being the function name) does not match the name of the `.so` or `.pyd` file, you will get an import error in Python with the following message:
+If the name of the module (the default being the function name) does not match the name of the `.so` or
+`.pyd` file, you will get an import error in Python with the following message:
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
-To import the module, either copy the shared library as described in [the README](https://github.com/PyO3/pyo3) or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
+To import the module, either copy the shared library as described in [the README](https://github.com/PyO3/pyo3)
+or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or 
+`python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation
 
-The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module initialization function will be applied automatically as the Python docstring of your module.
+The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module
+initialization function will be applied automatically as the Python docstring of your module.
 
 ```python
 import rust2py
@@ -53,7 +59,8 @@ Which means that the above Python code will print `This module is implemented in
 
 ## Modules as objects
 
-In Python, modules are first class objects. This means that you can store them as values or add them to dicts or other modules:
+In Python, modules are first class objects. This means that you can store them as values or add them to
+dicts or other modules:
 
 ```rust
 use pyo3::prelude::*;
@@ -65,15 +72,16 @@ fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-#[pymodule]
-fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pyfunction!(subfunction))?;
+fn init_submodule(module: &PyModule) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
 #[pymodule]
-fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pymodule!(submodule))?;
+fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
+    let submod = PyModule::new(py, "submodule")?;
+    init_submodule(submod)?;
+    module.add_submodule(submod)?;
     Ok(())
 }
 
@@ -86,3 +94,5 @@ fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
 ```
 
 This way, you can create a module hierarchy within a single extension module.
+
+It is not necessary to add `#[pymodule]` on nested modules, this is only required on the top-level module.

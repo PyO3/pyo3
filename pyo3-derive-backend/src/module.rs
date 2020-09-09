@@ -2,7 +2,6 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 use crate::method;
-use crate::pyfunction;
 use crate::pyfunction::PyFunctionAttr;
 use crate::pymethod;
 use crate::pymethod::get_arg_names;
@@ -26,8 +25,6 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
             const NAME: &'static str = concat!(stringify!(#name), "\0");
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME) };
 
-            let pool = pyo3::GILPool::new();
-            let py = pool.python();
             pyo3::callback_body!(_py, { MODULE_DEF.make_module(#doc, #fnname) })
         }
     }
@@ -40,14 +37,14 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     for stmt in func.block.stmts.iter_mut() {
         if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
             if let Some((module_name, python_name, pyfn_attrs)) =
-                extract_pyfn_attrs(&mut func.attrs)
+                extract_pyfn_attrs(&mut func.attrs)?
             {
                 let function_to_python = add_fn_to_module(func, python_name, pyfn_attrs)?;
                 let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
                 let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
-                        #module_name.add_wrapped(&#function_wrapper_ident)?;
+                        #module_name.add_function(&#function_wrapper_ident)?;
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());
@@ -61,33 +58,30 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> syn::Result<method::FnArg<'a>> {
+fn wrap_fn_argument<'a>(cap: &'a syn::PatType) -> syn::Result<method::FnArg<'a>> {
     let (mutability, by_ref, ident) = match *cap.pat {
         syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),
     };
 
-    let py = crate::utils::if_type_is_python(&cap.ty);
-    let opt = method::check_ty_optional(&cap.ty);
     Ok(method::FnArg {
         name: ident,
         mutability,
         by_ref,
         ty: &cap.ty,
-        optional: opt,
-        py,
-        reference: method::is_ref(&name, &cap.ty),
+        optional: utils::option_type_argument(&cap.ty),
+        py: utils::is_python(&cap.ty),
     })
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
 fn extract_pyfn_attrs(
     attrs: &mut Vec<syn::Attribute>,
-) -> Option<(syn::Path, Ident, Vec<pyfunction::Argument>)> {
+) -> syn::Result<Option<(syn::Path, Ident, PyFunctionAttr)>> {
     let mut new_attrs = Vec::new();
     let mut fnname = None;
     let mut modname = None;
-    let mut fn_attrs = Vec::new();
+    let mut fn_attrs = PyFunctionAttr::default();
 
     for attr in attrs.iter() {
         match attr.parse_meta() {
@@ -99,23 +93,34 @@ fn extract_pyfn_attrs(
                         syn::NestedMeta::Meta(syn::Meta::Path(ref path)) => {
                             modname = Some(path.clone())
                         }
-                        _ => panic!("The first parameter of pyfn must be a MetaItem"),
+                        _ => {
+                            return Err(syn::Error::new_spanned(
+                                &meta[0],
+                                "The first parameter of pyfn must be a MetaItem",
+                            ))
+                        }
                     }
                     // read Python function name
                     match meta[1] {
                         syn::NestedMeta::Lit(syn::Lit::Str(ref lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
-                        _ => panic!("The second parameter of pyfn must be a Literal"),
+                        _ => {
+                            return Err(syn::Error::new_spanned(
+                                &meta[1],
+                                "The second parameter of pyfn must be a Literal",
+                            ))
+                        }
                     }
                     // Read additional arguments
                     if list.nested.len() >= 3 {
-                        fn_attrs = PyFunctionAttr::from_meta(&meta[2..meta.len()])
-                            .unwrap()
-                            .arguments;
+                        fn_attrs = PyFunctionAttr::from_meta(&meta[2..meta.len()])?;
                     }
                 } else {
-                    panic!("can not parse 'pyfn' params {:?}", attr);
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        format!("can not parse 'pyfn' params {:?}", attr),
+                    ));
                 }
             }
             _ => new_attrs.push(attr.clone()),
@@ -123,7 +128,10 @@ fn extract_pyfn_attrs(
     }
 
     *attrs = new_attrs;
-    Some((modname?, fnname?, fn_attrs))
+    match (modname, fnname) {
+        (Some(modname), Some(fnname)) => Ok(Some((modname, fnname, fn_attrs))),
+        _ => Ok(None),
+    }
 }
 
 /// Coordinates the naming of a the add-function-to-python-module function
@@ -137,11 +145,11 @@ fn function_wrapper_ident(name: &Ident) -> Ident {
 pub fn add_fn_to_module(
     func: &mut syn::ItemFn,
     python_name: Ident,
-    pyfn_attrs: Vec<pyfunction::Argument>,
+    pyfn_attrs: PyFunctionAttr,
 ) -> syn::Result<TokenStream> {
     let mut arguments = Vec::new();
 
-    for input in func.sig.inputs.iter() {
+    for (i, input) in func.sig.inputs.iter().enumerate() {
         match input {
             syn::FnArg::Receiver(_) => {
                 return Err(syn::Error::new_spanned(
@@ -150,7 +158,27 @@ pub fn add_fn_to_module(
                 ))
             }
             syn::FnArg::Typed(ref cap) => {
-                arguments.push(wrap_fn_argument(cap, &func.sig.ident)?);
+                if pyfn_attrs.pass_module && i == 0 {
+                    if let syn::Type::Reference(tyref) = cap.ty.as_ref() {
+                        if let syn::Type::Path(typath) = tyref.elem.as_ref() {
+                            if typath
+                                .path
+                                .segments
+                                .last()
+                                .map(|seg| seg.ident == "PyModule")
+                                .unwrap_or(false)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    return Err(syn::Error::new_spanned(
+                        cap,
+                        "Expected &PyModule as first argument with `pass_module`.",
+                    ));
+                } else {
+                    arguments.push(wrap_fn_argument(cap)?);
+                }
             }
         }
     }
@@ -166,7 +194,7 @@ pub fn add_fn_to_module(
         tp: method::FnType::FnStatic,
         name: &function_wrapper_ident,
         python_name,
-        attrs: pyfn_attrs,
+        attrs: pyfn_attrs.arguments,
         args: arguments,
         output: ty,
         doc,
@@ -176,10 +204,14 @@ pub fn add_fn_to_module(
 
     let python_name = &spec.python_name;
 
-    let wrapper = function_c_wrapper(&func.sig.ident, &spec);
+    let wrapper = function_c_wrapper(&func.sig.ident, &spec, pyfn_attrs.pass_module);
 
     Ok(quote! {
-        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::PyObject {
+        fn #function_wrapper_ident<'a>(
+            args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
+        ) -> pyo3::PyResult<pyo3::PyObject> {
+            let arg = args.into();
+            let (py, maybe_module) = arg.into_py_and_maybe_module();
             #wrapper
 
             let _def = pyo3::class::PyMethodDef {
@@ -189,28 +221,49 @@ pub fn add_fn_to_module(
                 ml_doc: #doc,
             };
 
+            let (mod_ptr, name) = if let Some(m) = maybe_module {
+                let mod_ptr = <pyo3::types::PyModule as ::pyo3::conversion::AsPyPointer>::as_ptr(m);
+                let name = m.name()?;
+                let name = <&str as pyo3::conversion::IntoPy<PyObject>>::into_py(name, py);
+                (mod_ptr, <PyObject as pyo3::AsPyPointer>::as_ptr(&name))
+            } else {
+                (std::ptr::null_mut(), std::ptr::null_mut())
+            };
+
             let function = unsafe {
                 pyo3::PyObject::from_owned_ptr(
                     py,
-                    pyo3::ffi::PyCFunction_New(
+                    pyo3::ffi::PyCFunction_NewEx(
                         Box::into_raw(Box::new(_def.as_method_def())),
-                        ::std::ptr::null_mut()
+                        mod_ptr,
+                        name
                     )
                 )
             };
 
-            function
+            Ok(function)
         }
     })
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
+fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>, pass_module: bool) -> TokenStream {
     let names: Vec<Ident> = get_arg_names(&spec);
-    let cb = quote! {
-        #name(#(#names),*)
+    let cb;
+    let slf_module;
+    if pass_module {
+        cb = quote! {
+            #name(_slf, #(#names),*)
+        };
+        slf_module = Some(quote! {
+            let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
+        });
+    } else {
+        cb = quote! {
+            #name(#(#names),*)
+        };
+        slf_module = None;
     };
-
     let body = pymethod::impl_arg_params(spec, None, cb);
 
     quote! {
@@ -221,6 +274,7 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
         {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
             pyo3::callback_body!(_py, {
+                #slf_module
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 

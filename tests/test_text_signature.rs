@@ -110,7 +110,7 @@ fn test_function() {
 
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let f = wrap_pyfunction!(my_function)(py);
+    let f = wrap_pyfunction!(my_function)(py).unwrap();
 
     py_assert!(py, f, "f.__text_signature__ == '(a, b=None, *, c=42)'");
 }

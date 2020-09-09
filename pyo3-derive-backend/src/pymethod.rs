@@ -488,57 +488,47 @@ fn impl_arg_param(
     let arg_value = quote!(output[#option_pos]);
     *option_pos += 1;
 
-    return if let Some(ty) = arg.optional.as_ref() {
-        let default = if let Some(d) = spec.default_value(name).filter(|d| d.to_string() != "None")
-        {
-            quote! { Some(#d) }
-        } else {
-            quote! { None }
-        };
-        if let syn::Type::Reference(tref) = ty {
-            let (tref, mut_) = preprocess_tref(tref, self_);
-            // To support Rustc 1.39.0, we don't use as_deref here...
-            let tmp_as_deref = if mut_.is_some() {
-                quote! { _tmp.as_mut().map(std::ops::DerefMut::deref_mut) }
-            } else {
-                quote! { _tmp.as_ref().map(std::ops::Deref::deref) }
-            };
+    let default = match (spec.default_value(name), arg.optional.is_some()) {
+        (Some(default), true) if default.to_string() != "None" => quote! { Some(#default) },
+        (Some(default), _) => quote! { #default },
+        (None, true) => quote! { None },
+        (None, false) => quote! { panic!("Failed to extract required method argument") },
+    };
+
+    return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
+        let (tref, mut_) = preprocess_tref(tref, self_);
+        let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
-            quote! {
-                let #mut_ _tmp = match #arg_value {
-                    Some(_obj) => {
-                        _obj.extract::<Option<<#tref as pyo3::derive_utils::ExtractExt>::Target>>()?
-                    },
-                    None => #default,
-                };
-                let #arg_name = #tmp_as_deref;
-            }
+            (
+                quote! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
+                // To support Rustc 1.39.0, we don't use as_deref here...
+                if mut_.is_some() {
+                    quote! { _tmp.as_mut().map(std::ops::DerefMut::deref_mut) }
+                } else {
+                    quote! { _tmp.as_ref().map(std::ops::Deref::deref) }
+                },
+            )
         } else {
-            quote! {
-                let #arg_name = match #arg_value {
-                    Some(_obj) => _obj.extract()?,
-                    None => #default,
-                };
-            }
+            // Get &T from PyRef<T>
+            (
+                quote! { <#tref as pyo3::derive_utils::ExtractExt>::Target },
+                quote! { &#mut_ *_tmp },
+            )
+        };
+
+        quote! {
+            let #mut_ _tmp: #target_ty = match #arg_value {
+                Some(_obj) => _obj.extract()?,
+                None => #default,
+            };
+            let #arg_name = #borrow_tmp;
         }
-    } else if let Some(default) = spec.default_value(name) {
+    } else {
         quote! {
             let #arg_name = match #arg_value {
                 Some(_obj) => _obj.extract()?,
                 None => #default,
             };
-        }
-    } else if let syn::Type::Reference(tref) = arg.ty {
-        let (tref, mut_) = preprocess_tref(tref, self_);
-        // Get &T from PyRef<T>
-        quote! {
-            let #mut_ _tmp: <#tref as pyo3::derive_utils::ExtractExt>::Target
-                = #arg_value.unwrap().extract()?;
-            let #arg_name = &#mut_ *_tmp;
-        }
-    } else {
-        quote! {
-            let #arg_name = #arg_value.unwrap().extract()?;
         }
     };
 
@@ -739,7 +729,11 @@ pub(crate) fn impl_py_getter_def(
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
 fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
-    if args.get(0).map(|py| utils::if_type_is_python(&py.ty)) == Some(true) {
+    if args
+        .get(0)
+        .map(|py| utils::is_python(&py.ty))
+        .unwrap_or(false)
+    {
         (Some(&args[0]), &args[1..])
     } else {
         (None, args)

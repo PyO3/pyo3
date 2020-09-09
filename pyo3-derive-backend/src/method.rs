@@ -17,7 +17,6 @@ pub struct FnArg<'a> {
     pub ty: &'a syn::Type,
     pub optional: Option<&'a syn::Type>,
     pub py: bool,
-    pub reference: bool,
 }
 
 #[derive(Clone, PartialEq, Debug, Copy, Eq)]
@@ -214,17 +213,13 @@ impl<'a> FnSpec<'a> {
                         }
                     };
 
-                    let py = crate::utils::if_type_is_python(ty);
-
-                    let opt = check_ty_optional(ty);
                     arguments.push(FnArg {
                         name: ident,
                         by_ref,
                         mutability,
                         ty,
-                        optional: opt,
-                        py,
-                        reference: is_ref(name, ty),
+                        optional: utils::option_type_argument(ty),
+                        py: utils::is_python(ty),
                     });
                 }
             }
@@ -320,55 +315,6 @@ impl<'a> FnSpec<'a> {
             }
         }
         false
-    }
-}
-
-pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
-    match ty {
-        syn::Type::Reference(_) => return true,
-        syn::Type::Path(syn::TypePath { ref path, .. }) => {
-            if let Some(segment) = path.segments.last() {
-                if "Option" == segment.ident.to_string().as_str() {
-                    match segment.arguments {
-                        syn::PathArguments::AngleBracketed(ref params) => {
-                            if params.args.len() != 1 {
-                                panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                       name,
-                                       ty,
-                                       path);
-                            }
-                            let last = &params.args[params.args.len() - 1];
-                            if let syn::GenericArgument::Type(syn::Type::Reference(_)) = last {
-                                return true;
-                            }
-                        }
-                        _ => {
-                            panic!(
-                                "argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                name, ty, path
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        _ => (),
-    }
-    false
-}
-
-pub(crate) fn check_ty_optional(ty: &syn::Type) -> Option<&syn::Type> {
-    let path = match ty {
-        syn::Type::Path(syn::TypePath { ref path, .. }) => path,
-        _ => return None,
-    };
-    let seg = path.segments.last().filter(|s| s.ident == "Option")?;
-    match seg.arguments {
-        syn::PathArguments::AngleBracketed(ref params) => match params.args.first() {
-            Some(syn::GenericArgument::Type(ref ty)) => Some(ty),
-            _ => None,
-        },
-        _ => None,
     }
 }
 

@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
@@ -24,14 +25,16 @@ pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to name.
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+        // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
     }
 
     /// Imports the Python module with the specified name.
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name = CString::new(name)?;
-        unsafe { py.from_owned_ptr_or_err(ffi::PyImport_ImportModule(name.as_ptr())) }
+        crate::types::with_tmp_string(py, name, |name| unsafe {
+            py.from_owned_ptr_or_err(ffi::PyImport_Import(name))
+        })
     }
 
     /// Loads the Python code specified into a new module.
@@ -184,21 +187,102 @@ impl PyModule {
     /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!] or `#[pymodule]` and
     /// [wrap_pymodule!].
     ///
-    /// ```rust,ignore
-    /// m.add_wrapped(wrap_pyfunction!(double));
-    /// m.add_wrapped(wrap_pymodule!(utils));
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pymodule]
+    /// fn utils(_py: Python, _module: &PyModule) -> PyResult<()> {
+    ///     Ok(())
+    /// }
+    ///
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn top_level(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_wrapped(pyo3::wrap_pymodule!(utils))?;
+    ///     module.add_wrapped(pyo3::wrap_pyfunction!(double))
+    /// }
     /// ```
     ///
     /// You can also add a function with a custom name using [add](PyModule::add):
     ///
     /// ```rust,ignore
-    /// m.add("also_double", wrap_pyfunction!(double)(py));
+    /// m.add("also_double", wrap_pyfunction!(double)(m)?)?;
     /// ```
-    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) -> PyResult<()> {
-        let function = wrapper(self.py());
-        let name = function
-            .getattr(self.py(), "__name__")
-            .expect("A function or module must have a __name__");
-        self.add(name.extract(self.py()).unwrap(), function)
+    ///
+    /// **This function will be deprecated in the next release. Please use the specific
+    /// [add_function] and [add_submodule] functions instead.**
+    pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
+    where
+        T: IntoPyCallbackOutput<PyObject>,
+    {
+        let py = self.py();
+        let function = wrapper(py).convert(py)?;
+        let name = function.getattr(py, "__name__")?;
+        let name = name.extract(py)?;
+        self.add(name, function)
+    }
+
+    /// Add a submodule to a module.
+    ///
+    /// Use this together with `#[pymodule]` and [wrap_pymodule!].
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// fn init_utils(module: &PyModule) -> PyResult<()> {
+    ///     module.add("super_useful_constant", "important")
+    /// }
+    /// #[pymodule]
+    /// fn top_level(py: Python, module: &PyModule) -> PyResult<()> {
+    ///     let utils = PyModule::new(py, "utils")?;
+    ///     init_utils(utils)?;
+    ///     module.add_submodule(utils)
+    /// }
+    /// ```
+    pub fn add_submodule(&self, module: &PyModule) -> PyResult<()> {
+        let name = module.name()?;
+        self.add(name, module)
+    }
+
+    /// Add a function to a module.
+    ///
+    /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!].
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_function(pyo3::wrap_pyfunction!(double))
+    /// }
+    /// ```
+    ///
+    /// You can also add a function with a custom name using [add](PyModule::add):
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// #[pyfunction]
+    /// fn double(x: usize) -> usize {
+    ///     x * 2
+    /// }
+    /// #[pymodule]
+    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add("also_double", pyo3::wrap_pyfunction!(double)(module)?)
+    /// }
+    /// ```
+    pub fn add_function<'a>(
+        &'a self,
+        wrapper: &impl Fn(&'a Self) -> PyResult<PyObject>,
+    ) -> PyResult<()> {
+        let py = self.py();
+        let function = wrapper(self)?;
+        let name = function.getattr(py, "__name__")?;
+        let name = name.extract(py)?;
+        self.add(name, function)
     }
 }

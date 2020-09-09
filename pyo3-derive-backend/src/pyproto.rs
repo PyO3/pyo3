@@ -67,7 +67,7 @@ fn impl_proto_impl(
         if let syn::ImplItem::Method(ref mut met) = iimpl {
             // impl Py~Protocol<'p> { type = ... }
             if let Some(m) = proto.get_proto(&met.sig.ident) {
-                impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut trait_impls);
+                impl_method_proto(ty, &mut met.sig, m)?.to_tokens(&mut trait_impls);
                 // Insert the method to the HashSet
                 method_names.insert(met.sig.ident.to_string());
             }
@@ -152,6 +152,7 @@ fn slot_initialization(
         Span::call_site(),
     );
     Ok(quote! {
+        #[allow(non_snake_case)]
         #[pyo3::ctor::ctor]
         fn #init() {
             let mut table = #table::default();

@@ -36,7 +36,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(double)).unwrap();
+    m.add_function(wrap_pyfunction!(double)).unwrap();
 
     Ok(())
 }
@@ -65,7 +65,7 @@ fn num_kwds(kwds: Option<&PyDict>) -> usize {
 
 #[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(num_kwds)).unwrap();
+    m.add_function(wrap_pyfunction!(num_kwds)).unwrap();
     Ok(())
 }
 
@@ -189,3 +189,47 @@ If you have a static function, you can expose it with `#[pyfunction]` and use [`
 [`PyAny::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call1
 [`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
 [`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html
+
+### Accessing the module of a function
+
+It is possible to access the module of a `#[pyfunction]` and `#[pyfn]` in the
+function body by passing the `pass_module` argument to the attribute:
+
+```rust
+use pyo3::wrap_pyfunction;
+use pyo3::prelude::*;
+
+#[pyfunction(pass_module)]
+fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
+    module.name()
+}
+
+#[pymodule]
+fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(pyfunction_with_module))
+}
+
+# fn main() {}
+```
+
+If `pass_module` is set, the first argument **must** be the `&PyModule`. It is then possible to use the module
+in the function body.
+
+The same works for `#[pyfn]`:
+
+```rust
+use pyo3::wrap_pyfunction;
+use pyo3::prelude::*;
+
+#[pymodule]
+fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
+
+    #[pyfn(m, "module_name", pass_module)]
+    fn module_name(module: &PyModule) -> PyResult<&str> {
+        module.name()
+    }
+    Ok(())
+}
+
+# fn main() {}
+```

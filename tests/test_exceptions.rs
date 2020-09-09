@@ -19,7 +19,7 @@ fn fail_to_open_file() -> PyResult<()> {
 fn test_filenotfounderror() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py);
+    let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
     py_run!(
         py,
@@ -64,7 +64,7 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 fn test_custom_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let call_fail_with_custom_error = wrap_pyfunction!(call_fail_with_custom_error)(py);
+    let call_fail_with_custom_error = wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
     py_run!(
         py,

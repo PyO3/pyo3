@@ -224,17 +224,16 @@ fn initialize_tp_dict(
     type_object: *mut ffi::PyObject,
     items: Vec<(&'static str, PyObject)>,
 ) -> PyResult<()> {
-    use std::ffi::CString;
-
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
     for (key, val) in items {
-        let ret = unsafe {
-            ffi::PyObject_SetAttrString(type_object, CString::new(key)?.as_ptr(), val.into_ptr())
-        };
-        if ret < 0 {
-            return Err(PyErr::fetch(py));
-        }
+        crate::types::with_tmp_string(py, key, |key| {
+            let ret = unsafe { ffi::PyObject_SetAttr(type_object, key, val.into_ptr()) };
+            if ret < 0 {
+                return Err(PyErr::fetch(py));
+            }
+            Ok(())
+        })?;
     }
     Ok(())
 }
