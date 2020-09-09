@@ -209,17 +209,16 @@ where
 }
 
 /// Enum to abstract over the arguments of Python function wrappers.
-#[doc(hidden)]
-pub enum WrapPyFunctionArguments<'a> {
+pub enum PyFunctionArguments<'a> {
     Python(Python<'a>),
     PyModule(&'a PyModule),
 }
 
-impl<'a> WrapPyFunctionArguments<'a> {
+impl<'a> PyFunctionArguments<'a> {
     pub fn into_py_and_maybe_module(self) -> (Python<'a>, Option<&'a PyModule>) {
         match self {
-            WrapPyFunctionArguments::Python(py) => (py, None),
-            WrapPyFunctionArguments::PyModule(module) => {
+            PyFunctionArguments::Python(py) => (py, None),
+            PyFunctionArguments::PyModule(module) => {
                 let py = module.py();
                 (py, Some(module))
             }
@@ -227,14 +226,14 @@ impl<'a> WrapPyFunctionArguments<'a> {
     }
 }
 
-impl<'a> From<Python<'a>> for WrapPyFunctionArguments<'a> {
-    fn from(py: Python<'a>) -> WrapPyFunctionArguments<'a> {
-        WrapPyFunctionArguments::Python(py)
+impl<'a> From<Python<'a>> for PyFunctionArguments<'a> {
+    fn from(py: Python<'a>) -> PyFunctionArguments<'a> {
+        PyFunctionArguments::Python(py)
     }
 }
 
-impl<'a> From<&'a PyModule> for WrapPyFunctionArguments<'a> {
-    fn from(module: &'a PyModule) -> WrapPyFunctionArguments<'a> {
-        WrapPyFunctionArguments::PyModule(module)
+impl<'a> From<&'a PyModule> for PyFunctionArguments<'a> {
+    fn from(module: &'a PyModule) -> PyFunctionArguments<'a> {
+        PyFunctionArguments::PyModule(module)
     }
 }

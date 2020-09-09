@@ -71,7 +71,7 @@
 //! #[pymodule]
 //! /// A Python module implemented in Rust.
 //! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(sum_as_string))?;
+//!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())
 //! }
@@ -218,6 +218,10 @@ macro_rules! wrap_pyfunction {
     ($function_name: ident) => {{
         &pyo3::paste::expr! { [<__pyo3_get_function_ $function_name>] }
     }};
+
+    ($function_name: ident, $arg: expr) => {
+        pyo3::wrap_pyfunction!($function_name)(pyo3::derive_utils::PyFunctionArguments::from($arg))
+    };
 }
 
 /// Returns the function that is called in the C-FFI.

@@ -1,6 +1,9 @@
+use std::ffi::{CStr, CString};
+
+use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
-use crate::{class, ffi, AsPyPointer, PyMethodDef, PyMethodType};
+use crate::{class, ffi, AsPyPointer, PyMethodType};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
@@ -13,54 +16,47 @@ impl PyCFunction {
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
         name: &str,
-        doc: &str,
-        module: Option<&'a PyModule>,
-        py: Python<'a>,
+        doc: &'static str,
+        py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a PyCFunction> {
         let fun = PyMethodType::PyCFunctionWithKeywords(fun);
-        Self::new_(fun, name, doc, module, py)
+        Self::new_(fun, name, doc, py_or_module)
     }
 
     /// Create a new built-in function without keywords.
     pub fn new<'a>(
         fun: ffi::PyCFunction,
         name: &str,
-        doc: &str,
-        module: Option<&'a PyModule>,
-        py: Python<'a>,
+        doc: &'static str,
+        py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a PyCFunction> {
         let fun = PyMethodType::PyCFunction(fun);
-        Self::new_(fun, name, doc, module, py)
+        Self::new_(fun, name, doc, py_or_module)
     }
 
     fn new_<'a>(
         fun: class::PyMethodType,
         name: &str,
-        doc: &str,
-        module: Option<&'a PyModule>,
-        py: Python<'a>,
+        doc: &'static str,
+        py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a PyCFunction> {
-        let name = name.to_string();
-        let name: &'static str = Box::leak(name.into_boxed_str());
-        // this is ugly but necessary since `PyMethodDef::ml_doc` is &str and not `CStr`
-        let doc = if doc.ends_with('\0') {
-            doc.to_string()
-        } else {
-            format!("{}\0", doc)
-        };
-        let doc: &'static str = Box::leak(doc.into_boxed_str());
-        let def = match &fun {
-            PyMethodType::PyCFunction(_) => PyMethodDef {
-                ml_name: name,
-                ml_meth: fun,
+        let (py, module) = py_or_module.into_py_and_maybe_module();
+        let doc: &'static CStr = CStr::from_bytes_with_nul(doc.as_bytes())
+            .map_err(|_| PyValueError::py_err("docstring must end with NULL byte."))?;
+        let name = CString::new(name.as_bytes())
+            .map_err(|_| PyValueError::py_err("Function name cannot contain contain NULL byte."))?;
+        let def = match fun {
+            PyMethodType::PyCFunction(fun) => ffi::PyMethodDef {
+                ml_name: name.into_raw() as _,
+                ml_meth: Some(fun),
                 ml_flags: ffi::METH_VARARGS,
-                ml_doc: doc,
+                ml_doc: doc.as_ptr() as _,
             },
-            PyMethodType::PyCFunctionWithKeywords(_) => PyMethodDef {
-                ml_name: name,
-                ml_meth: fun,
+            PyMethodType::PyCFunctionWithKeywords(fun) => ffi::PyMethodDef {
+                ml_name: name.into_raw() as _,
+                ml_meth: Some(unsafe { std::mem::transmute(fun) }),
                 ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-                ml_doc: doc,
+                ml_doc: doc.as_ptr() as _,
             },
             _ => {
                 return Err(PyValueError::py_err(
@@ -68,7 +64,6 @@ impl PyCFunction {
                 ))
             }
         };
-        let def = def.as_method_def();
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);

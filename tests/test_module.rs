@@ -65,8 +65,8 @@ fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
-    m.add_function(wrap_pyfunction!(double)).unwrap();
-    m.add("also_double", wrap_pyfunction!(double)(m)?).unwrap();
+    m.add_function(wrap_pyfunction!(double, m)?).unwrap();
+    m.add("also_double", wrap_pyfunction!(double, m)?).unwrap();
 
     Ok(())
 }
@@ -163,7 +163,7 @@ fn r#move() -> usize {
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_function(wrap_pyfunction!(r#move))
+    module.add_function(wrap_pyfunction!(r#move, module)?)
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn custom_named_fn() -> usize {
 fn foobar_module(_py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    m.add_function(wrap_pyfunction!(custom_named_fn))?;
+    m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
     m.dict().set_item("yay", "me")?;
     Ok(())
 }
@@ -221,7 +221,7 @@ fn subfunction() -> String {
 fn submodule(module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_function(wrap_pyfunction!(subfunction))?;
+    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
@@ -229,7 +229,7 @@ fn submodule(module: &PyModule) -> PyResult<()> {
 fn submodule_with_init_fn(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_function(wrap_pyfunction!(subfunction))?;
+    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
@@ -242,7 +242,7 @@ fn superfunction() -> String {
 fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_function(wrap_pyfunction!(superfunction))?;
+    module.add_function(wrap_pyfunction!(superfunction, module)?)?;
     let module_to_add = PyModule::new(py, "submodule")?;
     submodule(module_to_add)?;
     module.add_submodule(module_to_add)?;
@@ -291,7 +291,7 @@ fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
         ext_vararg_fn(py, a, vararg)
     }
 
-    m.add_function(pyo3::wrap_pyfunction!(ext_vararg_fn))
+    m.add_function(pyo3::wrap_pyfunction!(ext_vararg_fn, m)?)
         .unwrap();
     Ok(())
 }
@@ -368,15 +368,17 @@ fn pyfunction_with_module_and_args_kwargs<'a>(
 
 #[pymodule]
 fn module_with_functions_with_module(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module))?;
-    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_py))?;
-    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_arg))?;
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(
-        pyfunction_with_module_and_default_arg
-    ))?;
+        pyfunction_with_module_and_default_arg,
+        m
+    )?)?;
     m.add_function(pyo3::wrap_pyfunction!(
-        pyfunction_with_module_and_args_kwargs
-    ))
+        pyfunction_with_module_and_args_kwargs,
+        m
+    )?)
 }
 
 #[test]

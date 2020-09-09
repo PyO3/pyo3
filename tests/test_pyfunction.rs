@@ -100,7 +100,7 @@ fn test_raw_function() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let raw_func = raw_pycfunction!(optional_bool);
-    let fun = PyCFunction::new_with_keywords(raw_func, "fun", "", None, py).unwrap();
+    let fun = PyCFunction::new_with_keywords(raw_func, "fun", "\0", py.into()).unwrap();
     let res = fun.call((), None).unwrap().extract::<&str>().unwrap();
     assert_eq!(res, "Some(true)");
     let res = fun.call((false,), None).unwrap().extract::<&str>().unwrap();
@@ -109,7 +109,7 @@ fn test_raw_function() {
     assert!(no_module);
 
     let module = PyModule::new(py, "cool_module").unwrap();
-    module.add_function(&|_| Ok(fun)).unwrap();
+    module.add_function(fun).unwrap();
     let res = module
         .getattr("fun")
         .unwrap()

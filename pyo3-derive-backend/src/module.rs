@@ -44,7 +44,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
                 let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
-                        #module_name.add_function(&#function_wrapper_ident)?;
+                        #module_name.add_function(#function_wrapper_ident(#module_name)?)?;
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());
@@ -210,11 +210,9 @@ pub fn add_fn_to_module(
     Ok(quote! {
         #wrapper
         fn #function_wrapper_ident<'a>(
-            args: impl Into<pyo3::derive_utils::WrapPyFunctionArguments<'a>>
+            args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
-            let arg = args.into();
-            let (py, maybe_module) = arg.into_py_and_maybe_module();
-            pyo3::types::PyCFunction::new_with_keywords(#wrapper_ident, stringify!(#python_name), #doc, maybe_module, py)
+            pyo3::types::PyCFunction::new_with_keywords(#wrapper_ident, stringify!(#python_name), #doc, args.into())
         }
     })
 }

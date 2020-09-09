@@ -256,7 +256,7 @@ impl PyModule {
     /// }
     /// #[pymodule]
     /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add_function(pyo3::wrap_pyfunction!(double))
+    ///     module.add_function(pyo3::wrap_pyfunction!(double, module)?)
     /// }
     /// ```
     ///
@@ -270,16 +270,11 @@ impl PyModule {
     /// }
     /// #[pymodule]
     /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add("also_double", pyo3::wrap_pyfunction!(double)(module)?)
+    ///     module.add("also_double", pyo3::wrap_pyfunction!(double, module)?)
     /// }
     /// ```
-    pub fn add_function<'a>(
-        &'a self,
-        wrapper: &impl Fn(&'a Self) -> PyResult<&'a PyCFunction>,
-    ) -> PyResult<()> {
-        let function = wrapper(self)?;
-        let name = function.getattr("__name__")?;
-        let name = name.extract()?;
-        self.add(name, function)
+    pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
+        let name = fun.getattr("__name__")?.extract()?;
+        self.add(name, fun)
     }
 }

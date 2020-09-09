@@ -73,7 +73,7 @@ fn subfunction() -> String {
 }
 
 fn init_submodule(module: &PyModule) -> PyResult<()> {
-    module.add_function(wrap_pyfunction!(subfunction))?;
+    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
 
