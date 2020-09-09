@@ -280,13 +280,11 @@ impl<'p> Python<'p> {
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
             let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
 
-            let res_ptr = ffi::PyRun_StringFlags(
-                code.as_ptr(),
-                start,
-                globals,
-                locals,
-                ::std::ptr::null_mut(),
-            );
+            let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
+            if code_obj.is_null() {
+                return Err(PyErr::fetch(self));
+            }
+            let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
 
             self.from_owned_ptr_or_err(res_ptr)
         }
