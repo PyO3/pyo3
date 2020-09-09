@@ -99,7 +99,7 @@ fn impl_proto_impl(
                             ml_name: stringify!(#name),
                             ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                             ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | #coexist,
-                            ml_doc: ""
+                            ml_doc: "\0"
                         }
                     })
                 });

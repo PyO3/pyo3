@@ -2,7 +2,7 @@
 
 use crate::{ffi, PyObject, Python};
 use libc::c_int;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::fmt;
 
 /// `PyMethodDefType` represents different types of Python callable objects.
@@ -73,6 +73,18 @@ unsafe impl Sync for PySetterDef {}
 
 unsafe impl Sync for ffi::PyGetSetDef {}
 
+fn get_name(name: &str) -> *const std::os::raw::c_char {
+    CString::new(name)
+        .expect("Method name must not contain NULL byte")
+        .into_raw() as _
+}
+
+fn get_doc(doc: &'static str) -> *const std::os::raw::c_char {
+    CStr::from_bytes_with_nul(doc.as_bytes())
+        .expect("Document must be terminated with NULL byte")
+        .as_ptr()
+}
+
 impl PyMethodDef {
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
@@ -84,12 +96,10 @@ impl PyMethodDef {
         };
 
         ffi::PyMethodDef {
-            ml_name: CString::new(self.ml_name)
-                .expect("Method name must not contain NULL byte")
-                .into_raw(),
+            ml_name: get_name(self.ml_name),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
-            ml_doc: self.ml_doc.as_ptr() as *const _,
+            ml_doc: get_doc(self.ml_doc),
         }
     }
 }
@@ -108,12 +118,10 @@ impl PyGetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = CString::new(self.name)
-                .expect("Method name must not contain NULL byte")
-                .into_raw();
+            dst.name = get_name(self.name) as _;
         }
         if dst.doc.is_null() {
-            dst.doc = self.doc.as_ptr() as *mut libc::c_char;
+            dst.doc = get_doc(self.doc) as _;
         }
         dst.get = Some(self.meth);
     }
@@ -123,12 +131,10 @@ impl PySetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = CString::new(self.name)
-                .expect("Method name must not contain NULL byte")
-                .into_raw();
+            dst.name = get_name(self.name) as _;
         }
         if dst.doc.is_null() {
-            dst.doc = self.doc.as_ptr() as *mut libc::c_char;
+            dst.doc = get_doc(self.doc) as _;
         }
         dst.set = Some(self.meth);
     }
