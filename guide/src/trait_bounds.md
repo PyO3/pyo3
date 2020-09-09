@@ -408,8 +408,8 @@ impl Model for UserModel {
                 .call_method("get_results", (), None)
                 .unwrap();
 
-            if py_result.get_type().name() != "list" {
-                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name());
+            if py_result.get_type().name().unwrap() != "list" {
+                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name().unwrap());
             }
             py_result.extract()
         })
@@ -536,8 +536,8 @@ impl Model for UserModel {
                 .call_method("get_results", (), None)
                 .unwrap();
 
-            if py_result.get_type().name() != "list" {
-                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name());
+            if py_result.get_type().name().unwrap() != "list" {
+                panic!("Expected a list for the get_results() method signature, got {}", py_result.get_type().name().unwrap());
             }
             py_result.extract()
         })

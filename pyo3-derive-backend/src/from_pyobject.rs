@@ -72,7 +72,7 @@ impl<'a> Enum<'a> {
         };
         quote!(
             #(#var_extracts)*
-            let type_name = obj.get_type().name();
+            let type_name = obj.get_type().name()?;
             let from = obj
                 .repr()
                 .map(|s| format!("{} ({})", s.to_string_lossy(), type_name))
