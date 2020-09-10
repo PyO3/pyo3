@@ -218,7 +218,7 @@ where
         if ffi::PyType_Ready(type_object) == 0 {
             Ok(())
         } else {
-            PyErr::fetch(py).into()
+            Err(PyErr::fetch(py))
         }
     }
 }

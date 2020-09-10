@@ -139,7 +139,7 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
         expected_length,
         t.len()
     );
-    exceptions::PyValueError::py_err(msg)
+    exceptions::PyValueError::new_err(msg)
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {

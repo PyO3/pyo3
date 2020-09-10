@@ -4,7 +4,6 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::err::PyErr;
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
 /// Mapping interface

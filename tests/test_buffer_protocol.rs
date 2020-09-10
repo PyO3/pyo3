@@ -21,11 +21,11 @@ struct TestBufferClass {
 impl PyBufferProtocol for TestBufferClass {
     fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
-            return Err(PyBufferError::py_err("View is null"));
+            return Err(PyBufferError::new_err("View is null"));
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyBufferError::py_err("Object is not writable"));
+            return Err(PyBufferError::new_err("Object is not writable"));
         }
 
         unsafe {

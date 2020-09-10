@@ -1,7 +1,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString, PyTuple};
-use pyo3::{PyErrValue, PyMappingProtocol};
+use pyo3::PyMappingProtocol;
 
 #[macro_use]
 mod common;
@@ -30,7 +30,7 @@ impl PyMappingProtocol for PyA {
         if key == "t" {
             Ok("bar".into())
         } else {
-            Err(PyValueError::py_err("Failed"))
+            Err(PyValueError::new_err("Failed"))
         }
     }
 }
@@ -277,7 +277,7 @@ fn test_enum() {
     }
 }
 
-#[derive(FromPyObject)]
+#[derive(Debug, FromPyObject)]
 pub enum Bar {
     #[pyo3(annotation = "str")]
     A(String),
@@ -294,15 +294,8 @@ fn test_err_rename() {
     let dict = PyDict::new(py);
     let f = Bar::extract(dict.as_ref());
     assert!(f.is_err());
-    match f {
-        Ok(_) => {}
-        Err(e) => match e.pvalue {
-            PyErrValue::ToObject(to) => {
-                let o = to.to_object(py);
-                let s = String::extract(o.as_ref(py)).expect("Err val is not a string");
-                assert_eq!(s, "Can't convert {} (dict) to Union[str, uint, int]")
-            }
-            _ => panic!("Expected PyErrValue::ToObject"),
-        },
-    }
+    assert_eq!(
+        f.unwrap_err().to_string(),
+        "TypeError: Can't convert {} (dict) to Union[str, uint, int]"
+    );
 }
