@@ -42,9 +42,10 @@ impl PyCFunction {
     ) -> PyResult<&'a PyCFunction> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let doc: &'static CStr = CStr::from_bytes_with_nul(doc.as_bytes())
-            .map_err(|_| PyValueError::py_err("docstring must end with NULL byte."))?;
-        let name = CString::new(name.as_bytes())
-            .map_err(|_| PyValueError::py_err("Function name cannot contain contain NULL byte."))?;
+            .map_err(|_| PyValueError::new_err("docstring must end with NULL byte."))?;
+        let name = CString::new(name.as_bytes()).map_err(|_| {
+            PyValueError::new_err("Function name cannot contain contain NULL byte.")
+        })?;
         let def = match fun {
             PyMethodType::PyCFunction(fun) => ffi::PyMethodDef {
                 ml_name: name.into_raw() as _,
@@ -59,7 +60,7 @@ impl PyCFunction {
                 ml_doc: doc.as_ptr() as _,
             },
             _ => {
-                return Err(PyValueError::py_err(
+                return Err(PyValueError::new_err(
                     "Only PyCFunction and PyCFunctionWithKeywords are valid.",
                 ))
             }
