@@ -214,7 +214,7 @@ where
 
     let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
     if type_object.is_null() {
-        PyErr::fetch(py).into()
+        Err(PyErr::fetch(py))
     } else {
         tp_init_additional::<T>(type_object as _);
         Ok(type_object as _)
@@ -275,7 +275,7 @@ fn fallback_new() -> Option<ffi::newfunc> {
         _kwds: *mut ffi::PyObject,
     ) -> *mut ffi::PyObject {
         crate::callback_body!(py, {
-            Err::<(), _>(crate::exceptions::PyTypeError::py_err(
+            Err::<(), _>(crate::exceptions::PyTypeError::new_err(
                 "No constructor defined",
             ))
         })
