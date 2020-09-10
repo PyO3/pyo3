@@ -19,6 +19,7 @@ pub use self::eval::*;
 pub use self::fileobject::*;
 pub use self::floatobject::*;
 pub use self::frameobject::PyFrameObject;
+pub use self::funcobject::*;
 pub use self::genobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
@@ -157,3 +158,5 @@ pub mod frameobject {
 
 pub(crate) mod datetime;
 pub(crate) mod marshal;
+
+pub(crate) mod funcobject;
