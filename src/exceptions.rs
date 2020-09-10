@@ -3,36 +3,26 @@
 //! Exception types defined by Python.
 
 use crate::type_object::PySizedLayout;
-use crate::types::{PyAny, PyTuple};
-use crate::{ffi, AsPyPointer, PyResult, Python};
+use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
-use std::os::raw::c_char;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
-        impl std::convert::From<$name> for $crate::PyErr {
-            fn from(_err: $name) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, _>(())
-            }
-        }
-
-        impl<T> std::convert::Into<$crate::PyResult<T>> for $name {
-            fn into(self) -> $crate::PyResult<T> {
-                $crate::PyErr::new::<$name, _>(()).into()
+        impl std::convert::From<&$name> for $crate::PyErr {
+            fn from(err: &$name) -> $crate::PyErr {
+                $crate::PyErr::from_instance(err)
             }
         }
 
         impl $name {
-            pub fn py_err<V: $crate::ToPyObject + Send + Sync + 'static>(args: V) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, V>(args)
-            }
-            pub fn into<R, V: $crate::ToPyObject + Send + Sync + 'static>(
-                args: V,
-            ) -> $crate::PyResult<R> {
-                $crate::PyErr::new::<$name, V>(args).into()
+            pub fn new_err<A>(args: A) -> $crate::PyErr
+            where
+                A: $crate::PyErrArguments + Send + Sync + 'static,
+            {
+                $crate::PyErr::new::<$name, A>(args)
             }
         }
 
@@ -445,18 +435,17 @@ impl_native_exception!(PyIOError, IOError, PyExc_IOError);
 impl_native_exception!(PyWindowsError, WindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {
-    pub fn new_err<'p>(
+    pub fn new<'p>(
         py: Python<'p>,
         encoding: &CStr,
         input: &[u8],
         range: ops::Range<usize>,
         reason: &CStr,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'p PyUnicodeDecodeError> {
         unsafe {
-            let input: &[c_char] = &*(input as *const [u8] as *const [c_char]);
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
-                input.as_ptr(),
+                input.as_ptr() as *const i8,
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,
@@ -465,31 +454,19 @@ impl PyUnicodeDecodeError {
         }
     }
 
-    #[allow(clippy::range_plus_one)] // False positive, ..= returns the wrong type
     pub fn new_utf8<'p>(
         py: Python<'p>,
         input: &[u8],
         err: std::str::Utf8Error,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'p PyUnicodeDecodeError> {
         let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new_err(
+        PyUnicodeDecodeError::new(
             py,
             CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
             input,
-            pos..pos + 1,
+            pos..(pos + 1),
             CStr::from_bytes_with_nul(b"invalid utf-8\0").unwrap(),
         )
-    }
-}
-
-impl PyStopIteration {
-    pub fn stop_iteration(_py: Python, args: &PyTuple) {
-        unsafe {
-            ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject,
-                args.as_ptr(),
-            );
-        }
     }
 }
 
@@ -513,11 +490,10 @@ pub mod socket {
 
 #[cfg(test)]
 mod test {
-    use crate::exceptions::PyException;
+    use super::{PyException, PyUnicodeDecodeError};
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{AsPyPointer, PyErr, Python};
+    use crate::{PyErr, Python};
     use std::error::Error;
-    use std::fmt::Write;
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -527,7 +503,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let err: PyErr = gaierror::py_err(());
+        let err: PyErr = gaierror::new_err(());
         let socket = py
             .import("socket")
             .map_err(|e| e.print(py))
@@ -537,6 +513,7 @@ mod test {
         d.set_item("socket", socket)
             .map_err(|e| e.print(py))
             .expect("could not setitem");
+
         d.set_item("exc", err)
             .map_err(|e| e.print(py))
             .expect("could not setitem");
@@ -551,7 +528,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let err: PyErr = MessageError::py_err(());
+        let err: PyErr = MessageError::new_err(());
         let email = py
             .import("email")
             .map_err(|e| e.print(py))
@@ -597,40 +574,65 @@ mod test {
     }
 
     #[test]
-    fn native_exception_display() {
-        let mut out = String::new();
+    fn native_exception_debug() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let err = py
+        let exc = py
             .run("raise Exception('banana')", None, None)
             .expect_err("raising should have given us an error")
-            .instance(py);
-        write!(&mut out, "{}", err).expect("successful format");
-        assert_eq!(out, "Exception: banana");
+            .into_instance(py);
+        assert_eq!(format!("{:?}", exc.as_ref(py)), "Exception");
+    }
+
+    #[test]
+    fn native_exception_display() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let exc = py
+            .run("raise Exception('banana')", None, None)
+            .expect_err("raising should have given us an error")
+            .into_instance(py);
+        assert_eq!(exc.to_string(), "Exception: banana");
     }
 
     #[test]
     fn native_exception_chain() {
-        let mut out = String::new();
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let err = py
+        let exc = py
             .run(
                 "raise Exception('banana') from TypeError('peach')",
                 None,
                 None,
             )
             .expect_err("raising should have given us an error")
-            .instance(py);
-        write!(&mut out, "{}", err).expect("successful format");
-        assert_eq!(out, "Exception: banana");
-        out.clear();
-        let convert_ref: &super::PyBaseException =
-            unsafe { &*(err.as_ptr() as *const _ as *const _) };
-        let source = convert_ref.source().expect("cause should exist");
-        write!(&mut out, "{}", source).expect("successful format");
-        assert_eq!(out, "TypeError: peach");
+            .into_instance(py);
+        assert_eq!(exc.to_string(), "Exception: banana");
+        let source = exc.as_ref(py).source().expect("cause should exist");
+        assert_eq!(source.to_string(), "TypeError: peach");
         let source_source = source.source();
         assert!(source_source.is_none(), "source_source should be None");
+    }
+
+    #[test]
+    fn unicode_decode_error() {
+        let invalid_utf8 = b"fo\xd8o";
+        let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+        Python::with_gil(|py| {
+            let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
+            assert_eq!(
+                decode_err.to_string(),
+                "UnicodeDecodeError: \'utf-8\' codec can\'t decode byte 0xd8 in position 2: invalid utf-8"
+            );
+
+            // Restoring should preserve the same error
+            let e: PyErr = decode_err.into();
+            e.restore(py);
+
+            assert_eq!(
+                PyErr::fetch(py).to_string(),
+                "UnicodeDecodeError: \'utf-8\' codec can\'t decode byte 0xd8 in position 2: invalid utf-8"
+            );
+        });
     }
 }

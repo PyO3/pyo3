@@ -126,7 +126,7 @@ impl<'p> Python<'p> {
     ///             .collect();
     ///         let mut sum = 0;
     ///         for t in threads {
-    ///             sum += t.join().map_err(|_| PyErr::new::<PyRuntimeError, _>(()))?;
+    ///             sum += t.join().map_err(|_| PyRuntimeError::new_err(()))?;
     ///         }
     ///         Ok(sum)
     ///     })
@@ -134,7 +134,7 @@ impl<'p> Python<'p> {
     /// let gil = Python::acquire_gil();
     /// let py = gil.python();
     /// let m = PyModule::new(py, "pcount").unwrap();
-    /// m.add_function(wrap_pyfunction!(parallel_count)).unwrap();
+    /// m.add_function(wrap_pyfunction!(parallel_count, m).unwrap()).unwrap();
     /// let locals = [("pcount", m)].into_py_dict(py);
     /// py.run(r#"
     ///    s = ["Flow", "my", "tears", "the", "Policeman", "Said"]

@@ -228,12 +228,10 @@ macro_rules! py_func_set {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<$generic>>(slf);
 
                 if value.is_null() {
-                    Err($crate::PyErr::new::<exceptions::PyNotImplementedError, _>(
-                        format!(
-                            "Subscript deletion not supported by {:?}",
-                            stringify!($generic)
-                        ),
-                    ))
+                    Err($crate::exceptions::PyNotImplementedError::new_err(format!(
+                        "Subscript deletion not supported by {:?}",
+                        stringify!($generic)
+                    )))
                 } else {
                     let name = py.from_borrowed_ptr::<$crate::PyAny>(name);
                     let value = py.from_borrowed_ptr::<$crate::PyAny>(value);
@@ -264,7 +262,7 @@ macro_rules! py_func_del {
                         .extract()?;
                     slf.try_borrow_mut()?.$fn_del(name).convert(py)
                 } else {
-                    Err(PyErr::new::<exceptions::PyNotImplementedError, _>(
+                    Err(exceptions::PyNotImplementedError::new_err(
                         "Subscript assignment not supported",
                     ))
                 }

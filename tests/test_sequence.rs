@@ -41,7 +41,7 @@ impl PySequenceProtocol for ByteSequence {
         self.elements
             .get(idx as usize)
             .copied()
-            .ok_or_else(|| PyIndexError::py_err("list index out of range"))
+            .ok_or_else(|| PyIndexError::new_err("list index out of range"))
     }
 
     fn __setitem__(&mut self, idx: isize, value: u8) {
@@ -53,7 +53,7 @@ impl PySequenceProtocol for ByteSequence {
             self.elements.remove(idx as usize);
             Ok(())
         } else {
-            Err(PyIndexError::py_err("list index out of range"))
+            Err(PyIndexError::new_err("list index out of range"))
         }
     }
 
@@ -78,7 +78,7 @@ impl PySequenceProtocol for ByteSequence {
             }
             Ok(Self { elements })
         } else {
-            Err(PyValueError::py_err("invalid repeat count"))
+            Err(PyValueError::new_err("invalid repeat count"))
         }
     }
 }
@@ -242,7 +242,7 @@ impl PySequenceProtocol for OptionList {
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),
-            None => Err(PyIndexError::py_err("Index out of bounds")),
+            None => Err(PyIndexError::new_err("Index out of bounds")),
         }
     }
 }
