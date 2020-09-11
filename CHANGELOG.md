@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Added
+- Fix `build.rs` to work with Anaconda python
 - Add FFI definitions `Py_FinalizeEx`, `PyOS_getsig`, `PyOS_setsig`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 - Add `Python::with_gil` for executing a closure with the Python GIL. [#1037](https://github.com/PyO3/pyo3/pull/1037)
 - Implement `Debug` for `PyIterator`. [#1051](https://github.com/PyO3/pyo3/pull/1051)
