@@ -9,6 +9,10 @@ use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
 /// Unlike other Python objects, this class includes a `Python<'p>` token
 /// so that `PyIterator` can implement the Rust `Iterator` trait.
 ///
+/// This means that you can't use `PyIterator` in many places where other
+/// types like `PyList` can automatically be extracted from objects, such
+/// as function arguments.
+///
 /// # Example
 ///
 /// ```rust
@@ -29,7 +33,9 @@ use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
 pub struct PyIterator<'p>(&'p PyAny);
 
 impl<'p> PyIterator<'p> {
-    /// Constructs a `PyIterator` from a Python iterator object.
+    /// Constructs a `PyIterator` from a Python iterable object.
+    ///
+    /// Equivalent to Python's built-in `iter` function.
     pub fn from_object<T>(py: Python<'p>, obj: &T) -> PyResult<PyIterator<'p>>
     where
         T: AsPyPointer,
