@@ -148,7 +148,9 @@ impl CrossCompileConfig {
 }
 
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
-    if env::var("TARGET")? == env::var("HOST")? {
+    let target = env::var("TARGET")?;
+    let host = env::var("HOST")?;
+    if target == host || (target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc") {
         return Ok(None);
     }
 
