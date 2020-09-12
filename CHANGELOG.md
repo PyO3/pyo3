@@ -5,7 +5,9 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.12.0] - 2020-10-12
+## [Unreleased]
+
+## [0.12.0] - 2020-09-12
 ### Added
 - Add FFI definitions `Py_FinalizeEx`, `PyOS_getsig`, and `PyOS_setsig`. [#1021](https://github.com/PyO3/pyo3/pull/1021)
 - Add `PyString::to_str` for accessing `PyString` as `&str`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
@@ -66,7 +68,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Always link against libpython on android with the `extension-module` feature. [#1095](https://github.com/PyO3/pyo3/pull/1095)
 - Fix the `+` operator not trying `__radd__` when both `__add__` and `__radd__`  are defined in `PyNumberProtocol` (and similar for all other reversible operators). [#1107](https://github.com/PyO3/pyo3/pull/1107)
 - Fix building with Anaconda python. [#1175](https://github.com/PyO3/pyo3/pull/1175)
-
 
 ## [0.11.1] - 2020-06-30
 ### Added
