@@ -74,7 +74,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix the `+` operator not trying `__radd__` when both `__add__` and `__radd__`  are defined in `PyNumberProtocol` (and similar for all other reversible operators). [#1107](https://github.com/PyO3/pyo3/pull/1107)
 - Fix building with Anaconda python. [#1175](https://github.com/PyO3/pyo3/pull/1175)
 
-
 ## [0.11.1] - 2020-06-30
 ### Added
 - `#[pyclass(unsendable)]`. [#1009](https://github.com/PyO3/pyo3/pull/1009)
