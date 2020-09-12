@@ -494,12 +494,8 @@ impl<'a> std::fmt::Display for PyDowncastError<'a> {
             self.from
                 .repr()
                 .map(|s| s.to_string_lossy())
-                .or_else(|_| self
-                    .from
-                    .get_type()
-                    .name()
-                    .map_err(|_| std::fmt::Error)
-                    .map(|s| s.into()))?,
+                .or_else(|_| self.from.get_type().name().map(|s| s.into()))
+                .map_err(|_| std::fmt::Error)?,
             self.to
         )
     }
