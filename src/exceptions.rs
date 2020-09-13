@@ -6,6 +6,7 @@ use crate::type_object::PySizedLayout;
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
+use std::os::raw::c_char;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
 #[macro_export]
@@ -445,7 +446,7 @@ impl PyUnicodeDecodeError {
         unsafe {
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
-                input.as_ptr() as *const i8,
+                input.as_ptr() as *const c_char,
                 input.len() as ffi::Py_ssize_t,
                 range.start as ffi::Py_ssize_t,
                 range.end as ffi::Py_ssize_t,
