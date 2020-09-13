@@ -25,8 +25,7 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
             return base_new(subtype, ptr::null_mut(), ptr::null_mut());
         }
     }
-    let alloc = (*subtype).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-    alloc(subtype, 0) as _
+    ffi::PyType_GenericNew(subtype, ptr::null_mut(), ptr::null_mut())
 }
 
 /// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
