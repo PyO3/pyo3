@@ -295,7 +295,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
-            Err(PyValueError::py_err("Hello Crustaceans!"))
+            Err(PyValueError::new_err("Hello Crustaceans!"))
         });
         assert!(py_bytearray_result.is_err());
         assert!(py_bytearray_result

@@ -112,7 +112,7 @@ impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
     fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterNextOutput::Yield(o) => Ok(o.into_ptr()),
-            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::py_err((opt,))),
+            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
         }
     }
 }

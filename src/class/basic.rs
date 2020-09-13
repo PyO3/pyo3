@@ -9,7 +9,7 @@
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
-use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult};
+use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject, PyResult};
 use std::os::raw::c_int;
 
 /// Operators for the __richcmp__ method
@@ -262,7 +262,7 @@ where
             ffi::Py_NE => Ok(CompareOp::Ne),
             ffi::Py_GT => Ok(CompareOp::Gt),
             ffi::Py_GE => Ok(CompareOp::Ge),
-            _ => Err(PyErr::new::<exceptions::PyValueError, _>(
+            _ => Err(exceptions::PyValueError::new_err(
                 "tp_richcompare called with invalid comparison operator",
             )),
         }

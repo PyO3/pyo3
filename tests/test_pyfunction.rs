@@ -1,6 +1,7 @@
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
+use pyo3::types::{PyCFunction, PyFunction};
+use pyo3::{raw_pycfunction, wrap_pyfunction};
 
 mod common;
 
@@ -61,4 +62,60 @@ f(a, b)
 assert a, array.array("i", [2, 4, 6, 8])
 "#
     );
+}
+
+#[pyfunction]
+fn function_with_pyfunction_arg(fun: &PyFunction) -> PyResult<&PyAny> {
+    fun.call((), None)
+}
+
+#[pyfunction]
+fn function_with_pycfunction_arg(fun: &PyCFunction) -> PyResult<&PyAny> {
+    fun.call((), None)
+}
+
+#[test]
+fn test_functions_with_function_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
+    let py_cfunc_arg = wrap_pyfunction!(function_with_pycfunction_arg)(py).unwrap();
+    let bool_to_string = wrap_pyfunction!(optional_bool)(py).unwrap();
+
+    pyo3::py_run!(
+        py,
+        py_func_arg
+        py_cfunc_arg
+        bool_to_string,
+        r#"
+        def foo(): return "bar"
+        assert py_func_arg(foo) == "bar"
+        assert py_cfunc_arg(bool_to_string) == "Some(true)"
+        "#
+    )
+}
+
+#[test]
+fn test_raw_function() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let raw_func = raw_pycfunction!(optional_bool);
+    let fun = PyCFunction::new_with_keywords(raw_func, "fun", "\0", py.into()).unwrap();
+    let res = fun.call((), None).unwrap().extract::<&str>().unwrap();
+    assert_eq!(res, "Some(true)");
+    let res = fun.call((false,), None).unwrap().extract::<&str>().unwrap();
+    assert_eq!(res, "Some(false)");
+    let no_module = fun.getattr("__module__").unwrap().is_none();
+    assert!(no_module);
+
+    let module = PyModule::new(py, "cool_module").unwrap();
+    module.add_function(fun).unwrap();
+    let res = module
+        .getattr("fun")
+        .unwrap()
+        .call((), None)
+        .unwrap()
+        .extract::<&str>()
+        .unwrap();
+    assert_eq!(res, "Some(true)");
 }

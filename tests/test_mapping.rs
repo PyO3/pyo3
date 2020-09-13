@@ -40,7 +40,7 @@ impl PyMappingProtocol for Mapping {
         self.index
             .get(&query)
             .copied()
-            .ok_or_else(|| PyKeyError::py_err("unknown key"))
+            .ok_or_else(|| PyKeyError::new_err("unknown key"))
     }
 
     fn __setitem__(&mut self, key: String, value: usize) {
@@ -49,7 +49,7 @@ impl PyMappingProtocol for Mapping {
 
     fn __delitem__(&mut self, key: String) -> PyResult<()> {
         if self.index.remove(&key).is_none() {
-            PyKeyError::py_err("unknown key").into()
+            Err(PyKeyError::new_err("unknown key"))
         } else {
             Ok(())
         }

@@ -9,8 +9,8 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
+use crate::types::{PyCFunction, PyTuple};
 use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -258,7 +258,7 @@ impl PyModule {
     /// }
     /// #[pymodule]
     /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add_function(pyo3::wrap_pyfunction!(double))
+    ///     module.add_function(pyo3::wrap_pyfunction!(double, module)?)
     /// }
     /// ```
     ///
@@ -272,17 +272,11 @@ impl PyModule {
     /// }
     /// #[pymodule]
     /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add("also_double", pyo3::wrap_pyfunction!(double)(module)?)
+    ///     module.add("also_double", pyo3::wrap_pyfunction!(double, module)?)
     /// }
     /// ```
-    pub fn add_function<'a>(
-        &'a self,
-        wrapper: &impl Fn(&'a Self) -> PyResult<PyObject>,
-    ) -> PyResult<()> {
-        let py = self.py();
-        let function = wrapper(self)?;
-        let name = function.getattr(py, "__name__")?;
-        let name = name.extract(py)?;
-        self.add(name, function)
+    pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
+        let name = fun.getattr("__name__")?.extract()?;
+        self.add(name, fun)
     }
 }

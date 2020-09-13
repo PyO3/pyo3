@@ -170,7 +170,7 @@ impl PySequenceProtocol for Sequence {
         if let Some(s) = self.fields.get(idx) {
             Ok(s.clone())
         } else {
-            Err(PyErr::new::<PyIndexError, _>(()))
+            Err(PyIndexError::new_err(()))
         }
     }
 
@@ -180,7 +180,7 @@ impl PySequenceProtocol for Sequence {
             *elem = value;
             Ok(())
         } else {
-            Err(PyErr::new::<PyIndexError, _>(()))
+            Err(PyIndexError::new_err(()))
         }
     }
 }
@@ -436,7 +436,7 @@ impl<'p> PyMappingProtocol<'p> for Test {
                 return Ok("int");
             }
         }
-        Err(PyErr::new::<PyValueError, _>("error"))
+        Err(PyValueError::new_err("error"))
     }
 }
 

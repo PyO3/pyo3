@@ -78,7 +78,7 @@ impl<'a> Enum<'a> {
                 .map(|s| format!("{} ({})", s.to_string_lossy(), type_name))
                 .unwrap_or_else(|_| type_name.to_string());
             let err_msg = format!("Can't convert {} to {}", from, #error_names);
-            Err(::pyo3::exceptions::PyTypeError::py_err(err_msg))
+            Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
 }
@@ -263,7 +263,7 @@ impl<'a> Container<'a> {
         quote!(
             let s = <::pyo3::types::PyTuple as ::pyo3::conversion::PyTryFrom>::try_from(obj)?;
             if s.len() != #len {
-                return Err(::pyo3::exceptions::PyValueError::py_err(#msg))
+                return Err(::pyo3::exceptions::PyValueError::new_err(#msg))
             }
             let slice = s.as_slice();
             Ok(#self_ty(#fields))

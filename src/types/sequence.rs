@@ -361,7 +361,7 @@ where
 {
     let seq = <PySequence as PyTryFrom>::try_from(obj)?;
     if seq.len()? as usize != slice.len() {
-        return Err(exceptions::PyBufferError::py_err(
+        return Err(exceptions::PyBufferError::new_err(
             "Slice length does not match buffer length.",
         ));
     }
