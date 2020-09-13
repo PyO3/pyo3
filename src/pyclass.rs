@@ -10,8 +10,30 @@ use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Pytho
 use std::convert::TryInto;
 use std::ffi::CString;
 use std::marker::PhantomData;
+#[cfg(not(PyPy))]
+use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::{ptr, thread};
+
+#[cfg(PyPy)]
+unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    (*tp).tp_alloc
+}
+
+#[cfg(not(PyPy))]
+unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc))
+}
+
+#[cfg(PyPy)]
+pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
+    (*tp).tp_free
+}
+
+#[cfg(not(PyPy))]
+pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
+    mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_free))
+}
 
 #[inline]
 pub(crate) unsafe fn default_new<T: PyTypeInfo>(
@@ -20,12 +42,19 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
 ) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
-        let base_tp = T::BaseType::type_object_raw(py);
-        if let Some(base_new) = (*base_tp).tp_new {
-            return base_new(subtype, ptr::null_mut(), ptr::null_mut());
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let base_tp = T::BaseType::type_object_raw(py);
+            if let Some(base_new) = (*base_tp).tp_new {
+                return base_new(subtype, ptr::null_mut(), ptr::null_mut());
+            }
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            unreachable!("Subclassing native types isn't support in limited API mode");
         }
     }
-    let alloc = (*subtype).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+    let alloc = get_type_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
     alloc(subtype, 0) as _
 }
 
@@ -46,14 +75,13 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
-        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
-        {
-            // tp_finalize resurrected.
-            return;
-        }
 
-        match (*ffi::Py_TYPE(obj.as_ptr())).tp_free {
-            Some(free) => free(obj.as_ptr() as *mut c_void),
+        match get_type_free(ffi::Py_TYPE(obj.as_ptr())) {
+            Some(free) => {
+                let ty = ffi::Py_TYPE(obj.as_ptr());
+                free(obj.as_ptr() as *mut c_void);
+                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+            }
             None => tp_free_fallback(obj.as_ptr()),
         }
     }

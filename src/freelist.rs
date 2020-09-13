@@ -2,7 +2,7 @@
 
 //! Free allocation list
 
-use crate::pyclass::{tp_free_fallback, PyClassAlloc};
+use crate::pyclass::{get_type_free, tp_free_fallback, PyClassAlloc};
 use crate::type_object::{PyLayout, PyTypeInfo};
 use crate::{ffi, AsPyPointer, FromPyPointer, PyAny, Python};
 use std::mem;
@@ -85,15 +85,14 @@ where
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
-        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
-        {
-            // tp_finalize resurrected.
-            return;
-        }
 
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj.as_ptr()) {
-            match (*ffi::Py_TYPE(obj)).tp_free {
-                Some(free) => free(obj as *mut c_void),
+            match get_type_free(ffi::Py_TYPE(obj)) {
+                Some(free) => {
+                    let ty = ffi::Py_TYPE(obj);
+                    free(obj as *mut c_void);
+                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                }
                 None => tp_free_fallback(obj),
             }
         }
