@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 ### Fixed
 - Fix building for a 32-bit Python on 64-bit Windows with a 64-bit Rust toolchain. [#1179](https://github.com/PyO3/pyo3/pull/1179)
+- Fix building on platforms where `c_char` is `u8` [#1182][https://github.com/PyO3/pyo3/pull/1182]
 
 ## [0.12.0] - 2020-09-12
 ### Added
