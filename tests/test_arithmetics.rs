@@ -680,3 +680,30 @@ mod return_not_implemented {
         _test_inplace_binary_operator("**=", "ipow");
     }
 }
+
+mod return_not_implemented_followup_1064 {
+    use super::*;
+
+    #[pyclass]
+    #[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Debug)]
+    pub(crate) struct ExternalObject {}
+
+    #[pyproto]
+    impl<'p> PyObjectProtocol<'p> for ExternalObject {
+        fn __richcmp__(&'p self, _other: Self, _op: CompareOp) -> PyResult<&'p str> {
+            Ok("called richcmp")
+        }
+    }
+
+    #[test]
+    fn test_raises_typeerror_when_reversed() {
+        // Both ExternalObject.__eq__ and tuple.__eq__ return NotImplemented
+        // so, we should raise a TypeError.
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = PyCell::new(py, ExternalObject {}).unwrap();
+        py_run!(py, obj, "obj.__eq__(1) is NotImplemented");
+        py_run!(py, obj, "(1).__eq__(obj) is NotImplemented");
+        py_expect_exception!(py, obj, "obj == 1", PyTypeError);
+    }
+}
