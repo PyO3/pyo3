@@ -311,6 +311,11 @@ impl PyAny {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
+    /// Returns true if the object is an instance of NotImplemented
+    pub fn is_notimplemented(&self) -> bool {
+        unsafe { ffi::Py_NotImplemented() == self.as_ptr() }
+    }
+
     /// Returns true if the sequence or mapping has a length of 0.
     ///
     /// This is equivalent to the Python expression `len(self) == 0`.

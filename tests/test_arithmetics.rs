@@ -696,6 +696,17 @@ mod return_not_implemented_followup_1064 {
     }
 
     #[test]
+    fn test_is_notimplemented() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = pyo3::types::PyDict::new(py);
+        py.run("result = (1).__eq__(None)", Some(locals), None)
+            .unwrap();
+        let res = locals.get_item("result").unwrap();
+        assert!(res.is_notimplemented());
+    }
+
+    #[test]
     fn test_raises_typeerror_when_reversed() {
         // Both ExternalObject.__eq__ and tuple.__eq__ return NotImplemented
         // so, we should raise a TypeError.

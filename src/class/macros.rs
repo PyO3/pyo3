@@ -125,10 +125,22 @@ macro_rules! py_binary_fallback_num_func {
                 match (lhs.extract(), rhs.extract()) {
                     (Ok(l), Ok(r)) => $class::$lop(l, r).convert(py),
                     _ => {
-                        // Next, try the right hand method (e.g., __radd__)
-                        let slf: &$crate::PyCell<T> = extract_or_return_not_implemented!(rhs);
-                        let arg = extract_or_return_not_implemented!(lhs);
-                        $class::$rop(&*slf.try_borrow()?, arg).convert(py)
+                        // Next, try the right hand method (e.g., __radd__),
+                        // but this time NotImplemented -> TypeError.
+                        let slf: &$crate::PyCell<T> = extract_or_raise_typeerror!(rhs);
+                        let arg = extract_or_raise_typeerror!(lhs);
+                        match $class::$rop(&*slf.try_borrow()?, arg).convert(py) {
+                            Ok(value) => {
+                                if value.as_ref(py).is_notimplemented() {
+                                    Err($crate::PyErr::new::<$crate::exceptions::PyTypeError, _>(
+                                        "",
+                                    ))
+                                } else {
+                                    Ok(value)
+                                }
+                            }
+                            Err(e) => Err(e),
+                        }
                     }
                 }
             })
@@ -317,6 +329,17 @@ macro_rules! extract_or_return_not_implemented {
         {
             Ok(value) => value,
             Err(_) => return $py.NotImplemented().convert($py),
+        }
+    };
+}
+
+macro_rules! extract_or_raise_typeerror {
+    ($arg: ident) => {
+        match $arg.extract() {
+            Ok(value) => value,
+            Err(_) => {
+                return Err(PyErr::new::<$crate::exceptions::PyTypeError, _>(""));
+            }
         }
     };
 }
