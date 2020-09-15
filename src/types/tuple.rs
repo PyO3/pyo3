@@ -5,7 +5,6 @@ use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyNativeType,
     PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
-use std::slice;
 
 /// Represents a Python `tuple` object.
 ///
@@ -87,7 +86,7 @@ impl PyTuple {
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
+            let slice = std::slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
             &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
         }
     }
