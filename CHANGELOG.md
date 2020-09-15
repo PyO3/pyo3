@@ -5,10 +5,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-### Added
-### Changed
-### Removed
+## [0.12.1] - 2020-09-16
 ### Fixed
 - Fix building for a 32-bit Python on 64-bit Windows with a 64-bit Rust toolchain. [#1179](https://github.com/PyO3/pyo3/pull/1179)
 - Fix building on platforms where `c_char` is `u8`. [#1182](https://github.com/PyO3/pyo3/pull/1182)
@@ -500,11 +497,12 @@ Yanked
 - Allow to add gc support without implementing PyGCProtocol #57
 - Refactor `PyErr` implementation. Drop `py` parameter from constructor.
 
-## 0.1.0 - 07-23-2017
+## [0.1.0] - 07-23-2017
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/pyo3/pyo3/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/pyo3/pyo3/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/pyo3/pyo3/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/pyo3/pyo3/compare/v0.10.1...v0.11.0
@@ -537,3 +535,4 @@ Yanked
 [0.2.2]: https://github.com/pyo3/pyo3/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/pyo3/pyo3/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/pyo3/pyo3/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/PyO3/pyo3/tree/0.1.0
