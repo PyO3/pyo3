@@ -457,6 +457,7 @@ fn test_cls_impl() {
 struct DunderDictSupport {}
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -472,6 +473,7 @@ fn dunder_dict_support() {
 }
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn access_dunder_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -493,6 +495,7 @@ struct InheritDict {
 }
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn inherited_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -511,6 +514,7 @@ fn inherited_dict() {
 struct WeakRefDunderDictSupport {}
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();

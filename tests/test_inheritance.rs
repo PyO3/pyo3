@@ -168,7 +168,9 @@ impl SetWithName {
     }
 }
 
+// Subclassing builtin types is not allowed in the LIMITED API.
 #[test]
+#[cfg_attr(Py_LIMITED_API, should_panic)]
 fn inherit_set() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -195,7 +197,9 @@ impl DictWithName {
     }
 }
 
+// Subclassing builtin types is not allowed in the LIMITED API.
 #[test]
+#[cfg_attr(Py_LIMITED_API, should_panic)]
 fn inherit_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();

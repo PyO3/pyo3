@@ -249,7 +249,7 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for i in 0..len {
-            fields.push(quote!(slice[#i].extract()?));
+            fields.push(quote!(s.get_item(#i).extract()?));
         }
         let msg = if self.is_enum_variant {
             quote!(format!(
@@ -265,7 +265,6 @@ impl<'a> Container<'a> {
             if s.len() != #len {
                 return Err(::pyo3::exceptions::PyValueError::new_err(#msg))
             }
-            let slice = s.as_slice();
             Ok(#self_ty(#fields))
         )
     }

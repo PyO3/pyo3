@@ -83,7 +83,9 @@ impl<'source> FromPyObject<'source> for f32 {
 mod test {
     #[cfg(not(Py_LIMITED_API))]
     use crate::ffi::PyFloat_AS_DOUBLE;
-    use crate::{AsPyPointer, Python, ToPyObject};
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::AsPyPointer;
+    use crate::{Python, ToPyObject};
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (
