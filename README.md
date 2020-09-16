@@ -152,7 +152,7 @@ about this topic.
  * [Rogue-Gym](https://github.com/kngwyu/rogue-gym) _Customizable rogue-like game for AI experiments_
    * Contains an example of building wheels on Azure Pipelines
  * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
- * [python-ext-wasm](https://github.com/wasmerio/python-ext-wasm) _Python library to run WebAssembly binaries_
+ * [wasmer-python](https://github.com/wasmerio/wasmer-python) _Python library to run WebAssembly binaries_
  * [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere_
  * [tokenizers](https://github.com/huggingface/tokenizers/tree/master/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust_
 
