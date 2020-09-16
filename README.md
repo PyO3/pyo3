@@ -135,7 +135,7 @@ about this topic.
 ## Tools and libraries
  * [maturin](https://github.com/PyO3/maturin) _Zero configuration build tool for Rust-made Python extensions_.
  * [setuptools-rust](https://github.com/PyO3/setuptools-rust) _Setuptools plugin for Rust support_.
- * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html)_
+ * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://docs.rs/pyo3/0.12.0/pyo3/types/struct.PyDict.html)_
  * [rust-numpy](https://github.com/PyO3/rust-numpy) _Rust binding of NumPy C-API_
  * [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
  * [pyo3-log](https://github.com/vorner/pyo3-log) _Bridge from Rust to Python logging_
