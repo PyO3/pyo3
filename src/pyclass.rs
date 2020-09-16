@@ -51,6 +51,8 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
         }
         #[cfg(Py_LIMITED_API)]
         {
+            // Silence unused parameter warning.
+            let _ = py;
             unreachable!("Subclassing native types isn't support in limited API mode");
         }
     }
@@ -275,7 +277,7 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 }
 
 #[cfg(Py_LIMITED_API)]
-fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {}
+fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
 fn py_class_flags<T: PyClass + PyTypeInfo>() -> c_uint {
     let mut flags = if T::gc_methods().is_some() || T::FLAGS & type_flags::GC != 0 {
