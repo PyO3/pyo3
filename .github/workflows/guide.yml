@@ -49,7 +49,8 @@ jobs:
 
   release:
     needs: deploy
-    if: ${{ env.GITHUB_EVENT_NAME == 'release' }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
     steps:
       - name: Create latest tag redirect
         env:
