@@ -5,6 +5,7 @@ on:
     branches:
       - master
   release:
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
@@ -64,5 +65,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public/
-          full_commit_message: 'Release ${{ steps.prepare_tag.outputs.tag_name }}'
+          full_commit_message: 'Release ${{ needs.deploy.outputs.tag_name }}'
           keep_files: true
