@@ -1,3 +1,4 @@
+#[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
 use pyo3::types::{PyCFunction, PyFunction};
@@ -23,6 +24,7 @@ fn test_optional_bool() {
     py_assert!(py, f, "f(None) == 'None'");
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     let x = x.as_mut_slice(py).unwrap();
@@ -33,6 +35,7 @@ fn buffer_inplace_add(py: Python, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_buffer_add() {
     let gil = Python::acquire_gil();

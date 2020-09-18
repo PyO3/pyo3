@@ -150,6 +150,7 @@ fn gc_integration2() {
 struct WeakRefSupport {}
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -168,6 +169,7 @@ struct InheritWeakRef {
 }
 
 #[test]
+#[cfg_attr(Py_LIMITED_API, ignore)]
 fn inherited_weakref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -269,6 +271,16 @@ impl PyGCProtocol for TraversableClass {
     }
 }
 
+#[cfg(PyPy)]
+unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
+    (*tp).tp_traverse
+}
+
+#[cfg(not(PyPy))]
+unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
+    std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
+}
+
 #[test]
 fn gc_during_borrow() {
     let gil = Python::acquire_gil();
@@ -285,7 +297,7 @@ fn gc_during_borrow() {
 
         // get the traverse function
         let ty = TraversableClass::type_object(py).as_type_ptr();
-        let traverse = (*ty).tp_traverse.unwrap();
+        let traverse = get_type_traverse(ty).unwrap();
 
         // create an object and check that traversing it works normally
         // when it's not borrowed

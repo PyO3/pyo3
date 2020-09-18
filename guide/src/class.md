@@ -271,7 +271,7 @@ You can also inherit native types such as `PyDict`, if they implement
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
 
-```rust
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{AsPyPointer, PyNativeType};
