@@ -33,11 +33,10 @@ trybuild = "1.0.23"
 rustversion = "1.0"
 
 [features]
-default = ["macros", "unstable-api"]
+default = ["macros"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
-# Enable unstable API incompatible with abi3(PEP384).
-# See https://www.python.org/dev/peps/pep-0384/ more.
-unstable-api = []
+# Use only limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
+abi3 = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
