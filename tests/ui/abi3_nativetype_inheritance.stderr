@@ -1,0 +1,13 @@
+error[E0277]: the trait bound `pyo3::ffi::dictobject::PyDictObject: pyo3::type_object::PySizedLayout<pyo3::types::dict::PyDict>` is not satisfied
+  --> $DIR/abi3_nativetype_inheritance.rs:4:1
+   |
+4  | #[pyclass(extends=PyDict)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `pyo3::type_object::PySizedLayout<pyo3::types::dict::PyDict>` is not implemented for `pyo3::ffi::dictobject::PyDictObject`
+   |
+  ::: $WORKSPACE/src/type_object.rs:96:22
+   |
+96 |     type BaseLayout: PySizedLayout<Self::BaseType>;
+   |                      ----------------------------- required by this bound in `pyo3::type_object::PyTypeInfo`
+   |
+   = note: required because of the requirements on the impl of `pyo3::type_object::PySizedLayout<pyo3::types::dict::PyDict>` for `pyo3::pycell::PyCellBase<pyo3::types::dict::PyDict>`
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

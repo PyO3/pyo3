@@ -11,6 +11,9 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
 
+    #[cfg(Py_LIMITED_API)]
+    t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
+
     tests_rust_1_43(&t);
     tests_rust_1_46(&t);
 

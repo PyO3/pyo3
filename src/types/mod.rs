@@ -103,6 +103,8 @@ macro_rules! pyobject_native_type_core {
 #[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name: ty, $layout: path $(,$type_param: ident)*) => {
+        // To prevent inheriting native types with ABI3
+        #[cfg(not(Py_LIMITED_API))]
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl<'a, $($type_param,)*> $crate::derive_utils::PyBaseTypeUtils for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
