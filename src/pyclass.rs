@@ -256,6 +256,22 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // Just patch the type objects for the things there's no
     // PyType_FromSpec API for... there's no reason this should work,
     // except for that it does and we have tests.
+
+    // Running this causes PyPy to segfault.
+    #[cfg(not(PyPy))]
+    if T::DESCRIPTION != "\0" {
+        unsafe {
+            // Until CPython 3.10, tp_doc was treated specially for heap-types,
+            // and it removed the text_signature value from it. We go in after
+            // the fact and replace tp_doc with something that _does_ include
+            // the text_signature value!
+            ffi::PyObject_Free((*type_object).tp_doc as _);
+            let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
+            data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
+            (*type_object).tp_doc = data as _;
+        }
+    }
+
     if let Some(buffer) = T::buffer_methods() {
         unsafe {
             (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.as_ref().bf_getbuffer;
