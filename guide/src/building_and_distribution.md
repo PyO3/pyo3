@@ -38,6 +38,23 @@ On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, 
 
 There are two ways to distribute your module as a Python package: The old, [setuptools-rust](https://github.com/PyO3/setuptools-rust), and the new, [maturin](https://github.com/pyo3/maturin). setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). maturin doesn't need any configuration files, however it does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)) and requires a rigid project structure, while setuptools-rust allows (and sometimes requires) configuration with python code.
 
+## `Py_LIMITED_API`/`abi3`
+
+By default, Python extension modules can only be used with the same Python version they were compiled against -- if you build an extension module with Python 3.5, you can't import it using Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. This is also known as `abi3`.
+
+There are three steps involved in making use of `abi3` when building Python packages as wheels:
+
+1. Enable the `abi3` feature in `pyo3`. This ensures `pyo3` only calls Python C-API functions which are part of the stable API, and on Windows also ensures that the project links against the correct shared object (no special behavior is required on other platforms):
+
+```toml
+[dependencies]
+pyo3 = { version = "...", features = ["abi3"]}
+```
+
+2. Ensure that the built shared objects are correctly marked as `abi3`. This is accomplished by telling your build system that you're using the limited API. There is currently a [PR for `setuptools-rust` for this](https://github.com/PyO3/setuptools-rust/pull/82).
+
+3. Ensure that the `.whl` is correctly marked as `abi3`. For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
+
 ## Cross Compiling
 
 Cross compiling PyO3 modules is relatively straightforward and requires a few pieces of software:
