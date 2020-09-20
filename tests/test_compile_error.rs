@@ -11,9 +11,6 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
 
-    #[cfg(Py_LIMITED_API)]
-    t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
-
     tests_rust_1_43(&t);
     tests_rust_1_46(&t);
 
@@ -29,6 +26,8 @@ fn test_compile_errors() {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/missing_clone.rs");
+        #[cfg(Py_LIMITED_API)]
+        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
     #[rustversion::before(1.46)]
     fn tests_rust_1_46(_t: &trybuild::TestCases) {}
