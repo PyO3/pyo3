@@ -271,7 +271,9 @@ You can also inherit native types such as `PyDict`, if they implement
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
 
-```rust,no_run
+```rust
+# #[cfg(Py_LIMITED_API)] fn main() {}
+# #[cfg(not(Py_LIMITED_API))] fn main() {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{AsPyPointer, PyNativeType};
@@ -300,6 +302,7 @@ impl DictWithCounter {
 # let py = gil.python();
 # let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
 # pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+# }
 ```
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
