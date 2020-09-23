@@ -1,3 +1,5 @@
+#![cfg(not(Py_LIMITED_API))]
+
 use crate::ffi;
 use crate::types::{PyAny, PyBytes};
 use crate::{AsPyPointer, FromPyPointer, PyResult, Python};

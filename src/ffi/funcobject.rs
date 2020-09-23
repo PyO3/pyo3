@@ -4,10 +4,12 @@ use crate::ffi::object::{PyObject, PyTypeObject, Py_TYPE};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: PyTypeObject;
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyFunction_Type) as c_int
