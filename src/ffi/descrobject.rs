@@ -1,6 +1,6 @@
 use crate::ffi::methodobject::PyMethodDef;
 use crate::ffi::object::{PyObject, PyTypeObject};
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use crate::ffi::object::{PyObject_GenericGetDict, PyObject_GenericSetDict};
 use crate::ffi::structmember::PyMemberDef;
 use std::os::raw::{c_char, c_int, c_void};
@@ -28,11 +28,12 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
-#[cfg(PyPy)]
+#[cfg(any(PyPy, Py_LIMITED_API))]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
 
 // PyPy doesn't export neither PyObject_GenericGetDict/PyObject_GenericSetDict
-#[cfg(not(PyPy))]
+// Py_LIMITED_API exposes PyObject_GenericSetDict but not Get.
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
     name: "__dict__\0".as_ptr() as *mut c_char,
     get: Some(PyObject_GenericGetDict),

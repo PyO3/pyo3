@@ -555,6 +555,11 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
 
 fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
     if cfg!(target_os = "windows") {
+        // Mirrors the behavior in CPython's `PC/pyconfig.h`.
+        if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+            return "python3".to_string();
+        }
+
         let minor_or_empty_string = match version.minor {
             Some(minor) => format!("{}", minor),
             None => String::new(),

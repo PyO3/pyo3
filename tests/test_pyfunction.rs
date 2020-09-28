@@ -1,7 +1,9 @@
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
-use pyo3::types::{PyCFunction, PyFunction};
+use pyo3::types::PyCFunction;
+#[cfg(not(Py_LIMITED_API))]
+use pyo3::types::PyFunction;
 use pyo3::{raw_pycfunction, wrap_pyfunction};
 
 mod common;
@@ -67,6 +69,7 @@ assert a, array.array("i", [2, 4, 6, 8])
     );
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn function_with_pyfunction_arg(fun: &PyFunction) -> PyResult<&PyAny> {
     fun.call((), None)
@@ -81,21 +84,31 @@ fn function_with_pycfunction_arg(fun: &PyCFunction) -> PyResult<&PyAny> {
 fn test_functions_with_function_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
     let py_cfunc_arg = wrap_pyfunction!(function_with_pycfunction_arg)(py).unwrap();
     let bool_to_string = wrap_pyfunction!(optional_bool)(py).unwrap();
 
     pyo3::py_run!(
         py,
-        py_func_arg
         py_cfunc_arg
         bool_to_string,
         r#"
-        def foo(): return "bar"
-        assert py_func_arg(foo) == "bar"
         assert py_cfunc_arg(bool_to_string) == "Some(true)"
         "#
-    )
+    );
+
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
+
+        pyo3::py_run!(
+            py,
+            py_func_arg,
+            r#"
+            def foo(): return "bar"
+            assert py_func_arg(foo) == "bar"
+            "#
+        );
+    }
 }
 
 #[test]
