@@ -90,12 +90,10 @@ impl PyFunctionAttr {
             ));
         }
         if self.has_varargs {
-            return Err(syn::Error::new_spanned(
-                item,
-                "Positional argument or varargs(*) is not allowed after *",
-            ));
+            self.arguments.push(Argument::Kwarg(path.clone(), None));
+        } else {
+            self.arguments.push(Argument::Arg(path.clone(), None));
         }
-        self.arguments.push(Argument::Arg(path.clone(), None));
         Ok(())
     }
 
@@ -253,6 +251,33 @@ mod test {
                 Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
                 Argument::VarArgsSeparator,
                 Argument::Kwarg(parse_quote! {test3}, Some("None".to_owned())),
+            ]
+        );
+
+        let args = items(quote! {"*", test1, test2}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, None),
+                Argument::Kwarg(parse_quote! {test2}, None),
+            ]
+        );
+
+        let args = items(quote! {"*", test1, test2="None"}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, None),
+                Argument::Kwarg(parse_quote! {test2}, Some("None".to_owned())),
+            ]
+        );
+
+        let args = items(quote! {"*", test1="None", test2}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, Some("None".to_owned())),
+                Argument::Kwarg(parse_quote! {test2}, None),
             ]
         );
     }
