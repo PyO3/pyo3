@@ -286,18 +286,12 @@ impl<'a> FnSpec<'a> {
     pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
         for s in self.attrs.iter() {
             match *s {
-                Argument::Arg(ref path, ref opt) => {
+                Argument::Arg(ref path, ref opt) | Argument::Kwarg(ref path, ref opt) => {
                     if path.is_ident(name) {
                         if let Some(ref val) = opt {
                             let i: syn::Expr = syn::parse_str(&val).unwrap();
                             return Some(i.into_token_stream());
                         }
-                    }
-                }
-                Argument::Kwarg(ref path, ref opt) => {
-                    if path.is_ident(name) {
-                        let i: syn::Expr = syn::parse_str(&opt).unwrap();
-                        return Some(quote!(#i));
                     }
                 }
                 _ => (),
