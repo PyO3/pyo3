@@ -1,11 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::Span;
-use proc_macro2::TokenStream;
 use std::fmt::Display;
-
-pub fn print_err(msg: String, t: TokenStream) {
-    println!("Error: {} in '{}'", msg, t.to_string());
-}
 
 /// Check if the given type `ty` is `pyo3::Python`.
 pub fn is_python(ty: &syn::Type) -> bool {
