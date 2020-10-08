@@ -73,12 +73,12 @@ unsafe impl Sync for PySetterDef {}
 
 unsafe impl Sync for ffi::PyGetSetDef {}
 
-fn get_name(name: &'static str) -> &'static CStr {
+fn get_name(name: &str) -> &CStr {
     CStr::from_bytes_with_nul(name.as_bytes())
         .expect("Method name must be terminated with NULL byte")
 }
 
-fn get_doc(doc: &'static str) -> &'static CStr {
+fn get_doc(doc: &str) -> &CStr {
     CStr::from_bytes_with_nul(doc.as_bytes()).expect("Document must be terminated with NULL byte")
 }
 
@@ -99,50 +99,37 @@ impl PyMethodDef {
         }
     }
 
+    /// Define a function with no `*args` and `**kwargs`.
     pub fn cfunction(name: &'static str, cfunction: ffi::PyCFunction, doc: &'static str) -> Self {
-        Self::new(
-            name,
-            PyMethodType::PyCFunction(cfunction),
-            ffi::METH_NOARGS,
-            doc,
-        )
+        Self {
+            ml_name: get_name(name),
+            ml_meth: PyMethodType::PyCFunction(cfunction),
+            ml_flags: ffi::METH_NOARGS,
+            ml_doc: get_doc(doc),
+        }
     }
 
+    /// Define a `__new__` function.
     pub fn new_func(name: &'static str, newfunc: ffi::newfunc, doc: &'static str) -> Self {
-        Self::new(
-            name,
-            PyMethodType::PyNewFunc(newfunc),
-            ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-            doc,
-        )
+        Self {
+            ml_name: get_name(name),
+            ml_meth: PyMethodType::PyNewFunc(newfunc),
+            ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            ml_doc: get_doc(doc),
+        }
     }
 
-    /// Define a function that can take `**kwargs`.
+    /// Define a function that can take `*args` and `**kwargs`.
     pub fn cfunction_with_keywords(
         name: &'static str,
         cfunction: ffi::PyCFunctionWithKeywords,
         flags: c_int,
         doc: &'static str,
     ) -> Self {
-        let flags = flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS;
-        Self::new(
-            name,
-            PyMethodType::PyCFunctionWithKeywords(cfunction),
-            flags,
-            doc,
-        )
-    }
-
-    pub(crate) fn new(
-        name: &'static str,
-        methodtype: PyMethodType,
-        flags: c_int,
-        doc: &'static str,
-    ) -> Self {
         Self {
             ml_name: get_name(name),
-            ml_meth: methodtype,
-            ml_flags: flags,
+            ml_meth: PyMethodType::PyCFunctionWithKeywords(cfunction),
+            ml_flags: flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS,
             ml_doc: get_doc(doc),
         }
     }
@@ -166,6 +153,7 @@ impl PyMethodDef {
 }
 
 impl PyClassAttributeDef {
+    /// Define a class attribute.
     pub fn new(name: &'static str, meth: for<'p> fn(Python<'p>) -> PyObject) -> Self {
         Self {
             name: get_name(name),
