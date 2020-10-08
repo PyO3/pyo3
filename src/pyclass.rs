@@ -6,7 +6,7 @@ use crate::derive_utils::PyBaseTypeUtils;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
 use crate::types::PyAny;
-use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
+use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_void;
@@ -239,7 +239,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
 
 pub(crate) fn py_class_attributes<T: PyMethods>() -> impl Iterator<Item = PyClassAttributeDef> {
     T::py_methods().into_iter().filter_map(|def| match def {
-        PyMethodDefType::ClassAttribute(attr) => Some(*attr),
+        PyMethodDefType::ClassAttribute(attr) => Some(attr.to_owned()),
         _ => None,
     })
 }
@@ -256,16 +256,12 @@ fn py_class_method_defs<T: PyMethods>() -> (
     for def in T::py_methods() {
         match *def {
             PyMethodDefType::New(ref def) => {
-                if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
-                    new = Some(meth)
-                }
+                new = def.get_new_func();
+                debug_assert!(new.is_some());
             }
             PyMethodDefType::Call(ref def) => {
-                if let class::methods::PyMethodType::PyCFunctionWithKeywords(meth) = def.ml_meth {
-                    call = Some(meth)
-                } else {
-                    panic!("Method type is not supoorted by tp_call slot")
-                }
+                call = def.get_cfunction_with_keywords();
+                debug_assert!(call.is_some());
             }
             PyMethodDefType::Method(ref def)
             | PyMethodDefType::Class(ref def)
@@ -285,19 +281,17 @@ fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
     for def in T::py_methods() {
         match *def {
             PyMethodDefType::Getter(ref getter) => {
-                let name = getter.name.to_string();
-                if !defs.contains_key(&name) {
-                    let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
+                if !defs.contains_key(getter.name) {
+                    let _ = defs.insert(getter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }
-                let def = defs.get_mut(&name).expect("Failed to call get_mut");
+                let def = defs.get_mut(getter.name).expect("Failed to call get_mut");
                 getter.copy_to(def);
             }
             PyMethodDefType::Setter(ref setter) => {
-                let name = setter.name.to_string();
-                if !defs.contains_key(&name) {
-                    let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
+                if !defs.contains_key(setter.name) {
+                    let _ = defs.insert(setter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }
-                let def = defs.get_mut(&name).expect("Failed to call get_mut");
+                let def = defs.get_mut(setter.name).expect("Failed to call get_mut");
                 setter.copy_to(def);
             }
             _ => (),

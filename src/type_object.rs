@@ -227,18 +227,15 @@ impl LazyStaticType {
 fn initialize_tp_dict(
     py: Python,
     tp_dict: *mut ffi::PyObject,
-    items: Vec<(&'static str, PyObject)>,
+    items: Vec<(&'static std::ffi::CStr, PyObject)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
     for (key, val) in items {
-        crate::types::with_tmp_string(py, key, |key| {
-            let ret = unsafe { ffi::PyDict_SetItem(tp_dict, key, val.into_ptr()) };
-            if ret < 0 {
-                return Err(PyErr::fetch(py));
-            }
-            Ok(())
-        })?;
+        let ret = unsafe { ffi::PyDict_SetItemString(tp_dict, key.as_ptr(), val.into_ptr()) };
+        if ret < 0 {
+            return Err(PyErr::fetch(py));
+        }
     }
     Ok(())
 }

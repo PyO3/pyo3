@@ -2,7 +2,7 @@
 
 use crate::{ffi, PyObject, Python};
 use libc::c_int;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::fmt;
 
 /// `PyMethodDefType` represents different types of Python callable objects.
@@ -35,32 +35,33 @@ pub enum PyMethodType {
     PyInitFunc(ffi::initproc),
 }
 
-#[derive(Copy, Clone, Debug)]
+// TODO(kngwyu): We should also use &'static CStr for this? I'm not sure.
+#[derive(Clone, Debug)]
 pub struct PyMethodDef {
-    pub ml_name: &'static str,
-    pub ml_meth: PyMethodType,
-    pub ml_flags: c_int,
-    pub ml_doc: &'static str,
+    ml_name: &'static CStr,
+    ml_meth: PyMethodType,
+    ml_flags: c_int,
+    ml_doc: &'static CStr,
 }
 
 #[derive(Copy, Clone)]
 pub struct PyClassAttributeDef {
-    pub name: &'static str,
-    pub meth: for<'p> fn(Python<'p>) -> PyObject,
+    pub(crate) name: &'static CStr,
+    pub(crate) meth: for<'p> fn(Python<'p>) -> PyObject,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct PyGetterDef {
-    pub name: &'static str,
-    pub meth: ffi::getter,
-    pub doc: &'static str,
+    pub(crate) name: &'static CStr,
+    pub(crate) meth: ffi::getter,
+    doc: &'static CStr,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct PySetterDef {
-    pub name: &'static str,
-    pub meth: ffi::setter,
-    pub doc: &'static str,
+    pub(crate) name: &'static CStr,
+    pub(crate) meth: ffi::setter,
+    doc: &'static CStr,
 }
 
 unsafe impl Sync for PyMethodDef {}
@@ -73,19 +74,80 @@ unsafe impl Sync for PySetterDef {}
 
 unsafe impl Sync for ffi::PyGetSetDef {}
 
-fn get_name(name: &str) -> *const std::os::raw::c_char {
-    CString::new(name)
-        .expect("Method name must not contain NULL byte")
-        .into_raw() as _
+fn get_name(name: &'static str) -> &'static CStr {
+    CStr::from_bytes_with_nul(name.as_bytes())
+        .expect("Method name must be terminated with NULL byte")
 }
 
-fn get_doc(doc: &'static str) -> *const std::os::raw::c_char {
-    CStr::from_bytes_with_nul(doc.as_bytes())
-        .expect("Document must be terminated with NULL byte")
-        .as_ptr()
+fn get_doc(doc: &'static str) -> &'static CStr {
+    CStr::from_bytes_with_nul(doc.as_bytes()).expect("Document must be terminated with NULL byte")
 }
 
 impl PyMethodDef {
+    pub(crate) fn get_new_func(&self) -> Option<ffi::newfunc> {
+        if let PyMethodType::PyNewFunc(new_func) = self.ml_meth {
+            Some(new_func)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn get_cfunction_with_keywords(&self) -> Option<ffi::PyCFunctionWithKeywords> {
+        if let PyMethodType::PyCFunctionWithKeywords(func) = self.ml_meth {
+            Some(func)
+        } else {
+            None
+        }
+    }
+
+    pub fn cfunction(name: &'static str, cfunction: ffi::PyCFunction, doc: &'static str) -> Self {
+        Self::new(
+            name,
+            PyMethodType::PyCFunction(cfunction),
+            ffi::METH_NOARGS,
+            doc,
+        )
+    }
+
+    pub fn new_func(name: &'static str, newfunc: ffi::newfunc, doc: &'static str) -> Self {
+        Self::new(
+            name,
+            PyMethodType::PyNewFunc(newfunc),
+            ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            doc,
+        )
+    }
+
+    /// Define a function that can take `**kwargs`.
+    pub fn cfunction_with_keywords(
+        name: &'static str,
+        cfunction: ffi::PyCFunctionWithKeywords,
+        flags: c_int,
+        doc: &'static str,
+    ) -> Self {
+        let flags = flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS;
+        Self::new(
+            name,
+            PyMethodType::PyCFunctionWithKeywords(cfunction),
+            flags,
+            doc,
+        )
+    }
+
+    pub(crate) fn new(
+        name: &'static str,
+        methodtype: PyMethodType,
+        flags: c_int,
+        doc: &'static str,
+    ) -> Self {
+        Self {
+            ml_name: get_name(name),
+            ml_meth: methodtype,
+            ml_flags: flags,
+            ml_doc: get_doc(doc),
+        }
+    }
+
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
@@ -96,10 +158,19 @@ impl PyMethodDef {
         };
 
         ffi::PyMethodDef {
-            ml_name: get_name(self.ml_name),
+            ml_name: self.ml_name.as_ptr(),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
-            ml_doc: get_doc(self.ml_doc),
+            ml_doc: self.ml_doc.as_ptr(),
+        }
+    }
+}
+
+impl PyClassAttributeDef {
+    pub fn new(name: &'static str, meth: for<'p> fn(Python<'p>) -> PyObject) -> Self {
+        Self {
+            name: get_name(name),
+            meth,
         }
     }
 }
@@ -115,26 +186,44 @@ impl fmt::Debug for PyClassAttributeDef {
 }
 
 impl PyGetterDef {
+    /// Define a getter.
+    pub fn new(name: &'static str, getter: ffi::getter, doc: &'static str) -> Self {
+        Self {
+            name: get_name(name),
+            meth: getter,
+            doc: get_doc(doc),
+        }
+    }
+
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = get_name(self.name) as _;
+            dst.name = self.name.as_ptr() as _;
         }
         if dst.doc.is_null() {
-            dst.doc = get_doc(self.doc) as _;
+            dst.doc = self.doc.as_ptr() as _;
         }
         dst.get = Some(self.meth);
     }
 }
 
 impl PySetterDef {
+    /// Define a setter.
+    pub fn new(name: &'static str, setter: ffi::setter, doc: &'static str) -> Self {
+        Self {
+            name: get_name(name),
+            meth: setter,
+            doc: get_doc(doc),
+        }
+    }
+
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = get_name(self.name) as _;
+            dst.name = self.name.as_ptr() as _;
         }
         if dst.doc.is_null() {
-            dst.doc = get_doc(self.doc) as _;
+            dst.doc = self.doc.as_ptr() as _;
         }
         dst.set = Some(self.meth);
     }
@@ -156,10 +245,10 @@ pub trait PyMethods {
 #[cfg(feature = "macros")]
 pub trait PyMethodsInventory: inventory::Collect {
     /// Create a new instance
-    fn new(methods: &'static [PyMethodDefType]) -> Self;
+    fn new(methods: Vec<PyMethodDefType>) -> Self;
 
     /// Returns the methods for a single `#[pymethods] impl` block
-    fn get(&self) -> &'static [PyMethodDefType];
+    fn get(&'static self) -> &'static [PyMethodDefType];
 }
 
 /// Implemented for `#[pyclass]` in our proc macro code.

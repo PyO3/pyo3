@@ -95,12 +95,12 @@ fn impl_proto_impl(
                 py_methods.push(quote! {
                     pyo3::class::PyMethodDefType::Method({
                         #method
-                        pyo3::class::PyMethodDef {
-                            ml_name: stringify!(#name),
-                            ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                            ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | #coexist,
-                            ml_doc: "\0"
-                        }
+                        pyo3::class::PyMethodDef::cfunction_with_keywords(
+                            concat!(stringify!(#name), "\0"),
+                            __wrap,
+                            #coexist,
+                            "\0"
+                        )
                     })
                 });
             }
@@ -123,7 +123,7 @@ fn inventory_submission(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenSt
         pyo3::inventory::submit! {
             #![crate = pyo3] {
                 type Inventory = <#ty as pyo3::class::methods::HasMethodsInventory>::Methods;
-                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
+                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(vec![#(#py_methods),*])
             }
         }
     }
