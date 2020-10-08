@@ -35,7 +35,6 @@ pub enum PyMethodType {
     PyInitFunc(ffi::initproc),
 }
 
-// TODO(kngwyu): We should also use &'static CStr for this? I'm not sure.
 #[derive(Clone, Debug)]
 pub struct PyMethodDef {
     ml_name: &'static CStr,

@@ -212,7 +212,12 @@ pub fn add_fn_to_module(
         fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
-            pyo3::types::PyCFunction::new_with_keywords(#wrapper_ident, stringify!(#python_name), #doc, args.into())
+            pyo3::types::PyCFunction::new_with_keywords(
+                #wrapper_ident,
+                concat!(stringify!(#python_name), "\0"),
+                #doc,
+                args.into(),
+            )
         }
     })
 }
