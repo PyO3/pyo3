@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ## Added
 - Add support for keyword-only arguments without default values in `#[pyfunction]`. [#1209](https://github.com/PyO3/pyo3/pull/1209)
+- Add a wrapper for `PyErr_CheckSignals()` as `Python::check_signals()`. [#1214](https://github.com/PyO3/pyo3/pull/1214)
 
 ## [0.12.1] - 2020-09-16
 ### Fixed

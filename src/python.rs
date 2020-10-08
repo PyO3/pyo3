@@ -498,6 +498,26 @@ impl<'p> Python<'p> {
     pub fn xdecref<T: IntoPyPointer>(self, ptr: T) {
         unsafe { ffi::Py_XDECREF(ptr.into_ptr()) };
     }
+
+    /// Lets the Python interpreter check for pending signals and invoke the
+    /// corresponding signal handlers. This can run arbitrary Python code.
+    ///
+    /// If an exception is raised by the signal handler, or the default signal
+    /// handler raises an exception (such as `KeyboardInterrupt` for `SIGINT`),
+    /// an `Err` is returned.
+    ///
+    /// This is a wrapper of the C function `PyErr_CheckSignals()`. It is good
+    /// practice to call this regularly in a long-running calculation since
+    /// SIGINT and other signals handled by Python code are left pending for its
+    /// entire duration.
+    pub fn check_signals(self) -> PyResult<()> {
+        let v = unsafe { ffi::PyErr_CheckSignals() };
+        if v == -1 {
+            Err(PyErr::fetch(self))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
