@@ -37,10 +37,10 @@ pub enum PyMethodType {
 
 #[derive(Clone, Debug)]
 pub struct PyMethodDef {
-    ml_name: &'static CStr,
-    ml_meth: PyMethodType,
-    ml_flags: c_int,
-    ml_doc: &'static CStr,
+    pub(crate) ml_name: &'static CStr,
+    pub(crate) ml_meth: PyMethodType,
+    pub(crate) ml_flags: c_int,
+    pub(crate) ml_doc: &'static CStr,
 }
 
 #[derive(Copy, Clone)]
