@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Hide docs of PyO3 private implementation details in `pyo3::class::methods`. [#1169](https://github.com/PyO3/pyo3/pull/1169)
 - Fix unnecessary rebuild on PATH changes when the python interpreter is provided by PYO3_PYTHON. [#1231](https://github.com/PyO3/pyo3/pull/1231)
 
+### Removed
+- Removed `PyUnicode_AsUnicodeCopy`, `PyUnicode_GetMax`, `_Py_CheckRecursionLimit`, `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`, `PyObject_CheckReadBuffer` and `PyObject_AsWriteBuffer` which have been removed in python 3.10
+
 ## [0.12.1] - 2020-09-16
 ### Fixed
 - Fix building for a 32-bit Python on 64-bit Windows with a 64-bit Rust toolchain. [#1179](https://github.com/PyO3/pyo3/pull/1179)
