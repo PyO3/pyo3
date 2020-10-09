@@ -13,6 +13,7 @@ pub mod descr;
 pub mod gc;
 pub mod iter;
 pub mod mapping;
+#[doc(hidden)]
 pub mod methods;
 pub mod number;
 pub mod proto_methods;
@@ -27,6 +28,7 @@ pub use self::descr::PyDescrProtocol;
 pub use self::gc::{PyGCProtocol, PyTraverseError, PyVisit};
 pub use self::iter::PyIterProtocol;
 pub use self::mapping::PyMappingProtocol;
+#[doc(hidden)]
 pub use self::methods::{
     PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
 };
