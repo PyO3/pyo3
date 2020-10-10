@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
-use crate::{class, ffi, AsPyPointer, PyMethodType};
+use crate::{ffi, AsPyPointer, PyMethodDef, PyMethodType};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
@@ -11,60 +11,69 @@ pub struct PyCFunction(PyAny);
 
 pyobject_native_var_type!(PyCFunction, ffi::PyCFunction_Type, ffi::PyCFunction_Check);
 
+fn get_name(name: &str) -> PyResult<&'static CStr> {
+    let cstr = CString::new(name)
+        .map_err(|_| PyValueError::new_err("Function name cannot contain contain NULL byte."))?;
+    Ok(Box::leak(cstr.into_boxed_c_str()))
+}
+
+fn get_doc(doc: &str) -> PyResult<&'static CStr> {
+    let cstr = CString::new(doc)
+        .map_err(|_| PyValueError::new_err("Document cannot contain contain NULL byte."))?;
+    Ok(Box::leak(cstr.into_boxed_c_str()))
+}
+
 impl PyCFunction {
     /// Create a new built-in function with keywords.
+    ///
+    /// See [raw_pycfunction] for documentation on how to get the `fun` argument.
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
         name: &str,
-        doc: &'static str,
+        doc: &str,
         py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a PyCFunction> {
-        let fun = PyMethodType::PyCFunctionWithKeywords(fun);
-        Self::new_(fun, name, doc, py_or_module)
+    ) -> PyResult<&'a Self> {
+        Self::internal_new(
+            get_name(name)?,
+            get_doc(doc)?,
+            PyMethodType::PyCFunctionWithKeywords(fun),
+            ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            py_or_module,
+        )
     }
 
     /// Create a new built-in function without keywords.
     pub fn new<'a>(
         fun: ffi::PyCFunction,
         name: &str,
-        doc: &'static str,
+        doc: &str,
         py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a PyCFunction> {
-        let fun = PyMethodType::PyCFunction(fun);
-        Self::new_(fun, name, doc, py_or_module)
+    ) -> PyResult<&'a Self> {
+        Self::internal_new(
+            get_name(name)?,
+            get_doc(doc)?,
+            PyMethodType::PyCFunction(fun),
+            ffi::METH_NOARGS,
+            py_or_module,
+        )
     }
 
-    fn new_<'a>(
-        fun: class::PyMethodType,
-        name: &str,
-        doc: &'static str,
+    #[doc(hidden)]
+    pub fn internal_new<'a>(
+        name: &'static CStr,
+        doc: &'static CStr,
+        method_type: PyMethodType,
+        flags: std::os::raw::c_int,
         py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a PyCFunction> {
+    ) -> PyResult<&'a Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
-        let doc: &'static CStr = CStr::from_bytes_with_nul(doc.as_bytes())
-            .map_err(|_| PyValueError::new_err("docstring must end with NULL byte."))?;
-        let name = CString::new(name.as_bytes()).map_err(|_| {
-            PyValueError::new_err("Function name cannot contain contain NULL byte.")
-        })?;
-        let def = match fun {
-            PyMethodType::PyCFunction(fun) => ffi::PyMethodDef {
-                ml_name: name.into_raw() as _,
-                ml_meth: Some(fun),
-                ml_flags: ffi::METH_VARARGS,
-                ml_doc: doc.as_ptr() as _,
-            },
-            PyMethodType::PyCFunctionWithKeywords(fun) => ffi::PyMethodDef {
-                ml_name: name.into_raw() as _,
-                ml_meth: Some(unsafe { std::mem::transmute(fun) }),
-                ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-                ml_doc: doc.as_ptr() as _,
-            },
-            _ => {
-                return Err(PyValueError::new_err(
-                    "Only PyCFunction and PyCFunctionWithKeywords are valid.",
-                ))
-            }
+        let method_def = PyMethodDef {
+            ml_name: name,
+            ml_meth: method_type,
+            ml_flags: flags,
+            ml_doc: doc,
         };
+        let def = method_def.as_method_def();
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);

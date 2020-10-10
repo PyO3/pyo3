@@ -132,18 +132,12 @@ fn standard_element_type_from_type_char(type_char: u8) -> ElementType {
 
 #[cfg(target_endian = "little")]
 fn is_matching_endian(c: u8) -> bool {
-    match c {
-        b'@' | b'=' | b'<' => true,
-        _ => false,
-    }
+    c == b'@' || c == b'=' || c == b'>'
 }
 
 #[cfg(target_endian = "big")]
 fn is_matching_endian(c: u8) -> bool {
-    match c {
-        b'@' | b'=' | b'>' | b'!' => true,
-        _ => false,
-    }
+    c == b'@' || c == b'=' || c == b'>' || c == b'!'
 }
 
 /// Trait implemented for possible element types of `PyBuffer`.

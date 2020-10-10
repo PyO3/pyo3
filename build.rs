@@ -148,7 +148,9 @@ impl CrossCompileConfig {
 }
 
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
-    if env::var("TARGET")? == env::var("HOST")? {
+    let target = env::var("TARGET")?;
+    let host = env::var("HOST")?;
+    if target == host || (target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc") {
         return Ok(None);
     }
 
@@ -685,8 +687,14 @@ import platform
 import struct
 import sys
 import sysconfig
+import os.path
 
 PYPY = platform.python_implementation() == "PyPy"
+
+# Anaconda based python distributions have a static python executable, but include
+# the shared library. Use the shared library for embedding to avoid rust trying to
+# LTO the static library (and failing with newer gcc's, because it is old).
+ANACONDA = os.path.exists(os.path.join(sys.prefix, 'conda-meta'))
 
 try:
     base_prefix = sys.base_prefix
@@ -702,7 +710,7 @@ if libdir is not None:
     print("libdir", libdir)
 print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
 print("base_prefix", base_prefix)
-print("shared", PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
+print("shared", PYPY or ANACONDA or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
