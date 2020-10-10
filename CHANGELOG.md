@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-## Added
+### Added
 - Add support for keyword-only arguments without default values in `#[pyfunction]`. [#1209](https://github.com/PyO3/pyo3/pull/1209)
 - Add a wrapper for `PyErr_CheckSignals()` as `Python::check_signals()`. [#1214](https://github.com/PyO3/pyo3/pull/1214)
+
+### Changed
+- Fields of `PyMethodDef`, `PyGetterDef`, `PySetterDef`, and `PyClassAttributeDef` are now private. [#1169](https://github.com/PyO3/pyo3/pull/1169)
+
+### Fixed
+- Fix invalid document for protocol methods. [#1169](https://github.com/PyO3/pyo3/pull/1169)
 
 ## [0.12.1] - 2020-09-16
 ### Fixed

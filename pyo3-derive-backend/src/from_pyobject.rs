@@ -133,7 +133,9 @@ impl<'a> Container<'a> {
                 "Cannot derive FromPyObject for empty structs and variants.",
             ));
         }
-        let transparent = attrs.iter().any(ContainerAttribute::transparent);
+        let transparent = attrs
+            .iter()
+            .any(|attr| *attr == ContainerAttribute::Transparent);
         if transparent {
             Self::check_transparent_len(fields)?;
         }
@@ -182,7 +184,6 @@ impl<'a> Container<'a> {
         let err_name = attrs
             .iter()
             .find_map(|a| a.annotation())
-            .cloned()
             .unwrap_or_else(|| path.segments.last().unwrap().ident.to_string());
 
         let v = Container {
@@ -306,18 +307,10 @@ enum ContainerAttribute {
 }
 
 impl ContainerAttribute {
-    /// Return whether this attribute is `Transparent`
-    fn transparent(&self) -> bool {
-        match self {
-            ContainerAttribute::Transparent => true,
-            _ => false,
-        }
-    }
-
     /// Convenience method to access `ErrorAnnotation`.
-    fn annotation(&self) -> Option<&String> {
+    fn annotation(&self) -> Option<String> {
         match self {
-            ContainerAttribute::ErrorAnnotation(s) => Some(s),
+            ContainerAttribute::ErrorAnnotation(s) => Some(s.to_string()),
             _ => None,
         }
     }
