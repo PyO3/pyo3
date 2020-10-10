@@ -64,7 +64,7 @@ let err: PyErr = TypeError::py_err("error message");
 
 After:
 
-```
+```rust
 # use pyo3::{PyErr, PyResult, Python, type_object::PyTypeObject};
 # use pyo3::exceptions::{PyBaseException, PyTypeError};
 # Python::with_gil(|py| -> PyResult<()> {
