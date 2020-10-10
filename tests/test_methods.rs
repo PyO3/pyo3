@@ -235,6 +235,21 @@ impl MethArgs {
         [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
     }
 
+    #[args("*", a = 2, b = 3)]
+    fn get_kwargs_only_with_defaults(&self, a: i32, b: i32) -> PyResult<i32> {
+        Ok(a + b)
+    }
+
+    #[args("*", a, b)]
+    fn get_kwargs_only(&self, a: i32, b: i32) -> PyResult<i32> {
+        Ok(a + b)
+    }
+
+    #[args("*", a = 1, b)]
+    fn get_kwargs_only_with_some_default(&self, a: i32, b: i32) -> PyResult<i32> {
+        Ok(a + b)
+    }
+
     #[args(a, b = 2, "*", c = 3)]
     fn get_pos_arg_kw_sep1(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
         Ok(a + b + c)
@@ -308,12 +323,74 @@ fn meth_args() {
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", PyTypeError);
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", PyTypeError);
 
+    py_run!(py, inst, "assert inst.get_kwargs_only_with_defaults() == 5");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_defaults(a = 8) == 11"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_defaults(b = 8) == 10"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_defaults(a = 1, b = 1) == 2"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_defaults(b = 1, a = 1) == 2"
+    );
+
+    py_run!(py, inst, "assert inst.get_kwargs_only(a = 1, b = 1) == 2");
+    py_run!(py, inst, "assert inst.get_kwargs_only(b = 1, a = 1) == 2");
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_some_default(a = 2, b = 1) == 3"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_some_default(b = 1) == 2"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs_only_with_some_default(b = 1, a = 2) == 3"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_kwargs_only_with_some_default()",
+        PyTypeError
+    );
+
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
     py_run!(
         py,
         inst,
         "assert inst.get_pos_arg_kw_sep1(1, 2, c=13) == 16"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw_sep1(a=1, b=2, c=13) == 16"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw_sep1(b=2, c=13, a=1) == 16"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw_sep1(c=13, b=2, a=1) == 16"
     );
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep1(1, 2, 3)", PyTypeError);
 

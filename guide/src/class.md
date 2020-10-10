@@ -757,14 +757,14 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 }
 
 pub struct Pyo3MethodsInventoryForMyClass {
-    methods: &'static [pyo3::class::PyMethodDefType],
+    methods: Vec<pyo3::class::PyMethodDefType>,
 }
 impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass {
-    fn new(methods: &'static [pyo3::class::PyMethodDefType]) -> Self {
+    fn new(methods: Vec<pyo3::class::PyMethodDefType>) -> Self {
         Self { methods }
     }
-    fn get(&self) -> &'static [pyo3::class::PyMethodDefType] {
-        self.methods
+    fn get(&'static self) -> &'static [pyo3::class::PyMethodDefType] {
+        &self.methods
     }
 }
 impl pyo3::class::methods::HasMethodsInventory for MyClass {

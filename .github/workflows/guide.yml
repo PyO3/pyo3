@@ -5,6 +5,7 @@ on:
     branches:
       - master
   release:
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,6 +13,8 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v2
 
@@ -44,3 +47,23 @@ jobs:
           publish_dir: ./gh-pages-build/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: 'Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}'
+
+  release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
+    steps:
+      - name: Create latest tag redirect
+        env:
+          TAG_NAME: ${{ needs.deploy.outputs.tag_name }}
+        run: |
+          mkdir public
+          echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3.7.0-8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public/
+          full_commit_message: 'Release ${{ needs.deploy.outputs.tag_name }}'
+          keep_files: true

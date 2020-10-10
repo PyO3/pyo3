@@ -14,7 +14,7 @@ pub enum Argument {
     VarArgs(syn::Path),
     KeywordArgs(syn::Path),
     Arg(syn::Path, Option<String>),
-    Kwarg(syn::Path, String),
+    Kwarg(syn::Path, Option<String>),
 }
 
 /// The attributes of the pyfunction macro
@@ -90,12 +90,10 @@ impl PyFunctionAttr {
             ));
         }
         if self.has_varargs {
-            return Err(syn::Error::new_spanned(
-                item,
-                "Positional argument or varargs(*) is not allowed after *",
-            ));
+            self.arguments.push(Argument::Kwarg(path.clone(), None));
+        } else {
+            self.arguments.push(Argument::Arg(path.clone(), None));
         }
-        self.arguments.push(Argument::Arg(path.clone(), None));
         Ok(())
     }
 
@@ -128,7 +126,8 @@ impl PyFunctionAttr {
         self.kw_arg_is_ok(item)?;
         if self.has_varargs {
             // kw only
-            self.arguments.push(Argument::Kwarg(name.clone(), value));
+            self.arguments
+                .push(Argument::Kwarg(name.clone(), Some(value)));
         } else {
             self.has_kw = true;
             self.arguments
@@ -251,7 +250,34 @@ mod test {
                 Argument::Arg(parse_quote! {test1}, None),
                 Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
                 Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
+                Argument::Kwarg(parse_quote! {test3}, Some("None".to_owned())),
+            ]
+        );
+
+        let args = items(quote! {"*", test1, test2}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, None),
+                Argument::Kwarg(parse_quote! {test2}, None),
+            ]
+        );
+
+        let args = items(quote! {"*", test1, test2="None"}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, None),
+                Argument::Kwarg(parse_quote! {test2}, Some("None".to_owned())),
+            ]
+        );
+
+        let args = items(quote! {"*", test1="None", test2}).unwrap();
+        assert!(
+            args == vec![
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote! {test1}, Some("None".to_owned())),
+                Argument::Kwarg(parse_quote! {test2}, None),
             ]
         );
     }
@@ -265,7 +291,7 @@ mod test {
                 Argument::Arg(parse_quote! {test1}, None),
                 Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
                 Argument::VarArgs(parse_quote! {args}),
-                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
+                Argument::Kwarg(parse_quote! {test3}, Some("None".to_owned())),
                 Argument::KeywordArgs(parse_quote! {kwargs}),
             ]
         );

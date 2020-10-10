@@ -570,12 +570,11 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
             pyo3::class::PyMethodDefType::Method({
                 #wrapper
 
-                pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#python_name),
-                    ml_meth: pyo3::class::PyMethodType::PyCFunction(__wrap),
-                    ml_flags: pyo3::ffi::METH_NOARGS,
-                    ml_doc: #doc,
-                }
+                pyo3::class::PyMethodDef::cfunction(
+                    concat!(stringify!(#python_name), "\0"),
+                    __wrap,
+                    #doc
+                )
             })
         }
     } else {
@@ -583,12 +582,12 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
             pyo3::class::PyMethodDefType::Method({
                 #wrapper
 
-                pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#python_name),
-                    ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                    ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                    ml_doc: #doc,
-                }
+                pyo3::class::PyMethodDef::cfunction_with_keywords(
+                    concat!(stringify!(#python_name), "\0"),
+                    __wrap,
+                    0,
+                    #doc
+                )
             })
         }
     }
@@ -601,12 +600,7 @@ pub fn impl_py_method_def_new(spec: &FnSpec, wrapper: &TokenStream) -> TokenStre
         pyo3::class::PyMethodDefType::New({
             #wrapper
 
-            pyo3::class::PyMethodDef {
-                ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyNewFunc(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
+            pyo3::class::PyMethodDef::new_func(concat!(stringify!(#python_name), "\0"), __wrap, #doc)
         })
     }
 }
@@ -618,13 +612,12 @@ pub fn impl_py_method_def_class(spec: &FnSpec, wrapper: &TokenStream) -> TokenSt
         pyo3::class::PyMethodDefType::Class({
             #wrapper
 
-            pyo3::class::PyMethodDef {
-                ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS |
+            pyo3::class::PyMethodDef::cfunction_with_keywords(
+                concat!(stringify!(#python_name), "\0"),
+                __wrap,
                 pyo3::ffi::METH_CLASS,
-                ml_doc: #doc,
-            }
+                #doc
+            )
         })
     }
 }
@@ -636,12 +629,12 @@ pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
         pyo3::class::PyMethodDefType::Static({
             #wrapper
 
-            pyo3::class::PyMethodDef {
-                ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | pyo3::ffi::METH_STATIC,
-                ml_doc: #doc,
-            }
+            pyo3::class::PyMethodDef::cfunction_with_keywords(
+                concat!(stringify!(#python_name), "\0"),
+                __wrap,
+                pyo3::ffi::METH_STATIC,
+                #doc
+            )
         })
     }
 }
@@ -652,10 +645,7 @@ pub fn impl_py_method_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) 
         pyo3::class::PyMethodDefType::ClassAttribute({
             #wrapper
 
-            pyo3::class::PyClassAttributeDef {
-                name: stringify!(#python_name),
-                meth: __wrap,
-            }
+            pyo3::class::PyClassAttributeDef::new(concat!(stringify!(#python_name), "\0"), __wrap)
         })
     }
 }
@@ -666,10 +656,7 @@ pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) ->
         pyo3::class::PyMethodDefType::ClassAttribute({
             #wrapper
 
-            pyo3::class::PyClassAttributeDef {
-                name: stringify!(#python_name),
-                meth: __wrap,
-            }
+            pyo3::class::PyClassAttributeDef::new(concat!(stringify!(#python_name), "\0"), __wrap)
         })
     }
 }
@@ -681,12 +668,12 @@ pub fn impl_py_method_def_call(spec: &FnSpec, wrapper: &TokenStream) -> TokenStr
         pyo3::class::PyMethodDefType::Call({
             #wrapper
 
-            pyo3::class::PyMethodDef {
-                ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
+            pyo3::class::PyMethodDef::cfunction_with_keywords(
+                concat!(stringify!(#python_name), "\0"),
+                __wrap,
+                pyo3::ffi::METH_STATIC,
+                #doc
+            )
         })
     }
 }
@@ -700,11 +687,7 @@ pub(crate) fn impl_py_setter_def(
         pyo3::class::PyMethodDefType::Setter({
             #wrapper
 
-            pyo3::class::PySetterDef {
-                name: stringify!(#python_name),
-                meth: __wrap,
-                doc: #doc,
-            }
+            pyo3::class::PySetterDef::new(concat!(stringify!(#python_name), "\0"), __wrap, #doc)
         })
     }
 }
@@ -718,11 +701,7 @@ pub(crate) fn impl_py_getter_def(
         pyo3::class::PyMethodDefType::Getter({
             #wrapper
 
-            pyo3::class::PyGetterDef {
-                name: stringify!(#python_name),
-                meth: __wrap,
-                doc: #doc,
-            }
+            pyo3::class::PyGetterDef::new(concat!(stringify!(#python_name), "\0"), __wrap, #doc)
         })
     }
 }
