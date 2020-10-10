@@ -48,7 +48,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.12.1"
+version = "0.12.2"
 features = ["extension-module"]
 ```
 
@@ -99,7 +99,7 @@ use it to run Python code, add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
-pyo3 = "0.12.1"
+pyo3 = "0.12.2"
 ```
 
 Example program displaying the value of `sys.version` and the current user name:
