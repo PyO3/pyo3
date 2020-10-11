@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Added
+- Add support for building for CPython limited API. This required a few minor changes to runtime behaviour of of pyo3 `#[pyclass]` types. See the migration guide for full details. [#1152](https://github.com/PyO3/pyo3/pull/1152)
+
+### Changed
+- Change return type `PyType::name()` from `Cow<str>` to `PyResult<&str>`. [#1152](https://github.com/PyO3/pyo3/pull/1152)
+- `#[pyclass(subclass)]` is now required for subclassing from Rust (was previously just required for subclassing from Python). [#1152](https://github.com/PyO3/pyo3/pull/1152)
+
+## [Unreleased]
+### Added
 - Add support for keyword-only arguments without default values in `#[pyfunction]`. [#1209](https://github.com/PyO3/pyo3/pull/1209)
 - Add a wrapper for `PyErr_CheckSignals()` as `Python::check_signals()`. [#1214](https://github.com/PyO3/pyo3/pull/1214)
 

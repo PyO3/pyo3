@@ -258,7 +258,7 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // except for that it does and we have tests.
 
     // Running this causes PyPy to segfault.
-    #[cfg(not(PyPy))]
+    #[cfg(all(not(PyPy), not(Py_3_10)))]
     if T::DESCRIPTION != "\0" {
         unsafe {
             // Until CPython 3.10, tp_doc was treated specially for heap-types,
