@@ -49,7 +49,7 @@ Here are a few things to note when you are writing PRs.
 
 The PyO3 repo uses Github Actions. PRs are blocked from merging if CI is not successful.
 
-Formatting, linting and tests are checked for all Rust and Python code. Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.8 with the minimum supported Rust version.
+Formatting, linting and tests are checked for all Rust and Python code. Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 ### Minimum supported Rust version
 
