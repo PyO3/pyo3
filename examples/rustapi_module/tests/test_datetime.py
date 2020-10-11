@@ -328,5 +328,5 @@ def test_tz_class_introspection():
     tzi = rdt.TzClass()
 
     assert tzi.__class__ == rdt.TzClass
-    # PyPy generate <importlib.bootstrap.TzClass ...> for some reason.
+    # PyPy generates <importlib.bootstrap.TzClass ...> for some reason.
     assert re.match(r"^<[\w\.]*TzClass object at", repr(tzi))

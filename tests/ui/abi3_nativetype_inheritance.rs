@@ -1,4 +1,4 @@
-//! With abi3, we cannot inherite native types.
+//! With abi3, we cannot inherit native types.
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 

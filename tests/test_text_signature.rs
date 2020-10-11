@@ -32,7 +32,7 @@ fn class_with_docs() {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn class_with_docs_and_signature() {
     /// docs line1
     #[pyclass]
@@ -68,7 +68,7 @@ fn class_with_docs_and_signature() {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn class_with_signature() {
     #[pyclass]
     #[text_signature = "(a, b=None, *, c=42)"]
