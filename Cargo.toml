@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.12.2"
+version = "0.12.3"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -23,7 +23,7 @@ parking_lot = "0.11.0"
 num-bigint = { version = "0.3", optional = true }
 num-complex = { version = "0.3", optional = true }
 paste = { version = "0.1.6", optional = true }
-pyo3cls = { path = "pyo3cls", version = "=0.12.2", optional = true }
+pyo3cls = { path = "pyo3cls", version = "=0.12.3", optional = true }
 unindent = { version = "0.1.4", optional = true }
 hashbrown = { version = "0.9", optional = true }
 
