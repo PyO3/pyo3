@@ -45,7 +45,7 @@ jobs:
       fail-fast: false  # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.5, 3.6, 3.7, 3.8, 3.9-dev, pypy3]
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9, pypy3]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
@@ -59,7 +59,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: 1.39.0
-            python-version: 3.8
+            python-version: 3.9
             platform: { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" }
             msrv: "MSRV"
 
@@ -78,30 +78,29 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.platform.rust-target }}
           profile: minimal
+          default: true
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
-        run: echo ::set-env name=LD_LIBRARY_PATH::${pythonLocation}/lib
-
-      - run: rustup set default-host ${{ matrix.platform.rust-target }}
+        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
       - name: Build without default features
-        run: cargo build --no-default-features --verbose
+        run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 
       - name: Build with default features
-        run: cargo build --features "num-bigint num-complex" --verbose
+        run: cargo build --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy3'
         name: Test
-        run: cargo test --features "num-bigint num-complex"
+        run: cargo test --features "num-bigint num-complex" --target ${{ matrix.platform.rust-target }}
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy3'
-        name: Test
-        run: cargo test --no-default-features --features "abi3,macros"
+        name: Test (abi3)
+        run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml
+        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
 
       - name: Install python test dependencies
         run: |
