@@ -96,9 +96,6 @@ extern "C" {
         index: Py_ssize_t,
         character: Py_UCS4,
     ) -> c_int;
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_GetMax")]
-    pub fn PyUnicode_GetMax() -> Py_UNICODE;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Resize")]
     pub fn PyUnicode_Resize(unicode: *mut *mut PyObject, length: Py_ssize_t) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromEncodedObject")]
@@ -462,6 +459,4 @@ extern "C" {
     pub fn PyUnicode_Format(format: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
     pub fn PyUnicode_Contains(container: *mut PyObject, element: *mut PyObject) -> c_int;
     pub fn PyUnicode_IsIdentifier(s: *mut PyObject) -> c_int;
-    #[cfg(not(Py_LIMITED_API))]
-    pub fn PyUnicode_AsUnicodeCopy(unicode: *mut PyObject) -> *mut Py_UNICODE;
 }

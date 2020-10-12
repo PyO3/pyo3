@@ -71,26 +71,6 @@ extern "C" {
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject, v: *mut PyObject) -> c_int;
     pub fn PyObject_DelItemString(o: *mut PyObject, key: *const c_char) -> c_int;
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_AsCharBuffer")]
-    pub fn PyObject_AsCharBuffer(
-        obj: *mut PyObject,
-        buffer: *mut *const c_char,
-        buffer_len: *mut Py_ssize_t,
-    ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CheckReadBuffer")]
-    pub fn PyObject_CheckReadBuffer(obj: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_AsReadBuffer")]
-    pub fn PyObject_AsReadBuffer(
-        obj: *mut PyObject,
-        buffer: *mut *const c_void,
-        buffer_len: *mut Py_ssize_t,
-    ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_AsWriteBuffer")]
-    pub fn PyObject_AsWriteBuffer(
-        obj: *mut PyObject,
-        buffer: *mut *mut c_void,
-        buffer_len: *mut Py_ssize_t,
-    ) -> c_int;
 }
 
 #[cfg(not(Py_LIMITED_API))]
