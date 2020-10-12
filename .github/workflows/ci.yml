@@ -81,7 +81,7 @@ jobs:
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
-        run: echo ::set-env name=LD_LIBRARY_PATH::${pythonLocation}/lib
+        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib > $GITHUB_ENV
 
       - run: rustup set default-host ${{ matrix.platform.rust-target }}
 
