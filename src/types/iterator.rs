@@ -96,8 +96,7 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    use crate::Python;
-    use crate::ToPyObject;
+    use crate::{Python, Py, PyAny, ToPyObject, PyTryFrom};
     use indoc::indoc;
 
     #[test]
@@ -198,5 +197,14 @@ mod tests {
         let err = PyIterator::from_object(py, &x).unwrap_err();
 
         assert!(err.is_instance::<PyTypeError>(py))
+    }
+
+    #[test]
+    fn iterator_try_from() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+        let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
+        let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(obj, iter.into());
     }
 }

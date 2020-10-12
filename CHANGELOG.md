@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Change `PyIterator` to be consistent with other native types: it is now used as `&PyIterator` instead of `PyIterator<'a>`. [#1176](https://github.com/PyO3/pyo3/pull/1176)
+
 ### Removed
 - Remove unused `python3` feature. [#1209](https://github.com/PyO3/pyo3/pull/1209)
 
