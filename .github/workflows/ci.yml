@@ -78,26 +78,25 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.platform.rust-target }}
           profile: minimal
+          default: true
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
-        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib > $GITHUB_ENV
-
-      - run: rustup set default-host ${{ matrix.platform.rust-target }}
+        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
       - name: Build without default features
-        run: cargo build --no-default-features --verbose
+        run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 
       - name: Build with default features
-        run: cargo build --features "num-bigint num-complex" --verbose
+        run: cargo build --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy3'
         name: Test
-        run: cargo test --features "num-bigint num-complex"
+        run: cargo test --features "num-bigint num-complex" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml
+        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
 
       - name: Install python test dependencies
         run: |
