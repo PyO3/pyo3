@@ -96,7 +96,7 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    use crate::{Python, Py, PyAny, ToPyObject, PyTryFrom};
+    use crate::{Py, PyAny, PyTryFrom, Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
