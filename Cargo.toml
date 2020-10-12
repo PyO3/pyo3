@@ -35,7 +35,8 @@ rustversion = "1.0"
 [features]
 default = ["macros"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
-# Use only limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
+# Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for
+# more.
 abi3 = []
 
 # Optimizes PyObject to Vec conversion and so on.
