@@ -259,16 +259,18 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 
     // Running this causes PyPy to segfault.
     #[cfg(all(not(PyPy), not(Py_3_10)))]
-    if T::DESCRIPTION != "\0" {
-        unsafe {
-            // Until CPython 3.10, tp_doc was treated specially for heap-types,
-            // and it removed the text_signature value from it. We go in after
-            // the fact and replace tp_doc with something that _does_ include
-            // the text_signature value!
-            ffi::PyObject_Free((*type_object).tp_doc as _);
-            let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
-            data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
-            (*type_object).tp_doc = data as _;
+    {
+        if T::DESCRIPTION != "\0" {
+            unsafe {
+                // Until CPython 3.10, tp_doc was treated specially for
+                // heap-types, and it removed the text_signature value from it.
+                // We go in after the fact and replace tp_doc with something
+                // that _does_ include the text_signature value!
+                ffi::PyObject_Free((*type_object).tp_doc as _);
+                let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
+                data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
+                (*type_object).tp_doc = data as _;
+            }
         }
     }
 
