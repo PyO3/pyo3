@@ -5,7 +5,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.3] - 2020-10-12
 ### Fixed
 - Fix support for Rust versions 1.39 to 1.44, broken by an incorrect internal update to paste 1.0 which was done in PyO3 0.12.2. [#1234](https://github.com/PyO3/pyo3/pull/1234)
 
@@ -515,7 +515,8 @@ Yanked
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.3...HEAD
+[0.12.3]: https://github.com/pyo3/pyo3/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/pyo3/pyo3/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/pyo3/pyo3/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/pyo3/pyo3/compare/v0.11.1...v0.12.0
