@@ -49,7 +49,7 @@ Here are a few things to note when you are writing PRs.
 
 The PyO3 repo uses Github Actions. PRs are blocked from merging if CI is not successful.
 
-Formatting, linting and tests are checked for all Rust and Python code. Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.8 with the minimum supported Rust version.
+Formatting, linting and tests are checked for all Rust and Python code. Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 ### Minimum supported Rust version
 
@@ -60,3 +60,13 @@ However, there will always be support for at least the last few Rust compiler ve
 If your PR needs to bump the minimum supported Rust version, this is acceptable with the following conditions:
 - Any changes which require a more recent version than what is [currently available on stable Red Hat Enterprise Linux](https://access.redhat.com/documentation/en-us/red_hat_developer_tools/1/) will be postponed. (This is to allow package managers to update support for newer `rustc` versions; RHEL was arbitrarily picked because their update policy is clear.)
 - You might be asked to do extra work to tidy up other parts of the PyO3 codebase which can use the compiler version bump :)
+
+## Benchmarking
+
+PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please feel welcome to open PRs with new benchmarks if you're interested in helping to expand it!
+
+First, there are Rust-based benchmarks located in the `benches` subdirectory. As long as you have a nightly rust compiler available on your system, you can run these benchmarks with:
+
+    cargo +nightly bench
+
+Second, there is a Python-based benchmark contained in the `word-count` example. You can read more about it [here](examples/word-count#benchmark).

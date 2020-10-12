@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Fix support for Rust versions 1.39 to 1.44, broken by an incorrect internal update to paste 1.0 which was done in PyO3 0.12.2. [#1234](https://github.com/PyO3/pyo3/pull/1234)
+
+## [0.12.2] - 2020-10-12
 ### Added
 - Add support for building for CPython limited API. This required a few minor changes to runtime behaviour of of pyo3 `#[pyclass]` types. See the migration guide for full details. [#1152](https://github.com/PyO3/pyo3/pull/1152)
 
@@ -16,13 +20,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Added
 - Add support for keyword-only arguments without default values in `#[pyfunction]`. [#1209](https://github.com/PyO3/pyo3/pull/1209)
-- Add a wrapper for `PyErr_CheckSignals()` as `Python::check_signals()`. [#1214](https://github.com/PyO3/pyo3/pull/1214)
-
-### Changed
-- Fields of `PyMethodDef`, `PyGetterDef`, `PySetterDef`, and `PyClassAttributeDef` are now private. [#1169](https://github.com/PyO3/pyo3/pull/1169)
+- Add `Python::check_signals()` as a safe a wrapper for `PyErr_CheckSignals()`. [#1214](https://github.com/PyO3/pyo3/pull/1214)
 
 ### Fixed
 - Fix invalid document for protocol methods. [#1169](https://github.com/PyO3/pyo3/pull/1169)
+- Hide docs of PyO3 private implementation details in `pyo3::class::methods`. [#1169](https://github.com/PyO3/pyo3/pull/1169)
+- Fix unnecessary rebuild on PATH changes when the python interpreter is provided by PYO3_PYTHON. [#1231](https://github.com/PyO3/pyo3/pull/1231)
 
 ## [0.12.1] - 2020-09-16
 ### Fixed
@@ -520,7 +523,8 @@ Yanked
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.2...HEAD
+[0.12.2]: https://github.com/pyo3/pyo3/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/pyo3/pyo3/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/pyo3/pyo3/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/pyo3/pyo3/compare/v0.11.0...v0.11.1

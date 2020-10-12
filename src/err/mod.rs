@@ -40,7 +40,7 @@ unsafe impl Sync for PyErr {}
 /// Represents the result of a Python call.
 pub type PyResult<T> = Result<T, PyErr>;
 
-/// Marker type that indicates an error while downcasting
+/// Error that indicates a failure to convert a PyAny to a more specific Python type.
 #[derive(Debug)]
 pub struct PyDowncastError<'a> {
     from: &'a PyAny,

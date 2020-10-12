@@ -52,7 +52,7 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-//! version = "0.12.1"
+//! version = "0.12.2"
 //! features = ["extension-module"]
 //! ```
 //!
@@ -109,7 +109,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pyo3 = "0.12.1"
+//! pyo3 = "0.12.2"
 //! ```
 //!
 //! Example program displaying the value of `sys.version`:
