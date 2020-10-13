@@ -604,7 +604,7 @@ mod return_not_implemented {
             c2,
             &format!("class Other: pass\nc2 {} Other()", operator),
             PyTypeError
-        )
+        );
     }
 
     fn _test_inplace_binary_operator(operator: &str, dunder: &str) {
