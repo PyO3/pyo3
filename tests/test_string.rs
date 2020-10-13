@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::py_run;
 use pyo3::wrap_pyfunction;
 
 mod common;
@@ -15,15 +14,11 @@ fn test_unicode_encode_error() {
     let py = gil.python();
 
     let take_str = wrap_pyfunction!(take_str)(py).unwrap();
-    py_run!(
+    py_expect_exception!(
         py,
         take_str,
-        r#"
-        try:
-            take_str('\ud800')
-        except UnicodeEncodeError as e:
-            error_msg = "'utf-8' codec can't encode character '\\ud800' in position 0: surrogates not allowed"
-            assert str(e) == error_msg
-        "#
+        "take_str('\\ud800')",
+        PyUnicodeEncodeError,
+        "'utf-8' codec can't encode character '\\ud800' in position 0: surrogates not allowed"
     );
 }

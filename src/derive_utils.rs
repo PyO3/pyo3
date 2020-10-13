@@ -8,7 +8,7 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::instance::PyNativeType;
 use crate::pyclass::{PyClass, PyClassThreadChecker};
-use crate::types::{PyAny, PyDict, PyModule, PyTuple};
+use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyCell, Python};
 use std::cell::UnsafeCell;
 
@@ -109,6 +109,19 @@ pub fn parse_fn_args<'p>(
         kwargs
     };
     Ok((args, kwargs))
+}
+
+/// Add the argument name to the error message of an error which occurred during argument extraction
+pub fn argument_extraction_error(py: Python, arg_name: &str, error: PyErr) -> PyErr {
+    if error.ptype(py) == py.get_type::<PyTypeError>() {
+        let reason = error
+            .instance(py)
+            .str()
+            .unwrap_or_else(|_| PyString::new(py, ""));
+        PyTypeError::new_err(format!("argument '{}': {}", arg_name, reason))
+    } else {
+        error
+    }
 }
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
