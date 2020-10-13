@@ -296,6 +296,6 @@ fn test_err_rename() {
     assert!(f.is_err());
     assert_eq!(
         f.unwrap_err().to_string(),
-        "TypeError: Can't convert {} (dict) to Union[str, uint, int]"
+        "TypeError: 'dict' object cannot be converted to 'Union[str, uint, int]'"
     );
 }

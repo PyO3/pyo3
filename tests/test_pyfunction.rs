@@ -139,14 +139,14 @@ fn test_conversion_error() {
         conversion_error,
         "conversion_error(None, None, None, None)",
         PyTypeError,
-        "argument 'str_arg': Can't convert None to PyString"
+        "argument 'str_arg': 'NoneType' object cannot be converted to 'PyString'"
     );
     py_expect_exception!(
         py,
         conversion_error,
         "conversion_error(100, None, None, None)",
         PyTypeError,
-        "argument 'str_arg': Can't convert 100 to PyString"
+        "argument 'str_arg': 'int' object cannot be converted to 'PyString'"
     );
     py_expect_exception!(
         py,
@@ -160,7 +160,7 @@ fn test_conversion_error() {
         conversion_error,
         "conversion_error('string1', -100, 'string2', None)",
         PyTypeError,
-        "argument 'tuple_arg': Can't convert 'string2' to PyTuple"
+        "argument 'tuple_arg': 'str' object cannot be converted to 'PyTuple'"
     );
     py_expect_exception!(
         py,
