@@ -133,94 +133,109 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-/// All FFI functions for basic protocols.
-#[derive(Default)]
-pub struct PyObjectMethods {
-    pub tp_str: Option<ffi::reprfunc>,
-    pub tp_repr: Option<ffi::reprfunc>,
-    pub tp_hash: Option<ffi::hashfunc>,
-    pub tp_getattro: Option<ffi::getattrofunc>,
-    pub tp_richcompare: Option<ffi::richcmpfunc>,
-    pub tp_setattro: Option<ffi::setattrofunc>,
-    pub nb_bool: Option<ffi::inquiry>,
-}
-
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl PyObjectMethods {
-    // Set functions used by `#[pyproto]`.
-    pub fn set_str<T>(&mut self)
+pub trait PyBasicSlots {
+    fn get_str() -> ffi::PyType_Slot
     where
-        T: for<'p> PyObjectStrProtocol<'p>,
+        Self: for<'p> PyObjectStrProtocol<'p>,
     {
-        self.tp_str = py_unary_func!(PyObjectStrProtocol, T::__str__);
-    }
-    pub fn set_repr<T>(&mut self)
-    where
-        T: for<'p> PyObjectReprProtocol<'p>,
-    {
-        self.tp_repr = py_unary_func!(PyObjectReprProtocol, T::__repr__);
-    }
-    pub fn set_hash<T>(&mut self)
-    where
-        T: for<'p> PyObjectHashProtocol<'p>,
-    {
-        self.tp_hash = py_unary_func!(PyObjectHashProtocol, T::__hash__, ffi::Py_hash_t);
-    }
-    pub fn set_getattr<T>(&mut self)
-    where
-        T: for<'p> PyObjectGetAttrProtocol<'p>,
-    {
-        self.tp_getattro = tp_getattro::<T>();
-    }
-    pub fn set_richcompare<T>(&mut self)
-    where
-        T: for<'p> PyObjectRichcmpProtocol<'p>,
-    {
-        self.tp_richcompare = tp_richcompare::<T>();
-    }
-    pub fn set_setattr<T>(&mut self)
-    where
-        T: for<'p> PyObjectSetAttrProtocol<'p>,
-    {
-        self.tp_setattro = py_func_set!(PyObjectSetAttrProtocol, T, __setattr__);
-    }
-    pub fn set_delattr<T>(&mut self)
-    where
-        T: for<'p> PyObjectDelAttrProtocol<'p>,
-    {
-        self.tp_setattro = py_func_del!(PyObjectDelAttrProtocol, T, __delattr__);
-    }
-    pub fn set_setdelattr<T>(&mut self)
-    where
-        T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
-    {
-        self.tp_setattro = py_func_set_del!(
-            PyObjectSetAttrProtocol,
-            PyObjectDelAttrProtocol,
-            T,
-            __setattr__,
-            __delattr__
-        )
-    }
-    pub fn set_bool<T>(&mut self)
-    where
-        T: for<'p> PyObjectBoolProtocol<'p>,
-    {
-        self.nb_bool = py_unary_func!(PyObjectBoolProtocol, T::__bool__, c_int);
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_str,
+            pfunc: py_unary_func!(PyObjectStrProtocol, Self::__str__) as _,
+        }
     }
 
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_tp_str, self.tp_str.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_repr, self.tp_repr.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_hash, self.tp_hash.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_getattro, self.tp_getattro.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_richcompare, self.tp_richcompare.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_setattro, self.tp_setattro.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_bool, self.nb_bool.map(|v| v as _));
+    fn get_repr() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectReprProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_repr,
+            pfunc: py_unary_func!(PyObjectReprProtocol, Self::__repr__) as _,
+        }
+    }
+
+    fn get_hash() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectHashProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_hash,
+            pfunc: py_unary_func!(PyObjectHashProtocol, Self::__hash__, ffi::Py_hash_t) as _,
+        }
+    }
+
+    fn get_getattr() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectGetAttrProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_getattro,
+            pfunc: tp_getattro::<Self>() as _,
+        }
+    }
+
+    fn get_richcompare() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectRichcmpProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_getattro,
+            pfunc: tp_richcompare::<Self>() as _,
+        }
+    }
+
+    fn get_setattr() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectSetAttrProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_setattro,
+            pfunc: py_func_set!(PyObjectSetAttrProtocol, Self::__setattr__) as _,
+        }
+    }
+
+    fn get_delattr() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_setattro,
+            pfunc: py_func_del!(PyObjectDelAttrProtocol, Self::__delattr__) as _,
+        }
+    }
+
+    fn get_setdelattr() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_setattro,
+            pfunc: py_func_set_del!(
+                PyObjectSetAttrProtocol,
+                PyObjectDelAttrProtocol,
+                Self,
+                __setattr__,
+                __delattr__
+            ) as _,
+        }
+    }
+
+    fn get_bool() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyObjectBoolProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_nb_bool,
+            pfunc: py_unary_func!(PyObjectBoolProtocol, Self::__bool__, c_int) as _,
+        }
     }
 }
 
-fn tp_getattro<T>() -> Option<ffi::binaryfunc>
+impl<'p, T> PyBasicSlots for T where T: PyObjectProtocol<'p> {}
+
+fn tp_getattro<T>() -> ffi::binaryfunc
 where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
@@ -247,10 +262,10 @@ where
             call_ref!(slf, __getattr__, arg).convert(py)
         })
     }
-    Some(wrap::<T>)
+    wrap::<T>
 }
 
-fn tp_richcompare<T>() -> Option<ffi::richcmpfunc>
+fn tp_richcompare<T>() -> ffi::richcmpfunc
 where
     T: for<'p> PyObjectRichcmpProtocol<'p>,
 {
@@ -283,5 +298,5 @@ where
             slf.try_borrow()?.__richcmp__(arg, op).convert(py)
         })
     }
-    Some(wrap::<T>)
+    wrap::<T>
 }

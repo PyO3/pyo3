@@ -147,8 +147,8 @@ impl TypeSlots {
         self.0.push(ffi::PyType_Slot { slot, pfunc });
     }
     pub(crate) fn maybe_push(&mut self, slot: c_int, value: Option<*mut c_void>) {
-        if let Some(v) = value {
-            self.push(slot, v);
+        if let Some(pfunc) = value {
+            self.push(slot, pfunc);
         }
     }
 }
@@ -189,6 +189,7 @@ where
     let (new, call, methods) = py_class_method_defs::<T>();
     slots.maybe_push(ffi::Py_tp_new, new.map(|v| v as _));
     slots.maybe_push(ffi::Py_tp_call, call.map(|v| v as _));
+
     // normal methods
     if !methods.is_empty() {
         slots.push(ffi::Py_tp_methods, into_raw(methods));
@@ -200,37 +201,12 @@ where
         slots.push(ffi::Py_tp_getset, into_raw(props));
     }
 
-    // basic methods
-    if let Some(basic) = T::basic_methods() {
-        unsafe { basic.as_ref() }.update_slots(&mut slots);
-    }
-    // number methods
-    if let Some(number) = T::number_methods() {
-        unsafe { number.as_ref() }.update_slots(&mut slots);
-    }
-    // iterator methods
-    if let Some(iter) = T::iter_methods() {
-        unsafe { iter.as_ref() }.update_slots(&mut slots);
-    }
-    // mapping methods
-    if let Some(mapping) = T::mapping_methods() {
-        unsafe { mapping.as_ref() }.update_slots(&mut slots);
-    }
-    // sequence methods
-    if let Some(sequence) = T::sequence_methods() {
-        unsafe { sequence.as_ref() }.update_slots(&mut slots);
-    }
-    // descriptor protocol
-    if let Some(descr) = T::descr_methods() {
-        unsafe { descr.as_ref() }.update_slots(&mut slots);
-    }
-    // async methods
-    if let Some(asnc) = T::async_methods() {
-        unsafe { asnc.as_ref() }.update_slots(&mut slots);
-    }
-    // gc methods
-    if let Some(gc) = T::gc_methods() {
-        unsafe { gc.as_ref() }.update_slots(&mut slots);
+    // protocol methods
+    let mut has_gc_methods = false;
+    for slot in T::get_type_slots() {
+        has_gc_methods |= slot.slot == ffi::Py_tp_clear;
+        has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
+        slots.0.push(slot);
     }
 
     slots.push(0, ptr::null_mut());
@@ -238,7 +214,7 @@ where
         name: get_type_name::<T>(module_name)?,
         basicsize: std::mem::size_of::<T::Layout>() as c_int,
         itemsize: 0,
-        flags: py_class_flags::<T>(),
+        flags: py_class_flags::<T>(has_gc_methods),
         slots: slots.0.as_mut_slice().as_mut_ptr(),
     };
 
@@ -274,10 +250,10 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
         }
     }
 
-    if let Some(buffer) = T::buffer_methods() {
+    if let Some(buffer) = T::get_buffer() {
         unsafe {
-            (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.as_ref().bf_getbuffer;
-            (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.as_ref().bf_releasebuffer;
+            (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
+            (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
         }
     }
     // __dict__ support
@@ -297,8 +273,8 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 #[cfg(Py_LIMITED_API)]
 fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
-fn py_class_flags<T: PyClass + PyTypeInfo>() -> c_uint {
-    let mut flags = if T::gc_methods().is_some() || T::FLAGS & type_flags::GC != 0 {
+fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
+    let mut flags = if has_gc_methods || T::FLAGS & type_flags::GC != 0 {
         ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
     } else {
         ffi::Py_TPFLAGS_DEFAULT

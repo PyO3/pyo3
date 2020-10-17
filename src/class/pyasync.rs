@@ -96,34 +96,43 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl PyAsyncMethods {
-    pub fn set_await<T>(&mut self)
+pub trait PyAsyncSlots {
+    fn get_await() -> ffi::PyType_Slot
     where
-        T: for<'p> PyAsyncAwaitProtocol<'p>,
+        Self: for<'p> PyAsyncAwaitProtocol<'p>,
     {
-        self.am_await = py_unarys_func!(PyAsyncAwaitProtocol, T::__await__);
-    }
-    pub fn set_aiter<T>(&mut self)
-    where
-        T: for<'p> PyAsyncAiterProtocol<'p>,
-    {
-        self.am_aiter = py_unarys_func!(PyAsyncAiterProtocol, T::__aiter__);
-    }
-    pub fn set_anext<T>(&mut self)
-    where
-        T: for<'p> PyAsyncAnextProtocol<'p>,
-    {
-        self.am_anext = am_anext::<T>();
+        ffi::PyType_Slot {
+            slot: ffi::Py_am_await,
+            pfunc: py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__) as _,
+        }
     }
 
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_am_await, self.am_await.map(|v| v as _));
-        slots.maybe_push(ffi::Py_am_aiter, self.am_aiter.map(|v| v as _));
-        slots.maybe_push(ffi::Py_am_anext, self.am_anext.map(|v| v as _));
+    fn get_aiter() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyAsyncAiterProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_am_await,
+            pfunc: py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__) as _,
+        }
+    }
+
+    fn get_anext() -> ffi::PyType_Slot
+    where
+        Self: for<'p> PyAsyncAnextProtocol<'p>,
+    {
+        ffi::PyType_Slot {
+            slot: ffi::Py_am_anext,
+            pfunc: py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__) as _,
+        }
     }
 }
 
+impl<'p, T> PyAsyncSlots for T where T: PyAsyncProtocol<'p> {}
+
+/// Output of `__anext__`.
 pub enum IterANextOutput<T, U> {
     Yield(T),
     Return(U),
@@ -165,12 +174,4 @@ where
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }
-}
-
-#[inline]
-fn am_anext<T>() -> Option<ffi::unaryfunc>
-where
-    T: for<'p> PyAsyncAnextProtocol<'p>,
-{
-    py_unarys_func!(PyAsyncAnextProtocol, T::__anext__)
 }

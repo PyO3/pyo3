@@ -18,34 +18,30 @@ pub trait PyGCProtocol<'p>: PyClass {
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
 pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
-/// All FFI functions for gc protocols.
-#[derive(Default)]
-pub struct PyGCMethods {
-    pub tp_traverse: Option<ffi::traverseproc>,
-    pub tp_clear: Option<ffi::inquiry>,
-}
-
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl PyGCMethods {
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_tp_traverse, self.tp_traverse.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_clear, self.tp_clear.map(|v| v as _));
-    }
-
-    pub fn set_traverse<T>(&mut self)
+pub trait PyGCSlots {
+    fn get_traverse() -> ffi::PyType_Slot
     where
-        T: for<'p> PyGCTraverseProtocol<'p>,
+        Self: for<'p> PyGCTraverseProtocol<'p>,
     {
-        self.tp_traverse = tp_traverse::<T>();
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_traverse,
+            pfunc: tp_traverse::<Self>() as _,
+        }
     }
-
-    pub fn set_clear<T>(&mut self)
+    fn get_clear() -> ffi::PyType_Slot
     where
-        T: for<'p> PyGCClearProtocol<'p>,
+        Self: for<'p> PyGCClearProtocol<'p>,
     {
-        self.tp_clear = tp_clear::<T>();
+        ffi::PyType_Slot {
+            slot: ffi::Py_tp_clear,
+            pfunc: tp_clear::<Self>() as _,
+        }
     }
 }
+
+impl<'p, T> PyGCSlots for T where T: PyGCProtocol<'p> {}
 
 /// Object visitor for GC.
 #[derive(Clone)]
@@ -73,7 +69,7 @@ impl<'p> PyVisit<'p> {
     }
 }
 
-fn tp_traverse<T>() -> Option<ffi::traverseproc>
+fn tp_traverse<T>() -> ffi::traverseproc
 where
     T: for<'p> PyGCTraverseProtocol<'p>,
 {
@@ -105,10 +101,10 @@ where
         }
     }
 
-    Some(tp_traverse::<T>)
+    tp_traverse::<T>
 }
 
-fn tp_clear<T>() -> Option<ffi::inquiry>
+fn tp_clear<T>() -> ffi::inquiry
 where
     T: for<'p> PyGCClearProtocol<'p>,
 {
@@ -123,5 +119,5 @@ where
         slf.borrow_mut().__clear__();
         0
     }
-    Some(tp_clear::<T>)
+    tp_clear::<T>
 }
