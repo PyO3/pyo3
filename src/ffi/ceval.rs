@@ -49,11 +49,6 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    static mut _Py_CheckRecursionLimit: c_int;
-}
-
 // TODO: Py_EnterRecursiveCall etc.
 #[cfg(Py_3_6)]
 pub type _PyFrameEvalFunction =

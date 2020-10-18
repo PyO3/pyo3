@@ -20,5 +20,7 @@ lint: fmt clippy
 
 publish: test
 	cargo publish --manifest-path pyo3-derive-backend/Cargo.toml
+	sleep 10  # wait for crates.io to update
 	cargo publish --manifest-path pyo3cls/Cargo.toml
+	sleep 10  # wait for crates.io to update
 	cargo publish
