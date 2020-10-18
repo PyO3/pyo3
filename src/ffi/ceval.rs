@@ -1,4 +1,3 @@
-#[cfg(Py_3_6)]
 use crate::ffi::code::FreeFunc;
 use crate::ffi::object::PyObject;
 use crate::ffi::pystate::PyThreadState;
@@ -49,8 +48,7 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-// TODO: Py_EnterRecursiveCall etc.
-#[cfg(Py_3_6)]
+// TODO: Py_EnterRecursiveCall etc
 pub type _PyFrameEvalFunction =
     extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
 
@@ -59,12 +57,10 @@ extern "C" {
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalFrame(arg1: *mut crate::ffi::PyFrameObject) -> *mut PyObject;
-    #[cfg(Py_3_6)]
     pub fn _PyEval_EvalFrameDefault(
         arg1: *mut crate::ffi::PyFrameObject,
         exc: c_int,
     ) -> *mut PyObject;
-    #[cfg(Py_3_6)]
     pub fn _PyEval_RequestCodeExtraIndex(func: FreeFunc) -> c_int;
     pub fn PyEval_EvalFrameEx(f: *mut crate::ffi::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]

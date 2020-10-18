@@ -6,7 +6,6 @@ extern "C" {
     pub fn Py_Initialize();
     pub fn Py_InitializeEx(arg1: c_int);
     pub fn Py_Finalize();
-    #[cfg(Py_3_6)]
     pub fn Py_FinalizeEx() -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPy_IsInitialized")]

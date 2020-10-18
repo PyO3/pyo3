@@ -30,7 +30,6 @@ pub struct PyDictKeysObject {
 pub struct PyDictObject {
     pub ob_base: PyObject,
     pub ma_used: Py_ssize_t,
-    #[cfg(Py_3_6)]
     pub ma_version_tag: u64,
     pub ma_keys: *mut PyDictKeysObject,
     pub ma_values: *mut *mut PyObject,

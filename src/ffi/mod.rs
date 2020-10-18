@@ -34,7 +34,6 @@ pub use self::moduleobject::*;
 pub use self::object::*;
 pub use self::objectabstract::*;
 pub use self::objimpl::*;
-#[cfg(Py_3_6)]
 pub use self::osmodule::*;
 pub use self::pyarena::*;
 pub use self::pycapsule::*;
@@ -124,7 +123,6 @@ mod pythonrun; // TODO some functions need to be moved to pylifecycle
 mod ceval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod import;
 mod intrcheck; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-#[cfg(Py_3_6)]
 mod osmodule;
 mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 

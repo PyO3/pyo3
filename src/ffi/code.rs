@@ -14,7 +14,6 @@ pub struct PyCodeObject {
     pub co_nlocals: c_int,
     pub co_stacksize: c_int,
     pub co_flags: c_int,
-    #[cfg(Py_3_6)]
     pub co_firstlineno: c_int,
     pub co_code: *mut PyObject,
     pub co_consts: *mut PyObject,
@@ -25,12 +24,9 @@ pub struct PyCodeObject {
     pub co_cell2arg: *mut c_uchar,
     pub co_filename: *mut PyObject,
     pub co_name: *mut PyObject,
-    #[cfg(not(Py_3_6))]
-    pub co_firstlineno: c_int,
     pub co_lnotab: *mut PyObject,
     pub co_zombieframe: *mut c_void,
     pub co_weakreflist: *mut PyObject,
-    #[cfg(Py_3_6)]
     pub co_extra: *mut c_void,
     #[cfg(Py_3_8)]
     pub co_opcache_map: *mut c_uchar,
@@ -70,8 +66,6 @@ pub const CO_FUTURE_BARRY_AS_BDFL: c_int = 0x4_0000;
 pub const CO_FUTURE_GENERATOR_STOP: c_int = 0x8_0000;
 
 pub const CO_MAXBLOCKS: usize = 20;
-
-#[cfg(Py_3_6)]
 pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -80,13 +74,11 @@ extern "C" {
 }
 
 extern "C" {
-    #[cfg(Py_3_6)]
     pub fn _PyCode_GetExtra(
         code: *mut PyObject,
         index: Py_ssize_t,
         extra: *const *mut c_void,
     ) -> c_int;
-    #[cfg(Py_3_6)]
     pub fn _PyCode_SetExtra(code: *mut PyObject, index: Py_ssize_t, extra: *mut c_void) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyCode_New")]

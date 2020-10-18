@@ -308,7 +308,6 @@ impl_native_exception!(
 impl_native_exception!(PyOSError, OSError, PyExc_OSError, ffi::PyOSErrorObject);
 impl_native_exception!(PyImportError, ImportError, PyExc_ImportError);
 
-#[cfg(Py_3_6)]
 impl_native_exception!(
     PyModuleNotFoundError,
     ModuleNotFoundError,
