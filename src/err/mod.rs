@@ -490,11 +490,8 @@ impl<'a> std::fmt::Display for PyDowncastError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "Can't convert {} to {}",
-            self.from
-                .repr()
-                .map(|s| s.to_string_lossy())
-                .unwrap_or_else(|_| self.from.get_type().name()),
+            "'{}' object cannot be converted to '{}'",
+            self.from.get_type().name(),
             self.to
         )
     }

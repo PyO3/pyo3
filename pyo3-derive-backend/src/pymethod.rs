@@ -475,10 +475,14 @@ fn impl_arg_param(
 
     let ty = arg.ty;
     let name = arg.name;
+    let transform_error = quote! {
+        |e| pyo3::derive_utils::argument_extraction_error(_py, stringify!(#name), e)
+    };
 
     if spec.is_args(&name) {
         return quote! {
-            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())?;
+            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())
+                .map_err(#transform_error)?;
         };
     } else if spec.is_kwargs(&name) {
         return quote! {
@@ -518,7 +522,7 @@ fn impl_arg_param(
 
         quote! {
             let #mut_ _tmp: #target_ty = match #arg_value {
-                Some(_obj) => _obj.extract()?,
+                Some(_obj) => _obj.extract().map_err(#transform_error)?,
                 None => #default,
             };
             let #arg_name = #borrow_tmp;
@@ -526,7 +530,7 @@ fn impl_arg_param(
     } else {
         quote! {
             let #arg_name = match #arg_value {
-                Some(_obj) => _obj.extract()?,
+                Some(_obj) => _obj.extract().map_err(#transform_error)?,
                 None => #default,
             };
         }
