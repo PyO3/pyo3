@@ -2,9 +2,9 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{
-    ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, PyTryFrom, Python,
-};
+use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
 ///
@@ -28,6 +28,7 @@ use crate::{
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 pyobject_native_type_extract!(PyIterator);
 
 impl PyIterator {
@@ -67,6 +68,8 @@ impl<'p> Iterator for &'p PyIterator {
     }
 }
 
+// PyIter_Check does not exist in the limited API until 3.8
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 impl<'v> PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();
@@ -96,7 +99,9 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    use crate::{Py, PyAny, PyTryFrom, Python, ToPyObject};
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+    use crate::{Py, PyAny, PyTryFrom};
+    use crate::{Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
@@ -200,6 +205,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     fn iterator_try_from() {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();

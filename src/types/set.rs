@@ -118,8 +118,8 @@ impl PySet {
 }
 
 #[cfg(Py_LIMITED_API)]
-pub struct PySetIterator<'py> {
-    it: PyIterator<'py>,
+pub struct PySetIterator<'p> {
+    it: &'p PyIterator,
 }
 
 #[cfg(Py_LIMITED_API)]
