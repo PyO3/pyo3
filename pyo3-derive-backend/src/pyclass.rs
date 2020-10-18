@@ -267,7 +267,7 @@ fn impl_class(
             quote! {
                 impl pyo3::freelist::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list() -> &'static mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> {
+                    fn get_free_list(_py: pyo3::Python) -> &'static mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {

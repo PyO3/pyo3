@@ -12,7 +12,7 @@ use std::os::raw::c_void;
 /// The performance improvement applies to types that are often created and deleted in a row,
 /// so that they can benefit from a freelist.
 pub trait PyClassWithFreeList {
-    fn get_free_list() -> &'static mut FreeList<*mut ffi::PyObject>;
+    fn get_free_list(py: Python) -> &'static mut FreeList<*mut ffi::PyObject>;
 }
 
 pub enum Slot<T> {
@@ -74,7 +74,7 @@ where
     unsafe fn new(py: Python, subtype: *mut ffi::PyTypeObject) -> *mut Self::Layout {
         // if subtype is not equal to this type, we cannot use the freelist
         if subtype == Self::type_object_raw(py) {
-            if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
+            if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list(py).pop() {
                 ffi::PyObject_Init(obj, subtype);
                 return obj as _;
             }
@@ -91,7 +91,7 @@ where
             return;
         }
 
-        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj.as_ptr()) {
+        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list(py).insert(obj.as_ptr()) {
             match (*ffi::Py_TYPE(obj)).tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => tp_free_fallback(obj),
