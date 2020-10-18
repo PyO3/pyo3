@@ -49,7 +49,7 @@ There are also a few special types related to the GIL and Rust-defined `#[pyclas
 | `PyRef<T>`    | A `#[pyclass]` borrowed immutably.    |
 | `PyRefMut<T>` | A `#[pyclass]` borrowed mutably.      |
 
-For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](class.md).
+For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](../class.md).
 
 #### Using Rust library types vs Python-native types
 
