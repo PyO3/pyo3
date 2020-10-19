@@ -69,18 +69,6 @@ else:
         MAX_DATETIME = pdt.datetime(9999, 12, 31, 18, 59, 59)
 
 PYPY = platform.python_implementation() == "PyPy"
-HAS_FOLD = getattr(pdt.datetime, "fold", False) and not PYPY
-
-
-xfail_date_bounds = pytest.mark.xfail(
-    sys.version_info < (3, 6),
-    reason="Date bounds were not checked in the C constructor prior to version 3.6",
-)
-
-xfail_macos_datetime_bounds = pytest.mark.xfail(
-    sys.version_info < (3, 6) and platform.system() == "Darwin",
-    reason="Unclearly failing. See https://github.com/PyO3/pyo3/pull/830 for more.",
-)
 
 
 # Tests
@@ -96,13 +84,11 @@ def test_date_accessors(d):
     assert act == exp
 
 
-@xfail_date_bounds
 def test_invalid_date_fails():
     with pytest.raises(ValueError):
         rdt.make_date(2017, 2, 30)
 
 
-@xfail_macos_datetime_bounds
 @given(d=st.dates(MIN_DATETIME.date(), MAX_DATETIME.date()))
 def test_date_from_timestamp(d):
     if PYPY and d < pdt.date(1900, 1, 1):
@@ -136,7 +122,7 @@ def test_time(t):
     assert act == exp
 
 
-@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @given(t=st.times())
 def test_time_fold(t):
     t_nofold = t.replace(fold=0)
@@ -149,7 +135,7 @@ def test_time_fold(t):
         assert act == exp
 
 
-@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @pytest.mark.parametrize("fold", [False, True])
 def test_time_fold(fold):
     t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
@@ -165,7 +151,6 @@ def test_invalid_time_fails_xfail(args):
         rdt.make_time(*args)
 
 
-@xfail_date_bounds
 @pytest.mark.parametrize(
     "args",
     [
@@ -218,7 +203,7 @@ def test_datetime_tuple(dt):
     assert act == exp
 
 
-@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @given(dt=st.datetimes())
 def test_datetime_tuple_fold(dt):
     dt_fold = dt.replace(fold=1)
@@ -231,7 +216,6 @@ def test_datetime_tuple_fold(dt):
         assert act == exp
 
 
-@xfail_date_bounds
 def test_invalid_datetime_fails():
     with pytest.raises(ValueError):
         rdt.make_datetime(2011, 1, 42, 0, 0, 0, 0)
@@ -242,7 +226,6 @@ def test_datetime_typeerror():
         rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
-@xfail_macos_datetime_bounds
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
 @example(dt=pdt.datetime(1970, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):

@@ -16,7 +16,6 @@ extern "C" {
         format: *const c_char,
         ...
     ) -> c_int;
-    #[cfg(Py_3_6)]
     pub fn PyErr_ResourceWarning(
         source: *mut PyObject,
         stack_level: Py_ssize_t,
