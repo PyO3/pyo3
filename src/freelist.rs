@@ -12,7 +12,7 @@ use std::os::raw::c_void;
 /// The performance improvement applies to types that are often created and deleted in a row,
 /// so that they can benefit from a freelist.
 pub trait PyClassWithFreeList {
-    fn get_free_list(py: Python) -> &'static mut FreeList<*mut ffi::PyObject>;
+    fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;
 }
 
 pub enum Slot<T> {

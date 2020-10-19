@@ -201,7 +201,6 @@ extern "C" {
     pub static mut PyExc_OSError: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_ImportError")]
     pub static mut PyExc_ImportError: *mut PyObject;
-    #[cfg(Py_3_6)]
     #[cfg_attr(PyPy, link_name = "PyPyExc_ModuleNotFoundError")]
     pub static mut PyExc_ModuleNotFoundError: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_IndexError")]
@@ -339,7 +338,6 @@ extern "C" {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_Format")]
     pub fn PyErr_Format(exception: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
-    #[cfg(Py_3_6)]
     pub fn PyErr_SetImportErrorSubclass(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
