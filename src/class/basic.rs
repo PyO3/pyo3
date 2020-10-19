@@ -181,7 +181,7 @@ pub trait PyBasicSlots {
         Self: for<'p> PyObjectRichcmpProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_tp_getattro,
+            slot: ffi::Py_tp_richcompare,
             pfunc: tp_richcompare::<Self>() as _,
         }
     }

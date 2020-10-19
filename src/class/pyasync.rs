@@ -13,17 +13,6 @@ use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 
-#[cfg(Py_LIMITED_API)]
-#[derive(Clone, Default)]
-pub struct PyAsyncMethods {
-    pub am_await: Option<ffi::unaryfunc>,
-    pub am_aiter: Option<ffi::unaryfunc>,
-    pub am_anext: Option<ffi::unaryfunc>,
-}
-
-#[cfg(not(Py_LIMITED_API))]
-pub use ffi::PyAsyncMethods;
-
 /// Python Async/Await support interface.
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
@@ -114,7 +103,7 @@ pub trait PyAsyncSlots {
         Self: for<'p> PyAsyncAiterProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_am_await,
+            slot: ffi::Py_am_aiter,
             pfunc: py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__) as _,
         }
     }

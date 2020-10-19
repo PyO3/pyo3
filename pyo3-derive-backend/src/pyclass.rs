@@ -234,16 +234,31 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
-/// Implement `HasProtoRegistry` for the class for lazy protocol initialization.
-fn impl_proto_registry(cls: &syn::Ident) -> TokenStream {
+/// Implement `HasProtoInventory` for the class for lazy protocol initialization.
+fn impl_proto_inventory(cls: &syn::Ident) -> TokenStream {
+    // Try to build a unique type for better error messages
+    let name = format!("Pyo3ProtoInventoryFor{}", cls);
+    let inventory_cls = syn::Ident::new(&name, Span::call_site());
+
     quote! {
-        impl pyo3::class::proto_methods::HasProtoRegistry for #cls {
-            fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
-                static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
-                    = pyo3::class::proto_methods::PyProtoRegistry::new();
-                &REGISTRY
+        #[doc(hidden)]
+        pub struct #inventory_cls {
+            def: pyo3::class::proto_methods::PyProtoMethodDef,
+        }
+        impl pyo3::class::proto_methods::PyProtoInventory for #inventory_cls {
+            fn new(def: pyo3::class::proto_methods::PyProtoMethodDef) -> Self {
+                Self { def }
+            }
+            fn get(&'static self) -> &'static pyo3::class::proto_methods::PyProtoMethodDef {
+                &self.def
             }
         }
+
+        impl pyo3::class::proto_methods::HasProtoInventory for #cls {
+            type ProtoMethods = #inventory_cls;
+        }
+
+        pyo3::inventory::collect!(#inventory_cls);
     }
 }
 
@@ -351,7 +366,7 @@ fn impl_class(
     };
 
     let impl_inventory = impl_methods_inventory(&cls);
-    let impl_proto_registry = impl_proto_registry(&cls);
+    let impl_proto_inventory = impl_proto_inventory(&cls);
 
     let base = &attr.base;
     let flags = &attr.flags;
@@ -440,7 +455,7 @@ fn impl_class(
 
         #impl_inventory
 
-        #impl_proto_registry
+        #impl_proto_inventory
 
         #extra
 

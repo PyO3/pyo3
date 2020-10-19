@@ -825,17 +825,17 @@ pub trait PyNumberSlots {
         }
     }
 
-    fn get_pos<T>() -> ffi::PyType_Slot
+    fn get_pos() -> ffi::PyType_Slot
     where
         Self: for<'p> PyNumberPosProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_nb_absolute,
+            slot: ffi::Py_nb_positive,
             pfunc: py_unary_func!(PyNumberPosProtocol, Self::__pos__) as _,
         }
     }
 
-    fn get_abs<T>() -> ffi::PyType_Slot
+    fn get_abs() -> ffi::PyType_Slot
     where
         Self: for<'p> PyNumberAbsProtocol<'p>,
     {
@@ -845,7 +845,7 @@ pub trait PyNumberSlots {
         }
     }
 
-    fn get_invert<T>() -> ffi::PyType_Slot
+    fn get_invert() -> ffi::PyType_Slot
     where
         Self: for<'p> PyNumberInvertProtocol<'p>,
     {

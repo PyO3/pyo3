@@ -8,45 +8,6 @@ use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::PyErr;
 use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
-#[cfg(Py_LIMITED_API)]
-use std::os::raw::c_void;
-
-#[cfg(Py_LIMITED_API)]
-#[derive(Clone)]
-pub struct PySequenceMethods {
-    pub sq_length: Option<ffi::lenfunc>,
-    pub sq_concat: Option<ffi::binaryfunc>,
-    pub sq_repeat: Option<ffi::ssizeargfunc>,
-    pub sq_item: Option<ffi::ssizeargfunc>,
-    #[allow(dead_code)]
-    pub was_sq_slice: *mut c_void,
-    pub sq_ass_item: Option<ffi::ssizeobjargproc>,
-    #[allow(dead_code)]
-    pub was_sq_ass_slice: *mut c_void,
-    pub sq_contains: Option<ffi::objobjproc>,
-    pub sq_inplace_concat: Option<ffi::binaryfunc>,
-    pub sq_inplace_repeat: Option<ffi::ssizeargfunc>,
-}
-
-#[cfg(not(Py_LIMITED_API))]
-pub use ffi::PySequenceMethods;
-
-impl Default for PySequenceMethods {
-    fn default() -> Self {
-        Self {
-            sq_length: None,
-            sq_concat: None,
-            sq_repeat: None,
-            sq_item: None,
-            was_sq_slice: std::ptr::null_mut(),
-            sq_ass_item: None,
-            was_sq_ass_slice: std::ptr::null_mut(),
-            sq_contains: None,
-            sq_inplace_concat: None,
-            sq_inplace_repeat: None,
-        }
-    }
-}
 
 /// Sequence interface
 #[allow(unused_variables)]
@@ -184,7 +145,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceConcatProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_concat,
             pfunc: py_binary_func!(PySequenceConcatProtocol, Self::__concat__) as _,
         }
     }
@@ -193,7 +154,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceRepeatProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_repeat,
             pfunc: py_ssizearg_func!(PySequenceRepeatProtocol, Self::__repeat__) as _,
         }
     }
@@ -202,7 +163,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceGetItemProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_item,
             pfunc: py_ssizearg_func!(PySequenceGetItemProtocol, Self::__getitem__) as _,
         }
     }
@@ -211,7 +172,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceSetItemProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_ass_item,
             pfunc: sq_ass_item_impl::set_item::<Self>() as _,
         }
     }
@@ -220,7 +181,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceDelItemProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_ass_item,
             pfunc: sq_ass_item_impl::del_item::<Self>() as _,
         }
     }
@@ -229,7 +190,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceDelItemProtocol<'p> + for<'p> PySequenceSetItemProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_ass_item,
             pfunc: sq_ass_item_impl::set_del_item::<Self>() as _,
         }
     }
@@ -238,7 +199,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceContainsProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_contains,
             pfunc: py_binary_func!(PySequenceContainsProtocol, Self::__contains__, c_int) as _,
         }
     }
@@ -247,7 +208,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceInplaceConcatProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_inplace_concat,
             pfunc: py_binary_func!(
                 PySequenceInplaceConcatProtocol,
                 Self::__inplace_concat__,
@@ -261,7 +222,7 @@ pub trait PySequenceSlots {
         Self: for<'p> PySequenceInplaceRepeatProtocol<'p>,
     {
         ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
+            slot: ffi::Py_sq_inplace_repeat,
             pfunc: py_ssizearg_func!(
                 PySequenceInplaceRepeatProtocol,
                 Self::__inplace_repeat__,

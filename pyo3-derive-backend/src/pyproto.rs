@@ -106,16 +106,16 @@ fn impl_proto_impl(
             }
         }
     }
-    let inventory_submission = inventory_submission(py_methods, ty);
-    let slot_initialization = slot_initialization(method_names, ty, proto)?;
+    let normal_methods = submit_normal_methods(py_methods, ty);
+    let protocol_methods = submit_protocol_methods(method_names, ty, proto)?;
     Ok(quote! {
         #trait_impls
-        #inventory_submission
-        #slot_initialization
+        #normal_methods
+        #protocol_methods
     })
 }
 
-fn inventory_submission(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenStream {
+fn submit_normal_methods(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenStream {
     if py_methods.is_empty() {
         return quote! {};
     }
@@ -129,42 +129,46 @@ fn inventory_submission(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenSt
     }
 }
 
-fn slot_initialization(
+fn submit_protocol_methods(
     method_names: HashSet<String>,
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
-    // Collect initializers
-    let mut initializers: Vec<TokenStream> = vec![];
-    for setter in proto.setters(method_names) {
-        // Add slot methods to PyProtoRegistry
-        let set = syn::Ident::new(setter, Span::call_site());
-        initializers.push(quote! { table.#set::<#ty>(); });
-    }
-    if initializers.is_empty() {
+    if proto.extension_trait == "" {
         return Ok(quote! {});
     }
-    let table: syn::Path = syn::parse_str(proto.slot_table)?;
-    let set = syn::Ident::new(proto.set_slot_table, Span::call_site());
-    let ty_hash = typename_hash(ty);
-    let init = syn::Ident::new(
-        &format!("__init_{}_{}", proto.name, ty_hash),
-        Span::call_site(),
-    );
+    let ext_trait: syn::Path = syn::parse_str(proto.extension_trait)?;
+    let mut tokens: Vec<TokenStream> = vec![];
+    if proto.name == "Buffer" {
+        // For buffer, we construct `PyProtoMethods` from PyBufferProcs
+        tokens.push(quote! {
+            let mut proto_methods = pyo3::ffi::PyBufferProcs::default();
+        });
+        for getter in proto.slot_getters(method_names) {
+            let get = syn::Ident::new(getter, Span::call_site());
+            let field = syn::Ident::new(&format!("bf_{}", &getter[4..]), Span::call_site());
+            tokens.push(quote! { proto_methods.#field = Some(<#ty as #ext_trait>::#get()); });
+        }
+    } else {
+        // For other protocols, we construct `PyProtoMethods` from Vec<ffi::PyType_Slot>
+        tokens.push(quote! { let mut proto_methods = vec![]; });
+        for getter in proto.slot_getters(method_names) {
+            let get = syn::Ident::new(getter, Span::call_site());
+            tokens.push(quote! { proto_methods.push(<#ty as #ext_trait>::#get()); });
+        }
+    }
+    if tokens.len() <= 1 {
+        return Ok(quote! {});
+    }
     Ok(quote! {
-        #[allow(non_snake_case)]
-        #[pyo3::ctor::ctor]
-        fn #init() {
-            let mut table = #table::default();
-            #(#initializers)*
-            <#ty as pyo3::class::proto_methods::HasProtoRegistry>::registry().#set(table);
+        pyo3::inventory::submit! {
+            #![crate = pyo3] {
+                type Inventory =
+                    <#ty as pyo3::class::proto_methods::HasProtoInventory>::ProtoMethods;
+                <Inventory as pyo3::class::proto_methods::PyProtoInventory>::new(
+                    { #(#tokens)* proto_methods.into() }
+                )
+            }
         }
     })
-}
-
-fn typename_hash(ty: &syn::Type) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    ty.hash(&mut hasher);
-    hasher.finish()
 }

@@ -8,6 +8,7 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::types::PyAny;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
+use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
@@ -88,7 +89,7 @@ pub trait PyDescrSlots {
     {
         ffi::PyType_Slot {
             slot: ffi::Py_tp_descr_set,
-            pfunc: py_ternarys_func!(PyDescrSetProtocol, Self::__set__) as _,
+            pfunc: py_ternarys_func!(PyDescrSetProtocol, Self::__set__, c_int) as _,
         }
     }
 }

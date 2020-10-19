@@ -1,5 +1,12 @@
-use crate::class::buffer::PyBufferProcs;
 use crate::ffi;
+#[cfg(not(Py_LIMITED_API))]
+use crate::ffi::PyBufferProcs;
+
+/// ABI3 doesn't have buffer APIs, so here we define the empty one.
+#[cfg(Py_LIMITED_API)]
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct PyBufferProcs;
 
 // Note(kngwyu): default implementations are for rust-numpy. Please don't remove them.
 pub trait PyProtoMethods {
@@ -17,21 +24,33 @@ pub enum PyProtoMethodDef {
     Buffer(PyBufferProcs),
 }
 
+impl From<Vec<ffi::PyType_Slot>> for PyProtoMethodDef {
+    fn from(slots: Vec<ffi::PyType_Slot>) -> Self {
+        PyProtoMethodDef::Slots(slots)
+    }
+}
+
+impl From<PyBufferProcs> for PyProtoMethodDef {
+    fn from(buffer_procs: PyBufferProcs) -> Self {
+        PyProtoMethodDef::Buffer(buffer_procs)
+    }
+}
+
 #[doc(hidden)]
 #[cfg(feature = "macros")]
-pub trait PyProtoMethodsInventory: inventory::Collect {
+pub trait PyProtoInventory: inventory::Collect {
     fn new(methods: PyProtoMethodDef) -> Self;
     fn get(&'static self) -> &'static PyProtoMethodDef;
 }
 
 #[doc(hidden)]
 #[cfg(feature = "macros")]
-pub trait HasProtoMethodsInventory {
-    type ProtoMethods: PyProtoMethodsInventory;
+pub trait HasProtoInventory {
+    type ProtoMethods: PyProtoInventory;
 }
 
 #[cfg(feature = "macros")]
-impl<T: HasProtoMethodsInventory> PyProtoMethods for T {
+impl<T: HasProtoInventory> PyProtoMethods for T {
     fn get_type_slots() -> Vec<ffi::PyType_Slot> {
         inventory::iter::<T::ProtoMethods>
             .into_iter()
