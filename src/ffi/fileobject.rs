@@ -27,7 +27,6 @@ extern "C" {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut Py_FileSystemDefaultEncoding: *const c_char;
-    #[cfg(Py_3_6)]
     pub static mut Py_FileSystemDefaultEncodeErrors: *const c_char;
     pub static mut Py_HasFileSystemDefaultEncoding: c_int;
 }

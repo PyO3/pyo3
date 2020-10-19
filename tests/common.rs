@@ -16,9 +16,22 @@ macro_rules! py_expect_exception {
         let d = [(stringify!($val), &$val)].into_py_dict($py);
 
         let res = $py.run($code, None, Some(d));
-        let err = res.unwrap_err();
+        let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
         if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
             panic!("Expected {} but got {:?}", stringify!($err), err)
         }
+        err
+    }};
+    ($py:expr, $val:ident, $code:expr, $err:ident, $err_msg:expr) => {{
+        let err = py_expect_exception!($py, $val, $code, $err);
+        assert_eq!(
+            err.instance($py)
+                .str()
+                .expect("error str() failed")
+                .to_str()
+                .expect("message was not valid utf8"),
+            $err_msg
+        );
+        err
     }};
 }

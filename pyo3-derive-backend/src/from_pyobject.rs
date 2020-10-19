@@ -73,11 +73,7 @@ impl<'a> Enum<'a> {
         quote!(
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
-            let from = obj
-                .repr()
-                .map(|s| format!("{} ({})", s.to_string_lossy(), type_name))
-                .unwrap_or_else(|_| type_name.to_string());
-            let err_msg = format!("Can't convert {} to {}", from, #error_names);
+            let err_msg = format!("'{}' object cannot be converted to '{}'", type_name, #error_names);
             Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }

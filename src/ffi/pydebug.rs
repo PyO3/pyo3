@@ -32,6 +32,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_HashRandomizationFlag")]
     pub static mut Py_HashRandomizationFlag: c_int;
     pub static mut Py_IsolatedFlag: c_int;
-    #[cfg(all(Py_3_6, windows))]
+    #[cfg(windows)]
     pub static mut Py_LegacyWindowsStdioFlag: c_int;
 }

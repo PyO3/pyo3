@@ -135,3 +135,54 @@ fn test_raw_function() {
         .unwrap();
     assert_eq!(res, "Some(true)");
 }
+
+#[pyfunction]
+fn conversion_error(str_arg: &str, int_arg: i64, tuple_arg: (&str, f64), option_arg: Option<i64>) {
+    println!(
+        "{:?} {:?} {:?} {:?}",
+        str_arg, int_arg, tuple_arg, option_arg
+    );
+}
+
+#[test]
+fn test_conversion_error() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let conversion_error = wrap_pyfunction!(conversion_error)(py).unwrap();
+    py_expect_exception!(
+        py,
+        conversion_error,
+        "conversion_error(None, None, None, None)",
+        PyTypeError,
+        "argument 'str_arg': 'NoneType' object cannot be converted to 'PyString'"
+    );
+    py_expect_exception!(
+        py,
+        conversion_error,
+        "conversion_error(100, None, None, None)",
+        PyTypeError,
+        "argument 'str_arg': 'int' object cannot be converted to 'PyString'"
+    );
+    py_expect_exception!(
+        py,
+        conversion_error,
+        "conversion_error('string1', 'string2', None, None)",
+        PyTypeError,
+        "argument 'int_arg': 'str' object cannot be interpreted as an integer"
+    );
+    py_expect_exception!(
+        py,
+        conversion_error,
+        "conversion_error('string1', -100, 'string2', None)",
+        PyTypeError,
+        "argument 'tuple_arg': 'str' object cannot be converted to 'PyTuple'"
+    );
+    py_expect_exception!(
+        py,
+        conversion_error,
+        "conversion_error('string1', -100, ('string2', 10.), 'string3')",
+        PyTypeError,
+        "argument 'option_arg': 'str' object cannot be interpreted as an integer"
+    );
+}

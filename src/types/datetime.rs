@@ -11,7 +11,7 @@ use crate::ffi;
 use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
 use crate::ffi::PyDateTimeAPI;
 use crate::ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
-#[cfg(all(Py_3_6, not(PyPy)))]
+#[cfg(not(PyPy))]
 use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 use crate::ffi::{
     PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
@@ -57,7 +57,7 @@ pub trait PyTimeAccess {
     fn get_minute(&self) -> u8;
     fn get_second(&self) -> u8;
     fn get_microsecond(&self) -> u32;
-    #[cfg(all(Py_3_6, not(PyPy)))]
+    #[cfg(not(PyPy))]
     fn get_fold(&self) -> u8;
 }
 
@@ -223,7 +223,7 @@ impl PyTimeAccess for PyDateTime {
         unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
     }
 
-    #[cfg(all(Py_3_6, not(PyPy)))]
+    #[cfg(not(PyPy))]
     fn get_fold(&self) -> u8 {
         unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) as u8 }
     }
@@ -262,10 +262,8 @@ impl PyTime {
         }
     }
 
-    #[cfg(Py_3_6)]
+    #[cfg(not(PyPy))]
     /// Alternate constructor that takes a `fold` argument
-    ///
-    /// First available in Python 3.6.
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         hour: u8,
@@ -307,7 +305,7 @@ impl PyTimeAccess for PyTime {
         unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
     }
 
-    #[cfg(all(Py_3_6, not(PyPy)))]
+    #[cfg(not(PyPy))]
     fn get_fold(&self) -> u8 {
         unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) as u8 }
     }

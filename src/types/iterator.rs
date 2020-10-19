@@ -3,11 +3,10 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
-///
-/// Unlike other Python objects, this class includes a `Python<'p>` token
-/// so that `PyIterator` can implement the Rust `Iterator` trait.
 ///
 /// # Example
 ///
@@ -26,29 +25,25 @@ use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct PyIterator<'p>(&'p PyAny);
+#[repr(transparent)]
+pub struct PyIterator(PyAny);
+pyobject_native_type_named!(PyIterator);
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+pyobject_native_type_extract!(PyIterator);
 
-impl<'p> PyIterator<'p> {
-    /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: &T) -> PyResult<PyIterator<'p>>
+impl PyIterator {
+    /// Constructs a `PyIterator` from a Python iterable object.
+    ///
+    /// Equivalent to Python's built-in `iter` function.
+    pub fn from_object<'p, T>(py: Python<'p>, obj: &T) -> PyResult<&'p PyIterator>
     where
         T: AsPyPointer,
     {
-        let iter = unsafe {
-            // This looks suspicious, but is actually correct. Even though ptr is an owned
-            // reference, PyIterator takes ownership of the reference and decreases the count
-            // in its Drop implementation.
-            //
-            // Therefore we must use from_borrowed_ptr_or_err instead of from_owned_ptr_or_err so
-            // that the GILPool does not take ownership of the reference.
-            py.from_borrowed_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr()))?
-        };
-
-        Ok(PyIterator(iter))
+        unsafe { py.from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr())) }
     }
 }
 
-impl<'p> Iterator for PyIterator<'p> {
+impl<'p> Iterator for &'p PyIterator {
     type Item = PyResult<&'p PyAny>;
 
     /// Retrieves the next item from an iterator.
@@ -73,10 +68,28 @@ impl<'p> Iterator for PyIterator<'p> {
     }
 }
 
-/// Dropping a `PyIterator` instance decrements the reference count on the object by 1.
-impl<'p> Drop for PyIterator<'p> {
-    fn drop(&mut self) {
-        unsafe { ffi::Py_DECREF(self.0.as_ptr()) }
+// PyIter_Check does not exist in the limited API until 3.8
+#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+impl<'v> PyTryFrom<'v> for PyIterator {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
+        let value = value.into();
+        unsafe {
+            if ffi::PyIter_Check(value.as_ptr()) != 0 {
+                Ok(<PyIterator as PyTryFrom>::try_from_unchecked(value))
+            } else {
+                Err(PyDowncastError::new(value, "Iterator"))
+            }
+        }
+    }
+
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
+        <PyIterator as PyTryFrom>::try_from(value)
+    }
+
+    #[inline]
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
+        let ptr = value.into() as *const _ as *const PyIterator;
+        &*ptr
     }
 }
 
@@ -86,8 +99,9 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    use crate::Python;
-    use crate::ToPyObject;
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+    use crate::{Py, PyAny, PyTryFrom};
+    use crate::{Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
@@ -188,5 +202,15 @@ mod tests {
         let err = PyIterator::from_object(py, &x).unwrap_err();
 
         assert!(err.is_instance::<PyTypeError>(py))
+    }
+
+    #[test]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
+    fn iterator_try_from() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+        let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
+        let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(obj, iter.into());
     }
 }

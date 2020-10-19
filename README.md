@@ -18,7 +18,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.39.0.
+PyO3 supports Python 3.6 and up. The minimum required Rust version is 1.39.0.
 
 Building with PyPy is also possible (via cpyext) for Python 3.6, targeted PyPy version is 7.3+.
 Please refer to the [pypy section in the guide](https://pyo3.rs/master/pypy.html).
@@ -48,7 +48,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.12.2"
+version = "0.12.3"
 features = ["extension-module"]
 ```
 
@@ -99,7 +99,7 @@ use it to run Python code, add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
-pyo3 = "0.12.2"
+pyo3 = "0.12.3"
 ```
 
 Example program displaying the value of `sys.version` and the current user name:
@@ -155,6 +155,7 @@ about this topic.
  * [wasmer-python](https://github.com/wasmerio/wasmer-python) _Python library to run WebAssembly binaries_
  * [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere_
  * [tokenizers](https://github.com/huggingface/tokenizers/tree/master/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust_
+ * [pyre](https://github.com/Project-Dream-Weaver/Pyre) _Fast Python HTTP server written in Rust_
 
 ## License
 

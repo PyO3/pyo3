@@ -29,7 +29,7 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    #[cfg(Py_3_7)]
+    #[cfg(all(Py_3_7, not(PyPy)))]
     pub TimeZone_UTC: *mut PyObject,
     #[cfg_attr(PyPy, link_name = "_PyPyDate_FromDate")]
     pub Date_FromDate: unsafe extern "C" fn(
@@ -67,7 +67,7 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(Py_3_7)]
+    #[cfg(all(Py_3_7, not(PyPy)))]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
@@ -80,7 +80,7 @@ pub struct PyDateTime_CAPI {
     // Defined for PyPy as `PyDate_FromTimestamp`
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
-    #[cfg(Py_3_6)]
+    #[cfg(not(PyPy))]
     pub DateTime_FromDateAndTimeAndFold: unsafe extern "C" fn(
         year: c_int,
         month: c_int,
@@ -93,7 +93,7 @@ pub struct PyDateTime_CAPI {
         fold: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(Py_3_6)]
+    #[cfg(not(PyPy))]
     pub Time_FromTimeAndFold: unsafe extern "C" fn(
         hour: c_int,
         minute: c_int,
@@ -154,6 +154,7 @@ const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 /// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
@@ -164,10 +165,12 @@ pub struct PyDateTime_Date {
 /// Structure representing a `datetime.time`
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-    #[cfg(Py_3_6)]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     pub tzinfo: *mut PyObject,
 }
@@ -177,10 +180,12 @@ pub struct PyDateTime_Time {
 /// Structure representing a `datetime.datetime`
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-    #[cfg(Py_3_6)]
+    #[cfg(not(PyPy))]
     pub fold: c_uchar,
     pub tzinfo: *mut PyObject,
 }
@@ -190,6 +195,7 @@ pub struct PyDateTime_DateTime {
 /// Structure representing a `datetime.timedelta`
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
     pub days: c_int,
     pub seconds: c_int,
@@ -381,7 +387,6 @@ macro_rules! _PyDateTime_GET_MICROSECOND {
     };
 }
 
-#[cfg(Py_3_6)]
 #[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_FOLD {
     ($o: expr) => {
@@ -429,13 +434,10 @@ pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
-#[cfg(Py_3_6)]
 #[inline]
 #[cfg(not(PyPy))]
 /// Retrieve the fold component of a `PyDateTime_DateTime`.
 /// Returns a signed integer in the interval `[0, 1]`
-///
-/// Added in version Python 3.6
 pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_uchar {
     _PyDateTime_GET_FOLD!(o as *mut PyDateTime_DateTime)
 }
@@ -482,12 +484,10 @@ pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_Time), 0)
 }
 
-#[cfg(all(Py_3_6, not(PyPy)))]
+#[cfg(not(PyPy))]
 #[inline]
 /// Retrieve the fold component of a `PyDateTime_Time`.
 /// Returns a signed integer in the interval `[0, 1]`
-///
-/// Added in version Python 3.6
 pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_uchar {
     _PyDateTime_GET_FOLD!(o as *mut PyDateTime_Time)
 }
