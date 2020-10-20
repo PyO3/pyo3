@@ -1,4 +1,5 @@
 use crate::ffi::ceval::_PyFrameEvalFunction;
+use crate::ffi::frameobject::PyFrameObject;
 use crate::ffi::moduleobject::PyModuleDef;
 use crate::ffi::object::PyObject;
 use std::os::raw::{c_int, c_long};
@@ -67,3 +68,10 @@ extern "C" {
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
+
+pub type Py_tracefunc = extern "C" fn(
+    obj: *mut PyObject,
+    frame: *mut PyFrameObject,
+    what: c_int,
+    arg: *mut PyObject,
+) -> c_int;

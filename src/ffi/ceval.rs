@@ -1,6 +1,6 @@
 use crate::ffi::code::FreeFunc;
 use crate::ffi::object::PyObject;
-use crate::ffi::pystate::PyThreadState;
+use crate::ffi::pystate::{PyThreadState, Py_tracefunc};
 use std::os::raw::{c_char, c_int, c_void};
 
 extern "C" {
@@ -67,6 +67,8 @@ extern "C" {
     pub fn PyEval_SaveThread() -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
     pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
+    pub fn PyEval_SetProfile(trace_func: Py_tracefunc, arg1: *mut PyObject);
+    pub fn PyEval_SetTrace(trace_func: Py_tracefunc, arg1: *mut PyObject);
 }
 
 #[cfg(py_sys_config = "WITH_THREAD")]
