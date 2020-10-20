@@ -770,7 +770,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
     }
 
     if let Some(minor) = interpreter_config.version.minor {
-        for i in 6..(minor + 1) {
+        for i in 6..=minor {
             println!("cargo:rustc-cfg=Py_3_{}", i);
             flags += format!("CFG_Py_3_{},", i).as_ref();
         }
