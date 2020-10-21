@@ -487,19 +487,28 @@ fn impl_arg_param(
     let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
-    let default = match (spec.default_value(name), arg.optional.is_some()) {
-        (Some(default), true) if default.to_string() != "None" => {
-            quote_arg_span! { Some(#default) }
-        }
-        (Some(default), _) => quote_arg_span! { #default },
-        (None, true) => quote_arg_span! { None },
-        (None, false) => quote_arg_span! { panic!("Failed to extract required method argument") },
+    let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
+        quote_arg_span! { #expr_path(_obj).map_err(#transform_error) }
+    } else {
+        quote_arg_span! { _obj.extract().map_err(#transform_error) }
     };
 
-    let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
-        quote_arg_span! { #expr_path(_obj).map_err(#transform_error)?}
-    } else {
-        quote_arg_span! { _obj.extract().map_err(#transform_error)?}
+    let arg_value_or_default = match (spec.default_value(name), arg.optional.is_some()) {
+        (Some(default), true) if default.to_string() != "None" => {
+            quote_arg_span! { #arg_value.map_or_else(|| Ok(Some(#default)), |_obj| #extract)? }
+        }
+        (Some(default), _) => {
+            quote_arg_span! { #arg_value.map_or_else(|| Ok(#default), |_obj| #extract)? }
+        }
+        (None, true) => quote_arg_span! { #arg_value.map_or(Ok(None), |_obj| #extract)? },
+        (None, false) => {
+            quote_arg_span! {
+                {
+                    let _obj = #arg_value.expect("Failed to extract required method argument");
+                    #extract?
+                }
+            }
+        }
     };
 
     return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
@@ -523,18 +532,12 @@ fn impl_arg_param(
         };
 
         Ok(quote_arg_span! {
-            let #mut_ _tmp: #target_ty = match #arg_value {
-                Some(_obj) => #extract,
-                None => #default,
-            };
+            let #mut_ _tmp: #target_ty = #arg_value_or_default;
             let #arg_name = #borrow_tmp;
         })
     } else {
         Ok(quote_arg_span! {
-            let #arg_name = match #arg_value {
-                Some(_obj) => #extract,
-                None => #default,
-            };
+            let #arg_name = #arg_value_or_default;
         })
     };
 
