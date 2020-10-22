@@ -11,6 +11,7 @@ pub use self::code::*;
 pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
+pub use self::context::*;
 pub use self::datetime::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
@@ -135,6 +136,13 @@ mod code {}
 mod code;
 
 mod compile; // TODO: incomplete
+
+#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+mod context; // It's actually 3.7.1, but no cfg for patches.
+
+#[cfg(not(all(Py_3_8, not(Py_LIMITED_API))))]
+mod context {}
+
 mod eval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 // mod pyctype; TODO excluded by PEP-384
