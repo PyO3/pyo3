@@ -10,6 +10,8 @@ pub enum _PyOpcache {}
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
+    #[cfg(Py_3_8)]
+    pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
     pub co_nlocals: c_int,
     pub co_stacksize: c_int,

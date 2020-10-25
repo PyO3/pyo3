@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Fix missing field in `PyCodeObject` struct (`co_posonlyargcount`) - caused invalid access to other fields in Python >3.7. [#1260](https://github.com/PyO3/pyo3/pull/1260)
 ### Packaging
 - Drop support for Python 3.5 (as it is now end-of-life). [#1250](https://github.com/PyO3/pyo3/pull/1250)
 
