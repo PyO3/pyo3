@@ -2,6 +2,7 @@
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -74,23 +75,23 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
 /// Extension trait for proc-macro backend.
 #[doc(hidden)]
 pub trait PyIterSlots {
-    fn get_iter() -> ffi::PyType_Slot
+    fn get_iter() -> TypedSlot<ffi::getiterfunc>
     where
         Self: for<'p> PyIterIterProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_iter,
-            pfunc: py_unarys_func!(PyIterIterProtocol, Self::__iter__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_iter,
+            py_unarys_func!(PyIterIterProtocol, Self::__iter__),
+        )
     }
-    fn get_iternext() -> ffi::PyType_Slot
+    fn get_iternext() -> TypedSlot<ffi::iternextfunc>
     where
         Self: for<'p> PyIterNextProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_iternext,
-            pfunc: py_unarys_func!(PyIterNextProtocol, Self::__next__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_iternext,
+            py_unarys_func!(PyIterNextProtocol, Self::__next__),
+        )
     }
 }
 

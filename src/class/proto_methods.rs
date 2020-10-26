@@ -18,6 +18,10 @@ pub trait PyProtoMethods {
     }
 }
 
+/// Typed version of `ffi::PyType_Slot`
+#[doc(hidden)]
+pub struct TypedSlot<T: Sized>(pub std::os::raw::c_int, pub T);
+
 #[doc(hidden)]
 pub enum PyProtoMethodDef {
     Slots(Vec<ffi::PyType_Slot>),

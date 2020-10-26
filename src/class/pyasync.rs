@@ -8,6 +8,7 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -88,34 +89,34 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
 /// Extension trait for proc-macro backend.
 #[doc(hidden)]
 pub trait PyAsyncSlots {
-    fn get_await() -> ffi::PyType_Slot
+    fn get_await() -> TypedSlot<ffi::unaryfunc>
     where
         Self: for<'p> PyAsyncAwaitProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_am_await,
-            pfunc: py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__) as _,
-        }
+        TypedSlot(
+            ffi::Py_am_await,
+            py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__),
+        )
     }
 
-    fn get_aiter() -> ffi::PyType_Slot
+    fn get_aiter() -> TypedSlot<ffi::unaryfunc>
     where
         Self: for<'p> PyAsyncAiterProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_am_aiter,
-            pfunc: py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__) as _,
-        }
+        TypedSlot(
+            ffi::Py_am_aiter,
+            py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__),
+        )
     }
 
-    fn get_anext() -> ffi::PyType_Slot
+    fn get_anext() -> TypedSlot<ffi::unaryfunc>
     where
         Self: for<'p> PyAsyncAnextProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_am_anext,
-            pfunc: py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__) as _,
-        }
+        TypedSlot(
+            ffi::Py_am_anext,
+            py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__),
+        )
     }
 }
 

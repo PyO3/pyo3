@@ -8,6 +8,7 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
+use super::proto_methods::TypedSlot;
 use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
 use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject, PyResult};
 use std::os::raw::c_int;
@@ -136,167 +137,147 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
 /// Extension trait for proc-macro backend.
 #[doc(hidden)]
 pub trait PyBasicSlots {
-    fn get_str() -> ffi::PyType_Slot
+    fn get_str() -> TypedSlot<ffi::reprfunc>
     where
         Self: for<'p> PyObjectStrProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_str,
-            pfunc: py_unary_func!(PyObjectStrProtocol, Self::__str__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_str,
+            py_unary_func!(PyObjectStrProtocol, Self::__str__),
+        )
     }
 
-    fn get_repr() -> ffi::PyType_Slot
+    fn get_repr() -> TypedSlot<ffi::reprfunc>
     where
         Self: for<'p> PyObjectReprProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_repr,
-            pfunc: py_unary_func!(PyObjectReprProtocol, Self::__repr__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_repr,
+            py_unary_func!(PyObjectReprProtocol, Self::__repr__),
+        )
     }
 
-    fn get_hash() -> ffi::PyType_Slot
+    fn get_hash() -> TypedSlot<ffi::hashfunc>
     where
         Self: for<'p> PyObjectHashProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_hash,
-            pfunc: py_unary_func!(PyObjectHashProtocol, Self::__hash__, ffi::Py_hash_t) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_hash,
+            py_unary_func!(PyObjectHashProtocol, Self::__hash__, ffi::Py_hash_t),
+        )
     }
 
-    fn get_getattr() -> ffi::PyType_Slot
+    fn get_getattr() -> TypedSlot<ffi::getattrofunc>
     where
         Self: for<'p> PyObjectGetAttrProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_getattro,
-            pfunc: tp_getattro::<Self>() as _,
+        unsafe extern "C" fn wrap<T>(
+            slf: *mut ffi::PyObject,
+            arg: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
+        where
+            T: for<'p> PyObjectGetAttrProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+                // for existing fields and methods first
+                let existing = ffi::PyObject_GenericGetAttr(slf, arg);
+                if existing.is_null() {
+                    // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                    ffi::PyErr_Clear();
+                } else {
+                    return Ok(existing);
+                }
+
+                let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+                let arg = py.from_borrowed_ptr::<PyAny>(arg);
+                call_ref!(slf, __getattr__, arg).convert(py)
+            })
         }
+        TypedSlot(ffi::Py_tp_getattro, wrap::<Self>)
     }
 
-    fn get_richcompare() -> ffi::PyType_Slot
+    fn get_richcmp() -> TypedSlot<ffi::richcmpfunc>
     where
         Self: for<'p> PyObjectRichcmpProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_richcompare,
-            pfunc: tp_richcompare::<Self>() as _,
+        fn extract_op(op: c_int) -> PyResult<CompareOp> {
+            match op {
+                ffi::Py_LT => Ok(CompareOp::Lt),
+                ffi::Py_LE => Ok(CompareOp::Le),
+                ffi::Py_EQ => Ok(CompareOp::Eq),
+                ffi::Py_NE => Ok(CompareOp::Ne),
+                ffi::Py_GT => Ok(CompareOp::Gt),
+                ffi::Py_GE => Ok(CompareOp::Ge),
+                _ => Err(exceptions::PyValueError::new_err(
+                    "tp_richcompare called with invalid comparison operator",
+                )),
+            }
         }
+        unsafe extern "C" fn wrap<T>(
+            slf: *mut ffi::PyObject,
+            arg: *mut ffi::PyObject,
+            op: c_int,
+        ) -> *mut ffi::PyObject
+        where
+            T: for<'p> PyObjectRichcmpProtocol<'p>,
+        {
+            crate::callback_body!(py, {
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+                let arg = extract_or_return_not_implemented!(py, arg);
+                let op = extract_op(op)?;
+
+                slf.try_borrow()?.__richcmp__(arg, op).convert(py)
+            })
+        }
+        TypedSlot(ffi::Py_tp_richcompare, wrap::<Self>)
     }
 
-    fn get_setattr() -> ffi::PyType_Slot
+    fn get_setattr() -> TypedSlot<ffi::setattrofunc>
     where
         Self: for<'p> PyObjectSetAttrProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_setattro,
-            pfunc: py_func_set!(PyObjectSetAttrProtocol, Self::__setattr__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_setattro,
+            py_func_set!(PyObjectSetAttrProtocol, Self::__setattr__),
+        )
     }
 
-    fn get_delattr() -> ffi::PyType_Slot
+    fn get_delattr() -> TypedSlot<ffi::setattrofunc>
     where
         Self: for<'p> PyObjectDelAttrProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_setattro,
-            pfunc: py_func_del!(PyObjectDelAttrProtocol, Self::__delattr__) as _,
-        }
+        TypedSlot(
+            ffi::Py_tp_setattro,
+            py_func_del!(PyObjectDelAttrProtocol, Self::__delattr__),
+        )
     }
 
-    fn get_setdelattr() -> ffi::PyType_Slot
+    fn get_setdelattr() -> TypedSlot<ffi::setattrofunc>
     where
         Self: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_tp_setattro,
-            pfunc: py_func_set_del!(
+        TypedSlot(
+            ffi::Py_tp_setattro,
+            py_func_set_del!(
                 PyObjectSetAttrProtocol,
                 PyObjectDelAttrProtocol,
                 Self,
                 __setattr__,
                 __delattr__
-            ) as _,
-        }
+            ),
+        )
     }
 
-    fn get_bool() -> ffi::PyType_Slot
+    fn get_bool() -> TypedSlot<ffi::inquiry>
     where
         Self: for<'p> PyObjectBoolProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_nb_bool,
-            pfunc: py_unary_func!(PyObjectBoolProtocol, Self::__bool__, c_int) as _,
-        }
+        TypedSlot(
+            ffi::Py_nb_bool,
+            py_unary_func!(PyObjectBoolProtocol, Self::__bool__, c_int),
+        )
     }
 }
 
 impl<'p, T> PyBasicSlots for T where T: PyObjectProtocol<'p> {}
-
-fn tp_getattro<T>() -> ffi::binaryfunc
-where
-    T: for<'p> PyObjectGetAttrProtocol<'p>,
-{
-    unsafe extern "C" fn wrap<T>(
-        slf: *mut ffi::PyObject,
-        arg: *mut ffi::PyObject,
-    ) -> *mut ffi::PyObject
-    where
-        T: for<'p> PyObjectGetAttrProtocol<'p>,
-    {
-        crate::callback_body!(py, {
-            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-            // for existing fields and methods first
-            let existing = ffi::PyObject_GenericGetAttr(slf, arg);
-            if existing.is_null() {
-                // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                ffi::PyErr_Clear();
-            } else {
-                return Ok(existing);
-            }
-
-            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-            let arg = py.from_borrowed_ptr::<PyAny>(arg);
-            call_ref!(slf, __getattr__, arg).convert(py)
-        })
-    }
-    wrap::<T>
-}
-
-fn tp_richcompare<T>() -> ffi::richcmpfunc
-where
-    T: for<'p> PyObjectRichcmpProtocol<'p>,
-{
-    fn extract_op(op: c_int) -> PyResult<CompareOp> {
-        match op {
-            ffi::Py_LT => Ok(CompareOp::Lt),
-            ffi::Py_LE => Ok(CompareOp::Le),
-            ffi::Py_EQ => Ok(CompareOp::Eq),
-            ffi::Py_NE => Ok(CompareOp::Ne),
-            ffi::Py_GT => Ok(CompareOp::Gt),
-            ffi::Py_GE => Ok(CompareOp::Ge),
-            _ => Err(exceptions::PyValueError::new_err(
-                "tp_richcompare called with invalid comparison operator",
-            )),
-        }
-    }
-    unsafe extern "C" fn wrap<T>(
-        slf: *mut ffi::PyObject,
-        arg: *mut ffi::PyObject,
-        op: c_int,
-    ) -> *mut ffi::PyObject
-    where
-        T: for<'p> PyObjectRichcmpProtocol<'p>,
-    {
-        crate::callback_body!(py, {
-            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let arg = extract_or_return_not_implemented!(py, arg);
-            let op = extract_op(op)?;
-
-            slf.try_borrow()?.__richcmp__(arg, op).convert(py)
-        })
-    }
-    wrap::<T>
-}

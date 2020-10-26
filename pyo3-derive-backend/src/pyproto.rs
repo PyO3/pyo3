@@ -138,7 +138,7 @@ fn submit_protocol_methods(
         return Ok(quote! {});
     }
     let ext_trait: syn::Path = syn::parse_str(proto.extension_trait)?;
-    let mut tokens: Vec<TokenStream> = vec![];
+    let mut tokens = vec![];
     if proto.name == "Buffer" {
         // For buffer, we construct `PyProtoMethods` from PyBufferProcs
         tokens.push(quote! {
@@ -154,9 +154,12 @@ fn submit_protocol_methods(
         tokens.push(quote! { let mut proto_methods = vec![]; });
         for getter in proto.slot_getters(method_names) {
             let get = syn::Ident::new(getter, Span::call_site());
-            tokens.push(quote! { proto_methods.push(<#ty as #ext_trait>::#get()); });
+            tokens.push(quote! {
+                let slot = <#ty as #ext_trait>::#get();
+                proto_methods.push(pyo3::ffi::PyType_Slot { slot: slot.0, pfunc: slot.1 as _ });
+            });
         }
-    }
+    };
     if tokens.len() <= 1 {
         return Ok(quote! {});
     }

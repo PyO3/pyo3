@@ -158,7 +158,7 @@ pub const OBJECT: Proto = Proto {
         SlotGetter::new(&["__repr__"], "get_repr"),
         SlotGetter::new(&["__hash__"], "get_hash"),
         SlotGetter::new(&["__getattr__"], "get_getattr"),
-        SlotGetter::new(&["__richcmp__"], "get_richcompare"),
+        SlotGetter::new(&["__richcmp__"], "get_richcmp"),
         SlotGetter::new(&["__setattr__", "__delattr__"], "get_setdelattr"),
         SlotGetter::new(&["__setattr__"], "get_setattr"),
         SlotGetter::new(&["__delattr__"], "get_delattr"),
@@ -381,7 +381,7 @@ pub const MAPPING: Proto = Proto {
         "pyo3::class::mapping::PyMappingReversedProtocolImpl",
     )],
     slot_getters: &[
-        SlotGetter::new(&["__len__"], "get_length"),
+        SlotGetter::new(&["__len__"], "get_len"),
         SlotGetter::new(&["__getitem__"], "get_getitem"),
         SlotGetter::new(&["__setitem__", "__delitem__"], "get_setdelitem"),
         SlotGetter::new(&["__setitem__"], "get_setitem"),

@@ -3,6 +3,7 @@
 //! Python Sequence Interface
 //! Trait and support implementation for implementing sequence
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::PyErr;
@@ -131,118 +132,49 @@ pub trait PySequenceInplaceRepeatProtocol<'p>:
 /// Extension trait for proc-macro backend.
 #[doc(hidden)]
 pub trait PySequenceSlots {
-    fn get_len() -> ffi::PyType_Slot
+    fn get_len() -> TypedSlot<ffi::lenfunc>
     where
         Self: for<'p> PySequenceLenProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_length,
-            pfunc: py_len_func!(PySequenceLenProtocol, Self::__len__) as _,
-        }
+        TypedSlot(
+            ffi::Py_sq_length,
+            py_len_func!(PySequenceLenProtocol, Self::__len__),
+        )
     }
-    fn get_concat() -> ffi::PyType_Slot
+
+    fn get_concat() -> TypedSlot<ffi::binaryfunc>
     where
         Self: for<'p> PySequenceConcatProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_concat,
-            pfunc: py_binary_func!(PySequenceConcatProtocol, Self::__concat__) as _,
-        }
+        TypedSlot(
+            ffi::Py_sq_concat,
+            py_binary_func!(PySequenceConcatProtocol, Self::__concat__),
+        )
     }
-    fn get_repeat() -> ffi::PyType_Slot
+
+    fn get_repeat() -> TypedSlot<ffi::ssizeargfunc>
     where
         Self: for<'p> PySequenceRepeatProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_repeat,
-            pfunc: py_ssizearg_func!(PySequenceRepeatProtocol, Self::__repeat__) as _,
-        }
+        TypedSlot(
+            ffi::Py_sq_repeat,
+            py_ssizearg_func!(PySequenceRepeatProtocol, Self::__repeat__),
+        )
     }
-    fn get_getitem() -> ffi::PyType_Slot
+
+    fn get_getitem() -> TypedSlot<ffi::ssizeargfunc>
     where
         Self: for<'p> PySequenceGetItemProtocol<'p>,
     {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_item,
-            pfunc: py_ssizearg_func!(PySequenceGetItemProtocol, Self::__getitem__) as _,
-        }
+        TypedSlot(
+            ffi::Py_sq_item,
+            py_ssizearg_func!(PySequenceGetItemProtocol, Self::__getitem__),
+        )
     }
-    fn get_setitem() -> ffi::PyType_Slot
+
+    fn get_setitem() -> TypedSlot<ffi::ssizeobjargproc>
     where
         Self: for<'p> PySequenceSetItemProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_ass_item,
-            pfunc: sq_ass_item_impl::set_item::<Self>() as _,
-        }
-    }
-    fn get_delitem() -> ffi::PyType_Slot
-    where
-        Self: for<'p> PySequenceDelItemProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_ass_item,
-            pfunc: sq_ass_item_impl::del_item::<Self>() as _,
-        }
-    }
-    fn get_setdelitem() -> ffi::PyType_Slot
-    where
-        Self: for<'p> PySequenceDelItemProtocol<'p> + for<'p> PySequenceSetItemProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_ass_item,
-            pfunc: sq_ass_item_impl::set_del_item::<Self>() as _,
-        }
-    }
-    fn get_contains() -> ffi::PyType_Slot
-    where
-        Self: for<'p> PySequenceContainsProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_contains,
-            pfunc: py_binary_func!(PySequenceContainsProtocol, Self::__contains__, c_int) as _,
-        }
-    }
-    fn get_inplace_concat() -> ffi::PyType_Slot
-    where
-        Self: for<'p> PySequenceInplaceConcatProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_inplace_concat,
-            pfunc: py_binary_func!(
-                PySequenceInplaceConcatProtocol,
-                Self::__inplace_concat__,
-                *mut ffi::PyObject,
-                call_mut
-            ) as _,
-        }
-    }
-    fn get_inplace_repeat() -> ffi::PyType_Slot
-    where
-        Self: for<'p> PySequenceInplaceRepeatProtocol<'p>,
-    {
-        ffi::PyType_Slot {
-            slot: ffi::Py_sq_inplace_repeat,
-            pfunc: py_ssizearg_func!(
-                PySequenceInplaceRepeatProtocol,
-                Self::__inplace_repeat__,
-                call_mut
-            ) as _,
-        }
-    }
-}
-
-impl<'p, T> PySequenceSlots for T where T: PySequenceProtocol<'p> {}
-
-/// It can be possible to delete and set items (PySequenceSetItemProtocol and
-/// PySequenceDelItemProtocol implemented), only to delete (PySequenceDelItemProtocol implemented)
-/// or no deleting or setting is possible
-mod sq_ass_item_impl {
-    use super::*;
-
-    pub(super) fn set_item<T>() -> ffi::ssizeobjargproc
-    where
-        T: for<'p> PySequenceSetItemProtocol<'p>,
     {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
@@ -268,12 +200,13 @@ mod sq_ass_item_impl {
                 crate::callback::convert(py, slf.__setitem__(key.into(), value))
             })
         }
-        wrap::<T>
+
+        TypedSlot(ffi::Py_sq_ass_item, wrap::<Self>)
     }
 
-    pub(super) fn del_item<T>() -> ffi::ssizeobjargproc
+    fn get_delitem() -> TypedSlot<ffi::ssizeobjargproc>
     where
-        T: for<'p> PySequenceDelItemProtocol<'p>,
+        Self: for<'p> PySequenceDelItemProtocol<'p>,
     {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
@@ -296,12 +229,13 @@ mod sq_ass_item_impl {
                 }
             })
         }
-        wrap::<T>
+
+        TypedSlot(ffi::Py_sq_ass_item, wrap::<Self>)
     }
 
-    pub(super) fn set_del_item<T>() -> ffi::ssizeobjargproc
+    fn get_setdelitem() -> TypedSlot<ffi::ssizeobjargproc>
     where
-        T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
+        Self: for<'p> PySequenceDelItemProtocol<'p> + for<'p> PySequenceSetItemProtocol<'p>,
     {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
@@ -324,6 +258,48 @@ mod sq_ass_item_impl {
                 }
             })
         }
-        wrap::<T>
+
+        TypedSlot(ffi::Py_sq_ass_item, wrap::<Self>)
+    }
+
+    fn get_contains() -> TypedSlot<ffi::objobjproc>
+    where
+        Self: for<'p> PySequenceContainsProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_sq_contains,
+            py_binary_func!(PySequenceContainsProtocol, Self::__contains__, c_int),
+        )
+    }
+
+    fn get_inplace_concat() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PySequenceInplaceConcatProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_sq_inplace_concat,
+            py_binary_func!(
+                PySequenceInplaceConcatProtocol,
+                Self::__inplace_concat__,
+                *mut ffi::PyObject,
+                call_mut
+            ),
+        )
+    }
+
+    fn get_inplace_repeat() -> TypedSlot<ffi::ssizeargfunc>
+    where
+        Self: for<'p> PySequenceInplaceRepeatProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_sq_inplace_repeat,
+            py_ssizearg_func!(
+                PySequenceInplaceRepeatProtocol,
+                Self::__inplace_repeat__,
+                call_mut
+            ),
+        )
     }
 }
+
+impl<'p, T> PySequenceSlots for T where T: PySequenceProtocol<'p> {}
