@@ -8,21 +8,11 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
-
-#[cfg(Py_LIMITED_API)]
-#[derive(Clone, Default)]
-pub struct PyAsyncMethods {
-    pub am_await: Option<ffi::unaryfunc>,
-    pub am_aiter: Option<ffi::unaryfunc>,
-    pub am_anext: Option<ffi::unaryfunc>,
-}
-
-#[cfg(not(Py_LIMITED_API))]
-pub use ffi::PyAsyncMethods;
 
 /// Python Async/Await support interface.
 ///
@@ -96,34 +86,43 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl PyAsyncMethods {
-    pub fn set_await<T>(&mut self)
+pub trait PyAsyncSlots {
+    fn get_await() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyAsyncAwaitProtocol<'p>,
+        Self: for<'p> PyAsyncAwaitProtocol<'p>,
     {
-        self.am_await = py_unarys_func!(PyAsyncAwaitProtocol, T::__await__);
-    }
-    pub fn set_aiter<T>(&mut self)
-    where
-        T: for<'p> PyAsyncAiterProtocol<'p>,
-    {
-        self.am_aiter = py_unarys_func!(PyAsyncAiterProtocol, T::__aiter__);
-    }
-    pub fn set_anext<T>(&mut self)
-    where
-        T: for<'p> PyAsyncAnextProtocol<'p>,
-    {
-        self.am_anext = am_anext::<T>();
+        TypedSlot(
+            ffi::Py_am_await,
+            py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__),
+        )
     }
 
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_am_await, self.am_await.map(|v| v as _));
-        slots.maybe_push(ffi::Py_am_aiter, self.am_aiter.map(|v| v as _));
-        slots.maybe_push(ffi::Py_am_anext, self.am_anext.map(|v| v as _));
+    fn get_aiter() -> TypedSlot<ffi::unaryfunc>
+    where
+        Self: for<'p> PyAsyncAiterProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_am_aiter,
+            py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__),
+        )
+    }
+
+    fn get_anext() -> TypedSlot<ffi::unaryfunc>
+    where
+        Self: for<'p> PyAsyncAnextProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_am_anext,
+            py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__),
+        )
     }
 }
 
+impl<'p, T> PyAsyncSlots for T where T: PyAsyncProtocol<'p> {}
+
+/// Output of `__anext__`.
 pub enum IterANextOutput<T, U> {
     Yield(T),
     Return(U),
@@ -165,12 +164,4 @@ where
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }
-}
-
-#[inline]
-fn am_anext<T>() -> Option<ffi::unaryfunc>
-where
-    T: for<'p> PyAsyncAnextProtocol<'p>,
-{
-    py_unarys_func!(PyAsyncAnextProtocol, T::__anext__)
 }

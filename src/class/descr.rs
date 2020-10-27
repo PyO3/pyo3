@@ -5,6 +5,7 @@
 //! [Python information](
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::types::PyAny;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
@@ -70,29 +71,28 @@ pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
     type Result: IntoPyCallbackOutput<()>;
 }
 
-/// All FFI functions for description protocols.
-#[derive(Default)]
-pub struct PyDescrMethods {
-    pub tp_descr_get: Option<ffi::descrgetfunc>,
-    pub tp_descr_set: Option<ffi::descrsetfunc>,
+/// Extension trait for our proc-macro backend.
+#[doc(hidden)]
+pub trait PyDescrSlots {
+    fn get_descr_get() -> TypedSlot<ffi::descrgetfunc>
+    where
+        Self: for<'p> PyDescrGetProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_tp_descr_get,
+            py_ternarys_func!(PyDescrGetProtocol, Self::__get__),
+        )
+    }
+
+    fn get_descr_set() -> TypedSlot<ffi::descrsetfunc>
+    where
+        Self: for<'p> PyDescrSetProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_tp_descr_set,
+            py_ternarys_func!(PyDescrSetProtocol, Self::__set__, c_int),
+        )
+    }
 }
 
-#[doc(hidden)]
-impl PyDescrMethods {
-    pub fn set_descr_get<T>(&mut self)
-    where
-        T: for<'p> PyDescrGetProtocol<'p>,
-    {
-        self.tp_descr_get = py_ternarys_func!(PyDescrGetProtocol, T::__get__);
-    }
-    pub fn set_descr_set<T>(&mut self)
-    where
-        T: for<'p> PyDescrSetProtocol<'p>,
-    {
-        self.tp_descr_set = py_ternarys_func!(PyDescrSetProtocol, T::__set__, c_int);
-    }
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_tp_descr_get, self.tp_descr_get.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_descr_set, self.tp_descr_set.map(|v| v as _));
-    }
-}
+impl<'p, T> PyDescrSlots for T where T: PyDescrProtocol<'p> {}

@@ -772,13 +772,23 @@ impl pyo3::class::methods::HasMethodsInventory for MyClass {
 }
 pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
 
-impl pyo3::class::proto_methods::HasProtoRegistry for MyClass {
-    fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
-        static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
-            = pyo3::class::proto_methods::PyProtoRegistry::new();
-        &REGISTRY
+
+pub struct Pyo3ProtoInventoryForMyClass {
+    def: pyo3::class::proto_methods::PyProtoMethodDef,
+}
+impl pyo3::class::proto_methods::PyProtoInventory for Pyo3ProtoInventoryForMyClass {
+    fn new(def: pyo3::class::proto_methods::PyProtoMethodDef) -> Self {
+        Self { def }
+    }
+    fn get(&'static self) -> &'static pyo3::class::proto_methods::PyProtoMethodDef {
+        &self.def
     }
 }
+impl pyo3::class::proto_methods::HasProtoInventory for MyClass {
+    type ProtoMethods = Pyo3ProtoInventoryForMyClass;
+}
+pyo3::inventory::collect!(Pyo3ProtoInventoryForMyClass);
+
 
 impl pyo3::pyclass::PyClassSend for MyClass {
     type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<MyClass>;

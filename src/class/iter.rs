@@ -2,6 +2,7 @@
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -71,31 +72,30 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyIterNextOutput>;
 }
 
-#[derive(Default)]
-pub struct PyIterMethods {
-    pub tp_iter: Option<ffi::getiterfunc>,
-    pub tp_iternext: Option<ffi::iternextfunc>,
+/// Extension trait for proc-macro backend.
+#[doc(hidden)]
+pub trait PyIterSlots {
+    fn get_iter() -> TypedSlot<ffi::getiterfunc>
+    where
+        Self: for<'p> PyIterIterProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_tp_iter,
+            py_unarys_func!(PyIterIterProtocol, Self::__iter__),
+        )
+    }
+    fn get_iternext() -> TypedSlot<ffi::iternextfunc>
+    where
+        Self: for<'p> PyIterNextProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_tp_iternext,
+            py_unarys_func!(PyIterNextProtocol, Self::__next__),
+        )
+    }
 }
 
-#[doc(hidden)]
-impl PyIterMethods {
-    pub fn set_iter<T>(&mut self)
-    where
-        T: for<'p> PyIterIterProtocol<'p>,
-    {
-        self.tp_iter = py_unarys_func!(PyIterIterProtocol, T::__iter__);
-    }
-    pub fn set_iternext<T>(&mut self)
-    where
-        T: for<'p> PyIterNextProtocol<'p>,
-    {
-        self.tp_iternext = py_unarys_func!(PyIterNextProtocol, T::__next__);
-    }
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_tp_iter, self.tp_iter.map(|v| v as _));
-        slots.maybe_push(ffi::Py_tp_iternext, self.tp_iternext.map(|v| v as _));
-    }
-}
+impl<'p, T> PyIterSlots for T where T: PyIterProtocol<'p> {}
 
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.

@@ -2,100 +2,10 @@
 
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
-#[cfg(Py_LIMITED_API)]
-use std::os::raw::c_void;
-
-#[cfg(Py_LIMITED_API)]
-#[derive(Clone)]
-pub struct PyNumberMethods {
-    pub nb_add: Option<ffi::binaryfunc>,
-    pub nb_subtract: Option<ffi::binaryfunc>,
-    pub nb_multiply: Option<ffi::binaryfunc>,
-    pub nb_remainder: Option<ffi::binaryfunc>,
-    pub nb_divmod: Option<ffi::binaryfunc>,
-    pub nb_power: Option<ffi::ternaryfunc>,
-    pub nb_negative: Option<ffi::unaryfunc>,
-    pub nb_positive: Option<ffi::unaryfunc>,
-    pub nb_absolute: Option<ffi::unaryfunc>,
-    pub nb_bool: Option<ffi::inquiry>,
-    pub nb_invert: Option<ffi::unaryfunc>,
-    pub nb_lshift: Option<ffi::binaryfunc>,
-    pub nb_rshift: Option<ffi::binaryfunc>,
-    pub nb_and: Option<ffi::binaryfunc>,
-    pub nb_xor: Option<ffi::binaryfunc>,
-    pub nb_or: Option<ffi::binaryfunc>,
-    pub nb_int: Option<ffi::unaryfunc>,
-    #[allow(dead_code)]
-    pub nb_reserved: *mut c_void,
-    pub nb_float: Option<ffi::unaryfunc>,
-    pub nb_inplace_add: Option<ffi::binaryfunc>,
-    pub nb_inplace_subtract: Option<ffi::binaryfunc>,
-    pub nb_inplace_multiply: Option<ffi::binaryfunc>,
-    pub nb_inplace_remainder: Option<ffi::binaryfunc>,
-    pub nb_inplace_power: Option<ffi::ternaryfunc>,
-    pub nb_inplace_lshift: Option<ffi::binaryfunc>,
-    pub nb_inplace_rshift: Option<ffi::binaryfunc>,
-    pub nb_inplace_and: Option<ffi::binaryfunc>,
-    pub nb_inplace_xor: Option<ffi::binaryfunc>,
-    pub nb_inplace_or: Option<ffi::binaryfunc>,
-    pub nb_floor_divide: Option<ffi::binaryfunc>,
-    pub nb_true_divide: Option<ffi::binaryfunc>,
-    pub nb_inplace_floor_divide: Option<ffi::binaryfunc>,
-    pub nb_inplace_true_divide: Option<ffi::binaryfunc>,
-    pub nb_index: Option<ffi::unaryfunc>,
-    pub nb_matrix_multiply: Option<ffi::binaryfunc>,
-    pub nb_inplace_matrix_multiply: Option<ffi::binaryfunc>,
-}
-
-#[cfg(not(Py_LIMITED_API))]
-pub use crate::ffi::PyNumberMethods;
-
-impl Default for PyNumberMethods {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            nb_add: None,
-            nb_subtract: None,
-            nb_multiply: None,
-            nb_remainder: None,
-            nb_divmod: None,
-            nb_power: None,
-            nb_negative: None,
-            nb_positive: None,
-            nb_absolute: None,
-            nb_bool: None,
-            nb_invert: None,
-            nb_lshift: None,
-            nb_rshift: None,
-            nb_and: None,
-            nb_xor: None,
-            nb_or: None,
-            nb_int: None,
-            nb_reserved: ::std::ptr::null_mut(),
-            nb_float: None,
-            nb_inplace_add: None,
-            nb_inplace_subtract: None,
-            nb_inplace_multiply: None,
-            nb_inplace_remainder: None,
-            nb_inplace_power: None,
-            nb_inplace_lshift: None,
-            nb_inplace_rshift: None,
-            nb_inplace_and: None,
-            nb_inplace_xor: None,
-            nb_inplace_or: None,
-            nb_floor_divide: None,
-            nb_true_divide: None,
-            nb_inplace_floor_divide: None,
-            nb_inplace_true_divide: None,
-            nb_index: None,
-            nb_matrix_multiply: None,
-            nb_inplace_matrix_multiply: None,
-        }
-    }
-}
 
 /// Number interface
 #[allow(unused_variables)]
@@ -669,111 +579,164 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl PyNumberMethods {
-    pub fn set_add_radd<T>(&mut self)
+pub trait PyNumberSlots {
+    fn get_add_radd() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,
+        Self: for<'p> PyNumberAddProtocol<'p> + for<'p> PyNumberRAddProtocol<'p>,
     {
-        self.nb_add = py_binary_fallback_num_func!(
-            T,
-            PyNumberAddProtocol::__add__,
-            PyNumberRAddProtocol::__radd__
-        );
+        TypedSlot(
+            ffi::Py_nb_add,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberAddProtocol::__add__,
+                PyNumberRAddProtocol::__radd__
+            ),
+        )
     }
-    pub fn set_add<T>(&mut self)
+
+    fn get_add() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberAddProtocol<'p>,
+        Self: for<'p> PyNumberAddProtocol<'p>,
     {
-        self.nb_add = py_binary_num_func!(PyNumberAddProtocol, T::__add__);
+        TypedSlot(
+            ffi::Py_nb_add,
+            py_binary_num_func!(PyNumberAddProtocol, Self::__add__),
+        )
     }
-    pub fn set_radd<T>(&mut self)
+
+    fn get_radd() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRAddProtocol<'p>,
+        Self: for<'p> PyNumberRAddProtocol<'p>,
     {
-        self.nb_add = py_binary_reversed_num_func!(PyNumberRAddProtocol, T::__radd__);
+        TypedSlot(
+            ffi::Py_nb_add,
+            py_binary_reversed_num_func!(PyNumberRAddProtocol, Self::__radd__),
+        )
     }
-    pub fn set_sub_rsub<T>(&mut self)
+
+    fn get_sub_rsub() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberSubProtocol<'p> + for<'p> PyNumberRSubProtocol<'p>,
+        Self: for<'p> PyNumberSubProtocol<'p> + for<'p> PyNumberRSubProtocol<'p>,
     {
-        self.nb_subtract = py_binary_fallback_num_func!(
-            T,
-            PyNumberSubProtocol::__sub__,
-            PyNumberRSubProtocol::__rsub__
-        );
+        TypedSlot(
+            ffi::Py_nb_subtract,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberSubProtocol::__sub__,
+                PyNumberRSubProtocol::__rsub__
+            ),
+        )
     }
-    pub fn set_sub<T>(&mut self)
+
+    fn get_sub() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberSubProtocol<'p>,
+        Self: for<'p> PyNumberSubProtocol<'p>,
     {
-        self.nb_subtract = py_binary_num_func!(PyNumberSubProtocol, T::__sub__);
+        TypedSlot(
+            ffi::Py_nb_subtract,
+            py_binary_num_func!(PyNumberSubProtocol, Self::__sub__),
+        )
     }
-    pub fn set_rsub<T>(&mut self)
+
+    fn get_rsub() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRSubProtocol<'p>,
+        Self: for<'p> PyNumberRSubProtocol<'p>,
     {
-        self.nb_subtract = py_binary_reversed_num_func!(PyNumberRSubProtocol, T::__rsub__);
+        TypedSlot(
+            ffi::Py_nb_subtract,
+            py_binary_reversed_num_func!(PyNumberRSubProtocol, Self::__rsub__),
+        )
     }
-    pub fn set_mul_rmul<T>(&mut self)
+
+    fn get_mul_rmul() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberMulProtocol<'p> + for<'p> PyNumberRMulProtocol<'p>,
+        Self: for<'p> PyNumberMulProtocol<'p> + for<'p> PyNumberRMulProtocol<'p>,
     {
-        self.nb_multiply = py_binary_fallback_num_func!(
-            T,
-            PyNumberMulProtocol::__mul__,
-            PyNumberRMulProtocol::__rmul__
-        );
+        TypedSlot(
+            ffi::Py_nb_multiply,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberMulProtocol::__mul__,
+                PyNumberRMulProtocol::__rmul__
+            ),
+        )
     }
-    pub fn set_mul<T>(&mut self)
+
+    fn get_mul() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberMulProtocol<'p>,
+        Self: for<'p> PyNumberMulProtocol<'p>,
     {
-        self.nb_multiply = py_binary_num_func!(PyNumberMulProtocol, T::__mul__);
+        TypedSlot(
+            ffi::Py_nb_multiply,
+            py_binary_num_func!(PyNumberMulProtocol, Self::__mul__),
+        )
     }
-    pub fn set_rmul<T>(&mut self)
+
+    fn get_rmul() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRMulProtocol<'p>,
+        Self: for<'p> PyNumberRMulProtocol<'p>,
     {
-        self.nb_multiply = py_binary_reversed_num_func!(PyNumberRMulProtocol, T::__rmul__);
+        TypedSlot(
+            ffi::Py_nb_multiply,
+            py_binary_reversed_num_func!(PyNumberRMulProtocol, Self::__rmul__),
+        )
     }
-    pub fn set_mod<T>(&mut self)
+
+    fn get_mod() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberModProtocol<'p>,
+        Self: for<'p> PyNumberModProtocol<'p>,
     {
-        self.nb_remainder = py_binary_num_func!(PyNumberModProtocol, T::__mod__);
+        TypedSlot(
+            ffi::Py_nb_remainder,
+            py_binary_num_func!(PyNumberModProtocol, Self::__mod__),
+        )
     }
-    pub fn set_divmod_rdivmod<T>(&mut self)
+
+    fn get_divmod_rdivmod() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberDivmodProtocol<'p> + for<'p> PyNumberRDivmodProtocol<'p>,
+        Self: for<'p> PyNumberDivmodProtocol<'p> + for<'p> PyNumberRDivmodProtocol<'p>,
     {
-        self.nb_divmod = py_binary_fallback_num_func!(
-            T,
-            PyNumberDivmodProtocol::__divmod__,
-            PyNumberRDivmodProtocol::__rdivmod__
-        );
+        TypedSlot(
+            ffi::Py_nb_divmod,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberDivmodProtocol::__divmod__,
+                PyNumberRDivmodProtocol::__rdivmod__
+            ),
+        )
     }
-    pub fn set_divmod<T>(&mut self)
+
+    fn get_divmod() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberDivmodProtocol<'p>,
+        Self: for<'p> PyNumberDivmodProtocol<'p>,
     {
-        self.nb_divmod = py_binary_num_func!(PyNumberDivmodProtocol, T::__divmod__);
+        TypedSlot(
+            ffi::Py_nb_divmod,
+            py_binary_num_func!(PyNumberDivmodProtocol, Self::__divmod__),
+        )
     }
-    pub fn set_rdivmod<T>(&mut self)
+
+    fn get_rdivmod() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRDivmodProtocol<'p>,
+        Self: for<'p> PyNumberRDivmodProtocol<'p>,
     {
-        self.nb_divmod = py_binary_reversed_num_func!(PyNumberRDivmodProtocol, T::__rdivmod__);
+        TypedSlot(
+            ffi::Py_nb_divmod,
+            py_binary_reversed_num_func!(PyNumberRDivmodProtocol, Self::__rdivmod__),
+        )
     }
-    pub fn set_pow_rpow<T>(&mut self)
+
+    fn get_pow_rpow() -> TypedSlot<ffi::ternaryfunc>
     where
-        T: for<'p> PyNumberPowProtocol<'p> + for<'p> PyNumberRPowProtocol<'p>,
+        Self: for<'p> PyNumberPowProtocol<'p> + for<'p> PyNumberRPowProtocol<'p>,
     {
         unsafe extern "C" fn wrap_pow_and_rpow<T>(
-            lhs: *mut crate::ffi::PyObject,
-            rhs: *mut crate::ffi::PyObject,
-            modulo: *mut crate::ffi::PyObject,
-        ) -> *mut crate::ffi::PyObject
+            lhs: *mut ffi::PyObject,
+            rhs: *mut ffi::PyObject,
+            modulo: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
         where
             T: for<'p> PyNumberPowProtocol<'p> + for<'p> PyNumberRPowProtocol<'p>,
         {
@@ -794,17 +757,19 @@ impl PyNumberMethods {
                 }
             })
         }
-        self.nb_power = Some(wrap_pow_and_rpow::<T>);
+
+        TypedSlot(ffi::Py_nb_power, wrap_pow_and_rpow::<Self>)
     }
-    pub fn set_pow<T>(&mut self)
+
+    fn get_pow() -> TypedSlot<ffi::ternaryfunc>
     where
-        T: for<'p> PyNumberPowProtocol<'p>,
+        Self: for<'p> PyNumberPowProtocol<'p>,
     {
         unsafe extern "C" fn wrap_pow<T>(
-            lhs: *mut crate::ffi::PyObject,
-            rhs: *mut crate::ffi::PyObject,
-            modulo: *mut crate::ffi::PyObject,
-        ) -> *mut crate::ffi::PyObject
+            lhs: *mut ffi::PyObject,
+            rhs: *mut ffi::PyObject,
+            modulo: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
         where
             T: for<'p> PyNumberPowProtocol<'p>,
         {
@@ -815,17 +780,19 @@ impl PyNumberMethods {
                 T::__pow__(lhs, rhs, modulo).convert(py)
             })
         }
-        self.nb_power = Some(wrap_pow::<T>);
+
+        TypedSlot(ffi::Py_nb_power, wrap_pow::<Self>)
     }
-    pub fn set_rpow<T>(&mut self)
+
+    fn get_rpow() -> TypedSlot<ffi::ternaryfunc>
     where
-        T: for<'p> PyNumberRPowProtocol<'p>,
+        Self: for<'p> PyNumberRPowProtocol<'p>,
     {
         unsafe extern "C" fn wrap_rpow<T>(
-            arg: *mut crate::ffi::PyObject,
-            slf: *mut crate::ffi::PyObject,
-            modulo: *mut crate::ffi::PyObject,
-        ) -> *mut crate::ffi::PyObject
+            arg: *mut ffi::PyObject,
+            slf: *mut ffi::PyObject,
+            modulo: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
         where
             T: for<'p> PyNumberRPowProtocol<'p>,
         {
@@ -836,189 +803,291 @@ impl PyNumberMethods {
                 slf.try_borrow()?.__rpow__(arg, modulo).convert(py)
             })
         }
-        self.nb_power = Some(wrap_rpow::<T>);
+
+        TypedSlot(ffi::Py_nb_power, wrap_rpow::<Self>)
     }
-    pub fn set_neg<T>(&mut self)
+
+    fn get_neg() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberNegProtocol<'p>,
+        Self: for<'p> PyNumberNegProtocol<'p>,
     {
-        self.nb_negative = py_unary_func!(PyNumberNegProtocol, T::__neg__);
+        TypedSlot(
+            ffi::Py_nb_negative,
+            py_unary_func!(PyNumberNegProtocol, Self::__neg__),
+        )
     }
-    pub fn set_pos<T>(&mut self)
+
+    fn get_pos() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberPosProtocol<'p>,
+        Self: for<'p> PyNumberPosProtocol<'p>,
     {
-        self.nb_positive = py_unary_func!(PyNumberPosProtocol, T::__pos__);
+        TypedSlot(
+            ffi::Py_nb_positive,
+            py_unary_func!(PyNumberPosProtocol, Self::__pos__),
+        )
     }
-    pub fn set_abs<T>(&mut self)
+
+    fn get_abs() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberAbsProtocol<'p>,
+        Self: for<'p> PyNumberAbsProtocol<'p>,
     {
-        self.nb_absolute = py_unary_func!(PyNumberAbsProtocol, T::__abs__);
+        TypedSlot(
+            ffi::Py_nb_absolute,
+            py_unary_func!(PyNumberAbsProtocol, Self::__abs__),
+        )
     }
-    pub fn set_invert<T>(&mut self)
+
+    fn get_invert() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberInvertProtocol<'p>,
+        Self: for<'p> PyNumberInvertProtocol<'p>,
     {
-        self.nb_invert = py_unary_func!(PyNumberInvertProtocol, T::__invert__);
+        TypedSlot(
+            ffi::Py_nb_invert,
+            py_unary_func!(PyNumberInvertProtocol, Self::__invert__),
+        )
     }
-    pub fn set_lshift_rlshift<T>(&mut self)
+
+    fn get_lshift_rlshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberLShiftProtocol<'p> + for<'p> PyNumberRLShiftProtocol<'p>,
+        Self: for<'p> PyNumberLShiftProtocol<'p> + for<'p> PyNumberRLShiftProtocol<'p>,
     {
-        self.nb_lshift = py_binary_fallback_num_func!(
-            T,
-            PyNumberLShiftProtocol::__lshift__,
-            PyNumberRLShiftProtocol::__rlshift__
-        );
+        TypedSlot(
+            ffi::Py_nb_lshift,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberLShiftProtocol::__lshift__,
+                PyNumberRLShiftProtocol::__rlshift__
+            ),
+        )
     }
-    pub fn set_lshift<T>(&mut self)
+
+    fn get_lshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberLShiftProtocol<'p>,
+        Self: for<'p> PyNumberLShiftProtocol<'p>,
     {
-        self.nb_lshift = py_binary_num_func!(PyNumberLShiftProtocol, T::__lshift__);
+        TypedSlot(
+            ffi::Py_nb_lshift,
+            py_binary_num_func!(PyNumberLShiftProtocol, Self::__lshift__),
+        )
     }
-    pub fn set_rlshift<T>(&mut self)
+
+    fn get_rlshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRLShiftProtocol<'p>,
+        Self: for<'p> PyNumberRLShiftProtocol<'p>,
     {
-        self.nb_lshift = py_binary_reversed_num_func!(PyNumberRLShiftProtocol, T::__rlshift__);
+        TypedSlot(
+            ffi::Py_nb_lshift,
+            py_binary_reversed_num_func!(PyNumberRLShiftProtocol, Self::__rlshift__),
+        )
     }
-    pub fn set_rshift_rrshift<T>(&mut self)
+
+    fn get_rshift_rrshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRShiftProtocol<'p> + for<'p> PyNumberRRShiftProtocol<'p>,
+        Self: for<'p> PyNumberRShiftProtocol<'p> + for<'p> PyNumberRRShiftProtocol<'p>,
     {
-        self.nb_rshift = py_binary_fallback_num_func!(
-            T,
-            PyNumberRShiftProtocol::__rshift__,
-            PyNumberRRShiftProtocol::__rrshift__
-        );
+        TypedSlot(
+            ffi::Py_nb_rshift,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberRShiftProtocol::__rshift__,
+                PyNumberRRShiftProtocol::__rrshift__
+            ),
+        )
     }
-    pub fn set_rshift<T>(&mut self)
+
+    fn get_rshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRShiftProtocol<'p>,
+        Self: for<'p> PyNumberRShiftProtocol<'p>,
     {
-        self.nb_rshift = py_binary_num_func!(PyNumberRShiftProtocol, T::__rshift__);
+        TypedSlot(
+            ffi::Py_nb_rshift,
+            py_binary_num_func!(PyNumberRShiftProtocol, Self::__rshift__),
+        )
     }
-    pub fn set_rrshift<T>(&mut self)
+
+    fn get_rrshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRRShiftProtocol<'p>,
+        Self: for<'p> PyNumberRRShiftProtocol<'p>,
     {
-        self.nb_rshift = py_binary_reversed_num_func!(PyNumberRRShiftProtocol, T::__rrshift__);
+        TypedSlot(
+            ffi::Py_nb_rshift,
+            py_binary_reversed_num_func!(PyNumberRRShiftProtocol, Self::__rrshift__),
+        )
     }
-    pub fn set_and_rand<T>(&mut self)
+
+    fn get_and_rand() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberAndProtocol<'p> + for<'p> PyNumberRAndProtocol<'p>,
+        Self: for<'p> PyNumberAndProtocol<'p> + for<'p> PyNumberRAndProtocol<'p>,
     {
-        self.nb_and = py_binary_fallback_num_func!(
-            T,
-            PyNumberAndProtocol::__and__,
-            PyNumberRAndProtocol::__rand__
-        );
+        TypedSlot(
+            ffi::Py_nb_and,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberAndProtocol::__and__,
+                PyNumberRAndProtocol::__rand__
+            ),
+        )
     }
-    pub fn set_and<T>(&mut self)
+
+    fn get_and() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberAndProtocol<'p>,
+        Self: for<'p> PyNumberAndProtocol<'p>,
     {
-        self.nb_and = py_binary_num_func!(PyNumberAndProtocol, T::__and__);
+        TypedSlot(
+            ffi::Py_nb_and,
+            py_binary_num_func!(PyNumberAndProtocol, Self::__and__),
+        )
     }
-    pub fn set_rand<T>(&mut self)
+
+    fn get_rand() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRAndProtocol<'p>,
+        Self: for<'p> PyNumberRAndProtocol<'p>,
     {
-        self.nb_and = py_binary_reversed_num_func!(PyNumberRAndProtocol, T::__rand__);
+        TypedSlot(
+            ffi::Py_nb_and,
+            py_binary_reversed_num_func!(PyNumberRAndProtocol, Self::__rand__),
+        )
     }
-    pub fn set_xor_rxor<T>(&mut self)
+
+    fn get_xor_rxor() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberXorProtocol<'p> + for<'p> PyNumberRXorProtocol<'p>,
+        Self: for<'p> PyNumberXorProtocol<'p> + for<'p> PyNumberRXorProtocol<'p>,
     {
-        self.nb_xor = py_binary_fallback_num_func!(
-            T,
-            PyNumberXorProtocol::__xor__,
-            PyNumberRXorProtocol::__rxor__
-        );
+        TypedSlot(
+            ffi::Py_nb_xor,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberXorProtocol::__xor__,
+                PyNumberRXorProtocol::__rxor__
+            ),
+        )
     }
-    pub fn set_xor<T>(&mut self)
+
+    fn get_xor() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberXorProtocol<'p>,
+        Self: for<'p> PyNumberXorProtocol<'p>,
     {
-        self.nb_xor = py_binary_num_func!(PyNumberXorProtocol, T::__xor__);
+        TypedSlot(
+            ffi::Py_nb_xor,
+            py_binary_num_func!(PyNumberXorProtocol, Self::__xor__),
+        )
     }
-    pub fn set_rxor<T>(&mut self)
+
+    fn get_rxor() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberRXorProtocol<'p>,
+        Self: for<'p> PyNumberRXorProtocol<'p>,
     {
-        self.nb_xor = py_binary_reversed_num_func!(PyNumberRXorProtocol, T::__rxor__);
+        TypedSlot(
+            ffi::Py_nb_xor,
+            py_binary_reversed_num_func!(PyNumberRXorProtocol, Self::__rxor__),
+        )
     }
-    pub fn set_or_ror<T>(&mut self)
+
+    fn get_or_ror() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberOrProtocol<'p> + for<'p> PyNumberROrProtocol<'p>,
+        Self: for<'p> PyNumberOrProtocol<'p> + for<'p> PyNumberROrProtocol<'p>,
     {
-        self.nb_or = py_binary_fallback_num_func!(
-            T,
-            PyNumberOrProtocol::__or__,
-            PyNumberROrProtocol::__ror__
-        );
+        TypedSlot(
+            ffi::Py_nb_or,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberOrProtocol::__or__,
+                PyNumberROrProtocol::__ror__
+            ),
+        )
     }
-    pub fn set_or<T>(&mut self)
+
+    fn get_or() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberOrProtocol<'p>,
+        Self: for<'p> PyNumberOrProtocol<'p>,
     {
-        self.nb_or = py_binary_num_func!(PyNumberOrProtocol, T::__or__);
+        TypedSlot(
+            ffi::Py_nb_or,
+            py_binary_num_func!(PyNumberOrProtocol, Self::__or__),
+        )
     }
-    pub fn set_ror<T>(&mut self)
+
+    fn get_ror() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberROrProtocol<'p>,
+        Self: for<'p> PyNumberROrProtocol<'p>,
     {
-        self.nb_or = py_binary_reversed_num_func!(PyNumberROrProtocol, T::__ror__);
+        TypedSlot(
+            ffi::Py_nb_or,
+            py_binary_reversed_num_func!(PyNumberROrProtocol, Self::__ror__),
+        )
     }
-    pub fn set_int<T>(&mut self)
+
+    fn get_int() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberIntProtocol<'p>,
+        Self: for<'p> PyNumberIntProtocol<'p>,
     {
-        self.nb_int = py_unary_func!(PyNumberIntProtocol, T::__int__);
+        TypedSlot(
+            ffi::Py_nb_int,
+            py_unary_func!(PyNumberIntProtocol, Self::__int__),
+        )
     }
-    pub fn set_float<T>(&mut self)
+
+    fn get_float() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyNumberFloatProtocol<'p>,
+        Self: for<'p> PyNumberFloatProtocol<'p>,
     {
-        self.nb_float = py_unary_func!(PyNumberFloatProtocol, T::__float__);
+        TypedSlot(
+            ffi::Py_nb_float,
+            py_unary_func!(PyNumberFloatProtocol, Self::__float__),
+        )
     }
-    pub fn set_iadd<T>(&mut self)
+
+    fn get_iadd() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberIAddProtocol<'p>,
+        Self: for<'p> PyNumberIAddProtocol<'p>,
     {
-        self.nb_inplace_add = py_binary_self_func!(PyNumberIAddProtocol, T::__iadd__);
+        TypedSlot(
+            ffi::Py_nb_inplace_add,
+            py_binary_self_func!(PyNumberIAddProtocol, Self::__iadd__),
+        )
     }
-    pub fn set_isub<T>(&mut self)
+
+    fn get_isub() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberISubProtocol<'p>,
+        Self: for<'p> PyNumberISubProtocol<'p>,
     {
-        self.nb_inplace_subtract = py_binary_self_func!(PyNumberISubProtocol, T::__isub__);
+        TypedSlot(
+            ffi::Py_nb_inplace_subtract,
+            py_binary_self_func!(PyNumberISubProtocol, Self::__isub__),
+        )
     }
-    pub fn set_imul<T>(&mut self)
+
+    fn get_imul() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberIMulProtocol<'p>,
+        Self: for<'p> PyNumberIMulProtocol<'p>,
     {
-        self.nb_inplace_multiply = py_binary_self_func!(PyNumberIMulProtocol, T::__imul__);
+        TypedSlot(
+            ffi::Py_nb_inplace_multiply,
+            py_binary_self_func!(PyNumberIMulProtocol, Self::__imul__),
+        )
     }
-    pub fn set_imod<T>(&mut self)
+
+    fn get_imod() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberIModProtocol<'p>,
+        Self: for<'p> PyNumberIModProtocol<'p>,
     {
-        self.nb_inplace_remainder = py_binary_self_func!(PyNumberIModProtocol, T::__imod__);
+        TypedSlot(
+            ffi::Py_nb_inplace_remainder,
+            py_binary_self_func!(PyNumberIModProtocol, Self::__imod__),
+        )
     }
-    pub fn set_ipow<T>(&mut self)
+
+    fn get_ipow() -> TypedSlot<ffi::ternaryfunc>
     where
-        T: for<'p> PyNumberIPowProtocol<'p>,
+        Self: for<'p> PyNumberIPowProtocol<'p>,
     {
         // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
         // so we ignore it. It's the same as what CPython does.
         unsafe extern "C" fn wrap_ipow<T>(
-            slf: *mut crate::ffi::PyObject,
-            other: *mut crate::ffi::PyObject,
-            _modulo: *mut crate::ffi::PyObject,
-        ) -> *mut crate::ffi::PyObject
+            slf: *mut ffi::PyObject,
+            other: *mut ffi::PyObject,
+            _modulo: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
         where
             T: for<'p> PyNumberIPowProtocol<'p>,
         {
@@ -1030,202 +1099,201 @@ impl PyNumberMethods {
                 Ok::<_, PyErr>(slf)
             })
         }
-        self.nb_inplace_power = Some(wrap_ipow::<T>);
+
+        TypedSlot(ffi::Py_nb_inplace_power, wrap_ipow::<Self>)
     }
-    pub fn set_ilshift<T>(&mut self)
+
+    fn get_ilshift() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyNumberILShiftProtocol<'p>,
+        Self: for<'p> PyNumberILShiftProtocol<'p>,
     {
-        self.nb_inplace_lshift = py_binary_self_func!(PyNumberILShiftProtocol, T::__ilshift__);
-    }
-    pub fn set_irshift<T>(&mut self)
-    where
-        T: for<'p> PyNumberIRShiftProtocol<'p>,
-    {
-        self.nb_inplace_rshift = py_binary_self_func!(PyNumberIRShiftProtocol, T::__irshift__);
-    }
-    pub fn set_iand<T>(&mut self)
-    where
-        T: for<'p> PyNumberIAndProtocol<'p>,
-    {
-        self.nb_inplace_and = py_binary_self_func!(PyNumberIAndProtocol, T::__iand__);
-    }
-    pub fn set_ixor<T>(&mut self)
-    where
-        T: for<'p> PyNumberIXorProtocol<'p>,
-    {
-        self.nb_inplace_xor = py_binary_self_func!(PyNumberIXorProtocol, T::__ixor__);
-    }
-    pub fn set_ior<T>(&mut self)
-    where
-        T: for<'p> PyNumberIOrProtocol<'p>,
-    {
-        self.nb_inplace_or = py_binary_self_func!(PyNumberIOrProtocol, T::__ior__);
-    }
-    pub fn set_floordiv_rfloordiv<T>(&mut self)
-    where
-        T: for<'p> PyNumberFloordivProtocol<'p> + for<'p> PyNumberRFloordivProtocol<'p>,
-    {
-        self.nb_floor_divide = py_binary_fallback_num_func!(
-            T,
-            PyNumberFloordivProtocol::__floordiv__,
-            PyNumberRFloordivProtocol::__rfloordiv__
-        );
-    }
-    pub fn set_floordiv<T>(&mut self)
-    where
-        T: for<'p> PyNumberFloordivProtocol<'p>,
-    {
-        self.nb_floor_divide = py_binary_num_func!(PyNumberFloordivProtocol, T::__floordiv__);
-    }
-    pub fn set_rfloordiv<T>(&mut self)
-    where
-        T: for<'p> PyNumberRFloordivProtocol<'p>,
-    {
-        self.nb_floor_divide =
-            py_binary_reversed_num_func!(PyNumberRFloordivProtocol, T::__rfloordiv__);
-    }
-    pub fn set_truediv_rtruediv<T>(&mut self)
-    where
-        T: for<'p> PyNumberTruedivProtocol<'p> + for<'p> PyNumberRTruedivProtocol<'p>,
-    {
-        self.nb_true_divide = py_binary_fallback_num_func!(
-            T,
-            PyNumberTruedivProtocol::__truediv__,
-            PyNumberRTruedivProtocol::__rtruediv__
-        );
-    }
-    pub fn set_truediv<T>(&mut self)
-    where
-        T: for<'p> PyNumberTruedivProtocol<'p>,
-    {
-        self.nb_true_divide = py_binary_num_func!(PyNumberTruedivProtocol, T::__truediv__);
-    }
-    pub fn set_rtruediv<T>(&mut self)
-    where
-        T: for<'p> PyNumberRTruedivProtocol<'p>,
-    {
-        self.nb_true_divide =
-            py_binary_reversed_num_func!(PyNumberRTruedivProtocol, T::__rtruediv__);
-    }
-    pub fn set_ifloordiv<T>(&mut self)
-    where
-        T: for<'p> PyNumberIFloordivProtocol<'p>,
-    {
-        self.nb_inplace_floor_divide =
-            py_binary_self_func!(PyNumberIFloordivProtocol, T::__ifloordiv__);
-    }
-    pub fn set_itruediv<T>(&mut self)
-    where
-        T: for<'p> PyNumberITruedivProtocol<'p>,
-    {
-        self.nb_inplace_true_divide =
-            py_binary_self_func!(PyNumberITruedivProtocol, T::__itruediv__);
-    }
-    pub fn set_index<T>(&mut self)
-    where
-        T: for<'p> PyNumberIndexProtocol<'p>,
-    {
-        self.nb_index = py_unary_func!(PyNumberIndexProtocol, T::__index__);
-    }
-    pub fn set_matmul_rmatmul<T>(&mut self)
-    where
-        T: for<'p> PyNumberMatmulProtocol<'p> + for<'p> PyNumberRMatmulProtocol<'p>,
-    {
-        self.nb_matrix_multiply = py_binary_fallback_num_func!(
-            T,
-            PyNumberMatmulProtocol::__matmul__,
-            PyNumberRMatmulProtocol::__rmatmul__
-        );
-    }
-    pub fn set_matmul<T>(&mut self)
-    where
-        T: for<'p> PyNumberMatmulProtocol<'p>,
-    {
-        self.nb_matrix_multiply = py_binary_num_func!(PyNumberMatmulProtocol, T::__matmul__);
-    }
-    pub fn set_rmatmul<T>(&mut self)
-    where
-        T: for<'p> PyNumberRMatmulProtocol<'p>,
-    {
-        self.nb_matrix_multiply =
-            py_binary_reversed_num_func!(PyNumberRMatmulProtocol, T::__rmatmul__);
-    }
-    pub fn set_imatmul<T>(&mut self)
-    where
-        T: for<'p> PyNumberIMatmulProtocol<'p>,
-    {
-        self.nb_inplace_matrix_multiply =
-            py_binary_self_func!(PyNumberIMatmulProtocol, T::__imatmul__);
-    }
-    pub(crate) fn update_slots(&self, slots: &mut crate::pyclass::TypeSlots) {
-        slots.maybe_push(ffi::Py_nb_add, self.nb_add.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_subtract, self.nb_subtract.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_multiply, self.nb_multiply.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_remainder, self.nb_remainder.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_divmod, self.nb_divmod.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_power, self.nb_power.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_negative, self.nb_negative.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_positive, self.nb_positive.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_absolute, self.nb_absolute.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_bool, self.nb_bool.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_invert, self.nb_invert.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_lshift, self.nb_lshift.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_rshift, self.nb_rshift.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_and, self.nb_and.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_xor, self.nb_xor.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_or, self.nb_or.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_int, self.nb_int.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_float, self.nb_float.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_inplace_add, self.nb_inplace_add.map(|v| v as _));
-        slots.maybe_push(
-            ffi::Py_nb_inplace_subtract,
-            self.nb_inplace_subtract.map(|v| v as _),
-        );
-        slots.maybe_push(
-            ffi::Py_nb_inplace_multiply,
-            self.nb_inplace_multiply.map(|v| v as _),
-        );
-        slots.maybe_push(
-            ffi::Py_nb_inplace_remainder,
-            self.nb_inplace_remainder.map(|v| v as _),
-        );
-        slots.maybe_push(
-            ffi::Py_nb_inplace_power,
-            self.nb_inplace_power.map(|v| v as _),
-        );
-        slots.maybe_push(
+        TypedSlot(
             ffi::Py_nb_inplace_lshift,
-            self.nb_inplace_lshift.map(|v| v as _),
-        );
-        slots.maybe_push(
+            py_binary_self_func!(PyNumberILShiftProtocol, Self::__ilshift__),
+        )
+    }
+
+    fn get_irshift() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIRShiftProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_inplace_rshift,
-            self.nb_inplace_rshift.map(|v| v as _),
-        );
-        slots.maybe_push(ffi::Py_nb_inplace_and, self.nb_inplace_and.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_inplace_xor, self.nb_inplace_xor.map(|v| v as _));
-        slots.maybe_push(ffi::Py_nb_inplace_or, self.nb_inplace_or.map(|v| v as _));
-        slots.maybe_push(
+            py_binary_self_func!(PyNumberIRShiftProtocol, Self::__irshift__),
+        )
+    }
+
+    fn get_iand() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIAndProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_inplace_and,
+            py_binary_self_func!(PyNumberIAndProtocol, Self::__iand__),
+        )
+    }
+
+    fn get_ixor() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIXorProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_inplace_xor,
+            py_binary_self_func!(PyNumberIXorProtocol, Self::__ixor__),
+        )
+    }
+
+    fn get_ior() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIOrProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_inplace_or,
+            py_binary_self_func!(PyNumberIOrProtocol, Self::__ior__),
+        )
+    }
+
+    fn get_floordiv_rfloordiv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberFloordivProtocol<'p> + for<'p> PyNumberRFloordivProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_floor_divide,
-            self.nb_floor_divide.map(|v| v as _),
-        );
-        slots.maybe_push(ffi::Py_nb_true_divide, self.nb_true_divide.map(|v| v as _));
-        slots.maybe_push(
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberFloordivProtocol::__floordiv__,
+                PyNumberRFloordivProtocol::__rfloordiv__
+            ),
+        )
+    }
+
+    fn get_floordiv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberFloordivProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_floor_divide,
+            py_binary_num_func!(PyNumberFloordivProtocol, Self::__floordiv__),
+        )
+    }
+
+    fn get_rfloordiv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberRFloordivProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_floor_divide,
+            py_binary_reversed_num_func!(PyNumberRFloordivProtocol, Self::__rfloordiv__),
+        )
+    }
+
+    fn get_truediv_rtruediv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberTruedivProtocol<'p> + for<'p> PyNumberRTruedivProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_true_divide,
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberTruedivProtocol::__truediv__,
+                PyNumberRTruedivProtocol::__rtruediv__
+            ),
+        )
+    }
+
+    fn get_truediv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberTruedivProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_true_divide,
+            py_binary_num_func!(PyNumberTruedivProtocol, Self::__truediv__),
+        )
+    }
+
+    fn get_rtruediv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberRTruedivProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_true_divide,
+            py_binary_reversed_num_func!(PyNumberRTruedivProtocol, Self::__rtruediv__),
+        )
+    }
+
+    fn get_ifloordiv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIFloordivProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_inplace_floor_divide,
-            self.nb_inplace_floor_divide.map(|v| v as _),
-        );
-        slots.maybe_push(
+            py_binary_self_func!(PyNumberIFloordivProtocol, Self::__ifloordiv__),
+        )
+    }
+
+    fn get_itruediv() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberITruedivProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_inplace_true_divide,
-            self.nb_inplace_true_divide.map(|v| v as _),
-        );
-        slots.maybe_push(ffi::Py_nb_index, self.nb_index.map(|v| v as _));
-        slots.maybe_push(
+            py_binary_self_func!(PyNumberITruedivProtocol, Self::__itruediv__),
+        )
+    }
+
+    fn get_index() -> TypedSlot<ffi::unaryfunc>
+    where
+        Self: for<'p> PyNumberIndexProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_index,
+            py_unary_func!(PyNumberIndexProtocol, Self::__index__),
+        )
+    }
+
+    fn get_matmul_rmatmul() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberMatmulProtocol<'p> + for<'p> PyNumberRMatmulProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_matrix_multiply,
-            self.nb_matrix_multiply.map(|v| v as _),
-        );
-        slots.maybe_push(
+            py_binary_fallback_num_func!(
+                Self,
+                PyNumberMatmulProtocol::__matmul__,
+                PyNumberRMatmulProtocol::__rmatmul__
+            ),
+        )
+    }
+
+    fn get_matmul() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberMatmulProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_matrix_multiply,
+            py_binary_num_func!(PyNumberMatmulProtocol, Self::__matmul__),
+        )
+    }
+
+    fn get_rmatmul() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberRMatmulProtocol<'p>,
+    {
+        TypedSlot(
+            ffi::Py_nb_matrix_multiply,
+            py_binary_reversed_num_func!(PyNumberRMatmulProtocol, Self::__rmatmul__),
+        )
+    }
+
+    fn get_imatmul() -> TypedSlot<ffi::binaryfunc>
+    where
+        Self: for<'p> PyNumberIMatmulProtocol<'p>,
+    {
+        TypedSlot(
             ffi::Py_nb_inplace_matrix_multiply,
-            self.nb_inplace_matrix_multiply.map(|v| v as _),
-        );
+            py_binary_self_func!(PyNumberIMatmulProtocol, Self::__imatmul__),
+        )
     }
 }
+
+impl<'p, T> PyNumberSlots for T where T: PyNumberProtocol<'p> {}
