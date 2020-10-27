@@ -1,7 +1,7 @@
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use crate::instance::PyNativeType;
 use crate::{ffi, AsPyPointer, PyAny, Python};
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use std::ops::*;
 use std::os::raw::c_double;
 

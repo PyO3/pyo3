@@ -76,7 +76,7 @@ impl ClassMethod {
     #[classmethod]
     /// Test class method.
     fn method(cls: &PyType) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.name()))
+        Ok(format!("{}.method()!", cls.name()?))
     }
 }
 
@@ -104,7 +104,7 @@ struct ClassMethodWithArgs {}
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.name(), input))
+        Ok(format!("{}.method({})", cls.name()?, input))
     }
 }
 

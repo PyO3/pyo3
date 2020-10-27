@@ -6,16 +6,14 @@ use std::collections::HashSet;
 pub struct Proto {
     /// The name of this protocol. E.g., Iter.
     pub name: &'static str,
-    /// The name of slot table. E.g., PyIterMethods.
-    pub slot_table: &'static str,
-    /// The name of the setter used to set the table to `PyProtoRegistry`.
-    pub set_slot_table: &'static str,
+    /// Extension trait that has `get_*` methods
+    pub extension_trait: &'static str,
     /// All methods.
     pub methods: &'static [MethodProto],
     /// All methods registered as normal methods like `#[pymethods]`.
     pub py_methods: &'static [PyMethod],
     /// All methods registered to the slot table.
-    slot_setters: &'static [SlotSetter],
+    slot_getters: &'static [SlotGetter],
 }
 
 impl Proto {
@@ -32,13 +30,13 @@ impl Proto {
         self.py_methods.iter().find(|m| query == m.name)
     }
     // Since the order matters, we expose only the iterator instead of the slice.
-    pub(crate) fn setters(
+    pub(crate) fn slot_getters(
         &self,
         mut implemented_protocols: HashSet<String>,
     ) -> impl Iterator<Item = &'static str> {
-        self.slot_setters.iter().filter_map(move |setter| {
+        self.slot_getters.iter().filter_map(move |getter| {
             // If any required method is not implemented, we skip this setter.
-            if setter
+            if getter
                 .proto_names
                 .iter()
                 .any(|name| !implemented_protocols.contains(*name))
@@ -47,10 +45,10 @@ impl Proto {
             }
             // To use 'paired' setter in priority, we remove used protocols.
             // For example, if set_add_radd is already used, we shouldn't use set_add and set_radd.
-            for name in setter.proto_names {
+            for name in getter.proto_names {
                 implemented_protocols.remove(*name);
             }
-            Some(setter.set_function)
+            Some(getter.get_function)
         })
     }
 }
@@ -82,27 +80,26 @@ impl PyMethod {
 }
 
 /// Represents a setter used to register a method to the method table.
-struct SlotSetter {
+struct SlotGetter {
     /// Protocols necessary for invoking this setter.
     /// E.g., we need `__setattr__` and `__delattr__` for invoking `set_setdelitem`.
     pub proto_names: &'static [&'static str],
     /// The name of the setter called to the method table.
-    pub set_function: &'static str,
+    pub get_function: &'static str,
 }
 
-impl SlotSetter {
-    const fn new(names: &'static [&'static str], set_function: &'static str) -> Self {
-        SlotSetter {
+impl SlotGetter {
+    const fn new(names: &'static [&'static str], get_function: &'static str) -> Self {
+        SlotGetter {
             proto_names: names,
-            set_function,
+            get_function,
         }
     }
 }
 
 pub const OBJECT: Proto = Proto {
     name: "Object",
-    slot_table: "pyo3::class::basic::PyObjectMethods",
-    set_slot_table: "set_basic_methods",
+    extension_trait: "pyo3::class::basic::PyBasicSlots",
     methods: &[
         MethodProto::Binary {
             name: "__getattr__",
@@ -156,23 +153,22 @@ pub const OBJECT: Proto = Proto {
         PyMethod::new("__bytes__", "pyo3::class::basic::BytesProtocolImpl"),
         PyMethod::new("__unicode__", "pyo3::class::basic::UnicodeProtocolImpl"),
     ],
-    slot_setters: &[
-        SlotSetter::new(&["__str__"], "set_str"),
-        SlotSetter::new(&["__repr__"], "set_repr"),
-        SlotSetter::new(&["__hash__"], "set_hash"),
-        SlotSetter::new(&["__getattr__"], "set_getattr"),
-        SlotSetter::new(&["__richcmp__"], "set_richcompare"),
-        SlotSetter::new(&["__setattr__", "__delattr__"], "set_setdelattr"),
-        SlotSetter::new(&["__setattr__"], "set_setattr"),
-        SlotSetter::new(&["__delattr__"], "set_delattr"),
-        SlotSetter::new(&["__bool__"], "set_bool"),
+    slot_getters: &[
+        SlotGetter::new(&["__str__"], "get_str"),
+        SlotGetter::new(&["__repr__"], "get_repr"),
+        SlotGetter::new(&["__hash__"], "get_hash"),
+        SlotGetter::new(&["__getattr__"], "get_getattr"),
+        SlotGetter::new(&["__richcmp__"], "get_richcmp"),
+        SlotGetter::new(&["__setattr__", "__delattr__"], "get_setdelattr"),
+        SlotGetter::new(&["__setattr__"], "get_setattr"),
+        SlotGetter::new(&["__delattr__"], "get_delattr"),
+        SlotGetter::new(&["__bool__"], "get_bool"),
     ],
 };
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
-    slot_table: "pyo3::ffi::PyAsyncMethods",
-    set_slot_table: "set_async_methods",
+    extension_trait: "pyo3::class::pyasync::PyAsyncSlots",
     methods: &[
         MethodProto::UnaryS {
             name: "__await__",
@@ -211,17 +207,16 @@ pub const ASYNC: Proto = Proto {
             "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
         ),
     ],
-    slot_setters: &[
-        SlotSetter::new(&["__await__"], "set_await"),
-        SlotSetter::new(&["__aiter__"], "set_aiter"),
-        SlotSetter::new(&["__anext__"], "set_anext"),
+    slot_getters: &[
+        SlotGetter::new(&["__await__"], "get_await"),
+        SlotGetter::new(&["__aiter__"], "get_aiter"),
+        SlotGetter::new(&["__anext__"], "get_anext"),
     ],
 };
 
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
-    slot_table: "pyo3::ffi::PyBufferProcs",
-    set_slot_table: "set_buffer_methods",
+    extension_trait: "pyo3::class::buffer::PyBufferSlots",
     methods: &[
         MethodProto::Unary {
             name: "bf_getbuffer",
@@ -233,16 +228,15 @@ pub const BUFFER: Proto = Proto {
         },
     ],
     py_methods: &[],
-    slot_setters: &[
-        SlotSetter::new(&["bf_getbuffer"], "set_getbuffer"),
-        SlotSetter::new(&["bf_releasebuffer"], "set_releasebuffer"),
+    slot_getters: &[
+        SlotGetter::new(&["bf_getbuffer"], "get_getbuffer"),
+        SlotGetter::new(&["bf_releasebuffer"], "get_releasebuffer"),
     ],
 };
 
 pub const CONTEXT: Proto = Proto {
     name: "Context",
-    slot_table: "",
-    set_slot_table: "",
+    extension_trait: "",
     methods: &[
         MethodProto::Unary {
             name: "__enter__",
@@ -266,13 +260,12 @@ pub const CONTEXT: Proto = Proto {
             "pyo3::class::context::PyContextExitProtocolImpl",
         ),
     ],
-    slot_setters: &[],
+    slot_getters: &[],
 };
 
 pub const GC: Proto = Proto {
     name: "GC",
-    slot_table: "pyo3::class::gc::PyGCMethods",
-    set_slot_table: "set_gc_methods",
+    extension_trait: "pyo3::class::gc::PyGCSlots",
     methods: &[
         MethodProto::Free {
             name: "__traverse__",
@@ -284,16 +277,15 @@ pub const GC: Proto = Proto {
         },
     ],
     py_methods: &[],
-    slot_setters: &[
-        SlotSetter::new(&["__traverse__"], "set_traverse"),
-        SlotSetter::new(&["__clear__"], "set_clear"),
+    slot_getters: &[
+        SlotGetter::new(&["__traverse__"], "get_traverse"),
+        SlotGetter::new(&["__clear__"], "get_clear"),
     ],
 };
 
 pub const DESCR: Proto = Proto {
     name: "Descriptor",
-    slot_table: "pyo3::class::descr::PyDescrMethods",
-    set_slot_table: "set_descr_methods",
+    extension_trait: "pyo3::class::descr::PyDescrSlots",
     methods: &[
         MethodProto::TernaryS {
             name: "__get__",
@@ -327,16 +319,15 @@ pub const DESCR: Proto = Proto {
             "pyo3::class::context::PyDescrNameProtocolImpl",
         ),
     ],
-    slot_setters: &[
-        SlotSetter::new(&["__get__"], "set_descr_get"),
-        SlotSetter::new(&["__set__"], "set_descr_set"),
+    slot_getters: &[
+        SlotGetter::new(&["__get__"], "get_descr_get"),
+        SlotGetter::new(&["__set__"], "get_descr_set"),
     ],
 };
 
 pub const ITER: Proto = Proto {
     name: "Iter",
-    slot_table: "pyo3::class::iter::PyIterMethods",
-    set_slot_table: "set_iter_methods",
+    extension_trait: "pyo3::class::iter::PyIterSlots",
     py_methods: &[],
     methods: &[
         MethodProto::UnaryS {
@@ -350,16 +341,15 @@ pub const ITER: Proto = Proto {
             proto: "pyo3::class::iter::PyIterNextProtocol",
         },
     ],
-    slot_setters: &[
-        SlotSetter::new(&["__iter__"], "set_iter"),
-        SlotSetter::new(&["__next__"], "set_iternext"),
+    slot_getters: &[
+        SlotGetter::new(&["__iter__"], "get_iter"),
+        SlotGetter::new(&["__next__"], "get_iternext"),
     ],
 };
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
-    slot_table: "pyo3::ffi::PyMappingMethods",
-    set_slot_table: "set_mapping_methods",
+    extension_trait: "pyo3::class::mapping::PyMappingSlots",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -390,19 +380,18 @@ pub const MAPPING: Proto = Proto {
         "__reversed__",
         "pyo3::class::mapping::PyMappingReversedProtocolImpl",
     )],
-    slot_setters: &[
-        SlotSetter::new(&["__len__"], "set_length"),
-        SlotSetter::new(&["__getitem__"], "set_getitem"),
-        SlotSetter::new(&["__setitem__", "__delitem__"], "set_setdelitem"),
-        SlotSetter::new(&["__setitem__"], "set_setitem"),
-        SlotSetter::new(&["__delitem__"], "set_delitem"),
+    slot_getters: &[
+        SlotGetter::new(&["__len__"], "get_len"),
+        SlotGetter::new(&["__getitem__"], "get_getitem"),
+        SlotGetter::new(&["__setitem__", "__delitem__"], "get_setdelitem"),
+        SlotGetter::new(&["__setitem__"], "get_setitem"),
+        SlotGetter::new(&["__delitem__"], "get_delitem"),
     ],
 };
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
-    slot_table: "pyo3::ffi::PySequenceMethods",
-    set_slot_table: "set_sequence_methods",
+    extension_trait: "pyo3::class::sequence::PySequenceSlots",
     methods: &[
         MethodProto::Unary {
             name: "__len__",
@@ -451,24 +440,23 @@ pub const SEQ: Proto = Proto {
         },
     ],
     py_methods: &[],
-    slot_setters: &[
-        SlotSetter::new(&["__len__"], "set_len"),
-        SlotSetter::new(&["__concat__"], "set_concat"),
-        SlotSetter::new(&["__repeat__"], "set_repeat"),
-        SlotSetter::new(&["__getitem__"], "set_getitem"),
-        SlotSetter::new(&["__setitem__", "__delitem__"], "set_setdelitem"),
-        SlotSetter::new(&["__setitem__"], "set_setitem"),
-        SlotSetter::new(&["__delitem__"], "set_delitem"),
-        SlotSetter::new(&["__contains__"], "set_contains"),
-        SlotSetter::new(&["__inplace_concat__"], "set_inplace_concat"),
-        SlotSetter::new(&["__inplace_repeat__"], "set_inplace_repeat"),
+    slot_getters: &[
+        SlotGetter::new(&["__len__"], "get_len"),
+        SlotGetter::new(&["__concat__"], "get_concat"),
+        SlotGetter::new(&["__repeat__"], "get_repeat"),
+        SlotGetter::new(&["__getitem__"], "get_getitem"),
+        SlotGetter::new(&["__setitem__", "__delitem__"], "get_setdelitem"),
+        SlotGetter::new(&["__setitem__"], "get_setitem"),
+        SlotGetter::new(&["__delitem__"], "get_delitem"),
+        SlotGetter::new(&["__contains__"], "get_contains"),
+        SlotGetter::new(&["__inplace_concat__"], "get_inplace_concat"),
+        SlotGetter::new(&["__inplace_repeat__"], "get_inplace_repeat"),
     ],
 };
 
 pub const NUM: Proto = Proto {
     name: "Number",
-    slot_table: "pyo3::ffi::PyNumberMethods",
-    set_slot_table: "set_number_methods",
+    extension_trait: "pyo3::class::number::PyNumberSlots",
     methods: &[
         MethodProto::BinaryS {
             name: "__add__",
@@ -771,66 +759,66 @@ pub const NUM: Proto = Proto {
             "pyo3::class::number::PyNumberRoundProtocolImpl",
         ),
     ],
-    slot_setters: &[
-        SlotSetter::new(&["__add__", "__radd__"], "set_add_radd"),
-        SlotSetter::new(&["__add__"], "set_add"),
-        SlotSetter::new(&["__radd__"], "set_radd"),
-        SlotSetter::new(&["__sub__", "__rsub__"], "set_sub_rsub"),
-        SlotSetter::new(&["__sub__"], "set_sub"),
-        SlotSetter::new(&["__rsub__"], "set_rsub"),
-        SlotSetter::new(&["__mul__", "__rmul__"], "set_mul_rmul"),
-        SlotSetter::new(&["__mul__"], "set_mul"),
-        SlotSetter::new(&["__rmul__"], "set_rmul"),
-        SlotSetter::new(&["__mod__"], "set_mod"),
-        SlotSetter::new(&["__divmod__", "__rdivmod__"], "set_divmod_rdivmod"),
-        SlotSetter::new(&["__divmod__"], "set_divmod"),
-        SlotSetter::new(&["__rdivmod__"], "set_rdivmod"),
-        SlotSetter::new(&["__pow__", "__rpow__"], "set_pow_rpow"),
-        SlotSetter::new(&["__pow__"], "set_pow"),
-        SlotSetter::new(&["__rpow__"], "set_rpow"),
-        SlotSetter::new(&["__neg__"], "set_neg"),
-        SlotSetter::new(&["__pos__"], "set_pos"),
-        SlotSetter::new(&["__abs__"], "set_abs"),
-        SlotSetter::new(&["__invert__"], "set_invert"),
-        SlotSetter::new(&["__lshift__", "__rlshift__"], "set_lshift_rlshift"),
-        SlotSetter::new(&["__lshift__"], "set_lshift"),
-        SlotSetter::new(&["__rlshift__"], "set_rlshift"),
-        SlotSetter::new(&["__rshift__", "__rrshift__"], "set_rshift_rrshift"),
-        SlotSetter::new(&["__rshift__"], "set_rshift"),
-        SlotSetter::new(&["__rrshift__"], "set_rrshift"),
-        SlotSetter::new(&["__and__", "__rand__"], "set_and_rand"),
-        SlotSetter::new(&["__and__"], "set_and"),
-        SlotSetter::new(&["__rand__"], "set_rand"),
-        SlotSetter::new(&["__xor__", "__rxor__"], "set_xor_rxor"),
-        SlotSetter::new(&["__xor__"], "set_xor"),
-        SlotSetter::new(&["__rxor__"], "set_rxor"),
-        SlotSetter::new(&["__or__", "__ror__"], "set_or_ror"),
-        SlotSetter::new(&["__or__"], "set_or"),
-        SlotSetter::new(&["__ror__"], "set_ror"),
-        SlotSetter::new(&["__int__"], "set_int"),
-        SlotSetter::new(&["__float__"], "set_float"),
-        SlotSetter::new(&["__iadd__"], "set_iadd"),
-        SlotSetter::new(&["__isub__"], "set_isub"),
-        SlotSetter::new(&["__imul__"], "set_imul"),
-        SlotSetter::new(&["__imod__"], "set_imod"),
-        SlotSetter::new(&["__ipow__"], "set_ipow"),
-        SlotSetter::new(&["__ilshift__"], "set_ilshift"),
-        SlotSetter::new(&["__irshift__"], "set_irshift"),
-        SlotSetter::new(&["__iand__"], "set_iand"),
-        SlotSetter::new(&["__ixor__"], "set_ixor"),
-        SlotSetter::new(&["__ior__"], "set_ior"),
-        SlotSetter::new(&["__floordiv__", "__rfloordiv__"], "set_floordiv_rfloordiv"),
-        SlotSetter::new(&["__floordiv__"], "set_floordiv"),
-        SlotSetter::new(&["__rfloordiv__"], "set_rfloordiv"),
-        SlotSetter::new(&["__truediv__", "__rtruediv__"], "set_truediv_rtruediv"),
-        SlotSetter::new(&["__truediv__"], "set_truediv"),
-        SlotSetter::new(&["__rtruediv__"], "set_rtruediv"),
-        SlotSetter::new(&["__ifloordiv__"], "set_ifloordiv"),
-        SlotSetter::new(&["__itruediv__"], "set_itruediv"),
-        SlotSetter::new(&["__index__"], "set_index"),
-        SlotSetter::new(&["__matmul__", "__rmatmul__"], "set_matmul_rmatmul"),
-        SlotSetter::new(&["__matmul__"], "set_matmul"),
-        SlotSetter::new(&["__rmatmul__"], "set_rmatmul"),
-        SlotSetter::new(&["__imatmul__"], "set_imatmul"),
+    slot_getters: &[
+        SlotGetter::new(&["__add__", "__radd__"], "get_add_radd"),
+        SlotGetter::new(&["__add__"], "get_add"),
+        SlotGetter::new(&["__radd__"], "get_radd"),
+        SlotGetter::new(&["__sub__", "__rsub__"], "get_sub_rsub"),
+        SlotGetter::new(&["__sub__"], "get_sub"),
+        SlotGetter::new(&["__rsub__"], "get_rsub"),
+        SlotGetter::new(&["__mul__", "__rmul__"], "get_mul_rmul"),
+        SlotGetter::new(&["__mul__"], "get_mul"),
+        SlotGetter::new(&["__rmul__"], "get_rmul"),
+        SlotGetter::new(&["__mod__"], "get_mod"),
+        SlotGetter::new(&["__divmod__", "__rdivmod__"], "get_divmod_rdivmod"),
+        SlotGetter::new(&["__divmod__"], "get_divmod"),
+        SlotGetter::new(&["__rdivmod__"], "get_rdivmod"),
+        SlotGetter::new(&["__pow__", "__rpow__"], "get_pow_rpow"),
+        SlotGetter::new(&["__pow__"], "get_pow"),
+        SlotGetter::new(&["__rpow__"], "get_rpow"),
+        SlotGetter::new(&["__neg__"], "get_neg"),
+        SlotGetter::new(&["__pos__"], "get_pos"),
+        SlotGetter::new(&["__abs__"], "get_abs"),
+        SlotGetter::new(&["__invert__"], "get_invert"),
+        SlotGetter::new(&["__lshift__", "__rlshift__"], "get_lshift_rlshift"),
+        SlotGetter::new(&["__lshift__"], "get_lshift"),
+        SlotGetter::new(&["__rlshift__"], "get_rlshift"),
+        SlotGetter::new(&["__rshift__", "__rrshift__"], "get_rshift_rrshift"),
+        SlotGetter::new(&["__rshift__"], "get_rshift"),
+        SlotGetter::new(&["__rrshift__"], "get_rrshift"),
+        SlotGetter::new(&["__and__", "__rand__"], "get_and_rand"),
+        SlotGetter::new(&["__and__"], "get_and"),
+        SlotGetter::new(&["__rand__"], "get_rand"),
+        SlotGetter::new(&["__xor__", "__rxor__"], "get_xor_rxor"),
+        SlotGetter::new(&["__xor__"], "get_xor"),
+        SlotGetter::new(&["__rxor__"], "get_rxor"),
+        SlotGetter::new(&["__or__", "__ror__"], "get_or_ror"),
+        SlotGetter::new(&["__or__"], "get_or"),
+        SlotGetter::new(&["__ror__"], "get_ror"),
+        SlotGetter::new(&["__int__"], "get_int"),
+        SlotGetter::new(&["__float__"], "get_float"),
+        SlotGetter::new(&["__iadd__"], "get_iadd"),
+        SlotGetter::new(&["__isub__"], "get_isub"),
+        SlotGetter::new(&["__imul__"], "get_imul"),
+        SlotGetter::new(&["__imod__"], "get_imod"),
+        SlotGetter::new(&["__ipow__"], "get_ipow"),
+        SlotGetter::new(&["__ilshift__"], "get_ilshift"),
+        SlotGetter::new(&["__irshift__"], "get_irshift"),
+        SlotGetter::new(&["__iand__"], "get_iand"),
+        SlotGetter::new(&["__ixor__"], "get_ixor"),
+        SlotGetter::new(&["__ior__"], "get_ior"),
+        SlotGetter::new(&["__floordiv__", "__rfloordiv__"], "get_floordiv_rfloordiv"),
+        SlotGetter::new(&["__floordiv__"], "get_floordiv"),
+        SlotGetter::new(&["__rfloordiv__"], "get_rfloordiv"),
+        SlotGetter::new(&["__truediv__", "__rtruediv__"], "get_truediv_rtruediv"),
+        SlotGetter::new(&["__truediv__"], "get_truediv"),
+        SlotGetter::new(&["__rtruediv__"], "get_rtruediv"),
+        SlotGetter::new(&["__ifloordiv__"], "get_ifloordiv"),
+        SlotGetter::new(&["__itruediv__"], "get_itruediv"),
+        SlotGetter::new(&["__index__"], "get_index"),
+        SlotGetter::new(&["__matmul__", "__rmatmul__"], "get_matmul_rmatmul"),
+        SlotGetter::new(&["__matmul__"], "get_matmul"),
+        SlotGetter::new(&["__rmatmul__"], "get_rmatmul"),
+        SlotGetter::new(&["__imatmul__"], "get_imatmul"),
     ],
 };

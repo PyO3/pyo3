@@ -96,4 +96,5 @@ impl PyCFunction {
 #[repr(transparent)]
 pub struct PyFunction(PyAny);
 
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_var_type!(PyFunction, ffi::PyFunction_Type, ffi::PyFunction_Check);

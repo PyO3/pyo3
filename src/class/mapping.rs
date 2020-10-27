@@ -3,6 +3,7 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
@@ -72,42 +73,64 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl ffi::PyMappingMethods {
-    pub fn set_length<T>(&mut self)
+pub trait PyMappingSlots {
+    fn get_len() -> TypedSlot<ffi::lenfunc>
     where
-        T: for<'p> PyMappingLenProtocol<'p>,
+        Self: for<'p> PyMappingLenProtocol<'p>,
     {
-        self.mp_length = py_len_func!(PyMappingLenProtocol, T::__len__);
+        TypedSlot(
+            ffi::Py_mp_length,
+            py_len_func!(PyMappingLenProtocol, Self::__len__),
+        )
     }
-    pub fn set_getitem<T>(&mut self)
+
+    fn get_getitem() -> TypedSlot<ffi::binaryfunc>
     where
-        T: for<'p> PyMappingGetItemProtocol<'p>,
+        Self: for<'p> PyMappingGetItemProtocol<'p>,
     {
-        self.mp_subscript = py_binary_func!(PyMappingGetItemProtocol, T::__getitem__);
+        TypedSlot(
+            ffi::Py_mp_subscript,
+            py_binary_func!(PyMappingGetItemProtocol, Self::__getitem__),
+        )
     }
-    pub fn set_setitem<T>(&mut self)
+
+    fn get_setitem() -> TypedSlot<ffi::objobjargproc>
     where
-        T: for<'p> PyMappingSetItemProtocol<'p>,
+        Self: for<'p> PyMappingSetItemProtocol<'p>,
     {
-        self.mp_ass_subscript = py_func_set!(PyMappingSetItemProtocol, T, __setitem__);
+        TypedSlot(
+            ffi::Py_mp_ass_subscript,
+            py_func_set!(PyMappingSetItemProtocol, Self::__setitem__),
+        )
     }
-    pub fn set_delitem<T>(&mut self)
+
+    fn get_delitem() -> TypedSlot<ffi::objobjargproc>
     where
-        T: for<'p> PyMappingDelItemProtocol<'p>,
+        Self: for<'p> PyMappingDelItemProtocol<'p>,
     {
-        self.mp_ass_subscript = py_func_del!(PyMappingDelItemProtocol, T, __delitem__);
+        TypedSlot(
+            ffi::Py_mp_ass_subscript,
+            py_func_del!(PyMappingDelItemProtocol, Self::__delitem__),
+        )
     }
-    pub fn set_setdelitem<T>(&mut self)
+
+    fn get_setdelitem() -> TypedSlot<ffi::objobjargproc>
     where
-        T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
+        Self: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
     {
-        self.mp_ass_subscript = py_func_set_del!(
-            PyMappingSetItemProtocol,
-            PyMappingDelItemProtocol,
-            T,
-            __setitem__,
-            __delitem__
-        );
+        TypedSlot(
+            ffi::Py_mp_ass_subscript,
+            py_func_set_del!(
+                PyMappingSetItemProtocol,
+                PyMappingDelItemProtocol,
+                Self,
+                __setitem__,
+                __delitem__
+            ),
+        )
     }
 }
+
+impl<'p, T> PyMappingSlots for T where T: PyMappingProtocol<'p> {}

@@ -72,7 +72,7 @@ impl<'a> Enum<'a> {
         };
         quote!(
             #(#var_extracts)*
-            let type_name = obj.get_type().name();
+            let type_name = obj.get_type().name()?;
             let err_msg = format!("'{}' object cannot be converted to '{}'", type_name, #error_names);
             Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
@@ -246,7 +246,7 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for i in 0..len {
-            fields.push(quote!(slice[#i].extract()?));
+            fields.push(quote!(s.get_item(#i).extract()?));
         }
         let msg = if self.is_enum_variant {
             quote!(format!(
@@ -262,7 +262,6 @@ impl<'a> Container<'a> {
             if s.len() != #len {
                 return Err(::pyo3::exceptions::PyValueError::new_err(#msg))
             }
-            let slice = s.as_slice();
             Ok(#self_ty(#fields))
         )
     }

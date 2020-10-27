@@ -1,3 +1,7 @@
+#![cfg(not(Py_LIMITED_API))]
+//! Support for the Python `marshal` format. Not supported in limited API
+//! builds.
+
 use crate::ffi;
 use crate::types::{PyAny, PyBytes};
 use crate::{AsPyPointer, FromPyPointer, PyResult, Python};

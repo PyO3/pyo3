@@ -1,3 +1,5 @@
+#![cfg(not(Py_LIMITED_API))]
+
 use pyo3::buffer::PyBuffer;
 use pyo3::class::PyBufferProtocol;
 use pyo3::exceptions::PyBufferError;

@@ -1,3 +1,4 @@
+#[cfg(not(Py_LIMITED_API))]
 use crate::ffi::code::FreeFunc;
 use crate::ffi::object::PyObject;
 use crate::ffi::pystate::{PyThreadState, Py_tracefunc};
@@ -61,6 +62,7 @@ extern "C" {
         arg1: *mut crate::ffi::PyFrameObject,
         exc: c_int,
     ) -> *mut PyObject;
+    #[cfg(not(Py_LIMITED_API))]
     pub fn _PyEval_RequestCodeExtraIndex(func: FreeFunc) -> c_int;
     pub fn PyEval_EvalFrameEx(f: *mut crate::ffi::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]

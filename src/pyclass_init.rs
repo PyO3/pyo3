@@ -30,12 +30,12 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// ```
 /// # use pyo3::prelude::*;
 /// # use pyo3::py_run;
-/// #[pyclass]
+/// #[pyclass(subclass)]
 /// struct BaseClass {
 ///     #[pyo3(get)]
 ///     basename: &'static str,
 /// }
-/// #[pyclass(extends=BaseClass)]
+/// #[pyclass(extends=BaseClass, subclass)]
 /// struct SubClass {
 ///     #[pyo3(get)]
 ///     subname: &'static str,

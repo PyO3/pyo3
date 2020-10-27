@@ -184,6 +184,7 @@ mod gil;
 mod instance;
 #[macro_use]
 mod internal_tricks;
+#[cfg(not(Py_LIMITED_API))]
 pub mod marshal;
 pub mod once_cell;
 pub mod panic;

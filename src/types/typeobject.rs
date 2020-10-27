@@ -6,8 +6,6 @@ use crate::err::{PyErr, PyResult};
 use crate::instance::PyNativeType;
 use crate::type_object::PyTypeObject;
 use crate::{ffi, AsPyPointer, PyAny, Python};
-use std::borrow::Cow;
-use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
@@ -39,8 +37,8 @@ impl PyType {
     }
 
     /// Gets the name of the `PyType`.
-    pub fn name(&self) -> Cow<str> {
-        unsafe { CStr::from_ptr((*self.as_type_ptr()).tp_name).to_string_lossy() }
+    pub fn name(&self) -> PyResult<&str> {
+        self.getattr("__qualname__")?.extract()
     }
 
     /// Checks whether `self` is subclass of type `T`.

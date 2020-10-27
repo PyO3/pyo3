@@ -205,7 +205,7 @@ or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 ```rust
 # use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClass {
     val1: usize,
 }
@@ -222,7 +222,7 @@ impl BaseClass {
     }
 }
 
-#[pyclass(extends=BaseClass)]
+#[pyclass(extends=BaseClass, subclass)]
 struct SubClass {
     val2: usize,
 }
@@ -266,12 +266,14 @@ impl SubSubClass {
 ```
 
 You can also inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`](https://docs.rs/pyo3/latest/pyo3/type_object/trait.PySizedLayout.html).
+[`PySizedLayout`](https://docs.rs/pyo3/latest/pyo3/type_object/trait.PySizedLayout.html). However, this is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
 
 ```rust
+# #[cfg(Py_LIMITED_API)] fn main() {}
+# #[cfg(not(Py_LIMITED_API))] fn main() {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{AsPyPointer, PyNativeType};
@@ -300,6 +302,7 @@ impl DictWithCounter {
 # let py = gil.python();
 # let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
 # pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+# }
 ```
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
@@ -769,13 +772,23 @@ impl pyo3::class::methods::HasMethodsInventory for MyClass {
 }
 pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
 
-impl pyo3::class::proto_methods::HasProtoRegistry for MyClass {
-    fn registry() -> &'static pyo3::class::proto_methods::PyProtoRegistry {
-        static REGISTRY: pyo3::class::proto_methods::PyProtoRegistry
-            = pyo3::class::proto_methods::PyProtoRegistry::new();
-        &REGISTRY
+
+pub struct Pyo3ProtoInventoryForMyClass {
+    def: pyo3::class::proto_methods::PyProtoMethodDef,
+}
+impl pyo3::class::proto_methods::PyProtoInventory for Pyo3ProtoInventoryForMyClass {
+    fn new(def: pyo3::class::proto_methods::PyProtoMethodDef) -> Self {
+        Self { def }
+    }
+    fn get(&'static self) -> &'static pyo3::class::proto_methods::PyProtoMethodDef {
+        &self.def
     }
 }
+impl pyo3::class::proto_methods::HasProtoInventory for MyClass {
+    type ProtoMethods = Pyo3ProtoInventoryForMyClass;
+}
+pyo3::inventory::collect!(Pyo3ProtoInventoryForMyClass);
+
 
 impl pyo3::pyclass::PyClassSend for MyClass {
     type ThreadChecker = pyo3::pyclass::ThreadCheckerStub<MyClass>;

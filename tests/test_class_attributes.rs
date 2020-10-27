@@ -51,7 +51,10 @@ fn class_attributes() {
     py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
 }
 
+// Ignored because heap types are not immutable:
+// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L3399-L3409
 #[test]
+#[ignore]
 fn class_attributes_are_immutable() {
     let gil = Python::acquire_gil();
     let py = gil.python();

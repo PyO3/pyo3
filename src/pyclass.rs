@@ -7,10 +7,33 @@ use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
 use crate::types::PyAny;
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
+use std::convert::TryInto;
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::os::raw::c_void;
+#[cfg(not(PyPy))]
+use std::mem;
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::{ptr, thread};
+
+#[cfg(PyPy)]
+unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    (*tp).tp_alloc
+}
+
+#[cfg(not(PyPy))]
+unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc))
+}
+
+#[cfg(PyPy)]
+pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
+    (*tp).tp_free
+}
+
+#[cfg(not(PyPy))]
+pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
+    mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_free))
+}
 
 #[inline]
 pub(crate) unsafe fn default_new<T: PyTypeInfo>(
@@ -19,12 +42,21 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
 ) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
-        let base_tp = T::BaseType::type_object_raw(py);
-        if let Some(base_new) = (*base_tp).tp_new {
-            return base_new(subtype, ptr::null_mut(), ptr::null_mut());
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let base_tp = T::BaseType::type_object_raw(py);
+            if let Some(base_new) = (*base_tp).tp_new {
+                return base_new(subtype, ptr::null_mut(), ptr::null_mut());
+            }
+        }
+        #[cfg(Py_LIMITED_API)]
+        {
+            // Silence unused parameter warning.
+            let _ = py;
+            unreachable!("Subclassing native types isn't support in limited API mode");
         }
     }
-    let alloc = (*subtype).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+    let alloc = get_type_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
     alloc(subtype, 0) as _
 }
 
@@ -45,14 +77,13 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
-        if Self::is_exact_instance(obj) && ffi::PyObject_CallFinalizerFromDealloc(obj.as_ptr()) < 0
-        {
-            // tp_finalize resurrected.
-            return;
-        }
 
-        match (*ffi::Py_TYPE(obj.as_ptr())).tp_free {
-            Some(free) => free(obj.as_ptr() as *mut c_void),
+        match get_type_free(ffi::Py_TYPE(obj.as_ptr())) {
+            Some(free) => {
+                let ty = ffi::Py_TYPE(obj.as_ptr());
+                free(obj.as_ptr() as *mut c_void);
+                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+            }
             None => tp_free_fallback(obj.as_ptr()),
         }
     }
@@ -107,134 +138,151 @@ pub trait PyClass:
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 
-#[cfg(not(Py_LIMITED_API))]
-pub(crate) fn initialize_type_object<T>(
-    py: Python,
-    module_name: Option<&str>,
-    type_object: &mut ffi::PyTypeObject,
-) -> PyResult<()>
-where
-    T: PyClass,
-{
-    type_object.tp_doc = match T::DESCRIPTION {
-        // PyPy will segfault if passed only a nul terminator as `tp_doc`, ptr::null() is OK though.
-        "\0" => ptr::null(),
-        s if s.as_bytes().ends_with(b"\0") => s.as_ptr() as _,
-        // If the description is not null-terminated, create CString and leak it
-        s => CString::new(s)?.into_raw(),
-    };
+/// For collecting slot items.
+#[derive(Default)]
+pub(crate) struct TypeSlots(Vec<ffi::PyType_Slot>);
 
-    type_object.tp_base = T::BaseType::type_object_raw(py);
-
-    type_object.tp_name = match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
-        None => CString::new(T::NAME)?.into_raw(),
-    };
-
-    // dealloc
-    type_object.tp_dealloc = tp_dealloc::<T>();
-
-    // type size
-    type_object.tp_basicsize = std::mem::size_of::<T::Layout>() as ffi::Py_ssize_t;
-
-    // __dict__ support
-    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
-        type_object.tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+impl TypeSlots {
+    fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
+        self.0.push(ffi::PyType_Slot { slot, pfunc });
     }
-
-    // weakref support
-    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
-        type_object.tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
-    }
-
-    // GC support
-    if let Some(gc) = T::gc_methods() {
-        unsafe { gc.as_ref() }.update_typeobj(type_object);
-    }
-
-    // descriptor protocol
-    if let Some(descr) = T::descr_methods() {
-        unsafe { descr.as_ref() }.update_typeobj(type_object);
-    }
-
-    // iterator methods
-    if let Some(iter) = T::iter_methods() {
-        unsafe { iter.as_ref() }.update_typeobj(type_object);
-    }
-
-    // nb_bool is a part of PyObjectProtocol, but should be placed under tp_as_number
-    let mut nb_bool = None;
-    // basic methods
-    if let Some(basic) = T::basic_methods() {
-        unsafe { basic.as_ref() }.update_typeobj(type_object);
-        nb_bool = unsafe { basic.as_ref() }.nb_bool;
-    }
-
-    // number methods
-    type_object.tp_as_number = T::number_methods()
-        .map(|mut p| {
-            unsafe { p.as_mut() }.nb_bool = nb_bool;
-            p.as_ptr()
-        })
-        .unwrap_or_else(|| nb_bool.map_or_else(ptr::null_mut, ffi::PyNumberMethods::from_nb_bool));
-    // mapping methods
-    type_object.tp_as_mapping = T::mapping_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
-    // sequence methods
-    type_object.tp_as_sequence = T::sequence_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
-    // async methods
-    type_object.tp_as_async = T::async_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
-    // buffer protocol
-    type_object.tp_as_buffer = T::buffer_methods().map_or_else(ptr::null_mut, |p| p.as_ptr());
-
-    let (new, call, mut methods) = py_class_method_defs::<T>();
-
-    // normal methods
-    if !methods.is_empty() {
-        methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as _;
-    }
-
-    // __new__ method
-    type_object.tp_new = new;
-    // __call__ method
-    type_object.tp_call = call;
-
-    // properties
-    let mut props = py_class_properties::<T>();
-
-    if !T::Dict::IS_DUMMY {
-        props.push(ffi::PyGetSetDef_DICT);
-    }
-    if !props.is_empty() {
-        props.push(ffi::PyGetSetDef_INIT);
-        type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as _;
-    }
-
-    // set type flags
-    py_class_flags::<T>(type_object);
-
-    // register type object
-    unsafe {
-        if ffi::PyType_Ready(type_object) == 0 {
-            Ok(())
-        } else {
-            Err(PyErr::fetch(py))
+    pub(crate) fn maybe_push(&mut self, slot: c_int, value: Option<*mut c_void>) {
+        if let Some(pfunc) = value {
+            self.push(slot, pfunc);
         }
     }
 }
 
-fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None
-        || type_object.tp_clear != None
-        || T::FLAGS & type_flags::GC != 0
-    {
-        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
+fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
+    Ok(match T::DESCRIPTION {
+        "\0" => None,
+        s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
+        // If the description is not null-terminated, create CString and leak it
+        s => Some(CString::new(s)?.into_raw() as _),
+    })
+}
+
+fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_char> {
+    Ok(match module_name {
+        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
+        None => CString::new(T::NAME)?.into_raw(),
+    })
+}
+
+fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
+    Box::into_raw(vec.into_boxed_slice()) as _
+}
+
+pub(crate) fn create_type_object<T>(
+    py: Python,
+    module_name: Option<&str>,
+) -> PyResult<*mut ffi::PyTypeObject>
+where
+    T: PyClass,
+{
+    let mut slots = TypeSlots::default();
+
+    slots.push(ffi::Py_tp_base, T::BaseType::type_object_raw(py) as _);
+    slots.maybe_push(ffi::Py_tp_doc, tp_doc::<T>()?);
+    slots.maybe_push(ffi::Py_tp_dealloc, tp_dealloc::<T>().map(|v| v as _));
+
+    let (new, call, methods) = py_class_method_defs::<T>();
+    slots.maybe_push(ffi::Py_tp_new, new.map(|v| v as _));
+    slots.maybe_push(ffi::Py_tp_call, call.map(|v| v as _));
+
+    // normal methods
+    if !methods.is_empty() {
+        slots.push(ffi::Py_tp_methods, into_raw(methods));
+    }
+
+    // properties
+    let props = py_class_properties::<T>();
+    if !props.is_empty() {
+        slots.push(ffi::Py_tp_getset, into_raw(props));
+    }
+
+    // protocol methods
+    let mut has_gc_methods = false;
+    for slot in T::get_type_slots() {
+        has_gc_methods |= slot.slot == ffi::Py_tp_clear;
+        has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
+        slots.0.push(slot);
+    }
+
+    slots.push(0, ptr::null_mut());
+    let mut spec = ffi::PyType_Spec {
+        name: get_type_name::<T>(module_name)?,
+        basicsize: std::mem::size_of::<T::Layout>() as c_int,
+        itemsize: 0,
+        flags: py_class_flags::<T>(has_gc_methods),
+        slots: slots.0.as_mut_slice().as_mut_ptr(),
+    };
+
+    let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
+    if type_object.is_null() {
+        Err(PyErr::fetch(py))
     } else {
-        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
+        tp_init_additional::<T>(type_object as _);
+        Ok(type_object as _)
     }
+}
+
+#[cfg(not(Py_LIMITED_API))]
+fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
+    // Just patch the type objects for the things there's no
+    // PyType_FromSpec API for... there's no reason this should work,
+    // except for that it does and we have tests.
+
+    // Running this causes PyPy to segfault.
+    #[cfg(all(not(PyPy), not(Py_3_10)))]
+    {
+        if T::DESCRIPTION != "\0" {
+            unsafe {
+                // Until CPython 3.10, tp_doc was treated specially for
+                // heap-types, and it removed the text_signature value from it.
+                // We go in after the fact and replace tp_doc with something
+                // that _does_ include the text_signature value!
+                ffi::PyObject_Free((*type_object).tp_doc as _);
+                let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
+                data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
+                (*type_object).tp_doc = data as _;
+            }
+        }
+    }
+
+    if let Some(buffer) = T::get_buffer() {
+        unsafe {
+            (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
+            (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
+        }
+    }
+    // __dict__ support
+    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+        unsafe {
+            (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+        }
+    }
+    // weakref support
+    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+        unsafe {
+            (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
+        }
+    }
+}
+
+#[cfg(Py_LIMITED_API)]
+fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
+
+fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
+    let mut flags = if has_gc_methods || T::FLAGS & type_flags::GC != 0 {
+        ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
+    } else {
+        ffi::Py_TPFLAGS_DEFAULT
+    };
     if T::FLAGS & type_flags::BASETYPE != 0 {
-        type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
+        flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
+    flags.try_into().unwrap()
 }
 
 pub(crate) fn py_class_attributes<T: PyMethods>() -> impl Iterator<Item = PyClassAttributeDef> {
@@ -244,6 +292,21 @@ pub(crate) fn py_class_attributes<T: PyMethods>() -> impl Iterator<Item = PyClas
     })
 }
 
+fn fallback_new() -> Option<ffi::newfunc> {
+    unsafe extern "C" fn fallback_new(
+        _subtype: *mut ffi::PyTypeObject,
+        _args: *mut ffi::PyObject,
+        _kwds: *mut ffi::PyObject,
+    ) -> *mut ffi::PyObject {
+        crate::callback_body!(py, {
+            Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+                "No constructor defined",
+            ))
+        })
+    }
+    Some(fallback_new)
+}
+
 fn py_class_method_defs<T: PyMethods>() -> (
     Option<ffi::newfunc>,
     Option<ffi::PyCFunctionWithKeywords>,
@@ -251,7 +314,7 @@ fn py_class_method_defs<T: PyMethods>() -> (
 ) {
     let mut defs = Vec::new();
     let mut call = None;
-    let mut new = None;
+    let mut new = fallback_new();
 
     for def in T::py_methods() {
         match *def {
@@ -272,10 +335,14 @@ fn py_class_method_defs<T: PyMethods>() -> (
         }
     }
 
+    if !defs.is_empty() {
+        defs.push(ffi::PyMethodDef_INIT);
+    }
+
     (new, call, defs)
 }
 
-fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
+fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
     for def in T::py_methods() {
@@ -298,7 +365,14 @@ fn py_class_properties<T: PyMethods>() -> Vec<ffi::PyGetSetDef> {
         }
     }
 
-    defs.values().cloned().collect()
+    let mut props: Vec<_> = defs.values().cloned().collect();
+    if !T::Dict::IS_DUMMY {
+        props.push(ffi::PyGetSetDef_DICT);
+    }
+    if !props.is_empty() {
+        props.push(ffi::PyGetSetDef_INIT);
+    }
+    props
 }
 
 /// This trait is implemented for `#[pyclass]` and handles following two situations:

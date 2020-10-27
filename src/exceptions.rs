@@ -29,8 +29,8 @@ macro_rules! impl_exception_boilerplate {
 
         impl std::fmt::Debug for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                let type_name = self.get_type().name();
-                f.debug_struct(&*type_name)
+                let type_name = self.get_type().name().map_err(|_| std::fmt::Error)?;
+                f.debug_struct(type_name)
                     // TODO: print out actual fields!
                     .finish()
             }
@@ -38,7 +38,7 @@ macro_rules! impl_exception_boilerplate {
 
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                let type_name = self.get_type().name();
+                let type_name = self.get_type().name().map_err(|_| std::fmt::Error)?;
                 write!(f, "{}", type_name)?;
                 if let Ok(s) = self.str() {
                     write!(f, ": {}", &s.to_string_lossy())

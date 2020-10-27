@@ -94,6 +94,10 @@ jobs:
       - if: matrix.python-version != 'pypy3'
         name: Test
         run: cargo test --features "num-bigint num-complex" --target ${{ matrix.platform.rust-target }}
+      # Run tests again, but in abi3 mode
+      - if: matrix.python-version != 'pypy3'
+        name: Test (abi3)
+        run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}

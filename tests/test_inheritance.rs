@@ -3,10 +3,9 @@ use pyo3::py_run;
 
 use pyo3::types::IntoPyDict;
 
-use pyo3::types::{PyDict, PySet};
 mod common;
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClass {
     #[pyo3(get)]
     val1: usize,
@@ -106,7 +105,7 @@ fn mutation_fails() {
     )
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 struct BaseClassWithResult {
     _val: usize,
 }
@@ -153,56 +152,63 @@ except Exception as e:
     );
 }
 
-#[pyclass(extends=PySet)]
-#[derive(Debug)]
-struct SetWithName {
-    #[pyo3(get(name))]
-    _name: &'static str,
-}
+// Subclassing builtin types is not allowed in the LIMITED API.
+#[cfg(not(Py_LIMITED_API))]
+mod inheriting_native_type {
+    use super::*;
+    use pyo3::types::{PyDict, PySet};
 
-#[pymethods]
-impl SetWithName {
-    #[new]
-    fn new() -> Self {
-        SetWithName { _name: "Hello :)" }
+    #[pyclass(extends=PySet)]
+    #[derive(Debug)]
+    struct SetWithName {
+        #[pyo3(get(name))]
+        _name: &'static str,
     }
-}
 
-#[test]
-fn inherit_set() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
-    py_run!(
-        py,
-        set_sub,
-        r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub._name == "Hello :)""#
-    );
-}
-
-#[pyclass(extends=PyDict)]
-#[derive(Debug)]
-struct DictWithName {
-    #[pyo3(get(name))]
-    _name: &'static str,
-}
-
-#[pymethods]
-impl DictWithName {
-    #[new]
-    fn new() -> Self {
-        DictWithName { _name: "Hello :)" }
+    #[pymethods]
+    impl SetWithName {
+        #[new]
+        fn new() -> Self {
+            SetWithName { _name: "Hello :)" }
+        }
     }
-}
 
-#[test]
-fn inherit_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
-    py_run!(
-        py,
-        dict_sub,
-        r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub._name == "Hello :)""#
-    );
+    #[test]
+    fn inherit_set() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
+        py_run!(
+            py,
+            set_sub,
+            r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub._name == "Hello :)""#
+        );
+    }
+
+    #[pyclass(extends=PyDict)]
+    #[derive(Debug)]
+    struct DictWithName {
+        #[pyo3(get(name))]
+        _name: &'static str,
+    }
+
+    #[pymethods]
+    impl DictWithName {
+        #[new]
+        fn new() -> Self {
+            DictWithName { _name: "Hello :)" }
+        }
+    }
+
+    #[test]
+    fn inherit_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
+        py_run!(
+            py,
+            dict_sub,
+            r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub._name == "Hello :)""#
+        );
+    }
 }

@@ -1,6 +1,7 @@
 use super::PyObject;
 use std::os::raw::{c_char, c_int};
 
+#[cfg(not(Py_LIMITED_API))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;

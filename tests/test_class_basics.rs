@@ -119,7 +119,11 @@ fn test_raw_idents() {
 #[pyclass]
 struct EmptyClassInModule {}
 
+// Ignored because heap types do not show up as being in builtins, instead they
+// raise AttributeError:
+// https://github.com/python/cpython/blob/master/Objects/typeobject.c#L544-L573
 #[test]
+#[ignore]
 fn empty_class_in_module() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -165,7 +169,7 @@ fn class_with_object_field() {
     py_assert!(py, ty, "ty(None).value == None");
 }
 
-#[pyclass(unsendable)]
+#[pyclass(unsendable, subclass)]
 struct UnsendableBase {
     value: std::rc::Rc<usize>,
 }

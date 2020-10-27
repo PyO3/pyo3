@@ -143,6 +143,11 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     }) as c_int
 }
 
+#[cfg(all(Py_LIMITED_API, Py_3_8))]
+extern "C" {
+    pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
+}
+
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;

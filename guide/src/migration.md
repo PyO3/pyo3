@@ -3,6 +3,18 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.12.* to 0.13
+
+### Runtime changes to support the CPython limited API
+
+In PyO3 `0.13` support was added for compiling against the CPython limited API. This had a number of implications for _all_ PyO3 users, described here.
+
+The largest of these is that all types created from PyO3 are what CPython calls "heap" types. The specific implications of this are:
+
+- If you wish to subclass one of these types _from Rust_ you must mark it `#[pyclass(subclass)]`, as you would if you wished to allow subclassing it from Python code.
+- Type objects are now mutable - Python code can set attributes on them.
+- `__module__` on types without `#[pyclass(module="mymodule")]` no longer returns `builtins`, it now raises `AttributeError`.
+
 ## from 0.11.* to 0.12
 
 ### `PyErr` has been reworked

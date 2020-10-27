@@ -8,6 +8,7 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
+use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -85,28 +86,43 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-impl ffi::PyAsyncMethods {
-    pub fn set_await<T>(&mut self)
+pub trait PyAsyncSlots {
+    fn get_await() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyAsyncAwaitProtocol<'p>,
+        Self: for<'p> PyAsyncAwaitProtocol<'p>,
     {
-        self.am_await = py_unarys_func!(PyAsyncAwaitProtocol, T::__await__);
+        TypedSlot(
+            ffi::Py_am_await,
+            py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__),
+        )
     }
-    pub fn set_aiter<T>(&mut self)
+
+    fn get_aiter() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyAsyncAiterProtocol<'p>,
+        Self: for<'p> PyAsyncAiterProtocol<'p>,
     {
-        self.am_aiter = py_unarys_func!(PyAsyncAiterProtocol, T::__aiter__);
+        TypedSlot(
+            ffi::Py_am_aiter,
+            py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__),
+        )
     }
-    pub fn set_anext<T>(&mut self)
+
+    fn get_anext() -> TypedSlot<ffi::unaryfunc>
     where
-        T: for<'p> PyAsyncAnextProtocol<'p>,
+        Self: for<'p> PyAsyncAnextProtocol<'p>,
     {
-        self.am_anext = am_anext::<T>();
+        TypedSlot(
+            ffi::Py_am_anext,
+            py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__),
+        )
     }
 }
 
+impl<'p, T> PyAsyncSlots for T where T: PyAsyncProtocol<'p> {}
+
+/// Output of `__anext__`.
 pub enum IterANextOutput<T, U> {
     Yield(T),
     Return(U),
@@ -148,12 +164,4 @@ where
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }
-}
-
-#[inline]
-fn am_anext<T>() -> Option<ffi::unaryfunc>
-where
-    T: for<'p> PyAsyncAnextProtocol<'p>,
-{
-    py_unarys_func!(PyAsyncAnextProtocol, T::__anext__)
 }
