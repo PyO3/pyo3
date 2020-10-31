@@ -35,9 +35,13 @@ rustversion = "1.0"
 [features]
 default = ["macros"]
 macros = ["ctor", "indoc", "inventory", "paste", "pyo3cls", "unindent"]
-# Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for
-# more.
+# Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = []
+# With abi3, we can manually set the minimum Python version.
+abi3-py36 = ["abi3"]
+abi3-py37 = ["abi3-py36"]
+abi3-py38 = ["abi3-py37"]
+abi3-py39 = ["abi3-py38"]
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
