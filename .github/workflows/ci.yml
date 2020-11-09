@@ -111,9 +111,7 @@ jobs:
         shell: bash
         run: |
           for example_dir in examples/*; do
-              cd $example_dir
-              tox -c "tox.ini" -e py
-              cd -
+              tox -c $example_dir -e py
           done
 
     env:

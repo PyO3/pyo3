@@ -35,8 +35,8 @@ pytest -v tests
 
 ## Testing
 
-To test python 3.5, 3.6 and 3.7, install tox globally and run
+To test install tox globally and run
 
 ```shell
-tox
+tox -e py
 ```
