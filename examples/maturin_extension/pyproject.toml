@@ -1,3 +1,3 @@
 [build-system]
-requires = ["maturin @ git+https://github.com/davidhewitt/maturin.git@f4dce9879999ea404379e2ebcceb9af661bcd5ec"]
+requires = ["maturin @ git+https://github.com/PyO3/maturin.git@9f8cdba7894cc65110d1ba94140adef97b91e1e3"]
 build-backend = "maturin"
