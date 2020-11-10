@@ -150,15 +150,34 @@ impl CrossCompileConfig {
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
     let target = env::var("TARGET")?;
     let host = env::var("HOST")?;
-    if target == host || (target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc") {
+    if target == host {
+        // Not cross-compiling
+        return Ok(None);
+    }
+
+    if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
+        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
+        return Ok(None);
+    }
+
+    if host.starts_with(&format!(
+        "{}-{}-{}",
+        env::var("CARGO_CFG_TARGET_ARCH")?,
+        env::var("CARGO_CFG_TARGET_VENDOR")?,
+        env::var("CARGO_CFG_TARGET_OS")?
+    )) {
+        // Not cross-compiling if arch-vendor-os is all the same
+        // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
         return Ok(None);
     }
 
     if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
-        Ok(Some(CrossCompileConfig::both()?))
-    } else {
-        Ok(Some(CrossCompileConfig::lib_only()?))
+        // Windows cross-compile uses both header includes and sysconfig
+        return Ok(Some(CrossCompileConfig::both()?));
     }
+
+    // Cross-compiling on any other platform
+    Ok(Some(CrossCompileConfig::lib_only()?))
 }
 
 /// A list of python interpreter compile-time preprocessor defines that
