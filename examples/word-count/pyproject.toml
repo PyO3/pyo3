@@ -1,3 +1,2 @@
 [build-system]
-requires = ["setuptools>=41.0.0", "wheel", "setuptools_rust>=0.10.2", "toml"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=41.0.0", "wheel", "setuptools_rust>=0.10.2"]
