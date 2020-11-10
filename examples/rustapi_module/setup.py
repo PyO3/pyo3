@@ -41,11 +41,12 @@ setup(
     rust_extensions=[
         make_rust_extension("rustapi_module.buf_and_str"),
         make_rust_extension("rustapi_module.datetime"),
+        make_rust_extension("rustapi_module.misc"),
         make_rust_extension("rustapi_module.objstore"),
         make_rust_extension("rustapi_module.othermod"),
+        make_rust_extension("rustapi_module.pyclass_iter"),
         make_rust_extension("rustapi_module.subclassing"),
         make_rust_extension("rustapi_module.test_dict"),
-        make_rust_extension("rustapi_module.pyclass_iter"),
     ],
     include_package_data=True,
     zip_safe=False,

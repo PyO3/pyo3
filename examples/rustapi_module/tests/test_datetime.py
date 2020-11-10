@@ -293,10 +293,6 @@ def test_delta_err(args, err_type):
         rdt.make_delta(*args)
 
 
-def test_issue_219():
-    rdt.issue_219()
-
-
 def test_tz_class():
     tzi = rdt.TzClass()
 

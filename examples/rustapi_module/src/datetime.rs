@@ -183,13 +183,6 @@ fn datetime_from_timestamp<'p>(
     PyDateTime::from_timestamp(py, ts, tz)
 }
 
-#[pyfunction]
-fn issue_219() -> PyResult<()> {
-    let gil = Python::acquire_gil();
-    let _py = gil.python();
-    Ok(())
-}
-
 #[pyclass(extends=PyTzInfo)]
 pub struct TzClass {}
 
@@ -234,7 +227,6 @@ fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
     }
 
-    m.add_function(wrap_pyfunction!(issue_219, m)?)?;
     m.add_class::<TzClass>()?;
 
     Ok(())
