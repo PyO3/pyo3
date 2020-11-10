@@ -1,6 +1,6 @@
 import platform
 
-from rustapi_module.subclassing import Subclassable
+from maturin_extension.subclassing import Subclassable
 
 PYPY = platform.python_implementation() == "PyPy"
 

@@ -41,7 +41,7 @@ use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 /// # Python::with_gil(|py| {
 /// #     let inst = Py::new(py, Iter { count: 0 }).unwrap();
 /// #     pyo3::py_run!(py, inst, "assert next(inst) == 1");
-/// # }); // test of StopIteration is done in examples/rustapi_module/pyclass_iter.rs
+/// # }); // test of StopIteration is done in examples/setuptools_rust_extension/pyclass_iter.rs
 /// ```
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p>: PyClass {

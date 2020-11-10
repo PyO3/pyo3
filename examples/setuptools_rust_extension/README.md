@@ -1,4 +1,4 @@
-# rustapi_module
+# setuptools_rust_extension
 
 A simple extension module built using PyO3.
 

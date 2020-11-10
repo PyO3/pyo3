@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from rustapi_module.objstore import ObjStore
+from maturin_extension.objstore import ObjStore
 
 PYPY = platform.python_implementation() == "PyPy"
 

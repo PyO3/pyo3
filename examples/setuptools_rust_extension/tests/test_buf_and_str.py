@@ -4,7 +4,7 @@ import platform
 
 import psutil
 import pytest
-from rustapi_module.buf_and_str import BytesExtractor
+from setuptools_rust_extension.buf_and_str import BytesExtractor
 
 PYPY = platform.python_implementation() == "PyPy"
 

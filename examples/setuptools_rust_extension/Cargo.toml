@@ -1,6 +1,6 @@
 [package]
 authors = ["PyO3 Authors"]
-name = "rustapi-module"
+name = "setuptools_rust_extension"
 version = "0.1.0"
 description = "A Python wrapper for the Rust API for purposes of testing"
 edition = "2018"
@@ -12,5 +12,5 @@ path = "../../"
 features = ["extension-module"]
 
 [lib]
-name = "rustapi_module"
+name = "setuptools_rust_extension"
 crate-type = ["cdylib"]

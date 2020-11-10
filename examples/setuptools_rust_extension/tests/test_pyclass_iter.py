@@ -1,5 +1,5 @@
 import pytest
-from rustapi_module import pyclass_iter
+from setuptools_rust_extension import pyclass_iter
 
 
 def test_iter():

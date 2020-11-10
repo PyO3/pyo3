@@ -1,0 +1,27 @@
+[package]
+authors = ["PyO3 Authors"]
+name = "maturin_extension"
+version = "0.1.0"
+description = "A Python wrapper for the Rust API for purposes of testing"
+edition = "2018"
+
+[dependencies]
+
+[dependencies.pyo3]
+path = "../../"
+features = ["extension-module"]
+
+[lib]
+name = "maturin_extension"
+crate-type = ["cdylib"]
+
+[package.metadata.maturin]
+classifier=[
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+]

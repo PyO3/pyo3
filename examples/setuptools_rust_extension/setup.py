@@ -19,14 +19,8 @@ def get_py_version_cfgs():
     return out_cfg
 
 
-def make_rust_extension(module_name):
-    return RustExtension(
-        module_name, "Cargo.toml", rustc_flags=get_py_version_cfgs(), debug=True
-    )
-
-
 setup(
-    name="rustapi-module",
+    name="setuptools_rust_extension",
     version="0.1.0",
     classifiers=[
         "License :: OSI Approved :: MIT License",
@@ -37,16 +31,14 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: MacOS :: MacOS X",
     ],
-    packages=["rustapi_module"],
+    packages=["setuptools_rust_extension"],
     rust_extensions=[
-        make_rust_extension("rustapi_module.buf_and_str"),
-        make_rust_extension("rustapi_module.datetime"),
-        make_rust_extension("rustapi_module.misc"),
-        make_rust_extension("rustapi_module.objstore"),
-        make_rust_extension("rustapi_module.othermod"),
-        make_rust_extension("rustapi_module.pyclass_iter"),
-        make_rust_extension("rustapi_module.subclassing"),
-        make_rust_extension("rustapi_module.test_dict"),
+        RustExtension(
+            "setuptools_rust_extension.setuptools_rust_extension",
+            "Cargo.toml",
+            rustc_flags=get_py_version_cfgs(),
+            debug=True,
+        )
     ],
     include_package_data=True,
     zip_safe=False,

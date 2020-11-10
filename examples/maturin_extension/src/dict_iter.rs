@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 #[pymodule]
-fn test_dict(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn dict_iter(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<DictSize>()?;
     Ok(())
 }
