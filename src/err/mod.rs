@@ -526,7 +526,6 @@ fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::panic::PanicException;
     use crate::{PyErr, Python};
 
     #[test]
@@ -540,23 +539,24 @@ mod tests {
     }
 
     #[test]
-    fn fetching_panic_exception_panics() {
-        // If -Cpanic=abort is specified, we can't catch panic.
-        if option_env!("RUSTFLAGS")
-            .map(|s| s.contains("-Cpanic=abort"))
-            .unwrap_or(false)
-        {
-            return;
+    #[should_panic(expected = "new panic")]
+    fn fetching_panic_exception_resumes_unwind() {
+        // TODO replace with #[cfg(panic = "unwind")] once stable
+        if !crate::cfg_panic_unwind() {
+            // panic to meet the expected abort in panic=abort :-/
+            panic!("new panic");
         }
+
+        use crate::panic::PanicException;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         let err: PyErr = PanicException::new_err("new panic");
         err.restore(py);
         assert!(PyErr::occurred(py));
-        let started_unwind =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| PyErr::fetch(py))).is_err();
-        assert!(started_unwind);
+
+        // should resume unwind
+        let _ = PyErr::fetch(py);
     }
 
     #[test]

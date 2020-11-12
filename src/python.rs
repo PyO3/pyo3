@@ -588,11 +588,8 @@ mod test {
 
     #[test]
     fn test_allow_threads_panics_safely() {
-        // If -Cpanic=abort is specified, we can't catch panic.
-        if option_env!("RUSTFLAGS")
-            .map(|s| s.contains("-Cpanic=abort"))
-            .unwrap_or(false)
-        {
+        // TODO replace with #[cfg(panic = "unwind")] once stable
+        if !crate::cfg_panic_unwind() {
             return;
         }
 
