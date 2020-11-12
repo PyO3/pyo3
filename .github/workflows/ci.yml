@@ -58,7 +58,7 @@ jobs:
             platform: { os: "windows-latest" }
         include:
           # Test minimal supported Rust version
-          - rust: 1.39.0
+          - rust: 1.45.0
             python-version: 3.9
             platform: { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" }
             msrv: "MSRV"

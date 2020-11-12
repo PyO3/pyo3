@@ -341,16 +341,16 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
 fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
     let mut sysconfig_paths = vec![];
-    let version_pat = if let Some(ref v) = cross.version {
+    let version_pat = if let Some(v) = &cross.version {
         format!("python{}", v)
     } else {
         "python3.".into()
     };
     for f in fs::read_dir(path).expect("Path does not exist") {
-        let sysc = match f {
-            Ok(ref f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
-            Ok(ref f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
-            Ok(ref f) if starts_with(f, "lib.") => {
+        let sysc = match &f {
+            Ok(f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
+            Ok(f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
+            Ok(f) if starts_with(f, "lib.") => {
                 let name = f.file_name();
                 // check if right target os
                 if !name.to_string_lossy().contains(if cross.os == "android" {
@@ -366,7 +366,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                 }
                 search_lib_dir(f.path(), cross)
             }
-            Ok(ref f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
+            Ok(f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
             _ => continue,
         };
         sysconfig_paths.extend(sysc);
@@ -569,7 +569,7 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
                 );
             }
         }
-        Ok(ref ok) if !ok.status.success() => bail!("Python script failed: {}"),
+        Ok(ok) if !ok.status.success() => bail!("Python script failed: {}"),
         Ok(ok) => Ok(String::from_utf8(ok.stdout)?),
     }
 }

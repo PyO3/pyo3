@@ -5,9 +5,9 @@ error: name not allowed with this method type
    |     ^
 
 error: #[name] can not be specified multiple times
-  --> $DIR/invalid_pymethod_names.rs:17:5
+  --> $DIR/invalid_pymethod_names.rs:18:5
    |
-17 |     #[name = "foo"]
+18 |     #[name = "bar"]
    |     ^
 
 error: name not allowed with this method type

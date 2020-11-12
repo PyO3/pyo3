@@ -317,18 +317,18 @@ fn py_class_method_defs<T: PyMethods>() -> (
     let mut new = fallback_new();
 
     for def in T::py_methods() {
-        match *def {
-            PyMethodDefType::New(ref def) => {
+        match def {
+            PyMethodDefType::New(def) => {
                 new = def.get_new_func();
                 debug_assert!(new.is_some());
             }
-            PyMethodDefType::Call(ref def) => {
+            PyMethodDefType::Call(def) => {
                 call = def.get_cfunction_with_keywords();
                 debug_assert!(call.is_some());
             }
-            PyMethodDefType::Method(ref def)
-            | PyMethodDefType::Class(ref def)
-            | PyMethodDefType::Static(ref def) => {
+            PyMethodDefType::Method(def)
+            | PyMethodDefType::Class(def)
+            | PyMethodDefType::Static(def) => {
                 defs.push(def.as_method_def());
             }
             _ => (),
@@ -346,15 +346,15 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
     for def in T::py_methods() {
-        match *def {
-            PyMethodDefType::Getter(ref getter) => {
+        match def {
+            PyMethodDefType::Getter(getter) => {
                 if !defs.contains_key(getter.name) {
                     let _ = defs.insert(getter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }
                 let def = defs.get_mut(getter.name).expect("Failed to call get_mut");
                 getter.copy_to(def);
             }
-            PyMethodDefType::Setter(ref setter) => {
+            PyMethodDefType::Setter(setter) => {
                 if !defs.contains_key(setter.name) {
                     let _ = defs.insert(setter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }

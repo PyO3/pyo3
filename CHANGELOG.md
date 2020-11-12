@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Packaging
 - Drop support for Python 3.5 (as it is now end-of-life). [#1250](https://github.com/PyO3/pyo3/pull/1250)
+- Bump minimum supported Rust version to 1.45. [#1272](https://github.com/PyO3/pyo3/pull/1272)
+- Bump indoc dependency to 1.0. [#1272](https://github.com/PyO3/pyo3/pull/1272)
+- Bump paste dependency to 1.0. [#1272](https://github.com/PyO3/pyo3/pull/1272)
 
 ### Added
 - Add support for building for CPython limited API. This required a few minor changes to runtime behaviour of of pyo3 `#[pyclass]` types. See the migration guide for full details. [#1152](https://github.com/PyO3/pyo3/pull/1152)

@@ -322,7 +322,7 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 /// Accessor functions
 #[cfg(not(PyPy))]
 macro_rules! _access_field {
-    ($obj:expr, $type: ident, $field:tt) => {
+    ($obj:expr, $type: ident, $field:ident) => {
         (*($obj as *mut $type)).$field
     };
 }
@@ -504,7 +504,7 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 // Accessor functions for PyDateTime_Delta
 #[cfg(not(PyPy))]
 macro_rules! _access_delta_field {
-    ($obj:expr, $field:tt) => {
+    ($obj:expr, $field:ident) => {
         _access_field!($obj, PyDateTime_Delta, $field)
     };
 }

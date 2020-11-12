@@ -35,7 +35,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
 
     for stmt in func.block.stmts.iter_mut() {
-        if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
+        if let syn::Stmt::Item(syn::Item::Fn(func)) = stmt {
             if let Some((module_name, python_name, pyfn_attrs)) =
                 extract_pyfn_attrs(&mut func.attrs)?
             {
@@ -59,8 +59,8 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
 fn wrap_fn_argument<'a>(cap: &'a syn::PatType) -> syn::Result<method::FnArg<'a>> {
-    let (mutability, by_ref, ident) = match *cap.pat {
-        syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
+    let (mutability, by_ref, ident) = match &*cap.pat {
+        syn::Pat::Ident(patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),
     };
 
@@ -85,12 +85,12 @@ fn extract_pyfn_attrs(
 
     for attr in attrs.iter() {
         match attr.parse_meta() {
-            Ok(syn::Meta::List(ref list)) if list.path.is_ident("pyfn") => {
+            Ok(syn::Meta::List(list)) if list.path.is_ident("pyfn") => {
                 let meta: Vec<_> = list.nested.iter().cloned().collect();
                 if meta.len() >= 2 {
                     // read module name
-                    match meta[0] {
-                        syn::NestedMeta::Meta(syn::Meta::Path(ref path)) => {
+                    match &meta[0] {
+                        syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
                             modname = Some(path.clone())
                         }
                         _ => {
@@ -101,8 +101,8 @@ fn extract_pyfn_attrs(
                         }
                     }
                     // read Python function name
-                    match meta[1] {
-                        syn::NestedMeta::Lit(syn::Lit::Str(ref lits)) => {
+                    match &meta[1] {
+                        syn::NestedMeta::Lit(syn::Lit::Str(lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
                         _ => {
@@ -157,7 +157,7 @@ pub fn add_fn_to_module(
                     "Unexpected receiver for #[pyfn]",
                 ))
             }
-            syn::FnArg::Typed(ref cap) => {
+            syn::FnArg::Typed(cap) => {
                 if pyfn_attrs.pass_module && i == 0 {
                     if let syn::Type::Reference(tyref) = cap.ty.as_ref() {
                         if let syn::Type::Path(typath) = tyref.elem.as_ref() {
