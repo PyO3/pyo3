@@ -10,8 +10,8 @@ use quote::ToTokens;
 use std::collections::HashSet;
 
 pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
-    if let Some((_, ref mut path, _)) = ast.trait_ {
-        let proto = if let Some(ref mut segment) = path.segments.last() {
+    if let Some((_, path, _)) = &mut ast.trait_ {
+        let proto = if let Some(segment) = path.segments.last() {
             match segment.ident.to_string().as_str() {
                 "PyObjectProtocol" => &defs::OBJECT,
                 "PyAsyncProtocol" => &defs::ASYNC,
@@ -64,7 +64,7 @@ fn impl_proto_impl(
     let mut method_names = HashSet::new();
 
     for iimpl in impls.iter_mut() {
-        if let syn::ImplItem::Method(ref mut met) = iimpl {
+        if let syn::ImplItem::Method(met) = iimpl {
             // impl Py~Protocol<'p> { type = ... }
             if let Some(m) = proto.get_proto(&met.sig.ident) {
                 impl_method_proto(ty, &mut met.sig, m)?.to_tokens(&mut trait_impls);

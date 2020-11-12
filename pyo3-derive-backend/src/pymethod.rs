@@ -505,11 +505,10 @@ fn impl_arg_param(
             // Get Option<&T> from Option<PyRef<T>>
             (
                 quote! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
-                // To support Rustc 1.39.0, we don't use as_deref here...
                 if mut_.is_some() {
-                    quote! { _tmp.as_mut().map(std::ops::DerefMut::deref_mut) }
+                    quote! { _tmp.as_deref_mut() }
                 } else {
-                    quote! { _tmp.as_ref().map(std::ops::Deref::deref) }
+                    quote! { _tmp.as_deref() }
                 },
             )
         } else {
@@ -554,7 +553,7 @@ fn impl_arg_param(
     fn replace_self(tref: &mut syn::TypeReference, self_path: &syn::Path) {
         match &mut *tref.elem {
             syn::Type::Reference(tref_inner) => replace_self(tref_inner, self_path),
-            syn::Type::Path(ref mut tpath) => {
+            syn::Type::Path(tpath) => {
                 if let Some(ident) = tpath.path.get_ident() {
                     if ident == "Self" {
                         tpath.path = self_path.to_owned();
@@ -712,13 +711,8 @@ pub(crate) fn impl_py_getter_def(
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
 fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
-    if args
-        .get(0)
-        .map(|py| utils::is_python(&py.ty))
-        .unwrap_or(false)
-    {
-        (Some(&args[0]), &args[1..])
-    } else {
-        (None, args)
+    match args {
+        [py, args @ ..] if utils::is_python(&py.ty) => (Some(py), args),
+        args => (None, args),
     }
 }

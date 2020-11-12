@@ -196,7 +196,7 @@ impl BaseClassWithDrop {
 
 impl Drop for BaseClassWithDrop {
     fn drop(&mut self) {
-        if let Some(ref mut data) = self.data {
+        if let Some(data) = &self.data {
             data.store(true, Ordering::Relaxed);
         }
     }
@@ -220,7 +220,7 @@ impl SubClassWithDrop {
 
 impl Drop for SubClassWithDrop {
     fn drop(&mut self) {
-        if let Some(ref mut data) = self.data {
+        if let Some(data) = &self.data {
             data.store(true, Ordering::Relaxed);
         }
     }

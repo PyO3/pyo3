@@ -46,17 +46,17 @@ impl PyFunctionAttr {
 
     pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
         match item {
-            NestedMeta::Meta(syn::Meta::Path(ref ident)) if ident.is_ident("pass_module") => {
+            NestedMeta::Meta(syn::Meta::Path(ident)) if ident.is_ident("pass_module") => {
                 self.pass_module = true;
             }
-            NestedMeta::Meta(syn::Meta::Path(ref ident)) => self.add_work(item, ident)?,
-            NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
+            NestedMeta::Meta(syn::Meta::Path(ident)) => self.add_work(item, ident)?,
+            NestedMeta::Meta(syn::Meta::NameValue(nv)) => {
                 self.add_name_value(item, nv)?;
             }
-            NestedMeta::Lit(ref lit) => {
+            NestedMeta::Lit(lit) => {
                 self.add_literal(item, lit)?;
             }
-            NestedMeta::Meta(syn::Meta::List(ref list)) => {
+            NestedMeta::Meta(syn::Meta::List(list)) => {
                 return Err(syn::Error::new_spanned(
                     list,
                     "List is not supported as argument",
@@ -68,7 +68,7 @@ impl PyFunctionAttr {
 
     fn add_literal(&mut self, item: &NestedMeta, lit: &syn::Lit) -> syn::Result<()> {
         match lit {
-            syn::Lit::Str(ref lits) if lits.value() == "*" => {
+            syn::Lit::Str(lits) if lits.value() == "*" => {
                 // "*"
                 self.vararg_is_ok(item)?;
                 self.has_varargs = true;
@@ -137,8 +137,8 @@ impl PyFunctionAttr {
     }
 
     fn add_name_value(&mut self, item: &NestedMeta, nv: &syn::MetaNameValue) -> syn::Result<()> {
-        match nv.lit {
-            syn::Lit::Str(ref litstr) => {
+        match &nv.lit {
+            syn::Lit::Str(litstr) => {
                 if litstr.value() == "*" {
                     // args="*"
                     self.vararg_is_ok(item)?;
@@ -153,10 +153,10 @@ impl PyFunctionAttr {
                     self.add_nv_common(item, &nv.path, litstr.value())?;
                 }
             }
-            syn::Lit::Int(ref litint) => {
+            syn::Lit::Int(litint) => {
                 self.add_nv_common(item, &nv.path, format!("{}", litint))?;
             }
-            syn::Lit::Bool(ref litb) => {
+            syn::Lit::Bool(litb) => {
                 self.add_nv_common(item, &nv.path, format!("{}", litb.value))?;
             }
             _ => {
@@ -175,32 +175,29 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
 
     // Using retain will extract all name attributes from the attribute list
     attrs.retain(|attr| match attr.parse_meta() {
-        Ok(syn::Meta::NameValue(ref nv)) if nv.path.is_ident("name") => {
-            name_attrs.push((nv.lit.clone(), attr.span()));
+        Ok(syn::Meta::NameValue(nv)) if nv.path.is_ident("name") => {
+            name_attrs.push((nv.lit, attr.span()));
             false
         }
         _ => true,
     });
 
-    if 1 < name_attrs.len() {
-        return Err(syn::Error::new(
-            name_attrs[0].1,
-            "#[name] can not be specified multiple times",
-        ));
-    }
-
-    match name_attrs.get(0) {
-        Some((syn::Lit::Str(s), span)) => {
+    match name_attrs.as_slice() {
+        [] => Ok(None),
+        [(syn::Lit::Str(s), span)] => {
             let mut ident: syn::Ident = s.parse()?;
             // This span is the whole attribute span, which is nicer for reporting errors.
             ident.set_span(*span);
             Ok(Some(ident))
         }
-        Some((_, span)) => Err(syn::Error::new(
+        [(_, span)] => Err(syn::Error::new(
             *span,
             "Expected string literal for #[name] argument",
         )),
-        None => Ok(None),
+        [_first_attr, second_attr, ..] => Err(syn::Error::new(
+            second_attr.1,
+            "#[name] can not be specified multiple times",
+        )),
     }
 }
 

@@ -56,8 +56,8 @@ impl PyClassArgs {
     /// either a single word or an assignment expression
     fn add_expr(&mut self, expr: &Expr) -> syn::parse::Result<()> {
         match expr {
-            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => self.add_path(exp),
-            syn::Expr::Assign(ref assign) => self.add_assign(assign),
+            syn::Expr::Path(exp) if exp.path.segments.len() == 1 => self.add_path(exp),
+            syn::Expr::Assign(assign) => self.add_assign(assign),
             _ => Err(syn::Error::new_spanned(expr, "Failed to parse arguments")),
         }
     }
@@ -156,7 +156,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
     let mut descriptors = Vec::new();
 
     check_generics(class)?;
-    if let syn::Fields::Named(ref mut fields) = class.fields {
+    if let syn::Fields::Named(fields) = &mut class.fields {
         for field in fields.named.iter_mut() {
             let field_descs = parse_descriptors(field)?;
             if !field_descs.is_empty() {
@@ -178,10 +178,10 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     let mut descs = Vec::new();
     let mut new_attrs = Vec::new();
     for attr in item.attrs.iter() {
-        if let Ok(syn::Meta::List(ref list)) = attr.parse_meta() {
+        if let Ok(syn::Meta::List(list)) = attr.parse_meta() {
             if list.path.is_ident("pyo3") {
                 for meta in list.nested.iter() {
-                    if let syn::NestedMeta::Meta(ref metaitem) = meta {
+                    if let syn::NestedMeta::Meta(metaitem) = meta {
                         if metaitem.path().is_ident("get") {
                             descs.push(FnType::Getter(SelfType::Receiver { mutable: false }));
                         } else if metaitem.path().is_ident("set") {
@@ -318,7 +318,7 @@ fn impl_class(
     let mut has_dict = false;
     let mut has_gc = false;
     for f in attr.flags.iter() {
-        if let syn::Expr::Path(ref epath) = f {
+        if let syn::Expr::Path(epath) = f {
             if epath.path == parse_quote! { pyo3::type_flags::WEAKREF } {
                 has_weakref = true;
             } else if epath.path == parse_quote! { pyo3::type_flags::DICT } {
@@ -469,7 +469,7 @@ fn impl_descriptors(
 ) -> syn::Result<TokenStream> {
     let py_methods: Vec<TokenStream> = descriptors
         .iter()
-        .flat_map(|&(ref field, ref fns)| {
+        .flat_map(|(field, fns)| {
             fns.iter()
                 .map(|desc| {
                     let name = field.ident.as_ref().unwrap().unraw();

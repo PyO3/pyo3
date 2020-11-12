@@ -137,13 +137,10 @@ impl<'a> Container<'a> {
         }
         let style = match (fields, transparent) {
             (Fields::Unnamed(_), true) => ContainerType::TupleNewtype,
-            (Fields::Unnamed(unnamed), false) => {
-                if unnamed.unnamed.len() == 1 {
-                    ContainerType::TupleNewtype
-                } else {
-                    ContainerType::Tuple(unnamed.unnamed.len())
-                }
-            }
+            (Fields::Unnamed(unnamed), false) => match unnamed.unnamed.len() {
+                1 => ContainerType::TupleNewtype,
+                len => ContainerType::Tuple(len),
+            },
             (Fields::Named(named), true) => {
                 let field = named
                     .named
@@ -457,14 +454,15 @@ fn get_pyo3_meta_list(attrs: &[Attribute]) -> Result<MetaList> {
 }
 
 fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::LifetimeDef>> {
-    let lifetimes = generics.lifetimes().collect::<Vec<_>>();
-    if lifetimes.len() > 1 {
+    let mut lifetimes = generics.lifetimes();
+    let lifetime = lifetimes.next();
+    if lifetimes.next().is_some() {
         return Err(spanned_err(
             &generics,
             "FromPyObject can be derived with at most one lifetime parameter.",
         ));
     }
-    Ok(lifetimes.into_iter().next())
+    Ok(lifetime)
 }
 
 /// Derive FromPyObject for enums and structs.

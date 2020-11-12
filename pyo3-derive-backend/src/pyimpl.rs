@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
-    if let Some((_, ref path, _)) = ast.trait_ {
+    if let Some((_, path, _)) = &ast.trait_ {
         Err(syn::Error::new_spanned(
             path,
             "#[pymethods] cannot be used on trait impl blocks",

@@ -10,7 +10,7 @@ pub fn print_err(msg: String, t: TokenStream) {
 /// Check if the given type `ty` is `pyo3::Python`.
 pub fn is_python(ty: &syn::Type) -> bool {
     match ty {
-        syn::Type::Path(ref typath) => typath
+        syn::Type::Path(typath) => typath
             .path
             .segments
             .last()
@@ -125,9 +125,9 @@ pub fn get_doc(
     let mut first = true;
 
     for attr in attrs.iter() {
-        if let Ok(syn::Meta::NameValue(ref metanv)) = attr.parse_meta() {
+        if let Ok(syn::Meta::NameValue(metanv)) = attr.parse_meta() {
             if metanv.path.is_ident("doc") {
-                if let syn::Lit::Str(ref litstr) = metanv.lit {
+                if let syn::Lit::Str(litstr) = metanv.lit {
                     if first {
                         first = false;
                         span = litstr.span();

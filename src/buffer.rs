@@ -46,17 +46,12 @@ pub enum ElementType {
 
 impl ElementType {
     pub fn from_format(format: &CStr) -> ElementType {
-        let slice = format.to_bytes();
-        if slice.len() == 1 {
-            native_element_type_from_type_char(slice[0])
-        } else if slice.len() == 2 {
-            match slice[0] {
-                b'@' => native_element_type_from_type_char(slice[1]),
-                b'=' | b'<' | b'>' | b'!' => standard_element_type_from_type_char(slice[1]),
-                _ => ElementType::Unknown,
+        match format.to_bytes() {
+            [char] | [b'@', char] => native_element_type_from_type_char(*char),
+            [modifier, char] if matches!(modifier, b'=' | b'<' | b'>' | b'!') => {
+                standard_element_type_from_type_char(*char)
             }
-        } else {
-            ElementType::Unknown
+            _ => ElementType::Unknown,
         }
     }
 }

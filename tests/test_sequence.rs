@@ -59,7 +59,7 @@ impl PySequenceProtocol for ByteSequence {
 
     fn __contains__(&self, other: &PyAny) -> bool {
         match u8::extract(other) {
-            Ok(ref x) => self.elements.contains(x),
+            Ok(x) => self.elements.contains(&x),
             Err(_) => false,
         }
     }
