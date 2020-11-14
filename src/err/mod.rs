@@ -176,7 +176,8 @@ impl PyErr {
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
-    ///     assert_eq!(err.pvalue(py).to_string(), "TypeError: some type error");
+    ///     assert!(err.is_instance::<PyTypeError>(py));
+    ///     assert_eq!(err.pvalue(py).to_string(), "some type error");
     /// });
     /// ```
     pub fn pvalue<'py>(&'py self, py: Python<'py>) -> &'py PyBaseException {
@@ -447,13 +448,28 @@ impl PyErr {
 
 impl std::fmt::Debug for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        f.write_str(format!("PyErr {{ type: {:?} }}", self.ptype_ptr()).as_str())
+        Python::with_gil(|py| {
+            f.debug_struct("PyErr")
+                .field("type", self.ptype(py))
+                .field("value", self.pvalue(py))
+                .field("traceback", &self.ptraceback(py))
+                .finish()
+        })
     }
 }
 
 impl std::fmt::Display for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        Python::with_gil(|py| self.instance(py).fmt(f))
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        Python::with_gil(|py| {
+            let instance = self.instance(py);
+            let type_name = instance.get_type().name().map_err(|_| std::fmt::Error)?;
+            write!(f, "{}", type_name)?;
+            if let Ok(s) = instance.str() {
+                write!(f, ": {}", &s.to_string_lossy())
+            } else {
+                write!(f, ": <exception str() failed>")
+            }
+        })
     }
 }
 
@@ -557,6 +573,55 @@ mod tests {
 
         // should resume unwind
         let _ = PyErr::fetch(py);
+    }
+
+    #[test]
+    fn err_debug() {
+        // Debug representation should be like the following (without the newlines):
+        // PyErr {
+        //     type: <class 'Exception'>,
+        //     value: Exception('banana'),
+        //     traceback: Some(<traceback object at 0x..)"
+        // }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let err = py
+            .run("raise Exception('banana')", None, None)
+            .expect_err("raising should have given us an error");
+
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.starts_with("PyErr { "));
+        assert!(debug_str.ends_with(" }"));
+
+        let mut fields = debug_str
+            .strip_prefix("PyErr { ")
+            .unwrap()
+            .strip_suffix(" }")
+            .unwrap()
+            .split(", ");
+
+        assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
+        #[cfg(not(Py_3_7))] // Python 3.6 and below formats the repr differently
+        assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
+        #[cfg(Py_3_7)]
+        assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
+
+        let traceback = fields.next().unwrap();
+        assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));
+        assert!(traceback.ends_with(">)"));
+
+        assert!(fields.next().is_none());
+    }
+
+    #[test]
+    fn err_display() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let err = py
+            .run("raise Exception('banana')", None, None)
+            .expect_err("raising should have given us an error");
+        assert_eq!(err.to_string(), "Exception: banana");
     }
 
     #[test]
