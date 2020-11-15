@@ -45,18 +45,10 @@ impl crate::AsPyPointer for PyAny {
     }
 }
 
-impl PartialEq for PyAny {
-    #[inline]
-    fn eq(&self, o: &PyAny) -> bool {
-        self.as_ptr() == o.as_ptr()
-    }
-}
-
-unsafe impl crate::PyNativeType for PyAny {}
 unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
 impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
 
-pyobject_native_type_convert!(
+pyobject_native_type_info!(
     PyAny,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
@@ -66,7 +58,7 @@ pyobject_native_type_convert!(
 
 pyobject_native_type_extract!(PyAny);
 
-pyobject_native_type_fmt!(PyAny);
+pyobject_native_type_base!(PyAny);
 
 impl PyAny {
     /// Convert this PyAny to a concrete Python type.
