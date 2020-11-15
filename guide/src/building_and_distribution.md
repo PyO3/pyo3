@@ -58,6 +58,14 @@ pyo3 = { version = "...", features = ["abi3"]}
 
 3. Ensure that the `.whl` is correctly marked as `abi3`. For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
 
+### Minimum Python version for `abi3`
+
+We provide `abi3-py36`/`abi3-py37`/... features to set the minimum required Python version for abi3 wheel.
+E.g., if you set `abi3-py36` feature, you can build `cp36-abi3-manylinux2020_x86_64.whl` using Python 3.8.
+
+To ensure ABI compatibility, we don't allow setting a minimum version higher than the system Python version.
+E.g., if you set `abi3-py38` and try to compile the crate with Python 3.6, it just fails.
+
 ## Cross Compiling
 
 Cross compiling PyO3 modules is relatively straightforward and requires a few pieces of software:
