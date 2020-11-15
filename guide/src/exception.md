@@ -96,8 +96,8 @@ fn my_func(arg: PyObject) -> PyResult<()> {
 
 ## Checking exception types
 
-Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type,
-in PyO3 there is a [`Python::is_instance`] method which does the same thing.
+Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type.
+In PyO3 every native type has access to the [`PyAny::is_instance`] method which does the same thing.
 
 ```rust
 use pyo3::Python;
@@ -106,13 +106,13 @@ use pyo3::types::{PyBool, PyList};
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    assert!(py.is_instance::<PyBool, _>(PyBool::new(py, true)).unwrap());
+    assert!(PyBool::new(py, true).is_instance::<PyBool>().unwrap());
     let list = PyList::new(py, &[1, 2, 3, 4]);
-    assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
-    assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
+    assert!(!list.is_instance::<PyBool>().unwrap());
+    assert!(list.is_instance::<PyList>().unwrap());
 }
 ```
-[`Python::is_instance`] calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyType.html#method.is_instance)
+[`PyAny::is_instance`] calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyType.html#method.is_instance)
 method to do the actual work.
 
 To check the type of an exception, you can similarly do:

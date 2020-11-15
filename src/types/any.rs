@@ -4,6 +4,7 @@ use crate::conversion::{
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
+use crate::type_object::PyTypeObject;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject};
 use libc::c_int;
@@ -29,8 +30,8 @@ use std::cmp::Ordering;
 /// use pyo3::types::{PyAny, PyDict, PyList};
 /// let gil = Python::acquire_gil();
 /// let dict = PyDict::new(gil.python());
-/// assert!(gil.python().is_instance::<PyAny, _>(dict).unwrap());
-/// let any = dict.as_ref();
+/// assert!(dict.is_instance::<PyAny>().unwrap());
+/// let any: &PyAny = dict.as_ref();
 /// assert!(any.downcast::<PyDict>().is_ok());
 /// assert!(any.downcast::<PyList>().is_err());
 /// ```
@@ -452,13 +453,19 @@ impl PyAny {
     pub fn dir(&self) -> &PyList {
         unsafe { self.py().from_owned_ptr(ffi::PyObject_Dir(self.as_ptr())) }
     }
+
+    /// Checks whether this object is an instance of type `T`.
+    ///
+    /// This is equivalent to the Python expression `isinstance(self, T)`.
+    pub fn is_instance<T: PyTypeObject>(&self) -> PyResult<bool> {
+        T::type_object(self.py()).is_instance(self)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::types::{IntoPyDict, PyList};
-    use crate::Python;
-    use crate::ToPyObject;
+    use crate::types::{IntoPyDict, PyList, PyLong};
+    use crate::{Python, ToPyObject};
 
     #[test]
     fn test_call_for_non_existing_method() {
@@ -513,5 +520,17 @@ mod test {
         let py = gil.python();
         let nan = py.eval("float('nan')", None, None).unwrap();
         assert!(nan.compare(nan).is_err());
+    }
+
+    #[test]
+    fn test_any_isinstance() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let x = 5.to_object(py).into_ref(py);
+        assert!(x.is_instance::<PyLong>().unwrap());
+
+        let l = vec![x, x].to_object(py).into_ref(py);
+        assert!(l.is_instance::<PyList>().unwrap());
     }
 }
