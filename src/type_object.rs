@@ -104,13 +104,13 @@ pub unsafe trait PyTypeInfo: Sized {
     /// PyTypeObject instance for this type.
     fn type_object_raw(py: Python) -> *mut ffi::PyTypeObject;
 
-    /// Check if `*mut ffi::PyObject` is instance of this type
-    fn is_instance(object: &PyAny) -> bool {
+    /// Checks if `object` is an instance of this type or a subclass of this type.
+    fn is_type_of(object: &PyAny) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
     }
 
-    /// Check if `*mut ffi::PyObject` is exact instance of this type
-    fn is_exact_instance(object: &PyAny) -> bool {
+    /// Checks if `object` is an instance of this type.
+    fn is_exact_type_of(object: &PyAny) -> bool {
         unsafe { ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
     }
 }
