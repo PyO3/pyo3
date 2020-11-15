@@ -120,7 +120,7 @@ pub unsafe trait PyTypeInfo: Sized {
 /// This trait is marked unsafe because not fulfilling the contract for type_object
 /// leads to UB.
 ///
-/// See [PyTypeInfo::type_object]
+/// See also [PyTypeInfo::type_object_raw](trait.PyTypeInfo.html#tymethod.type_object_raw).
 pub unsafe trait PyTypeObject {
     /// Returns the safe abstraction over the type object.
     fn type_object(py: Python) -> &PyType;

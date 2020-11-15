@@ -424,7 +424,7 @@ impl PyAny {
 
     /// Retrieves the hash code of self.
     ///
-    /// This is equivalent to the Python expression `hash(obi)`.
+    /// This is equivalent to the Python expression `hash(self)`.
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
