@@ -184,7 +184,7 @@ macro_rules! pyobject_native_type_convert(
             }
 
             #[allow(unused_unsafe)]
-            fn is_instance(ptr: &$crate::PyAny) -> bool {
+            fn is_type_of(ptr: &$crate::PyAny) -> bool {
                 use $crate::AsPyPointer;
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }
