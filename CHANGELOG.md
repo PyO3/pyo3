@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `#[pyclass(subclass)]` is now required for subclassing from Rust (was previously just required for subclassing from Python). [#1152](https://github.com/PyO3/pyo3/pull/1152)
 - Change `PyIterator` to be consistent with other native types: it is now used as `&PyIterator` instead of `PyIterator<'a>`. [#1176](https://github.com/PyO3/pyo3/pull/1176)
 - Change formatting of `PyDowncastError` messages to be closer to Python's builtin error messages. [#1212](https://github.com/PyO3/pyo3/pull/1212)
+- Change `Debug` and `Display` impls for `PyException` to be consistent with `PyAny`. [#1275](https://github.com/PyO3/pyo3/pull/1275)
+- Change `Debug` impl of `PyErr` to output more helpful information (acquiring the GIL if necessary). [#1275](https://github.com/PyO3/pyo3/pull/1275)
 
 ### Removed
 - Remove deprecated ffi definitions `PyUnicode_AsUnicodeCopy`, `PyUnicode_GetMax`, `_Py_CheckRecursionLimit`, `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`, `PyObject_CheckReadBuffer` and `PyObject_AsWriteBuffer`, which will be removed in Python 3.10. [#1217](https://github.com/PyO3/pyo3/pull/1217)
