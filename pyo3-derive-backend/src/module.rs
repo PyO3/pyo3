@@ -209,7 +209,7 @@ pub fn add_fn_to_module(
     let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, pyfn_attrs.pass_module);
     Ok(quote! {
         #wrapper
-        fn #function_wrapper_ident<'a>(
+        pub(crate) fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
             let name = concat!(stringify!(#python_name), "\0");
