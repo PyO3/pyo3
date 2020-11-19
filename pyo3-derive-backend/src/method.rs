@@ -139,12 +139,10 @@ impl<'a> FnSpec<'a> {
 
         // strip get_ or set_
         let strip_fn_name = |prefix: &'static str| {
-            let ident = sig.ident.unraw().to_string();
-            if ident.starts_with(prefix) {
-                Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
-            } else {
-                None
-            }
+            name.unraw()
+                .to_string()
+                .strip_prefix(prefix)
+                .map(|rest| syn::Ident::new(rest, name.span()))
         };
 
         // Parse receiver & function type for various method types
