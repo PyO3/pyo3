@@ -5,6 +5,6 @@ error[E0505]: cannot move out of `gil` because it is borrowed
   |                                     --- borrow of `gil` occurs here
 7 |     drop(gil);
   |          ^^^ move out of `gil` occurs here
-8 | 
+8 |
 9 |     let _py: Python = dict.py(); // Obtain a Python<'p> without GIL.
   |                       ---- borrow later used here

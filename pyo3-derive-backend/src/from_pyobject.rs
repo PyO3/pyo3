@@ -161,7 +161,7 @@ impl<'a> Container<'a> {
                         .as_ref()
                         .expect("Named fields should have identifiers");
                     let attr = FieldAttribute::parse_attrs(&field.attrs)?
-                        .unwrap_or_else(|| FieldAttribute::GetAttr(None));
+                        .unwrap_or(FieldAttribute::GetAttr(None));
                     fields.push((ident, attr))
                 }
                 ContainerType::Struct(fields)

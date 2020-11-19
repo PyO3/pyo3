@@ -1,7 +1,7 @@
-error[E0277]: the trait bound `TestClass: std::clone::Clone` is not satisfied
+error[E0277]: the trait bound `TestClass: Clone` is not satisfied
   --> $DIR/missing_clone.rs:15:32
    |
 15 |     let t: TestClass = pyvalue.extract(py).unwrap();
-   |                                ^^^^^^^ the trait `std::clone::Clone` is not implemented for `TestClass`
+   |                                ^^^^^^^ the trait `Clone` is not implemented for `TestClass`
    |
    = note: required because of the requirements on the impl of `pyo3::FromPyObject<'_>` for `TestClass`
