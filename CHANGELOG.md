@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add context.h functions (`PyContext_New`, etc) to FFI. [#1259](https://github.com/PyO3/pyo3/pull/1259)
 - Add `PyAny::is_instance()` method. [#1276](https://github.com/PyO3/pyo3/pull/1276)
 - Add support for conversion between `char` and `PyString`. [#1282](https://github.com/PyO3/pyo3/pull/1282)
-- Add FFI definitions for `PyBuffer_SizeFromFormat`, `PyObject_LengthHint`, `PyObject_CallNoArgs`, `PyObject_CallOneArg`, `PyObject_CallMethodNoArgs`, `PyObject_CallMethodOneArg`, `PyObject_VectorcallDict`, and `PyObject_VectorcallMethod`. [#1285](https://github.com/PyO3/pyo3/pull/1285)
+- Add FFI definitions for `PyBuffer_SizeFromFormat`, `PyObject_LengthHint`, `PyObject_CallNoArgs`, `PyObject_CallOneArg`, `PyObject_CallMethodNoArgs`, `PyObject_CallMethodOneArg`, `PyObject_VectorcallDict`, and `PyObject_VectorcallMethod`. [#1287](https://github.com/PyO3/pyo3/pull/1287)
 
 ### Changed
 - Change return type `PyType::name()` from `Cow<str>` to `PyResult<&str>`. [#1152](https://github.com/PyO3/pyo3/pull/1152)
@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Change `Debug` and `Display` impls for `PyException` to be consistent with `PyAny`. [#1275](https://github.com/PyO3/pyo3/pull/1275)
 - Change `Debug` impl of `PyErr` to output more helpful information (acquiring the GIL if necessary). [#1275](https://github.com/PyO3/pyo3/pull/1275)
 - Rename `PyTypeInfo::is_instance` and `PyTypeInfo::is_exact_instance` to `PyTypeInfo::is_type_of` and `PyTypeInfo::is_exact_type_of`. [#1278](https://github.com/PyO3/pyo3/pull/1278)
+- Optimize `PyAny::call0`, `Py::call0` and `PyAny::call_method0` and `Py::call_method0` on Python 3.9 and up. [#1287](https://github.com/PyO3/pyo3/pull/1285)
 - Deprecate `Python::is_instance`, `Python::is_subclass`, `Python::release`, and `Python::xdecref`. [#1292](https://github.com/PyO3/pyo3/pull/1292)
 
 ### Removed
@@ -39,8 +40,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Fix missing field in `PyCodeObject` struct (`co_posonlyargcount`) - caused invalid access to other fields in Python >3.7. [#1260](https://github.com/PyO3/pyo3/pull/1260)
 - Fix building for `x86_64-unknown-linux-musl` target from `x86_65-unknown-linux-gnu` host. [#1267](https://github.com/PyO3/pyo3/pull/1267)
-- Fix FFI definitions for `PyObject_Vectorcall` and `PyVectorcall_Call`. [#1285](https://github.com/PyO3/pyo3/pull/1285)
 - Fix `#[text_signature]` interacting badly with rust `r#raw_identifiers`. [#1286](https://github.com/PyO3/pyo3/pull/1286)
+- Fix FFI definitions for `PyObject_Vectorcall` and `PyVectorcall_Call`. [#1287](https://github.com/PyO3/pyo3/pull/1285)
 - Fix building with Anaconda python inside a virtualenv. [#1290](https://github.com/PyO3/pyo3/pull/1290)
 
 ## [0.12.3] - 2020-10-12
