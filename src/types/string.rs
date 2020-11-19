@@ -141,6 +141,19 @@ impl ToPyObject for String {
     }
 }
 
+impl ToPyObject for char {
+    fn to_object(&self, py: Python) -> PyObject {
+        self.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for char {
+    fn into_py(self, py: Python) -> PyObject {
+        let mut bytes = [0u8; 4];
+        PyString::new(py, self.encode_utf8(&mut bytes)).into()
+    }
+}
+
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python) -> PyObject {
         PyString::new(py, &self).into()
@@ -156,7 +169,7 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> crate::FromPyObject<'source> for &'source str {
+impl<'source> FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_str()
     }
@@ -169,6 +182,20 @@ impl<'source> FromPyObject<'source> for String {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_str()
             .map(ToOwned::to_owned)
+    }
+}
+
+impl<'source> FromPyObject<'source> for char {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        let s = PyString::try_from(obj)?.to_str()?;
+        let mut iter = s.chars();
+        if let (Some(ch), None) = (iter.next(), iter.next()) {
+            Ok(ch)
+        } else {
+            Err(crate::exceptions::PyValueError::new_err(format!(
+                "Expected a sting of length 1",
+            )))
+        }
     }
 }
 
@@ -196,6 +223,16 @@ mod test {
 
         let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
         assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn test_extract_char() {
+        Python::with_gil(|py| {
+            let ch = '😃';
+            let py_string = ch.to_object(py);
+            let ch2: char = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            assert_eq!(ch, ch2);
+        })
     }
 
     #[test]
