@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix missing field in `PyCodeObject` struct (`co_posonlyargcount`) - caused invalid access to other fields in Python >3.7. [#1260](https://github.com/PyO3/pyo3/pull/1260)
 - Fix building for `x86_64-unknown-linux-musl` target from `x86_65-unknown-linux-gnu` host. [#1267](https://github.com/PyO3/pyo3/pull/1267)
 - Fix `#[text_signature]` interacting badly with rust `r#raw_identifiers`. [#1286](https://github.com/PyO3/pyo3/pull/1286)
+- Fix building with Anaconda python inside a virtualenv. [#1290](https://github.com/PyO3/pyo3/pull/1290)
 
 ## [0.12.3] - 2020-10-12
 ### Fixed

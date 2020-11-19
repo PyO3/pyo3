@@ -713,12 +713,7 @@ PYPY = platform.python_implementation() == "PyPy"
 # Anaconda based python distributions have a static python executable, but include
 # the shared library. Use the shared library for embedding to avoid rust trying to
 # LTO the static library (and failing with newer gcc's, because it is old).
-ANACONDA = os.path.exists(os.path.join(sys.prefix, 'conda-meta'))
-
-try:
-    base_prefix = sys.base_prefix
-except AttributeError:
-    base_prefix = sys.exec_prefix
+ANACONDA = os.path.exists(os.path.join(sys.base_prefix, 'conda-meta'))
 
 libdir = sysconfig.get_config_var('LIBDIR')
 
@@ -728,7 +723,7 @@ print("implementation", platform.python_implementation())
 if libdir is not None:
     print("libdir", libdir)
 print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
-print("base_prefix", base_prefix)
+print("base_prefix", sys.base_prefix)
 print("shared", PYPY or ANACONDA or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
