@@ -758,7 +758,7 @@ pub const Py_TPFLAGS_BASETYPE: c_ulong = 1 << 10;
 
 /// Set if the type implements the vectorcall protocol (PEP 590)
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-pub const _Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
+pub const Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
 
 /// Set if the type is 'ready' -- fully initialized
 pub const Py_TPFLAGS_READY: c_ulong = 1 << 12;
