@@ -207,22 +207,22 @@ mod test {
 
     #[test]
     fn test_non_bmp() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let s = "\u{1F30F}";
-        let py_string = s.to_object(py);
-        assert_eq!(s, py_string.extract::<String>(py).unwrap());
+        Python::with_gil(|py| {
+            let s = "\u{1F30F}";
+            let py_string = s.to_object(py);
+            assert_eq!(s, py_string.extract::<String>(py).unwrap());
+        })
     }
 
     #[test]
     fn test_extract_str() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let s = "Hello Python";
-        let py_string = s.to_object(py);
+        Python::with_gil(|py| {
+            let s = "Hello Python";
+            let py_string = s.to_object(py);
 
-        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
-        assert_eq!(s, s2);
+            let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            assert_eq!(s, s2);
+        })
     }
 
     #[test]
@@ -237,60 +237,60 @@ mod test {
 
     #[test]
     fn test_to_str_ascii() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let s = "ascii 🐈";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert_eq!(s, py_string.to_str().unwrap());
+        Python::with_gil(|py| {
+            let s = "ascii 🐈";
+            let obj: PyObject = PyString::new(py, s).into();
+            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            assert_eq!(s, py_string.to_str().unwrap());
+        })
     }
 
     #[test]
     fn test_to_str_surrogate() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert!(py_string.to_str().is_err());
+        Python::with_gil(|py| {
+            let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
+            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            assert!(py_string.to_str().is_err());
+        })
     }
 
     #[test]
     fn test_to_str_unicode() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let s = "哈哈🐈";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert_eq!(s, py_string.to_str().unwrap());
+        Python::with_gil(|py| {
+            let s = "哈哈🐈";
+            let obj: PyObject = PyString::new(py, s).into();
+            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            assert_eq!(s, py_string.to_str().unwrap());
+        })
     }
 
     #[test]
     fn test_to_string_lossy() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj: PyObject = py
-            .eval(r#"'🐈 Hello \ud800World'"#, None, None)
-            .unwrap()
-            .into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-        assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
+        Python::with_gil(|py| {
+            let obj: PyObject = py
+                .eval(r#"'🐈 Hello \ud800World'"#, None, None)
+                .unwrap()
+                .into();
+            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
+        })
     }
 
     #[test]
     fn test_debug_string() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = "Hello\n".to_object(py);
-        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
-        assert_eq!(format!("{:?}", s), "'Hello\\n'");
+        Python::with_gil(|py| {
+            let v = "Hello\n".to_object(py);
+            let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            assert_eq!(format!("{:?}", s), "'Hello\\n'");
+        })
     }
 
     #[test]
     fn test_display_string() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = "Hello\n".to_object(py);
-        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
-        assert_eq!(format!("{}", s), "Hello\n");
+        Python::with_gil(|py| {
+            let v = "Hello\n".to_object(py);
+            let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            assert_eq!(format!("{}", s), "Hello\n");
+        })
     }
 }
