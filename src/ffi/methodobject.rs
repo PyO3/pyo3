@@ -16,25 +16,27 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 pub type PyCFunction =
     unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
 
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-#[cfg_attr(Py_3_8, link_name = "_PyObject_Vectorcall")]
-pub type PyObject_Vectorcall = unsafe extern "C" fn(
-    slf: *mut PyObject,
-    // positional and keyword arguments
-    args: *const *mut PyObject,
-    // number of position arguments in args, after which values are kwargs
-    nargs: crate::ffi::pyport::Py_ssize_t,
-    // tuple of kwargs, if given, or null
-    kwnames: *mut PyObject,
-) -> *mut PyObject;
+// TODO(davidhewitt)[1283] - Fix this definition
+// #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+// #[cfg_attr(Py_3_8, link_name = "_PyObject_Vectorcall")]
+// pub type PyObject_Vectorcall = unsafe extern "C" fn(
+//     slf: *mut PyObject,
+//     // positional and keyword arguments
+//     args: *const *mut PyObject,
+//     // number of position arguments in args, after which values are kwargs
+//     nargs: crate::ffi::pyport::Py_ssize_t,
+//     // tuple of kwargs, if given, or null
+//     kwnames: *mut PyObject,
+// ) -> *mut PyObject;
 
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-#[cfg_attr(Py_3_8, link_name = "PyVectorcall_Call")]
-pub type PyVectorcall_Call = unsafe extern "C" fn(
-    obj: *mut PyObject,
-    tuple: *mut PyObject,
-    dict: *mut PyObject,
-) -> *mut PyObject;
+// TODO(davidhewitt)[1283] - Fix this definition
+// #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+// #[cfg_attr(Py_3_8, link_name = "PyVectorcall_Call")]
+// pub type PyVectorcall_Call = unsafe extern "C" fn(
+//     obj: *mut PyObject,
+//     tuple: *mut PyObject,
+//     dict: *mut PyObject,
+// ) -> *mut PyObject;
 
 #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
 const PY_VECTORCALL_ARGUMENTS_OFFSET: crate::ffi::pyport::Py_ssize_t =
