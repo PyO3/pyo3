@@ -174,7 +174,7 @@ pub trait FromPyObject<'source>: Sized {
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
-impl<'a, T: ?Sized + ToPyObject> ToPyObject for &'a T {
+impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
         <T as ToPyObject>::to_object(*self, py)

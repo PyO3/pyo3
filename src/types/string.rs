@@ -177,16 +177,16 @@ impl<'source> FromPyObject<'source> for &'source str {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> FromPyObject<'source> for String {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_> for String {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_str()
             .map(ToOwned::to_owned)
     }
 }
 
-impl<'source> FromPyObject<'source> for char {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_> for char {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         let s = PyString::try_from(obj)?.to_str()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
