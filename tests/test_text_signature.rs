@@ -190,3 +190,33 @@ fn test_methods() {
         "typeobj.static_method.__text_signature__ == '(d)'"
     );
 }
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+fn test_raw_identifiers() {
+    #[pyclass]
+    #[text_signature = "($self)"]
+    struct r#MyClass {}
+
+    #[pymethods]
+    impl MyClass {
+        #[new]
+        fn new() -> MyClass {
+            MyClass {}
+        }
+        #[text_signature = "($self)"]
+        fn r#method(&self) {}
+    }
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<MyClass>();
+
+    py_assert!(py, typeobj, "typeobj.__text_signature__ == '($self)'");
+
+    py_assert!(
+        py,
+        typeobj,
+        "typeobj.method.__text_signature__ == '($self)'"
+    );
+}

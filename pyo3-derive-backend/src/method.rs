@@ -237,7 +237,7 @@ impl<'a> FnSpec<'a> {
 
         let text_signature = match &fn_type {
             FnType::Fn(_) | FnType::FnClass | FnType::FnStatic => {
-                utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
+                utils::parse_text_signature_attrs(&mut *meth_attrs, &python_name)?
             }
             FnType::FnNew => parse_erroneous_text_signature(
                 "text_signature not allowed on __new__; if you want to add a signature on \
