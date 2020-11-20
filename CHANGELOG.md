@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definitions for PEP 587 "Python Initialization Configuration". [#1247](https://github.com/PyO3/pyo3/pull/1247)
 - Add `PyEval_SetProfile` and `PyEval_SetTrace` to FFI. [#1255](https://github.com/PyO3/pyo3/pull/1255)
 - Add context.h functions (`PyContext_New`, etc) to FFI. [#1259](https://github.com/PyO3/pyo3/pull/1259)
+- Add support for conversion between `char` and `PyString`. [#1282](https://github.com/PyO3/pyo3/pull/1282)
 
 ### Changed
 - Change return type `PyType::name()` from `Cow<str>` to `PyResult<&str>`. [#1152](https://github.com/PyO3/pyo3/pull/1152)
