@@ -192,9 +192,9 @@ impl<'source> FromPyObject<'source> for char {
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)
         } else {
-            Err(crate::exceptions::PyValueError::new_err(format!(
-                "Expected a sting of length 1",
-            )))
+            Err(crate::exceptions::PyValueError::new_err(
+                "expected a string of length 1",
+            ))
         }
     }
 }
@@ -232,6 +232,19 @@ mod test {
             let py_string = ch.to_object(py);
             let ch2: char = FromPyObject::extract(py_string.as_ref(py)).unwrap();
             assert_eq!(ch, ch2);
+        })
+    }
+
+    #[test]
+    fn test_extract_char_err() {
+        Python::with_gil(|py| {
+            let s = "Hello Python";
+            let py_string = s.to_object(py);
+            let err: crate::PyResult<char> = FromPyObject::extract(py_string.as_ref(py));
+            assert!(err
+                .unwrap_err()
+                .to_string()
+                .contains("expected a string of length 1"));
         })
     }
 
