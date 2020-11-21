@@ -53,9 +53,9 @@ jobs:
           { os: "windows-latest", python-architecture: "x86", rust-target: "i686-pc-windows-msvc" },
         ]
         exclude:
-          # See https://github.com/PyO3/pyo3/pull/1215 for why.
+          # There is no 64-bit pypy on windows
           - python-version: pypy3
-            platform: { os: "windows-latest" }
+            platform: { os: "windows-latest", python-architecture: "x64" }
         include:
           # Test minimal supported Rust version
           - rust: 1.45.0
@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           for example_dir in examples/*; do
-              tox -c $example_dir -e py
+              tox --discover $(which python) -c $example_dir -e py
           done
 
     env:
