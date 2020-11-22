@@ -72,21 +72,6 @@ impl Python<'_> {
 }
 
 impl<'p> Python<'p> {
-    /// Retrieves a Python instance under the assumption that the GIL is already
-    /// acquired at this point, and stays acquired for the lifetime `'p`.
-    ///
-    /// Because the output lifetime `'p` is not connected to any input parameter,
-    /// care must be taken that the compiler infers an appropriate lifetime for `'p`
-    /// when calling this function.
-    ///
-    /// # Safety
-    /// The lifetime `'p` must be shorter than the period you *assume* that you have GIL.
-    /// I.e., `Python<'static>` is always *really* unsafe.
-    #[inline]
-    pub unsafe fn assume_gil_acquired() -> Python<'p> {
-        Python(PhantomData)
-    }
-
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
     ///
     /// If the Python runtime is not already initialized, this function will initialize it.
@@ -303,24 +288,6 @@ impl<'p> Python<'p> {
         PyModule::import(self, name)
     }
 
-    /// Checks whether `obj` is an instance of type `T`.
-    ///
-    /// This is equivalent to the Python `isinstance` function.
-    pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
-        T::type_object(self).is_instance(obj)
-    }
-
-    /// Checks whether type `T` is subclass of type `U`.
-    ///
-    /// This is equivalent to the Python `issubclass` function.
-    pub fn is_subclass<T, U>(self) -> PyResult<bool>
-    where
-        T: PyTypeObject,
-        U: PyTypeObject,
-    {
-        T::type_object(self).is_subclass::<U>()
-    }
-
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -335,64 +302,6 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
     }
 
-    /// Create a new pool for managing PyO3's owned references.
-    ///
-    /// When this `GILPool` is dropped, all PyO3 owned references created after this `GILPool` will
-    /// all have their Python reference counts decremented, potentially allowing Python to drop
-    /// the corresponding Python objects.
-    ///
-    /// Typical usage of PyO3 will not need this API, as `Python::acquire_gil` automatically
-    /// creates a `GILPool` where appropriate.
-    ///
-    /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
-    /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
-    /// released.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use pyo3::prelude::*;
-    /// let gil = Python::acquire_gil();
-    /// let py = gil.python();
-    ///
-    /// // Some long-running process like a webserver, which never releases the GIL.
-    /// loop {
-    ///     // Create a new pool, so that PyO3 can clear memory at the end of the loop.
-    ///     let pool = unsafe { py.new_pool() };
-    ///
-    ///     // It is recommended to *always* immediately set py to the pool's Python, to help
-    ///     // avoid creating references with invalid lifetimes.
-    ///     let py = unsafe { pool.python() };
-    ///
-    ///     // do stuff...
-    /// # break;  // Exit the loop so that doctest terminates!
-    /// }
-    /// ```
-    ///
-    /// # Safety
-    /// Extreme care must be taken when using this API, as misuse can lead to accessing invalid
-    /// memory. In addition, the caller is responsible for guaranteeing that the GIL remains held
-    /// for the entire lifetime of the returned `GILPool`.
-    ///
-    /// Two best practices are required when using this API:
-    /// - From the moment `new_pool()` is called, only the `Python` token from the returned
-    ///   `GILPool` (accessible using `.python()`) should be used in PyO3 APIs. All other older
-    ///   `Python` tokens with longer lifetimes are unsafe to use until the `GILPool` is dropped,
-    ///   because they can be used to create PyO3 owned references which have lifetimes which
-    ///   outlive the `GILPool`.
-    /// - Similarly, methods on existing owned references will implicitly refer back to the
-    ///   `Python` token which that reference was originally created with. If the returned values
-    ///   from these methods are owned references they will inherit the same lifetime. As a result,
-    ///   Rust's lifetime rules may allow them to outlive the `GILPool`, even though this is not
-    ///   safe for reasons discussed above. Care must be taken to never access these return values
-    ///   after the `GILPool` is dropped, unless they are converted to `Py<T>` *before* the pool
-    ///   is dropped.
-    #[inline]
-    pub unsafe fn new_pool(self) -> GILPool {
-        GILPool::new()
-    }
-}
-
-impl<'p> Python<'p> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
     where
@@ -479,8 +388,32 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
+    /// Checks whether `obj` is an instance of type `T`.
+    ///
+    /// This is equivalent to the Python `isinstance` function.
+    #[deprecated(since = "0.13.0", note = "Please use obj.is_instance::<T>() instead")]
+    pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
+        T::type_object(self).is_instance(obj)
+    }
+
+    /// Checks whether type `T` is subclass of type `U`.
+    ///
+    /// This is equivalent to the Python `issubclass` function.
+    #[deprecated(
+        since = "0.13.0",
+        note = "Please use T::type_object(py).is_subclass::<U>() instead"
+    )]
+    pub fn is_subclass<T, U>(self) -> PyResult<bool>
+    where
+        T: PyTypeObject,
+        U: PyTypeObject,
+    {
+        T::type_object(self).is_subclass::<U>()
+    }
+
     /// Releases a PyObject reference.
     #[inline]
+    #[deprecated(since = "0.13.0", note = "Please just drop ob instead")]
     pub fn release<T>(self, ob: T)
     where
         T: IntoPyPointer,
@@ -495,6 +428,7 @@ impl<'p> Python<'p> {
 
     /// Releases a `ffi::PyObject` pointer.
     #[inline]
+    #[deprecated(since = "0.13.0", note = "Please just drop obj instead")]
     pub fn xdecref<T: IntoPyPointer>(self, ptr: T) {
         unsafe { ffi::Py_XDECREF(ptr.into_ptr()) };
     }
@@ -517,6 +451,77 @@ impl<'p> Python<'p> {
         } else {
             Ok(())
         }
+    }
+
+    /// Retrieves a Python instance under the assumption that the GIL is already
+    /// acquired at this point, and stays acquired for the lifetime `'p`.
+    ///
+    /// Because the output lifetime `'p` is not connected to any input parameter,
+    /// care must be taken that the compiler infers an appropriate lifetime for `'p`
+    /// when calling this function.
+    ///
+    /// # Safety
+    /// The lifetime `'p` must be shorter than the period you *assume* that you have GIL.
+    /// I.e., `Python<'static>` is always *really* unsafe.
+    #[inline]
+    pub unsafe fn assume_gil_acquired() -> Python<'p> {
+        Python(PhantomData)
+    }
+
+    /// Create a new pool for managing PyO3's owned references.
+    ///
+    /// When this `GILPool` is dropped, all PyO3 owned references created after this `GILPool` will
+    /// all have their Python reference counts decremented, potentially allowing Python to drop
+    /// the corresponding Python objects.
+    ///
+    /// Typical usage of PyO3 will not need this API, as `Python::acquire_gil` automatically
+    /// creates a `GILPool` where appropriate.
+    ///
+    /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
+    /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
+    /// released.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    ///
+    /// // Some long-running process like a webserver, which never releases the GIL.
+    /// loop {
+    ///     // Create a new pool, so that PyO3 can clear memory at the end of the loop.
+    ///     let pool = unsafe { py.new_pool() };
+    ///
+    ///     // It is recommended to *always* immediately set py to the pool's Python, to help
+    ///     // avoid creating references with invalid lifetimes.
+    ///     let py = unsafe { pool.python() };
+    ///
+    ///     // do stuff...
+    /// # break;  // Exit the loop so that doctest terminates!
+    /// }
+    /// ```
+    ///
+    /// # Safety
+    /// Extreme care must be taken when using this API, as misuse can lead to accessing invalid
+    /// memory. In addition, the caller is responsible for guaranteeing that the GIL remains held
+    /// for the entire lifetime of the returned `GILPool`.
+    ///
+    /// Two best practices are required when using this API:
+    /// - From the moment `new_pool()` is called, only the `Python` token from the returned
+    ///   `GILPool` (accessible using `.python()`) should be used in PyO3 APIs. All other older
+    ///   `Python` tokens with longer lifetimes are unsafe to use until the `GILPool` is dropped,
+    ///   because they can be used to create PyO3 owned references which have lifetimes which
+    ///   outlive the `GILPool`.
+    /// - Similarly, methods on existing owned references will implicitly refer back to the
+    ///   `Python` token which that reference was originally created with. If the returned values
+    ///   from these methods are owned references they will inherit the same lifetime. As a result,
+    ///   Rust's lifetime rules may allow them to outlive the `GILPool`, even though this is not
+    ///   safe for reasons discussed above. Care must be taken to never access these return values
+    ///   after the `GILPool` is dropped, unless they are converted to `Py<T>` *before* the pool
+    ///   is dropped.
+    #[inline]
+    pub unsafe fn new_pool(self) -> GILPool {
+        GILPool::new()
     }
 }
 
@@ -567,6 +572,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -579,6 +585,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_subclass() {
         let gil = Python::acquire_gil();
         let py = gil.python();
