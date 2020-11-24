@@ -36,6 +36,8 @@ This feature changes [`Python::with_gil`](https://docs.rs/pyo3/latest/pyo3/struc
 
 This feature is not needed for extension modules, but for compatibility it is enabled by default until at least the PyO3 0.14 release.
 
+If you choose not to enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
+
 > This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
 
 ## Advanced Features

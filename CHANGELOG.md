@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Added
+- Add `prepare_freethreaded_python_without_finalizer` to initalize a Python interpreter while avoiding potential finalization issues in C-extensions like SciPy. [#1355](https://github.com/PyO3/pyo3/pull/1355)
 - Add `serde` feature to support `Serialize/Deserialize` for `Py<T>`. [#1366](https://github.com/PyO3/pyo3/pull/1366)
+
+### Changed
+- Call `Py_Finalize` in the same thread as `Py_InitializeEx` inside `prepare_freethreaded_python`. [#1355](https://github.com/PyO3/pyo3/pull/1355)
 
 ## [0.13.1] - 2021-01-10
 ### Added

@@ -152,7 +152,7 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(all(Py_SHARED, not(PyPy)))]
-pub use crate::gil::prepare_freethreaded_python;
+pub use crate::gil::{prepare_freethreaded_python, prepare_freethreaded_python_without_finalizer};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
