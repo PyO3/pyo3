@@ -10,7 +10,7 @@ error: Expected type path (e.g., my_mod::BaseClass)
 6 | #[pyclass(extends = "PyDict")]
   |                     ^^^^^^^^
 
-error: Expected type name (e.g., Name)
+error: Expected type name (e.g., Name or "Name")
  --> $DIR/invalid_pyclass_args.rs:9:18
   |
 9 | #[pyclass(name = m::MyClass)]
