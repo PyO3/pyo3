@@ -2,21 +2,22 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, FromPyObject, IntoPyPointer, PyAny, PyErr, PyNativeType, PyResult,
-    PyTryFrom, Python, ToPyObject,
+    exceptions,
+    objects::{FromPyObject, PyAny, PyNativeObject, PyTryFrom},
+    types::Tuple,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `tuple` object.
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyTuple(PyAny);
+pub struct PyTuple<'py>(pub(crate) PyAny<'py>);
+pyo3_native_object!(PyTuple<'py>, Tuple, 'py);
 
-pyobject_native_var_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
-
-impl PyTuple {
+impl<'py> PyTuple<'py> {
     /// Constructs a new tuple with the given elements.
-    pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyTuple
+    pub fn new<T, U>(py: Python<'py>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Self
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -28,13 +29,13 @@ impl PyTuple {
             for (i, e) in elements_iter.enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            py.from_owned_ptr(ptr)
+            Self(PyAny::from_raw_or_panic(py, ptr))
         }
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
-    pub fn empty(py: Python) -> &PyTuple {
-        unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
+    pub fn empty(py: Python<'py>) -> Self {
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyTuple_New(0))) }
     }
 
     /// Gets the length of the tuple.
@@ -51,29 +52,33 @@ impl PyTuple {
     }
 
     /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
-    pub fn slice(&self, low: isize, high: isize) -> &PyTuple {
+    pub fn slice(&self, low: isize, high: isize) -> Self {
         unsafe {
-            self.py()
-                .from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
+            Self(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyTuple_GetSlice(self.as_ptr(), low, high),
+            ))
         }
     }
 
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
-    pub fn split_from(&self, low: isize) -> &PyTuple {
+    pub fn split_from(&self, low: isize) -> Self {
         unsafe {
             let ptr = ffi::PyTuple_GetSlice(self.as_ptr(), low, self.len() as Py_ssize_t);
-            self.py().from_owned_ptr(ptr)
+            Self(PyAny::from_raw_or_panic(self.py(), ptr))
         }
     }
 
     /// Gets the tuple item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyAny {
+    pub fn get_item(&self, index: usize) -> PyAny<'py> {
         assert!(index < self.len());
         unsafe {
-            self.py()
-                .from_borrowed_ptr(ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+            PyAny::from_borrowed_ptr_or_panic(
+                self.py(),
+                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t),
+            )
         }
     }
 
@@ -81,18 +86,18 @@ impl PyTuple {
     ///
     /// Not available when compiled with Py_LIMITED_API.
     #[cfg(not(Py_LIMITED_API))]
-    pub fn as_slice(&self) -> &[&PyAny] {
-        // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
+    pub fn as_slice(&self) -> &[PyAny<'py>] {
+        // This is safe because PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = std::slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
-            &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
+            &*(slice as *const [*mut ffi::PyObject] as *const [PyAny])
         }
     }
 
     /// Returns an iterator over the tuple items.
-    pub fn iter(&self) -> PyTupleIterator {
+    pub fn iter(&self) -> PyTupleIterator<'_, 'py> {
         PyTupleIterator {
             tuple: self,
             index: 0,
@@ -102,17 +107,17 @@ impl PyTuple {
 }
 
 /// Used by `PyTuple::iter()`.
-pub struct PyTupleIterator<'a> {
-    tuple: &'a PyTuple,
+pub struct PyTupleIterator<'a, 'py> {
+    tuple: &'a PyTuple<'py>,
     index: usize,
     length: usize,
 }
 
-impl<'a> Iterator for PyTupleIterator<'a> {
-    type Item = &'a PyAny;
+impl<'a, 'py> Iterator for PyTupleIterator<'a, 'py> {
+    type Item = PyAny<'py>;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
             let item = self.tuple.get_item(self.index);
             self.index += 1;
@@ -123,9 +128,9 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyAny;
-    type IntoIter = PyTupleIterator<'a>;
+impl<'a, 'py> IntoIterator for &'a PyTuple<'py> {
+    type Item = PyAny<'py>;
+    type IntoIter = PyTupleIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -142,8 +147,40 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
-    impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyAny) -> PyResult<Self>
+    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
+        fn to_object(&self, py: Python) -> PyObject {
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
+                PyObject::from_owned_ptr(py, ptr)
+            }
+        }
+    }
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
+        fn into_py(self, py: Python) -> PyObject {
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
+                PyObject::from_owned_ptr(py, ptr)
+            }
+        }
+    }
+
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<Tuple>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<Tuple> {
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
+                Py::from_owned_ptr(py, ptr)
+            }
+        }
+    }
+
+    impl<'py, $($T),+> FromPyObject<'_, 'py> for ($($T,)+)
+    where
+        $($T: for<'a> FromPyObject<'a, 'py>),+
+    {
+        fn extract(obj: &PyAny<'py>) -> PyResult<Self>
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             if t.len() == $length {
@@ -214,8 +251,8 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::types::{PyAny, PyTuple};
-    use crate::{PyTryFrom, Python, ToPyObject};
+    use crate::objects::{PyTryFrom, PyTuple};
+    use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -224,7 +261,6 @@ mod test {
         let py = gil.python();
         let ob = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, ob.len());
-        let ob: &PyAny = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
 
         let mut map = HashSet::new();
@@ -238,10 +274,9 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyAny = tuple.into();
-        assert_eq!((1, 2, 3), ob.extract().unwrap());
+        assert_eq!((1, 2, 3), tuple.extract().unwrap());
     }
 
     #[test]
@@ -249,7 +284,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
@@ -262,7 +297,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
 
         for (i, item) in tuple.iter().enumerate() {
@@ -276,7 +311,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
 
         let slice = tuple.as_slice();
         assert_eq!(3, slice.len());

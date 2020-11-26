@@ -3,43 +3,39 @@
 
 use crate::err::{self, PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
-use crate::types::PyIterator;
+use crate::objects::PyIterator;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    ffi,
+    objects::{FromPyObject, PyAny, PyNativeObject},
+    types::{FrozenSet, Set},
+    AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
-use std::{hash, ptr};
+use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]
-pub struct PySet(PyAny);
+pub struct PySet<'py>(pub(crate) PyAny<'py>);
+pyo3_native_object!(PySet<'py>, Set, 'py);
 
 /// Represents a  Python `frozenset`
 #[repr(transparent)]
-pub struct PyFrozenSet(PyAny);
+pub struct PyFrozenSet<'py>(pub(crate) PyAny<'py>);
+pyo3_native_object!(PyFrozenSet<'py>, FrozenSet, 'py);
 
-pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
-pyobject_native_type!(
-    PyFrozenSet,
-    ffi::PySetObject,
-    ffi::PyFrozenSet_Type,
-    ffi::PyFrozenSet_Check
-);
-
-impl PySet {
+impl<'py> PySet<'py> {
     /// Creates a new set with elements from the given slice.
     ///
     /// Returns an error if some element is not hashable.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PySet> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(list.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PySet_New(list.as_ptr())).map(Self) }
     }
 
     /// Creates a new empty set.
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
-        unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PySet_New(ptr::null_mut())).map(Self) }
     }
 
     /// Removes all elements from the set.
@@ -100,9 +96,9 @@ impl PySet {
     }
 
     /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<PyObject> {
+    pub fn pop(&self) -> Option<PyAny<'py>> {
         let element =
-            unsafe { PyObject::from_owned_ptr_or_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
+            unsafe { PyAny::from_raw_or_fetch_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
         match element {
             Ok(e) => Some(e),
             Err(_) => None,
@@ -112,19 +108,19 @@ impl PySet {
     /// Returns an iterator of values in this set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    pub fn iter(&self) -> PySetIterator {
+    pub fn iter(&self) -> PySetIterator<'_, 'py> {
         PySetIterator::new(self)
     }
 }
 
 #[cfg(Py_LIMITED_API)]
-pub struct PySetIterator<'p> {
-    it: &'p PyIterator,
+pub struct PySetIterator<'a, 'py> {
+    it: &'a PyIterator<'py>,
 }
 
 #[cfg(Py_LIMITED_API)]
-impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator {
+impl<'a, 'py> PySetIterator<'a, 'py> {
+    fn new(set: &'a PyAny<'py>) -> Self {
         PySetIterator {
             it: PyIterator::from_object(set.py(), set).unwrap(),
         }
@@ -133,7 +129,7 @@ impl PySetIterator<'_> {
 
 #[cfg(Py_LIMITED_API)]
 impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
+    type Item = PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -142,21 +138,21 @@ impl<'py> Iterator for PySetIterator<'py> {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub struct PySetIterator<'py> {
-    set: &'py super::PyAny,
+pub struct PySetIterator<'a, 'py> {
+    set: &'a PyAny<'py>,
     pos: isize,
 }
 
 #[cfg(not(Py_LIMITED_API))]
-impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator {
+impl<'a, 'py> PySetIterator<'a, 'py> {
+    fn new(set: &'a PyAny<'py>) -> Self {
         PySetIterator { set, pos: 0 }
     }
 }
 
 #[cfg(not(Py_LIMITED_API))]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
+impl<'py> Iterator for PySetIterator<'_, 'py> {
+    type Item = PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -165,8 +161,7 @@ impl<'py> Iterator for PySetIterator<'py> {
             let mut hash: ffi::Py_hash_t = 0;
             if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
                 // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                ffi::Py_INCREF(key);
-                Some(self.set.py().from_owned_ptr(key))
+                Some(PyAny::from_borrowed_ptr_or_panic(self.set.py(), key))
             } else {
                 None
             }
@@ -174,48 +169,109 @@ impl<'py> Iterator for PySetIterator<'py> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PySet {
-    type Item = &'a PyAny;
-    type IntoIter = PySetIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PySet<'py> {
+    type Item = PyAny<'py>;
+    type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
+impl<T> ToPyObject for collections::HashSet<T>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    T: hash::Hash + Eq + ToPyObject,
+{
+    fn to_object(&self, py: Python) -> PyObject {
+        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
+impl<T> ToPyObject for collections::BTreeSet<T>
+where
+    T: hash::Hash + Eq + ToPyObject,
+{
+    fn to_object(&self, py: Python) -> PyObject {
+        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
+impl<K, S> IntoPy<PyObject> for HashSet<K, S>
+where
+    K: IntoPy<PyObject> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let set: &PySet = ob.downcast()?;
-        set.iter().map(K::extract).collect()
+    fn into_py(self, py: Python) -> PyObject {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
     }
 }
 
-impl<'source, K> FromPyObject<'source> for BTreeSet<K>
+impl<'py, K, S> FromPyObject<'_, 'py> for HashSet<K, S>
 where
-    K: FromPyObject<'source> + cmp::Ord,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
-        set.iter().map(K::extract).collect()
+        set.iter().map(|key| K::extract(&key)).collect()
     }
 }
 
-impl PyFrozenSet {
+impl<K> IntoPy<PyObject> for BTreeSet<K>
+where
+    K: IntoPy<PyObject> + cmp::Ord,
+{
+    fn into_py(self, py: Python) -> PyObject {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
+impl<'py, K> FromPyObject<'_, 'py> for BTreeSet<K>
+where
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Ord,
+{
+    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
+        let set: &PySet = ob.downcast()?;
+        set.iter().map(|key| K::extract(&key)).collect()
+    }
+}
+
+impl<'py> PyFrozenSet<'py> {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PyFrozenSet> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(list.as_ptr())).map(Self) }
     }
 
     /// Creates a new empty frozen set
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(ptr::null_mut())).map(Self) }
     }
 
     /// Return the number of items in the set.
@@ -248,14 +304,14 @@ impl PyFrozenSet {
     /// Returns an iterator of values in this frozen set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    pub fn iter(&self) -> PySetIterator {
-        PySetIterator::new(self.as_ref())
+    pub fn iter(&self) -> PySetIterator<'_, 'py> {
+        PySetIterator::new(self)
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
-    type Item = &'a PyAny;
-    type IntoIter = PySetIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyFrozenSet<'py> {
+    type Item = PyAny<'py>;
+    type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -339,7 +395,7 @@ mod hashbrown_hashset_conversion {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{objects::PyTryFrom, IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 
@@ -370,11 +426,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let set = <PySet as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let set2 = <PySet as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(1, set2.len());
     }
 
@@ -443,7 +499,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in set {
+        for el in &set {
             assert_eq!(1i32, el.extract().unwrap());
         }
     }
@@ -489,7 +545,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in set {
+        for el in &set {
             assert_eq!(1i32, el.extract::<i32>().unwrap());
         }
     }

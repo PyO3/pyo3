@@ -481,7 +481,7 @@ fn impl_arg_param(
 
     if spec.is_args(&name) {
         return quote! {
-            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())
+            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args)
                 .map_err(#transform_error)?;
         };
     } else if spec.is_kwargs(&name) {

@@ -1,31 +1,23 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyErr, PyResult};
-use crate::types::{PyAny, PyList};
-#[cfg(not(PyPy))]
-use crate::IntoPyPointer;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, PyNativeType, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::objects::PyAny;
+use crate::objects::{FromPyObject, PyList, PyNativeObject};
+use crate::types::Dict;
+use crate::{ffi, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject};
 use std::collections::{BTreeMap, HashMap};
-use std::ptr::NonNull;
-use std::{cmp, hash};
+use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict(PyAny);
+pub struct PyDict<'py>(pub(crate) PyAny<'py>);
 
-pyobject_native_type!(
-    PyDict,
-    ffi::PyDictObject,
-    ffi::PyDict_Type,
-    ffi::PyDict_Check
-);
+pyo3_native_object!(PyDict<'py>, Dict, 'py);
 
-impl PyDict {
+impl<'py> PyDict<'py> {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python) -> &PyDict {
-        unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
+    pub fn new(py: Python<'py>) -> Self {
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyDict_New())) }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -36,10 +28,10 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(py: Python<'py>, seq: &PyAny) -> PyResult<Self> {
         unsafe {
-            let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
-            match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
+            let dict = PyDict::new(py);
+            match ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1i32) {
                 0 => Ok(dict),
                 -1 => Err(PyErr::fetch(py)),
                 _ => unreachable!(),
@@ -50,10 +42,9 @@ impl PyDict {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `dict(self)`.
-    pub fn copy(&self) -> PyResult<&PyDict> {
+    pub fn copy(&self) -> PyResult<Self> {
         unsafe {
-            self.py()
-                .from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
+            PyAny::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())).map(Self)
         }
     }
 
@@ -95,17 +86,14 @@ impl PyDict {
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
+    pub fn get_item<K>(&self, key: K) -> Option<PyAny<'py>>
     where
         K: ToBorrowedObject,
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
-            NonNull::new(ptr).map(|p| {
-                // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
-                ffi::Py_INCREF(p.as_ptr());
-                self.py().from_owned_ptr(p.as_ptr())
-            })
+            // PyDict_GetItem returns borrowed ptr, must make it owned for safety (see #890).
+            PyAny::from_borrowed_ptr(self.py(), ptr)
         })
     }
 
@@ -139,30 +127,36 @@ impl PyDict {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> &PyList {
+    pub fn keys(&self) -> PyList<'py> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Keys(self.as_ptr()),
+            ))
         }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> &PyList {
+    pub fn values(&self) -> PyList<'py> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Values(self.as_ptr()),
+            ))
         }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> &PyList {
+    pub fn items(&self) -> PyList<'py> {
         unsafe {
-            self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Items(self.as_ptr()),
+            ))
         }
     }
 
@@ -170,21 +164,18 @@ impl PyDict {
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter(&self) -> PyDictIterator {
-        PyDictIterator {
-            dict: self.as_ref(),
-            pos: 0,
-        }
+    pub fn iter(&self) -> PyDictIterator<'_, 'py> {
+        PyDictIterator { dict: self, pos: 0 }
     }
 }
 
-pub struct PyDictIterator<'py> {
-    dict: &'py PyAny,
+pub struct PyDictIterator<'a, 'py> {
+    dict: &'a PyDict<'py>,
     pos: isize,
 }
 
-impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny, &'py PyAny);
+impl<'py> Iterator for PyDictIterator<'_, 'py> {
+    type Item = (PyAny<'py>, PyAny<'py>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -194,9 +185,10 @@ impl<'py> Iterator for PyDictIterator<'py> {
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.dict.py();
                 // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
-                ffi::Py_INCREF(key);
-                ffi::Py_INCREF(value);
-                Some((py.from_owned_ptr(key), py.from_owned_ptr(value)))
+                Some((
+                    PyAny::from_borrowed_ptr_or_panic(py, key),
+                    PyAny::from_borrowed_ptr_or_panic(py, value),
+                ))
             } else {
                 None
             }
@@ -204,12 +196,60 @@ impl<'py> Iterator for PyDictIterator<'py> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny, &'a PyAny);
-    type IntoIter = PyDictIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyDict<'py> {
+    type Item = (PyAny<'py>, PyAny<'py>);
+    type IntoIter = PyDictIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + ToPyObject,
+    V: ToPyObject,
+    H: hash::BuildHasher,
+{
+    fn to_object(&self, py: Python) -> PyObject {
+        IntoPyDict::into_py_dict(self, py).into()
+    }
+}
+
+impl<K, V> ToPyObject for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + ToPyObject,
+    V: ToPyObject,
+{
+    fn to_object(&self, py: Python) -> PyObject {
+        IntoPyDict::into_py_dict(self, py).into()
+    }
+}
+
+impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
+    V: IntoPy<PyObject>,
+    H: hash::BuildHasher,
+{
+    fn into_py(self, py: Python) -> PyObject {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
+impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + IntoPy<PyObject>,
+    V: IntoPy<PyObject>,
+{
+    fn into_py(self, py: Python) -> PyObject {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 }
 
@@ -218,7 +258,7 @@ impl<'a> std::iter::IntoIterator for &'a PyDict {
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> &PyDict;
+    fn into_py_dict(self, py: Python) -> PyDict;
 }
 
 impl<T, I> IntoPyDict for I
@@ -226,7 +266,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python) -> &PyDict {
+    fn into_py_dict(self, py: Python) -> PyDict {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())
@@ -274,32 +314,32 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for HashMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    V: for<'a> FromPyObject<'a, 'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'py PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(&k)?, V::extract(&v)?);
         }
         Ok(ret)
     }
 }
 
-impl<'py, K, V> FromPyObject<'py> for BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'_, 'py> for BTreeMap<K, V>
 where
-    K: FromPyObject<'py> + cmp::Ord,
-    V: FromPyObject<'py>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Ord,
+    V: for<'a> FromPyObject<'a, 'py>,
 {
-    fn extract(ob: &'py PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
         let dict = ob.downcast::<PyDict>()?;
         let mut ret = BTreeMap::new();
         for (k, v) in dict.iter() {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+            ret.insert(K::extract(&k)?, V::extract(&v)?);
         }
         Ok(ret)
     }
@@ -335,13 +375,13 @@ mod hashbrown_hashmap_conversion {
         }
     }
 
-    impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
+    impl<'py, K, V, S> FromPyObject<'py> for hashbrown::HashMap<K, V, S>
     where
-        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-        V: FromPyObject<'source>,
+        K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+        V: FromPyObject<'py>,
         S: hash::BuildHasher + Default,
     {
-        fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+        fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
             let dict = <PyDict as PyTryFrom>::try_from(ob)?;
             let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
             for (k, v) in dict.iter() {
@@ -360,7 +400,7 @@ mod hashbrown_hashmap_conversion {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -375,7 +415,7 @@ mod hashbrown_hashmap_conversion {
         map.insert(1, 1);
 
         let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -398,14 +438,16 @@ mod hashbrown_hashmap_conversion {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::conversion::IntoPy;
-    use crate::types::dict::IntoPyDict;
+    use crate::experimental::PyTryFrom;
     #[cfg(not(PyPy))]
-    use crate::types::PyList;
-    use crate::types::{PyDict, PyTuple};
+    use crate::objects::PyList;
+    use crate::objects::{PyDict, PyTuple};
     use crate::PyObject;
     use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::ToPyObject;
+    use maplit::{btreemap, hashmap};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -427,12 +469,12 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
-        let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
+        let dict = PyDict::from_sequence(py, items.to_object(py).as_object(py)).unwrap();
         assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
         assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
-        let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+        let map: HashMap<String, i32> = hashmap! { "a".into() => 1, "b".into() => 2};
         assert_eq!(map, dict.extract().unwrap());
-        let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+        let map: BTreeMap<String, i32> = btreemap! { "a".into() => 1, "b".into() => 2};
         assert_eq!(map, dict.extract().unwrap());
     }
 
@@ -442,7 +484,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let items = PyList::new(py, &vec!["a", "b"]);
-        assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
+        assert!(PyDict::from_sequence(py, items.to_object(py).as_object(py)).is_err());
     }
 
     #[test]
@@ -462,11 +504,11 @@ mod test {
         let py = gil.python();
         let mut v = HashMap::new();
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(0, dict.len());
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(1, dict2.len());
     }
 
@@ -477,7 +519,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(true, dict.contains(7i32).unwrap());
         assert_eq!(false, dict.contains(8i32).unwrap());
     }
@@ -489,7 +531,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
     }
@@ -501,7 +543,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(
@@ -538,7 +580,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(32i32, v[&7i32]); // not updated!
@@ -552,7 +594,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert!(dict.del_item(7i32).is_ok());
         assert_eq!(0, dict.len());
         assert_eq!(None, dict.get_item(7i32));
@@ -565,7 +607,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert!(dict.del_item(7i32).is_ok()); // change
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
@@ -579,12 +621,12 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
         for el in dict.items().iter() {
-            let tuple = el.cast_as::<PyTuple>().unwrap();
+            let tuple = el.downcast::<PyTuple>().unwrap();
             key_sum += tuple.get_item(0).extract::<i32>().unwrap();
             value_sum += tuple.get_item(1).extract::<i32>().unwrap();
         }
@@ -601,7 +643,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         for el in dict.keys().iter() {
@@ -619,7 +661,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut values_sum = 0;
         for el in dict.values().iter() {
@@ -637,7 +679,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict.iter() {
@@ -657,7 +699,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict {
@@ -677,7 +719,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -693,7 +735,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -709,7 +751,7 @@ mod test {
         map.insert(1, 1);
 
         let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -738,7 +780,7 @@ mod test {
         map.insert(1, 1);
 
         let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_object(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

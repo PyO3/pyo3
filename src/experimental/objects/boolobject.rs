@@ -1,17 +1,27 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyResult, PyTryFrom, Python};
+use crate::{
+    ffi,
+    objects::{FromPyObject, PyAny},
+    types::Bool,
+    AsPyPointer, IntoPy, PyObject, PyResult, Python, ToPyObject,
+};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool(PyAny);
+pub struct PyBool<'py>(pub(crate) PyAny<'py>);
 
-pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, ffi::PyBool_Check);
+pyo3_native_object!(PyBool<'py>, Bool, 'py);
 
-impl PyBool {
+impl<'py> PyBool<'py> {
     /// Depending on `val`, returns `true` or `false`.
     #[inline]
-    pub fn new(py: Python, val: bool) -> &PyBool {
-        unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
+    pub fn new(py: Python<'py>, val: bool) -> PyBool<'py> {
+        unsafe {
+            Self(PyAny::from_borrowed_ptr_or_panic(
+                py,
+                if val { ffi::Py_True() } else { ffi::Py_False() },
+            ))
+        }
     }
 
     /// Gets whether this boolean is `true`.
@@ -21,18 +31,33 @@ impl PyBool {
     }
 }
 
+/// Converts a Rust `bool` to a Python `bool`.
+impl ToPyObject for bool {
+    #[inline]
+    fn to_object(&self, py: Python) -> PyObject {
+        PyBool::new(py, *self).into()
+    }
+}
+
+impl IntoPy<PyObject> for bool {
+    #[inline]
+    fn into_py(self, py: Python) -> PyObject {
+        PyBool::new(py, self).into()
+    }
+}
+
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+impl FromPyObject<'_, '_> for bool {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
+        Ok(obj.downcast::<PyBool>()?.is_true())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::types::{PyAny, PyBool};
+    use crate::objects::PyBool;
     use crate::Python;
     use crate::ToPyObject;
 
@@ -41,7 +66,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
-        let t: &PyAny = PyBool::new(py, true).into();
+        let t = PyBool::new(py, true);
         assert_eq!(true, t.extract().unwrap());
         assert_eq!(true.to_object(py), PyBool::new(py, true).into());
     }
@@ -51,7 +76,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!PyBool::new(py, false).is_true());
-        let t: &PyAny = PyBool::new(py, false).into();
+        let t = PyBool::new(py, false);
         assert_eq!(false, t.extract().unwrap());
         assert_eq!(false.to_object(py), PyBool::new(py, false).into());
     }

@@ -157,6 +157,13 @@ macro_rules! pyobject_native_type_extract {
                 $crate::PyTryFrom::try_from(obj).map_err(Into::into)
             }
         }
+
+        impl<'py, $($type_param,)*> $crate::experimental::FromPyObject<'py, 'py> for &'py $name {
+            fn extract(obj: &'py $crate::experimental::objects::PyAny<'py>) -> $crate::PyResult<Self> {
+                use $crate::experimental::PyNativeObject;
+                $crate::PyTryFrom::try_from(obj.as_owned_ref()).map_err(Into::into)
+            }
+        }
     }
 }
 
@@ -243,3 +250,33 @@ mod slice;
 mod string;
 mod tuple;
 mod typeobject;
+
+pub mod experimental {
+    pub type Any = super::PyAny;
+    pub type Bool = super::PyBool;
+    pub type ByteArray = super::PyByteArray;
+    pub type Bytes = super::PyBytes;
+    pub type Complex = super::PyComplex;
+    pub type Date = super::PyDate;
+    pub type DateTime = super::PyDateTime;
+    pub type Time = super::PyTime;
+    pub type TimeDelta = super::PyDelta;
+    pub type TzInfo = super::PyTzInfo;
+    pub type Dict = super::PyDict;
+    pub type Float = super::PyFloat;
+    pub type CFunction = super::PyCFunction;
+    pub type Function = super::PyFunction;
+    pub type Iterator = super::PyIterator;
+    pub type List = super::PyList;
+    pub type Module = super::PyModule;
+    pub type Int = super::PyLong;
+    pub type Sequence = super::PySequence;
+    pub type FrozenSet = super::PyFrozenSet;
+    pub type Set = super::PySet;
+    pub type Slice = super::PySlice;
+    pub type Str = super::PyString;
+    pub type Tuple = super::PyTuple;
+    pub type Type = super::PyType;
+}
+
+pub(crate) use experimental::*;

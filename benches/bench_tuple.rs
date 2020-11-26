@@ -13,6 +13,7 @@ fn iter_tuple(b: &mut Bencher) {
     let tuple = PyTuple::new(py, 0..LEN);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for x in tuple.iter() {
             let i: u64 = x.extract().unwrap();
             sum += i;
@@ -28,6 +29,7 @@ fn tuple_get_item(b: &mut Bencher) {
     let tuple = PyTuple::new(py, 0..LEN);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for i in 0..LEN {
             sum += tuple.get_item(i).extract::<usize>().unwrap();
         }
