@@ -5,18 +5,23 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    AsPyPointer, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject, ToPyObject,
+    objects::PyNativeObject,
+    owned::PyOwned,
+    types::{Any, List},
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
-
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList(PyAny);
+pub struct PyList<'py>(Py<List>, Python<'py>);
 
-pyobject_native_var_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
+pyo3_native_object!(PyList<'py>, List, 'py);
 
-impl PyList {
+impl<'py> PyList<'py> {
     /// Constructs a new list with the given elements.
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    pub fn new<T, U>(
+        py: Python<'py>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> PyOwned<'py, List>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -24,18 +29,17 @@ impl PyList {
         let elements_iter = elements.into_iter();
         let len = elements_iter.len();
         unsafe {
-            let ptr = ffi::PyList_New(len as Py_ssize_t);
+            let list = PyList::with_length(py, len as isize);
             for (i, e) in elements_iter.enumerate() {
-                let obj = e.to_object(py).into_ptr();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
+                list.set_item_unchecked(i as isize, e.to_object(py));
             }
-            py.from_owned_ptr::<PyList>(ptr)
+            list
         }
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python) -> &PyList {
-        unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
+    pub fn empty(py: Python) -> PyOwned<List> {
+        unsafe { PyOwned::from_owned_ptr_or_panic(py, ffi::PyList_New(0)) }
     }
 
     /// Returns the length of the list.
@@ -52,26 +56,12 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyAny {
+    pub fn get_item(&self, index: isize) -> PyOwned<'py, Any> {
         assert!((index.abs() as usize) < self.len());
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
-            ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
-        }
-    }
-
-    /// Gets the item at the specified index.
-    ///
-    /// Panics if the index is out of range.
-    pub fn get_parked_item(&self, index: isize) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                self.py(),
-                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t),
-            )
+            PyOwned::from_borrowed_ptr_or_panic(self.py(), ptr)
         }
     }
 
@@ -85,7 +75,7 @@ impl PyList {
         unsafe {
             err::error_on_minusone(
                 self.py(),
-                ffi::PyList_SetItem(self.as_ptr(), index, item.to_object(self.py()).into_ptr()),
+                self.set_item_unchecked(index, item.to_object(self.py())),
             )
         }
     }
@@ -113,7 +103,7 @@ impl PyList {
     }
 
     /// Returns an iterator over this list's items.
-    pub fn iter(&self) -> PyListIterator {
+    pub fn iter(&self) -> PyListIterator<'_, 'py> {
         PyListIterator {
             list: self,
             index: 0,
@@ -129,19 +119,34 @@ impl PyList {
     pub fn reverse(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
     }
+
+    /// Constructs a list with size NULL elements. All must be set before this list can be
+    /// safely used.
+    unsafe fn with_length(py: Python, size: isize) -> PyOwned<List> {
+        PyOwned::from_owned_ptr_or_panic(py, ffi::PyList_New(size))
+    }
+
+    /// Set item on self. The caller should check for length error (indicated by -1 return value);
+    unsafe fn set_item_unchecked(
+        &self,
+        index: isize,
+        item: impl IntoPyPointer,
+    ) -> std::os::raw::c_int {
+        ffi::PyList_SetItem(self.as_ptr(), index, item.into_ptr())
+    }
 }
 
 /// Used by `PyList::iter()`.
-pub struct PyListIterator<'a> {
-    list: &'a PyList,
+pub struct PyListIterator<'a, 'py> {
+    list: &'a PyList<'py>,
     index: isize,
 }
 
-impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny;
+impl<'py> Iterator for PyListIterator<'_, 'py> {
+    type Item = PyOwned<'py, Any>;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<PyOwned<'py, Any>> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -152,12 +157,71 @@ impl<'a> Iterator for PyListIterator<'a> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyList {
-    type Item = &'a PyAny;
-    type IntoIter = PyListIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyList<'py> {
+    type Item = PyOwned<'py, Any>;
+    type IntoIter = PyListIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<T> ToPyObject for [T]
+where
+    T: ToPyObject,
+{
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        unsafe {
+            let list = PyList::with_length(py, self.len() as isize);
+            for (i, e) in self.iter().enumerate() {
+                list.set_item_unchecked(i as isize, e.to_object(py));
+            }
+            list.into()
+        }
+    }
+}
+
+macro_rules! array_impls {
+    ($($N:expr),+) => {
+        $(
+            impl<T> IntoPy<PyObject> for [T; $N]
+            where
+                T: ToPyObject
+            {
+                fn into_py(self, py: Python) -> PyObject {
+                    self.as_ref().to_object(py)
+                }
+            }
+        )+
+    }
+}
+
+array_impls!(
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32
+);
+
+impl<T> ToPyObject for Vec<T>
+where
+    T: ToPyObject,
+{
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.as_slice().to_object(py)
+    }
+}
+
+impl<T> IntoPy<PyObject> for Vec<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn into_py(self, py: Python) -> PyObject {
+        unsafe {
+            let list = PyList::with_length(py, self.len() as isize);
+            for (i, e) in self.into_iter().enumerate() {
+                list.set_item_unchecked(i as isize, e.into_py(py));
+            }
+            list.into()
+        }
     }
 }
 

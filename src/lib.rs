@@ -163,6 +163,7 @@ pub use {
 #[doc(hidden)]
 pub use libc;
 
+pub(crate) mod objects;
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
 pub mod buffer;
@@ -187,6 +188,7 @@ mod internal_tricks;
 #[cfg(not(Py_LIMITED_API))]
 pub mod marshal;
 pub mod once_cell;
+pub(crate) mod owned;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;
