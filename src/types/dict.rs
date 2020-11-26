@@ -331,7 +331,7 @@ where
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
         let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-        let mut ret = HashMap::default();
+        let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
@@ -392,7 +392,7 @@ mod hashbrown_hashmap_conversion {
     {
         fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
             let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-            let mut ret = hashbrown::HashMap::default();
+            let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
             for (k, v) in dict.iter() {
                 ret.insert(K::extract(k)?, V::extract(v)?);
             }
