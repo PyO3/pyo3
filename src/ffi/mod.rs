@@ -61,6 +61,9 @@ pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
 
+#[cfg(not(Py_LIMITED_API))]
+pub use self::cpython::*;
+
 mod pyport;
 // mod pymacro; contains nothing of interest for Rust
 // mod pyatomic; contains nothing of interest for Rust
@@ -169,3 +172,6 @@ pub(crate) mod datetime;
 pub(crate) mod marshal;
 
 pub(crate) mod funcobject;
+
+#[cfg(not(Py_LIMITED_API))]
+mod cpython;

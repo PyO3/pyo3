@@ -226,7 +226,18 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
-        self.call((), None)
+        cfg_if::cfg_if! {
+            // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
+            // Once the issue is resolved, we can enable this optimization for limited API.
+            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+                // Optimized path on python 3.9+
+                unsafe {
+                    self.py().from_owned_ptr_or_err(ffi::_PyObject_CallNoArg(self.as_ptr()))
+                }
+            } else {
+                self.call((), None)
+            }
+        }
     }
 
     /// Calls the object with only positional arguments.
@@ -283,7 +294,17 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
-        self.call_method(name, (), None)
+        cfg_if::cfg_if! {
+            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+                // Optimized path on python 3.9+
+                unsafe {
+                    let name = name.into_py(self.py());
+            self.py().from_owned_ptr_or_err(ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()))
+                }
+            } else {
+                self.call_method(name, (), None)
+            }
+        }
     }
 
     /// Calls a method on the object with only positional arguments.
@@ -464,8 +485,17 @@ impl PyAny {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{IntoPyDict, PyList, PyLong};
-    use crate::{Python, ToPyObject};
+    use crate::{
+        types::{IntoPyDict, PyList, PyLong, PyModule},
+        Python, ToPyObject,
+    };
+
+    macro_rules! test_module {
+        ($py:ident, $code:literal) => {
+            PyModule::from_code($py, indoc::indoc!($code), file!(), "test_module")
+                .expect("module creation failed")
+        };
+    }
 
     #[test]
     fn test_call_for_non_existing_method() {
@@ -486,6 +516,30 @@ mod test {
         let dict = vec![("reverse", true)].into_py_dict(py);
         list.call_method(py, "sort", (), Some(dict)).unwrap();
         assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+    }
+
+    #[test]
+    fn test_call_method0() {
+        Python::with_gil(|py| {
+            let module = test_module!(
+                py,
+                r#"
+                class SimpleClass:
+                    def foo(self):
+                        return 42
+            "#
+            );
+
+            let simple_class = module.getattr("SimpleClass").unwrap().call0().unwrap();
+            assert_eq!(
+                simple_class
+                    .call_method0("foo")
+                    .unwrap()
+                    .extract::<u32>()
+                    .unwrap(),
+                42
+            );
+        })
     }
 
     #[test]

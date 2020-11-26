@@ -272,7 +272,18 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
-        self.call(py, (), None)
+        cfg_if::cfg_if! {
+            // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
+            // Once the issue is resolved, we can enable this optimization for limited API.
+            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+                // Optimized path on python 3.9+
+                unsafe {
+                    PyObject::from_owned_ptr_or_err(py, ffi::_PyObject_CallNoArg(self.as_ptr()))
+                }
+            } else {
+                self.call(py, (), None)
+            }
+        }
     }
 
     /// Calls a method on the object.
@@ -316,7 +327,17 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
-        self.call_method(py, name, (), None)
+        cfg_if::cfg_if! {
+            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+                // Optimized path on python 3.9+
+                unsafe {
+                    let name = name.into_py(py);
+                    PyObject::from_owned_ptr_or_err(py, ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()))
+                }
+            } else {
+                self.call_method(py, name, (), None)
+            }
+        }
     }
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
