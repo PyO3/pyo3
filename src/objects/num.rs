@@ -3,12 +3,12 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{
-    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, Python, ToPyObject,
+    objects::{FromPyObject, PyAny, PyNativeObject},
+    exceptions, ffi, AsPyPointer, PyErr,
+    PyResult, Python, Py, types::Int,
 };
 use std::convert::TryFrom;
 use std::i64;
-use std::os::raw::c_long;
 
 fn err_if_invalid_value<T: PartialEq>(
     py: Python,
@@ -24,20 +24,20 @@ fn err_if_invalid_value<T: PartialEq>(
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
-                (*self as $larger_type).into_py(py)
-            }
-        }
-        impl IntoPy<PyObject> for $rust_type {
-            fn into_py(self, py: Python) -> PyObject {
-                (self as $larger_type).into_py(py)
-            }
-        }
+        // impl ToPyObject for $rust_type {
+        //     #[inline]
+        //     fn to_object(&self, py: Python) -> PyObject {
+        //         (*self as $larger_type).into_py(py)
+        //     }
+        // }
+        // impl IntoPy<PyObject> for $rust_type {
+        //     fn into_py(self, py: Python) -> PyObject {
+        //         (self as $larger_type).into_py(py)
+        //     }
+        // }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: &PyAny) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
@@ -53,27 +53,27 @@ macro_rules! int_fits_larger_int {
 /// and [extract](struct.PyAny.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyAny);
+pub struct PyInt<'py>(Py<Int>, Python<'py>);
 
-pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
+pyo3_native_object!(PyInt<'py>, Int, 'py);
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
-        impl ToPyObject for $rust_type {
-            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
-            fn to_object(&self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
-            }
-        }
-        impl IntoPy<PyObject> for $rust_type {
-            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
-            fn into_py(self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
-            }
-        }
+        // impl ToPyObject for $rust_type {
+        //     #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
+        //     fn to_object(&self, py: Python) -> PyObject {
+        //         unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
+        //     }
+        // }
+        // impl IntoPy<PyObject> for $rust_type {
+        //     #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
+        //     fn into_py(self, py: Python) -> PyObject {
+        //         unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
+        //     }
+        // }
 
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(obj: &PyAny) -> PyResult<Self> {
                 let ptr = obj.as_ptr();
                 let val = unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -94,20 +94,20 @@ macro_rules! int_fits_c_long {
 
 macro_rules! int_convert_u64_or_i64 {
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => {
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
-            }
-        }
-        impl IntoPy<PyObject> for $rust_type {
-            #[inline]
-            fn into_py(self, py: Python) -> PyObject {
-                unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
-            }
-        }
-        impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+        // impl ToPyObject for $rust_type {
+        //     #[inline]
+        //     fn to_object(&self, py: Python) -> PyObject {
+        //         unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
+        //     }
+        // }
+        // impl IntoPy<PyObject> for $rust_type {
+        //     #[inline]
+        //     fn into_py(self, py: Python) -> PyObject {
+        //         unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
+        //     }
+        // }
+        impl FromPyObject<'_, '_> for $rust_type {
+            fn extract(ob: &PyAny) -> PyResult<$rust_type> {
                 let ptr = ob.as_ptr();
                 unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -161,10 +161,10 @@ int_convert_u64_or_i64!(
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 mod int128_conversion {
     use crate::{
-        ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
-        Python, ToPyObject,
+        objects::{FromPyObject, PyAny, PyNativeObject},
+        ffi, AsPyPointer, PyErr, PyResult,
     };
-    use std::os::raw::{c_int, c_uchar};
+    use std::os::raw::{c_int};
 
     #[cfg(target_endian = "little")]
     const IS_LITTLE_ENDIAN: c_int = 1;
@@ -174,29 +174,29 @@ mod int128_conversion {
     // for 128bit Integers
     macro_rules! int_convert_128 {
         ($rust_type: ty, $byte_size: expr, $is_signed: expr) => {
-            impl ToPyObject for $rust_type {
-                #[inline]
-                fn to_object(&self, py: Python) -> PyObject {
-                    (*self).into_py(py)
-                }
-            }
-            impl IntoPy<PyObject> for $rust_type {
-                fn into_py(self, py: Python) -> PyObject {
-                    unsafe {
-                        let bytes = self.to_ne_bytes();
-                        let obj = ffi::_PyLong_FromByteArray(
-                            bytes.as_ptr() as *const c_uchar,
-                            $byte_size,
-                            IS_LITTLE_ENDIAN,
-                            $is_signed,
-                        );
-                        PyObject::from_owned_ptr(py, obj)
-                    }
-                }
-            }
+            // impl ToPyObject for $rust_type {
+            //     #[inline]
+            //     fn to_object(&self, py: Python) -> PyObject {
+            //         (*self).into_py(py)
+            //     }
+            // }
+            // impl IntoPy<PyObject> for $rust_type {
+            //     fn into_py(self, py: Python) -> PyObject {
+            //         unsafe {
+            //             let bytes = self.to_ne_bytes();
+            //             let obj = ffi::_PyLong_FromByteArray(
+            //                 bytes.as_ptr() as *const c_uchar,
+            //                 $byte_size,
+            //                 IS_LITTLE_ENDIAN,
+            //                 $is_signed,
+            //             );
+            //             PyObject::from_owned_ptr(py, obj)
+            //         }
+            //     }
+            // }
 
-            impl<'source> FromPyObject<'source> for $rust_type {
-                fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+            impl FromPyObject<'_, '_> for $rust_type {
+                fn extract(ob: &PyAny) -> PyResult<$rust_type> {
                     unsafe {
                         let num = ffi::PyNumber_Index(ob.as_ptr());
                         if num.is_null() {

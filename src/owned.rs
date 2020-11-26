@@ -5,7 +5,9 @@ use std::fmt;
 pub struct PyOwned<'py, T>(Py<T>, Python<'py>);
 
 impl<'py, T> PyOwned<'py, T> {
+
     // Creates a PyOwned without checking the type.
+    #[inline]
     pub(crate) unsafe fn from_owned_ptr(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -13,6 +15,7 @@ impl<'py, T> PyOwned<'py, T> {
         Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
     }
 
+    #[inline]
     pub(crate) unsafe fn from_owned_ptr_or_opt(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -20,31 +23,33 @@ impl<'py, T> PyOwned<'py, T> {
         Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
     }
 
+    #[inline]
     pub(crate) unsafe fn from_owned_ptr_or_panic(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
-        Self::from_owned_ptr(py, ptr).expect("ptr is not null")
+        Self(Py::from_owned_ptr(py, ptr), py)
     }
 
+    #[inline]
     pub(crate) unsafe fn from_borrowed_ptr(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<Self> {
-        ffi::Py_XINCREF(ptr);
-        Self::from_owned_ptr(py, ptr)
+        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
     }
 
+    #[inline]
     pub(crate) unsafe fn from_borrowed_ptr_or_opt(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> Option<Self> {
-        ffi::Py_XINCREF(ptr);
-        Self::from_owned_ptr_or_opt(py, ptr)
+        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
     }
 
+    #[inline]
     pub(crate) unsafe fn from_borrowed_ptr_or_panic(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
     ) -> Self {
-        Self::from_borrowed_ptr(py, ptr).expect("ptr is not null")
+        Self(Py::from_borrowed_ptr(py, ptr), py)
     }
 }
 
@@ -67,35 +72,41 @@ where
 }
 
 impl<'py, T: PyTypeInfo> PyOwned<'py, T> {
+    #[inline]
     pub fn as_ref(&self) -> &T::AsRefTarget {
         self.0.as_ref(self.1)
     }
 
     // private helper to convert to owned reference world.
+    #[inline]
     pub(crate) fn into_ref(self) -> &'py T::AsRefTarget {
         self.0.into_ref(self.1)
     }
 }
 
 impl<T> From<PyOwned<'_, T>> for Py<T> {
+    #[inline]
     fn from(owned: PyOwned<'_, T>) -> Py<T> {
         owned.0
     }
 }
 
 impl<T> IntoPy<Py<T>> for PyOwned<'_, T> {
+    #[inline]
     fn into_py(self, _py: Python) -> Py<T> {
         self.into()
     }
 }
 
 impl<T> AsPyPointer for PyOwned<'_, T> {
+    #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.as_ptr()
     }
 }
 
 impl<T> IntoPyPointer for PyOwned<'_, T> {
+    #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
         self.0.into_ptr()
     }

@@ -281,7 +281,7 @@ where
 /// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized {
+pub trait PyTryFrom<'v>: Sized + PyNativeType {
     /// Cast from a concrete Python object type to PyObject.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError<'v>>;
 

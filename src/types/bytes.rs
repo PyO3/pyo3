@@ -1,4 +1,6 @@
-use crate::{ffi, AsPyPointer, Py, PyAny, PyResult, Python};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, Py, PyAny, PyResult, Python,
+};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -92,6 +94,13 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
+impl<'a> FromPyObject<'a> for &'a [u8] {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        <Self as crate::objects::FromPyObject>::extract(
+            crate::objects::PyAny::from_type_any(obj)
+        )
+    }
+}
 #[cfg(test)]
 mod test {
     use super::PyBytes;

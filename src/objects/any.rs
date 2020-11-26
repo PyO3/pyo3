@@ -1,10 +1,10 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{
-    AsPyPointer, FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject, IntoPyPointer,
+    AsPyPointer, IntoPy, ToBorrowedObject, ToPyObject,
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
-use crate::objects::PyNativeObject;
+use crate::objects::{PyNativeObject, FromPyObject, PyTryFrom};
 use crate::owned::PyOwned;
 use crate::type_object::PyTypeObject;
 use crate::types::Any;
@@ -14,7 +14,7 @@ use libc::c_int;
 use std::cmp::Ordering;
 
 #[repr(transparent)]
-pub struct PyAny<'py>(types::PyAny, Python<'py>);
+pub struct PyAny<'py>(Any, Python<'py>);
 
 pyo3_native_object_base!(PyAny<'py>, Any, 'py);
 
@@ -42,13 +42,23 @@ pyo3_native_object_base!(PyAny<'py>, Any, 'py);
 // pyobject_native_type_fmt!(PyAny);
 
 impl<'py> PyAny<'py> {
-    // /// Convert this PyAny to a concrete Python type.
-    // pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
-    // where
-    //     for<'py> T: PyTryFrom<'py>,
-    // {
-    //     <T as PyTryFrom>::try_from(self)
-    // }
+    /// Convert this PyAny to a concrete Python type.
+    pub fn downcast<'a, T>(&'a self) -> Result<&'a T, PyDowncastError>
+    where
+        &'a T: PyTryFrom<'a, 'py>,
+    {
+        <&'a T as PyTryFrom>::try_from(self)
+    }
+
+    /// Extracts some type from the Python object.
+    ///
+    /// This is a wrapper function around `FromPyObject::extract()`.
+    pub fn extract<'a, D>(&'a self) -> PyResult<D>
+    where
+        D: FromPyObject<'a, 'py>,
+    {
+        FromPyObject::extract(self)
+    }
 
     /// Determines whether this object has the given attribute.
     ///
@@ -348,26 +358,6 @@ impl<'py> PyAny<'py> {
         unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
-    /// Casts the PyObject to a concrete Python object type.
-    ///
-    /// This can cast only to native Python types, not types implemented in Rust.
-    pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
-    where
-        D: PyTryFrom<'a>,
-    {
-        D::try_from(&self.0)
-    }
-
-    /// Extracts some type from the Python object.
-    ///
-    /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'a, D>(&'a self) -> PyResult<D>
-    where
-        D: FromPyObject<'a>,
-    {
-        FromPyObject::extract(&self.0)
-    }
-
     /// Returns the reference count for the Python object.
     pub fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }
@@ -426,6 +416,7 @@ impl<'py> PyAny<'py> {
     }
 
     pub(crate) fn from_type_any(any: &'py Any) -> &'py Self {
+        dbg!("self");
         unsafe { std::mem::transmute(any) }
     }
 }

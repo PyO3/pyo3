@@ -12,7 +12,7 @@ use crate::{
 };
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList<'py>(Py<List>, Python<'py>);
+pub struct PyList<'py>(List, Python<'py>);
 
 pyo3_native_object!(PyList<'py>, List, 'py);
 

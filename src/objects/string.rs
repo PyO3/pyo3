@@ -1,11 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::types::{Any, PyBytes, Str};
+use crate::types::{PyBytes, Str};
 use crate::{
     ffi,
-    objects::{PyAny, PyNativeObject},
+    objects::{PyAny, PyNativeObject, FromPyObject},
     owned::PyOwned,
-    AsPyPointer, FromPyObject, IntoPy, Py, PyErr, PyNativeType, PyObject, PyResult, PyTryFrom,
+    AsPyPointer, IntoPy, Py, PyErr, PyObject, PyResult,
     Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -16,7 +16,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyStr<'py>(Py<Str>, Python<'py>);
+pub struct PyStr<'py>(Str, Python<'py>);
 
 pyo3_native_object!(PyStr<'py>, Str, 'py);
 
@@ -90,7 +90,7 @@ impl<'py> PyStr<'py> {
                         ),
                     )
                 };
-                String::from_utf8_lossy(bytes.as_bytes())
+                String::from_utf8_lossy(bytes.into_ref().as_bytes())
             }
         }
     }
@@ -158,25 +158,25 @@ impl<'a> IntoPy<PyObject> for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl<'source> FromPyObject<'source> for &'source str {
-    fn extract(ob: &'source Any) -> PyResult<Self> {
-        <PyStr as PyTryFrom>::try_from(ob)?.to_str()
+impl<'a> FromPyObject<'a, '_> for &'a str {
+    fn extract(ob: &'a PyAny<'_>) -> PyResult<Self> {
+        ob.downcast::<PyStr>()?.to_str()
     }
 }
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl FromPyObject<'_> for String {
-    fn extract(obj: &Any) -> PyResult<Self> {
-        <PyStr as PyTryFrom>::try_from(obj)?
+impl FromPyObject<'_, '_> for String {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
+        obj.downcast::<PyStr>()?
             .to_str()
             .map(ToOwned::to_owned)
     }
 }
 
-impl FromPyObject<'_> for char {
-    fn extract(obj: &Any) -> PyResult<Self> {
-        let s = PyStr::try_from(obj)?.to_str()?;
+impl FromPyObject<'_, '_> for char {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
+        let s = obj.downcast::<PyStr>()?.to_str()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)

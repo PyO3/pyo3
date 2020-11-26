@@ -1,8 +1,9 @@
 use crate::{
     ffi,
     owned::PyOwned,
-    types::{Any, Bytes},
-    AsPyPointer, FromPyObject, IntoPy, Py, PyObject, PyResult, PyTryFrom, Python,
+    types::Bytes,
+    objects::{FromPyObject, PyAny},
+    AsPyPointer, IntoPy, Py, PyObject, PyResult, Python,
 };
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -12,7 +13,7 @@ use std::slice::SliceIndex;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes<'py>(Py<Bytes>, Python<'py>);
+pub struct PyBytes<'py>(Bytes, Python<'py>);
 
 pyo3_native_object!(PyBytes<'py>, Bytes, 'py);
 
@@ -103,9 +104,9 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     }
 }
 
-impl<'a> FromPyObject<'a> for &'a [u8] {
-    fn extract(obj: &'a Any) -> PyResult<Self> {
-        Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
+impl<'a> FromPyObject<'a, '_> for &'a [u8] {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 }
 #[cfg(test)]

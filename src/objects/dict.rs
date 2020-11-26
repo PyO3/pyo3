@@ -2,10 +2,10 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::objects::PyAny;
-use crate::objects::PyNativeObject;
+use crate::objects::{PyNativeObject, FromPyObject};
 use crate::types::{Any, Dict, List};
 use crate::{
-    ffi, owned::PyOwned, AsPyPointer, FromPyObject, IntoPy, Py, PyObject, PyTryFrom, Python,
+    ffi, owned::PyOwned, AsPyPointer, IntoPy, Py, PyObject, Python,
     ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
@@ -13,7 +13,7 @@ use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict<'py>(Py<Dict>, Python<'py>);
+pub struct PyDict<'py>(Dict, Python<'py>);
 
 pyo3_native_object!(PyDict<'py>, Dict, 'py);
 
@@ -300,32 +300,32 @@ where
     }
 }
 
-impl<'source, K, V, S> FromPyObject<'source> for HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for HashMap<K, V, S>
 where
-    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'source>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
+    V: for<'a> FromPyObject<'a, 'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source Any) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+    fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
-            ret.insert(K::extract(k.as_ref())?, V::extract(v.as_ref())?);
+            ret.insert(K::extract(&k)?, V::extract(&v)?);
         }
         Ok(ret)
     }
 }
 
-impl<'source, K, V> FromPyObject<'source> for BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'_, 'py> for BTreeMap<K, V>
 where
-    K: FromPyObject<'source> + cmp::Ord,
-    V: FromPyObject<'source>,
+    K: for<'a> FromPyObject<'a, 'py> + cmp::Ord,
+    V: for<'a> FromPyObject<'a, 'py>,
 {
-    fn extract(ob: &'source Any) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+    fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
+        let dict = ob.downcast::<PyDict>()?;
         let mut ret = BTreeMap::new();
         for (k, v) in dict.iter() {
-            ret.insert(K::extract(k.as_ref())?, V::extract(v.as_ref())?);
+            ret.insert(K::extract(&k)?, V::extract(&v)?);
         }
         Ok(ret)
     }
@@ -361,13 +361,13 @@ mod hashbrown_hashmap_conversion {
         }
     }
 
-    impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
+    impl<'py, K, V, S> FromPyObject<'py> for hashbrown::HashMap<K, V, S>
     where
-        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-        V: FromPyObject<'source>,
+        K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+        V: FromPyObject<'py>,
         S: hash::BuildHasher + Default,
     {
-        fn extract(ob: &'source Any) -> Result<Self, PyErr> {
+        fn extract(ob: &PyAny<'py>) -> Result<Self, PyErr> {
             let dict = <PyDict as PyTryFrom>::try_from(ob)?;
             let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
             for (k, v) in dict.iter() {

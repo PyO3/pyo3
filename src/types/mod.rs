@@ -249,3 +249,4 @@ pub type Bytes = PyBytes;
 pub type Dict = PyDict;
 pub type List = PyList;
 pub type Str = PyString;
+pub type Int = PyInt;
