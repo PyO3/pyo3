@@ -473,9 +473,9 @@ impl<T> std::convert::From<Py<T>> for PyObject
 where
     T: AsRef<PyAny>,
 {
+    #[inline]
     fn from(other: Py<T>) -> Self {
-        let Py(ptr, _) = other;
-        Py(ptr, PhantomData)
+        unsafe { Self::from_non_null(other.into_non_null()) }
     }
 }
 
@@ -625,5 +625,15 @@ mod test {
             Py::from(native)
         };
         assert_eq!(unsafe { ffi::Py_REFCNT(dict.as_ptr()) }, 1);
+    }
+
+    #[test]
+    fn pyobject_from_py() {
+        Python::with_gil(|py| {
+            let dict: Py<PyDict> = PyDict::new(py).into();
+            let cnt = dict.get_refcnt(py);
+            let p: PyObject = dict.into();
+            assert_eq!(p.get_refcnt(py), cnt);
+        });
     }
 }
