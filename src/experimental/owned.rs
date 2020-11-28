@@ -1,30 +1,29 @@
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyResult, Python, ffi, type_object::PyTypeInfo, PyNativeType};
-use std::fmt;
+use crate::{
+    ffi, type_object::PyTypeInfo, AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyResult,
+    Python, PyErr, PyObject, ToPyObject,
+};
+use std::{fmt, ops::Deref};
 
 #[repr(transparent)]
 pub struct PyOwned<'py, T>(Py<T>, Python<'py>);
 
 impl<'py, T> PyOwned<'py, T> {
-
-    // Creates a PyOwned without checking the type.
     #[inline]
-    pub(crate) unsafe fn from_owned_ptr(
-        py: Python<'py>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<Self> {
-        Py::from_owned_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
-    }
-
-    #[inline]
-    pub(crate) unsafe fn from_owned_ptr_or_opt(
-        py: Python<'py>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<Self> {
+    pub(crate) unsafe fn from_raw(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
         Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
     }
 
+    // Creates a PyOwned without checking the type.
     #[inline]
-    pub(crate) unsafe fn from_owned_ptr_or_panic(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+    pub(crate) unsafe fn from_raw_or_fetch_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        Self::from_raw(py, ptr).ok_or_else(|| PyErr::fetch(py))
+    }
+
+    #[inline]
+    pub(crate) unsafe fn from_raw_or_panic(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
         Self(Py::from_owned_ptr(py, ptr), py)
     }
 
@@ -32,16 +31,16 @@ impl<'py, T> PyOwned<'py, T> {
     pub(crate) unsafe fn from_borrowed_ptr(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
-    ) -> PyResult<Self> {
-        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
+    ) -> Option<Self> {
+        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
     }
 
     #[inline]
-    pub(crate) unsafe fn from_borrowed_ptr_or_opt(
+    pub(crate) unsafe fn from_borrowed_ptr_or_fetch_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
-    ) -> Option<Self> {
-        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
+    ) -> PyResult<Self> {
+        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
     }
 
     #[inline]
@@ -58,28 +57,29 @@ impl<'py, T> PyOwned<'py, T> {
     }
 }
 
-impl<T> Clone for PyOwned<'_, T>
-{
+impl<T> Clone for PyOwned<'_, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone_ref(self.1), self.1)
     }
 }
 
-impl<T: PyTypeInfo> fmt::Debug for PyOwned<'_, T>
+impl<T> fmt::Debug for PyOwned<'_, T>
 where
-    T::AsRefTarget: fmt::Debug,
+    Self: Deref,
+    <Self as Deref>::Target: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_ref().fmt(f)
+        self.deref().fmt(f)
     }
 }
 
-impl<T: PyTypeInfo> fmt::Display for PyOwned<'_, T>
+impl<T> fmt::Display for PyOwned<'_, T>
 where
-    T::AsRefTarget: fmt::Display,
+    Self: Deref,
+    <Self as Deref>::Target: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_ref().fmt(f)
+        self.deref().fmt(f)
     }
 }
 
@@ -100,6 +100,13 @@ impl<T> From<PyOwned<'_, T>> for Py<T> {
     #[inline]
     fn from(owned: PyOwned<'_, T>) -> Py<T> {
         owned.0
+    }
+}
+
+impl<T> ToPyObject for PyOwned<'_, T> {
+    #[inline]
+    fn to_object(&self, py: Python) -> PyObject {
+        self.0.to_object(py)
     }
 }
 
@@ -124,8 +131,7 @@ impl<T> IntoPyPointer for PyOwned<'_, T> {
     }
 }
 
-impl<T> PartialEq for PyOwned<'_, T>
-{
+impl<T> PartialEq for PyOwned<'_, T> {
     fn eq(&self, other: &Self) -> bool {
         self.as_ptr() == other.as_ptr()
     }
@@ -133,9 +139,9 @@ impl<T> PartialEq for PyOwned<'_, T>
 
 impl<'py, T: PyNativeType> From<&'py T> for PyOwned<'py, T>
 where
-    &'py T: IntoPyPointer
+    &'py T: IntoPyPointer,
 {
     fn from(other: &'py T) -> Self {
-        unsafe { Self::from_owned_ptr_or_panic(other.py(), other.into_ptr()) }
+        unsafe { Self::from_raw_or_panic(other.py(), other.into_ptr()) }
     }
 }

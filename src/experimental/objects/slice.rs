@@ -2,22 +2,15 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyNativeType;
-use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{owned::PyOwned, types::Slice, AsPyPointer, PyObject, Python, ToPyObject, objects::PyNativeObject};
 use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
 ///
 /// Only `c_long` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
-pub struct PySlice(PyAny);
-
-pyobject_native_type!(
-    PySlice,
-    ffi::PySliceObject,
-    ffi::PySlice_Type,
-    ffi::PySlice_Check
-);
+pub struct PySlice<'py>(Slice, Python<'py>);
+pyo3_native_object!(PySlice<'py>, Slice, 'py);
 
 /// Represents Python `slice` indices.
 pub struct PySliceIndices {
@@ -38,16 +31,16 @@ impl PySliceIndices {
     }
 }
 
-impl PySlice {
+impl<'py> PySlice<'py> {
     /// Constructs a new slice with the given elements.
-    pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
+    pub fn new(py: Python<'py>, start: isize, stop: isize, step: isize) -> PyOwned<'py, Slice> {
         unsafe {
             let ptr = ffi::PySlice_New(
                 ffi::PyLong_FromLong(start as c_long),
                 ffi::PyLong_FromLong(stop as c_long),
                 ffi::PyLong_FromLong(step as c_long),
             );
-            py.from_owned_ptr(ptr)
+            PyOwned::from_raw_or_panic(py, ptr)
         }
     }
 

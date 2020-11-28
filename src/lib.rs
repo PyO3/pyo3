@@ -163,7 +163,7 @@ pub use {
 #[doc(hidden)]
 pub use libc;
 
-pub mod objects;
+pub mod experimental;
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
 pub mod buffer;
@@ -188,7 +188,6 @@ mod internal_tricks;
 #[cfg(not(Py_LIMITED_API))]
 pub mod marshal;
 pub mod once_cell;
-pub mod owned;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;
@@ -198,6 +197,8 @@ pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;
+
+pub(crate) use experimental::*;
 
 /// The proc macros, which are also part of the prelude.
 #[cfg(feature = "macros")]

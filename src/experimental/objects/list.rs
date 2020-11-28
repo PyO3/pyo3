@@ -39,7 +39,7 @@ impl<'py> PyList<'py> {
 
     /// Constructs a new empty list.
     pub fn empty(py: Python) -> PyOwned<List> {
-        unsafe { PyOwned::from_owned_ptr_or_panic(py, ffi::PyList_New(0)) }
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyList_New(0)) }
     }
 
     /// Returns the length of the list.
@@ -123,7 +123,7 @@ impl<'py> PyList<'py> {
     /// Constructs a list with size NULL elements. All must be set before this list can be
     /// safely used.
     unsafe fn with_length(py: Python, size: isize) -> PyOwned<List> {
-        PyOwned::from_owned_ptr_or_panic(py, ffi::PyList_New(size))
+        PyOwned::from_raw_or_panic(py, ffi::PyList_New(size))
     }
 
     /// Set item on self. The caller should check for length error (indicated by -1 return value);

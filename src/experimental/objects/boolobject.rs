@@ -1,20 +1,22 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi,
+    objects::{FromPyObject, PyAny, PyNativeObject},
+    types::Bool,
+    AsPyPointer, IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool(PyAny);
+pub struct PyBool<'py>(Bool, Python<'py>);
 
-pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, ffi::PyBool_Check);
+pyo3_native_object!(PyBool<'py>, Bool, 'py);
 
-impl PyBool {
+impl<'py> PyBool<'py> {
     /// Depending on `val`, returns `true` or `false`.
     #[inline]
-    pub fn new(py: Python, val: bool) -> &PyBool {
-        unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
+    pub fn new(py: Python<'py>, val: bool) -> &'py PyBool<'py> {
+        unsafe { Self::from_borrowed_ptr(py, if val { ffi::Py_True() } else { ffi::Py_False() }) }
     }
 
     /// Gets whether this boolean is `true`.
@@ -28,16 +30,7 @@ impl PyBool {
 impl ToPyObject for bool {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                py,
-                if *self {
-                    ffi::Py_True()
-                } else {
-                    ffi::Py_False()
-                },
-            )
-        }
+        PyBool::new(py, *self).into()
     }
 }
 
@@ -51,9 +44,9 @@ impl IntoPy<PyObject> for bool {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+impl FromPyObject<'_, '_> for bool {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
+        Ok(obj.downcast::<PyBool>()?.is_true())
     }
 }
 

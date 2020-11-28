@@ -1,8 +1,8 @@
 #![feature(test)]
 
 extern crate test;
+use pyo3::experimental::objects::{FromPyObject, IntoPyDict};
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use std::collections::{BTreeMap, HashMap};
 use test::Bencher;
 
@@ -27,10 +27,11 @@ fn dict_get_item(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 50_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+    let dict_ref = &*dict;
     let mut sum = 0;
     b.iter(|| {
         for i in 0..LEN {
-            sum += dict.get_item(i).unwrap().extract::<usize>().unwrap();
+            sum += dict_ref.get_item(i).unwrap().extract::<u64>().unwrap();
         }
     });
 }
@@ -41,7 +42,7 @@ fn extract_hashmap(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| HashMap::<u64, u64>::extract(dict));
+    b.iter(|| HashMap::<u64, u64>::extract(&dict));
 }
 
 #[bench]
@@ -50,7 +51,7 @@ fn extract_btreemap(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| BTreeMap::<u64, u64>::extract(dict));
+    b.iter(|| BTreeMap::<u64, u64>::extract(&dict));
 }
 
 #[bench]

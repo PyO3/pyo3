@@ -3,10 +3,9 @@
 use crate::types::{PyBytes, Str};
 use crate::{
     ffi,
-    objects::{PyAny, PyNativeObject, FromPyObject},
+    objects::{FromPyObject, PyAny, PyNativeObject},
     owned::PyOwned,
-    AsPyPointer, IntoPy, PyErr, PyObject, PyResult,
-    Python, ToPyObject,
+    AsPyPointer, IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::os::raw::c_char;
@@ -27,12 +26,12 @@ impl<'py> PyStr<'py> {
     pub fn new(py: Python<'py>, s: &str) -> PyOwned<'py, Str> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { PyOwned::from_owned_ptr_or_panic(py, ffi::PyUnicode_FromStringAndSize(ptr, len)) }
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
     pub fn from_object(src: &PyAny<'py>, encoding: &str, errors: &str) -> PyOwned<'py, Str> {
         unsafe {
-            PyOwned::from_owned_ptr_or_panic(
+            PyOwned::from_raw_or_panic(
                 src.py(),
                 ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
@@ -81,7 +80,7 @@ impl<'py> PyStr<'py> {
             Ok(s) => Cow::Borrowed(s),
             Err(_) => {
                 let bytes: PyOwned<PyBytes> = unsafe {
-                    PyOwned::from_owned_ptr_or_panic(
+                    PyOwned::from_raw_or_panic(
                         self.py(),
                         ffi::PyUnicode_AsEncodedString(
                             self.as_ptr(),
@@ -168,9 +167,7 @@ impl<'a> FromPyObject<'a, '_> for &'a str {
 /// Accepts Python `str` objects.
 impl FromPyObject<'_, '_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        obj.downcast::<PyStr>()?
-            .to_str()
-            .map(ToOwned::to_owned)
+        obj.downcast::<PyStr>()?.to_str().map(ToOwned::to_owned)
     }
 }
 

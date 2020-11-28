@@ -1,9 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::types::PyBytes;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, PyAny, PyErr, PyNativeType, PyResult, Python,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyErr, PyNativeType, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -110,9 +108,7 @@ where
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(
-            crate::objects::PyAny::from_type_any(ob)
-        )
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(ob))
     }
 }
 
@@ -120,17 +116,13 @@ impl<'source> FromPyObject<'source> for &'source str {
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(
-            crate::objects::PyAny::from_type_any(obj)
-        )
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(obj))
     }
 }
 
 impl FromPyObject<'_> for char {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(
-            crate::objects::PyAny::from_type_any(obj)
-        )
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(obj))
     }
 }
 

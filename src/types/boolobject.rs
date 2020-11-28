@@ -1,8 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyResult, PyTryFrom, Python};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -21,30 +18,6 @@ impl PyBool {
     #[inline]
     pub fn is_true(&self) -> bool {
         self.as_ptr() == unsafe { crate::ffi::Py_True() }
-    }
-}
-
-/// Converts a Rust `bool` to a Python `bool`.
-impl ToPyObject for bool {
-    #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                py,
-                if *self {
-                    ffi::Py_True()
-                } else {
-                    ffi::Py_False()
-                },
-            )
-        }
-    }
-}
-
-impl IntoPy<PyObject> for bool {
-    #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyBool::new(py, self).into()
     }
 }
 

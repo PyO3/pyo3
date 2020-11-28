@@ -1,28 +1,20 @@
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
-use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::objects::PyNativeObject;
+use crate::{ffi, owned::PyOwned, types::Complex, AsPyPointer, Python};
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use std::ops::*;
 use std::os::raw::c_double;
 
 /// Represents a Python `complex`.
 #[repr(transparent)]
-pub struct PyComplex(PyAny);
+pub struct PyComplex<'py>(Complex, Python<'py>);
 
-pyobject_native_type!(
-    PyComplex,
-    ffi::PyComplexObject,
-    ffi::PyComplex_Type,
-    ffi::PyComplex_Check
-);
+pyo3_native_object!(PyComplex<'py>, Complex, 'py);
 
-impl PyComplex {
+impl<'py> PyComplex<'py> {
     /// Creates a new Python `complex` object, from its real and imaginary values.
-    pub fn from_doubles(py: Python, real: c_double, imag: c_double) -> &PyComplex {
-        unsafe {
-            let ptr = ffi::PyComplex_FromDoubles(real, imag);
-            py.from_owned_ptr(ptr)
-        }
+    pub fn from_doubles(py: Python<'py>, real: c_double, imag: c_double) -> PyOwned<'py, Complex> {
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyComplex_FromDoubles(real, imag)) }
     }
     /// Returns the real part of the complex number.
     pub fn real(&self) -> c_double {
@@ -42,11 +34,8 @@ impl PyComplex {
     }
     /// Returns `self ** other`
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    pub fn pow(&self, other: &PyComplex) -> &PyComplex {
-        unsafe {
-            self.py()
-                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_pow))
-        }
+    pub fn pow(&self, other: &PyComplex) -> PyOwned<'py, Complex> {
+        unsafe { PyOwned::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_pow)) }
     }
 }
 
@@ -63,58 +52,93 @@ unsafe fn complex_operation(
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> Add for &'py PyComplex {
-    type Output = &'py PyComplex;
-    fn add(self, other: &'py PyComplex) -> &'py PyComplex {
+impl<'py> Add<&PyComplex<'_>> for &'_ PyComplex<'py> {
+    type Output = PyOwned<'py, Complex>;
+    fn add(self, other: &PyComplex) -> PyOwned<'py, Complex> {
         unsafe {
-            self.py()
-                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_sum))
+            PyOwned::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_sum))
         }
     }
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> Sub for &'py PyComplex {
-    type Output = &'py PyComplex;
-    fn sub(self, other: &'py PyComplex) -> &'py PyComplex {
+impl<'py> Sub<&PyComplex<'_>> for &'_ PyComplex<'py> {
+    type Output = PyOwned<'py, Complex>;
+    fn sub(self, other: &PyComplex) -> PyOwned<'py, Complex> {
         unsafe {
-            self.py()
-                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_diff))
+            PyOwned::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_diff))
         }
     }
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> Mul for &'py PyComplex {
-    type Output = &'py PyComplex;
-    fn mul(self, other: &'py PyComplex) -> &'py PyComplex {
+impl<'py> Mul<&PyComplex<'_>> for &'_ PyComplex<'py> {
+    type Output = PyOwned<'py, Complex>;
+    fn mul(self, other: &PyComplex) -> PyOwned<'py, Complex> {
         unsafe {
-            self.py()
-                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_prod))
+            PyOwned::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_prod))
+        }
+    }
+}
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+impl<'py> Div<&PyComplex<'_>> for &'_ PyComplex<'py> {
+    type Output = PyOwned<'py, Complex>;
+    fn div(self, other: &PyComplex) -> PyOwned<'py, Complex> {
+        unsafe {
+            PyOwned::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_quot))
         }
     }
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> Div for &'py PyComplex {
-    type Output = &'py PyComplex;
-    fn div(self, other: &'py PyComplex) -> &'py PyComplex {
-        unsafe {
-            self.py()
-                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_quot))
-        }
-    }
-}
-
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
-impl<'py> Neg for &'py PyComplex {
-    type Output = &'py PyComplex;
-    fn neg(self) -> &'py PyComplex {
+impl<'py> Neg for &'_ PyComplex<'py> {
+    type Output = PyOwned<'py, Complex>;
+    fn neg(self) -> PyOwned<'py, Complex> {
         unsafe {
             let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
-            self.py()
-                .from_owned_ptr(ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)))
+            PyOwned::from_raw_or_panic(self.py(), ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)))
         }
+    }
+}
+
+macro_rules! owned_traits {
+    ($trait:ident, $fn_name:ident, $op:tt) => {
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        impl<'py> $trait<PyOwned<'_, Complex>> for &'_ PyComplex<'py> {
+            type Output = PyOwned<'py, Complex>;
+            fn $fn_name(self, other: PyOwned<'_, Complex>) -> PyOwned<'py, Complex> {
+                self $op &*other
+            }
+        }
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        impl<'py> $trait<&'_ PyComplex<'_>> for PyOwned<'py, Complex> {
+            type Output = PyOwned<'py, Complex>;
+            fn $fn_name(self, other: &PyComplex) -> PyOwned<'py, Complex> {
+                &*self $op other
+            }
+        }
+
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        impl<'py> $trait<PyOwned<'_, Complex>> for PyOwned<'py, Complex> {
+            type Output = PyOwned<'py, Complex>;
+            fn $fn_name(self, other: PyOwned<'_, Complex>) -> PyOwned<'py, Complex> {
+                &*self $op &*other
+            }
+        }
+    };
+}
+
+owned_traits!(Add, add, +);
+owned_traits!(Sub, sub, -);
+owned_traits!(Mul, mul, *);
+owned_traits!(Div, div, /);
+
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+impl<'py> Neg for PyOwned<'py, Complex> {
+    type Output = PyOwned<'py, Complex>;
+    fn neg(self) -> PyOwned<'py, Complex> {
+        -&*self
     }
 }
 
@@ -129,7 +153,7 @@ mod complex_conversion {
         pub fn from_complex<'py, F: Into<c_double>>(
             py: Python<'py>,
             complex: Complex<F>,
-        ) -> &'py PyComplex {
+        ) -> PyOwned<'py, Complex> {
             unsafe {
                 let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());
                 py.from_owned_ptr(ptr)
@@ -306,7 +330,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.2, 2.6);
-        let val = l.pow(r);
+        let val = l.pow(&r);
         assert_approx_eq!(val.real(), -1.419_309_997_016_603_7);
         assert_approx_eq!(val.imag(), -0.541_297_466_033_544_6);
     }

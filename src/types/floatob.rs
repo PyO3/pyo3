@@ -1,10 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyErr, PyNativeType, PyResult, Python};
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
@@ -35,18 +32,6 @@ impl PyFloat {
     }
 }
 
-impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self).into()
-    }
-}
-
-impl IntoPy<PyObject> for f64 {
-    fn into_py(self, py: Python) -> PyObject {
-        PyFloat::new(py, self).into()
-    }
-}
-
 impl<'source> FromPyObject<'source> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
@@ -58,18 +43,6 @@ impl<'source> FromPyObject<'source> for f64 {
         } else {
             Ok(v)
         }
-    }
-}
-
-impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, f64::from(*self)).into()
-    }
-}
-
-impl IntoPy<PyObject> for f32 {
-    fn into_py(self, py: Python) -> PyObject {
-        PyFloat::new(py, f64::from(self)).into()
     }
 }
 

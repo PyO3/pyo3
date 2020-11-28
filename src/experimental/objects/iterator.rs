@@ -2,9 +2,17 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
+use crate::{
+    ffi,
+    owned::PyOwned,
+    types::{Any, Iterator},
+    AsPyPointer, PyErr, PyResult, Python, objects::PyNativeObject
+};
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-use crate::{PyDowncastError, PyTryFrom};
+use crate::{
+    objects::{PyAny, PyTryFrom},
+    PyDowncastError,
+};
 
 /// A Python iterator object.
 ///
@@ -24,38 +32,25 @@ use crate::{PyDowncastError, PyTryFrom};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
 #[repr(transparent)]
-pub struct PyIterator(PyAny);
-pyobject_native_type_named!(PyIterator);
-#[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-pyobject_native_type_extract!(PyIterator);
+pub struct PyIterator<'py>(Iterator, Python<'py>);
+pyo3_native_object!(PyIterator<'py>, Iterator, 'py);
 
-impl PyIterator {
+impl<'py> PyIterator<'py> {
     /// Constructs a `PyIterator` from a Python iterable object.
     ///
     /// Equivalent to Python's built-in `iter` function.
-    pub fn from_object<'p, T>(py: Python<'p>, obj: &T) -> PyResult<&'p PyIterator>
+    pub fn from_object<T>(py: Python<'py>, obj: &T) -> PyResult<PyOwned<'py, Iterator>>
     where
         T: AsPyPointer,
     {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyObject_GetIter(obj.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyObject_GetIter(obj.as_ptr())) }
     }
-}
 
-impl<'p> Iterator for &'p PyIterator {
-    type Item = PyResult<&'p PyAny>;
+    fn next(&self) -> Option<PyResult<PyOwned<'py, Any>>> {
+        let py = self.py();
 
-    /// Retrieves the next item from an iterator.
-    ///
-    /// Returns `None` when the iterator is exhausted.
-    /// If an exception occurs, returns `Some(Err(..))`.
-    /// Further `next()` calls after an exception occurs are likely
-    /// to repeatedly result in the same exception.
-    fn next(&mut self) -> Option<Self::Item> {
-        let py = self.0.py();
-
-        match unsafe { py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) } {
+        match unsafe { PyOwned::from_raw(py, ffi::PyIter_Next(self.0.as_ptr())) } {
             Some(obj) => Some(Ok(obj)),
             None => {
                 if PyErr::occurred(py) {
@@ -68,27 +63,47 @@ impl<'p> Iterator for &'p PyIterator {
     }
 }
 
+impl<'py> std::iter::Iterator for &'_ PyIterator<'py> {
+    type Item = PyResult<PyOwned<'py, Any>>;
+
+    /// Retrieves the next item from an iterator.
+    ///
+    /// Returns `None` when the iterator is exhausted.
+    /// If an exception occurs, returns `Some(Err(..))`.
+    /// Further `next()` calls after an exception occurs are likely
+    /// to repeatedly result in the same exception.
+    fn next(&mut self) -> Option<Self::Item> {
+        (*self).next()
+    }
+}
+
+impl<'py> std::iter::Iterator for PyOwned<'py, Iterator> {
+    type Item = PyResult<PyOwned<'py, Any>>;
+    fn next(&mut self) -> Option<Self::Item> {
+        (**self).next()
+    }
+}
+
 // PyIter_Check does not exist in the limited API until 3.8
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-impl<'v> PyTryFrom<'v> for PyIterator {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        let value = value.into();
+impl<'a, 'py> PyTryFrom<'a, 'py> for PyIterator<'py> {
+    fn try_from(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError<'py>> {
         unsafe {
             if ffi::PyIter_Check(value.as_ptr()) != 0 {
                 Ok(<PyIterator as PyTryFrom>::try_from_unchecked(value))
             } else {
-                Err(PyDowncastError::new(value, "Iterator"))
+                Err(PyDowncastError::new(value.into_ty_ref(), "Iterator"))
             }
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
+    fn try_from_exact(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError<'py>> {
         <PyIterator as PyTryFrom>::try_from(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PyIterator {
-        let ptr = value.into() as *const _ as *const PyIterator;
+    unsafe fn try_from_unchecked(value: &'a PyAny<'py>) -> &'a Self {
+        let ptr = value as *const _ as *const PyIterator;
         &*ptr
     }
 }
@@ -100,7 +115,7 @@ mod tests {
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-    use crate::{Py, PyAny, PyTryFrom};
+    use crate::{Py, PyAny, objects::PyTryFrom};
     use crate::{Python, ToPyObject};
     use indoc::indoc;
 
@@ -210,7 +225,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-        let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
+        let iter: &PyIterator = PyIterator::try_from(obj.as_object(py)).unwrap();
         assert_eq!(obj, iter.into());
     }
 }

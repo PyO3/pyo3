@@ -3,9 +3,10 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{
+    exceptions, ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
-    exceptions, ffi, AsPyPointer, PyErr,
-    PyResult, Python, Py, types::Int,
+    types::Int,
+    AsPyPointer, Py, PyErr, PyResult, Python,
 };
 use std::convert::TryFrom;
 use std::i64;
@@ -161,10 +162,11 @@ int_convert_u64_or_i64!(
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 mod int128_conversion {
     use crate::{
+        ffi,
         objects::{FromPyObject, PyAny, PyNativeObject},
-        ffi, AsPyPointer, PyErr, PyResult,
+        AsPyPointer, PyErr, PyResult,
     };
-    use std::os::raw::{c_int};
+    use std::os::raw::c_int;
 
     #[cfg(target_endian = "little")]
     const IS_LITTLE_ENDIAN: c_int = 1;

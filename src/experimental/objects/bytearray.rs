@@ -1,24 +1,24 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
-use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, Py, PyAny, Python};
+use crate::objects::PyNativeObject;
+use crate::{ffi, owned::PyOwned, types::ByteArray, AsPyPointer, Python};
 use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray(PyAny);
+pub struct PyByteArray<'py>(ByteArray, Python<'py>);
 
-pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
+pyo3_native_object!(PyByteArray<'py>, ByteArray, 'py);
 
-impl PyByteArray {
+impl<'py> PyByteArray<'py> {
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
-    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
+    pub fn new(py: Python<'py>, src: &[u8]) -> PyOwned<'py, ByteArray> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
-        unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyByteArray_FromStringAndSize(ptr, len)) }
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -41,7 +41,7 @@ impl PyByteArray {
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
+    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<PyOwned<'py, PyByteArray>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -49,24 +49,25 @@ impl PyByteArray {
             let pyptr =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pypybytearray: Py<PyByteArray> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let bytearray = PyOwned::from_raw_or_fetch_err(py, pyptr)?;
             let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytearray in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytearray.into_ref(py))
+            init(std::slice::from_raw_parts_mut(buffer, len))?;
+            Ok(bytearray)
         }
     }
 
     /// Creates a new Python bytearray object from another PyObject that
     /// implements the buffer protocol.
-    pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
+    pub fn from<I>(py: Python<'py>, src: &I) -> PyResult<PyOwned<'py, ByteArray>>
     where
         I: AsPyPointer,
     {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyByteArray_FromObject(src.as_ptr())) }
     }
 
     /// Gets the length of the bytearray.

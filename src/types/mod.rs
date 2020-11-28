@@ -244,9 +244,32 @@ mod string;
 mod tuple;
 mod typeobject;
 
-pub type Any = PyAny;
-pub type Bytes = PyBytes;
-pub type Dict = PyDict;
-pub type List = PyList;
-pub type Str = PyString;
-pub type Int = PyInt;
+pub mod experimental {
+    pub type Any = super::PyAny;
+    pub type Bool = super::PyBool;
+    pub type ByteArray = super::PyByteArray;
+    pub type Bytes = super::PyBytes;
+    pub type Complex = super::PyComplex;
+    pub type Date = super::PyDate;
+    pub type DateTime = super::PyDateTime;
+    pub type Time = super::PyTime;
+    pub type TimeDelta = super::PyDelta;
+    pub type TzInfo = super::PyTzInfo;
+    pub type Dict = super::PyDict;
+    pub type Float = super::PyFloat;
+    pub type CFunction = super::PyCFunction;
+    pub type Function = super::PyFunction;
+    pub type Iterator = super::PyIterator;
+    pub type List = super::PyList;
+    pub type Module = super::PyModule;
+    pub type Int = super::PyLong;
+    pub type Sequence = super::PySequence;
+    pub type FrozenSet = super::PyFrozenSet;
+    pub type Set = super::PySet;
+    pub type Slice = super::PySlice;
+    pub type Str = super::PyString;
+    pub type Tuple = super::PyTuple;
+    pub type Type = super::PyType;
+}
+
+pub(crate) use experimental::*;

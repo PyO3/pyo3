@@ -6,9 +6,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
-    objects::PyNativeObject, owned::PyOwned
+    ffi, objects::PyNativeObject, owned::PyOwned, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer,
+    PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -133,14 +132,12 @@ where
     }
 
     #[inline]
-    pub fn into_owned<'py>(self, py: Python<'py>) -> PyOwned<'py, T>
-    {
+    pub fn into_owned<'py>(self, py: Python<'py>) -> PyOwned<'py, T> {
         PyOwned::from_inner(self, py)
     }
 
     #[inline]
-    pub fn to_owned<'py>(&self, py: Python<'py>) -> PyOwned<'py, T>
-    {
+    pub fn to_owned<'py>(&self, py: Python<'py>) -> PyOwned<'py, T> {
         PyOwned::from_inner(self.clone(), py)
     }
 }
@@ -154,7 +151,7 @@ where
     where
         O: PyNativeObject<'py, NativeType = T>,
     {
-        unsafe { O::from_raw(py, self.0.as_ptr()) }
+        unsafe { O::from_borrowed_ptr(py, self.0.as_ptr()) }
     }
 }
 
@@ -688,7 +685,10 @@ mod test {
     fn test_as_object() {
         Python::with_gil(|py| {
             let dict: Py<PyDict> = PyDict::new(py).into();
-            assert_eq!(dict.as_ptr(), dict.as_object::<crate::objects::PyDict>(py).as_ptr());
+            assert_eq!(
+                dict.as_ptr(),
+                dict.as_object::<crate::objects::PyDict>(py).as_ptr()
+            );
         })
     }
 }

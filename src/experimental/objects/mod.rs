@@ -2,31 +2,33 @@
 
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
-use crate::{Python, PyResult, PyCell, PyClass, PyNativeType, ffi, PyRef, PyRefMut, AsPyPointer, PyTypeInfo, PyDowncastError};
+use crate::{
+    ffi, AsPyPointer, PyCell, PyClass, PyDowncastError, PyNativeType, PyRef, PyRefMut, PyResult,
+    PyTypeInfo, Python,
+};
 
 pub use self::any::PyAny;
-// pub use self::boolobject::PyBool;
-// pub use self::bytearray::PyByteArray;
+pub use self::boolobject::PyBool;
+pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
-// pub use self::complex::PyComplex;
-// pub use self::datetime::PyDeltaAccess;
-// pub use self::datetime::{
-//     PyDate, PyDateAccess, PyDateTime, PyDelta, PyTime, PyTimeAccess, PyTzInfo,
-// };
+pub use self::complex::PyComplex;
+pub use self::datetime::PyDeltaAccess;
+pub use self::datetime::{
+    PyDate, PyDateAccess, PyDateTime, PyTime, PyTimeAccess, PyTimeDelta, PyTzInfo,
+};
 pub use self::dict::{IntoPyDict, PyDict};
-// pub use self::floatob::PyFloat;
-// pub use self::function::{PyCFunction, PyFunction};
-// pub use self::iterator::PyIterator;
+pub use self::floatob::PyFloat;
+pub use self::function::{PyCFunction, PyFunction};
+pub use self::iterator::PyIterator;
 pub use self::list::PyList;
-// pub use self::module::PyModule;
+pub use self::module::PyModule;
 pub use self::num::PyInt;
-// pub use self::sequence::PySequence;
-// pub use self::set::{PyFrozenSet, PySet};
-// pub use self::slice::{PySlice, PySliceIndices};
-// pub(crate) use self::string::with_tmp_string;
+pub use self::sequence::PySequence;
+pub use self::set::{PyFrozenSet, PySet};
+pub use self::slice::{PySlice, PySliceIndices};
 pub use self::str::PyStr;
-// pub use self::tuple::PyTuple;
-// pub use self::typeobject::PyType;
+pub use self::tuple::PyTuple;
+pub use self::typeobject::PyType;
 
 // For easing the transition
 pub use self::num::PyInt as PyLong;
@@ -52,6 +54,33 @@ macro_rules! pyo3_native_object_base {
             }
         }
 
+        impl<$py> std::borrow::ToOwned for $object
+        {
+            type Owned = $crate::owned::PyOwned<$py, $ty>;
+            #[inline]
+            fn to_owned(&self) -> $crate::owned::PyOwned<$py, $ty> {
+                use $crate::objects::PyNativeObject;
+                unsafe { $crate::owned::PyOwned::from_borrowed_ptr_or_panic(self.py(), self.as_ptr()) }
+            }
+        }
+
+        impl<$py> std::borrow::Borrow<$object> for $crate::owned::PyOwned<$py, $ty>
+        {
+            #[inline]
+            fn borrow(&self) -> &$object {
+                self
+            }
+        }
+
+        impl<$py> From<&'_ $object> for $crate::PyObject
+        {
+            #[inline]
+            fn from(object: & $object) -> $crate::PyObject {
+                use $crate::{AsPyPointer, objects::PyNativeObject};
+                unsafe { $crate::PyObject::from_borrowed_ptr(object.py(), object.as_ptr()) }
+            }
+        }
+
         impl<$py> std::ops::Deref for $crate::owned::PyOwned<$py, $ty> {
             type Target = $object;
 
@@ -59,6 +88,13 @@ macro_rules! pyo3_native_object_base {
             fn deref(&self) -> &Self::Target {
                 use $crate::AsPyPointer;
                 unsafe { std::mem::transmute(self.as_ptr()) }
+            }
+        }
+
+        impl<$py> $crate::objects::FromPyObject<'_, $py> for $crate::owned::PyOwned<$py, $ty> {
+            fn extract(any: &$crate::objects::PyAny<$py>) -> $crate::PyResult<Self> {
+                use $crate::{AsPyPointer, objects::PyNativeObject};
+                unsafe { Self::from_borrowed_ptr_or_fetch_err(any.py(), any.as_ptr()) }
             }
         }
 
@@ -97,37 +133,6 @@ macro_rules! pyo3_native_object_base {
             }
         }
 
-        impl<'a, $py> $crate::objects::PyTryFrom<'a, $py> for &'a $object
-        {
-            fn try_from(any: &'a $crate::objects::PyAny<$py>) -> Result<Self, $crate::PyDowncastError<$py>> {
-                use $crate::{PyTypeInfo, objects::PyNativeObject};
-                unsafe {
-                    if <$ty>::is_type_of(any.as_ty_ref()) {
-                        Ok(Self::try_from_unchecked(any))
-                    } else {
-                        Err($crate::PyDowncastError::new(any.into_ty_ref(), <$ty>::NAME))
-                    }
-                }
-            }
-
-            fn try_from_exact(any: &'a $crate::objects::PyAny<$py>) -> Result<Self, $crate::PyDowncastError<$py>> {
-                use $crate::{PyTypeInfo, objects::PyNativeObject};
-                unsafe {
-                    if <$ty>::is_exact_type_of(any.as_ty_ref()) {
-                        Ok(Self::try_from_unchecked(any))
-                    } else {
-                        Err($crate::PyDowncastError::new(any.into_ty_ref(), <$ty>::NAME))
-                    }
-                }
-            }
-
-            #[inline]
-            unsafe fn try_from_unchecked(any: &'a $crate::objects::PyAny<$py>) -> Self {
-                use $crate::objects::PyNativeObject;
-                <$object>::unchecked_downcast(any)
-            }
-        }
-
         impl $ty {
             pub fn as_object<$py>(&$py self) -> &$py $object {
                 unsafe { &*(self as *const Self as *const _) }
@@ -160,6 +165,26 @@ macro_rules! pyo3_native_object {
     };
 }
 
+mod any;
+mod boolobject;
+mod bytearray;
+mod bytes;
+mod complex;
+mod datetime;
+mod dict;
+mod floatob;
+mod function;
+mod iterator;
+mod list;
+mod module;
+mod num;
+mod sequence;
+mod set;
+mod slice;
+mod str;
+mod tuple;
+mod typeobject;
+
 /// To implement this trait, &Self *must* be equivalent to *mut ffi::PyObject
 pub unsafe trait PyNativeObject<'py>: Sized + 'py {
     type NativeType: PyNativeType;
@@ -168,35 +193,27 @@ pub unsafe trait PyNativeObject<'py>: Sized + 'py {
     fn into_ty_ref(&self) -> &'py Self::NativeType;
     #[inline]
     unsafe fn unchecked_downcast<'a>(any: &'a PyAny<'py>) -> &'a Self {
-        Self::from_raw(any.py(), any.as_ptr())
+        Self::from_borrowed_ptr(any.py(), any.as_ptr())
     }
 
     #[inline]
-    unsafe fn from_raw<'a>(_py: Python<'py>, ptr: *mut ffi::PyObject) -> &'a Self {
+    unsafe fn from_borrowed_ptr<'a>(_py: Python<'py>, ptr: *mut ffi::PyObject) -> &'a Self {
         &*(ptr as *const Self)
     }
 }
 
-mod any;
-// mod boolobject;
-// mod bytearray;
-mod bytes;
-// mod complex;
-// mod datetime;
-mod dict;
-// mod floatob;
-// mod function;
-// mod iterator;
-mod list;
-// mod module;
-mod num;
-// mod sequence;
-// mod set;
-// mod slice;
-mod str;
-// mod tuple;
-// mod typeobject;
+pub trait PyNativeObjectInfo<'py>: PyNativeObject<'py>
+where
+    Self::NativeType: PyTypeInfo,
+{
+}
 
+impl<'py, T> PyNativeObjectInfo<'py> for T
+where
+    T: PyNativeObject<'py>,
+    T::NativeType: PyTypeInfo,
+{
+}
 
 /// New variant of conversion::FromPyObject which doesn't create owned references.
 pub trait FromPyObject<'a, 'py>: Sized {
@@ -262,51 +279,52 @@ where
 /// This trait is similar to `std::convert::TryFrom`
 pub trait PyTryFrom<'a, 'py>: Sized {
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from(any: &'a PyAny<'py>) -> Result<Self, crate::PyDowncastError<'py>>;
+    fn try_from(any: &'a PyAny<'py>) -> Result<&'a Self, crate::PyDowncastError<'py>>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_exact(any: &'a PyAny<'py>) -> Result<Self, crate::PyDowncastError<'py>>;
+    fn try_from_exact(any: &'a PyAny<'py>) -> Result<&'a Self, crate::PyDowncastError<'py>>;
 
     /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
-    unsafe fn try_from_unchecked(any: &'a PyAny<'py>) -> Self;
+    unsafe fn try_from_unchecked(any: &'a PyAny<'py>) -> &'a Self;
 }
 
-impl<'py, T> PyTryFrom<'_, 'py> for &'py T
+impl<'a, 'py, T> PyTryFrom<'a, 'py> for T
 where
-    T: PyTypeInfo + PyNativeType,
+    T: PyNativeObject<'py> + PyNativeObjectInfo<'py> + 'py,
+    T::NativeType: PyTypeInfo,
 {
-    fn try_from(any: &PyAny<'py>) -> Result<Self, PyDowncastError<'py>> {
+    fn try_from(any: &'a PyAny<'py>) -> Result<&'a T, PyDowncastError<'py>> {
         unsafe {
-            if T::is_type_of(any.as_ty_ref()) {
-                Ok(Self::try_from_unchecked(any))
+            if T::NativeType::is_type_of(any.as_ty_ref()) {
+                Ok(T::try_from_unchecked(any))
             } else {
-                Err(PyDowncastError::new(any.into_ty_ref(), T::NAME))
+                Err(PyDowncastError::new(any.into_ty_ref(), T::NativeType::NAME))
             }
         }
     }
 
-    fn try_from_exact(any: &PyAny<'py>) -> Result<Self, PyDowncastError<'py>> {
+    fn try_from_exact(any: &'a PyAny<'py>) -> Result<&'a T, PyDowncastError<'py>> {
         unsafe {
-            if T::is_exact_type_of(any.as_ty_ref()) {
-                Ok(Self::try_from_unchecked(any))
+            if T::NativeType::is_exact_type_of(any.as_ty_ref()) {
+                Ok(T::try_from_unchecked(any))
             } else {
-                Err(PyDowncastError::new(any.into_ty_ref(), T::NAME))
+                Err(PyDowncastError::new(any.into_ty_ref(), T::NativeType::NAME))
             }
         }
     }
 
     #[inline]
-    unsafe fn try_from_unchecked(any: &PyAny<'py>) -> Self {
-        T::unchecked_downcast(any.into_ty_ref())
+    unsafe fn try_from_unchecked(any: &'a PyAny<'py>) -> &'a T {
+        T::unchecked_downcast(any)
     }
 }
 
-impl<'py, T> PyTryFrom<'_, 'py> for &'py PyCell<T>
+impl<'py, T> PyTryFrom<'py, 'py> for PyCell<T>
 where
     T: 'py + PyClass,
 {
-    fn try_from(any: &PyAny<'py>) -> Result<Self, PyDowncastError<'py>> {
+    fn try_from(any: &'py PyAny<'py>) -> Result<&'py Self, PyDowncastError<'py>> {
         unsafe {
             if T::is_type_of(any.as_ty_ref()) {
                 Ok(Self::try_from_unchecked(any))
@@ -315,7 +333,7 @@ where
             }
         }
     }
-    fn try_from_exact(any: &PyAny<'py>) -> Result<Self, PyDowncastError<'py>> {
+    fn try_from_exact(any: &'py PyAny<'py>) -> Result<&'py Self, PyDowncastError<'py>> {
         unsafe {
             if T::is_exact_type_of(any.as_ty_ref()) {
                 Ok(Self::try_from_unchecked(any))
@@ -325,7 +343,7 @@ where
         }
     }
     #[inline]
-    unsafe fn try_from_unchecked(any: &PyAny<'py>) -> Self {
+    unsafe fn try_from_unchecked(any: &'py PyAny<'py>) -> &'py Self {
         PyCell::unchecked_downcast(any.into_ty_ref())
     }
 }

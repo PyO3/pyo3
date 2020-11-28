@@ -6,34 +6,36 @@ use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
-use crate::instance::PyNativeType;
+use crate::objects::{PyCFunction, PyDict, PyList, PyNativeObject};
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::{PyAny, PyDict, PyList};
-use crate::types::{PyCFunction, PyTuple};
-use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
+use crate::{
+    owned::PyOwned,
+    types::{Any, Module, Tuple, Dict, List},
+    AsPyPointer, IntoPy, Py, PyObject, Python,
+};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
-pub struct PyModule(PyAny);
+pub struct PyModule<'py>(Module, Python<'py>);
 
-pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
+pyo3_native_object!(PyModule<'py>, Module, 'py);
 
-impl PyModule {
+impl<'py> PyModule<'py> {
     /// Creates a new module object with the `__name__` attribute set to name.
-    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+    pub fn new(py: Python<'py>, name: &str) -> PyResult<PyOwned<'py, Module>> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
-        unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyModule_New(name.as_ptr())) }
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+    pub fn import(py: Python<'py>, name: &str) -> PyResult<PyOwned<'py, Module>> {
         crate::types::with_tmp_string(py, name, |name| unsafe {
-            py.from_owned_ptr_or_err(ffi::PyImport_Import(name))
+            PyOwned::from_raw_or_fetch_err(py, ffi::PyImport_Import(name))
         })
     }
 
@@ -43,12 +45,12 @@ impl PyModule {
     /// `file_name` is the file name to associate with the module
     /// (this is used when Python reports errors, for example).
     /// `module_name` is the name to give the module.
-    pub fn from_code<'p>(
-        py: Python<'p>,
+    pub fn from_code(
+        py: Python<'py>,
         code: &str,
         file_name: &str,
         module_name: &str,
-    ) -> PyResult<&'p PyModule> {
+    ) -> PyResult<PyOwned<'py, Module>> {
         let data = CString::new(code)?;
         let filename = CString::new(file_name)?;
         let module = CString::new(module_name)?;
@@ -60,33 +62,28 @@ impl PyModule {
             }
 
             let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
-            if mptr.is_null() {
-                return Err(PyErr::fetch(py));
-            }
-
-            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            PyOwned::from_raw_or_fetch_err(py, mptr)
         }
     }
 
     /// Return the dictionary object that implements module's namespace;
     /// this object is the same as the `__dict__` attribute of the module object.
-    pub fn dict(&self) -> &PyDict {
+    pub fn dict(&self) -> PyOwned<'py, Dict> {
         unsafe {
             // PyModule_GetDict returns borrowed ptr; must make owned for safety (see #890).
             let ptr = ffi::PyModule_GetDict(self.as_ptr());
-            ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
+            PyOwned::from_borrowed_ptr_or_panic(self.py(), ptr)
         }
     }
 
     /// Return the index (`__all__`) of the module, creating one if needed.
-    pub fn index(&self) -> PyResult<&PyList> {
+    pub fn index(&self) -> PyResult<PyOwned<'py, List>> {
         match self.getattr("__all__") {
-            Ok(idx) => idx.downcast().map_err(PyErr::from),
+            Ok(idx) => idx.extract(),
             Err(err) => {
                 if err.is_instance::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr("__all__", l).map_err(PyErr::from)?;
+                    self.setattr("__all__", l.clone()).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
                     Err(err)
@@ -130,30 +127,30 @@ impl PyModule {
     pub fn call(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<PyOwned<'py, Any>> {
         self.getattr(name)?.call(args, kwargs)
     }
 
     /// Calls a function in the module with only positional arguments.
     ///
     /// This is equivalent to the Python expression `module.name(*args)`.
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyOwned<'py, Any>> {
         self.getattr(name)?.call1(args)
     }
 
     /// Calls a function in the module without arguments.
     ///
     /// This is equivalent to the Python expression `module.name()`.
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call0(&self, name: &str) -> PyResult<PyOwned<'py, Any>> {
         self.getattr(name)?.call0()
     }
 
     /// Gets a member from the module.
     ///
     /// This is equivalent to the Python expression `module.name`.
-    pub fn get(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn get(&self, name: &str) -> PyResult<PyOwned<'py, Any>> {
         self.getattr(name)
     }
 
@@ -276,7 +273,7 @@ impl PyModule {
     /// }
     /// ```
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
-        let name = fun.getattr("__name__")?.extract()?;
-        self.add(name, fun)
+        let attr_name = fun.getattr("__name__")?;
+        self.add(attr_name.extract()?, fun)
     }
 }

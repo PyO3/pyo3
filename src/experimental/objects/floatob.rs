@@ -2,8 +2,11 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
-    ToPyObject,
+    ffi,
+    objects::{FromPyObject, PyAny, PyNativeObject},
+    owned::PyOwned,
+    types::Float,
+    AsPyPointer, IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::os::raw::c_double;
 
@@ -14,19 +17,13 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyAny.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat(PyAny);
+pub struct PyFloat<'py>(Float, Python<'py>);
+pyo3_native_object!(PyFloat<'py>, Float, 'py);
 
-pyobject_native_type!(
-    PyFloat,
-    ffi::PyFloatObject,
-    ffi::PyFloat_Type,
-    ffi::PyFloat_Check
-);
-
-impl PyFloat {
+impl<'py> PyFloat<'py> {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python<'_>, val: c_double) -> &PyFloat {
-        unsafe { py.from_owned_ptr(ffi::PyFloat_FromDouble(val)) }
+    pub fn new(py: Python<'py>, val: c_double) -> PyOwned<'py, Float> {
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyFloat_FromDouble(val)) }
     }
 
     /// Gets the value of this float.
@@ -47,10 +44,10 @@ impl IntoPy<PyObject> for f64 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f64 {
+impl FromPyObject<'_, '_> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
-    #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    #![allow(clippy::float_cmp)]
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
         if v == -1.0 && PyErr::occurred(obj.py()) {
@@ -73,8 +70,8 @@ impl IntoPy<PyObject> for f32 {
     }
 }
 
-impl<'source> FromPyObject<'source> for f32 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for f32 {
+    fn extract(obj: &PyAny) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 }

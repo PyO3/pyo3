@@ -1,8 +1,8 @@
 use crate::{
     ffi,
+    objects::{FromPyObject, PyAny},
     owned::PyOwned,
     types::Bytes,
-    objects::{FromPyObject, PyAny},
     AsPyPointer, IntoPy, PyObject, PyResult, Python,
 };
 use std::ops::Index;
@@ -25,7 +25,7 @@ impl<'py> PyBytes<'py> {
     pub fn new(py: Python<'py>, s: &[u8]) -> PyOwned<'py, Bytes> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { PyOwned::from_owned_ptr_or_panic(py, ffi::PyBytes_FromStringAndSize(ptr, len)) }
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -55,7 +55,7 @@ impl<'py> PyBytes<'py> {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let bytes = PyOwned::from_owned_ptr(py, pyptr)?;
+            let bytes = PyOwned::from_raw_or_fetch_err(py, pyptr)?;
             let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
@@ -71,7 +71,7 @@ impl<'py> PyBytes<'py> {
     ///
     /// Panics if out of memory.
     pub unsafe fn from_ptr(py: Python<'py>, ptr: *const u8, len: usize) -> PyOwned<'py, Bytes> {
-        PyOwned::from_owned_ptr_or_panic(
+        PyOwned::from_raw_or_panic(
             py,
             ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize),
         )

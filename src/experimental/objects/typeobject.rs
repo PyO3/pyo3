@@ -3,21 +3,19 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{PyErr, PyResult};
-use crate::instance::PyNativeType;
 use crate::type_object::PyTypeObject;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, objects::PyNativeObject, types::{Type, Str}, AsPyPointer, Python, owned::PyOwned};
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
-pub struct PyType(PyAny);
+pub struct PyType<'py>(Type, Python<'py>);
+pyo3_native_object!(PyType<'py>, Type, 'py);
 
-pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
-
-impl PyType {
+impl<'py> PyType<'py> {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>(py: Python) -> &PyType {
-        T::type_object(py)
+    pub fn new<T: PyTypeObject>(py: Python<'py>) -> &'py Self {
+        T::type_object(py).as_object()
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -32,12 +30,12 @@ impl PyType {
     /// - The pointer must be non-null.
     /// - The pointer must be valid for the entire of the lifetime for which the reference is used.
     #[inline]
-    pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType {
-        py.from_borrowed_ptr(p as *mut ffi::PyObject)
+    pub unsafe fn from_type_ptr(py: Python<'py>, p: *mut ffi::PyTypeObject) -> &'py Self {
+        Self::from_borrowed_ptr(py, p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the `PyType`.
-    pub fn name(&self) -> PyResult<&str> {
+    pub fn name(&self) -> PyResult<PyOwned<'py, Str>> {
         self.getattr("__qualname__")?.extract()
     }
 

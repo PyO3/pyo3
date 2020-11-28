@@ -2,11 +2,10 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::objects::PyAny;
-use crate::objects::{PyNativeObject, FromPyObject};
+use crate::objects::{FromPyObject, PyNativeObject};
 use crate::types::{Any, Dict, List};
 use crate::{
-    ffi, owned::PyOwned, AsPyPointer, IntoPy, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    ffi, owned::PyOwned, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::{cmp, collections, hash};
@@ -20,7 +19,7 @@ pyo3_native_object!(PyDict<'py>, Dict, 'py);
 impl<'py> PyDict<'py> {
     /// Creates a new empty dictionary.
     pub fn new(py: Python) -> PyOwned<Dict> {
-        unsafe { PyOwned::from_owned_ptr_or_panic(py, ffi::PyDict_New()) }
+        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyDict_New()) }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -46,7 +45,7 @@ impl<'py> PyDict<'py> {
     ///
     /// This is equivalent to the Python expression `dict(self)`.
     pub fn copy(&self) -> PyResult<PyOwned<'py, Dict>> {
-        unsafe { PyOwned::from_owned_ptr(self.py(), ffi::PyDict_Copy(self.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())) }
     }
 
     /// Empties an existing dictionary of all key-value pairs.
@@ -94,7 +93,7 @@ impl<'py> PyDict<'py> {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
             // PyDict_GetItem returns borrowed ptr, must make it owned for safety (see #890).
-            PyOwned::from_borrowed_ptr_or_opt(self.py(), ptr)
+            PyOwned::from_borrowed_ptr(self.py(), ptr)
         })
     }
 
@@ -129,28 +128,28 @@ impl<'py> PyDict<'py> {
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
     pub fn keys(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Keys(self.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Keys(self.as_ptr())) }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
     pub fn values(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Values(self.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Values(self.as_ptr())) }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
     pub fn items(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr())) }
+        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr())) }
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter<'a>(&'a self) -> PyDictIterator<'a, 'py> {
+    pub fn iter(&self) -> PyDictIterator<'_, 'py> {
         PyDictIterator { dict: self, pos: 0 }
     }
 }
@@ -432,8 +431,8 @@ mod test {
     use crate::PyObject;
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
+    use maplit::{btreemap, hashmap};
     use std::collections::{BTreeMap, HashMap};
-    use maplit::{hashmap, btreemap};
 
     #[test]
     fn test_new() {
