@@ -92,10 +92,20 @@ impl PyClassArgs {
                 self.freelist = Some(syn::Expr::clone(right));
             }
             "name" => match &**right {
+                syn::Expr::Lit(
+                    lit
+                    @
+                    syn::ExprLit {
+                        lit: syn::Lit::Str(..),
+                        ..
+                    },
+                ) => {
+                    self.name = Some(lit.clone().into());
+                }
                 syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
                     self.name = Some(exp.clone().into());
                 }
-                _ => expected!("type name (e.g., Name)"),
+                _ => expected!("type name (e.g., Name or \"Name\")"),
             },
             "extends" => match &**right {
                 syn::Expr::Path(exp) => {
