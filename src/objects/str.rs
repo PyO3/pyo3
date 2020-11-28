@@ -5,7 +5,7 @@ use crate::{
     ffi,
     objects::{PyAny, PyNativeObject, FromPyObject},
     owned::PyOwned,
-    AsPyPointer, IntoPy, Py, PyErr, PyObject, PyResult,
+    AsPyPointer, IntoPy, PyErr, PyObject, PyResult,
     Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -90,7 +90,7 @@ impl<'py> PyStr<'py> {
                         ),
                     )
                 };
-                String::from_utf8_lossy(bytes.into_ref().as_bytes())
+                Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).to_string())
             }
         }
     }
@@ -157,7 +157,7 @@ impl<'a> IntoPy<PyObject> for &'a String {
 }
 
 /// Allows extracting strings from Python objects.
-/// Accepts Python `str` and `unicode` objects.
+/// Accepts Python `str` objects.
 impl<'a> FromPyObject<'a, '_> for &'a str {
     fn extract(ob: &'a PyAny<'_>) -> PyResult<Self> {
         ob.downcast::<PyStr>()?.to_str()
@@ -165,7 +165,7 @@ impl<'a> FromPyObject<'a, '_> for &'a str {
 }
 
 /// Allows extracting strings from Python objects.
-/// Accepts Python `str` and `unicode` objects.
+/// Accepts Python `str` objects.
 impl FromPyObject<'_, '_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
         obj.downcast::<PyStr>()?
@@ -190,16 +190,14 @@ impl FromPyObject<'_, '_> for char {
 
 #[cfg(test)]
 mod test {
-    use super::PyStr;
-    use crate::Python;
-    use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
+    use super::*;
 
     #[test]
     fn test_non_bmp() {
         Python::with_gil(|py| {
             let s = "\u{1F30F}";
-            let py_string = s.to_object(py);
-            assert_eq!(s, py_string.extract::<String>(py).unwrap());
+            let py_str = s.to_object(py).to_owned(py);
+            assert_eq!(s, py_str.extract::<String>().unwrap());
         })
     }
 
@@ -207,9 +205,8 @@ mod test {
     fn test_extract_str() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_string = s.to_object(py);
-
-            let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            let py_str = s.to_object(py).to_owned(py);
+            let s2: &str = py_str.extract().unwrap();
             assert_eq!(s, s2);
         })
     }
@@ -218,8 +215,8 @@ mod test {
     fn test_extract_char() {
         Python::with_gil(|py| {
             let ch = '😃';
-            let py_string = ch.to_object(py);
-            let ch2: char = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+            let py_str = ch.to_object(py);
+            let ch2: char = FromPyObject::extract(py_str.as_object(py)).unwrap();
             assert_eq!(ch, ch2);
         })
     }
@@ -228,8 +225,8 @@ mod test {
     fn test_extract_char_err() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_string = s.to_object(py);
-            let err: crate::PyResult<char> = FromPyObject::extract(py_string.as_ref(py));
+            let py_str = s.to_object(py);
+            let err: crate::PyResult<char> = FromPyObject::extract(py_str.as_object(py));
             assert!(err
                 .unwrap_err()
                 .to_string()
@@ -241,18 +238,17 @@ mod test {
     fn test_to_str_ascii() {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
-            let obj: PyObject = PyStr::new(py, s).into();
-            let py_string = <PyStr as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert_eq!(s, py_string.to_str().unwrap());
+            let py_str = PyStr::new(py, s);
+            assert_eq!(s, py_str.to_str().unwrap());
         })
     }
 
     #[test]
     fn test_to_str_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
-            let py_string = <PyStr as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert!(py_string.to_str().is_err());
+            let obj: PyOwned<_> = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
+            let py_str = obj.downcast::<PyStr>().unwrap();
+            assert!(py_str.to_str().is_err());
         })
     }
 
@@ -260,9 +256,8 @@ mod test {
     fn test_to_str_unicode() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
-            let obj: PyObject = PyStr::new(py, s).into();
-            let py_string = <PyStr as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert_eq!(s, py_string.to_str().unwrap());
+            let py_str = PyStr::new(py, s);
+            assert_eq!(s, py_str.to_str().unwrap());
         })
     }
 
@@ -273,8 +268,8 @@ mod test {
                 .eval(r#"'🐈 Hello \ud800World'"#, None, None)
                 .unwrap()
                 .into();
-            let py_string = <PyStr as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
-            assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
+            let py_str = obj.as_object::<PyAny>(py).downcast::<PyStr>().unwrap();
+            assert_eq!(py_str.to_string_lossy(), "🐈 Hello ���World");
         })
     }
 
@@ -282,7 +277,7 @@ mod test {
     fn test_debug_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s = <PyStr as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            let s = v.as_object::<PyAny>(py).downcast::<PyStr>().unwrap();
             assert_eq!(format!("{:?}", s), "'Hello\\n'");
         })
     }
@@ -291,7 +286,7 @@ mod test {
     fn test_display_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s = <PyStr as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            let s = v.as_object::<PyAny>(py).downcast::<PyStr>().unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
     }

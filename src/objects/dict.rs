@@ -5,7 +5,7 @@ use crate::objects::PyAny;
 use crate::objects::{PyNativeObject, FromPyObject};
 use crate::types::{Any, Dict, List};
 use crate::{
-    ffi, owned::PyOwned, AsPyPointer, IntoPy, Py, PyObject, Python,
+    ffi, owned::PyOwned, AsPyPointer, IntoPy, PyObject, Python,
     ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
@@ -433,6 +433,7 @@ mod test {
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
+    use maplit::{hashmap, btreemap};
 
     #[test]
     fn test_new() {
@@ -456,9 +457,9 @@ mod test {
         let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
         assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
         assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
-        let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+        let map: HashMap<String, i32> = hashmap! { "a".into() => 1, "b".into() => 2};
         assert_eq!(map, dict.extract().unwrap());
-        let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+        let map: BTreeMap<String, i32> = btreemap! { "a".into() => 1, "b".into() => 2};
         assert_eq!(map, dict.extract().unwrap());
     }
 

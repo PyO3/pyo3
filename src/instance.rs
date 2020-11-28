@@ -8,6 +8,7 @@ use crate::types::{PyDict, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    objects::PyNativeObject, owned::PyOwned
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -129,6 +130,31 @@ where
     /// ```
     pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+
+    #[inline]
+    pub fn into_owned<'py>(self, py: Python<'py>) -> PyOwned<'py, T>
+    {
+        PyOwned::from_inner(self, py)
+    }
+
+    #[inline]
+    pub fn to_owned<'py>(&self, py: Python<'py>) -> PyOwned<'py, T>
+    {
+        PyOwned::from_inner(self.clone(), py)
+    }
+}
+
+impl<T> Py<T>
+where
+    T: PyNativeType,
+{
+    #[inline]
+    pub fn as_object<'a, 'py, O>(&'a self, py: Python<'py>) -> &'a O
+    where
+        O: PyNativeObject<'py, NativeType = T>,
+    {
+        unsafe { O::from_raw(py, self.0.as_ptr()) }
     }
 }
 
@@ -656,5 +682,13 @@ mod test {
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
         });
+    }
+
+    #[test]
+    fn test_as_object() {
+        Python::with_gil(|py| {
+            let dict: Py<PyDict> = PyDict::new(py).into();
+            assert_eq!(dict.as_ptr(), dict.as_object::<crate::objects::PyDict>(py).as_ptr());
+        })
     }
 }

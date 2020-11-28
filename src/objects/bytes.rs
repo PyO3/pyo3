@@ -3,7 +3,7 @@ use crate::{
     owned::PyOwned,
     types::Bytes,
     objects::{FromPyObject, PyAny},
-    AsPyPointer, IntoPy, Py, PyObject, PyResult, Python,
+    AsPyPointer, IntoPy, PyObject, PyResult, Python,
 };
 use std::ops::Index;
 use std::os::raw::c_char;

@@ -1,4 +1,4 @@
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyResult, Python, ffi, type_object::PyTypeInfo};
+use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyResult, Python, ffi, type_object::PyTypeInfo, PyNativeType};
 use std::fmt;
 
 #[repr(transparent)]
@@ -51,6 +51,18 @@ impl<'py, T> PyOwned<'py, T> {
     ) -> Self {
         Self(Py::from_borrowed_ptr(py, ptr), py)
     }
+
+    #[inline]
+    pub(crate) fn from_inner(inner: Py<T>, py: Python<'py>) -> Self {
+        Self(inner, py)
+    }
+}
+
+impl<T> Clone for PyOwned<'_, T>
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone_ref(self.1), self.1)
+    }
 }
 
 impl<T: PyTypeInfo> fmt::Debug for PyOwned<'_, T>
@@ -77,11 +89,11 @@ impl<'py, T: PyTypeInfo> PyOwned<'py, T> {
         self.0.as_ref(self.1)
     }
 
-    // private helper to convert to owned reference world.
-    #[inline]
-    pub(crate) fn into_ref(self) -> &'py T::AsRefTarget {
-        self.0.into_ref(self.1)
-    }
+    // // private helper to convert to owned reference world.
+    // #[inline]
+    // pub(crate) fn into_ref(self) -> &'py T::AsRefTarget {
+    //     self.0.into_ref(self.1)
+    // }
 }
 
 impl<T> From<PyOwned<'_, T>> for Py<T> {
@@ -109,5 +121,21 @@ impl<T> IntoPyPointer for PyOwned<'_, T> {
     #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
         self.0.into_ptr()
+    }
+}
+
+impl<T> PartialEq for PyOwned<'_, T>
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ptr() == other.as_ptr()
+    }
+}
+
+impl<'py, T: PyNativeType> From<&'py T> for PyOwned<'py, T>
+where
+    &'py T: IntoPyPointer
+{
+    fn from(other: &'py T) -> Self {
+        unsafe { Self::from_owned_ptr_or_panic(other.py(), other.into_ptr()) }
     }
 }

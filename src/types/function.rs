@@ -77,16 +77,16 @@ impl PyCFunction {
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);
-            (mod_ptr, name.as_ptr())
+            (mod_ptr, Some(name))
         } else {
-            (std::ptr::null_mut(), std::ptr::null_mut())
+            (std::ptr::null_mut(), None)
         };
 
         unsafe {
             py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
                 Box::into_raw(Box::new(def)),
                 mod_ptr,
-                module_name,
+                module_name.as_ptr(),
             ))
         }
     }

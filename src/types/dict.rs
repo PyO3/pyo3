@@ -277,26 +277,32 @@ where
 
 impl<'py, K, V, S> FromPyObject<'py> for HashMap<K, V, S>
 where
-    K: for<'a> crate::objects::FromPyObject<'a, 'py> + cmp::Eq + hash::Hash,
-    V: for<'a> crate::objects::FromPyObject<'a, 'py>,
+    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'py>,
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'py PyAny) -> Result<Self, PyErr> {
-        <Self as crate::objects::FromPyObject>::extract(
-            crate::objects::PyAny::from_type_any(ob)
-        )
+        let dict = ob.downcast::<PyDict>()?;
+        let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
+        for (k, v) in dict.iter() {
+            ret.insert(K::extract(k)?, V::extract(v)?);
+        }
+        Ok(ret)
     }
 }
 
 impl<'py, K, V> FromPyObject<'py> for BTreeMap<K, V>
 where
-    K: for<'a> crate::objects::FromPyObject<'a, 'py> + cmp::Ord,
-    V: for<'a> crate::objects::FromPyObject<'a, 'py>,
+    K: FromPyObject<'py> + cmp::Ord,
+    V: FromPyObject<'py>,
 {
     fn extract(ob: &'py PyAny) -> Result<Self, PyErr> {
-        <Self as crate::objects::FromPyObject>::extract(
-            crate::objects::PyAny::from_type_any(ob)
-        )
+        let dict = ob.downcast::<PyDict>()?;
+        let mut ret = BTreeMap::new();
+        for (k, v) in dict.iter() {
+            ret.insert(K::extract(k)?, V::extract(v)?);
+        }
+        Ok(ret)
     }
 }
 

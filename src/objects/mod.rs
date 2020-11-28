@@ -24,13 +24,13 @@ pub use self::num::PyInt;
 // pub use self::set::{PyFrozenSet, PySet};
 // pub use self::slice::{PySlice, PySliceIndices};
 // pub(crate) use self::string::with_tmp_string;
-pub use self::string::PyStr;
+pub use self::str::PyStr;
 // pub use self::tuple::PyTuple;
 // pub use self::typeobject::PyType;
 
 // For easing the transition
 pub use self::num::PyInt as PyLong;
-pub use self::string::PyStr as PyString;
+pub use self::str::PyStr as PyString;
 
 #[macro_export]
 #[doc(hidden)]
@@ -127,6 +127,12 @@ macro_rules! pyo3_native_object_base {
                 <$object>::unchecked_downcast(any)
             }
         }
+
+        impl $ty {
+            pub fn as_object<$py>(&$py self) -> &$py $object {
+                unsafe { &*(self as *const Self as *const _) }
+            }
+        }
     }
 }
 
@@ -148,19 +154,26 @@ macro_rules! pyo3_native_object {
         impl From<$crate::owned::PyOwned<'_, $ty>> for $crate::PyObject {
             #[inline]
             fn from(owned: $crate::owned::PyOwned<'_, $ty>) -> $crate::PyObject {
-                owned.into()
+                $crate::Py::<$ty>::from(owned).into()
             }
         }
     };
 }
 
-pub unsafe trait PyNativeObject<'py>: Sized {
+/// To implement this trait, &Self *must* be equivalent to *mut ffi::PyObject
+pub unsafe trait PyNativeObject<'py>: Sized + 'py {
     type NativeType: PyNativeType;
     fn py(&self) -> Python<'py>;
     fn as_ty_ref(&self) -> &Self::NativeType;
     fn into_ty_ref(&self) -> &'py Self::NativeType;
-    unsafe fn unchecked_downcast(any: &PyAny<'py>) -> &'py Self {
-        &*(any.as_ptr() as *const Self)
+    #[inline]
+    unsafe fn unchecked_downcast<'a>(any: &'a PyAny<'py>) -> &'a Self {
+        Self::from_raw(any.py(), any.as_ptr())
+    }
+
+    #[inline]
+    unsafe fn from_raw<'a>(_py: Python<'py>, ptr: *mut ffi::PyObject) -> &'a Self {
+        &*(ptr as *const Self)
     }
 }
 
@@ -180,7 +193,7 @@ mod num;
 // mod sequence;
 // mod set;
 // mod slice;
-mod string;
+mod str;
 // mod tuple;
 // mod typeobject;
 

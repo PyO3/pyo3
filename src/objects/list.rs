@@ -8,7 +8,7 @@ use crate::{
     objects::PyNativeObject,
     owned::PyOwned,
     types::{Any, List},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python, ToBorrowedObject, ToPyObject,
+    AsPyPointer, IntoPy, IntoPyPointer, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 /// Represents a Python `list`.
 #[repr(transparent)]

@@ -416,7 +416,6 @@ impl<'py> PyAny<'py> {
     }
 
     pub(crate) fn from_type_any(any: &'py Any) -> &'py Self {
-        dbg!("self");
         unsafe { std::mem::transmute(any) }
     }
 }
