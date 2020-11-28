@@ -591,6 +591,18 @@ where
     }
 }
 
+impl<'a, T> crate::experimental::FromPyObject<'a, '_> for Py<T>
+where
+    T: PyTypeInfo,
+    &'a T::AsRefTarget: FromPyObject<'a>,
+    T::AsRefTarget: 'a + AsPyPointer,
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(ob: &'a crate::experimental::objects::PyAny) -> PyResult<Self> {
+        ob.as_ty_ref().extract()
+    }
+}
+
 /// Py<T> can be used as an error when T is an Error.
 ///
 /// However for GIL lifetime reasons, cause() cannot be implemented for Py<T>.

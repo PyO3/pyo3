@@ -98,6 +98,12 @@ macro_rules! pyo3_native_object_base {
             }
         }
 
+        impl<'a, $py> $crate::objects::FromPyObject<'a, $py> for &'a $object {
+            fn extract(any: &'a $crate::objects::PyAny<$py>) -> $crate::PyResult<Self> {
+                any.downcast::<$object>().map_err(Into::into)
+            }
+        }
+
         impl<$py> ::std::fmt::Debug for $object {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>

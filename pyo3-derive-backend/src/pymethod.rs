@@ -362,7 +362,7 @@ pub(crate) fn impl_wrap_setter(
             pyo3::callback_body_without_convert!(_py, {
                 #slf
                 let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
-                let _val = pyo3::FromPyObject::extract(_value)?;
+                let _val = pyo3::experimental::FromPyObject::extract(_value.as_object())?;
 
                 pyo3::callback::convert(_py, #setter_impl)
             })
@@ -481,7 +481,7 @@ fn impl_arg_param(
 
     if spec.is_args(&name) {
         return quote! {
-            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())
+            let #arg_name = <#ty as pyo3::experimental::FromPyObject>::extract(_args.as_object())
                 .map_err(#transform_error)?;
         };
     } else if spec.is_kwargs(&name) {
