@@ -4,7 +4,7 @@ pub mod objects;
 pub use objects::{FromPyObject, PyTryFrom, PyNativeObject};
 
 pub mod types {
-    pub use crate::types::experimental;
+    pub use crate::types::experimental::*;
 }
 
 /// Alternative prelude to use the new experimental types / traits.
