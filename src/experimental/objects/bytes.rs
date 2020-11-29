@@ -37,13 +37,13 @@ impl<'py> PyBytes<'py> {
     ///
     /// # Example
     /// ```
-    /// use pyo3::{prelude::*, types::PyBytes};
+    /// use pyo3::experimental::{prelude::*, objects::PyBytes};
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
     ///     })?;
-    ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+    ///     let bytes: &[u8] = FromPyObject::extract(&py_bytes)?;
     ///     assert_eq!(bytes, b"Hello Rust");
     ///     Ok(())
     /// });

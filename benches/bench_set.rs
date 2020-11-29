@@ -14,6 +14,7 @@ fn iter_set(b: &mut Bencher) {
     let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for x in set.iter() {
             let i: u64 = x.extract().unwrap();
             sum += i;
@@ -27,7 +28,10 @@ fn extract_hashset(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-    b.iter(|| HashSet::<u64>::extract(set));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        HashSet::<u64>::extract(set)
+    });
 }
 
 #[bench]
@@ -36,7 +40,10 @@ fn extract_btreeset(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-    b.iter(|| BTreeSet::<u64>::extract(set));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        BTreeSet::<u64>::extract(set)
+    });
 }
 
 #[bench]
@@ -46,5 +53,8 @@ fn extract_hashbrown_set(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
-    b.iter(|| hashbrown::HashSet::<u64>::extract(set));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        hashbrown::HashSet::<u64>::extract(set)
+    });
 }

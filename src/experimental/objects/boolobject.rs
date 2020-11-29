@@ -52,7 +52,7 @@ impl FromPyObject<'_, '_> for bool {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{PyAny, PyBool};
+    use crate::objects::PyBool;
     use crate::Python;
     use crate::ToPyObject;
 
@@ -61,7 +61,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
-        let t: &PyAny = PyBool::new(py, true).into();
+        let t = PyBool::new(py, true);
         assert_eq!(true, t.extract().unwrap());
         assert_eq!(true.to_object(py), PyBool::new(py, true).into());
     }
@@ -71,7 +71,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!PyBool::new(py, false).is_true());
-        let t: &PyAny = PyBool::new(py, false).into();
+        let t = PyBool::new(py, false);
         assert_eq!(false, t.extract().unwrap());
         assert_eq!(false.to_object(py), PyBool::new(py, false).into());
     }

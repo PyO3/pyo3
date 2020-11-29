@@ -218,14 +218,14 @@ impl<'py> PyAny<'py> {
     ///
     /// # Example
     /// ```rust
-    /// # use pyo3::prelude::*;
-    /// use pyo3::types::IntoPyDict;
+    /// # use pyo3::experimental::prelude::*;
+    /// use pyo3::experimental::objects::IntoPyDict;
     ///
     /// let gil = Python::acquire_gil();
     /// let py = gil.python();
     /// let list = vec![3, 6, 5, 4, 7].to_object(py);
     /// let dict = vec![("reverse", true)].into_py_dict(py);
-    /// list.call_method(py, "sort", (), Some(dict)).unwrap();
+    /// list.call_method(py, "sort", (), Some(dict.as_ref())).unwrap();
     /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     ///
     /// let new_element = 1.to_object(py);
@@ -419,7 +419,8 @@ impl<'py> PyAny<'py> {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{IntoPyDict, PyList, PyLong};
+    use crate::objects::{IntoPyDict, PyList};
+    use crate::types::{List, Int};
     use crate::{Python, ToPyObject};
 
     #[test]
@@ -439,7 +440,7 @@ mod test {
         let py = gil.python();
         let list = vec![3, 6, 5, 4, 7].to_object(py);
         let dict = vec![("reverse", true)].into_py_dict(py);
-        list.call_method(py, "sort", (), Some(dict)).unwrap();
+        list.call_method(py, "sort", (), Some(dict.as_ref())).unwrap();
         assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     }
 
@@ -459,6 +460,7 @@ mod test {
         let dir = py
             .eval("dir(42)", None, None)
             .unwrap()
+            .as_object()
             .downcast::<PyList>()
             .unwrap();
         let a = obj
@@ -482,10 +484,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let x = 5.to_object(py).into_ref(py);
-        assert!(x.is_instance::<PyLong>().unwrap());
+        let x = 5.to_object(py).to_owned(py);
+        assert!(x.is_instance::<Int>().unwrap());
 
-        let l = vec![x, x].to_object(py).into_ref(py);
-        assert!(l.is_instance::<PyList>().unwrap());
+        let l = vec![&x, &x].to_object(py).into_ref(py);
+        assert!(l.is_instance::<List>().unwrap());
     }
 }

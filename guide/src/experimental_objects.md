@@ -5,3 +5,10 @@ Practical differences:
  - Iterators from PyOwned must now be prefixed with &* - e.g. `in set` -> `in &*set`
  - return values `&'py PyAny` -> `PyOwned<'py, Any>`
  - Distinction between _types_ `Any` and _objects_ `PyAny`.
+
+ - PyString -> PyStr
+ - PyLong -> PyInt
+
+TODO:
+ - Might want to create a new Python type which returns the new signatures from e.g. pyo3::experimental. This might be too painful.
+ - Probably provide "experimental" forms of all the macros to make the migration possible.

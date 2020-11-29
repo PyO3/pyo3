@@ -3,7 +3,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
-use crate::types::PyIterator;
+use crate::objects::PyIterator;
 use crate::{
     ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
@@ -115,13 +115,13 @@ impl<'py> PySet<'py> {
 }
 
 #[cfg(Py_LIMITED_API)]
-pub struct PySetIterator<'p> {
-    it: &'p PyIterator,
+pub struct PySetIterator<'a, 'py> {
+    it: &'a PyIterator<'py>,
 }
 
 #[cfg(Py_LIMITED_API)]
-impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator {
+impl<'a, 'py> PySetIterator<'a, 'py> {
+    fn new(set: &'a PyAny<'py>) -> Self {
         PySetIterator {
             it: PyIterator::from_object(set.py(), set).unwrap(),
         }
@@ -130,7 +130,7 @@ impl PySetIterator<'_> {
 
 #[cfg(Py_LIMITED_API)]
 impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
+    type Item = PyOwned<'py, Any>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

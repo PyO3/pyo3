@@ -19,14 +19,14 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// # use pyo3::prelude::*;
-/// use pyo3::types::PyIterator;
+/// # use pyo3::experimental::prelude::*;
+/// use pyo3::experimental::objects::PyIterator;
 ///
 /// # fn main() -> PyResult<()> {
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
-/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(PyAny::extract::<usize>)).collect();
+/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(|any| any.extract())).collect();
 /// let sum: usize = numbers?.iter().sum();
 /// assert_eq!(sum, 10);
 /// # Ok(())
@@ -113,7 +113,7 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
-    use crate::types::{PyDict, PyList};
+    use crate::objects::{PyDict, PyList};
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     use crate::{Py, PyAny, objects::PyTryFrom};
     use crate::{Python, ToPyObject};
@@ -199,9 +199,9 @@ mod tests {
         let py = gil.python();
 
         let context = PyDict::new(py);
-        py.run(fibonacci_generator, None, Some(context)).unwrap();
+        py.run(fibonacci_generator, None, Some(context.as_ref())).unwrap();
 
-        let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
+        let generator = py.eval("fibonacci(5)", None, Some(context.as_ref())).unwrap();
         for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
             let actual = actual.unwrap().extract::<usize>().unwrap();
             assert_eq!(actual, *expected)

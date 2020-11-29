@@ -19,7 +19,7 @@ pub mod prelude {
     pub use crate::python::Python;
     pub use crate::{IntoPy, IntoPyPointer, PyTryInto, ToPyObject};
     // PyModule is only part of the prelude because we need it for the pymodule function
-    pub use crate::types::{PyAny, PyModule};
+    pub use crate::objects::{PyAny, PyModule};
     #[cfg(feature = "macros")]
     pub use pyo3cls::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
 }

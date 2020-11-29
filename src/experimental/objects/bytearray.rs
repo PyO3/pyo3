@@ -30,7 +30,7 @@ impl<'py> PyByteArray<'py> {
     ///
     /// # Example
     /// ```
-    /// use pyo3::{prelude::*, types::PyByteArray};
+    /// use pyo3::experimental::{prelude::*, objects::PyByteArray};
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
@@ -41,7 +41,7 @@ impl<'py> PyByteArray<'py> {
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<PyOwned<'py, PyByteArray>>
+    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<PyOwned<'py, ByteArray>>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -132,9 +132,8 @@ impl<'py> PyByteArray<'py> {
     /// # Example
     ///
     /// ```
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyByteArray;
-    /// # use pyo3::types::IntoPyDict;
+    /// # use pyo3::experimental::prelude::*;
+    /// # use pyo3::experimental::objects::{PyByteArray, IntoPyDict};
     /// # let gil = Python::acquire_gil();
     /// # let py = gil.python();
     /// #
@@ -146,7 +145,7 @@ impl<'py> PyByteArray<'py> {
     /// assert_eq!(b"Hello World!", copied_message.as_slice());
     ///
     /// let locals = [("bytearray", bytearray)].into_py_dict(py);
-    /// py.run("assert bytearray == b'Hello World.'", None, Some(locals)).unwrap();
+    /// py.run("assert bytearray == b'Hello World.'", None, Some(locals.as_ref())).unwrap();
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         unsafe { self.as_bytes() }.to_vec()
@@ -171,7 +170,7 @@ impl<'py> PyByteArray<'py> {
 #[cfg(test)]
 mod test {
     use crate::exceptions;
-    use crate::types::PyByteArray;
+    use crate::objects::PyByteArray;
     use crate::{PyObject, Python};
 
     #[test]

@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::types::{PyBytes, Str};
+use crate::types::{Bytes, Str};
 use crate::{
     ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
@@ -79,7 +79,7 @@ impl<'py> PyStr<'py> {
         match self.to_str() {
             Ok(s) => Cow::Borrowed(s),
             Err(_) => {
-                let bytes: PyOwned<PyBytes> = unsafe {
+                let bytes: PyOwned<Bytes> = unsafe {
                     PyOwned::from_raw_or_panic(
                         self.py(),
                         ffi::PyUnicode_AsEncodedString(

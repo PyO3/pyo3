@@ -5,7 +5,7 @@ use crate::{
     exceptions,
     objects::{FromPyObject, PyAny, PyNativeObject, PyTryFrom},
     owned::PyOwned,
-    types::{Any, Tuple},
+    types::{Tuple},
     AsPyPointer, IntoPy, IntoPyPointer, Py, PyErr, PyObject, PyResult,
     Python, ToPyObject,
 };
@@ -22,7 +22,7 @@ impl<'py> PyTuple<'py> {
     pub fn new<T, U>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> PyOwned<'py, PyTuple>
+    ) -> PyOwned<'py, Tuple>
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -112,13 +112,13 @@ pub struct PyTupleIterator<'a, 'py> {
     length: usize,
 }
 
-impl<'py> Iterator for PyTupleIterator<'_, 'py> {
-    type Item = PyOwned<'py, Any>;
+impl<'a, 'py> Iterator for PyTupleIterator<'a, 'py> {
+    type Item = &'a PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = self.tuple.get_item(self.index).to_owned();
+            let item = self.tuple.get_item(self.index);
             self.index += 1;
             Some(item)
         } else {
@@ -128,7 +128,7 @@ impl<'py> Iterator for PyTupleIterator<'_, 'py> {
 }
 
 impl<'a, 'py> IntoIterator for &'a PyTuple<'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = &'a PyAny<'py>;
     type IntoIter = PyTupleIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -247,8 +247,8 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::types::{PyAny, PyTuple};
-    use crate::{PyTryFrom, Python, ToPyObject};
+    use crate::objects::{PyTuple, PyTryFrom};
+    use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -257,7 +257,6 @@ mod test {
         let py = gil.python();
         let ob = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, ob.len());
-        let ob: &PyAny = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
 
         let mut map = HashSet::new();
@@ -271,10 +270,9 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyAny = tuple.into();
-        assert_eq!((1, 2, 3), ob.extract().unwrap());
+        assert_eq!((1, 2, 3), tuple.extract().unwrap());
     }
 
     #[test]
@@ -282,7 +280,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
@@ -295,7 +293,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
         assert_eq!(3, tuple.len());
 
         for (i, item) in tuple.iter().enumerate() {
@@ -309,7 +307,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_object(py)).unwrap();
 
         let slice = tuple.as_slice();
         assert_eq!(3, slice.len());
