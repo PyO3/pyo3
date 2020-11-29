@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix FFI definitions for `PyObject_Vectorcall` and `PyVectorcall_Call`. [#1287](https://github.com/PyO3/pyo3/pull/1285)
 - Fix building with Anaconda python inside a virtualenv. [#1290](https://github.com/PyO3/pyo3/pull/1290)
 
+## [0.12.4] - 2020-11-28
+### Fixed
+- Fix reference count bug in implementation of `From<Py<T>>` for `PyObject`, a regression introduced in PyO3 0.12. [#1297](https://github.com/PyO3/pyo3/pull/1297)
+
 ## [0.12.3] - 2020-10-12
 ### Fixed
 - Fix support for Rust versions 1.39 to 1.44, broken by an incorrect internal update to paste 1.0 which was done in PyO3 0.12.2. [#1234](https://github.com/PyO3/pyo3/pull/1234)
@@ -555,7 +559,8 @@ Yanked
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.12.4...HEAD
+[0.12.4]: https://github.com/pyo3/pyo3/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/pyo3/pyo3/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/pyo3/pyo3/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/pyo3/pyo3/compare/v0.12.0...v0.12.1
