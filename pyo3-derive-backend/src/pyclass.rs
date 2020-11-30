@@ -15,7 +15,7 @@ use syn::{parse_quote, Expr, Token};
 /// The parsed arguments of the pyclass macro
 pub struct PyClassArgs {
     pub freelist: Option<syn::Expr>,
-    pub name: Option<syn::Expr>,
+    pub name: Option<syn::ExprPath>,
     pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
     pub has_extends: bool,
@@ -92,18 +92,17 @@ impl PyClassArgs {
                 self.freelist = Some(syn::Expr::clone(right));
             }
             "name" => match &**right {
-                syn::Expr::Lit(
-                    lit
-                    @
-                    syn::ExprLit {
-                        lit: syn::Lit::Str(..),
-                        ..
-                    },
-                ) => {
-                    self.name = Some(lit.clone().into());
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(lit),
+                    ..
+                }) => {
+                    self.name = match lit.parse() {
+                        Ok(name) => Some(name),
+                        Err(..) => expected!("type name (e.g., Name or \"Name\")"),
+                    }
                 }
                 syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
-                    self.name = Some(exp.clone().into());
+                    self.name = Some(exp.clone());
                 }
                 _ => expected!("type name (e.g., Name or \"Name\")"),
             },
