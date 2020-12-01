@@ -1,22 +1,22 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{
     ffi,
-    objects::{FromPyObject, PyAny, PyNativeObject},
+    objects::{FromPyObject, PyAny},
     types::Bool,
     AsPyPointer, IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool<'py>(Bool, Python<'py>);
+pub struct PyBool<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyBool<'py>, Bool, 'py);
 
 impl<'py> PyBool<'py> {
     /// Depending on `val`, returns `true` or `false`.
     #[inline]
-    pub fn new(py: Python<'py>, val: bool) -> &'py PyBool<'py> {
-        unsafe { Self::from_borrowed_ptr(py, if val { ffi::Py_True() } else { ffi::Py_False() }) }
+    pub fn new(py: Python<'py>, val: bool) -> PyBool<'py> {
+        unsafe { Self(PyAny::from_borrowed_ptr_or_panic(py, if val { ffi::Py_True() } else { ffi::Py_False() })) }
     }
 
     /// Gets whether this boolean is `true`.

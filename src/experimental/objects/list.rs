@@ -5,14 +5,13 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    objects::PyNativeObject,
-    owned::PyOwned,
-    types::{Any, List},
+    objects::{PyNativeObject, PyAny},
+    types::{List},
     AsPyPointer, IntoPy, IntoPyPointer, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList<'py>(List, Python<'py>);
+pub struct PyList<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyList<'py>, List, 'py);
 
@@ -21,7 +20,7 @@ impl<'py> PyList<'py> {
     pub fn new<T, U>(
         py: Python<'py>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> PyOwned<'py, List>
+    ) -> Self
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -38,8 +37,8 @@ impl<'py> PyList<'py> {
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python) -> PyOwned<List> {
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyList_New(0)) }
+    pub fn empty(py: Python<'py>) -> Self {
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyList_New(0))) }
     }
 
     /// Returns the length of the list.
@@ -56,12 +55,12 @@ impl<'py> PyList<'py> {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> PyOwned<'py, Any> {
+    pub fn get_item(&self, index: isize) -> PyAny<'py> {
         assert!((index.abs() as usize) < self.len());
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
-            PyOwned::from_borrowed_ptr_or_panic(self.py(), ptr)
+            PyAny::from_borrowed_ptr_or_panic(self.py(), ptr)
         }
     }
 
@@ -122,8 +121,8 @@ impl<'py> PyList<'py> {
 
     /// Constructs a list with size NULL elements. All must be set before this list can be
     /// safely used.
-    unsafe fn with_length(py: Python, size: isize) -> PyOwned<List> {
-        PyOwned::from_raw_or_panic(py, ffi::PyList_New(size))
+    unsafe fn with_length(py: Python<'py>, size: isize) -> Self {
+        Self(PyAny::from_raw_or_panic(py, ffi::PyList_New(size)))
     }
 
     /// Set item on self. The caller should check for length error (indicated by -1 return value);
@@ -143,10 +142,10 @@ pub struct PyListIterator<'a, 'py> {
 }
 
 impl<'py> Iterator for PyListIterator<'_, 'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
 
     #[inline]
-    fn next(&mut self) -> Option<PyOwned<'py, Any>> {
+    fn next(&mut self) -> Option<PyAny<'py>> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -158,7 +157,7 @@ impl<'py> Iterator for PyListIterator<'_, 'py> {
 }
 
 impl<'a, 'py> std::iter::IntoIterator for &'a PyList<'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
     type IntoIter = PyListIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {

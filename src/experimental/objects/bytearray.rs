@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::objects::PyNativeObject;
-use crate::{ffi, owned::PyOwned, types::ByteArray, AsPyPointer, Python};
+use crate::{ffi, objects::PyAny, types::ByteArray, AsPyPointer, Python};
 use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray<'py>(ByteArray, Python<'py>);
+pub struct PyByteArray<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyByteArray<'py>, ByteArray, 'py);
 
@@ -15,10 +15,10 @@ impl<'py> PyByteArray<'py> {
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
-    pub fn new(py: Python<'py>, src: &[u8]) -> PyOwned<'py, ByteArray> {
+    pub fn new(py: Python<'py>, src: &[u8]) -> Self {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyByteArray_FromStringAndSize(ptr, len)) }
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyByteArray_FromStringAndSize(ptr, len))) }
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -41,7 +41,7 @@ impl<'py> PyByteArray<'py> {
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<PyOwned<'py, ByteArray>>
+    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<Self>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -49,7 +49,7 @@ impl<'py> PyByteArray<'py> {
             let pyptr =
                 ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let bytearray = PyOwned::from_raw_or_fetch_err(py, pyptr)?;
+            let bytearray = Self(PyAny::from_raw_or_fetch_err(py, pyptr)?);
             let buffer = ffi::PyByteArray_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
@@ -63,11 +63,11 @@ impl<'py> PyByteArray<'py> {
 
     /// Creates a new Python bytearray object from another PyObject that
     /// implements the buffer protocol.
-    pub fn from<I>(py: Python<'py>, src: &I) -> PyResult<PyOwned<'py, ByteArray>>
+    pub fn from<I>(py: Python<'py>, src: &I) -> PyResult<Self>
     where
         I: AsPyPointer,
     {
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyByteArray_FromObject(src.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyByteArray_FromObject(src.as_ptr())).map(Self) }
     }
 
     /// Gets the length of the bytearray.

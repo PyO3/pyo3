@@ -6,7 +6,7 @@ use crate::{
     exceptions, ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
     types::Int,
-    AsPyPointer, Py, PyErr, PyResult, Python,
+    AsPyPointer, PyErr, PyResult, Python,
 };
 use std::convert::TryFrom;
 use std::i64;
@@ -54,7 +54,7 @@ macro_rules! int_fits_larger_int {
 /// and [extract](struct.PyAny.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyInt<'py>(Py<Int>, Python<'py>);
+pub struct PyInt<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyInt<'py>, Int, 'py);
 

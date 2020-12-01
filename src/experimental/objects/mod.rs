@@ -38,37 +38,12 @@ pub use self::str::PyStr as PyString;
 #[doc(hidden)]
 macro_rules! pyo3_native_object_base {
     ($object:ty, $ty:ty, $py:lifetime) => {
-        impl<$py> AsPyPointer for $object {
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self as *const _ as *mut _
-            }
-        }
-
         impl<$py> $crate::ToPyObject for $object
         {
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 use $crate::AsPyPointer;
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        impl<$py> std::borrow::ToOwned for $object
-        {
-            type Owned = $crate::owned::PyOwned<$py, $ty>;
-            #[inline]
-            fn to_owned(&self) -> $crate::owned::PyOwned<$py, $ty> {
-                use $crate::objects::PyNativeObject;
-                unsafe { $crate::owned::PyOwned::from_borrowed_ptr_or_panic(self.py(), self.as_ptr()) }
-            }
-        }
-
-        impl<$py> std::borrow::Borrow<$object> for $crate::owned::PyOwned<$py, $ty>
-        {
-            #[inline]
-            fn borrow(&self) -> &$object {
-                self
             }
         }
 
@@ -81,20 +56,12 @@ macro_rules! pyo3_native_object_base {
             }
         }
 
-        impl<$py> std::ops::Deref for $crate::owned::PyOwned<$py, $ty> {
-            type Target = $object;
-
+        impl<$py> From<$object> for $crate::Py<$ty>
+        {
             #[inline]
-            fn deref(&self) -> &Self::Target {
-                use $crate::AsPyPointer;
-                unsafe { std::mem::transmute(self.as_ptr()) }
-            }
-        }
-
-        impl<$py> $crate::objects::FromPyObject<'_, $py> for $crate::owned::PyOwned<$py, $ty> {
-            fn extract(any: &$crate::objects::PyAny<$py>) -> $crate::PyResult<Self> {
-                use $crate::{AsPyPointer, objects::PyNativeObject};
-                unsafe { Self::from_borrowed_ptr_or_fetch_err(any.py(), any.as_ptr()) }
+            fn from(object: $object) -> $crate::Py<$ty> {
+                use $crate::{IntoPyPointer, objects::PyNativeObject};
+                unsafe { $crate::Py::from_owned_ptr(object.py(), object.into_ptr()) }
             }
         }
 
@@ -140,8 +107,9 @@ macro_rules! pyo3_native_object_base {
         }
 
         impl $ty {
-            pub fn as_object<$py>(&$py self) -> &$py $object {
-                unsafe { &*(self as *const Self as *const _) }
+            pub fn to_owned<$py>(&$py self) -> $object {
+                use $crate::{PyNativeType, IntoPyPointer};
+                unsafe { $crate::objects::PyAny::from_raw_or_panic(self.py(), self.into_ptr()).extract().unwrap() }
             }
         }
     }
@@ -158,14 +126,27 @@ macro_rules! pyo3_native_object {
 
             #[inline]
             fn deref(&self) -> &Self::Target {
-                unsafe { std::mem::transmute(self) }
+                &self.0
             }
         }
 
-        impl From<$crate::owned::PyOwned<'_, $ty>> for $crate::PyObject {
+        impl<$py> From<$object> for $crate::PyObject {
             #[inline]
-            fn from(owned: $crate::owned::PyOwned<'_, $ty>) -> $crate::PyObject {
-                $crate::Py::<$ty>::from(owned).into()
+            fn from(obj: $object) -> $crate::PyObject {
+                $crate::Py::<$ty>::from(obj).into()
+            }
+        }
+
+        impl<$py> $crate::objects::FromPyObject<'_, $py> for $object {
+            fn extract(any: &$crate::objects::PyAny<$py>) -> $crate::PyResult<Self> {
+                Ok(Self(any.clone()))
+            }
+        }
+
+        impl<$py> AsPyPointer for $object {
+            #[inline]
+            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
+                self.0.as_ptr()
             }
         }
     };
@@ -199,12 +180,12 @@ pub unsafe trait PyNativeObject<'py>: Sized + 'py {
     fn into_ty_ref(&self) -> &'py Self::NativeType;
     #[inline]
     unsafe fn unchecked_downcast<'a>(any: &'a PyAny<'py>) -> &'a Self {
-        Self::from_borrowed_ptr(any.py(), any.as_ptr())
+        &*(any as *const PyAny as *const Self)
     }
 
     #[inline]
-    unsafe fn from_borrowed_ptr<'a>(_py: Python<'py>, ptr: *mut ffi::PyObject) -> &'a Self {
-        &*(ptr as *const Self)
+    unsafe fn from_borrowed_ptr<'a>(_py: Python<'py>, ptr: &*mut ffi::PyObject) -> &'a Self {
+        &*(ptr as *const *mut ffi::PyObject as *const Self)
     }
 }
 

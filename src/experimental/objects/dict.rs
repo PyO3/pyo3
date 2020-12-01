@@ -2,24 +2,24 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::objects::PyAny;
-use crate::objects::{FromPyObject, PyNativeObject};
-use crate::types::{Any, Dict, List};
+use crate::objects::{FromPyObject, PyNativeObject, PyList};
+use crate::types::Dict;
 use crate::{
-    ffi, owned::PyOwned, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict<'py>(Dict, Python<'py>);
+pub struct PyDict<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyDict<'py>, Dict, 'py);
 
 impl<'py> PyDict<'py> {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python) -> PyOwned<Dict> {
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyDict_New()) }
+    pub fn new(py: Python<'py>) -> Self {
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyDict_New())) }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -30,7 +30,7 @@ impl<'py> PyDict<'py> {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python<'py>, seq: &PyAny) -> PyResult<PyOwned<'py, Dict>> {
+    pub fn from_sequence(py: Python<'py>, seq: &PyAny) -> PyResult<Self> {
         unsafe {
             let dict = PyDict::new(py);
             match ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1i32) {
@@ -44,8 +44,8 @@ impl<'py> PyDict<'py> {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `dict(self)`.
-    pub fn copy(&self) -> PyResult<PyOwned<'py, Dict>> {
-        unsafe { PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())) }
+    pub fn copy(&self) -> PyResult<Self> {
+        unsafe { PyAny::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())).map(Self) }
     }
 
     /// Empties an existing dictionary of all key-value pairs.
@@ -86,14 +86,14 @@ impl<'py> PyDict<'py> {
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<PyOwned<'py, Any>>
+    pub fn get_item<K>(&self, key: K) -> Option<PyAny<'py>>
     where
         K: ToBorrowedObject,
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
             // PyDict_GetItem returns borrowed ptr, must make it owned for safety (see #890).
-            PyOwned::from_borrowed_ptr(self.py(), ptr)
+            PyAny::from_borrowed_ptr(self.py(), ptr)
         })
     }
 
@@ -127,22 +127,22 @@ impl<'py> PyDict<'py> {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Keys(self.as_ptr())) }
+    pub fn keys(&self) -> PyList<'py> {
+        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Keys(self.as_ptr()))) }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Values(self.as_ptr())) }
+    pub fn values(&self) -> PyList<'py> {
+        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Values(self.as_ptr()))) }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr())) }
+    pub fn items(&self) -> PyList<'py> {
+        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr()))) }
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
@@ -160,7 +160,7 @@ pub struct PyDictIterator<'a, 'py> {
 }
 
 impl<'py> Iterator for PyDictIterator<'_, 'py> {
-    type Item = (PyOwned<'py, Any>, PyOwned<'py, Any>);
+    type Item = (PyAny<'py>, PyAny<'py>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -171,8 +171,8 @@ impl<'py> Iterator for PyDictIterator<'_, 'py> {
                 let py = self.dict.py();
                 // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
                 Some((
-                    PyOwned::from_borrowed_ptr_or_panic(py, key),
-                    PyOwned::from_borrowed_ptr_or_panic(py, value),
+                    PyAny::from_borrowed_ptr_or_panic(py, key),
+                    PyAny::from_borrowed_ptr_or_panic(py, value),
                 ))
             } else {
                 None
@@ -182,7 +182,7 @@ impl<'py> Iterator for PyDictIterator<'_, 'py> {
 }
 
 impl<'a, 'py> std::iter::IntoIterator for &'a PyDict<'py> {
-    type Item = (PyOwned<'py, Any>, PyOwned<'py, Any>);
+    type Item = (PyAny<'py>, PyAny<'py>);
     type IntoIter = PyDictIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -243,7 +243,7 @@ where
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> PyOwned<Dict>;
+    fn into_py_dict(self, py: Python) -> PyDict;
 }
 
 impl<T, I> IntoPyDict for I
@@ -251,7 +251,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python) -> PyOwned<Dict> {
+    fn into_py_dict(self, py: Python) -> PyDict {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())

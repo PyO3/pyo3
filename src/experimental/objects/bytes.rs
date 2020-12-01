@@ -1,7 +1,6 @@
 use crate::{
     ffi,
     objects::{FromPyObject, PyAny},
-    owned::PyOwned,
     types::Bytes,
     AsPyPointer, IntoPy, PyObject, PyResult, Python,
 };
@@ -13,7 +12,7 @@ use std::slice::SliceIndex;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes<'py>(Bytes, Python<'py>);
+pub struct PyBytes<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyBytes<'py>, Bytes, 'py);
 
@@ -22,10 +21,10 @@ impl<'py> PyBytes<'py> {
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(py: Python<'py>, s: &[u8]) -> PyOwned<'py, Bytes> {
+    pub fn new(py: Python<'py>, s: &[u8]) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyBytes_FromStringAndSize(ptr, len)) }
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyBytes_FromStringAndSize(ptr, len))) }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -48,14 +47,14 @@ impl<'py> PyBytes<'py> {
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<PyOwned<'py, Bytes>>
+    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<Self>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let bytes = PyOwned::from_raw_or_fetch_err(py, pyptr)?;
+            let bytes = Self(PyAny::from_raw_or_fetch_err(py, pyptr)?);
             let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
@@ -70,11 +69,11 @@ impl<'py> PyBytes<'py> {
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
-    pub unsafe fn from_ptr(py: Python<'py>, ptr: *const u8, len: usize) -> PyOwned<'py, Bytes> {
-        PyOwned::from_raw_or_panic(
+    pub unsafe fn from_ptr(py: Python<'py>, ptr: *const u8, len: usize) -> Self {
+        Self(PyAny::from_raw_or_panic(
             py,
             ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize),
-        )
+        ))
     }
 
     /// Gets the Python string as a byte slice.

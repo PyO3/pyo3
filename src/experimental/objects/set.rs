@@ -7,8 +7,7 @@ use crate::objects::PyIterator;
 use crate::{
     ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
-    owned::PyOwned,
-    types::{Any, FrozenSet, Set},
+    types::{FrozenSet, Set},
     AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
@@ -17,26 +16,26 @@ use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]
-pub struct PySet<'py>(Set, Python<'py>);
+pub struct PySet<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PySet<'py>, Set, 'py);
 
 /// Represents a  Python `frozenset`
 #[repr(transparent)]
-pub struct PyFrozenSet<'py>(FrozenSet, Python<'py>);
+pub struct PyFrozenSet<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyFrozenSet<'py>, FrozenSet, 'py);
 
 impl<'py> PySet<'py> {
     /// Creates a new set with elements from the given slice.
     ///
     /// Returns an error if some element is not hashable.
-    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<PyOwned<'py, Set>> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PySet_New(list.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PySet_New(list.as_ptr())).map(Self) }
     }
 
     /// Creates a new empty set.
-    pub fn empty(py: Python<'py>) -> PyResult<PyOwned<'py, Set>> {
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PySet_New(ptr::null_mut())) }
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PySet_New(ptr::null_mut())).map(Self) }
     }
 
     /// Removes all elements from the set.
@@ -97,9 +96,9 @@ impl<'py> PySet<'py> {
     }
 
     /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<PyOwned<'py, Any>> {
+    pub fn pop(&self) -> Option<PyAny<'py>> {
         let element =
-            unsafe { PyOwned::from_raw_or_fetch_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
+            unsafe { PyAny::from_raw_or_fetch_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
         match element {
             Ok(e) => Some(e),
             Err(_) => None,
@@ -130,7 +129,7 @@ impl<'a, 'py> PySetIterator<'a, 'py> {
 
 #[cfg(Py_LIMITED_API)]
 impl<'py> Iterator for PySetIterator<'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -153,7 +152,7 @@ impl<'a, 'py> PySetIterator<'a, 'py> {
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'py> Iterator for PySetIterator<'_, 'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -162,7 +161,7 @@ impl<'py> Iterator for PySetIterator<'_, 'py> {
             let mut hash: ffi::Py_hash_t = 0;
             if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
                 // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                Some(PyOwned::from_borrowed_ptr_or_panic(self.set.py(), key))
+                Some(PyAny::from_borrowed_ptr_or_panic(self.set.py(), key))
             } else {
                 None
             }
@@ -171,7 +170,7 @@ impl<'py> Iterator for PySetIterator<'_, 'py> {
 }
 
 impl<'a, 'py> std::iter::IntoIterator for &'a PySet<'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
     type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -268,14 +267,14 @@ impl<'py> PyFrozenSet<'py> {
     pub fn new<T: ToPyObject>(
         py: Python<'py>,
         elements: &[T],
-    ) -> PyResult<PyOwned<'py, FrozenSet>> {
+    ) -> PyResult<Self> {
         let list = elements.to_object(py);
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(list.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(list.as_ptr())).map(Self) }
     }
 
     /// Creates a new empty frozen set
-    pub fn empty(py: Python<'py>) -> PyResult<PyOwned<'py, FrozenSet>> {
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(ptr::null_mut())) }
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(ptr::null_mut())).map(Self) }
     }
 
     /// Return the number of items in the set.
@@ -314,7 +313,7 @@ impl<'py> PyFrozenSet<'py> {
 }
 
 impl<'a, 'py> std::iter::IntoIterator for &'a PyFrozenSet<'py> {
-    type Item = PyOwned<'py, Any>;
+    type Item = PyAny<'py>;
     type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -503,7 +502,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in &*set {
+        for el in &set {
             assert_eq!(1i32, el.extract().unwrap());
         }
     }
@@ -549,7 +548,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in &*set {
+        for el in &set {
             assert_eq!(1i32, el.extract::<i32>().unwrap());
         }
     }

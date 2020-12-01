@@ -4,13 +4,13 @@
 
 use crate::{
     ffi,
-    owned::PyOwned,
-    types::{Any, Iterator},
+    objects::PyAny,
+    types::Iterator,
     AsPyPointer, PyErr, PyResult, Python, objects::PyNativeObject
 };
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 use crate::{
-    objects::{PyAny, PyTryFrom},
+    objects::PyTryFrom,
     PyDowncastError,
 };
 
@@ -33,24 +33,24 @@ use crate::{
 /// # }
 /// ```
 #[repr(transparent)]
-pub struct PyIterator<'py>(Iterator, Python<'py>);
+pub struct PyIterator<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyIterator<'py>, Iterator, 'py);
 
 impl<'py> PyIterator<'py> {
     /// Constructs a `PyIterator` from a Python iterable object.
     ///
     /// Equivalent to Python's built-in `iter` function.
-    pub fn from_object<T>(py: Python<'py>, obj: &T) -> PyResult<PyOwned<'py, Iterator>>
+    pub fn from_object<T>(py: Python<'py>, obj: &T) -> PyResult<Self>
     where
         T: AsPyPointer,
     {
-        unsafe { PyOwned::from_raw_or_fetch_err(py, ffi::PyObject_GetIter(obj.as_ptr())) }
+        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyObject_GetIter(obj.as_ptr())).map(Self) }
     }
 
-    fn next(&self) -> Option<PyResult<PyOwned<'py, Any>>> {
+    fn next(&self) -> Option<PyResult<PyAny<'py>>> {
         let py = self.py();
 
-        match unsafe { PyOwned::from_raw(py, ffi::PyIter_Next(self.0.as_ptr())) } {
+        match unsafe { PyAny::from_raw(py, ffi::PyIter_Next(self.0.as_ptr())) } {
             Some(obj) => Some(Ok(obj)),
             None => {
                 if PyErr::occurred(py) {
@@ -64,7 +64,7 @@ impl<'py> PyIterator<'py> {
 }
 
 impl<'py> std::iter::Iterator for &'_ PyIterator<'py> {
-    type Item = PyResult<PyOwned<'py, Any>>;
+    type Item = PyResult<PyAny<'py>>;
 
     /// Retrieves the next item from an iterator.
     ///
@@ -77,10 +77,10 @@ impl<'py> std::iter::Iterator for &'_ PyIterator<'py> {
     }
 }
 
-impl<'py> std::iter::Iterator for PyOwned<'py, Iterator> {
-    type Item = PyResult<PyOwned<'py, Any>>;
+impl<'py> std::iter::Iterator for PyIterator<'py> {
+    type Item = PyResult<PyAny<'py>>;
     fn next(&mut self) -> Option<Self::Item> {
-        (**self).next()
+        (*self).next()
     }
 }
 
@@ -113,7 +113,7 @@ mod tests {
     use super::PyIterator;
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
-    use crate::objects::{PyDict, PyList};
+    use crate::objects::{PyDict, PyList, PyNativeObject};
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     use crate::{Py, PyAny, objects::PyTryFrom};
     use crate::{Python, ToPyObject};
@@ -199,9 +199,9 @@ mod tests {
         let py = gil.python();
 
         let context = PyDict::new(py);
-        py.run(fibonacci_generator, None, Some(context.as_ref())).unwrap();
+        py.run(fibonacci_generator, None, Some(context.as_ty_ref())).unwrap();
 
-        let generator = py.eval("fibonacci(5)", None, Some(context.as_ref())).unwrap();
+        let generator = py.eval("fibonacci(5)", None, Some(context.as_ty_ref())).unwrap();
         for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
             let actual = actual.unwrap().extract::<usize>().unwrap();
             assert_eq!(actual, *expected)

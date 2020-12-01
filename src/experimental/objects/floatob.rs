@@ -4,7 +4,6 @@
 use crate::{
     ffi,
     objects::{FromPyObject, PyAny, PyNativeObject},
-    owned::PyOwned,
     types::Float,
     AsPyPointer, IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
@@ -17,13 +16,13 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyAny.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat<'py>(Float, Python<'py>);
+pub struct PyFloat<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyFloat<'py>, Float, 'py);
 
 impl<'py> PyFloat<'py> {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python<'py>, val: c_double) -> PyOwned<'py, Float> {
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyFloat_FromDouble(val)) }
+    pub fn new(py: Python<'py>, val: c_double) -> Self {
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyFloat_FromDouble(val))) }
     }
 
     /// Gets the value of this float.

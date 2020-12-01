@@ -3,25 +3,43 @@ use crate::conversion::{AsPyPointer, IntoPy, ToBorrowedObject, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::objects::{FromPyObject, PyNativeObject, PyTryFrom};
-use crate::owned::PyOwned;
 use crate::type_object::PyTypeObject;
-use crate::types::{Any, Tuple, Iterator, List, Str};
-use crate::objects::{PyDict, PyIterator, PyType};
+use crate::types::{Any, Tuple};
+use crate::objects::{PyDict, PyIterator, PyType, PyStr, PyList};
 use crate::{err, ffi, Py, PyObject, Python};
 use libc::c_int;
 use std::cmp::Ordering;
 
 #[repr(transparent)]
-pub struct PyAny<'py>(Any, Python<'py>);
+pub struct PyAny<'py>(pub(crate) PyObject, pub(crate) Python<'py>);
 
 pyo3_native_object_base!(PyAny<'py>, Any, 'py);
 
-// impl PartialEq for PyAny {
-//     #[inline]
-//     fn eq(&self, o: &PyAny) -> bool {
-//         self.as_ptr() == o.as_ptr()
-//     }
-// }
+impl PartialEq for PyAny<'_> {
+    #[inline]
+    fn eq(&self, o: &PyAny) -> bool {
+        self.as_ptr() == o.as_ptr()
+    }
+}
+
+impl AsPyPointer for PyAny<'_> {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0.as_ptr()
+    }
+}
+
+impl Clone for PyAny<'_> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone_ref(self.1), self.1)
+    }
+}
+
+impl<'py> FromPyObject<'_, 'py> for PyAny<'py> {
+    fn extract(any: &PyAny<'py>) -> PyResult<Self> {
+        Ok(any.clone())
+    }
+}
 
 // unsafe impl crate::PyNativeType for PyAny {}
 // unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
@@ -73,12 +91,12 @@ impl<'py> PyAny<'py> {
     /// Retrieves an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
-    pub fn getattr<N>(&self, attr_name: N) -> PyResult<PyOwned<'py, Any>>
+    pub fn getattr<N>(&self, attr_name: N) -> PyResult<Self>
     where
         N: ToPyObject,
     {
         attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
+            Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
         })
     }
 
@@ -165,7 +183,7 @@ impl<'py> PyAny<'py> {
         &self,
         other: O,
         compare_op: CompareOp,
-    ) -> PyResult<PyOwned<'py, Any>>
+    ) -> PyResult<Self>
     where
         O: ToPyObject,
     {
@@ -173,7 +191,7 @@ impl<'py> PyAny<'py> {
             let result = other.with_borrowed_ptr(self.py(), |other| {
                 ffi::PyObject_RichCompare(self.as_ptr(), other, compare_op as c_int)
             });
-            PyOwned::from_raw_or_fetch_err(self.py(), result)
+            Self::from_raw_or_fetch_err(self.py(), result)
         }
     }
 
@@ -189,26 +207,26 @@ impl<'py> PyAny<'py> {
         &self,
         args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<PyOwned<'py, Any>> {
+    ) -> PyResult<Self> {
         let args = args.into_py(self.py());
         let kwargs_ptr = kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr());
         unsafe {
             let result = ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs_ptr);
-            PyOwned::from_raw_or_fetch_err(self.py(), result)
+            Self::from_raw_or_fetch_err(self.py(), result)
         }
     }
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    pub fn call0(&self) -> PyResult<PyOwned<'py, Any>> {
+    pub fn call0(&self) -> PyResult<Self> {
         self.call((), None)
     }
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, args: impl IntoPy<Py<Tuple>>) -> PyResult<PyOwned<'py, Any>> {
+    pub fn call1(&self, args: impl IntoPy<Py<Tuple>>) -> PyResult<Self> {
         self.call(args, None)
     }
 
@@ -237,7 +255,7 @@ impl<'py> PyAny<'py> {
         name: &str,
         args: impl IntoPy<Py<Tuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<PyOwned<'py, Any>> {
+    ) -> PyResult<Self> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -247,7 +265,7 @@ impl<'py> PyAny<'py> {
             let args = args.into_py(self.py());
             let kwargs_ptr = kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr());
             let result_ptr = ffi::PyObject_Call(ptr, args.as_ptr(), kwargs_ptr);
-            let result = PyOwned::from_raw_or_fetch_err(self.py(), result_ptr);
+            let result = Self::from_raw_or_fetch_err(self.py(), result_ptr);
             ffi::Py_DECREF(ptr);
             result
         })
@@ -256,7 +274,7 @@ impl<'py> PyAny<'py> {
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
-    pub fn call_method0(&self, name: &str) -> PyResult<PyOwned<'py, Any>> {
+    pub fn call_method0(&self, name: &str) -> PyResult<Self> {
         self.call_method(name, (), None)
     }
 
@@ -267,7 +285,7 @@ impl<'py> PyAny<'py> {
         &self,
         name: &str,
         args: impl IntoPy<Py<Tuple>>,
-    ) -> PyResult<PyOwned<'py, Any>> {
+    ) -> PyResult<Self> {
         self.call_method(name, args, None)
     }
 
@@ -300,12 +318,12 @@ impl<'py> PyAny<'py> {
     /// Gets an item from the collection.
     ///
     /// This is equivalent to the Python expression `self[key]`.
-    pub fn get_item<K>(&self, key: K) -> PyResult<PyOwned<'py, Any>>
+    pub fn get_item<K>(&self, key: K) -> PyResult<Self>
     where
         K: ToBorrowedObject,
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyObject_GetItem(self.as_ptr(), key))
+            Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_GetItem(self.as_ptr(), key))
         })
     }
 
@@ -340,13 +358,13 @@ impl<'py> PyAny<'py> {
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
-    pub fn iter(&self) -> PyResult<PyOwned<'py, Iterator>> {
+    pub fn iter(&self) -> PyResult<PyIterator<'py>> {
         PyIterator::from_object(self.py(), self)
     }
 
     /// Returns the Python type object for this object's type.
-    pub fn get_type(&self) -> &PyType<'py> {
-        unsafe { PyType::from_borrowed_ptr(self.py(), ffi::Py_TYPE(self.as_ptr()) as _) }
+    pub fn get_type(&self) -> PyType<'py> {
+        unsafe { PyType(PyAny::from_borrowed_ptr_or_panic(self.py(), ffi::Py_TYPE(self.as_ptr()) as _)) }
     }
 
     /// Returns the Python type pointer for this object.
@@ -363,15 +381,15 @@ impl<'py> PyAny<'py> {
     /// Computes the "repr" representation of self.
     ///
     /// This is equivalent to the Python expression `repr(self)`.
-    pub fn repr(&self) -> PyResult<PyOwned<'py, Str>> {
-        unsafe { PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyObject_Repr(self.as_ptr())) }
+    pub fn repr(&self) -> PyResult<PyStr<'py>> {
+        unsafe { Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Repr(self.as_ptr())).map(PyStr) }
     }
 
     /// Computes the "str" representation of self.
     ///
     /// This is equivalent to the Python expression `str(self)`.
-    pub fn str(&self) -> PyResult<PyOwned<'py, Str>> {
-        unsafe { PyOwned::from_raw_or_fetch_err(self.py(), ffi::PyObject_Str(self.as_ptr())) }
+    pub fn str(&self) -> PyResult<PyStr<'py>> {
+        unsafe { Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Str(self.as_ptr())).map(PyStr) }
     }
 
     /// Retrieves the hash code of self.
@@ -401,8 +419,8 @@ impl<'py> PyAny<'py> {
     /// Returns the list of attributes of this object.
     ///
     /// This is equivalent to the Python expression `dir(self)`.
-    pub fn dir(&self) -> PyOwned<'py, List> {
-        unsafe { PyOwned::from_raw_or_panic(self.py(), ffi::PyObject_Dir(self.as_ptr())) }
+    pub fn dir(&self) -> PyList<'py> {
+        unsafe { PyList(Self::from_raw_or_panic(self.py(), ffi::PyObject_Dir(self.as_ptr()))) }
     }
 
     /// Checks whether this object is an instance of type `T`.
@@ -415,11 +433,56 @@ impl<'py> PyAny<'py> {
     pub(crate) fn from_type_any(any: &'py Any) -> &'py Self {
         unsafe { std::mem::transmute(any) }
     }
+
+    /// CONVERSION FUNCTIONS
+
+    #[inline]
+    pub(crate) unsafe fn from_raw(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        Py::from_owned_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
+    }
+
+    // Creates a PyOwned without checking the type.
+    #[inline]
+    pub(crate) unsafe fn from_raw_or_fetch_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        Self::from_raw(py, ptr).ok_or_else(|| PyErr::fetch(py))
+    }
+
+    #[inline]
+    pub(crate) unsafe fn from_raw_or_panic(py: Python<'py>, ptr: *mut ffi::PyObject) -> Self {
+        Self(Py::from_owned_ptr(py, ptr), py)
+    }
+
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
+        Py::from_borrowed_ptr_or_opt(py, ptr).map(|obj| Self(obj, py))
+    }
+
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_or_fetch_err(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
+        Py::from_borrowed_ptr_or_err(py, ptr).map(|obj| Self(obj, py))
+    }
+
+    #[inline]
+    pub(crate) unsafe fn from_borrowed_ptr_or_panic(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Self {
+        Self(Py::from_borrowed_ptr(py, ptr), py)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::objects::{IntoPyDict, PyList};
+    use crate::objects::{IntoPyDict, PyNativeObject, PyAny};
     use crate::types::{List, Int};
     use crate::{Python, ToPyObject};
 
@@ -440,7 +503,7 @@ mod test {
         let py = gil.python();
         let list = vec![3, 6, 5, 4, 7].to_object(py);
         let dict = vec![("reverse", true)].into_py_dict(py);
-        list.call_method(py, "sort", (), Some(dict.as_ref())).unwrap();
+        list.call_method(py, "sort", (), Some(dict.as_ty_ref())).unwrap();
         assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     }
 
@@ -460,9 +523,9 @@ mod test {
         let dir = py
             .eval("dir(42)", None, None)
             .unwrap()
-            .as_object()
-            .downcast::<PyList>()
-            .unwrap();
+            .downcast::<List>()
+            .unwrap()
+            .to_owned();
         let a = obj
             .dir()
             .into_iter()
@@ -484,7 +547,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let x = 5.to_object(py).to_owned(py);
+        let x: PyAny = 5.to_object(py).into_object(py);
         assert!(x.is_instance::<Int>().unwrap());
 
         let l = vec![&x, &x].to_object(py).into_ref(py);

@@ -4,14 +4,14 @@ use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::{
     ffi,
-    owned::PyOwned,
+    objects::PyAny,
     types::{CFunction, Function},
-    AsPyPointer, PyMethodDef, PyMethodType, PyResult, Python, IntoPy,
+    AsPyPointer, PyMethodDef, PyMethodType, PyResult, IntoPy,
 };
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
-pub struct PyCFunction<'py>(CFunction, Python<'py>);
+pub struct PyCFunction<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyCFunction<'py>, CFunction, 'py);
 
 fn get_name(name: &str) -> PyResult<&'static CStr> {
@@ -35,7 +35,7 @@ impl<'py> PyCFunction<'py> {
         name: &str,
         doc: &str,
         py_or_module: PyFunctionArguments<'py>,
-    ) -> PyResult<PyOwned<'py, Self>> {
+    ) -> PyResult<Self> {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
@@ -51,7 +51,7 @@ impl<'py> PyCFunction<'py> {
         name: &str,
         doc: &str,
         py_or_module: PyFunctionArguments<'py>,
-    ) -> PyResult<PyOwned<'py, Self>> {
+    ) -> PyResult<Self> {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
@@ -68,7 +68,7 @@ impl<'py> PyCFunction<'py> {
         method_type: PyMethodType,
         flags: std::os::raw::c_int,
         py_or_module: PyFunctionArguments<'py>,
-    ) -> PyResult<PyOwned<'py, Self>> {
+    ) -> PyResult<Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let method_def = PyMethodDef {
             ml_name: name,
@@ -86,18 +86,18 @@ impl<'py> PyCFunction<'py> {
         };
 
         unsafe {
-            PyOwned::from_raw_or_fetch_err(py, ffi::PyCFunction_NewEx(
+            PyAny::from_raw_or_fetch_err(py, ffi::PyCFunction_NewEx(
                 Box::into_raw(Box::new(def)),
                 mod_ptr,
                 module_name.as_ptr(),
-            ))
+            )).map(Self)
         }
     }
 }
 
 /// Represents a Python function object.
 #[repr(transparent)]
-pub struct PyFunction<'py>(Function, Python<'py>);
+pub struct PyFunction<'py>(pub(crate) PyAny<'py>);
 
 #[cfg(not(Py_LIMITED_API))]
 pyo3_native_object!(PyFunction<'py>, Function, 'py);

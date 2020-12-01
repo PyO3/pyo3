@@ -1,10 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::types::{Bytes, Str};
+use crate::types::Str;
 use crate::{
     ffi,
-    objects::{FromPyObject, PyAny, PyNativeObject},
-    owned::PyOwned,
+    objects::{FromPyObject, PyAny, PyNativeObject, PyBytes},
     AsPyPointer, IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -15,7 +14,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyStr<'py>(Str, Python<'py>);
+pub struct PyStr<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyStr<'py>, Str, 'py);
 
@@ -23,22 +22,22 @@ impl<'py> PyStr<'py> {
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
-    pub fn new(py: Python<'py>, s: &str) -> PyOwned<'py, Str> {
+    pub fn new(py: Python<'py>, s: &str) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { PyOwned::from_raw_or_panic(py, ffi::PyUnicode_FromStringAndSize(ptr, len)) }
+        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyUnicode_FromStringAndSize(ptr, len))) }
     }
 
-    pub fn from_object(src: &PyAny<'py>, encoding: &str, errors: &str) -> PyOwned<'py, Str> {
+    pub fn from_object(src: &PyAny<'py>, encoding: &str, errors: &str) -> Self {
         unsafe {
-            PyOwned::from_raw_or_panic(
+            Self(PyAny::from_raw_or_panic(
                 src.py(),
                 ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const c_char,
                     errors.as_ptr() as *const c_char,
                 ),
-            )
+            ))
         }
     }
 
@@ -79,15 +78,15 @@ impl<'py> PyStr<'py> {
         match self.to_str() {
             Ok(s) => Cow::Borrowed(s),
             Err(_) => {
-                let bytes: PyOwned<Bytes> = unsafe {
-                    PyOwned::from_raw_or_panic(
+                let bytes: PyBytes<'py> = unsafe {
+                    PyBytes(PyAny::from_raw_or_panic(
                         self.py(),
                         ffi::PyUnicode_AsEncodedString(
                             self.as_ptr(),
                             b"utf-8\0" as *const _ as _,
                             b"surrogatepass\0" as *const _ as _,
                         ),
-                    )
+                    ))
                 };
                 Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).to_string())
             }
@@ -193,7 +192,7 @@ mod test {
     fn test_non_bmp() {
         Python::with_gil(|py| {
             let s = "\u{1F30F}";
-            let py_str = s.to_object(py).to_owned(py);
+            let py_str: PyAny = s.to_object(py).into_object(py);
             assert_eq!(s, py_str.extract::<String>().unwrap());
         })
     }
@@ -202,7 +201,7 @@ mod test {
     fn test_extract_str() {
         Python::with_gil(|py| {
             let s = "Hello Python";
-            let py_str = s.to_object(py).to_owned(py);
+            let py_str: PyAny = s.to_object(py).into_object(py);
             let s2: &str = py_str.extract().unwrap();
             assert_eq!(s, s2);
         })
@@ -243,7 +242,7 @@ mod test {
     #[test]
     fn test_to_str_surrogate() {
         Python::with_gil(|py| {
-            let obj: PyOwned<_> = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
+            let obj: PyAny = py.eval(r#"'\ud800'"#, None, None).unwrap().to_owned();
             let py_str = obj.downcast::<PyStr>().unwrap();
             assert!(py_str.to_str().is_err());
         })

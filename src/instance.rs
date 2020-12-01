@@ -6,7 +6,7 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, objects::PyNativeObject, owned::PyOwned, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer,
+    ffi, objects::PyNativeObject, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer,
     PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
@@ -130,16 +130,6 @@ where
     pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
-
-    #[inline]
-    pub fn into_owned<'py>(self, py: Python<'py>) -> PyOwned<'py, T> {
-        PyOwned::from_inner(self, py)
-    }
-
-    #[inline]
-    pub fn to_owned<'py>(&self, py: Python<'py>) -> PyOwned<'py, T> {
-        PyOwned::from_inner(self.clone(), py)
-    }
 }
 
 impl<T> Py<T>
@@ -151,7 +141,7 @@ where
     where
         O: PyNativeObject<'py, NativeType = T>,
     {
-        unsafe { O::from_borrowed_ptr(py, self.0.as_ptr()) }
+        unsafe { &*(self as *const Self as *const O) }
     }
 }
 

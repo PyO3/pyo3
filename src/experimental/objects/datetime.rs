@@ -8,7 +8,6 @@
 use crate::{
     ffi,
     objects::{PyTuple, PyAny},
-    owned::PyOwned,
     types::{Date, DateTime, Time, TimeDelta, TzInfo},
     AsPyPointer, PyObject, PyResult, Python, ToPyObject,
 };
@@ -48,12 +47,12 @@ pub trait PyTimeAccess {
 
 /// Bindings around `datetime.date`
 #[repr(transparent)]
-pub struct PyDate<'py>(Date, Python<'py>);
+pub struct PyDate<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyDate<'py>, Date, 'py);
 
 impl<'py> PyDate<'py> {
-    pub fn new<'p>(py: Python<'py>, year: i32, month: u8, day: u8) -> PyResult<PyOwned<'py, Date>> {
+    pub fn new<'p>(py: Python<'py>, year: i32, month: u8, day: u8) -> PyResult<PyDate<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.Date_FromDate)(
                 year,
@@ -61,14 +60,14 @@ impl<'py> PyDate<'py> {
                 c_int::from(day),
                 ffi::PyDateTimeAPI.DateType,
             );
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python<'py>, timestamp: i64) -> PyResult<PyOwned<'py, Date>> {
+    pub fn from_timestamp(py: Python<'py>, timestamp: i64) -> PyResult<PyDate<'py>> {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
         unsafe {
@@ -81,7 +80,7 @@ impl<'py> PyDate<'py> {
                 time_tuple.as_ptr(),
             );
 
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 }
@@ -102,7 +101,7 @@ impl PyDateAccess for PyDate<'_> {
 
 /// Bindings for `datetime.datetime`
 #[repr(transparent)]
-pub struct PyDateTime<'py>(DateTime, Python<'py>);
+pub struct PyDateTime<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyDateTime<'py>, DateTime, 'py);
 
 impl<'py> PyDateTime<'py> {
@@ -116,7 +115,7 @@ impl<'py> PyDateTime<'py> {
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyAny>,
-    ) -> PyResult<PyOwned<'py, DateTime>> {
+    ) -> PyResult<PyDateTime<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.DateTime_FromDateAndTime)(
                 year,
@@ -129,7 +128,7 @@ impl<'py> PyDateTime<'py> {
                 tzinfo.map_or(std::ptr::null_mut(), |any| any.as_ptr()),
                 ffi::PyDateTimeAPI.DateTimeType,
             );
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 
@@ -140,7 +139,7 @@ impl<'py> PyDateTime<'py> {
         py: Python<'py>,
         timestamp: f64,
         time_zone_info: Option<&PyTzInfo>,
-    ) -> PyResult<PyOwned<'py, DateTime>> {
+    ) -> PyResult<PyDateTime<'py>> {
         let timestamp: PyObject = timestamp.to_object(py);
 
         let time_zone_info: PyObject = match time_zone_info {
@@ -163,7 +162,7 @@ impl<'py> PyDateTime<'py> {
                 )
             };
 
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 }
@@ -207,7 +206,7 @@ impl PyTimeAccess for PyDateTime<'_> {
 
 /// Bindings for `datetime.time`
 #[repr(transparent)]
-pub struct PyTime<'py>(Time, Python<'py>);
+pub struct PyTime<'py>(pub(crate) PyAny<'py>);
 
 pyo3_native_object!(PyTime<'py>, Time, 'py);
 
@@ -219,7 +218,7 @@ impl<'py> PyTime<'py> {
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyAny>,
-    ) -> PyResult<PyOwned<'py, Time>> {
+    ) -> PyResult<PyTime<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.Time_FromTime)(
                 c_int::from(hour),
@@ -229,7 +228,7 @@ impl<'py> PyTime<'py> {
                 tzinfo.map_or(std::ptr::null_mut(), |any| any.as_ptr()),
                 ffi::PyDateTimeAPI.TimeType,
             );
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 
@@ -243,7 +242,7 @@ impl<'py> PyTime<'py> {
         microsecond: u32,
         tzinfo: Option<&PyAny>,
         fold: bool,
-    ) -> PyResult<PyOwned<'py, Time>> {
+    ) -> PyResult<PyTime<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.Time_FromTimeAndFold)(
                 c_int::from(hour),
@@ -254,7 +253,7 @@ impl<'py> PyTime<'py> {
                 fold as c_int,
                 ffi::PyDateTimeAPI.TimeType,
             );
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 }
@@ -286,12 +285,12 @@ impl PyTimeAccess for PyTime<'_> {
 ///
 /// This is an abstract base class and should not be constructed directly.
 #[repr(transparent)]
-pub struct PyTzInfo<'py>(TzInfo, Python<'py>);
+pub struct PyTzInfo<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyTzInfo<'py>, TzInfo, 'py);
 
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
-pub struct PyTimeDelta<'py>(TimeDelta, Python<'py>);
+pub struct PyTimeDelta<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyTimeDelta<'py>, TimeDelta, 'py);
 
 impl<'py> PyTimeDelta<'py> {
@@ -301,7 +300,7 @@ impl<'py> PyTimeDelta<'py> {
         seconds: i32,
         microseconds: i32,
         normalize: bool,
-    ) -> PyResult<PyOwned<'py, TimeDelta>> {
+    ) -> PyResult<PyTimeDelta<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.Delta_FromDelta)(
                 days as c_int,
@@ -310,7 +309,7 @@ impl<'py> PyTimeDelta<'py> {
                 normalize as c_int,
                 ffi::PyDateTimeAPI.DeltaType,
             );
-            PyOwned::from_raw_or_fetch_err(py, ptr)
+            PyAny::from_raw_or_fetch_err(py, ptr).map(Self)
         }
     }
 }

@@ -1,4 +1,3 @@
-pub mod owned;
 pub mod objects;
 
 pub use objects::{FromPyObject, PyTryFrom, PyNativeObject};
