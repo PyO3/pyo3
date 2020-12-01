@@ -66,6 +66,9 @@ E.g., if you set `abi3-py36` feature, you can build `cp36-abi3-manylinux2020_x86
 To ensure ABI compatibility, we don't allow setting a minimum version higher than the system Python version.
 E.g., if you set `abi3-py38` and try to compile the crate with Python 3.6, it just fails.
 
+As an advanced feature, you can build PyO3 wheel without calling Python interpreter with
+the environment variable `PYO3_NO_INTERPRETER` set, but this only works on *NIX.
+
 ## Cross Compiling
 
 Cross compiling PyO3 modules is relatively straightforward and requires a few pieces of software:

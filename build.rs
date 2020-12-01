@@ -836,7 +836,25 @@ fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<(
     Ok(())
 }
 
+fn abi3_without_interpreter() -> Result<()> {
+    println!("cargo:rustc-cfg=Py_LIMITED_API");
+    let mut flags = "FLAG_WITH_THREAD=1".to_string();
+    for minor in PY3_MIN_MINOR..=ABI3_MAX_MINOR {
+        println!("cargo:rustc-cfg=Py_3_{}", minor);
+        flags += &format!(",CFG_Py_3_{}", minor);
+    }
+    println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
+    println!("cargo:python_flags={}", flags);
+    Ok(())
+}
+
 fn main() -> Result<()> {
+    // If PYO3_NO_INTEPRETER is set with abi3, we can build PyO3 without calling Python (UNIX only).
+    if env::var_os("PYO3_NO_INTERPRETER").is_some()
+        && env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()
+    {
+        return abi3_without_interpreter();
+    }
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
     // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
     // and threading interfaces.  First check if we're cross compiling, if so, we cannot run the
