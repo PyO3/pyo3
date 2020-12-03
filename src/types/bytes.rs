@@ -94,7 +94,7 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
 
 impl<'a> FromPyObject<'a> for &'a [u8] {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(obj))
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 #[cfg(test)]

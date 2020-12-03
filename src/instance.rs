@@ -6,8 +6,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, objects::PyNativeObject, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer,
-    PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, objects::PyNativeObject, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -137,7 +137,7 @@ where
     T: PyNativeType,
 {
     #[inline]
-    pub fn as_object<'a, 'py, O>(&'a self, py: Python<'py>) -> &'a O
+    pub fn as_object<'a, 'py, O>(&'a self, _py: Python<'py>) -> &'a O
     where
         O: PyNativeObject<'py, NativeType = T>,
     {
@@ -589,7 +589,7 @@ where
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a crate::experimental::objects::PyAny) -> PyResult<Self> {
-        ob.as_ty_ref().extract()
+        ob.as_owned_ref().extract()
     }
 }
 

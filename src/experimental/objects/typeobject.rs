@@ -4,7 +4,12 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::type_object::PyTypeObject;
-use crate::{ffi, objects::{PyNativeObject, PyAny, PyStr}, types::Type, AsPyPointer, Python};
+use crate::{
+    ffi,
+    objects::{PyAny, PyNativeObject, PyStr},
+    types::Type,
+    AsPyPointer, Python,
+};
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]

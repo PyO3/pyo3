@@ -3,16 +3,11 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{
-    ffi,
-    objects::PyAny,
-    types::Iterator,
-    AsPyPointer, PyErr, PyResult, Python, objects::PyNativeObject
+    ffi, objects::PyAny, objects::PyNativeObject, types::Iterator, AsPyPointer, PyErr, PyResult,
+    Python,
 };
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-use crate::{
-    objects::PyTryFrom,
-    PyDowncastError,
-};
+use crate::{objects::PyTryFrom, PyDowncastError};
 
 /// A Python iterator object.
 ///
@@ -115,7 +110,7 @@ mod tests {
     use crate::gil::GILPool;
     use crate::objects::{PyDict, PyList, PyNativeObject};
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-    use crate::{Py, PyAny, objects::PyTryFrom};
+    use crate::{objects::PyTryFrom, Py, PyAny};
     use crate::{Python, ToPyObject};
     use indoc::indoc;
 
@@ -199,9 +194,12 @@ mod tests {
         let py = gil.python();
 
         let context = PyDict::new(py);
-        py.run(fibonacci_generator, None, Some(context.as_ty_ref())).unwrap();
+        py.run(fibonacci_generator, None, Some(context.as_owned_ref()))
+            .unwrap();
 
-        let generator = py.eval("fibonacci(5)", None, Some(context.as_ty_ref())).unwrap();
+        let generator = py
+            .eval("fibonacci(5)", None, Some(context.as_owned_ref()))
+            .unwrap();
         for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
             let actual = actual.unwrap().extract::<usize>().unwrap();
             assert_eq!(actual, *expected)

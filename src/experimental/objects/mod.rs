@@ -96,7 +96,7 @@ macro_rules! pyo3_native_object_base {
                 self.1
             }
             #[inline]
-            fn as_ty_ref(&self) -> &Self::NativeType {
+            fn as_owned_ref(&self) -> &Self::NativeType {
                 unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
             }
             #[inline]
@@ -176,7 +176,7 @@ mod typeobject;
 pub unsafe trait PyNativeObject<'py>: Sized + 'py {
     type NativeType: PyNativeType;
     fn py(&self) -> Python<'py>;
-    fn as_ty_ref(&self) -> &Self::NativeType;
+    fn as_owned_ref(&self) -> &Self::NativeType;
     fn into_ty_ref(&self) -> &'py Self::NativeType;
     #[inline]
     unsafe fn unchecked_downcast<'a>(any: &'a PyAny<'py>) -> &'a Self {
@@ -283,7 +283,7 @@ where
 {
     fn try_from(any: &'a PyAny<'py>) -> Result<&'a T, PyDowncastError<'py>> {
         unsafe {
-            if T::NativeType::is_type_of(any.as_ty_ref()) {
+            if T::NativeType::is_type_of(any.as_owned_ref()) {
                 Ok(T::try_from_unchecked(any))
             } else {
                 Err(PyDowncastError::new(any.into_ty_ref(), T::NativeType::NAME))
@@ -293,7 +293,7 @@ where
 
     fn try_from_exact(any: &'a PyAny<'py>) -> Result<&'a T, PyDowncastError<'py>> {
         unsafe {
-            if T::NativeType::is_exact_type_of(any.as_ty_ref()) {
+            if T::NativeType::is_exact_type_of(any.as_owned_ref()) {
                 Ok(T::try_from_unchecked(any))
             } else {
                 Err(PyDowncastError::new(any.into_ty_ref(), T::NativeType::NAME))
@@ -313,7 +313,7 @@ where
 {
     fn try_from(any: &'py PyAny<'py>) -> Result<&'py Self, PyDowncastError<'py>> {
         unsafe {
-            if T::is_type_of(any.as_ty_ref()) {
+            if T::is_type_of(any.as_owned_ref()) {
                 Ok(Self::try_from_unchecked(any))
             } else {
                 Err(PyDowncastError::new(any.into_ty_ref(), T::NAME))
@@ -322,7 +322,7 @@ where
     }
     fn try_from_exact(any: &'py PyAny<'py>) -> Result<&'py Self, PyDowncastError<'py>> {
         unsafe {
-            if T::is_exact_type_of(any.as_ty_ref()) {
+            if T::is_exact_type_of(any.as_owned_ref()) {
                 Ok(Self::try_from_unchecked(any))
             } else {
                 Err(PyDowncastError::new(any.into_ty_ref(), T::NAME))

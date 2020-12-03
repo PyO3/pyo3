@@ -6,7 +6,7 @@ use crate::{
     ffi,
     objects::PyAny,
     types::{CFunction, Function},
-    AsPyPointer, PyMethodDef, PyMethodType, PyResult, IntoPy,
+    AsPyPointer, IntoPy, PyMethodDef, PyMethodType, PyResult,
 };
 
 /// Represents a builtin Python function object.
@@ -86,11 +86,11 @@ impl<'py> PyCFunction<'py> {
         };
 
         unsafe {
-            PyAny::from_raw_or_fetch_err(py, ffi::PyCFunction_NewEx(
-                Box::into_raw(Box::new(def)),
-                mod_ptr,
-                module_name.as_ptr(),
-            )).map(Self)
+            PyAny::from_raw_or_fetch_err(
+                py,
+                ffi::PyCFunction_NewEx(Box::into_raw(Box::new(def)), mod_ptr, module_name.as_ptr()),
+            )
+            .map(Self)
         }
     }
 }

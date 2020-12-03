@@ -5,8 +5,8 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    objects::{PyNativeObject, PyAny},
-    types::{List},
+    objects::{PyAny, PyNativeObject},
+    types::List,
     AsPyPointer, IntoPy, IntoPyPointer, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 /// Represents a Python `list`.
@@ -17,10 +17,7 @@ pyo3_native_object!(PyList<'py>, List, 'py);
 
 impl<'py> PyList<'py> {
     /// Constructs a new list with the given elements.
-    pub fn new<T, U>(
-        py: Python<'py>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Self
+    pub fn new<T, U>(py: Python<'py>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Self
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,

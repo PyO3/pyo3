@@ -4,9 +4,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::{
     exceptions,
     objects::{FromPyObject, PyAny, PyNativeObject, PyTryFrom},
-    types::{Tuple},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyErr, PyObject, PyResult,
-    Python, ToPyObject,
+    types::Tuple,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `tuple` object.
@@ -18,10 +17,7 @@ pyo3_native_object!(PyTuple<'py>, Tuple, 'py);
 
 impl<'py> PyTuple<'py> {
     /// Constructs a new tuple with the given elements.
-    pub fn new<T, U>(
-        py: Python<'py>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Self
+    pub fn new<T, U>(py: Python<'py>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Self
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -58,7 +54,10 @@ impl<'py> PyTuple<'py> {
     /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
     pub fn slice(&self, low: isize, high: isize) -> Self {
         unsafe {
-            Self(PyAny::from_raw_or_panic(self.py(), ffi::PyTuple_GetSlice(self.as_ptr(), low, high)))
+            Self(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyTuple_GetSlice(self.as_ptr(), low, high),
+            ))
         }
     }
 
@@ -76,7 +75,10 @@ impl<'py> PyTuple<'py> {
     pub fn get_item(&self, index: usize) -> PyAny<'py> {
         assert!(index < self.len());
         unsafe {
-            PyAny::from_borrowed_ptr_or_panic(self.py(), ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+            PyAny::from_borrowed_ptr_or_panic(
+                self.py(),
+                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t),
+            )
         }
     }
 
@@ -249,7 +251,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::objects::{PyTuple, PyTryFrom};
+    use crate::objects::{PyTryFrom, PyTuple};
     use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 

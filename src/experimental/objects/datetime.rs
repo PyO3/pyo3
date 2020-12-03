@@ -7,7 +7,7 @@
 
 use crate::{
     ffi,
-    objects::{PyTuple, PyAny},
+    objects::{PyAny, PyTuple},
     types::{Date, DateTime, Time, TimeDelta, TzInfo},
     AsPyPointer, PyObject, PyResult, Python, ToPyObject,
 };
@@ -52,7 +52,7 @@ pub struct PyDate<'py>(pub(crate) PyAny<'py>);
 pyo3_native_object!(PyDate<'py>, Date, 'py);
 
 impl<'py> PyDate<'py> {
-    pub fn new<'p>(py: Python<'py>, year: i32, month: u8, day: u8) -> PyResult<PyDate<'py>> {
+    pub fn new(py: Python<'py>, year: i32, month: u8, day: u8) -> PyResult<PyDate<'py>> {
         unsafe {
             let ptr = (ffi::PyDateTimeAPI.Date_FromDate)(
                 year,

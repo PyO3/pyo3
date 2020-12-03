@@ -24,7 +24,12 @@ impl<'py> PyBytes<'py> {
     pub fn new(py: Python<'py>, s: &[u8]) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyBytes_FromStringAndSize(ptr, len))) }
+        unsafe {
+            Self(PyAny::from_raw_or_panic(
+                py,
+                ffi::PyBytes_FromStringAndSize(ptr, len),
+            ))
+        }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.

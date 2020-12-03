@@ -2,11 +2,9 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::objects::PyAny;
-use crate::objects::{FromPyObject, PyNativeObject, PyList};
+use crate::objects::{FromPyObject, PyList, PyNativeObject};
 use crate::types::Dict;
-use crate::{
-    ffi, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::{ffi, AsPyPointer, IntoPy, PyObject, Python, ToBorrowedObject, ToPyObject};
 use std::collections::{BTreeMap, HashMap};
 use std::{cmp, collections, hash};
 
@@ -45,7 +43,9 @@ impl<'py> PyDict<'py> {
     ///
     /// This is equivalent to the Python expression `dict(self)`.
     pub fn copy(&self) -> PyResult<Self> {
-        unsafe { PyAny::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())).map(Self) }
+        unsafe {
+            PyAny::from_raw_or_fetch_err(self.py(), ffi::PyDict_Copy(self.as_ptr())).map(Self)
+        }
     }
 
     /// Empties an existing dictionary of all key-value pairs.
@@ -128,21 +128,36 @@ impl<'py> PyDict<'py> {
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
     pub fn keys(&self) -> PyList<'py> {
-        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Keys(self.as_ptr()))) }
+        unsafe {
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Keys(self.as_ptr()),
+            ))
+        }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
     pub fn values(&self) -> PyList<'py> {
-        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Values(self.as_ptr()))) }
+        unsafe {
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Values(self.as_ptr()),
+            ))
+        }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
     pub fn items(&self) -> PyList<'py> {
-        unsafe { PyList(PyAny::from_raw_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr()))) }
+        unsafe {
+            PyList(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyDict_Items(self.as_ptr()),
+            ))
+        }
     }
 
     /// Returns an iterator of `(key, value)` pairs in this dictionary.
@@ -425,10 +440,10 @@ mod hashbrown_hashmap_conversion {
 mod test {
     use super::*;
     use crate::conversion::IntoPy;
+    use crate::experimental::PyTryFrom;
     #[cfg(not(PyPy))]
     use crate::objects::PyList;
     use crate::objects::{PyDict, PyTuple};
-    use crate::experimental::PyTryFrom;
     use crate::PyObject;
     use crate::Python;
     use crate::ToPyObject;

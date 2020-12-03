@@ -6,7 +6,7 @@ use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
-use crate::objects::{PyCFunction, PyDict, PyList, PyNativeObject, PyAny};
+use crate::objects::{PyAny, PyCFunction, PyDict, PyList, PyNativeObject};
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::{

@@ -107,8 +107,8 @@ where
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for &'source str {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(ob))
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 
@@ -116,13 +116,13 @@ impl<'source> FromPyObject<'source> for &'source str {
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(obj))
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 
 impl FromPyObject<'_> for char {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(obj))
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 

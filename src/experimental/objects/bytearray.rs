@@ -18,7 +18,12 @@ impl<'py> PyByteArray<'py> {
     pub fn new(py: Python<'py>, src: &[u8]) -> Self {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
-        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyByteArray_FromStringAndSize(ptr, len))) }
+        unsafe {
+            Self(PyAny::from_raw_or_panic(
+                py,
+                ffi::PyByteArray_FromStringAndSize(ptr, len),
+            ))
+        }
     }
 
     /// Creates a new Python `bytearray` object with an `init` closure to write its contents.
@@ -67,7 +72,9 @@ impl<'py> PyByteArray<'py> {
     where
         I: AsPyPointer,
     {
-        unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyByteArray_FromObject(src.as_ptr())).map(Self) }
+        unsafe {
+            PyAny::from_raw_or_fetch_err(py, ffi::PyByteArray_FromObject(src.as_ptr())).map(Self)
+        }
     }
 
     /// Gets the length of the bytearray.
@@ -133,7 +140,7 @@ impl<'py> PyByteArray<'py> {
     ///
     /// ```
     /// # use pyo3::experimental::prelude::*;
-    /// # use pyo3::experimental::objects::{PyByteArray, IntoPyDict};
+    /// # use pyo3::experimental::objects::{PyByteArray, IntoPyDict, PyNativeObject};
     /// # let gil = Python::acquire_gil();
     /// # let py = gil.python();
     /// #
@@ -145,7 +152,7 @@ impl<'py> PyByteArray<'py> {
     /// assert_eq!(b"Hello World!", copied_message.as_slice());
     ///
     /// let locals = [("bytearray", bytearray)].into_py_dict(py);
-    /// py.run("assert bytearray == b'Hello World.'", None, Some(locals.as_ref())).unwrap();
+    /// py.run("assert bytearray == b'Hello World.'", None, Some(locals.as_owned_ref())).unwrap();
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         unsafe { self.as_bytes() }.to_vec()

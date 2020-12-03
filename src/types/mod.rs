@@ -161,7 +161,7 @@ macro_rules! pyobject_native_type_extract {
         impl<'py, $($type_param,)*> $crate::experimental::FromPyObject<'py, 'py> for &'py $name {
             fn extract(obj: &'py $crate::experimental::objects::PyAny<'py>) -> $crate::PyResult<Self> {
                 use $crate::experimental::PyNativeObject;
-                $crate::PyTryFrom::try_from(obj.as_ty_ref()).map_err(Into::into)
+                $crate::PyTryFrom::try_from(obj.as_owned_ref()).map_err(Into::into)
             }
         }
     }

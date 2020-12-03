@@ -264,10 +264,7 @@ impl<'py> PyFrozenSet<'py> {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new<T: ToPyObject>(
-        py: Python<'py>,
-        elements: &[T],
-    ) -> PyResult<Self> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
         unsafe { PyAny::from_raw_or_fetch_err(py, ffi::PyFrozenSet_New(list.as_ptr())).map(Self) }
     }
@@ -398,7 +395,7 @@ mod hashbrown_hashset_conversion {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{IntoPy, PyObject, Python, ToPyObject, objects::PyTryFrom};
+    use crate::{objects::PyTryFrom, IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 

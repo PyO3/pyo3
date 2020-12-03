@@ -1,6 +1,6 @@
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use crate::objects::PyNativeObject;
-use crate::{ffi, types::Complex, AsPyPointer, Python, objects::PyAny};
+use crate::{ffi, objects::PyAny, types::Complex, AsPyPointer, Python};
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 use std::ops::*;
 use std::os::raw::c_double;
@@ -14,7 +14,12 @@ pyo3_native_object!(PyComplex<'py>, Complex, 'py);
 impl<'py> PyComplex<'py> {
     /// Creates a new Python `complex` object, from its real and imaginary values.
     pub fn from_doubles(py: Python<'py>, real: c_double, imag: c_double) -> Self {
-        unsafe { Self(PyAny::from_raw_or_panic(py, ffi::PyComplex_FromDoubles(real, imag))) }
+        unsafe {
+            Self(PyAny::from_raw_or_panic(
+                py,
+                ffi::PyComplex_FromDoubles(real, imag),
+            ))
+        }
     }
     /// Returns the real part of the complex number.
     pub fn real(&self) -> c_double {
@@ -35,7 +40,12 @@ impl<'py> PyComplex<'py> {
     /// Returns `self ** other`
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn pow(&self, other: &PyComplex) -> Self {
-        unsafe { Self(PyAny::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_pow))) }
+        unsafe {
+            Self(PyAny::from_raw_or_panic(
+                self.py(),
+                complex_operation(self, other, ffi::_Py_c_pow),
+            ))
+        }
     }
 }
 
@@ -56,7 +66,10 @@ impl<'py> Add<&PyComplex<'_>> for &'_ PyComplex<'py> {
     type Output = PyComplex<'py>;
     fn add(self, other: &PyComplex) -> PyComplex<'py> {
         unsafe {
-            PyComplex(PyAny::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_sum)))
+            PyComplex(PyAny::from_raw_or_panic(
+                self.py(),
+                complex_operation(self, other, ffi::_Py_c_sum),
+            ))
         }
     }
 }
@@ -66,7 +79,10 @@ impl<'py> Sub<&PyComplex<'_>> for &'_ PyComplex<'py> {
     type Output = PyComplex<'py>;
     fn sub(self, other: &PyComplex) -> PyComplex<'py> {
         unsafe {
-            PyComplex(PyAny::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_diff)))
+            PyComplex(PyAny::from_raw_or_panic(
+                self.py(),
+                complex_operation(self, other, ffi::_Py_c_diff),
+            ))
         }
     }
 }
@@ -76,7 +92,10 @@ impl<'py> Mul<&PyComplex<'_>> for &'_ PyComplex<'py> {
     type Output = PyComplex<'py>;
     fn mul(self, other: &PyComplex) -> PyComplex<'py> {
         unsafe {
-            PyComplex(PyAny::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_prod)))
+            PyComplex(PyAny::from_raw_or_panic(
+                self.py(),
+                complex_operation(self, other, ffi::_Py_c_prod),
+            ))
         }
     }
 }
@@ -85,7 +104,10 @@ impl<'py> Div<&PyComplex<'_>> for &'_ PyComplex<'py> {
     type Output = PyComplex<'py>;
     fn div(self, other: &PyComplex) -> PyComplex<'py> {
         unsafe {
-            PyComplex(PyAny::from_raw_or_panic(self.py(), complex_operation(self, other, ffi::_Py_c_quot)))
+            PyComplex(PyAny::from_raw_or_panic(
+                self.py(),
+                complex_operation(self, other, ffi::_Py_c_quot),
+            ))
         }
     }
 }
@@ -96,7 +118,10 @@ impl<'py> Neg for &'_ PyComplex<'py> {
     fn neg(self) -> PyComplex<'py> {
         unsafe {
             let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
-            PyComplex(PyAny::from_raw_or_panic(self.py(), ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val))))
+            PyComplex(PyAny::from_raw_or_panic(
+                self.py(),
+                ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)),
+            ))
         }
     }
 }

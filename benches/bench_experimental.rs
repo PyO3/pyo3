@@ -1,9 +1,9 @@
 #![feature(test)]
 
 extern crate test;
-use pyo3::experimental::objects::{IntoPyDict, PyList, PyTuple, PySet};
+use pyo3::experimental::objects::{IntoPyDict, PyList, PySet, PyTuple};
 use pyo3::experimental::prelude::*;
-use std::collections::{BTreeMap, HashMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use test::Bencher;
 
 macro_rules! test_module {

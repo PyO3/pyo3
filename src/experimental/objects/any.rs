@@ -3,9 +3,9 @@ use crate::conversion::{AsPyPointer, IntoPy, ToBorrowedObject, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::objects::{FromPyObject, PyNativeObject, PyTryFrom};
+use crate::objects::{PyDict, PyIterator, PyList, PyStr, PyType};
 use crate::type_object::PyTypeObject;
 use crate::types::{Any, Tuple};
-use crate::objects::{PyDict, PyIterator, PyType, PyStr, PyList};
 use crate::{err, ffi, Py, PyObject, Python};
 use libc::c_int;
 use std::cmp::Ordering;
@@ -179,11 +179,7 @@ impl<'py> PyAny<'py> {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    pub fn rich_compare<O>(
-        &self,
-        other: O,
-        compare_op: CompareOp,
-    ) -> PyResult<Self>
+    pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<Self>
     where
         O: ToPyObject,
     {
@@ -203,11 +199,7 @@ impl<'py> PyAny<'py> {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    pub fn call(
-        &self,
-        args: impl IntoPy<Py<Tuple>>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<Self> {
+    pub fn call(&self, args: impl IntoPy<Py<Tuple>>, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let args = args.into_py(self.py());
         let kwargs_ptr = kwargs.map_or(std::ptr::null_mut(), |dict| dict.as_ptr());
         unsafe {
@@ -237,13 +229,13 @@ impl<'py> PyAny<'py> {
     /// # Example
     /// ```rust
     /// # use pyo3::experimental::prelude::*;
-    /// use pyo3::experimental::objects::IntoPyDict;
+    /// use pyo3::experimental::objects::{IntoPyDict, PyNativeObject};
     ///
     /// let gil = Python::acquire_gil();
     /// let py = gil.python();
     /// let list = vec![3, 6, 5, 4, 7].to_object(py);
     /// let dict = vec![("reverse", true)].into_py_dict(py);
-    /// list.call_method(py, "sort", (), Some(dict.as_ref())).unwrap();
+    /// list.call_method(py, "sort", (), Some(dict.as_owned_ref())).unwrap();
     /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     ///
     /// let new_element = 1.to_object(py);
@@ -281,11 +273,7 @@ impl<'py> PyAny<'py> {
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
-    pub fn call_method1(
-        &self,
-        name: &str,
-        args: impl IntoPy<Py<Tuple>>,
-    ) -> PyResult<Self> {
+    pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<Tuple>>) -> PyResult<Self> {
         self.call_method(name, args, None)
     }
 
@@ -364,7 +352,12 @@ impl<'py> PyAny<'py> {
 
     /// Returns the Python type object for this object's type.
     pub fn get_type(&self) -> PyType<'py> {
-        unsafe { PyType(PyAny::from_borrowed_ptr_or_panic(self.py(), ffi::Py_TYPE(self.as_ptr()) as _)) }
+        unsafe {
+            PyType(PyAny::from_borrowed_ptr_or_panic(
+                self.py(),
+                ffi::Py_TYPE(self.as_ptr()) as _,
+            ))
+        }
     }
 
     /// Returns the Python type pointer for this object.
@@ -382,14 +375,18 @@ impl<'py> PyAny<'py> {
     ///
     /// This is equivalent to the Python expression `repr(self)`.
     pub fn repr(&self) -> PyResult<PyStr<'py>> {
-        unsafe { Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Repr(self.as_ptr())).map(PyStr) }
+        unsafe {
+            Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Repr(self.as_ptr())).map(PyStr)
+        }
     }
 
     /// Computes the "str" representation of self.
     ///
     /// This is equivalent to the Python expression `str(self)`.
     pub fn str(&self) -> PyResult<PyStr<'py>> {
-        unsafe { Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Str(self.as_ptr())).map(PyStr) }
+        unsafe {
+            Self::from_raw_or_fetch_err(self.py(), ffi::PyObject_Str(self.as_ptr())).map(PyStr)
+        }
     }
 
     /// Retrieves the hash code of self.
@@ -420,7 +417,12 @@ impl<'py> PyAny<'py> {
     ///
     /// This is equivalent to the Python expression `dir(self)`.
     pub fn dir(&self) -> PyList<'py> {
-        unsafe { PyList(Self::from_raw_or_panic(self.py(), ffi::PyObject_Dir(self.as_ptr()))) }
+        unsafe {
+            PyList(Self::from_raw_or_panic(
+                self.py(),
+                ffi::PyObject_Dir(self.as_ptr()),
+            ))
+        }
     }
 
     /// Checks whether this object is an instance of type `T`.
@@ -430,8 +432,9 @@ impl<'py> PyAny<'py> {
         T::type_object(self.py()).is_instance(self)
     }
 
-    pub(crate) fn from_type_any(any: &'py Any) -> &'py Self {
-        unsafe { std::mem::transmute(any) }
+    pub(crate) fn from_type_any(any: &&'py Any) -> &'py Self {
+
+        unsafe { &*(any as *const &'py Any as *const Self) }
     }
 
     /// CONVERSION FUNCTIONS
@@ -482,9 +485,10 @@ impl<'py> PyAny<'py> {
 
 #[cfg(test)]
 mod test {
-    use crate::objects::{IntoPyDict, PyNativeObject, PyAny};
-    use crate::types::{List, Int};
-    use crate::{Python, ToPyObject};
+    use crate::experimental::ToPyObject;
+    use crate::objects::IntoPyDict;
+    use crate::types::{Int, List};
+    use crate::Python;
 
     #[test]
     fn test_call_for_non_existing_method() {
@@ -503,8 +507,8 @@ mod test {
         let py = gil.python();
         let list = vec![3, 6, 5, 4, 7].to_object(py);
         let dict = vec![("reverse", true)].into_py_dict(py);
-        list.call_method(py, "sort", (), Some(dict.as_ty_ref())).unwrap();
-        assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+        list.call_method("sort", (), Some(&dict)).unwrap();
+        assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
     }
 
     #[test]
@@ -547,10 +551,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let x: PyAny = 5.to_object(py).into_object(py);
+        let x = 5.to_object(py);
         assert!(x.is_instance::<Int>().unwrap());
 
-        let l = vec![&x, &x].to_object(py).into_ref(py);
+        let l = vec![&x, &x].to_object(py);
         assert!(l.is_instance::<List>().unwrap());
     }
 }

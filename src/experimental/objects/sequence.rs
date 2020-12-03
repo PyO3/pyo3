@@ -6,7 +6,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::types::Sequence;
 use crate::AsPyPointer;
 use crate::{
-    objects::{FromPyObject, PyAny, PyNativeObject, PyTryFrom, PyList, PyTuple},
+    objects::{FromPyObject, PyAny, PyList, PyNativeObject, PyTryFrom, PyTuple},
     ToBorrowedObject,
 };
 
@@ -40,10 +40,11 @@ impl<'py> PySequence<'py> {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<Self> {
         unsafe {
-            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_Concat(
-                self.as_ptr(),
-                other.as_ptr(),
-            )).map(Self)
+            PyAny::from_raw_or_fetch_err(
+                self.py(),
+                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()),
+            )
+            .map(Self)
         }
     }
 
@@ -54,10 +55,11 @@ impl<'py> PySequence<'py> {
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<Self> {
         unsafe {
-            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_Repeat(
-                self.as_ptr(),
-                count as Py_ssize_t,
-            )).map(Self)
+            PyAny::from_raw_or_fetch_err(
+                self.py(),
+                ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t),
+            )
+            .map(Self)
         }
     }
 
@@ -98,7 +100,10 @@ impl<'py> PySequence<'py> {
     #[inline]
     pub fn get_item(&self, index: isize) -> PyResult<PyAny<'py>> {
         unsafe {
-            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
+            PyAny::from_raw_or_fetch_err(
+                self.py(),
+                ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t),
+            )
         }
     }
 
@@ -108,11 +113,10 @@ impl<'py> PySequence<'py> {
     #[inline]
     pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<PyAny<'py>> {
         unsafe {
-            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_GetSlice(
-                self.as_ptr(),
-                begin as Py_ssize_t,
-                end as Py_ssize_t,
-            ))
+            PyAny::from_raw_or_fetch_err(
+                self.py(),
+                ffi::PySequence_GetSlice(self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t),
+            )
         }
     }
 
@@ -244,7 +248,8 @@ impl<'py> PySequence<'py> {
     #[inline]
     pub fn tuple(&self) -> PyResult<PyTuple<'py>> {
         unsafe {
-            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_Tuple(self.as_ptr())).map(PyTuple)
+            PyAny::from_raw_or_fetch_err(self.py(), ffi::PySequence_Tuple(self.as_ptr()))
+                .map(PyTuple)
         }
     }
 }
@@ -387,7 +392,7 @@ impl<'a, 'py> PyTryFrom<'a, 'py> for PySequence<'py> {
 
 #[cfg(test)]
 mod test {
-    use crate::objects::{PySequence, PyTryFrom, PyAny};
+    use crate::objects::{PyAny, PySequence, PyTryFrom};
     use crate::AsPyPointer;
     use crate::Python;
     use crate::{PyObject, ToPyObject};
@@ -735,11 +740,17 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = vec![1].to_object(py);
-        let seq = list.as_object::<PyAny>(py).downcast::<PySequence>().unwrap();
+        let seq = list
+            .as_object::<PyAny>(py)
+            .downcast::<PySequence>()
+            .unwrap();
         assert_eq!(seq.is_empty().unwrap(), false);
         let vec: Vec<u32> = Vec::new();
         let empty_list = vec.to_object(py);
-        let empty_seq = empty_list.as_object::<PyAny>(py).downcast::<PySequence>().unwrap();
+        let empty_seq = empty_list
+            .as_object::<PyAny>(py)
+            .downcast::<PySequence>()
+            .unwrap();
         assert_eq!(empty_seq.is_empty().unwrap(), true);
     }
 }
