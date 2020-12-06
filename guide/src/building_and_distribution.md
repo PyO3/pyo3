@@ -60,11 +60,10 @@ pyo3 = { version = "...", features = ["abi3"]}
 
 ### Minimum Python version for `abi3`
 
-We provide `abi3-py36`/`abi3-py37`/... features to set the minimum required Python version for abi3 wheel.
-E.g., if you set `abi3-py36` feature, you can build `cp36-abi3-manylinux2020_x86_64.whl` using Python 3.8.
-
-To ensure ABI compatibility, we don't allow setting a minimum version higher than the system Python version.
-E.g., if you set `abi3-py38` and try to compile the crate with Python 3.6, it just fails.
+Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py36`, `abi3-py37`, `abi-py38` etc. to set the minimum required Python version for your `abi3` wheel.
+For example, if you set the `abi3-py36` feature, your extension wheel can be used on all Python 3 versions from Python 3.6 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp36-abi3-manylinux2020_x86_64.whl`.
+If you set more that one of these api version feature flags the highest version always wins. For example, with both `abi3-py36` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.8 and up.
+PyO3 is only able to link your extension module to api3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.6, the build will fail.
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with
 the environment variable `PYO3_NO_INTERPRETER` set, but this only works on *NIX.
@@ -118,4 +117,3 @@ For an example of how to build python extensions using Bazel, see https://github
 
 [maturin]: https://github.com/PyO3/maturin
 [setuptools-rust]: https://github.com/PyO3/setuptools-rust
-
