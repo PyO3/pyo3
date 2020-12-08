@@ -9,7 +9,10 @@ use std::{
     str::FromStr,
 };
 
-const PY3_MIN_MINOR: u8 = 5;
+/// Minimum required Python version.
+const PY3_MIN_MINOR: u8 = 6;
+/// Maximum Python version that can be used as minimum required Python version with abi3.
+const ABI3_MAX_MINOR: u8 = 9;
 const CFG_KEY: &str = "py_sys_config";
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -784,12 +787,25 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         bail!("Python 2 is not supported");
     }
 
-    if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+    let minor = if env::var_os("CARGO_FEATURE_ABI3").is_some() {
         println!("cargo:rustc-cfg=Py_LIMITED_API");
-    }
+        // Check any `abi3-py3*` feature is set. If not, use the interpreter version.
+        let abi3_minor = (PY3_MIN_MINOR..=ABI3_MAX_MINOR)
+            .find(|i| env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
+        match (abi3_minor, interpreter_config.version.minor) {
+            (Some(abi3_minor), Some(interpreter_minor)) if abi3_minor > interpreter_minor => bail!(
+                "You cannot set a mininimum Python version {} higher than the interpreter version {}",
+                abi3_minor,
+                interpreter_minor
+            ),
+            _ => abi3_minor.or(interpreter_config.version.minor),
+        }
+    } else {
+        interpreter_config.version.minor
+    };
 
-    if let Some(minor) = interpreter_config.version.minor {
-        for i in 6..=minor {
+    if let Some(minor) = minor {
+        for i in PY3_MIN_MINOR..=minor {
             println!("cargo:rustc-cfg=Py_3_{}", i);
             flags += format!("CFG_Py_3_{},", i).as_ref();
         }
@@ -834,7 +850,26 @@ fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<(
     Ok(())
 }
 
+fn abi3_without_interpreter() -> Result<()> {
+    println!("cargo:rustc-cfg=Py_LIMITED_API");
+    let mut flags = "FLAG_WITH_THREAD=1".to_string();
+    for minor in PY3_MIN_MINOR..=ABI3_MAX_MINOR {
+        println!("cargo:rustc-cfg=Py_3_{}", minor);
+        flags += &format!(",CFG_Py_3_{}", minor);
+    }
+    println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
+    println!("cargo:python_flags={}", flags);
+    Ok(())
+}
+
 fn main() -> Result<()> {
+    // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python (UNIX only).
+    // We only check for the abi3-py3{ABI3_MAX_MINOR} because lower versions depend on it.
+    if env::var_os("PYO3_NO_PYTHON").is_some()
+        && env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()
+    {
+        return abi3_without_interpreter();
+    }
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
     // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
     // and threading interfaces.  First check if we're cross compiling, if so, we cannot run the
