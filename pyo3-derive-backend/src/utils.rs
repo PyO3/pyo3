@@ -76,9 +76,9 @@ fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
     }
 }
 
-pub fn parse_text_signature_attrs<T: Display + quote::ToTokens + ?Sized>(
+pub fn parse_text_signature_attrs(
     attrs: &mut Vec<syn::Attribute>,
-    python_name: &T,
+    python_name: &syn::Ident,
 ) -> syn::Result<Option<syn::LitStr>> {
     let mut text_signature = None;
     let mut attrs_out = Vec::with_capacity(attrs.len());

@@ -66,7 +66,7 @@ fn class_with_docstr() {
     }
 }
 
-#[pyclass(name=CustomName)]
+#[pyclass(name = "CustomName")]
 struct EmptyClass2 {}
 
 #[pymethods]

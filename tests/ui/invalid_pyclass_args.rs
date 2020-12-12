@@ -9,6 +9,12 @@ struct InvalidExtends {}
 #[pyclass(name = m::MyClass)]
 struct InvalidName {}
 
+#[pyclass(name = "Custom Name")]
+struct InvalidName2 {}
+
+#[pyclass(name = CustomName)]
+struct DeprecatedName {}
+
 #[pyclass(module = my_module)]
 struct InvalidModule {}
 
