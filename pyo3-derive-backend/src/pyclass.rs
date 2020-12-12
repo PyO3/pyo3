@@ -15,7 +15,7 @@ use syn::{parse_quote, Expr, Token};
 /// The parsed arguments of the pyclass macro
 pub struct PyClassArgs {
     pub freelist: Option<syn::Expr>,
-    pub name: Option<syn::ExprPath>,
+    pub name: Option<syn::Ident>,
     pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
     pub has_extends: bool,
@@ -96,15 +96,26 @@ impl PyClassArgs {
                     lit: syn::Lit::Str(lit),
                     ..
                 }) => {
-                    self.name = match lit.parse() {
-                        Ok(name) => Some(name),
-                        Err(..) => expected!("type name (e.g., Name or \"Name\")"),
-                    }
+                    self.name = Some(lit.parse().map_err(|_| {
+                        syn::Error::new_spanned(
+                            lit,
+                            "expected a single identifier in double-quotes",
+                        )
+                    })?);
                 }
                 syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
-                    self.name = Some(exp.clone());
+                    return Err(syn::Error::new_spanned(
+                        exp,
+                        format!(
+                            concat!(
+                                "since PyO3 0.13 a pyclass name should be in double-quotes, ",
+                                "e.g. \"{}\""
+                            ),
+                            exp.path.get_ident().expect("path has 1 segment")
+                        ),
+                    ));
                 }
-                _ => expected!("type name (e.g., Name or \"Name\")"),
+                _ => expected!("type name (e.g. \"Name\")"),
             },
             "extends" => match &**right {
                 syn::Expr::Path(exp) => {
@@ -271,11 +282,8 @@ fn impl_proto_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
-fn get_class_python_name(cls: &syn::Ident, attr: &PyClassArgs) -> TokenStream {
-    match &attr.name {
-        Some(name) => quote! { #name },
-        None => quote! { #cls },
-    }
+fn get_class_python_name<'a>(cls: &'a syn::Ident, attr: &'a PyClassArgs) -> &'a syn::Ident {
+    attr.name.as_ref().unwrap_or(cls)
 }
 
 fn impl_class(

@@ -66,7 +66,7 @@ fn class_with_docstr() {
     }
 }
 
-#[pyclass(name=CustomName)]
+#[pyclass(name = "CustomName")]
 struct EmptyClass2 {}
 
 #[pymethods]
@@ -79,17 +79,12 @@ impl EmptyClass2 {
     fn bar_static() {}
 }
 
-#[pyclass(name = "CustomName")]
-struct EmptyClass3 {}
-
 #[test]
 fn custom_names() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass2>();
-    let typeobj2 = py.get_type::<EmptyClass3>();
     py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
-    py_assert!(py, typeobj2, "typeobj2.__name__ == 'CustomName'");
     py_assert!(py, typeobj, "typeobj.custom_fn.__name__ == 'custom_fn'");
     py_assert!(
         py,
