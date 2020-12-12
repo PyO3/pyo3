@@ -1,7 +1,7 @@
 use crate::ffi::object::*;
 use std::os::raw::c_int;
 
-pub enum PyWeakReference {}
+opaque_struct!(PyWeakReference);
 
 extern "C" {
     static mut _PyWeakref_RefType: PyTypeObject;

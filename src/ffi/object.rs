@@ -262,7 +262,7 @@ pub type vectorcallfunc = unsafe extern "C" fn(
 
 #[cfg(Py_LIMITED_API)]
 mod typeobject {
-    pub enum PyTypeObject {}
+    opaque_struct!(PyTypeObject);
 }
 
 #[cfg(not(Py_LIMITED_API))]

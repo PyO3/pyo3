@@ -15,7 +15,7 @@ pub struct PyCompilerFlags {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub enum _mod {}
+opaque_struct!(_mod);
 
 #[cfg(not(Py_LIMITED_API))]
 extern "C" {
@@ -90,8 +90,8 @@ extern "C" {
     ) -> *mut _mod;
 }
 
-pub enum symtable {}
-pub enum _node {}
+opaque_struct!(symtable);
+opaque_struct!(_node);
 
 #[inline]
 pub unsafe fn PyParser_SimpleParseString(s: *const c_char, b: c_int) -> *mut _node {
