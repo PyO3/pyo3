@@ -3,7 +3,7 @@ use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_uchar, c_void};
 
 #[cfg(Py_3_8)]
-pub enum _PyOpcache {}
+opaque_struct!(_PyOpcache);
 
 #[repr(C)]
 #[derive(Copy, Clone)]

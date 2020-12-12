@@ -1,1 +1,1 @@
-pub enum PyArena {}
+opaque_struct!(PyArena);

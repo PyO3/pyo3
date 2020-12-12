@@ -2,6 +2,16 @@
 #![cfg_attr(Py_LIMITED_API, allow(unused_imports))]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::inline_always))]
 
+// Until `extern type` is stabilized, use the recommended approach to
+// model opaque types:
+// https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
+macro_rules! opaque_struct {
+    ($name:ident) => {
+        #[repr(C)]
+        pub struct $name([u8; 0]);
+    };
+}
+
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
@@ -165,7 +175,7 @@ pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python
 pub mod frameobject;
 #[cfg(Py_LIMITED_API)]
 pub mod frameobject {
-    pub enum PyFrameObject {}
+    opaque_struct!(PyFrameObject);
 }
 
 pub(crate) mod datetime;
