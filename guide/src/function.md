@@ -129,6 +129,9 @@ impl MyClass {
 }
 ```
 
+Note that `text_signature` on classes is not compatible with compilation in
+`abi3` mode until Python 3.10 or greater.
+
 ### Making the function signature available to Python (old method)
 
 Alternatively, simply make sure the first line of your docstring is
