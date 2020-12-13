@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix FFI definitions for `PyObject_Vectorcall` and `PyVectorcall_Call`. [#1287](https://github.com/PyO3/pyo3/pull/1285)
 - Fix building with Anaconda python inside a virtualenv. [#1290](https://github.com/PyO3/pyo3/pull/1290)
 - Fix definition of opaque FFI types. [#1312](https://github.com/PyO3/pyo3/pull/1312)
+- Fix using custom error type in pyclass `#[new]` methods. [#1319](https://github.com/PyO3/pyo3/pull/1319)
 
 ## [0.12.4] - 2020-11-28
 ### Fixed
