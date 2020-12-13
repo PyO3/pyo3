@@ -103,7 +103,7 @@ jobs:
         run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-derive-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
+        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
 
       - name: Install python test dependencies
         run: |

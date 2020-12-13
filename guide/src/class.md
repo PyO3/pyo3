@@ -706,7 +706,7 @@ pyclass dependent on whether there is an impl block, we'd need to implement the 
 `#[pyclass]` and override the implementation in `#[pymethods]`.
 To enable this, we use a static registry type provided by [inventory](https://github.com/dtolnay/inventory),
 which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick.
-See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class` for more details.
+See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_macros_backend::py_class` for more details.
 Also for `#[pyproto]`, we use a similar, but more task-specific registry and
 initialize it using the [ctor](https://github.com/mmastrac/rust-ctor) crate.
 

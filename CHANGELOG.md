@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Bump minimum supported Rust version to 1.45. [#1272](https://github.com/PyO3/pyo3/pull/1272)
 - Bump indoc dependency to 1.0. [#1272](https://github.com/PyO3/pyo3/pull/1272)
 - Bump paste dependency to 1.0. [#1272](https://github.com/PyO3/pyo3/pull/1272)
+- Rename internal crates `pyo3cls` and `pyo3-derive-backend` to `pyo3-macros` and `pyo3-macros-backend` respectively. [#1317](https://github.com/PyO3/pyo3/pull/1317)
 
 ### Added
 - Add support for building for CPython limited API. This required a few minor changes to runtime behaviour of of pyo3 `#[pyclass]` types. See the migration guide for full details. [#1152](https://github.com/PyO3/pyo3/pull/1152)
