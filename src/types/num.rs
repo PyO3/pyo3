@@ -216,24 +216,15 @@ mod fast_128bit_int_conversion {
     int_convert_128!(u128, 0);
 }
 
-// For ABI3 and PyPy, we implement the conversion (almost) manually.
+// For ABI3 and PyPy, we implement the conversion manually.
 #[cfg(any(Py_LIMITED_API, PyPy))]
 mod slow_128bit_int_conversion {
     use super::*;
-    use crate::types::{IntoPyDict, PyBytes};
-    const BYTE_SIZE: usize = std::mem::size_of::<i128>();
-
-    fn split_128int(bytes: [u8; BYTE_SIZE]) -> ([u8; BYTE_SIZE / 2], [u8; BYTE_SIZE / 2]) {
-        let mut first = [0u8; BYTE_SIZE / 2];
-        let mut last = [0u8; BYTE_SIZE / 2];
-        first.copy_from_slice(&bytes[..BYTE_SIZE / 2]);
-        last.copy_from_slice(&bytes[BYTE_SIZE / 2..]);
-        (first, last)
-    }
+    const SHIFT: usize = 64;
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
-        ($rust_type: ty, $half_type: ty, $is_signed: literal) => {
+        ($rust_type: ty, $half_type: ty) => {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python) -> PyObject {
@@ -243,19 +234,19 @@ mod slow_128bit_int_conversion {
 
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python) -> PyObject {
-                    let (first, last) = split_128int(self.to_le_bytes());
-                    let (first, last) =
-                        (u64::from_le_bytes(first), <$half_type>::from_le_bytes(last));
-                    let (first, last) = (first.into_py(py), last.into_py(py));
-                    let shift = 64u64.into_py(py);
+                    let lower = self as u64;
+                    let upper = (self >> SHIFT) as $half_type;
                     unsafe {
                         let shifted = PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Lshift(last.as_ptr(), shift.as_ptr()),
+                            ffi::PyNumber_Lshift(
+                                upper.into_py(py).as_ptr(),
+                                SHIFT.into_py(py).as_ptr(),
+                            ),
                         );
                         PyObject::from_owned_ptr(
                             py,
-                            ffi::PyNumber_Or(shifted.as_ptr(), first.as_ptr()),
+                            ffi::PyNumber_Or(shifted.as_ptr(), lower.into_py(py).as_ptr()),
                         )
                     }
                 }
@@ -264,30 +255,26 @@ mod slow_128bit_int_conversion {
             impl<'source> FromPyObject<'source> for $rust_type {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
                     let py = ob.py();
-                    let num: &PyLong = unsafe {
-                        crate::FromPyPointer::from_owned_ptr_or_err(
+                    unsafe {
+                        let lower = err_if_invalid_value(
                             py,
-                            ffi::PyNumber_Index(ob.as_ptr()),
-                        )
-                    }?;
-                    let mut bytes = [0u8; BYTE_SIZE];
-                    let kwargs = if $is_signed {
-                        Some([("signed", true)].into_py_dict(py))
-                    } else {
-                        None
-                    };
-                    let pybytes: &PyBytes = num
-                        .call_method("to_bytes", (bytes.len(), "little"), kwargs)?
-                        .extract()?;
-                    bytes.copy_from_slice(pybytes.as_bytes());
-                    Ok(<$rust_type>::from_le_bytes(bytes))
+                            -1 as _,
+                            ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
+                        )? as $rust_type;
+                        let shifted = PyObject::from_owned_ptr(
+                            py,
+                            ffi::PyNumber_Rshift(ob.as_ptr(), SHIFT.into_py(py).as_ptr()),
+                        );
+                        let upper: $half_type = shifted.extract(py)?;
+                        Ok((<$rust_type>::from(upper) << SHIFT) | lower)
+                    }
                 }
             }
         };
     }
 
-    int_convert_128!(i128, i64, true);
-    int_convert_128!(u128, u64, false);
+    int_convert_128!(i128, i64);
+    int_convert_128!(u128, u64);
 }
 
 #[cfg(test)]
@@ -327,19 +314,20 @@ mod test_128bit_intergers {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    fn test_u128_overflow() {
-        use crate::{exceptions, ffi, PyObject};
-        use std::os::raw::c_uchar;
+    fn test_i128_overflow() {
         Python::with_gil(|py| {
-            let overflow_bytes: [c_uchar; 20] = [255; 20];
-            unsafe {
-                let obj =
-                    ffi::_PyLong_FromByteArray(overflow_bytes.as_ptr() as *const c_uchar, 20, 1, 0);
-                let obj = PyObject::from_owned_ptr(py, obj);
-                let err = obj.extract::<u128>(py).unwrap_err();
-                assert!(err.is_instance::<exceptions::PyOverflowError>(py));
-            }
+            let obj = py.eval("(1 << 130) * -1", None, None).unwrap();
+            let err = obj.extract::<i128>().unwrap_err();
+            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
+    fn test_u128_overflow() {
+        Python::with_gil(|py| {
+            let obj = py.eval("1 << 130", None, None).unwrap();
+            let err = obj.extract::<u128>().unwrap_err();
+            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
         })
     }
 }
