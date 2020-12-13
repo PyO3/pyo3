@@ -216,24 +216,24 @@ mod fast_128bit_int_conversion {
     int_convert_128!(u128, 0);
 }
 
-// For ABI3 and PyPy, we implement the conversion using `call_method`.
+// For ABI3 and PyPy, we implement the conversion (almost) manually.
 #[cfg(any(Py_LIMITED_API, PyPy))]
 mod slow_128bit_int_conversion {
     use super::*;
-    use crate::types::{IntoPyDict, PyBytes, PyDict, PyType};
+    use crate::types::{IntoPyDict, PyBytes};
+    const BYTE_SIZE: usize = std::mem::size_of::<i128>();
 
-    // Returns `{'signed': True}` if is_signed else None
-    fn kwargs(py: Python, is_signed: bool) -> Option<&PyDict> {
-        if is_signed {
-            Some([("signed", is_signed)].into_py_dict(py))
-        } else {
-            None
-        }
+    fn split_128int(bytes: [u8; BYTE_SIZE]) -> ([u8; BYTE_SIZE / 2], [u8; BYTE_SIZE / 2]) {
+        let mut first = [0u8; BYTE_SIZE / 2];
+        let mut last = [0u8; BYTE_SIZE / 2];
+        first.copy_from_slice(&bytes[..BYTE_SIZE / 2]);
+        last.copy_from_slice(&bytes[BYTE_SIZE / 2..]);
+        (first, last)
     }
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
-        ($rust_type: ty, $is_signed: literal) => {
+        ($rust_type: ty, $half_type: ty, $is_signed: literal) => {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python) -> PyObject {
@@ -243,12 +243,21 @@ mod slow_128bit_int_conversion {
 
             impl IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python) -> PyObject {
-                    let bytes = PyBytes::new(py, &self.to_le_bytes());
-                    let longtype = unsafe { PyType::from_type_ptr(py, &mut ffi::PyLong_Type) };
-                    longtype
-                        .call_method("from_bytes", (bytes, "little"), kwargs(py, $is_signed))
-                        .expect("Integer conversion (u128/i128 to PyLong) failed")
-                        .into_py(py)
+                    let (first, last) = split_128int(self.to_le_bytes());
+                    let (first, last) =
+                        (u64::from_le_bytes(first), <$half_type>::from_le_bytes(last));
+                    let (first, last) = (first.into_py(py), last.into_py(py));
+                    let shift = 64u64.into_py(py);
+                    unsafe {
+                        let shifted = PyObject::from_owned_ptr(
+                            py,
+                            ffi::PyNumber_Lshift(last.as_ptr(), shift.as_ptr()),
+                        );
+                        PyObject::from_owned_ptr(
+                            py,
+                            ffi::PyNumber_Or(shifted.as_ptr(), first.as_ptr()),
+                        )
+                    }
                 }
             }
 
@@ -261,9 +270,14 @@ mod slow_128bit_int_conversion {
                             ffi::PyNumber_Index(ob.as_ptr()),
                         )
                     }?;
-                    let mut bytes = [0u8; std::mem::size_of::<$rust_type>()];
+                    let mut bytes = [0u8; BYTE_SIZE];
+                    let kwargs = if $is_signed {
+                        Some([("signed", true)].into_py_dict(py))
+                    } else {
+                        None
+                    };
                     let pybytes: &PyBytes = num
-                        .call_method("to_bytes", (bytes.len(), "little"), kwargs(py, $is_signed))?
+                        .call_method("to_bytes", (bytes.len(), "little"), kwargs)?
                         .extract()?;
                     bytes.copy_from_slice(pybytes.as_bytes());
                     Ok(<$rust_type>::from_le_bytes(bytes))
@@ -272,8 +286,8 @@ mod slow_128bit_int_conversion {
         };
     }
 
-    int_convert_128!(i128, true);
-    int_convert_128!(u128, false);
+    int_convert_128!(i128, i64, true);
+    int_convert_128!(u128, u64, false);
 }
 
 #[cfg(test)]
