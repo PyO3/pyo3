@@ -1,3 +1,4 @@
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -119,4 +120,33 @@ assert c.from_rust is False
     py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();
+}
+
+#[pyclass]
+#[derive(Debug)]
+struct NewWithCustomError {}
+
+struct CustomError;
+
+impl From<CustomError> for PyErr {
+    fn from(_error: CustomError) -> PyErr {
+        PyValueError::new_err("custom error")
+    }
+}
+
+#[pymethods]
+impl NewWithCustomError {
+    #[new]
+    fn new() -> Result<NewWithCustomError, CustomError> {
+        Err(CustomError)
+    }
+}
+
+#[test]
+fn new_with_custom_error() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<NewWithCustomError>();
+    let err = typeobj.call0().unwrap_err();
+    assert_eq!(err.to_string(), "ValueError: custom error");
 }
