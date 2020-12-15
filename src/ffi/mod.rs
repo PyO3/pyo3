@@ -22,6 +22,7 @@ pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
 pub use self::context::*;
+#[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
@@ -178,6 +179,7 @@ pub mod frameobject {
     opaque_struct!(PyFrameObject);
 }
 
+#[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 pub(crate) mod marshal;
 
