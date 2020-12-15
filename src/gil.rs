@@ -65,12 +65,8 @@ pub fn prepare_freethreaded_python() {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
             #[cfg(not(Py_3_7))]
-            assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
+            debug_assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
-            // If Python isn't initialized yet, we expect that Python threading
-            // isn't initialized either.
-            #[cfg(not(Py_3_7))]
-            assert_eq!(ffi::PyEval_ThreadsInitialized(), 0);
             // Initialize Python.
             // We use Py_InitializeEx() with initsigs=0 to disable Python signal handling.
             // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
@@ -97,7 +93,9 @@ pub fn prepare_freethreaded_python() {
             // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
             // > to call it yourself anymore.
             #[cfg(not(Py_3_7))]
-            ffi::PyEval_InitThreads();
+            if ffi::PyEval_ThreadsInitialized() == 0 {
+                ffi::PyEval_InitThreads();
+            }
             // PyEval_InitThreads() will acquire the GIL,
             // but we don't want to hold it at this point
             // (it's not acquired in the other code paths)
