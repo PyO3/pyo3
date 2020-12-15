@@ -64,7 +64,6 @@ pub fn prepare_freethreaded_python() {
         if ffi::Py_IsInitialized() != 0 {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
-            #[cfg(not(Py_3_7))]
             debug_assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
             // Initialize Python.
