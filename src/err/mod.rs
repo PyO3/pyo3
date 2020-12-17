@@ -602,10 +602,12 @@ mod tests {
             .split(", ");
 
         assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-        #[cfg(not(Py_3_7))] // Python 3.6 and below formats the repr differently
-        assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
-        #[cfg(Py_3_7)]
-        assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
+        if py.version_info() >= (3, 7) {
+            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
+        } else {
+            // Python 3.6 and below formats the repr differently
+            assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
+        }
 
         let traceback = fields.next().unwrap();
         assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));
