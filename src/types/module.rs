@@ -212,7 +212,7 @@ impl PyModule {
     /// ```
     ///
     /// **This function will be deprecated in the next release. Please use the specific
-    /// [add_function] and [add_submodule] functions instead.**
+    /// [PyModule::add_function] and [PyModule::add_submodule] functions instead.**
     pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<PyObject>,
