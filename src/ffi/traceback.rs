@@ -12,10 +12,14 @@ extern "C" {
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Type")]
     pub static mut PyTraceBack_Type: PyTypeObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyTraceBack_Check"]
+    pub fn PyTraceBack_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyTraceBack_Check")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTraceBack_Type) as c_int
 }
