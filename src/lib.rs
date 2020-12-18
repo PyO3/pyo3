@@ -316,10 +316,10 @@ macro_rules! wrap_pymodule {
 #[cfg(feature = "macros")]
 macro_rules! py_run {
     ($py:expr, $($val:ident)+, $code:literal) => {{
-        pyo3::py_run_impl!($py, $($val)+, pyo3::indoc::indoc!($code))
+        $crate::py_run_impl!($py, $($val)+, $crate::indoc::indoc!($code))
     }};
     ($py:expr, $($val:ident)+, $code:expr) => {{
-        pyo3::py_run_impl!($py, $($val)+, &pyo3::unindent::unindent($code))
+        $crate::py_run_impl!($py, $($val)+, &$crate::unindent::unindent($code))
     }};
 }
 
@@ -328,8 +328,8 @@ macro_rules! py_run {
 #[cfg(feature = "macros")]
 macro_rules! py_run_impl {
     ($py:expr, $($val:ident)+, $code:expr) => {{
-        use pyo3::types::IntoPyDict;
-        use pyo3::ToPyObject;
+        use $crate::types::IntoPyDict;
+        use $crate::ToPyObject;
         let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
 
         $py.run($code, None, Some(d))
