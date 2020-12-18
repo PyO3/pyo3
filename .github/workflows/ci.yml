@@ -45,7 +45,7 @@ jobs:
       fail-fast: false  # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy3]
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
@@ -54,7 +54,7 @@ jobs:
         ]
         exclude:
           # There is no 64-bit pypy on windows
-          - python-version: pypy3
+          - python-version: pypy-3.6
             platform: { os: "windows-latest", python-architecture: "x64" }
         include:
           # Test minimal supported Rust version
@@ -91,11 +91,11 @@ jobs:
         run: cargo build --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: matrix.python-version != 'pypy3'
+      - if: matrix.python-version != 'pypy-3.6'
         name: Test
         run: cargo test --features "num-bigint num-complex" --target ${{ matrix.platform.rust-target }}
       # Run tests again, but in abi3 mode
-      - if: matrix.python-version != 'pypy3'
+      - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
 
