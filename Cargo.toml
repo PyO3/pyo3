@@ -32,6 +32,7 @@ hashbrown = { version = "0.9", optional = true }
 assert_approx_eq = "1.1.0"
 trybuild = "1.0.23"
 rustversion = "1.0"
+proptest = { version = "0.10.1", default-features = false, features = ["std"] }
 
 [features]
 default = ["macros"]

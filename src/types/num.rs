@@ -281,6 +281,32 @@ mod slow_128bit_int_conversion {
 mod test_128bit_intergers {
     use super::*;
 
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_i128_roundtrip(x: i128) {
+            Python::with_gil(|py| {
+                let x_py = x.into_py(py);
+                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let roundtripped: i128 = x_py.extract(py).unwrap();
+                assert_eq!(x, roundtripped);
+            })
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_u128_roundtrip(x: u128) {
+            Python::with_gil(|py| {
+                let x_py = x.into_py(py);
+                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let roundtripped: u128 = x_py.extract(py).unwrap();
+                assert_eq!(x, roundtripped);
+            })
+        }
+    }
+
     #[test]
     fn test_i128_max() {
         Python::with_gil(|py| {
