@@ -12,8 +12,6 @@ use std::os::raw::c_char;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
-        $crate::pyobject_native_type_fmt!($name);
-
         impl std::convert::From<&$name> for $crate::PyErr {
             fn from(err: &$name) -> $crate::PyErr {
                 $crate::PyErr::from_instance(err)
@@ -88,22 +86,10 @@ macro_rules! import_exception {
             $name,
             $crate::ffi::PyBaseExceptionObject,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            Some(stringify!($module)),
-            $name::check
+            Some(stringify!($module))
         );
 
         impl $name {
-            /// Check if a python object is an instance of this exception.
-            ///
-            /// # Safety
-            /// `ptr` must be a valid pointer to a Python object
-            unsafe fn check(ptr: *mut $crate::ffi::PyObject) -> $crate::libc::c_int {
-                $crate::ffi::PyObject_TypeCheck(
-                    ptr,
-                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _,
-                )
-            }
-
             fn type_object_raw(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::once_cell::GILOnceCell;
                 use $crate::AsPyPointer;
@@ -191,22 +177,10 @@ macro_rules! create_exception_type_object {
             $name,
             $crate::ffi::PyBaseExceptionObject,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            Some(stringify!($module)),
-            $name::check
+            Some(stringify!($module))
         );
 
         impl $name {
-            /// Check if a python object is an instance of this exception.
-            ///
-            /// # Safety
-            /// `ptr` must be a valid pointer to a Python object
-            unsafe fn check(ptr: *mut $crate::ffi::PyObject) -> $crate::libc::c_int {
-                $crate::ffi::PyObject_TypeCheck(
-                    ptr,
-                    Self::type_object_raw($crate::Python::assume_gil_acquired()) as *mut _,
-                )
-            }
-
             fn type_object_raw(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::once_cell::GILOnceCell;
                 use $crate::AsPyPointer;
@@ -240,18 +214,7 @@ macro_rules! impl_native_exception (
         pub type $legacy_name = $crate::Py<$name>;
 
         $crate::impl_exception_boilerplate!($name);
-
-        impl $name {
-            /// Check if a python object is an instance of this exception.
-            ///
-            /// # Safety
-            /// `ptr` must be a valid pointer to a Python object
-            unsafe fn check(ptr: *mut $crate::ffi::PyObject) -> $crate::libc::c_int {
-                ffi::PyObject_TypeCheck(ptr, ffi::$exc_name as *mut _)
-            }
-        }
-
-        $crate::pyobject_native_type_core!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject), Some("builtins"), $name::check);
+        $crate::pyobject_native_type_core!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject), Some("builtins"));
     );
     ($name:ident, $legacy_name:ident, $exc_name:ident) => (
         impl_native_exception!($name, $legacy_name, $exc_name, ffi::PyBaseExceptionObject);

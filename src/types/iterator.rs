@@ -24,7 +24,6 @@ use crate::{PyDowncastError, PyTryFrom};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct PyIterator(PyAny);
 pyobject_native_type_named!(PyIterator);
