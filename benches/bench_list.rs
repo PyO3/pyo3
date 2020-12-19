@@ -13,6 +13,7 @@ fn iter_list(b: &mut Bencher) {
     let list = PyList::new(py, 0..LEN);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for x in list.iter() {
             let i: u64 = x.extract().unwrap();
             sum += i;
@@ -28,6 +29,7 @@ fn list_get_item(b: &mut Bencher) {
     let list = PyList::new(py, 0..LEN);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for i in 0..LEN {
             sum += list.get_item(i as isize).extract::<usize>().unwrap();
         }

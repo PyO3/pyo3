@@ -24,6 +24,7 @@ fn bench_call_0(b: &mut Bencher) {
         let foo = module.getattr("foo").unwrap();
 
         b.iter(|| {
+            let _pool = unsafe { py.new_pool() };
             for _ in 0..1000 {
                 foo.call0().unwrap();
             }
@@ -45,6 +46,7 @@ fn bench_call_method_0(b: &mut Bencher) {
         let foo = module.getattr("Foo").unwrap().call0().unwrap();
 
         b.iter(|| {
+            let _pool = unsafe { py.new_pool() };
             for _ in 0..1000 {
                 foo.call_method0("foo").unwrap();
             }

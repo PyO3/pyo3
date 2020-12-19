@@ -1,26 +1,35 @@
-use crate::{ffi, AsPyPointer, FromPyObject, Py, PyAny, PyResult, Python};
+use crate::{
+    ffi,
+    objects::{FromPyObject, PyAny},
+    types::Bytes,
+    AsPyPointer, IntoPy, PyObject, PyResult, Python,
+};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
-use std::str;
 
 /// Represents a Python `bytes` object.
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes(PyAny);
+pub struct PyBytes<'py>(pub(crate) PyAny<'py>);
 
-pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
+pyo3_native_object!(PyBytes<'py>, Bytes, 'py);
 
-impl PyBytes {
+impl<'py> PyBytes<'py> {
     /// Creates a new Python bytestring object.
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
+    pub fn new(py: Python<'py>, s: &[u8]) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
+        unsafe {
+            Self(PyAny::from_raw_or_panic(
+                py,
+                ffi::PyBytes_FromStringAndSize(ptr, len),
+            ))
+        }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
@@ -32,42 +41,43 @@ impl PyBytes {
     ///
     /// # Example
     /// ```
-    /// use pyo3::{prelude::*, types::PyBytes};
+    /// use pyo3::experimental::{prelude::*, objects::PyBytes};
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
     ///         Ok(())
     ///     })?;
-    ///     let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+    ///     let bytes: &[u8] = FromPyObject::extract(&py_bytes)?;
     ///     assert_eq!(bytes, b"Hello Rust");
     ///     Ok(())
     /// });
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyBytes>
+    pub fn new_with<F>(py: Python<'py>, len: usize, init: F) -> PyResult<Self>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
             let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
-            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let bytes = Self(PyAny::from_raw_or_fetch_err(py, pyptr)?);
             let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
             std::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
-            // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytes.into_ref(py))
+            // If init returns an Err, bytes will automatically deallocate the buffer
+            init(std::slice::from_raw_parts_mut(buffer, len))?;
+            Ok(bytes)
         }
     }
 
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
-    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
-        py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
-            ptr as *const _,
-            len as isize,
+    pub unsafe fn from_ptr(py: Python<'py>, ptr: *const u8, len: usize) -> Self {
+        Self(PyAny::from_raw_or_panic(
+            py,
+            ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize),
         ))
     }
 
@@ -84,7 +94,7 @@ impl PyBytes {
 }
 
 /// This is the same way [Vec] is indexed.
-impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
+impl<I: SliceIndex<[u8]>> Index<I> for PyBytes<'_> {
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -92,9 +102,15 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-impl<'a> FromPyObject<'a> for &'a [u8] {
+impl<'a> IntoPy<PyObject> for &'a [u8] {
+    fn into_py(self, py: Python) -> PyObject {
+        PyBytes::new(py, self).into()
+    }
+}
+
+impl<'a> FromPyObject<'a, '_> for &'a [u8] {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
+        Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 }
 #[cfg(test)]
@@ -129,7 +145,7 @@ mod test {
             b.copy_from_slice(b"Hello Rust");
             Ok(())
         })?;
-        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+        let bytes: &[u8] = py_bytes.extract()?;
         assert_eq!(bytes, b"Hello Rust");
         Ok(())
     }
@@ -139,7 +155,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
-        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+        let bytes: &[u8] = py_bytes.extract()?;
         assert_eq!(bytes, &[0; 10]);
         Ok(())
     }

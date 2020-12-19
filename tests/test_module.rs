@@ -293,6 +293,7 @@ fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_function(pyo3::wrap_pyfunction!(ext_vararg_fn, m)?)
         .unwrap();
+
     Ok(())
 }
 

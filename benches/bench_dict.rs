@@ -14,6 +14,7 @@ fn iter_dict(b: &mut Bencher) {
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for (k, _v) in dict.iter() {
             let i: u64 = k.extract().unwrap();
             sum += i;
@@ -29,6 +30,7 @@ fn dict_get_item(b: &mut Bencher) {
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
     let mut sum = 0;
     b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
         for i in 0..LEN {
             sum += dict.get_item(i).unwrap().extract::<usize>().unwrap();
         }
@@ -41,7 +43,10 @@ fn extract_hashmap(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| HashMap::<u64, u64>::extract(dict));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        HashMap::<u64, u64>::extract(dict)
+    });
 }
 
 #[bench]
@@ -50,7 +55,10 @@ fn extract_btreemap(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| BTreeMap::<u64, u64>::extract(dict));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        BTreeMap::<u64, u64>::extract(dict)
+    });
 }
 
 #[bench]
@@ -60,5 +68,8 @@ fn extract_hashbrown_map(b: &mut Bencher) {
     let py = gil.python();
     const LEN: usize = 100_000;
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict));
+    b.iter(|| {
+        let _pool = unsafe { py.new_pool() };
+        hashbrown::HashMap::<u64, u64>::extract(dict)
+    });
 }

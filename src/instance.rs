@@ -6,8 +6,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::type_object::PyBorrowFlagLayout;
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, objects::PyNativeObject, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -129,6 +129,19 @@ where
     /// ```
     pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
+impl<T> Py<T>
+where
+    T: PyNativeType,
+{
+    #[inline]
+    pub fn as_object<'a, 'py, O>(&'a self, _py: Python<'py>) -> &'a O
+    where
+        O: PyNativeObject<'py, NativeType = T>,
+    {
+        unsafe { &*(self as *const Self as *const O) }
     }
 }
 
@@ -568,6 +581,18 @@ where
     }
 }
 
+impl<'a, T> crate::experimental::FromPyObject<'a, '_> for Py<T>
+where
+    T: PyTypeInfo,
+    &'a T::AsRefTarget: FromPyObject<'a>,
+    T::AsRefTarget: 'a + AsPyPointer,
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(ob: &'a crate::experimental::objects::PyAny) -> PyResult<Self> {
+        ob.as_owned_ref().extract()
+    }
+}
+
 /// Py<T> can be used as an error when T is an Error.
 ///
 /// However for GIL lifetime reasons, cause() cannot be implemented for Py<T>.
@@ -656,5 +681,16 @@ mod test {
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
         });
+    }
+
+    #[test]
+    fn test_as_object() {
+        Python::with_gil(|py| {
+            let dict: Py<PyDict> = PyDict::new(py).into();
+            assert_eq!(
+                dict.as_ptr(),
+                dict.as_object::<crate::objects::PyDict>(py).as_ptr()
+            );
+        })
     }
 }

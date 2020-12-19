@@ -1,10 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::types::PyBytes;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
-    PyTryFrom, Python, ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyErr, PyNativeType, PyResult, Python};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -107,71 +104,11 @@ where
     }
 }
 
-/// Converts a Rust `str` to a Python object.
-/// See `PyString::new` for details on the conversion.
-impl ToPyObject for str {
-    #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
-    }
-}
-
-impl<'a> IntoPy<PyObject> for &'a str {
-    #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
-    }
-}
-
-/// Converts a Rust `Cow<str>` to a Python object.
-/// See `PyString::new` for details on the conversion.
-impl<'a> ToPyObject for Cow<'a, str> {
-    #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
-    }
-}
-
-/// Converts a Rust `String` to a Python object.
-/// See `PyString::new` for details on the conversion.
-impl ToPyObject for String {
-    #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
-    }
-}
-
-impl ToPyObject for char {
-    fn to_object(&self, py: Python) -> PyObject {
-        self.into_py(py)
-    }
-}
-
-impl IntoPy<PyObject> for char {
-    fn into_py(self, py: Python) -> PyObject {
-        let mut bytes = [0u8; 4];
-        PyString::new(py, self.encode_utf8(&mut bytes)).into()
-    }
-}
-
-impl IntoPy<PyObject> for String {
-    fn into_py(self, py: Python) -> PyObject {
-        PyString::new(py, &self).into()
-    }
-}
-
-impl<'a> IntoPy<PyObject> for &'a String {
-    #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
-    }
-}
-
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for &'source str {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(ob)?.to_str()
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 
@@ -179,23 +116,13 @@ impl<'source> FromPyObject<'source> for &'source str {
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(obj)?
-            .to_str()
-            .map(ToOwned::to_owned)
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 
 impl FromPyObject<'_> for char {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        let s = PyString::try_from(obj)?.to_str()?;
-        let mut iter = s.chars();
-        if let (Some(ch), None) = (iter.next(), iter.next()) {
-            Ok(ch)
-        } else {
-            Err(crate::exceptions::PyValueError::new_err(
-                "expected a string of length 1",
-            ))
-        }
+        <Self as crate::objects::FromPyObject>::extract(crate::objects::PyAny::from_type_any(&obj))
     }
 }
 

@@ -2,14 +2,17 @@ use std::ffi::{CStr, CString};
 
 use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
-use crate::prelude::*;
-use crate::{ffi, AsPyPointer, PyMethodDef, PyMethodType};
+use crate::{
+    ffi,
+    objects::PyAny,
+    types::{CFunction, Function},
+    AsPyPointer, IntoPy, PyMethodDef, PyMethodType, PyResult,
+};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
-pub struct PyCFunction(PyAny);
-
-pyobject_native_var_type!(PyCFunction, ffi::PyCFunction_Type, ffi::PyCFunction_Check);
+pub struct PyCFunction<'py>(pub(crate) PyAny<'py>);
+pyo3_native_object!(PyCFunction<'py>, CFunction, 'py);
 
 fn get_name(name: &str) -> PyResult<&'static CStr> {
     let cstr = CString::new(name)
@@ -23,16 +26,16 @@ fn get_doc(doc: &str) -> PyResult<&'static CStr> {
     Ok(Box::leak(cstr.into_boxed_c_str()))
 }
 
-impl PyCFunction {
+impl<'py> PyCFunction<'py> {
     /// Create a new built-in function with keywords.
     ///
     /// See [raw_pycfunction] for documentation on how to get the `fun` argument.
-    pub fn new_with_keywords<'a>(
+    pub fn new_with_keywords(
         fun: ffi::PyCFunctionWithKeywords,
         name: &str,
         doc: &str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
+        py_or_module: PyFunctionArguments<'py>,
+    ) -> PyResult<Self> {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
@@ -43,12 +46,12 @@ impl PyCFunction {
     }
 
     /// Create a new built-in function without keywords.
-    pub fn new<'a>(
+    pub fn new(
         fun: ffi::PyCFunction,
         name: &str,
         doc: &str,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
+        py_or_module: PyFunctionArguments<'py>,
+    ) -> PyResult<Self> {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
@@ -59,13 +62,13 @@ impl PyCFunction {
     }
 
     #[doc(hidden)]
-    pub fn internal_new<'a>(
+    pub fn internal_new(
         name: &'static CStr,
         doc: &'static CStr,
         method_type: PyMethodType,
         flags: std::os::raw::c_int,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
+        py_or_module: PyFunctionArguments<'py>,
+    ) -> PyResult<Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let method_def = PyMethodDef {
             ml_name: name,
@@ -83,18 +86,18 @@ impl PyCFunction {
         };
 
         unsafe {
-            py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
-                Box::into_raw(Box::new(def)),
-                mod_ptr,
-                module_name.as_ptr(),
-            ))
+            PyAny::from_raw_or_fetch_err(
+                py,
+                ffi::PyCFunction_NewEx(Box::into_raw(Box::new(def)), mod_ptr, module_name.as_ptr()),
+            )
+            .map(Self)
         }
     }
 }
 
 /// Represents a Python function object.
 #[repr(transparent)]
-pub struct PyFunction(PyAny);
+pub struct PyFunction<'py>(pub(crate) PyAny<'py>);
 
 #[cfg(not(Py_LIMITED_API))]
-pyobject_native_var_type!(PyFunction, ffi::PyFunction_Type, ffi::PyFunction_Check);
+pyo3_native_object!(PyFunction<'py>, Function, 'py);
