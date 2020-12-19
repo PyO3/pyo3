@@ -191,11 +191,11 @@ where
 
     // protocol methods
     let mut has_gc_methods = false;
-    for slot in T::get_type_slots() {
+    T::for_each_proto_slot(|slot| {
         has_gc_methods |= slot.slot == ffi::Py_tp_clear;
         has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
         slots.0.push(slot);
-    }
+    });
 
     slots.push(0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {

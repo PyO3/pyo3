@@ -1,8 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 macro_rules! py_unary_func {
-    ($trait: ident, $class:ident :: $f:ident, $call:ident, $ret_type: ty) => {{
-        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $call:ident, $ret_type: ty) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
         where
             T: for<'p> $trait<'p>,
         {
@@ -11,20 +12,28 @@ macro_rules! py_unary_func {
                 $call!(slf, $f).convert(py)
             })
         }
-        wrap::<$class>
-    }};
-    // Use call_ref! by default
-    ($trait:ident, $class:ident :: $f:ident, $ret_type:ty) => {
-        py_unary_func!($trait, $class::$f, call_ref, $ret_type);
     };
-    ($trait:ident, $class:ident :: $f:ident) => {
-        py_unary_func!($trait, $class::$f, call_ref, *mut $crate::ffi::PyObject);
+    // Use call_ref! by default
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $ret_type:ty) => {
+        py_unary_func!($name, $trait, $class::$f, call_ref, $ret_type);
+    };
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        py_unary_func!(
+            $name,
+            $trait,
+            $class::$f,
+            call_ref,
+            *mut $crate::ffi::PyObject
+        );
     };
 }
 
 macro_rules! py_unarys_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
+            slf: *mut $crate::ffi::PyObject,
+        ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
         {
@@ -37,20 +46,23 @@ macro_rules! py_unarys_func {
                 T::$f(borrow).convert(py)
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_len_func {
-    ($trait:ident, $class:ident :: $f:ident) => {
-        py_unary_func!($trait, $class::$f, $crate::ffi::Py_ssize_t)
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        py_unary_func!($name, $trait, $class::$f, $crate::ffi::Py_ssize_t);
     };
 }
 
 macro_rules! py_binary_func {
     // Use call_ref! by default
-    ($trait:ident, $class:ident :: $f:ident, $return:ty, $call:ident) => {{
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg: *mut ffi::PyObject) -> $return
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $return:ty, $call:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
+            slf: *mut ffi::PyObject,
+            arg: *mut ffi::PyObject,
+        ) -> $return
         where
             T: for<'p> $trait<'p>,
         {
@@ -60,19 +72,19 @@ macro_rules! py_binary_func {
                 $call!(slf, $f, arg).convert(py)
             })
         }
-        wrap::<$class>
-    }};
-    ($trait:ident, $class:ident :: $f:ident, $return:ty) => {
-        py_binary_func!($trait, $class::$f, $return, call_ref)
     };
-    ($trait:ident, $class:ident :: $f:ident) => {
-        py_binary_func!($trait, $class::$f, *mut $crate::ffi::PyObject)
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $return:ty) => {
+        py_binary_func!($name, $trait, $class::$f, $return, call_ref);
+    };
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        py_binary_func!($name, $trait, $class::$f, *mut $crate::ffi::PyObject);
     };
 }
 
 macro_rules! py_binary_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             lhs: *mut ffi::PyObject,
             rhs: *mut ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
@@ -85,13 +97,13 @@ macro_rules! py_binary_num_func {
                 T::$f(lhs.extract()?, rhs).convert(py)
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_binary_reversed_num_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             lhs: *mut ffi::PyObject,
             rhs: *mut ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
@@ -105,13 +117,13 @@ macro_rules! py_binary_reversed_num_func {
                 T::$f(&*slf.try_borrow()?, arg).convert(py)
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_binary_fallback_num_func {
-    ($class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             lhs: *mut ffi::PyObject,
             rhs: *mut ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
@@ -133,14 +145,14 @@ macro_rules! py_binary_fallback_num_func {
                 }
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 // NOTE(kngwyu): This macro is used only for inplace operations, so I used call_mut here.
 macro_rules! py_binary_self_func {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut ffi::PyObject,
             arg: *mut ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
@@ -155,17 +167,17 @@ macro_rules! py_binary_self_func {
                 Ok::<_, $crate::err::PyErr>(slf)
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_ssizearg_func {
     // Use call_ref! by default
-    ($trait:ident, $class:ident :: $f:ident) => {
-        py_ssizearg_func!($trait, $class::$f, call_ref)
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        py_ssizearg_func!($name, $trait, $class::$f, call_ref);
     };
-    ($trait:ident, $class:ident :: $f:ident, $call:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $call:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut ffi::PyObject,
             arg: $crate::ffi::Py_ssize_t,
         ) -> *mut $crate::ffi::PyObject
@@ -177,13 +189,13 @@ macro_rules! py_ssizearg_func {
                 $call!(slf, $f; arg.into()).convert(py)
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_ternarys_func {
-    ($trait:ident, $class:ident :: $f:ident, $return_type:ty) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait:ident, $class:ident :: $f:ident, $return_type:ty) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut $crate::ffi::PyObject,
             arg1: *mut $crate::ffi::PyObject,
             arg2: *mut $crate::ffi::PyObject,
@@ -206,17 +218,16 @@ macro_rules! py_ternarys_func {
                 T::$f(slf, arg1, arg2).convert(py)
             })
         }
-
-        wrap::<$class>
-    }};
-    ($trait:ident, $class:ident :: $f:ident) => {
-        py_ternarys_func!($trait, $class::$f, *mut $crate::ffi::PyObject);
+    };
+    ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
+        py_ternarys_func!($name, $trait, $class::$f, *mut $crate::ffi::PyObject);
     };
 }
 
 macro_rules! py_func_set {
-    ($trait_name:ident, $class:ident :: $fn_set:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait_name:ident, $class:ident :: $fn_set:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
@@ -239,14 +250,13 @@ macro_rules! py_func_set {
                 }
             })
         }
-
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_func_del {
-    ($trait_name:ident, $class:ident :: $fn_del:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait_name:ident, $class:ident :: $fn_del:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
@@ -268,14 +278,13 @@ macro_rules! py_func_del {
                 }
             })
         }
-
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! py_func_set_del {
-    ($trait1:ident, $trait2:ident, $class:ident, $fn_set:ident, $fn_del:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($name:ident, $trait1:ident, $trait2:ident, $class:ident, $fn_set:ident, $fn_del:ident) => {
+        #[doc(hidden)]
+        pub unsafe extern "C" fn $name<T>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
@@ -295,8 +304,7 @@ macro_rules! py_func_set_del {
                 }
             })
         }
-        wrap::<$class>
-    }};
+    };
 }
 
 macro_rules! extract_or_return_not_implemented {

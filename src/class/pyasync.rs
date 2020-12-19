@@ -8,7 +8,6 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
-use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -86,41 +85,9 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-/// Extension trait for proc-macro backend.
-#[doc(hidden)]
-pub trait PyAsyncSlots {
-    fn get_await() -> TypedSlot<ffi::unaryfunc>
-    where
-        Self: for<'p> PyAsyncAwaitProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_am_await,
-            py_unarys_func!(PyAsyncAwaitProtocol, Self::__await__),
-        )
-    }
-
-    fn get_aiter() -> TypedSlot<ffi::unaryfunc>
-    where
-        Self: for<'p> PyAsyncAiterProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_am_aiter,
-            py_unarys_func!(PyAsyncAiterProtocol, Self::__aiter__),
-        )
-    }
-
-    fn get_anext() -> TypedSlot<ffi::unaryfunc>
-    where
-        Self: for<'p> PyAsyncAnextProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_am_anext,
-            py_unarys_func!(PyAsyncAnextProtocol, Self::__anext__),
-        )
-    }
-}
-
-impl<'p, T> PyAsyncSlots for T where T: PyAsyncProtocol<'p> {}
+py_unarys_func!(await_, PyAsyncAwaitProtocol, Self::__await__);
+py_unarys_func!(aiter, PyAsyncAiterProtocol, Self::__aiter__);
+py_unarys_func!(anext, PyAsyncAnextProtocol, Self::__anext__);
 
 /// Output of `__anext__`.
 pub enum IterANextOutput<T, U> {

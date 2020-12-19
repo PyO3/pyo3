@@ -3,7 +3,6 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
-use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
@@ -73,64 +72,15 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-/// Extension trait for proc-macro backend.
-#[doc(hidden)]
-pub trait PyMappingSlots {
-    fn get_len() -> TypedSlot<ffi::lenfunc>
-    where
-        Self: for<'p> PyMappingLenProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_mp_length,
-            py_len_func!(PyMappingLenProtocol, Self::__len__),
-        )
-    }
-
-    fn get_getitem() -> TypedSlot<ffi::binaryfunc>
-    where
-        Self: for<'p> PyMappingGetItemProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_mp_subscript,
-            py_binary_func!(PyMappingGetItemProtocol, Self::__getitem__),
-        )
-    }
-
-    fn get_setitem() -> TypedSlot<ffi::objobjargproc>
-    where
-        Self: for<'p> PyMappingSetItemProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_mp_ass_subscript,
-            py_func_set!(PyMappingSetItemProtocol, Self::__setitem__),
-        )
-    }
-
-    fn get_delitem() -> TypedSlot<ffi::objobjargproc>
-    where
-        Self: for<'p> PyMappingDelItemProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_mp_ass_subscript,
-            py_func_del!(PyMappingDelItemProtocol, Self::__delitem__),
-        )
-    }
-
-    fn get_setdelitem() -> TypedSlot<ffi::objobjargproc>
-    where
-        Self: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_mp_ass_subscript,
-            py_func_set_del!(
-                PyMappingSetItemProtocol,
-                PyMappingDelItemProtocol,
-                Self,
-                __setitem__,
-                __delitem__
-            ),
-        )
-    }
-}
-
-impl<'p, T> PyMappingSlots for T where T: PyMappingProtocol<'p> {}
+py_len_func!(len, PyMappingLenProtocol, Self::__len__);
+py_binary_func!(getitem, PyMappingGetItemProtocol, Self::__getitem__);
+py_func_set!(setitem, PyMappingSetItemProtocol, Self::__setitem__);
+py_func_del!(delitem, PyMappingDelItemProtocol, Self::__delitem__);
+py_func_set_del!(
+    setdelitem,
+    PyMappingSetItemProtocol,
+    PyMappingDelItemProtocol,
+    Self,
+    __setitem__,
+    __delitem__
+);

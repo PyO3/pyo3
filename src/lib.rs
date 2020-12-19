@@ -333,16 +333,15 @@ macro_rules! py_run_impl {
         use $crate::ToPyObject;
         let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
 
-        $py.run($code, None, Some(d))
-            .map_err(|e| {
-                e.print($py);
-                // So when this c api function the last line called printed the error to stderr,
-                // the output is only written into a buffer which is never flushed because we
-                // panic before flushing. This is where this hack comes into place
-                $py.run("import sys; sys.stderr.flush()", None, None)
-                    .unwrap();
-            })
-            .expect($code)
+        if let Err(e) = $py.run($code, None, Some(d)) {
+            e.print($py);
+            // So when this c api function the last line called printed the error to stderr,
+            // the output is only written into a buffer which is never flushed because we
+            // panic before flushing. This is where this hack comes into place
+            $py.run("import sys; sys.stderr.flush()", None, None)
+                .unwrap();
+            panic!($code.to_string())
+        }
     }};
 }
 

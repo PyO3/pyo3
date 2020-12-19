@@ -6,14 +6,16 @@ use std::collections::HashSet;
 pub struct Proto {
     /// The name of this protocol. E.g., Iter.
     pub name: &'static str,
-    /// Extension trait that has `get_*` methods
-    pub extension_trait: &'static str,
+    /// Trait which stores the slots
+    pub slots_trait: &'static str,
+    /// Trait method which accesses the slots.
+    pub slots_trait_slots: &'static str,
     /// All methods.
     pub methods: &'static [MethodProto],
     /// All methods registered as normal methods like `#[pymethods]`.
     pub py_methods: &'static [PyMethod],
     /// All methods registered to the slot table.
-    slot_getters: &'static [SlotGetter],
+    slot_defs: &'static [SlotDef],
 }
 
 impl Proto {
@@ -30,25 +32,26 @@ impl Proto {
         self.py_methods.iter().find(|m| query == m.name)
     }
     // Since the order matters, we expose only the iterator instead of the slice.
-    pub(crate) fn slot_getters(
+    pub(crate) fn slot_defs(
         &self,
         mut implemented_protocols: HashSet<String>,
-    ) -> impl Iterator<Item = &'static str> {
-        self.slot_getters.iter().filter_map(move |getter| {
-            // If any required method is not implemented, we skip this setter.
-            if getter
+    ) -> impl Iterator<Item = &'static SlotDef> {
+        self.slot_defs.iter().filter(move |slot_def| {
+            // If any required method is not implemented, we skip this def.
+            let all_methods_implemented = slot_def
                 .proto_names
                 .iter()
-                .any(|name| !implemented_protocols.contains(*name))
-            {
-                return None;
+                .all(|name| implemented_protocols.contains(*name));
+
+            if all_methods_implemented {
+                // To use 'paired' def in priority, we remove used protocols.
+                // For example, if add_radd is already used, we shouldn't use add and radd.
+                for name in slot_def.proto_names {
+                    implemented_protocols.remove(*name);
+                }
             }
-            // To use 'paired' setter in priority, we remove used protocols.
-            // For example, if set_add_radd is already used, we shouldn't use set_add and set_radd.
-            for name in getter.proto_names {
-                implemented_protocols.remove(*name);
-            }
-            Some(getter.get_function)
+
+            all_methods_implemented
         })
     }
 }
@@ -79,27 +82,35 @@ impl PyMethod {
     }
 }
 
-/// Represents a setter used to register a method to the method table.
-struct SlotGetter {
-    /// Protocols necessary for invoking this setter.
+/// Represents a slot definition.
+pub struct SlotDef {
+    /// Protocols necessary to meet this def.
     /// E.g., we need `__setattr__` and `__delattr__` for invoking `set_setdelitem`.
     pub proto_names: &'static [&'static str],
-    /// The name of the setter called to the method table.
-    pub get_function: &'static str,
+    /// The Python slot name.
+    pub slot: &'static str,
+    /// The name of the function in pyo3 which implements the slot.
+    pub slot_impl: &'static str,
 }
 
-impl SlotGetter {
-    const fn new(names: &'static [&'static str], get_function: &'static str) -> Self {
-        SlotGetter {
-            proto_names: names,
-            get_function,
+impl SlotDef {
+    const fn new(
+        proto_names: &'static [&'static str],
+        slot: &'static str,
+        slot_impl: &'static str,
+    ) -> Self {
+        SlotDef {
+            proto_names,
+            slot,
+            slot_impl,
         }
     }
 }
 
 pub const OBJECT: Proto = Proto {
     name: "Object",
-    extension_trait: "pyo3::class::basic::PyBasicSlots",
+    slots_trait: "pyo3::class::proto_methods::PyObjectProtocolSlots",
+    slots_trait_slots: "object_protocol_slots",
     methods: &[
         MethodProto::new("__getattr__", "pyo3::class::basic::PyObjectGetAttrProtocol")
             .args(&["Name"])
@@ -127,22 +138,43 @@ pub const OBJECT: Proto = Proto {
         PyMethod::new("__bytes__", "pyo3::class::basic::BytesProtocolImpl"),
         PyMethod::new("__unicode__", "pyo3::class::basic::UnicodeProtocolImpl"),
     ],
-    slot_getters: &[
-        SlotGetter::new(&["__str__"], "get_str"),
-        SlotGetter::new(&["__repr__"], "get_repr"),
-        SlotGetter::new(&["__hash__"], "get_hash"),
-        SlotGetter::new(&["__getattr__"], "get_getattr"),
-        SlotGetter::new(&["__richcmp__"], "get_richcmp"),
-        SlotGetter::new(&["__setattr__", "__delattr__"], "get_setdelattr"),
-        SlotGetter::new(&["__setattr__"], "get_setattr"),
-        SlotGetter::new(&["__delattr__"], "get_delattr"),
-        SlotGetter::new(&["__bool__"], "get_bool"),
+    slot_defs: &[
+        SlotDef::new(&["__str__"], "Py_tp_str", "pyo3::class::basic::str"),
+        SlotDef::new(&["__repr__"], "Py_tp_repr", "pyo3::class::basic::repr"),
+        SlotDef::new(&["__hash__"], "Py_tp_hash", "pyo3::class::basic::hash"),
+        SlotDef::new(
+            &["__getattr__"],
+            "Py_tp_getattro",
+            "pyo3::class::basic::getattr",
+        ),
+        SlotDef::new(
+            &["__richcmp__"],
+            "Py_tp_richcompare",
+            "pyo3::class::basic::richcmp",
+        ),
+        SlotDef::new(
+            &["__setattr__", "__delattr__"],
+            "Py_tp_setattro",
+            "pyo3::class::basic::setdelattr",
+        ),
+        SlotDef::new(
+            &["__setattr__"],
+            "Py_tp_setattro",
+            "pyo3::class::basic::setattr",
+        ),
+        SlotDef::new(
+            &["__delattr__"],
+            "Py_tp_setattro",
+            "pyo3::class::basic::delattr",
+        ),
+        SlotDef::new(&["__bool__"], "Py_nb_bool", "pyo3::class::basic::bool"),
     ],
 };
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
-    extension_trait: "pyo3::class::pyasync::PyAsyncSlots",
+    slots_trait: "pyo3::class::proto_methods::PyAsyncProtocolSlots",
+    slots_trait_slots: "async_protocol_slots",
     methods: &[
         MethodProto::new("__await__", "pyo3::class::pyasync::PyAsyncAwaitProtocol")
             .args(&["Receiver"]),
@@ -165,16 +197,21 @@ pub const ASYNC: Proto = Proto {
             "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
         ),
     ],
-    slot_getters: &[
-        SlotGetter::new(&["__await__"], "get_await"),
-        SlotGetter::new(&["__aiter__"], "get_aiter"),
-        SlotGetter::new(&["__anext__"], "get_anext"),
+    slot_defs: &[
+        SlotDef::new(
+            &["__await__"],
+            "Py_am_await",
+            "pyo3::class::pyasync::await_",
+        ),
+        SlotDef::new(&["__aiter__"], "Py_am_aiter", "pyo3::class::pyasync::aiter"),
+        SlotDef::new(&["__anext__"], "Py_am_anext", "pyo3::class::pyasync::anext"),
     ],
 };
 
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
-    extension_trait: "pyo3::class::buffer::PyBufferSlots",
+    slots_trait: "pyo3::class::proto_methods::PyBufferProtocolSlots",
+    slots_trait_slots: "buffer_procs",
     methods: &[
         MethodProto::new(
             "bf_getbuffer",
@@ -188,15 +225,24 @@ pub const BUFFER: Proto = Proto {
         .has_self(),
     ],
     py_methods: &[],
-    slot_getters: &[
-        SlotGetter::new(&["bf_getbuffer"], "get_getbuffer"),
-        SlotGetter::new(&["bf_releasebuffer"], "get_releasebuffer"),
+    slot_defs: &[
+        SlotDef::new(
+            &["bf_getbuffer"],
+            "Py_bf_getbuffer",
+            "pyo3::class::buffer::getbuffer",
+        ),
+        SlotDef::new(
+            &["bf_releasebuffer"],
+            "Py_bf_releasebuffer",
+            "pyo3::class::buffer::releasebuffer",
+        ),
     ],
 };
 
 pub const CONTEXT: Proto = Proto {
     name: "Context",
-    extension_trait: "",
+    slots_trait: "pyo3::class::proto_methods::PyContextProtocolSlots",
+    slots_trait_slots: "context_protocol_slots",
     methods: &[
         MethodProto::new("__enter__", "pyo3::class::context::PyContextEnterProtocol").has_self(),
         MethodProto::new("__exit__", "pyo3::class::context::PyContextExitProtocol")
@@ -213,12 +259,13 @@ pub const CONTEXT: Proto = Proto {
             "pyo3::class::context::PyContextExitProtocolImpl",
         ),
     ],
-    slot_getters: &[],
+    slot_defs: &[],
 };
 
 pub const GC: Proto = Proto {
     name: "GC",
-    extension_trait: "pyo3::class::gc::PyGCSlots",
+    slots_trait: "pyo3::class::proto_methods::PyGCProtocolSlots",
+    slots_trait_slots: "gc_protocol_slots",
     methods: &[
         MethodProto::new("__traverse__", "pyo3::class::gc::PyGCTraverseProtocol")
             .has_self()
@@ -228,15 +275,20 @@ pub const GC: Proto = Proto {
             .no_result(),
     ],
     py_methods: &[],
-    slot_getters: &[
-        SlotGetter::new(&["__traverse__"], "get_traverse"),
-        SlotGetter::new(&["__clear__"], "get_clear"),
+    slot_defs: &[
+        SlotDef::new(
+            &["__traverse__"],
+            "Py_tp_traverse",
+            "pyo3::class::gc::traverse",
+        ),
+        SlotDef::new(&["__clear__"], "Py_tp_clear", "pyo3::class::gc::clear"),
     ],
 };
 
 pub const DESCR: Proto = Proto {
     name: "Descriptor",
-    extension_trait: "pyo3::class::descr::PyDescrSlots",
+    slots_trait: "pyo3::class::proto_methods::PyDescrProtocolSlots",
+    slots_trait_slots: "descr_protocol_slots",
     methods: &[
         MethodProto::new("__get__", "pyo3::class::descr::PyDescrGetProtocol")
             .args(&["Receiver", "Inst", "Owner"]),
@@ -256,29 +308,43 @@ pub const DESCR: Proto = Proto {
             "pyo3::class::context::PyDescrNameProtocolImpl",
         ),
     ],
-    slot_getters: &[
-        SlotGetter::new(&["__get__"], "get_descr_get"),
-        SlotGetter::new(&["__set__"], "get_descr_set"),
+    slot_defs: &[
+        SlotDef::new(
+            &["__get__"],
+            "Py_tp_descr_get",
+            "pyo3::class::descr::descr_get",
+        ),
+        SlotDef::new(
+            &["__set__"],
+            "Py_tp_descr_set",
+            "pyo3::class::descr::descr_set",
+        ),
     ],
 };
 
 pub const ITER: Proto = Proto {
     name: "Iter",
-    extension_trait: "pyo3::class::iter::PyIterSlots",
+    slots_trait: "pyo3::class::proto_methods::PyIterProtocolSlots",
+    slots_trait_slots: "iter_protocol_slots",
     py_methods: &[],
     methods: &[
         MethodProto::new("__iter__", "pyo3::class::iter::PyIterIterProtocol").args(&["Receiver"]),
         MethodProto::new("__next__", "pyo3::class::iter::PyIterNextProtocol").args(&["Receiver"]),
     ],
-    slot_getters: &[
-        SlotGetter::new(&["__iter__"], "get_iter"),
-        SlotGetter::new(&["__next__"], "get_iternext"),
+    slot_defs: &[
+        SlotDef::new(&["__iter__"], "Py_tp_iter", "pyo3::class::iter::iter"),
+        SlotDef::new(
+            &["__next__"],
+            "Py_tp_iternext",
+            "pyo3::class::iter::iternext",
+        ),
     ],
 };
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
-    extension_trait: "pyo3::class::mapping::PyMappingSlots",
+    slots_trait: "pyo3::class::proto_methods::PyMappingProtocolSlots",
+    slots_trait_slots: "mapping_protocol_slots",
     methods: &[
         MethodProto::new("__len__", "pyo3::class::mapping::PyMappingLenProtocol").has_self(),
         MethodProto::new(
@@ -309,18 +375,35 @@ pub const MAPPING: Proto = Proto {
         "__reversed__",
         "pyo3::class::mapping::PyMappingReversedProtocolImpl",
     )],
-    slot_getters: &[
-        SlotGetter::new(&["__len__"], "get_len"),
-        SlotGetter::new(&["__getitem__"], "get_getitem"),
-        SlotGetter::new(&["__setitem__", "__delitem__"], "get_setdelitem"),
-        SlotGetter::new(&["__setitem__"], "get_setitem"),
-        SlotGetter::new(&["__delitem__"], "get_delitem"),
+    slot_defs: &[
+        SlotDef::new(&["__len__"], "Py_mp_length", "pyo3::class::mapping::len"),
+        SlotDef::new(
+            &["__getitem__"],
+            "Py_mp_subscript",
+            "pyo3::class::mapping::getitem",
+        ),
+        SlotDef::new(
+            &["__setitem__", "__delitem__"],
+            "Py_mp_ass_subscript",
+            "pyo3::class::mapping::setdelitem",
+        ),
+        SlotDef::new(
+            &["__setitem__"],
+            "Py_mp_ass_subscript",
+            "pyo3::class::mapping::setitem",
+        ),
+        SlotDef::new(
+            &["__delitem__"],
+            "Py_mp_ass_subscript",
+            "pyo3::class::mapping::delitem",
+        ),
     ],
 };
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
-    extension_trait: "pyo3::class::sequence::PySequenceSlots",
+    slots_trait: "pyo3::class::proto_methods::PySequenceProtocolSlots",
+    slots_trait_slots: "sequence_protocol_slots",
     methods: &[
         MethodProto::new("__len__", "pyo3::class::sequence::PySequenceLenProtocol").has_self(),
         MethodProto::new(
@@ -373,23 +456,60 @@ pub const SEQ: Proto = Proto {
         .has_self(),
     ],
     py_methods: &[],
-    slot_getters: &[
-        SlotGetter::new(&["__len__"], "get_len"),
-        SlotGetter::new(&["__concat__"], "get_concat"),
-        SlotGetter::new(&["__repeat__"], "get_repeat"),
-        SlotGetter::new(&["__getitem__"], "get_getitem"),
-        SlotGetter::new(&["__setitem__", "__delitem__"], "get_setdelitem"),
-        SlotGetter::new(&["__setitem__"], "get_setitem"),
-        SlotGetter::new(&["__delitem__"], "get_delitem"),
-        SlotGetter::new(&["__contains__"], "get_contains"),
-        SlotGetter::new(&["__inplace_concat__"], "get_inplace_concat"),
-        SlotGetter::new(&["__inplace_repeat__"], "get_inplace_repeat"),
+    slot_defs: &[
+        SlotDef::new(&["__len__"], "Py_sq_length", "pyo3::class::sequence::len"),
+        SlotDef::new(
+            &["__concat__"],
+            "Py_sq_concat",
+            "pyo3::class::sequence::concat",
+        ),
+        SlotDef::new(
+            &["__repeat__"],
+            "Py_sq_repeat",
+            "pyo3::class::sequence::repeat",
+        ),
+        SlotDef::new(
+            &["__getitem__"],
+            "Py_sq_item",
+            "pyo3::class::sequence::getitem",
+        ),
+        SlotDef::new(
+            &["__setitem__", "__delitem__"],
+            "Py_sq_ass_item",
+            "pyo3::class::sequence::setdelitem",
+        ),
+        SlotDef::new(
+            &["__setitem__"],
+            "Py_sq_ass_item",
+            "pyo3::class::sequence::setitem",
+        ),
+        SlotDef::new(
+            &["__delitem__"],
+            "Py_sq_ass_item",
+            "pyo3::class::sequence::delitem",
+        ),
+        SlotDef::new(
+            &["__contains__"],
+            "Py_sq_contains",
+            "pyo3::class::sequence::contains",
+        ),
+        SlotDef::new(
+            &["__inplace_concat__"],
+            "Py_sq_inplace_concat",
+            "pyo3::class::sequence::inplace_concat",
+        ),
+        SlotDef::new(
+            &["__inplace_repeat__"],
+            "Py_sq_inplace_repeat",
+            "pyo3::class::sequence::inplace_repeat",
+        ),
     ],
 };
 
 pub const NUM: Proto = Proto {
     name: "Number",
-    extension_trait: "pyo3::class::number::PyNumberSlots",
+    slots_trait: "pyo3::class::proto_methods::PyNumberProtocolSlots",
+    slots_trait_slots: "number_protocol_slots",
     methods: &[
         MethodProto::new("__add__", "pyo3::class::number::PyNumberAddProtocol")
             .args(&["Left", "Right"]),
@@ -597,66 +717,218 @@ pub const NUM: Proto = Proto {
             "pyo3::class::number::PyNumberRoundProtocolImpl",
         ),
     ],
-    slot_getters: &[
-        SlotGetter::new(&["__add__", "__radd__"], "get_add_radd"),
-        SlotGetter::new(&["__add__"], "get_add"),
-        SlotGetter::new(&["__radd__"], "get_radd"),
-        SlotGetter::new(&["__sub__", "__rsub__"], "get_sub_rsub"),
-        SlotGetter::new(&["__sub__"], "get_sub"),
-        SlotGetter::new(&["__rsub__"], "get_rsub"),
-        SlotGetter::new(&["__mul__", "__rmul__"], "get_mul_rmul"),
-        SlotGetter::new(&["__mul__"], "get_mul"),
-        SlotGetter::new(&["__rmul__"], "get_rmul"),
-        SlotGetter::new(&["__mod__"], "get_mod"),
-        SlotGetter::new(&["__divmod__", "__rdivmod__"], "get_divmod_rdivmod"),
-        SlotGetter::new(&["__divmod__"], "get_divmod"),
-        SlotGetter::new(&["__rdivmod__"], "get_rdivmod"),
-        SlotGetter::new(&["__pow__", "__rpow__"], "get_pow_rpow"),
-        SlotGetter::new(&["__pow__"], "get_pow"),
-        SlotGetter::new(&["__rpow__"], "get_rpow"),
-        SlotGetter::new(&["__neg__"], "get_neg"),
-        SlotGetter::new(&["__pos__"], "get_pos"),
-        SlotGetter::new(&["__abs__"], "get_abs"),
-        SlotGetter::new(&["__invert__"], "get_invert"),
-        SlotGetter::new(&["__lshift__", "__rlshift__"], "get_lshift_rlshift"),
-        SlotGetter::new(&["__lshift__"], "get_lshift"),
-        SlotGetter::new(&["__rlshift__"], "get_rlshift"),
-        SlotGetter::new(&["__rshift__", "__rrshift__"], "get_rshift_rrshift"),
-        SlotGetter::new(&["__rshift__"], "get_rshift"),
-        SlotGetter::new(&["__rrshift__"], "get_rrshift"),
-        SlotGetter::new(&["__and__", "__rand__"], "get_and_rand"),
-        SlotGetter::new(&["__and__"], "get_and"),
-        SlotGetter::new(&["__rand__"], "get_rand"),
-        SlotGetter::new(&["__xor__", "__rxor__"], "get_xor_rxor"),
-        SlotGetter::new(&["__xor__"], "get_xor"),
-        SlotGetter::new(&["__rxor__"], "get_rxor"),
-        SlotGetter::new(&["__or__", "__ror__"], "get_or_ror"),
-        SlotGetter::new(&["__or__"], "get_or"),
-        SlotGetter::new(&["__ror__"], "get_ror"),
-        SlotGetter::new(&["__int__"], "get_int"),
-        SlotGetter::new(&["__float__"], "get_float"),
-        SlotGetter::new(&["__iadd__"], "get_iadd"),
-        SlotGetter::new(&["__isub__"], "get_isub"),
-        SlotGetter::new(&["__imul__"], "get_imul"),
-        SlotGetter::new(&["__imod__"], "get_imod"),
-        SlotGetter::new(&["__ipow__"], "get_ipow"),
-        SlotGetter::new(&["__ilshift__"], "get_ilshift"),
-        SlotGetter::new(&["__irshift__"], "get_irshift"),
-        SlotGetter::new(&["__iand__"], "get_iand"),
-        SlotGetter::new(&["__ixor__"], "get_ixor"),
-        SlotGetter::new(&["__ior__"], "get_ior"),
-        SlotGetter::new(&["__floordiv__", "__rfloordiv__"], "get_floordiv_rfloordiv"),
-        SlotGetter::new(&["__floordiv__"], "get_floordiv"),
-        SlotGetter::new(&["__rfloordiv__"], "get_rfloordiv"),
-        SlotGetter::new(&["__truediv__", "__rtruediv__"], "get_truediv_rtruediv"),
-        SlotGetter::new(&["__truediv__"], "get_truediv"),
-        SlotGetter::new(&["__rtruediv__"], "get_rtruediv"),
-        SlotGetter::new(&["__ifloordiv__"], "get_ifloordiv"),
-        SlotGetter::new(&["__itruediv__"], "get_itruediv"),
-        SlotGetter::new(&["__index__"], "get_index"),
-        SlotGetter::new(&["__matmul__", "__rmatmul__"], "get_matmul_rmatmul"),
-        SlotGetter::new(&["__matmul__"], "get_matmul"),
-        SlotGetter::new(&["__rmatmul__"], "get_rmatmul"),
-        SlotGetter::new(&["__imatmul__"], "get_imatmul"),
+    slot_defs: &[
+        SlotDef::new(
+            &["__add__", "__radd__"],
+            "Py_nb_add",
+            "pyo3::class::number::add_radd",
+        ),
+        SlotDef::new(&["__add__"], "Py_nb_add", "pyo3::class::number::add"),
+        SlotDef::new(&["__radd__"], "Py_nb_add", "pyo3::class::number::radd"),
+        SlotDef::new(
+            &["__sub__", "__rsub__"],
+            "Py_nb_subtract",
+            "pyo3::class::number::sub_rsub",
+        ),
+        SlotDef::new(&["__sub__"], "Py_nb_subtract", "pyo3::class::number::sub"),
+        SlotDef::new(&["__rsub__"], "Py_nb_subtract", "pyo3::class::number::rsub"),
+        SlotDef::new(
+            &["__mul__", "__rmul__"],
+            "Py_nb_multiply",
+            "pyo3::class::number::mul_rmul",
+        ),
+        SlotDef::new(&["__mul__"], "Py_nb_multiply", "pyo3::class::number::mul"),
+        SlotDef::new(&["__rmul__"], "Py_nb_multiply", "pyo3::class::number::rmul"),
+        SlotDef::new(&["__mod__"], "Py_nb_remainder", "pyo3::class::number::mod_"),
+        SlotDef::new(
+            &["__divmod__", "__rdivmod__"],
+            "Py_nb_divmod",
+            "pyo3::class::number::divmod_rdivmod",
+        ),
+        SlotDef::new(
+            &["__divmod__"],
+            "Py_nb_divmod",
+            "pyo3::class::number::divmod",
+        ),
+        SlotDef::new(
+            &["__rdivmod__"],
+            "Py_nb_divmod",
+            "pyo3::class::number::rdivmod",
+        ),
+        SlotDef::new(
+            &["__pow__", "__rpow__"],
+            "Py_nb_power",
+            "pyo3::class::number::pow_rpow",
+        ),
+        SlotDef::new(&["__pow__"], "Py_nb_power", "pyo3::class::number::pow"),
+        SlotDef::new(&["__rpow__"], "Py_nb_power", "pyo3::class::number::rpow"),
+        SlotDef::new(&["__neg__"], "Py_nb_negative", "pyo3::class::number::neg"),
+        SlotDef::new(&["__pos__"], "Py_nb_positive", "pyo3::class::number::pos"),
+        SlotDef::new(&["__abs__"], "Py_nb_absolute", "pyo3::class::number::abs"),
+        SlotDef::new(
+            &["__invert__"],
+            "Py_nb_invert",
+            "pyo3::class::number::invert",
+        ),
+        SlotDef::new(
+            &["__lshift__", "__rlshift__"],
+            "Py_nb_lshift",
+            "pyo3::class::number::lshift_rlshift",
+        ),
+        SlotDef::new(
+            &["__lshift__"],
+            "Py_nb_lshift",
+            "pyo3::class::number::lshift",
+        ),
+        SlotDef::new(
+            &["__rlshift__"],
+            "Py_nb_lshift",
+            "pyo3::class::number::rlshift",
+        ),
+        SlotDef::new(
+            &["__rshift__", "__rrshift__"],
+            "Py_nb_rshift",
+            "pyo3::class::number::rshift_rrshift",
+        ),
+        SlotDef::new(
+            &["__rshift__"],
+            "Py_nb_rshift",
+            "pyo3::class::number::rshift",
+        ),
+        SlotDef::new(
+            &["__rrshift__"],
+            "Py_nb_rshift",
+            "pyo3::class::number::rrshift",
+        ),
+        SlotDef::new(
+            &["__and__", "__rand__"],
+            "Py_nb_and",
+            "pyo3::class::number::and_rand",
+        ),
+        SlotDef::new(&["__and__"], "Py_nb_and", "pyo3::class::number::and"),
+        SlotDef::new(&["__rand__"], "Py_nb_and", "pyo3::class::number::rand"),
+        SlotDef::new(
+            &["__xor__", "__rxor__"],
+            "Py_nb_xor",
+            "pyo3::class::number::xor_rxor",
+        ),
+        SlotDef::new(&["__xor__"], "Py_nb_xor", "pyo3::class::number::xor"),
+        SlotDef::new(&["__rxor__"], "Py_nb_xor", "pyo3::class::number::rxor"),
+        SlotDef::new(
+            &["__or__", "__ror__"],
+            "Py_nb_or",
+            "pyo3::class::number::or_ror",
+        ),
+        SlotDef::new(&["__or__"], "Py_nb_or", "pyo3::class::number::or"),
+        SlotDef::new(&["__ror__"], "Py_nb_or", "pyo3::class::number::ror"),
+        SlotDef::new(&["__int__"], "Py_nb_int", "pyo3::class::number::int"),
+        SlotDef::new(&["__float__"], "Py_nb_float", "pyo3::class::number::float"),
+        SlotDef::new(
+            &["__iadd__"],
+            "Py_nb_inplace_add",
+            "pyo3::class::number::iadd",
+        ),
+        SlotDef::new(
+            &["__isub__"],
+            "Py_nb_inplace_subtract",
+            "pyo3::class::number::isub",
+        ),
+        SlotDef::new(
+            &["__imul__"],
+            "Py_nb_inplace_multiply",
+            "pyo3::class::number::imul",
+        ),
+        SlotDef::new(
+            &["__imod__"],
+            "Py_nb_inplace_remainder",
+            "pyo3::class::number::imod",
+        ),
+        SlotDef::new(
+            &["__ipow__"],
+            "Py_nb_inplace_power",
+            "pyo3::class::number::ipow",
+        ),
+        SlotDef::new(
+            &["__ilshift__"],
+            "Py_nb_inplace_lshift",
+            "pyo3::class::number::ilshift",
+        ),
+        SlotDef::new(
+            &["__irshift__"],
+            "Py_nb_inplace_rshift",
+            "pyo3::class::number::irshift",
+        ),
+        SlotDef::new(
+            &["__iand__"],
+            "Py_nb_inplace_and",
+            "pyo3::class::number::iand",
+        ),
+        SlotDef::new(
+            &["__ixor__"],
+            "Py_nb_inplace_xor",
+            "pyo3::class::number::ixor",
+        ),
+        SlotDef::new(&["__ior__"], "Py_nb_inplace_or", "pyo3::class::number::ior"),
+        SlotDef::new(
+            &["__floordiv__", "__rfloordiv__"],
+            "Py_nb_floor_divide",
+            "pyo3::class::number::floordiv_rfloordiv",
+        ),
+        SlotDef::new(
+            &["__floordiv__"],
+            "Py_nb_floor_divide",
+            "pyo3::class::number::floordiv",
+        ),
+        SlotDef::new(
+            &["__rfloordiv__"],
+            "Py_nb_floor_divide",
+            "pyo3::class::number::rfloordiv",
+        ),
+        SlotDef::new(
+            &["__truediv__", "__rtruediv__"],
+            "Py_nb_true_divide",
+            "pyo3::class::number::truediv_rtruediv",
+        ),
+        SlotDef::new(
+            &["__truediv__"],
+            "Py_nb_true_divide",
+            "pyo3::class::number::truediv",
+        ),
+        SlotDef::new(
+            &["__rtruediv__"],
+            "Py_nb_true_divide",
+            "pyo3::class::number::rtruediv",
+        ),
+        SlotDef::new(
+            &["__ifloordiv__"],
+            "Py_nb_inplace_floor_divide",
+            "pyo3::class::number::ifloordiv",
+        ),
+        SlotDef::new(
+            &["__itruediv__"],
+            "Py_nb_inplace_true_divide",
+            "pyo3::class::number::itruediv",
+        ),
+        SlotDef::new(&["__index__"], "Py_nb_index", "pyo3::class::number::index"),
+        SlotDef::new(
+            &["__matmul__", "__rmatmul__"],
+            "Py_nb_matrix_multiply",
+            "pyo3::class::number::matmul_rmatmul",
+        ),
+        SlotDef::new(
+            &["__matmul__"],
+            "Py_nb_matrix_multiply",
+            "pyo3::class::number::matmul",
+        ),
+        SlotDef::new(
+            &["__rmatmul__"],
+            "Py_nb_matrix_multiply",
+            "pyo3::class::number::rmatmul",
+        ),
+        SlotDef::new(
+            &["__imatmul__"],
+            "Py_nb_inplace_matrix_multiply",
+            "pyo3::class::number::imatmul",
+        ),
     ],
 };

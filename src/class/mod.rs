@@ -16,6 +16,7 @@ pub mod mapping;
 #[doc(hidden)]
 pub mod methods;
 pub mod number;
+#[doc(hidden)]
 pub mod proto_methods;
 pub mod pyasync;
 pub mod sequence;

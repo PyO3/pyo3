@@ -254,34 +254,6 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
-/// Implement `HasProtoInventory` for the class for lazy protocol initialization.
-fn impl_proto_inventory(cls: &syn::Ident) -> TokenStream {
-    // Try to build a unique type for better error messages
-    let name = format!("Pyo3ProtoInventoryFor{}", cls);
-    let inventory_cls = syn::Ident::new(&name, Span::call_site());
-
-    quote! {
-        #[doc(hidden)]
-        pub struct #inventory_cls {
-            def: pyo3::class::proto_methods::PyProtoMethodDef,
-        }
-        impl pyo3::class::proto_methods::PyProtoInventory for #inventory_cls {
-            fn new(def: pyo3::class::proto_methods::PyProtoMethodDef) -> Self {
-                Self { def }
-            }
-            fn get(&'static self) -> &'static pyo3::class::proto_methods::PyProtoMethodDef {
-                &self.def
-            }
-        }
-
-        impl pyo3::class::proto_methods::HasProtoInventory for #cls {
-            type ProtoMethods = #inventory_cls;
-        }
-
-        pyo3::inventory::collect!(#inventory_cls);
-    }
-}
-
 fn get_class_python_name<'a>(cls: &'a syn::Ident, attr: &'a PyClassArgs) -> &'a syn::Ident {
     attr.name.as_ref().unwrap_or(cls)
 }
@@ -383,7 +355,6 @@ fn impl_class(
     };
 
     let impl_inventory = impl_methods_inventory(&cls);
-    let impl_proto_inventory = impl_proto_inventory(&cls);
 
     let base = &attr.base;
     let flags = &attr.flags;
@@ -472,7 +443,31 @@ fn impl_class(
 
         #impl_inventory
 
-        #impl_proto_inventory
+        impl pyo3::class::proto_methods::PyProtoMethods for #cls {
+            fn for_each_proto_slot<Visitor: FnMut(pyo3::ffi::PyType_Slot)>(visitor: Visitor) {
+                // Implementation which uses dtolnay specialization to load all slots.
+                use pyo3::class::proto_methods::*;
+                let protocols = PyClassProtocols::<#cls>::new();
+                protocols.object_protocol_slots()
+                    .iter()
+                    .chain(protocols.number_protocol_slots())
+                    .chain(protocols.iter_protocol_slots())
+                    .chain(protocols.gc_protocol_slots())
+                    .chain(protocols.descr_protocol_slots())
+                    .chain(protocols.mapping_protocol_slots())
+                    .chain(protocols.sequence_protocol_slots())
+                    .chain(protocols.async_protocol_slots())
+                    .cloned()
+                    .for_each(visitor);
+            }
+
+            fn get_buffer() -> Option<&'static pyo3::class::proto_methods::PyBufferProcs> {
+                use pyo3::class::proto_methods::*;
+                let protocols = PyClassProtocols::<#cls>::new();
+                protocols.buffer_procs()
+            }
+        }
+
 
         #extra
 

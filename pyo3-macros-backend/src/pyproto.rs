@@ -107,7 +107,7 @@ fn impl_proto_impl(
         }
     }
     let normal_methods = submit_normal_methods(py_methods, ty);
-    let protocol_methods = submit_protocol_methods(method_names, ty, proto)?;
+    let protocol_methods = impl_proto_methods(method_names, ty, proto)?;
     Ok(quote! {
         #trait_impls
         #normal_methods
@@ -129,48 +129,53 @@ fn submit_normal_methods(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenS
     }
 }
 
-fn submit_protocol_methods(
+fn impl_proto_methods(
     method_names: HashSet<String>,
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
-    if proto.extension_trait == "" {
-        return Ok(quote! {});
-    }
-    let ext_trait: syn::Path = syn::parse_str(proto.extension_trait)?;
-    let mut tokens = vec![];
+    let slots_trait: syn::Path = syn::parse_str(proto.slots_trait)?;
+    let slots_trait_slots = syn::Ident::new(proto.slots_trait_slots, Span::call_site());
+
     if proto.name == "Buffer" {
-        // For buffer, we construct `PyProtoMethods` from PyBufferProcs
-        tokens.push(quote! {
-            let mut proto_methods = pyo3::ffi::PyBufferProcs::default();
+        return Ok(quote! {
+            impl #slots_trait<#ty> for pyo3::class::proto_methods::PyClassProtocols<#ty> {
+                fn #slots_trait_slots(
+                    self
+                ) -> Option<&'static pyo3::class::proto_methods::PyBufferProcs> {
+                    static PROCS: pyo3::class::proto_methods::PyBufferProcs
+                        = pyo3::class::proto_methods::PyBufferProcs {
+                            bf_getbuffer: Some(pyo3::class::buffer::getbuffer::<#ty>),
+                            bf_releasebuffer: Some(pyo3::class::buffer::releasebuffer::<#ty>),
+                        };
+                    Some(&PROCS)
+                }
+            }
         });
-        for getter in proto.slot_getters(method_names) {
-            let get = syn::Ident::new(getter, Span::call_site());
-            let field = syn::Ident::new(&format!("bf_{}", &getter[4..]), Span::call_site());
-            tokens.push(quote! { proto_methods.#field = Some(<#ty as #ext_trait>::#get()); });
-        }
-    } else {
-        // For other protocols, we construct `PyProtoMethods` from Vec<ffi::PyType_Slot>
-        tokens.push(quote! { let mut proto_methods = vec![]; });
-        for getter in proto.slot_getters(method_names) {
-            let get = syn::Ident::new(getter, Span::call_site());
-            tokens.push(quote! {
-                let slot = <#ty as #ext_trait>::#get();
-                proto_methods.push(pyo3::ffi::PyType_Slot { slot: slot.0, pfunc: slot.1 as _ });
-            });
-        }
-    };
-    if tokens.len() <= 1 {
+    }
+
+    let mut tokens = proto
+        .slot_defs(method_names)
+        .map(|def| {
+            let slot = syn::Ident::new(def.slot, Span::call_site());
+            let slot_impl: syn::Path = syn::parse_str(def.slot_impl).unwrap();
+            quote! {{
+                pyo3::ffi::PyType_Slot {
+                    slot: pyo3::ffi::#slot,
+                    pfunc: #slot_impl::<#ty> as _
+                }
+            }}
+        })
+        .peekable();
+
+    if tokens.peek().is_none() {
         return Ok(quote! {});
     }
+
     Ok(quote! {
-        pyo3::inventory::submit! {
-            #![crate = pyo3] {
-                type Inventory =
-                    <#ty as pyo3::class::proto_methods::HasProtoInventory>::ProtoMethods;
-                <Inventory as pyo3::class::proto_methods::PyProtoInventory>::new(
-                    { #(#tokens)* proto_methods.into() }
-                )
+        impl #slots_trait<#ty> for pyo3::class::proto_methods::PyClassProtocols<#ty> {
+            fn #slots_trait_slots(self) -> &'static [pyo3::ffi::PyType_Slot] {
+                &[#(#tokens),*]
             }
         }
     })
