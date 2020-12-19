@@ -17,14 +17,9 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
-
-    #[cfg(PyPy)]
-    #[link_name = "PyPySlice_Check"]
-    pub fn PySlice_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PySlice_Type) as c_int
 }
