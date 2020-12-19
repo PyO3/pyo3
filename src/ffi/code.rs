@@ -133,16 +133,24 @@ extern "C" {
         names: *mut PyObject,
         lnotab: *mut PyObject,
     ) -> *mut PyObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyCode_Check"]
+    pub fn PyCode_Check(op: *mut PyObject) -> c_int;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyCode_GetNumFree"]
+    pub fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCode_Check")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCode_Type) as c_int
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCode_GetNumFree")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::ffi::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }

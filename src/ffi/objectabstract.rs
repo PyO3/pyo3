@@ -3,10 +3,15 @@ use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
+extern "C" {
+    #[cfg(PyPy)]
+    #[link_name = "PyPyObject_DelAttrString"]
+    pub fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int;
+}
+
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyObject_DelAttrString")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttr")]
     PyObject_SetAttrString(o, attr_name, ptr::null_mut())
 }
 
@@ -129,11 +134,14 @@ extern "C" {
     pub fn PyNumber_Xor(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Or")]
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyIndex_Check"]
+    pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyIndex_Check")]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     let tp_as_number = (*Py_TYPE(o)).tp_as_number;
     (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
@@ -184,10 +192,14 @@ extern "C" {
     pub fn PySequence_Check(o: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Size")]
     pub fn PySequence_Size(o: *mut PyObject) -> Py_ssize_t;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPySequence_Length"]
+    pub fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPySequence_Length")]
+#[cfg(not(PyPy))]
 pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
     PySequence_Size(o)
 }
@@ -242,10 +254,14 @@ extern "C" {
     pub fn PyMapping_Check(o: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyMapping_Size")]
     pub fn PyMapping_Size(o: *mut PyObject) -> Py_ssize_t;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyMapping_Length"]
+    pub fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyMapping_Length")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t {
     PyMapping_Size(o)
 }

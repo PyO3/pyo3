@@ -11,7 +11,6 @@
 //! Support for `PyDateTime_CAPI` is limited as of PyPy 7.0.0.
 //! `DateTime_FromTimestamp` and `Date_FromTimestamp` are currently not supported.
 
-use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
 use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
 use crate::once_cell::GILOnceCell;
@@ -19,7 +18,10 @@ use crate::Python;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
 #[cfg(not(PyPy))]
-use {crate::ffi::PyCapsule_Import, std::ffi::CString};
+use {
+    crate::ffi::{PyCapsule_Import, Py_hash_t},
+    std::ffi::CString,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

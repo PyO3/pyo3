@@ -7,22 +7,34 @@ extern "C" {
     static mut _PyWeakref_RefType: PyTypeObject;
     static mut _PyWeakref_ProxyType: PyTypeObject;
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyWeakref_CheckRef"]
+    pub fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyWeakref_CheckRefExact"]
+    pub fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyWeakref_CheckProxy"]
+    pub fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRef")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyWeakref_RefType)
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRefExact")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut _PyWeakref_RefType) as c_int
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckProxy")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     ((Py_TYPE(op) == &mut _PyWeakref_ProxyType)
         || (Py_TYPE(op) == &mut _PyWeakref_CallableProxyType)) as c_int

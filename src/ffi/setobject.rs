@@ -9,6 +9,18 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_Type")]
     pub static mut PyFrozenSet_Type: PyTypeObject;
     pub static mut PySetIter_Type: PyTypeObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyFrozenSet_CheckExact"]
+    pub fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyAnySet_CheckExact"]
+    pub fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPySet_Check"]
+    pub fn PySet_Check(ob: *mut PyObject) -> c_int;
 }
 
 pub const PySet_MINSIZE: usize = 8;
@@ -35,13 +47,13 @@ pub struct PySetObject {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyFrozenSet_CheckExact")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyAnySet_CheckExact")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PySet_Type || Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
 }
@@ -54,7 +66,7 @@ pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPySet_Check")]
+#[cfg(not(PyPy))]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PySet_Type || PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0) as c_int
 }

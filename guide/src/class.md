@@ -136,7 +136,7 @@ The `#[pyclass]` macro accepts the following parameters:
 The performance improvement applies to types that are often created and deleted in a row,
 so that they can benefit from a freelist. `XXX` is a number of items for the free list.
 * `gc` - Classes with the `gc` parameter participate in Python garbage collection.
-If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`] trait has to be implemented.
+If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`](https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class.

@@ -72,7 +72,7 @@ extern "C" {
         module: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
+    #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]
     pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
 }
 

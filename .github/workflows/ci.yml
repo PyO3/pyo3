@@ -84,6 +84,9 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
+      - name: Build docs
+        run: cargo doc --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
+
       - name: Build without default features
         run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 

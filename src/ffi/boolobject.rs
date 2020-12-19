@@ -12,10 +12,14 @@ extern "C" {
     static mut _Py_TrueStruct: PyLongObject;
     #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyBool_Check"]
+    pub fn PyBool_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyBool_Check")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBool_Type) as c_int
 }

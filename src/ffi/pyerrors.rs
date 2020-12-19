@@ -128,6 +128,10 @@ extern "C" {
     pub fn PyException_GetContext(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyException_SetContext")]
     pub fn PyException_SetContext(arg1: *mut PyObject, arg2: *mut PyObject);
+
+    #[cfg(PyPy)]
+    #[link_name = "PyPyExceptionInstance_Class"]
+    pub fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject;
 }
 
 #[inline]
@@ -143,7 +147,7 @@ pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyExceptionInstance_Class")]
+#[cfg(not(PyPy))]
 pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     Py_TYPE(x) as *mut PyObject
 }

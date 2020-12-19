@@ -225,3 +225,4 @@ defines exceptions for several standard library modules.
 [`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html
 [`PyErr::from_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.from_instance
 [`Python::is_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.is_instance
+[`PyAny::is_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#method.is_instance
