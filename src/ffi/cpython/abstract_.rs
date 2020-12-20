@@ -1,4 +1,4 @@
-use crate::ffi::{PyObject, Py_TYPE, Py_buffer, Py_ssize_t};
+use crate::ffi::{PyObject, Py_buffer, Py_ssize_t};
 use libc::{c_char, c_int, c_void};
 
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -51,7 +51,7 @@ pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
 #[inline(always)]
 pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc> {
     assert!(!callable.is_null());
-    let tp = Py_TYPE(callable);
+    let tp = crate::ffi::Py_TYPE(callable);
     if PyType_HasFeature(tp, Py_TPFLAGS_HAVE_VECTORCALL) == 0 {
         return None;
     }
@@ -218,7 +218,7 @@ extern "C" {
 #[cfg(not(any(Py_3_9, PyPy)))]
 #[inline]
 pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
-    let tp_as_buffer = (*Py_TYPE(o)).tp_as_buffer;
+    let tp_as_buffer = (*crate::ffi::Py_TYPE(o)).tp_as_buffer;
     (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
 }
 
@@ -267,8 +267,9 @@ extern "C" {
 }
 
 #[inline]
+#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    (match (*Py_TYPE(o)).tp_iternext {
+    (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
         Some(tp_iternext) => {
             tp_iternext as *const c_void != crate::ffi::object::_PyObject_NextNotImplemented as _
         }

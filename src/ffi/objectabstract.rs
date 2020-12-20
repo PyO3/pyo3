@@ -86,7 +86,7 @@ extern "C" {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 
     // PyIter_Check for unlimited API is in cpython/abstract_.rs
-    #[cfg(all(Py_LIMITED_API, Py_3_8))]
+    #[cfg(any(all(Py_LIMITED_API, Py_3_8), PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
 }
