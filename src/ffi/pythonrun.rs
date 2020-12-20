@@ -14,6 +14,9 @@ pub struct PyCompilerFlags {
     pub cf_flags: c_int,
 }
 
+#[cfg(Py_LIMITED_API)]
+opaque_struct!(PyCompilerFlags);
+
 #[cfg(not(Py_LIMITED_API))]
 opaque_struct!(_mod);
 
@@ -145,8 +148,7 @@ extern "C" {
     #[cfg(Py_LIMITED_API)]
     #[cfg(not(PyPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
-    #[cfg(PyPy)]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(PyPy, not(Py_LIMITED_API)))]
     #[cfg_attr(PyPy, link_name = "PyPy_CompileStringFlags")]
     pub fn Py_CompileStringFlags(
         string: *const c_char,
