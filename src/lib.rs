@@ -90,6 +90,12 @@
 //!   "-C", "link-arg=-undefined",
 //!   "-C", "link-arg=dynamic_lookup",
 //! ]
+//!
+//! [target.aarch64-apple-darwin]
+//! rustflags = [
+//!   "-C", "link-arg=-undefined",
+//!   "-C", "link-arg=dynamic_lookup",
+//! ]
 //! ```
 //!
 //! While developing, you symlink (or copy) and rename the shared library from
