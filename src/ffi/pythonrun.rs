@@ -155,16 +155,14 @@ extern "C" {
         f: *mut PyCompilerFlags,
     ) -> *mut PyObject;
 }
-#[cfg(not(Py_LIMITED_API))]
-#[inline]
-#[cfg(not(PyPy))]
-pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, ptr::null_mut(), -1)
-}
 
 #[inline]
-#[cfg(PyPy)]
+#[cfg(not(Py_LIMITED_API))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
+    #[cfg(not(PyPy))]
+    return Py_CompileStringExFlags(string, p, s, ptr::null_mut(), -1);
+
+    #[cfg(PyPy)]
     Py_CompileStringFlags(string, p, s, ptr::null_mut())
 }
 

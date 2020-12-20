@@ -10,27 +10,15 @@ use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
 use std::marker::PhantomData;
-#[cfg(not(PyPy))]
-use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
-use std::{ptr, thread};
+use std::{mem, ptr, thread};
 
-#[cfg(PyPy)]
-unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
-    (*tp).tp_alloc
-}
-
-#[cfg(not(PyPy))]
+#[inline]
 unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
     mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc))
 }
 
-#[cfg(PyPy)]
-pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
-    (*tp).tp_free
-}
-
-#[cfg(not(PyPy))]
+#[inline]
 pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
     mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_free))
 }
