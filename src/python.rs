@@ -7,11 +7,95 @@ use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 
 pub use gil::prepare_freethreaded_python;
+
+/// Represents the major, minor, and patch (if any) versions of this interpreter.
+///
+/// See [Python::version].
+#[derive(Debug)]
+pub struct PythonVersionInfo<'p> {
+    pub major: u8,
+    pub minor: u8,
+    pub patch: u8,
+    pub suffix: Option<&'p str>,
+}
+
+impl<'p> PythonVersionInfo<'p> {
+    /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
+    ///
+    /// Panics if the string is ill-formatted.
+    fn from_str(version_number_str: &'p str) -> Self {
+        fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
+            match version_part.find(|c: char| !c.is_ascii_digit()) {
+                None => (version_part.parse().unwrap(), None),
+                Some(version_part_suffix_start) => {
+                    let (version_part, version_part_suffix) =
+                        version_part.split_at(version_part_suffix_start);
+                    (version_part.parse().unwrap(), Some(version_part_suffix))
+                }
+            }
+        }
+
+        let mut parts = version_number_str.split('.');
+        let major_str = parts.next().expect("Python major version missing");
+        let minor_str = parts.next().expect("Python minor version missing");
+        let patch_str = parts.next();
+        assert!(
+            parts.next().is_none(),
+            "Python version string has too many parts"
+        );
+
+        let major = major_str
+            .parse()
+            .expect("Python major version not an integer");
+        let (minor, suffix) = split_and_parse_number(minor_str);
+        if suffix.is_some() {
+            assert!(patch_str.is_none());
+            return PythonVersionInfo {
+                major,
+                minor,
+                patch: 0,
+                suffix,
+            };
+        }
+
+        let (patch, suffix) = patch_str.map(split_and_parse_number).unwrap_or_default();
+        PythonVersionInfo {
+            major,
+            minor,
+            patch,
+            suffix,
+        }
+    }
+}
+
+impl PartialEq<(u8, u8)> for PythonVersionInfo<'_> {
+    fn eq(&self, other: &(u8, u8)) -> bool {
+        self.major == other.0 && self.minor == other.1
+    }
+}
+
+impl PartialEq<(u8, u8, u8)> for PythonVersionInfo<'_> {
+    fn eq(&self, other: &(u8, u8, u8)) -> bool {
+        self.major == other.0 && self.minor == other.1 && self.patch == other.2
+    }
+}
+
+impl PartialOrd<(u8, u8)> for PythonVersionInfo<'_> {
+    fn partial_cmp(&self, other: &(u8, u8)) -> Option<std::cmp::Ordering> {
+        (self.major, self.minor).partial_cmp(other)
+    }
+}
+
+impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
+    fn partial_cmp(&self, other: &(u8, u8, u8)) -> Option<std::cmp::Ordering> {
+        (self.major, self.minor, self.patch).partial_cmp(other)
+    }
+}
 
 /// Marker type that indicates that the GIL is currently held.
 ///
@@ -302,6 +386,49 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
     }
 
+    /// Gets the running Python interpreter version as a string.
+    ///
+    /// This is a wrapper around the ffi call Py_GetVersion.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use pyo3::Python;
+    /// Python::with_gil(|py| {
+    ///     // The full string could be, for example:
+    ///     // "3.0a5+ (py3k:63103M, May 12 2008, 00:53:55) \n[GCC 4.2.3]"
+    ///     assert!(py.version().starts_with("3."));
+    /// });
+    /// ```
+    pub fn version(self) -> &'p str {
+        unsafe {
+            CStr::from_ptr(ffi::Py_GetVersion() as *const c_char)
+                .to_str()
+                .expect("Python version string not UTF-8")
+        }
+    }
+
+    /// Gets the running Python interpreter version as a struct similar to
+    /// `sys.version_info`.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use pyo3::Python;
+    /// Python::with_gil(|py| {
+    ///     // PyO3 supports Python 3.6 and up.
+    ///     assert!(py.version_info() >= (3, 6));
+    ///     assert!(py.version_info() >= (3, 6, 0));
+    /// });
+    /// ```
+    pub fn version_info(self) -> PythonVersionInfo<'p> {
+        let version_str = self.version();
+
+        // Portion of the version string returned by Py_GetVersion up to the first space is the
+        // version number.
+        let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
+
+        PythonVersionInfo::from_str(version_number_str)
+    }
+
     /// Registers the object in the release pool, and tries to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
     where
@@ -527,8 +654,8 @@ impl<'p> Python<'p> {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::types::{IntoPyDict, PyAny, PyBool, PyInt, PyList};
-    use crate::Python;
 
     #[test]
     fn test_eval() {
@@ -617,5 +744,42 @@ mod test {
         // so the following Python calls should not cause crashes.
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_python_version_info() {
+        Python::with_gil(|py| {
+            let version = py.version_info();
+            #[cfg(Py_3_6)]
+            assert!(version >= (3, 6));
+            #[cfg(Py_3_6)]
+            assert!(version >= (3, 6, 0));
+            #[cfg(Py_3_7)]
+            assert!(version >= (3, 7));
+            #[cfg(Py_3_7)]
+            assert!(version >= (3, 7, 0));
+            #[cfg(Py_3_8)]
+            assert!(version >= (3, 8));
+            #[cfg(Py_3_8)]
+            assert!(version >= (3, 8, 0));
+            #[cfg(Py_3_9)]
+            assert!(version >= (3, 9));
+            #[cfg(Py_3_9)]
+            assert!(version >= (3, 9, 0));
+        });
+    }
+
+    #[test]
+    fn test_python_version_info_parse() {
+        assert!(PythonVersionInfo::from_str("3.5.0a1") >= (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+") >= (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+") == (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+") != (3, 5, 1));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+") < (3, 5, 3));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+") == (3, 5, 2));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+") == (3, 5));
+        assert!(PythonVersionInfo::from_str("3.5+") == (3, 5));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+") < (3, 6));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+") > (3, 4));
     }
 }

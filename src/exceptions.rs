@@ -562,17 +562,19 @@ mod test {
             .into_instance(py)
             .into_ref(py);
 
-        #[cfg(Py_3_7)]
-        assert_eq!(format!("{:?}", exc), "Exception('banana')");
-        #[cfg(not(Py_3_7))]
-        assert_eq!(format!("{:?}", exc), "Exception('banana',)");
+        if py.version_info() >= (3, 7) {
+            assert_eq!(format!("{:?}", exc), "Exception('banana')");
+        } else {
+            assert_eq!(format!("{:?}", exc), "Exception('banana',)");
+        }
 
         let source = exc.source().expect("cause should exist");
 
-        #[cfg(Py_3_7)]
-        assert_eq!(format!("{:?}", source), "TypeError('peach')");
-        #[cfg(not(Py_3_7))]
-        assert_eq!(format!("{:?}", source), "TypeError('peach',)");
+        if py.version_info() >= (3, 7) {
+            assert_eq!(format!("{:?}", source), "TypeError('peach')");
+        } else {
+            assert_eq!(format!("{:?}", source), "TypeError('peach',)");
+        }
 
         let source_source = source.source();
         assert!(source_source.is_none(), "source_source should be None");
