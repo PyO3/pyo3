@@ -3,7 +3,7 @@
 //! must not contain any other public items.
 
 use proc_macro::TokenStream;
-use pyo3_derive_backend::{
+use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,
     build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyFunctionAttr,
 };

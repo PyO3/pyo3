@@ -201,9 +201,9 @@ pub mod types;
 /// The proc macros, which are also part of the prelude.
 #[cfg(feature = "macros")]
 pub mod proc_macro {
-    pub use pyo3cls::pymodule;
+    pub use pyo3_macros::pymodule;
     /// The proc macro attributes
-    pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
+    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pyproto};
 }
 
 /// Returns a function that takes a [Python] instance and returns a Python function.
