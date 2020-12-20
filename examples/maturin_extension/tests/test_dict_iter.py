@@ -1,5 +1,5 @@
 import pytest
-from maturin_extension.dict_iter import DictSize
+from maturin_extension import dict_iter as rdi
 
 
 @pytest.mark.parametrize("size", [64, 128, 256])
@@ -7,4 +7,4 @@ def test_size(size):
     d = {}
     for i in range(size):
         d[i] = str(i)
-    assert DictSize(len(d)).iter_dict(d) == size
+    assert rdi.DictSize(len(d)).iter_dict(d) == size

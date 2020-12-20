@@ -5,7 +5,7 @@ import re
 import sys
 
 import pytest
-import setuptools_rust_extension.datetime as rdt
+from setuptools_rust_extension import datetime as rdt
 from hypothesis import given, example
 from hypothesis import strategies as st
 

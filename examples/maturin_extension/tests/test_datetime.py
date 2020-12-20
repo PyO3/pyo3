@@ -5,7 +5,7 @@ import re
 import sys
 
 import pytest
-import maturin_extension.datetime as rdt
+from maturin_extension import datetime as rdt
 from hypothesis import given, example
 from hypothesis import strategies as st
 

@@ -1,6 +1,6 @@
-import setuptools_rust_extension.misc
+from setuptools_rust_extension import misc
 
 
 def test_issue_219():
     # Should not deadlock
-    setuptools_rust_extension.misc.issue_219()
+    misc.issue_219()

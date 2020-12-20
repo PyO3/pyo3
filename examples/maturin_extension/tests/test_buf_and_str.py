@@ -4,7 +4,7 @@ import platform
 
 import psutil
 import pytest
-from maturin_extension.buf_and_str import BytesExtractor
+from maturin_extension import buf_and_str as bf
 
 PYPY = platform.python_implementation() == "PyPy"
 
@@ -16,7 +16,7 @@ PYPY = platform.python_implementation() == "PyPy"
 )
 def test_pybuffer_doesnot_leak_memory():
     N = 10000
-    extractor = BytesExtractor()
+    extractor = bf.BytesExtractor()
     process = psutil.Process(os.getpid())
 
     def memory_diff(f):

@@ -1,6 +1,6 @@
-import maturin_extension.misc
+from maturin_extension import misc
 
 
 def test_issue_219():
     # Should not deadlock
-    maturin_extension.misc.issue_219()
+    misc.issue_219()

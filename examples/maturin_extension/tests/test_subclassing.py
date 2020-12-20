@@ -1,11 +1,11 @@
 import platform
 
-from maturin_extension.subclassing import Subclassable
+from maturin_extension import subclassing
 
 PYPY = platform.python_implementation() == "PyPy"
 
 
-class SomeSubClass(Subclassable):
+class SomeSubClass(subclassing.Subclassable):
     def __str__(self):
         return "SomeSubclass"
 
