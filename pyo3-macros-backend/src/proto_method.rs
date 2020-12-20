@@ -43,9 +43,10 @@ impl MethodProto {
 pub(crate) fn impl_method_proto(
     cls: &syn::Type,
     sig: &mut syn::Signature,
+    module: &syn::Path,
     meth: &MethodProto,
 ) -> syn::Result<TokenStream> {
-    let p: syn::Path = syn::parse_str(meth.proto).unwrap();
+    let proto: syn::Path = syn::parse_str(meth.proto).unwrap();
 
     let mut impl_types = Vec::new();
     for (i, arg) in meth.args.iter().enumerate() {
@@ -55,8 +56,8 @@ pub(crate) fn impl_method_proto(
 
         impl_types.push(quote! {type #arg_name = #arg_ty;});
 
-        let type1 = syn::parse_quote! { arg: <#cls as #p<'p>>::#arg_name};
-        let type2 = syn::parse_quote! { arg: Option<<#cls as #p<'p>>::#arg_name>};
+        let type1 = syn::parse_quote! { arg: <#cls as #module::#proto<'p>>::#arg_name};
+        let type2 = syn::parse_quote! { arg: Option<<#cls as #module::#proto<'p>>::#arg_name>};
         modify_arg_ty(sig, idx, &type1, &type2)?;
     }
 
@@ -74,14 +75,14 @@ pub(crate) fn impl_method_proto(
             }
         };
 
-        sig.output = syn::parse_quote! { -> <#cls as #p<'p>>::Result };
+        sig.output = syn::parse_quote! { -> <#cls as #module::#proto<'p>>::Result };
         quote! { type Result = #ret_ty; }
     } else {
         proc_macro2::TokenStream::new()
     };
 
     Ok(quote! {
-        impl<'p> #p<'p> for #cls {
+        impl<'p> #module::#proto<'p> for #cls {
             #(#impl_types)*
             #res_type_def
         }

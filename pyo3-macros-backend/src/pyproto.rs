@@ -62,12 +62,13 @@ fn impl_proto_impl(
     let mut trait_impls = TokenStream::new();
     let mut py_methods = Vec::new();
     let mut method_names = HashSet::new();
+    let module = proto.module();
 
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(met) = iimpl {
             // impl Py~Protocol<'p> { type = ... }
             if let Some(m) = proto.get_proto(&met.sig.ident) {
-                impl_method_proto(ty, &mut met.sig, m)?.to_tokens(&mut trait_impls);
+                impl_method_proto(ty, &mut met.sig, &module, m)?.to_tokens(&mut trait_impls);
                 // Insert the method to the HashSet
                 method_names.insert(met.sig.ident.to_string());
             }
@@ -107,7 +108,7 @@ fn impl_proto_impl(
         }
     }
     let normal_methods = submit_normal_methods(py_methods, ty);
-    let protocol_methods = impl_proto_methods(method_names, ty, proto)?;
+    let protocol_methods = impl_proto_methods(method_names, ty, proto);
     Ok(quote! {
         #trait_impls
         #normal_methods
@@ -133,13 +134,19 @@ fn impl_proto_methods(
     method_names: HashSet<String>,
     ty: &syn::Type,
     proto: &defs::Proto,
-) -> syn::Result<TokenStream> {
-    let slots_trait: syn::Path = syn::parse_str(proto.slots_trait)?;
+) -> TokenStream {
+    if proto.slots_trait.is_empty() {
+        return TokenStream::default();
+    }
+
+    let module = proto.module();
+    let slots_trait = syn::Ident::new(proto.slots_trait, Span::call_site());
     let slots_trait_slots = syn::Ident::new(proto.slots_trait_slots, Span::call_site());
 
     if proto.name == "Buffer" {
-        return Ok(quote! {
-            impl #slots_trait<#ty> for pyo3::class::proto_methods::PyClassProtocols<#ty> {
+        return quote! {
+            impl pyo3::class::proto_methods::#slots_trait<#ty>
+            for pyo3::class::proto_methods::PyClassProtocols<#ty> {
                 fn #slots_trait_slots(
                     self
                 ) -> Option<&'static pyo3::class::proto_methods::PyBufferProcs> {
@@ -151,7 +158,7 @@ fn impl_proto_methods(
                     Some(&PROCS)
                 }
             }
-        });
+        };
     }
 
     let mut tokens = proto
@@ -162,21 +169,22 @@ fn impl_proto_methods(
             quote! {{
                 pyo3::ffi::PyType_Slot {
                     slot: pyo3::ffi::#slot,
-                    pfunc: #slot_impl::<#ty> as _
+                    pfunc: #module::#slot_impl::<#ty> as _
                 }
             }}
         })
         .peekable();
 
     if tokens.peek().is_none() {
-        return Ok(quote! {});
+        return TokenStream::default();
     }
 
-    Ok(quote! {
-        impl #slots_trait<#ty> for pyo3::class::proto_methods::PyClassProtocols<#ty> {
+    quote! {
+        impl pyo3::class::proto_methods::#slots_trait<#ty>
+        for pyo3::class::proto_methods::PyClassProtocols<#ty> {
             fn #slots_trait_slots(self) -> &'static [pyo3::ffi::PyType_Slot] {
                 &[#(#tokens),*]
             }
         }
-    })
+    }
 }
