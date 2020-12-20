@@ -271,12 +271,6 @@ impl PyGCProtocol for TraversableClass {
     }
 }
 
-#[cfg(PyPy)]
-unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    (*tp).tp_traverse
-}
-
-#[cfg(not(PyPy))]
 unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
     std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse))
 }

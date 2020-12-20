@@ -103,7 +103,7 @@ jobs:
         run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
 
       # Run tests again, for abi3-py36 (the minimal Python version)
-      - if: (matrix.python-version != 'pypy3') && (matrix.python-version != '3.6')
+      - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
         name: Test (abi3-py36)
         run: cargo test --no-default-features --features "abi3-py36,macros" --target ${{ matrix.platform.rust-target }}
 
