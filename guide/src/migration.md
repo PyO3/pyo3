@@ -5,6 +5,10 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.12.* to 0.13
 
+### Minimum Rust version increased to Rust 1.45
+
+PyO3 `0.13` makes use of new Rust language features stabilised between Rust 1.40 and Rust 1.45. If you are using a Rust compiler older than Rust 1.45, you will need to update your toolchain to be able to continue using PyO3.
+
 ### Runtime changes to support the CPython limited API
 
 In PyO3 `0.13` support was added for compiling against the CPython limited API. This had a number of implications for _all_ PyO3 users, described here.

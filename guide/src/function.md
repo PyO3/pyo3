@@ -208,8 +208,8 @@ in Python code.
 [`PyAny::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call1
 [`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
 [`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html
-[`PyFunction`]: https://docs.rs/pyo3/0.12.4/pyo3/types/struct.PyFunction.html
-[`PyCFunction`]: https://docs.rs/pyo3/0.12.4/pyo3/types/struct.PyCFunction.html
+[`PyFunction`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyFunction.html
+[`PyCFunction`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyCFunction.html
 
 ### Accessing the module of a function
 
