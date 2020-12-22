@@ -33,7 +33,9 @@ impl<T> Copy for PyClassProtocols<T> {}
 
 // All traits describing slots, as well as the fallback implementations for unimplemented protos
 //
-// Protos which are implented use dtolnay specialization to implement for PyClassProtocols<T>
+// Protos which are implented use dtolnay specialization to implement for PyClassProtocols<T>.
+//
+// See https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
 
 pub trait PyObjectProtocolSlots<T> {
     fn object_protocol_slots(self) -> &'static [ffi::PyType_Slot];
@@ -115,8 +117,18 @@ impl<T> PySequenceProtocolSlots<T> for &'_ PyClassProtocols<T> {
     }
 }
 
-// Buffer protocol has a slightly different implementation because the slots can't actually be used
-// to set the buffer protocol...
+pub trait PyBufferProtocolSlots<T> {
+    fn buffer_protocol_slots(self) -> &'static [ffi::PyType_Slot];
+}
+
+impl<T> PyBufferProtocolSlots<T> for &'_ PyClassProtocols<T> {
+    fn buffer_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
+        &[]
+    }
+}
+
+// On Python < 3.9 setting the buffer protocol using slots doesn't work, so these procs are used
+// on those versions to set the slots manually (on the limited API).
 
 #[cfg(not(Py_LIMITED_API))]
 pub use ffi::PyBufferProcs;
@@ -124,11 +136,11 @@ pub use ffi::PyBufferProcs;
 #[cfg(Py_LIMITED_API)]
 pub struct PyBufferProcs;
 
-pub trait PyBufferProtocolSlots<T> {
+pub trait PyBufferProtocolProcs<T> {
     fn buffer_procs(self) -> Option<&'static PyBufferProcs>;
 }
 
-impl<T> PyBufferProtocolSlots<T> for &'_ PyClassProtocols<T> {
+impl<T> PyBufferProtocolProcs<T> for &'_ PyClassProtocols<T> {
     fn buffer_procs(self) -> Option<&'static PyBufferProcs> {
         None
     }

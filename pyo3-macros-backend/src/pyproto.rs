@@ -143,11 +143,16 @@ fn impl_proto_methods(
     let slots_trait = syn::Ident::new(proto.slots_trait, Span::call_site());
     let slots_trait_slots = syn::Ident::new(proto.slots_trait_slots, Span::call_site());
 
+    let mut maybe_buffer_methods = None;
     if proto.name == "Buffer" {
-        return quote! {
-            impl pyo3::class::proto_methods::#slots_trait<#ty>
-            for pyo3::class::proto_methods::PyClassProtocols<#ty> {
-                fn #slots_trait_slots(
+        // On Python 3.9 we have to use PyBufferProcs to set buffer slots.
+        // For now we emit this always for buffer methods, even on 3.9+.
+        // Maybe in the future we can access Py_3_9 here and define it.
+        maybe_buffer_methods = Some(quote! {
+            impl pyo3::class::proto_methods::PyBufferProtocolProcs<#ty>
+                for pyo3::class::proto_methods::PyClassProtocols<#ty>
+            {
+                fn buffer_procs(
                     self
                 ) -> Option<&'static pyo3::class::proto_methods::PyBufferProcs> {
                     static PROCS: pyo3::class::proto_methods::PyBufferProcs
@@ -158,14 +163,14 @@ fn impl_proto_methods(
                     Some(&PROCS)
                 }
             }
-        };
+        });
     }
 
     let mut tokens = proto
         .slot_defs(method_names)
         .map(|def| {
             let slot = syn::Ident::new(def.slot, Span::call_site());
-            let slot_impl: syn::Path = syn::parse_str(def.slot_impl).unwrap();
+            let slot_impl = syn::Ident::new(def.slot_impl, Span::call_site());
             quote! {{
                 pyo3::ffi::PyType_Slot {
                     slot: pyo3::ffi::#slot,
@@ -180,8 +185,11 @@ fn impl_proto_methods(
     }
 
     quote! {
+        #maybe_buffer_methods
+
         impl pyo3::class::proto_methods::#slots_trait<#ty>
-        for pyo3::class::proto_methods::PyClassProtocols<#ty> {
+            for pyo3::class::proto_methods::PyClassProtocols<#ty>
+        {
             fn #slots_trait_slots(self) -> &'static [pyo3::ffi::PyType_Slot] {
                 &[#(#tokens),*]
             }

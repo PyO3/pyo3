@@ -457,6 +457,7 @@ fn impl_class(
                     .chain(protocols.mapping_protocol_slots())
                     .chain(protocols.sequence_protocol_slots())
                     .chain(protocols.async_protocol_slots())
+                    .chain(protocols.buffer_protocol_slots())
                     .cloned()
                     .for_each(visitor);
             }

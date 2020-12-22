@@ -195,7 +195,7 @@ pub const BUFFER: Proto = Proto {
     name: "Buffer",
     module: "pyo3::class::buffer",
     slots_trait: "PyBufferProtocolSlots",
-    slots_trait_slots: "buffer_procs",
+    slots_trait_slots: "buffer_protocol_slots",
     methods: &[
         MethodProto::new("bf_getbuffer", "PyBufferGetBufferProtocol").has_self(),
         MethodProto::new("bf_releasebuffer", "PyBufferReleaseBufferProtocol").has_self(),
