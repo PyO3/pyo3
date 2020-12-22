@@ -28,6 +28,29 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 ```
 
+## I can't run `cargo test`: my crate cannot be found for tests in `tests/` directory!
+
+The Rust book suggests to [put integration tests inside a `tests/` directory](https://doc.rust-lang.org/book/ch11-03-test-organization.html#integration-tests).
+
+For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`,
+the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
+
+```
+error[E0432]: unresolved import `my_crate`
+ --> tests/test_my_crate.rs:1:5
+  |
+1 | use my_crate;
+  |     ^^^^^^^^^^^^ no external crate `my_crate`
+```
+
+The best solution is to make your crate types include both `rlib` and `cdylib`:
+
+```
+# Cargo.toml
+[lib]
+crate-type = ["cdylib", "rlib"]
+```
+
 ## Ctrl-C doesn't do anything while my Rust code is executing!
 
 This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later. This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
