@@ -28,6 +28,22 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 ```
 
+## I can't run `cargo test`: Compiler fails to import crate for tests in `tests/` directory!
+
+The Rust book suggests to [put integration tests inside a `tests/` directory](https://doc.rust-lang.org/book/ch11-03-test-organization.html#integration-tests). However, you can't do that for a PyO3 project. The compiler wouldn't be able to find your crate and displays an error like this:
+
+```
+error[E0463]: can't find crate for `my-crate`
+   --> tests/tests.rs:4:1
+    |
+  4 | use crate;
+    | ^^^^^^^^^ can't find crate
+```
+
+This is not a bug in PyO3. But it's a [known problem of Cargo](https://github.com/rust-lang/cargo/issues/6659).
+
+For now you can work around it by putting the integration tests inside the `src/` directory.
+
 ## Ctrl-C doesn't do anything while my Rust code is executing!
 
 This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later. This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
