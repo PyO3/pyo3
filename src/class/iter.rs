@@ -2,7 +2,6 @@
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
 
-use super::proto_methods::TypedSlot;
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
@@ -72,30 +71,8 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyIterNextOutput>;
 }
 
-/// Extension trait for proc-macro backend.
-#[doc(hidden)]
-pub trait PyIterSlots {
-    fn get_iter() -> TypedSlot<ffi::getiterfunc>
-    where
-        Self: for<'p> PyIterIterProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_tp_iter,
-            py_unarys_func!(PyIterIterProtocol, Self::__iter__),
-        )
-    }
-    fn get_iternext() -> TypedSlot<ffi::iternextfunc>
-    where
-        Self: for<'p> PyIterNextProtocol<'p>,
-    {
-        TypedSlot(
-            ffi::Py_tp_iternext,
-            py_unarys_func!(PyIterNextProtocol, Self::__next__),
-        )
-    }
-}
-
-impl<'p, T> PyIterSlots for T where T: PyIterProtocol<'p> {}
+py_unarys_func!(iter, PyIterIterProtocol, Self::__iter__);
+py_unarys_func!(iternext, PyIterNextProtocol, Self::__next__);
 
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.

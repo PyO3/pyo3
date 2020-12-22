@@ -3,7 +3,6 @@
 //! Python GC support
 //!
 
-use super::proto_methods::TypedSlot;
 use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
 use std::os::raw::{c_int, c_void};
 
@@ -19,64 +18,46 @@ pub trait PyGCProtocol<'p>: PyClass {
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
 pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
-/// Extension trait for proc-macro backend.
 #[doc(hidden)]
-pub trait PyGCSlots {
-    fn get_traverse() -> TypedSlot<ffi::traverseproc>
-    where
-        Self: for<'p> PyGCTraverseProtocol<'p>,
-    {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            visit: ffi::visitproc,
-            arg: *mut c_void,
-        ) -> c_int
-        where
-            T: for<'p> PyGCTraverseProtocol<'p>,
-        {
-            let pool = crate::GILPool::new();
-            let py = pool.python();
-            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+pub unsafe extern "C" fn traverse<T>(
+    slf: *mut ffi::PyObject,
+    visit: ffi::visitproc,
+    arg: *mut c_void,
+) -> c_int
+where
+    T: for<'p> PyGCTraverseProtocol<'p>,
+{
+    let pool = crate::GILPool::new();
+    let py = pool.python();
+    let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
-            let visit = PyVisit {
-                visit,
-                arg,
-                _py: py,
-            };
-            let borrow = slf.try_borrow();
-            if let Ok(borrow) = borrow {
-                match borrow.__traverse__(visit) {
-                    Ok(()) => 0,
-                    Err(PyTraverseError(code)) => code,
-                }
-            } else {
-                0
-            }
+    let visit = PyVisit {
+        visit,
+        arg,
+        _py: py,
+    };
+    let borrow = slf.try_borrow();
+    if let Ok(borrow) = borrow {
+        match borrow.__traverse__(visit) {
+            Ok(()) => 0,
+            Err(PyTraverseError(code)) => code,
         }
-
-        TypedSlot(ffi::Py_tp_traverse, wrap::<Self>)
-    }
-
-    fn get_clear() -> TypedSlot<ffi::inquiry>
-    where
-        Self: for<'p> PyGCClearProtocol<'p>,
-    {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject) -> c_int
-        where
-            T: for<'p> PyGCClearProtocol<'p>,
-        {
-            let pool = crate::GILPool::new();
-            let slf = pool.python().from_borrowed_ptr::<PyCell<T>>(slf);
-
-            slf.borrow_mut().__clear__();
-            0
-        }
-
-        TypedSlot(ffi::Py_tp_clear, wrap::<Self>)
+    } else {
+        0
     }
 }
 
-impl<'p, T> PyGCSlots for T where T: PyGCProtocol<'p> {}
+#[doc(hidden)]
+pub unsafe extern "C" fn clear<T>(slf: *mut ffi::PyObject) -> c_int
+where
+    T: for<'p> PyGCClearProtocol<'p>,
+{
+    let pool = crate::GILPool::new();
+    let slf = pool.python().from_borrowed_ptr::<PyCell<T>>(slf);
+
+    slf.borrow_mut().__clear__();
+    0
+}
 
 /// Object visitor for GC.
 #[derive(Clone)]

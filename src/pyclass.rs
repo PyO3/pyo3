@@ -191,11 +191,11 @@ where
 
     // protocol methods
     let mut has_gc_methods = false;
-    for slot in T::get_type_slots() {
+    T::for_each_proto_slot(|slot| {
         has_gc_methods |= slot.slot == ffi::Py_tp_clear;
         has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
         slots.0.push(slot);
-    }
+    });
 
     slots.push(0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {
@@ -238,6 +238,9 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
         }
     }
 
+    // Setting buffer protocols via slots doesn't work until Python 3.9, so on older versions we
+    // must manually fixup the type object.
+    #[cfg(not(Py_3_9))]
     if let Some(buffer) = T::get_buffer() {
         unsafe {
             (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
