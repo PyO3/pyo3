@@ -25,7 +25,8 @@ extern "C" {
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromObject")]
     pub fn PyBytes_FromObject(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormatV")]
+    // skipped PyBytes_FromFormatV
+    //#[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormatV")]
     //pub fn PyBytes_FromFormatV(arg1: *const c_char, arg2: va_list)
     // -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormat")]
@@ -52,6 +53,10 @@ extern "C" {
         s: *mut *mut c_char,
         len: *mut Py_ssize_t,
     ) -> c_int;
-    #[cfg(not(PyPy))]
-    pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
+
+// skipped F_LJUST
+// skipped F_SIGN
+// skipped F_BLANK
+// skipped F_ALT
+// skipped F_ZERO

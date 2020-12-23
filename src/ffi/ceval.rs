@@ -1,7 +1,5 @@
-#[cfg(not(Py_LIMITED_API))]
-use crate::ffi::code::FreeFunc;
 use crate::ffi::object::PyObject;
-use crate::ffi::pystate::{PyThreadState, Py_tracefunc};
+use crate::ffi::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int, c_void};
 
 extern "C" {
@@ -49,28 +47,20 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-// TODO: Py_EnterRecursiveCall etc
-pub type _PyFrameEvalFunction =
-    extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
+// TODO
+// skipped Py_EnterRecursiveCall
+// skipped Py_LeaveRecursiveCall
 
 extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalFrame(arg1: *mut crate::ffi::PyFrameObject) -> *mut PyObject;
-    pub fn _PyEval_EvalFrameDefault(
-        arg1: *mut crate::ffi::PyFrameObject,
-        exc: c_int,
-    ) -> *mut PyObject;
-    #[cfg(not(Py_LIMITED_API))]
-    pub fn _PyEval_RequestCodeExtraIndex(func: FreeFunc) -> c_int;
     pub fn PyEval_EvalFrameEx(f: *mut crate::ffi::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]
     pub fn PyEval_SaveThread() -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
     pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
-    pub fn PyEval_SetProfile(trace_func: Py_tracefunc, arg1: *mut PyObject);
-    pub fn PyEval_SetTrace(trace_func: Py_tracefunc, arg1: *mut PyObject);
 }
 
 #[cfg(py_sys_config = "WITH_THREAD")]
@@ -88,3 +78,15 @@ extern "C" {
     #[cfg(not(Py_3_8))]
     pub fn PyEval_ReInitThreads();
 }
+
+// skipped Py_BEGIN_ALLOW_THREADS
+// skipped Py_BLOCK_THREADS
+// skipped Py_UNBLOCK_THREADS
+// skipped Py_END_ALLOW_THREADS
+// skipped FVC_MASK
+// skipped FVC_NONE
+// skipped FVC_STR
+// skipped FVC_REPR
+// skipped FVC_ASCII
+// skipped FVS_MASK
+// skipped FVS_HAVE_SPEC
