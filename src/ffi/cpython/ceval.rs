@@ -1,5 +1,5 @@
 #[cfg(not(Py_LIMITED_API))]
-use crate::ffi::code::FreeFunc;
+use crate::ffi::object::FreeFunc;
 use crate::ffi::object::PyObject;
 use crate::ffi::pystate::Py_tracefunc;
 use std::os::raw::c_int;

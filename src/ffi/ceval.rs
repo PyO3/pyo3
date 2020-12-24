@@ -17,8 +17,10 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
 }
 
 extern "C" {
+    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
+    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallMethod")]
     pub fn PyEval_CallMethod(
         obj: *mut PyObject,

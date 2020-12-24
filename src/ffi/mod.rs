@@ -12,11 +12,16 @@ macro_rules! opaque_struct {
     };
 }
 
+// skipped abstract.h
+// skipped asdl.h
+// skipped ast.h
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
+// skipped cellobject.h
 pub use self::ceval::*;
+// skipped classobject.h
 pub use self::code::*;
 pub use self::codecs::*;
 pub use self::compile::*;
