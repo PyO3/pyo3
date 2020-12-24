@@ -12,16 +12,11 @@ macro_rules! opaque_struct {
     };
 }
 
-// skipped abstract.h
-// skipped asdl.h
-// skipped ast.h
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
-// skipped cellobject.h
 pub use self::ceval::*;
-// skipped classobject.h
 pub use self::code::*;
 pub use self::codecs::*;
 pub use self::compile::*;
@@ -51,7 +46,7 @@ pub use self::methodobject::*;
 pub use self::modsupport::*;
 pub use self::moduleobject::*;
 pub use self::object::*;
-pub use self::objectabstract::*;
+pub use self::objectabstract::*; // FIXME: no matching objectabstract.h in cpython master
 pub use self::objimpl::*;
 pub use self::osmodule::*;
 pub use self::pyarena::*;
@@ -80,6 +75,56 @@ pub use self::weakrefobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::cpython::*;
 
+// skipped abstract.h
+// skipped asdl.h
+// skipped ast.h
+mod bltinmodule;
+mod boolobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod bytearrayobject;
+mod bytesobject;
+// skipped cellobject.h
+mod ceval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+
+// skipped classobject.h
+mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+#[cfg(Py_LIMITED_API)]
+mod code {}
+#[cfg(not(Py_LIMITED_API))]
+mod code;
+mod compile; // TODO: incomplete
+mod complexobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+
+// skipped dynamic_annotations.h
+// skipped errcode.h
+// skipped exports.h
+// skipped fileutils.h
+// skipped genericaliasobject.h
+// skipped interpreteridobject.h
+// skipped longintrepr.h
+// skipped namespaceobject.h
+// skipped odictobject.h
+// skipped opcode.h
+// skipped osdefs.h
+// skipped parser_interface.h
+// skipped patchlevel.h
+// skipped picklebufobject.h
+// skipped pyctype.h
+// skipped py_curses.h
+// skipped pydecimal.h
+// skipped pydtrace.h
+// skipped pyexpat.h
+// skipped pyfpe.h
+// skipped pyframe.h
+// skipped pymacconfig.h
+// skipped pymacro.h
+// skipped pymath.h
+// skipped pystrcmp.h
+// skipped pystrhex.h
+// skipped Python-ast.h
+// this file is Python.h
+// skipped pythread.h
+// skipped pytime.h
+
 mod pyport;
 // mod pymacro; contains nothing of interest for Rust
 // mod pyatomic; contains nothing of interest for Rust
@@ -97,13 +142,9 @@ mod pyhash;
 mod pymem;
 mod typeslots;
 
-mod bytearrayobject;
-mod bytesobject;
 mod longobject;
 mod unicodeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
                    // mod longintrepr; TODO excluded by PEP-384
-mod boolobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod complexobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod dictobject;
 mod floatobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod listobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
@@ -128,9 +169,6 @@ mod iterobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 a
 mod structseq;
 mod warnings; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                   // mod namespaceobject; TODO
-
-mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod pylifecycle;
@@ -143,21 +181,12 @@ mod modsupport; // TODO supports PEP-384 only; needs adjustment for Python 3.3 a
 mod pyarena; // TODO: incomplete
 mod pythonrun; // TODO some functions need to be moved to pylifecycle
                //mod pylifecycle; // TODO new in 3.5
-mod ceval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod import;
 mod intrcheck; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod osmodule;
 mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-mod bltinmodule;
 mod objectabstract; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-#[cfg(Py_LIMITED_API)]
-mod code {}
-#[cfg(not(Py_LIMITED_API))]
-mod code;
-
-mod compile; // TODO: incomplete
 
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 mod context; // It's actually 3.7.1, but no cfg for patches.
