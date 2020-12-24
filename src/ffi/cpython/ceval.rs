@@ -4,9 +4,6 @@ use crate::ffi::object::PyObject;
 use crate::ffi::pystate::Py_tracefunc;
 use std::os::raw::c_int;
 
-pub type _PyFrameEvalFunction =
-    extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
-
 extern "C" {
     pub fn _PyEval_EvalFrameDefault(
         arg1: *mut crate::ffi::PyFrameObject,

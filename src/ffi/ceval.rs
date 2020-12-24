@@ -2,6 +2,10 @@ use crate::ffi::object::PyObject;
 use crate::ffi::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int, c_void};
 
+// TODO: move to cpython
+pub type _PyFrameEvalFunction =
+    extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
+
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallObjectWithKeywords")]
     pub fn PyEval_CallObjectWithKeywords(

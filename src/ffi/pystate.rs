@@ -1,4 +1,4 @@
-use crate::ffi::cpython::ceval::_PyFrameEvalFunction;
+use crate::ffi::ceval::_PyFrameEvalFunction;
 use crate::ffi::frameobject::PyFrameObject;
 use crate::ffi::moduleobject::PyModuleDef;
 use crate::ffi::object::PyObject;
