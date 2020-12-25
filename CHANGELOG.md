@@ -5,6 +5,10 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Stop including `Py_TRACE_REFS` config setting automatically if `Py_DEBUG` is set on Python 3.8 and up. [#1334](https://github.com/PyO3/pyo3/pull/1334)
+
 ## [0.13.0] - 2020-12-22
 ### Packaging
 - Drop support for Python 3.5 (as it is now end-of-life). [#1250](https://github.com/PyO3/pyo3/pull/1250)
