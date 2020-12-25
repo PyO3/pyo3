@@ -86,8 +86,8 @@ mod bytesobject;
 mod ceval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 // skipped classobject.h
+mod code;
 mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod code {}
 mod compile; // TODO: incomplete
 mod complexobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
