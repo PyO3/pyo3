@@ -16,6 +16,7 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
+#[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     #[allow(deprecated)]
