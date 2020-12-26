@@ -7,6 +7,7 @@ pub type _PyFrameEvalFunction =
     extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject;
 
 extern "C" {
+    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallObjectWithKeywords")]
     pub fn PyEval_CallObjectWithKeywords(
         func: *mut PyObject,
@@ -17,6 +18,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
+    #[allow(deprecated)]
     PyEval_CallObjectWithKeywords(func, arg, ::std::ptr::null_mut())
 }
 
