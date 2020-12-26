@@ -124,6 +124,7 @@ jobs:
 
     env:
       RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
 
   coverage:
     needs: [fmt]
