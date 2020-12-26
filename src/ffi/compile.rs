@@ -1,7 +1,7 @@
-use crate::ffi::code::*;
 use crate::ffi::object::PyObject;
 use crate::ffi::pyarena::*;
 use crate::ffi::pythonrun::*;
+use crate::ffi::PyCodeObject;
 use std::os::raw::{c_char, c_int};
 
 // skipped non-limited PyCF_MASK
