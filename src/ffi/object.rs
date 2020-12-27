@@ -892,3 +892,8 @@ pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
 pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
     0
 }
+
+#[cfg(not(PyPy))]
+extern "C" {
+    pub fn _PyObject_GetDictPtr(obj: *mut PyObject) -> *mut *mut PyObject;
+}

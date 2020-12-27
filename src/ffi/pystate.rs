@@ -1,7 +1,7 @@
 use crate::ffi::ceval::_PyFrameEvalFunction;
-use crate::ffi::frameobject::PyFrameObject;
 use crate::ffi::moduleobject::PyModuleDef;
 use crate::ffi::object::PyObject;
+use crate::ffi::PyFrameObject;
 use std::os::raw::{c_int, c_long};
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
