@@ -13,5 +13,6 @@ pub use self::abstract_::*;
 pub use self::bytesobject::*;
 pub use self::ceval::*;
 pub use self::code::*;
+#[cfg(not(PyPy))]
 pub use self::dictobject::*;
 pub use self::frameobject::*;
