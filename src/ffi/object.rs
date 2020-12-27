@@ -3,6 +3,8 @@ use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 
+pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 #[cfg(not(PyPy))]

@@ -1,4 +1,4 @@
-use crate::ffi::code::{PyCodeObject, CO_MAXBLOCKS};
+use crate::ffi::cpython::code::{PyCodeObject, CO_MAXBLOCKS};
 use crate::ffi::object::*;
 use crate::ffi::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int};
