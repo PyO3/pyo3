@@ -149,7 +149,7 @@ fn add_module(py: Python, module: &PyModule) -> PyResult<()> {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_pickle() {
     let gil = Python::acquire_gil();
     let py = gil.python();

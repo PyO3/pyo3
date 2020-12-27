@@ -170,7 +170,7 @@ pub struct PyCell<T: PyClass> {
 
 impl<T: PyClass> PyCell<T> {
     /// Get the offset of the dictionary from the start of the struct in bytes.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
     pub(crate) fn dict_offset() -> Option<usize> {
         if T::Dict::IS_DUMMY {
             None
@@ -184,7 +184,7 @@ impl<T: PyClass> PyCell<T> {
     }
 
     /// Get the offset of the weakref list from the start of the struct in bytes.
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
     pub(crate) fn weakref_offset() -> Option<usize> {
         if T::WeakRef::IS_DUMMY {
             None
