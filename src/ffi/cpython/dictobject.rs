@@ -1,8 +1,8 @@
+#![cfg(not(PyPy))]
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
-#[cfg(not(PyPy))]
 extern "C" {
     // skipped _PyDict_GetItem_KnownHash
     // skipped _PyDict_GetItemIdWithError
