@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add support for `#[pyclass(dict)]` and `#[pyclass(weakref)]` with the `abi3` feature on Python 3.9 and up. [#1342](https://github.com/PyO3/pyo3/pull/1342)
+
 ### Fixed
 - Stop including `Py_TRACE_REFS` config setting automatically if `Py_DEBUG` is set on Python 3.8 and up. [#1334](https://github.com/PyO3/pyo3/pull/1334)
 - Remove `#[deny(warnings)]` attribute (and instead refuse warnings only in CI). [#1340](https://github.com/PyO3/pyo3/pull/1340)

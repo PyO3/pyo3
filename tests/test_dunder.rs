@@ -457,7 +457,7 @@ fn test_cls_impl() {
 struct DunderDictSupport {}
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -472,8 +472,9 @@ fn dunder_dict_support() {
     );
 }
 
+// Accessing inst.__dict__ only supported in limited API from Python 3.10
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn access_dunder_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -495,7 +496,7 @@ struct InheritDict {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -505,7 +506,7 @@ fn inherited_dict() {
         inst,
         r#"
         inst.a = 1
-        assert inst.__dict__ == {'a': 1}
+        assert inst.a == 1
     "#
     );
 }
@@ -514,7 +515,7 @@ fn inherited_dict() {
 struct WeakRefDunderDictSupport {}
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();

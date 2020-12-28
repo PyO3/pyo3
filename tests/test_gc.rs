@@ -150,7 +150,7 @@ fn gc_integration2() {
 struct WeakRefSupport {}
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -169,7 +169,7 @@ struct InheritWeakRef {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn inherited_weakref() {
     let gil = Python::acquire_gil();
     let py = gil.python();

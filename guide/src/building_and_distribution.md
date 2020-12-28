@@ -74,7 +74,7 @@ Due to limitations in the Python API, there are a few `pyo3` features that do
 not work when compiling for `abi3`. These are:
 
 - `#[text_signature]` does not work on classes until Python 3.10 or greater.
-- The `dict` and `weakref` options on classes are not supported.
+- The `dict` and `weakref` options on classes are not supported until Python 3.9 or greater.
 - The buffer API is not supported.
 
 ## Cross Compiling

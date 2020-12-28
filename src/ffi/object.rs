@@ -706,7 +706,7 @@ extern "C" {
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> c_int;
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     pub fn PyObject_GenericGetDict(arg1: *mut PyObject, arg2: *mut c_void) -> *mut PyObject;
     pub fn PyObject_GenericSetDict(
         arg1: *mut PyObject,
