@@ -333,6 +333,7 @@ fn py_class_method_defs<T: PyMethods>() -> (
     (new, call, defs)
 }
 
+#[allow(deprecated)]
 fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 

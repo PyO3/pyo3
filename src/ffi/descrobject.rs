@@ -71,6 +71,7 @@ extern "C" {
 /// Helper initial value of [`PyGetSetDef`] for a Python class.
 ///
 /// Not present in `cpython/Include/descrobject`.
+#[deprecated(note = "not present in Python headers; to be removed")]
 pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
