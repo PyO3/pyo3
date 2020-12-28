@@ -85,27 +85,28 @@ jobs:
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
       - name: Build docs
-        run: cargo doc --features "num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo doc --no-default-features --features "macros num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
 
-      - name: Build without default features
+      - name: Build (no features)
         run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 
-      - name: Build with default features
-        run: cargo build --features "num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
+      - name: Build (all additive features)
+        run: cargo build --no-default-features --features "macros num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy-3.6'
         name: Test
-        run: cargo test --features "num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
+
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3,macros" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3 macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
 
       # Run tests again, for abi3-py36 (the minimal Python version)
       - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
         name: Test (abi3-py36)
-        run: cargo test --no-default-features --features "abi3-py36,macros" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3-py36 macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
@@ -125,6 +126,9 @@ jobs:
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
+      # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
+      # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
+      PYO3_CI: 1
 
   coverage:
     needs: [fmt]

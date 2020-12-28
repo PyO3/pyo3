@@ -749,6 +749,10 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
         }
     }
 
+    if interpreter_config.shared {
+        println!("cargo:rustc-cfg=Py_SHARED");
+    }
+
     if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
         println!("cargo:rustc-cfg=PyPy");
     };
@@ -881,6 +885,12 @@ fn main() -> Result<()> {
             // Let's watch this, too.
             println!("cargo:rerun-if-env-changed=PATH");
         }
+    }
+
+    // TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
+    // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
+    if env::var_os("PYO3_CI").is_some() {
+        println!("cargo:rustc-cfg=__pyo3_ci");
     }
 
     Ok(())

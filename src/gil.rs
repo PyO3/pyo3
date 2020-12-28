@@ -3,11 +3,11 @@
 //! Interaction with python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, Python};
-use parking_lot::{const_mutex, Mutex};
+use parking_lot::{const_mutex, Mutex, Once};
 use std::cell::{Cell, RefCell};
-use std::{mem::ManuallyDrop, ptr::NonNull, sync};
+use std::{mem::ManuallyDrop, ptr::NonNull};
 
-static START: sync::Once = sync::Once::new();
+static START: Once = Once::new();
 
 thread_local! {
     /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
@@ -45,16 +45,20 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// If both the Python interpreter and Python threading are already initialized,
 /// this function has no effect.
 ///
+/// # Availability
+///
+/// This function is only available when linking against Python distributions that contain a
+/// shared library.
+///
+/// This function is not available on PyPy.
+///
 /// # Panic
 /// If the Python interpreter is initialized but Python threading is not,
 /// a panic occurs.
 /// It is not possible to safely access the Python runtime unless the main
 /// thread (the thread which originally initialized Python) also initializes
 /// threading.
-///
-/// When writing an extension module, the `#[pymodule]` macro
-/// will ensure that Python threading is initialized.
-///
+#[cfg(all(Py_SHARED, not(PyPy)))]
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized
     // and multiple threads concurrently call 'prepare_freethreaded_python()'.
@@ -72,22 +76,18 @@ pub fn prepare_freethreaded_python() {
             // Note that the 'main thread' notion in Python isn't documented properly;
             // and running Python without one is not officially supported.
 
-            // PyPy does not support the embedding API
-            #[cfg(not(PyPy))]
-            {
-                ffi::Py_InitializeEx(0);
+            ffi::Py_InitializeEx(0);
 
-                // Make sure Py_Finalize will be called before exiting.
-                extern "C" fn finalize() {
-                    unsafe {
-                        if ffi::Py_IsInitialized() != 0 {
-                            ffi::PyGILState_Ensure();
-                            ffi::Py_Finalize();
-                        }
+            // Make sure Py_Finalize will be called before exiting.
+            extern "C" fn finalize() {
+                unsafe {
+                    if ffi::Py_IsInitialized() != 0 {
+                        ffi::PyGILState_Ensure();
+                        ffi::Py_Finalize();
                     }
                 }
-                libc::atexit(finalize);
             }
+            libc::atexit(finalize);
 
             // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
             // > to call it yourself anymore.
@@ -95,11 +95,10 @@ pub fn prepare_freethreaded_python() {
             if ffi::PyEval_ThreadsInitialized() == 0 {
                 ffi::PyEval_InitThreads();
             }
-            // PyEval_InitThreads() will acquire the GIL,
-            // but we don't want to hold it at this point
+
+            // Py_InitializeEx() will acquire the GIL, but we don't want to hold it at this point
             // (it's not acquired in the other code paths)
             // So immediately release the GIL:
-            #[cfg(not(PyPy))]
             let _thread_state = ffi::PyEval_SaveThread();
             // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.
@@ -137,7 +136,51 @@ impl GILGuard {
     /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this
     /// new `GILGuard` will also contain a `GILPool`.
     pub(crate) fn acquire() -> GILGuard {
-        prepare_freethreaded_python();
+        // Maybe auto-initialize the GIL:
+        //  - If auto-initialize feature set and supported, try to initalize the interpreter.
+        //  - If the auto-initialize feature is set but unsupported, emit hard errors only when
+        //    the extension-module feature is not activated - extension modules don't care about
+        //    auto-initialize so this avoids breaking existing builds.
+        //  - Otherwise, just check the GIL is initialized.
+        cfg_if::cfg_if! {
+            if #[cfg(all(feature = "auto-initialize", Py_SHARED, not(PyPy)))] {
+                prepare_freethreaded_python();
+            } else if #[cfg(all(feature = "auto-initialize", not(feature = "extension-module"), not(Py_SHARED), not(__pyo3_ci)))] {
+                compile_error!(concat!(
+                    "The `auto-initialize` feature is not supported when linking Python ",
+                    "statically instead of with a shared library.\n\n",
+                    "Please disable the `auto-initialize` feature, for example by entering the following ",
+                    "in your cargo.toml:\n\n",
+                    "    pyo3 = { version = \"0.13.0\", default-features = false }\n\n",
+                    "Alternatively, compile PyO3 using a Python distribution which contains a shared ",
+                    "libary."
+                ));
+            } else if #[cfg(all(feature = "auto-initialize", not(feature = "extension-module"), PyPy, not(__pyo3_ci)))] {
+                compile_error!(concat!(
+                    "The `auto-initialize` feature is not supported by PyPy.\n\n",
+                    "Please disable the `auto-initialize` feature, for example by entering the following ",
+                    "in your cargo.toml:\n\n",
+                    "    pyo3 = { version = \"0.13.0\", default-features = false }",
+                ));
+            } else {
+                // extension module feature enabled and PyPy or static linking
+                // OR auto-initialize feature not enabled
+                START.call_once_force(|_| unsafe {
+                    // Use call_once_force because if there is a panic because the interpreter is not
+                    // initialized, it's fine for the user to initialize the interpreter and retry.
+                    assert_ne!(
+                        ffi::Py_IsInitialized(),
+                        0,
+                        "The Python interpreter is not initalized and the `auto-initialize` feature is not enabled."
+                    );
+                    assert_ne!(
+                        ffi::PyEval_ThreadsInitialized(),
+                        0,
+                        "Python threading is not initalized and the `auto-initialize` feature is not enabled."
+                    );
+                });
+            }
+        }
 
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
 

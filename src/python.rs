@@ -11,8 +11,6 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::{c_char, c_int};
 
-pub use gil::prepare_freethreaded_python;
-
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
 /// See [Python::version].
@@ -134,8 +132,13 @@ impl Python<'_> {
     /// Acquires the global interpreter lock, which allows access to the Python runtime. The
     /// provided closure F will be executed with the acquired `Python` marker token.
     ///
-    /// If the Python runtime is not already initialized, this function will initialize it.
-    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
+    /// initialized, this function will initialize it. See
+    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    ///
+    /// # Panics
+    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
+    ///   initialized.
     ///
     /// # Example
     /// ```
@@ -158,8 +161,9 @@ impl Python<'_> {
 impl<'p> Python<'p> {
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
     ///
-    /// If the Python runtime is not already initialized, this function will initialize it.
-    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
+    /// initialized, this function will initialize it. See
+    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     ///
     /// Most users should not need to use this API directly, and should prefer one of two options:
     /// 1. When implementing `#[pymethods]` or `#[pyfunction]` add a function argument
@@ -172,6 +176,10 @@ impl<'p> Python<'p> {
     /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
     /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
     /// an irrecoverable panic.
+    ///
+    /// # Panics
+    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
+    ///   initialized.
     #[inline]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()

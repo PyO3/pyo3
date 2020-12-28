@@ -114,8 +114,9 @@
 //! Add `pyo3` to your `Cargo.toml`:
 //!
 //! ```toml
-//! [dependencies]
-//! pyo3 = "0.13.0"
+//! [dependencies.pyo3]
+//! version = "0.13.0"
+//! features = ["auto-initialize"]
 //! ```
 //!
 //! Example program displaying the value of `sys.version`:
@@ -145,12 +146,14 @@ pub use crate::conversion::{
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
+#[cfg(all(Py_SHARED, not(PyPy)))]
+pub use crate::gil::prepare_freethreaded_python;
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::python::{prepare_freethreaded_python, Python, PythonVersionInfo};
+pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::{type_flags, PyTypeInfo};
 // Since PyAny is as important as PyObject, we expose it to the top level.
 pub use crate::types::PyAny;
