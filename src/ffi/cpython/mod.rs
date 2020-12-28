@@ -4,6 +4,7 @@ pub mod abstract_;
 pub mod bytesobject;
 pub mod ceval;
 pub mod code;
+#[cfg(not(PyPy))]
 pub mod dictobject;
 // skipped fileobject.h
 pub mod frameobject;
