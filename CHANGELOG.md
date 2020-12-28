@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Deprecate FFI definition `PyCoro_Check` and `PyAsyncGen_Check` in favor of `PyCoro_CheckExact` and `PyAsyncGen_CheckExact` respectively, as these are the correct name in the Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
 - Deprecate FFI definition `PyCoroWrapper_Check` and `PyGetSetDef_DICT` which have never been defined in the Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
-- Deprecate FFI definition `PyImport_Cleanup`, which was removed in 3.9 and previously marked "for internal use only". [#1341](https://github.com/PyO3/pyo3/pull/1341)
-- Deprecate FFI definition `PyOS_InitInterrupts`, which was removed in 3.10 and previously undocumented. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyImport_Cleanup`  (removed in Python 3.9). [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyOS_InitInterrupts` (removed in Python 3.10). [#1341](https://github.com/PyO3/pyo3/pull/1341)
 - Deprecate FFI definition `PyOS_AfterFork`; introduce `PyOS_BeforeFork`, `PyOS_AfterFork_Parent`, `PyOS_AfterFork_Child` when building for Python 3.7. [#1341](https://github.com/PyO3/pyo3/pull/1341)
 - Deprecate FFI definitions `PyEval_CallObjectWithKeywords`, `PyEval_CallObject`, `PyEval_CallFunction`, `PyEval_CallMethod` when building for Python 3.9. [#1338](https://github.com/PyO3/pyo3/pull/1338)
 
