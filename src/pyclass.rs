@@ -153,7 +153,7 @@ fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
 fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_char> {
     Ok(match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
-        None => CString::new(T::NAME)?.into_raw(),
+        None => CString::new(format!("builtins.{}", T::NAME))?.into_raw(),
     })
 }
 
