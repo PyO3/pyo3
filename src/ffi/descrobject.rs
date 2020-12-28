@@ -80,6 +80,7 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
 };
 
 #[cfg(any(PyPy, Py_LIMITED_API))]
+#[deprecated(note = "not present in Python headers; to be removed")]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
 
 /// Helper initial value of [`PyGetSetDef`] for a dict-like Python class.
@@ -88,6 +89,7 @@ pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
 // PyPy doesn't export neither PyObject_GenericGetDict/PyObject_GenericSetDict
 // Py_LIMITED_API exposes PyObject_GenericSetDict but not Get.
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
+#[deprecated(note = "not present in Python headers; to be removed")]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
     name: "__dict__\0".as_ptr() as *mut c_char,
     get: Some(PyObject_GenericGetDict),
