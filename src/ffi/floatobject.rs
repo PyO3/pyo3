@@ -1,11 +1,13 @@
 use crate::ffi::object::*;
 use std::os::raw::{c_double, c_int};
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
+// #[cfg(all(not(PyPy), Py_LIMITED_API))]
+#[cfg(Py_LIMITED_API)]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
 opaque_struct!(PyFloatObject);
 
-#[cfg(not(any(PyPy, Py_LIMITED_API)))]
+// #[cfg(any(PyPy, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 pub struct PyFloatObject {
     pub ob_base: PyObject,
