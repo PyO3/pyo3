@@ -354,28 +354,26 @@ fn py_class_method_defs<T: PyMethods>() -> (
 /// Only works on Python 3.9 and up.
 #[cfg(Py_3_9)]
 fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
-    macro_rules! offset_def {
-        ($name:literal, $offset:expr) => {
-            ffi::structmember::PyMemberDef {
-                name: $name.as_ptr() as _,
-                type_code: ffi::structmember::T_PYSSIZET,
-                offset: $offset,
-                flags: ffi::structmember::READONLY,
-                doc: std::ptr::null_mut(),
-            }
-        };
+    const fn offset_def(name: &'static str, offset: usize) -> ffi::structmember::PyMemberDef {
+        ffi::structmember::PyMemberDef {
+            name: name.as_ptr() as _,
+            type_code: ffi::structmember::T_PYSSIZET,
+            offset: offset as _,
+            flags: ffi::structmember::READONLY,
+            doc: std::ptr::null_mut(),
+        }
     }
 
     let mut members = Vec::new();
 
     // __dict__ support
     if let Some(dict_offset) = PyCell::<T>::dict_offset() {
-        members.push(offset_def!("__dictoffset__\0", dict_offset as _));
+        members.push(offset_def("__dictoffset__\0", dict_offset));
     }
 
     // weakref support
     if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
-        members.push(offset_def!("__weaklistoffset__\0", weakref_offset as _));
+        members.push(offset_def("__weaklistoffset__\0", weakref_offset));
     }
 
     if !members.is_empty() {
