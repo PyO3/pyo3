@@ -6,12 +6,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Deprecate FFI definition `PyCoro_Check` and `PyAsyncGen_Check` in favor of `PyCoro_CheckExact` and `PyAsyncGen_CheckExact` respectively, as these are the correct name in the Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyCoroWrapper_Check` and `PyGetSetDef_DICT` which have never been defined in the Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyImport_Cleanup`, which was removed in 3.9 and previously marked "for internal use only". [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyOS_InitInterrupts`, which was removed in 3.10 and previously undocumented. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definition `PyOS_AfterFork`; introduce `PyOS_BeforeFork`, `PyOS_AfterFork_Parent`, `PyOS_AfterFork_Child` when building for Python 3.7. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Deprecate FFI definitions `PyEval_CallObjectWithKeywords`, `PyEval_CallObject`, `PyEval_CallFunction`, `PyEval_CallMethod` when building for Python 3.9. [#1338](https://github.com/PyO3/pyo3/pull/1338)
+
+### Removed
+- Remove FFI definition `PyImport_cleanup` when building for Python 3.9 or later, to mirror Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+- Remove FFI definition `PyOS_InitInterrupts` when building for Python 3.10 or later, to mirror Python headers. [#1341](https://github.com/PyO3/pyo3/pull/1341)
+
 ### Fixed
 - Stop including `Py_TRACE_REFS` config setting automatically if `Py_DEBUG` is set on Python 3.8 and up. [#1334](https://github.com/PyO3/pyo3/pull/1334)
 - Remove `#[deny(warnings)]` attribute (and instead refuse warnings only in CI). [#1340](https://github.com/PyO3/pyo3/pull/1340)
-
-### Changed
-- Deprecate FFI definitions `PyEval_CallObjectWithKeywords`, `PyEval_CallObject`, `PyEval_CallFunction`, `PyEval_CallMethod` when building for Python 3.9. [#1338](https://github.com/PyO3/pyo3/pull/1338)
 
 ## [0.13.0] - 2020-12-22
 ### Packaging

@@ -358,6 +358,7 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
 
     let mut props: Vec<_> = defs.values().cloned().collect();
     if !T::Dict::IS_DUMMY {
+        #[allow(deprecated)]
         props.push(ffi::PyGetSetDef_DICT);
     }
     if !props.is_empty() {
