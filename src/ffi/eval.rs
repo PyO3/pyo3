@@ -21,4 +21,7 @@ extern "C" {
         kwdefs: *mut PyObject,
         closure: *mut PyObject,
     ) -> *mut PyObject;
+
+// skipped non-limited _PyEval_EvalCodeWithName
+// skipped non-limited _PyEval_CallTracing
 }

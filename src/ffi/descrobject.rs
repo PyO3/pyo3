@@ -20,27 +20,19 @@ pub struct PyGetSetDef {
     pub closure: *mut c_void,
 }
 
-pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
-    name: ptr::null_mut(),
-    get: None,
-    set: None,
-    doc: ptr::null_mut(),
-    closure: ptr::null_mut(),
-};
+// skipped non-limited wrapperfunc
+// skipped non-limited wrapperfunc_kwds
+// skipped non-limited struct wrapperbase
+// skipped non-limited PyWrapperFlag_KEYWORDS
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
-pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
-
-// PyPy doesn't export neither PyObject_GenericGetDict/PyObject_GenericSetDict
-// Py_LIMITED_API exposes PyObject_GenericSetDict but not Get.
-#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
-pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
-    name: "__dict__\0".as_ptr() as *mut c_char,
-    get: Some(PyObject_GenericGetDict),
-    set: Some(PyObject_GenericSetDict),
-    doc: ptr::null_mut(),
-    closure: ptr::null_mut(),
-};
+// skipped non-limited PyDescrObject
+// skipped non-limited PyDescr_COMMON
+// skipped non-limited PyDescr_TYPE
+// skipped non-limited PyDescr_NAME
+// skipped non-limited PyMethodDescrObject
+// skipped non-limited PyMemberDescrObject
+// skipped non-limited PyGetSetDescrObject
+// skipped non-limited PyWrapperDescrObject
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -56,6 +48,7 @@ extern "C" {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
+// skipped non-limited _PyMethodWrapper_Type
 }
 
 extern "C" {
@@ -65,6 +58,8 @@ extern "C" {
         -> *mut PyObject;
     pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
     pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
+    // skipped non-limited PyDescr_NewWrapper
+    // skipped non-limited PyDescr_IsData
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
@@ -72,3 +67,35 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyProperty_Type")]
     pub static mut PyProperty_Type: PyTypeObject;
 }
+
+/// Helper initial value of [`PyGetSetDef`] for a Python class.
+///
+/// Not present in `cpython/Include/descrobject`.
+#[deprecated(note = "not present in Python headers; to be removed")]
+pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
+    name: ptr::null_mut(),
+    get: None,
+    set: None,
+    doc: ptr::null_mut(),
+    closure: ptr::null_mut(),
+};
+
+#[cfg(any(PyPy, Py_LIMITED_API))]
+#[deprecated(note = "not present in Python headers; to be removed")]
+#[allow(deprecated)]
+pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
+
+/// Helper initial value of [`PyGetSetDef`] for a dict-like Python class.
+///
+/// Not present in `cpython/Include/descrobject.h`.
+// PyPy doesn't export neither PyObject_GenericGetDict/PyObject_GenericSetDict
+// Py_LIMITED_API exposes PyObject_GenericSetDict but not Get.
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
+#[deprecated(note = "not present in Python headers; to be removed")]
+pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
+    name: "__dict__\0".as_ptr() as *mut c_char,
+    get: Some(PyObject_GenericGetDict),
+    set: Some(PyObject_GenericSetDict),
+    doc: ptr::null_mut(),
+    closure: ptr::null_mut(),
+};

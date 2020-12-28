@@ -1,6 +1,6 @@
-use crate::ffi::frameobject::PyFrameObject;
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
+use crate::ffi::PyFrameObject;
 use std::os::raw::c_int;
 
 #[repr(C)]

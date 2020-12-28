@@ -3,6 +3,9 @@ use crate::ffi::object::*;
 use crate::ffi::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int};
 
+// skipped _framestate
+// skipped PyFrameState
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyTryBlock {
@@ -11,6 +14,7 @@ pub struct PyTryBlock {
     pub b_level: c_int,
 }
 
+/// struct _frame as typedef'ed in pyframe.h
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyFrameObject {
@@ -45,6 +49,10 @@ pub struct PyFrameObject {
     pub f_localsplus: [*mut PyObject; 1],         /* locals+stack, dynamically sized */
 }
 
+// skipped _PyFrame_IsRunnable
+// skipped _PyFrame_IsExecuting
+// skipped _PyFrameHasCompleted
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyFrame_Type: PyTypeObject;
@@ -63,6 +71,7 @@ extern "C" {
         globals: *mut PyObject,
         locals: *mut PyObject,
     ) -> *mut PyFrameObject;
+    // skipped _PyFrame_New_NoTrack
 
     pub fn PyFrame_BlockSetup(f: *mut PyFrameObject, _type: c_int, handler: c_int, level: c_int);
     pub fn PyFrame_BlockPop(f: *mut PyFrameObject) -> *mut PyTryBlock;
@@ -71,6 +80,9 @@ extern "C" {
     pub fn PyFrame_FastToLocalsWithError(f: *mut PyFrameObject) -> c_int;
     pub fn PyFrame_FastToLocals(f: *mut PyFrameObject);
 
+    // skipped _PyFrame_DebugMallocStats
+    // skipped PyFrame_GetBack
+
+    #[cfg(not(Py_3_9))]
     pub fn PyFrame_ClearFreeList() -> c_int;
-    pub fn PyFrame_GetLineNumber(f: *mut PyFrameObject) -> c_int;
 }

@@ -391,6 +391,7 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
         match def {
             PyMethodDefType::Getter(getter) => {
                 if !defs.contains_key(getter.name) {
+                    #[allow(deprecated)]
                     let _ = defs.insert(getter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }
                 let def = defs.get_mut(getter.name).expect("Failed to call get_mut");
@@ -398,6 +399,7 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
             }
             PyMethodDefType::Setter(setter) => {
                 if !defs.contains_key(setter.name) {
+                    #[allow(deprecated)]
                     let _ = defs.insert(setter.name.to_owned(), ffi::PyGetSetDef_INIT);
                 }
                 let def = defs.get_mut(setter.name).expect("Failed to call get_mut");
