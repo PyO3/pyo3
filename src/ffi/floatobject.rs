@@ -1,8 +1,11 @@
 use crate::ffi::object::*;
 use std::os::raw::{c_double, c_int};
 
-// TODO: mark non-limited
-// currently used by types/floatob.rs
+#[cfg(Py_LIMITED_API)]
+// TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
+opaque_struct!(PyFloatObject);
+
+#[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 pub struct PyFloatObject {
     pub ob_base: PyObject,

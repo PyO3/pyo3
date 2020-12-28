@@ -3,6 +3,19 @@ use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
+opaque_struct!(PyDictKeysObject);
+
+#[repr(C)]
+#[derive(Debug)]
+// Not moved because dict.rs uses PyDictObject extensively.
+pub struct PyDictObject {
+    pub ob_base: PyObject,
+    pub ma_used: Py_ssize_t,
+    pub ma_version_tag: u64,
+    pub ma_keys: *mut PyDictKeysObject,
+    pub ma_values: *mut *mut PyObject,
+}
+
 extern "C" {
     // skipped _PyDict_GetItem_KnownHash
     // skipped _PyDict_GetItemIdWithError

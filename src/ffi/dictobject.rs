@@ -107,17 +107,6 @@ extern "C" {
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 
-#[repr(C)]
-#[derive(Debug)]
-// TODO: move to cpython/dictobject.rs
-// Not moved because dict.rs uses PyDictObject extensively.
-pub struct PyDictObject {
-    pub ob_base: PyObject,
-    pub ma_used: Py_ssize_t,
-    pub ma_version_tag: u64,
-    pub ma_keys: *mut PyDictKeysObject,
-    pub ma_values: *mut *mut PyObject,
-}
-
-// TODO: move to cpython/dictobject.rs
-opaque_struct!(PyDictKeysObject);
+#[cfg(Py_LIMITED_API)]
+// TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
+opaque_struct!(PyDictObject);
