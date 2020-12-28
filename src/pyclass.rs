@@ -178,6 +178,14 @@ where
     slots.maybe_push(ffi::Py_tp_new, new.map(|v| v as _));
     slots.maybe_push(ffi::Py_tp_call, call.map(|v| v as _));
 
+    #[cfg(Py_3_9)]
+    {
+        let members = py_class_members::<T>();
+        if !members.is_empty() {
+            slots.push(ffi::Py_tp_members, into_raw(members))
+        }
+    }
+
     // normal methods
     if !methods.is_empty() {
         slots.push(ffi::Py_tp_methods, into_raw(methods));
@@ -203,7 +211,7 @@ where
         basicsize: std::mem::size_of::<T::Layout>() as c_int,
         itemsize: 0,
         flags: py_class_flags::<T>(has_gc_methods),
-        slots: slots.0.as_mut_slice().as_mut_ptr(),
+        slots: slots.0.as_mut_ptr(),
     };
 
     let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
@@ -215,7 +223,8 @@ where
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+/// Additional type initializations necessary before Python 3.10
+#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // Just patch the type objects for the things there's no
     // PyType_FromSpec API for... there's no reason this should work,
@@ -247,21 +256,27 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
             (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
         }
     }
-    // __dict__ support
-    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
-        unsafe {
-            (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+
+    // Setting tp_dictoffset and tp_weaklistoffset via slots doesn't work until Python 3.9, so on
+    // older versions again we must fixup the type object.
+    #[cfg(not(Py_3_9))]
+    {
+        // __dict__ support
+        if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+            unsafe {
+                (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+            }
         }
-    }
-    // weakref support
-    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
-        unsafe {
-            (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
+        // weakref support
+        if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+            unsafe {
+                (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
+            }
         }
     }
 }
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(any(Py_LIMITED_API, Py_3_10))]
 fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
 fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
@@ -333,6 +348,43 @@ fn py_class_method_defs<T: PyMethods>() -> (
     (new, call, defs)
 }
 
+/// Generates the __dictoffset__ and __weaklistoffset__ members, to set tp_dictoffset and
+/// tp_weaklistoffset.
+///
+/// Only works on Python 3.9 and up.
+#[cfg(Py_3_9)]
+fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
+    macro_rules! offset_def {
+        ($name:literal, $offset:expr) => {
+            ffi::structmember::PyMemberDef {
+                name: $name.as_ptr() as _,
+                type_code: ffi::structmember::T_PYSSIZET,
+                offset: $offset,
+                flags: ffi::structmember::READONLY,
+                doc: std::ptr::null_mut(),
+            }
+        };
+    }
+
+    let mut members = Vec::new();
+
+    // __dict__ support
+    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+        members.push(offset_def!("__dictoffset__\0", dict_offset as _));
+    }
+
+    // weakref support
+    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+        members.push(offset_def!("__weaklistoffset__\0", weakref_offset as _));
+    }
+
+    if !members.is_empty() {
+        members.push(unsafe { std::mem::zeroed() });
+    }
+
+    members
+}
+
 fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
@@ -359,13 +411,21 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     }
 
     let mut props: Vec<_> = defs.values().cloned().collect();
+
+    // PyPy doesn't automatically adds __dict__ getter / setter.
+    // PyObject_GenericGetDict not in the limited API until Python 3.10.
+    #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
     if !T::Dict::IS_DUMMY {
-        #[allow(deprecated)]
-        props.push(ffi::PyGetSetDef_DICT);
+        props.push(ffi::PyGetSetDef {
+            name: "__dict__\0".as_ptr() as *mut c_char,
+            get: Some(ffi::PyObject_GenericGetDict),
+            set: Some(ffi::PyObject_GenericSetDict),
+            doc: ptr::null_mut(),
+            closure: ptr::null_mut(),
+        });
     }
     if !props.is_empty() {
-        #[allow(deprecated)]
-        props.push(ffi::PyGetSetDef_INIT);
+        props.push(unsafe { std::mem::zeroed() });
     }
     props
 }

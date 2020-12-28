@@ -13,7 +13,7 @@ impl UnsendableDictClass {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_unsendable_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -33,7 +33,7 @@ impl UnsendableDictClassWithWeakRef {
 }
 
 #[test]
-#[cfg_attr(Py_LIMITED_API, ignore)]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_unsendable_dict_with_weakref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
