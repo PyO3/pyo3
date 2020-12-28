@@ -58,6 +58,6 @@ extern "C" {
     // skipped _PyDictViewObject
     // skipped _PyDictView_New
     // skipped _PyDictView_Intersect
-    // FIXME: PyDict_Contains is defined in dictobject.c
+    #[cfg(not(Py_3_10))]
     pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
 }

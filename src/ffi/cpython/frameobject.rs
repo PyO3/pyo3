@@ -83,6 +83,6 @@ extern "C" {
     // skipped _PyFrame_DebugMallocStats
     // skipped PyFrame_GetBack
 
-    // FIXME: PyFrame_ClearFreeList is defined in frameobject.c
+    #[cfg(not(Py_3_9))]
     pub fn PyFrame_ClearFreeList() -> c_int;
 }

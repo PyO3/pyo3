@@ -82,6 +82,7 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
 
 #[cfg(any(PyPy, Py_LIMITED_API))]
 #[deprecated(note = "not present in Python headers; to be removed")]
+#[allow(deprecated)]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
 
 /// Helper initial value of [`PyGetSetDef`] for a dict-like Python class.
