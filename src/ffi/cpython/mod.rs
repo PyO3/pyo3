@@ -8,6 +8,7 @@ pub mod code;
 pub mod dictobject;
 // skipped fileobject.h
 pub mod frameobject;
+// skipped import.h
 
 pub use self::abstract_::*;
 #[cfg(not(PyPy))]

@@ -35,35 +35,66 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
 
 extern "C" {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
+    // skipped PyGen_New
+    // skipped PyGen_NewWithQualName
+    // skipped _PyGen_SetStopIterationValue
+    // skipped _PyGen_FetchStopIterationValue
+    // skipped _PyGen_yf
+    // skipped _PyGen_Finalize
+    #[cfg(not(Py_3_9))]
+    #[deprecated(note = "This function was never documented in the Python API.")]
     pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;
 }
+
+// skipped PyCoroObject
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
+    pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
 
+#[deprecated(since = "0.14.0", note = "use PyCoro_CheckExact instead")]
 #[inline]
 pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PyCoroWrapper_Type: PyTypeObject;
+#[inline]
+pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, &mut PyCoro_Type)
 }
 
+#[deprecated(since = "0.14.0", note = "not in Python API")]
 #[inline]
 pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyCoroWrapper_Type)
 }
 
+// skipped _PyCoro_GetAwaitableIter
+// skipped PyCoro_New
+
+// skipped PyAsyncGenObject
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyAsyncGen_Type: PyTypeObject;
+// skipped _PyAsyncGenASend_Type
+// skipped _PyAsyncGenWrappedValue_Type
+// skipped _PyAsyncGenAThrow_Type
 }
 
+// skipped PyAsyncGen_New
+
+#[deprecated(since = "0.14.0", note = "use PyCoro_CheckExact instead")]
 #[inline]
 pub unsafe fn PyAsyncGen_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyAsyncGen_Type)
 }
+
+#[inline]
+pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, &mut PyAsyncGen_Type)
+}
+
+// skipped _PyAsyncGenValueWrapperNew
