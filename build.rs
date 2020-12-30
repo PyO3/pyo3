@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     convert::AsRef,
     env,
     fs::{self, DirEntry, File},
@@ -176,22 +176,14 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
 ///
 /// (hrm, this is sort of re-implementing what distutils does, except
 /// by passing command line args instead of referring to a python.h)
-static SYSCONFIG_FLAGS: [&str; 7] = [
-    "Py_USING_UNICODE",
-    "Py_UNICODE_WIDE",
+type BuildFlag = &'static str;
+
+static BUILD_FLAGS: [BuildFlag; 5] = [
     "WITH_THREAD",
     "Py_DEBUG",
     "Py_REF_DEBUG",
     "Py_TRACE_REFS",
     "COUNT_ALLOCS",
-];
-
-static SYSCONFIG_VALUES: [&str; 1] = [
-    // cfg doesn't support flags with values, just bools - so flags
-    // below are translated into bools as {varname}_{val}
-    //
-    // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
-    "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
 ];
 
 /// Attempts to parse the header at the given path, returning a map of definitions to their values.
@@ -211,18 +203,21 @@ fn parse_header_defines(header_path: impl AsRef<Path>) -> Result<HashMap<String,
     Ok(definitions)
 }
 
-fn fix_config_map(
-    mut config_map: HashMap<String, String>,
-    version_minor: u8,
-) -> HashMap<String, String> {
-    if let Some("1") = config_map.get("Py_DEBUG").as_ref().map(|s| s.as_str()) {
-        config_map.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
-        if version_minor <= 7 {
+fn fix_build_flags(build_flags: &mut HashSet<BuildFlag>, interpreter_config: &InterpreterConfig) {
+    if build_flags.contains("Py_DEBUG") {
+        build_flags.insert("Py_REF_DEBUG");
+        if interpreter_config.version.major == 3 && interpreter_config.version.minor <= 7 {
             // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
-            config_map.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
+            build_flags.insert("Py_TRACE_REFS");
         }
     }
-    config_map
+
+    // WITH_THREAD is always on for Python 3.7, and for PyPy.
+    if (interpreter_config.version.implementation == PythonInterpreterKind::PyPy)
+        || (interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7)
+    {
+        build_flags.insert("WITH_THREAD");
+    }
 }
 
 fn parse_script_output(output: &str) -> HashMap<String, String> {
@@ -362,6 +357,14 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     sysconfig_paths
 }
 
+fn build_flags_from_config_map(config_map: &HashMap<String, String>) -> HashSet<BuildFlag> {
+    BUILD_FLAGS
+        .iter()
+        .copied()
+        .filter(|flag| config_map.get(*flag).map_or(false, |value| value == "1"))
+        .collect()
+}
+
 /// Find cross compilation information from sysconfigdata file
 ///
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
@@ -370,17 +373,17 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 fn load_cross_compile_from_sysconfigdata(
     python_paths: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
     let sysconfig_path = find_sysconfigdata(&python_paths)?;
-    let config_map = parse_sysconfigdata(sysconfig_path)?;
+    let sysconfig_data = parse_sysconfigdata(sysconfig_path)?;
 
-    let major = config_map.get_numeric("version_major")?;
-    let minor = config_map.get_numeric("version_minor")?;
-    let ld_version = match config_map.get("LDVERSION") {
+    let major = sysconfig_data.get_numeric("version_major")?;
+    let minor = sysconfig_data.get_numeric("version_minor")?;
+    let ld_version = match sysconfig_data.get("LDVERSION") {
         Some(s) => s.clone(),
         None => format!("{}.{}", major, minor),
     };
-    let calcsize_pointer = config_map.get_numeric("SIZEOF_VOID_P").ok();
+    let calcsize_pointer = sysconfig_data.get_numeric("SIZEOF_VOID_P").ok();
 
     let python_version = PythonVersion {
         major,
@@ -391,19 +394,21 @@ fn load_cross_compile_from_sysconfigdata(
     let interpreter_config = InterpreterConfig {
         version: python_version,
         libdir: python_paths.lib_dir.to_str().map(String::from),
-        shared: config_map.get_bool("Py_ENABLE_SHARED")?,
+        shared: sysconfig_data.get_bool("Py_ENABLE_SHARED")?,
         ld_version,
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer,
     };
 
-    Ok((interpreter_config, config_map))
+    let build_flags = build_flags_from_config_map(&sysconfig_data);
+
+    Ok((interpreter_config, build_flags))
 }
 
 fn load_cross_compile_from_headers(
     python_paths: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
     let python_include_dir = python_paths.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
@@ -417,24 +422,26 @@ fn load_cross_compile_from_headers(
         implementation: PythonInterpreterKind::CPython,
     };
 
-    let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
+    let config_data = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
         libdir: python_paths.lib_dir.to_str().map(String::from),
-        shared: config_map.get_bool("Py_ENABLE_SHARED")?,
+        shared: config_data.get_bool("Py_ENABLE_SHARED")?,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer: None,
     };
 
-    Ok((interpreter_config, config_map))
+    let build_flags = build_flags_from_config_map(&config_data);
+
+    Ok((interpreter_config, build_flags))
 }
 
 fn load_cross_compile_info(
     python_paths: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashMap<String, String>)> {
+) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
     let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
     // Because compiling for windows on linux still includes the unix target family
     if target_family == "unix" {
@@ -449,45 +456,38 @@ fn load_cross_compile_info(
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
-fn get_config_vars(python_path: &Path) -> Result<HashMap<String, String>> {
+fn get_build_flags(python_path: &Path) -> Result<HashSet<BuildFlag>> {
     if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        return get_config_vars_windows(python_path);
+        return get_build_flags_windows(python_path);
     }
 
     let mut script = "import sysconfig; \
                       config = sysconfig.get_config_vars();"
         .to_owned();
 
-    for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
-        script.push_str(&format!(
-            "print(config.get('{}', {}));",
-            k,
-            if is_value(k) { "None" } else { "0" }
-        ));
+    for k in BUILD_FLAGS.iter() {
+        script.push_str(&format!("print(config.get('{}', '0'));", k));
     }
 
     let stdout = run_python_script(python_path, &script)?;
     let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
-    if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
+    if split_stdout.len() != BUILD_FLAGS.len() {
         bail!(
             "Python stdout len didn't return expected number of lines: {}",
             split_stdout.len()
         );
     }
-    let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
-    let all_vars = all_vars
-        .zip(split_stdout.iter())
-        .fold(HashMap::new(), |mut memo, (&k, &v)| {
-            if !(v == "None" && is_value(k)) {
-                memo.insert(k.to_string(), v.to_string());
-            }
-            memo
-        });
+    let flags = BUILD_FLAGS
+        .iter()
+        .zip(split_stdout)
+        .filter(|(_, flag_value)| *flag_value == "1")
+        .map(|(&flag, _)| flag)
+        .collect();
 
-    Ok(all_vars)
+    Ok(flags)
 }
 
-fn get_config_vars_windows(_: &Path) -> Result<HashMap<String, String>> {
+fn get_build_flags_windows(_: &Path) -> Result<HashSet<BuildFlag>> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -495,11 +495,8 @@ fn get_config_vars_windows(_: &Path) -> Result<HashMap<String, String>> {
     // PC\pyconfig.h. This won't work correctly if someone has built their
     // python with a modified pyconfig.h - sorry if that is you, you will have
     // to comment/uncomment the lines below.
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
-    map.insert("Py_UNICODE_WIDE".to_owned(), "0".to_owned());
-    map.insert("WITH_THREAD".to_owned(), "1".to_owned());
-    map.insert("Py_UNICODE_SIZE".to_owned(), "2".to_owned());
+    let mut flags: HashSet<BuildFlag> = HashSet::new();
+    flags.insert("WITH_THREAD");
 
     // This is defined #ifdef _DEBUG. The visual studio build seems to produce
     // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
@@ -512,24 +509,7 @@ fn get_config_vars_windows(_: &Path) -> Result<HashMap<String, String>> {
     // map.insert("Py_REF_DEBUG", "1");
     // map.insert("Py_TRACE_REFS", "1");
     // map.insert("COUNT_ALLOCS", 1");
-    Ok(map)
-}
-
-fn is_value(key: &str) -> bool {
-    SYSCONFIG_VALUES.iter().any(|x| *x == key)
-}
-
-fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
-    if is_value(key) {
-        // is a value; suffix the key name with the value
-        Some(format!("cargo:rustc-cfg={}=\"{}_{}\"\n", CFG_KEY, key, val))
-    } else if val != "0" {
-        // is a flag that isn't zero
-        Some(format!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, key))
-    } else {
-        // is a flag that is zero
-        None
-    }
+    Ok(flags)
 }
 
 /// Run a python script using the specified interpreter binary.
@@ -618,11 +598,11 @@ fn find_interpreter() -> Result<PathBuf> {
 /// 4. `python{major version}.{minor version}`
 ///
 /// If none of the above works, an error is returned
-fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<String, String>)> {
+fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
     let python_interpreter = find_interpreter()?;
     let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
     if interpreter_config.version.major == 3 {
-        return Ok((interpreter_config, get_config_vars(&python_interpreter)?));
+        return Ok((interpreter_config, get_build_flags(&python_interpreter)?));
     }
 
     Err("No Python interpreter found".into())
@@ -688,7 +668,12 @@ print("calcsize_pointer", struct.calcsize("P"))
     })
 }
 
-fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
+fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
+    if interpreter_config.version.major == 2 {
+        // fail PYO3_PYTHON=python2 cargo ...
+        bail!("Python 2 is not supported");
+    }
+
     if interpreter_config.version.minor < PY3_MIN_MINOR {
         bail!(
             "Python 3 required version is 3.{}, current version is 3.{}",
@@ -713,17 +698,9 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         }
     }
 
-    let mut flags = String::new();
-
     if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
         println!("cargo:rustc-cfg=PyPy");
-        flags += "CFG_PyPy";
     };
-
-    if interpreter_config.version.major == 2 {
-        // fail PYO3_PYTHON=python2 cargo ...
-        bail!("Python 2 is not supported");
-    }
 
     let minor = if env::var_os("CARGO_FEATURE_ABI3").is_some() {
         println!("cargo:rustc-cfg=Py_LIMITED_API");
@@ -746,10 +723,9 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
 
     for i in PY3_MIN_MINOR..=minor {
         println!("cargo:rustc-cfg=Py_3_{}", i);
-        flags += format!("CFG_Py_3_{},", i).as_ref();
     }
 
-    Ok(flags)
+    Ok(())
 }
 
 fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
@@ -820,66 +796,18 @@ fn main() -> Result<()> {
     //
     // Detecting if cross-compiling by checking if the target triple is different from the host
     // rustc's triple.
-    let (interpreter_config, mut config_map) = if let Some(paths) = cross_compiling()? {
+    let (interpreter_config, mut build_flags) = if let Some(paths) = cross_compiling()? {
         load_cross_compile_info(paths)?
     } else {
         find_interpreter_and_get_config()?
     };
 
-    config_map = fix_config_map(config_map, interpreter_config.version.minor);
-    let flags = configure(&interpreter_config)?;
+    fix_build_flags(&mut build_flags, &interpreter_config);
+    configure(&interpreter_config)?;
 
-    // These flags need to be enabled manually for PyPy, because it does not expose
-    // them in `sysconfig.get_config_vars()`
-    if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
-        config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
-        config_map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
-        config_map.insert("Py_UNICODE_SIZE".to_owned(), "4".to_owned());
-        config_map.insert("Py_UNICODE_WIDE".to_owned(), "1".to_owned());
+    for flag in &build_flags {
+        println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, flag)
     }
-
-    // WITH_THREAD is always on for 3.7
-    if interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7 {
-        config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
-    }
-
-    for (key, val) in &config_map {
-        if let Some(line) = cfg_line_for_var(key, val) {
-            println!("{}", line)
-        }
-    }
-
-    // 2. Export python interpreter compilation flags as cargo variables that
-    // will be visible to dependents. All flags will be available to dependent
-    // build scripts in the environment variable DEP_PYTHON27_PYTHON_FLAGS as
-    // comma separated list; each item in the list looks like
-    //
-    // {VAL,FLAG}_{flag_name}=val;
-    //
-    // FLAG indicates the variable is always 0 or 1
-    // VAL indicates it can take on any value
-    //
-    // rust-cypthon/build.rs contains an example of how to unpack this data
-    // into cfg flags that replicate the ones present in this library, so
-    // you can use the same cfg syntax.
-    let flags = config_map.iter().fold("".to_owned(), |memo, (key, val)| {
-        if is_value(key) {
-            memo + format!("VAL_{}={},", key, val).as_ref()
-        } else if val != "0" {
-            memo + format!("FLAG_{}={},", key, val).as_ref()
-        } else {
-            memo
-        }
-    }) + flags.as_str();
-
-    println!(
-        "cargo:python_flags={}",
-        if !flags.is_empty() {
-            &flags[..flags.len() - 1]
-        } else {
-            ""
-        }
-    );
 
     if env::var_os("TARGET") == Some("x86_64-apple-darwin".into()) {
         // TODO: Find out how we can set -undefined dynamic_lookup here (if this is possible)
