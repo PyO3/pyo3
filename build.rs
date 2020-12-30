@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     convert::AsRef,
-    env, fmt,
+    env,
     fs::{self, DirEntry, File},
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
@@ -36,36 +36,17 @@ struct InterpreterConfig {
     calcsize_pointer: Option<u32>,
 }
 
+#[derive(Debug, Clone)]
+struct PythonVersion {
+    major: u8,
+    minor: u8,
+    implementation: PythonInterpreterKind,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum PythonInterpreterKind {
     CPython,
     PyPy,
-}
-
-#[derive(Debug, Clone)]
-struct PythonVersion {
-    major: u8,
-    // minor == None means any minor version will do
-    minor: Option<u8>,
-    implementation: PythonInterpreterKind,
-}
-
-impl PartialEq for PythonVersion {
-    fn eq(&self, o: &PythonVersion) -> bool {
-        self.major == o.major && (self.minor.is_none() || self.minor == o.minor)
-    }
-}
-
-impl fmt::Display for PythonVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.major.fmt(f)?;
-        f.write_str(".")?;
-        match self.minor {
-            Some(minor) => minor.fmt(f)?,
-            None => f.write_str("*")?,
-        };
-        Ok(())
-    }
 }
 
 impl FromStr for PythonInterpreterKind {
@@ -74,7 +55,7 @@ impl FromStr for PythonInterpreterKind {
         match s {
             "CPython" => Ok(PythonInterpreterKind::CPython),
             "PyPy" => Ok(PythonInterpreterKind::PyPy),
-            _ => Err(format!("Invalid interpreter: {}", s).into()),
+            _ => bail!("Invalid interpreter: {}", s),
         }
     }
 }
@@ -93,7 +74,7 @@ impl GetPrimitive for HashMap<String, String> {
         {
             "1" | "true" | "True" => Ok(true),
             "0" | "false" | "False" => Ok(false),
-            _ => Err(format!("{} must be a bool (1/true/True or 0/false/False", key).into()),
+            _ => bail!("{} must be a bool (1/true/True or 0/false/False", key),
         }
     }
 
@@ -232,11 +213,11 @@ fn parse_header_defines(header_path: impl AsRef<Path>) -> Result<HashMap<String,
 
 fn fix_config_map(
     mut config_map: HashMap<String, String>,
-    version_minor: Option<u8>,
+    version_minor: u8,
 ) -> HashMap<String, String> {
     if let Some("1") = config_map.get("Py_DEBUG").as_ref().map(|s| s.as_str()) {
         config_map.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
-        if version_minor.map_or(false, |minor| minor <= 7) {
+        if version_minor <= 7 {
             // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
             config_map.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
         }
@@ -393,7 +374,6 @@ fn load_cross_compile_from_sysconfigdata(
     let sysconfig_path = find_sysconfigdata(&python_paths)?;
     let config_map = parse_sysconfigdata(sysconfig_path)?;
 
-    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
     let major = config_map.get_numeric("version_major")?;
     let minor = config_map.get_numeric("version_minor")?;
     let ld_version = match config_map.get("LDVERSION") {
@@ -404,14 +384,14 @@ fn load_cross_compile_from_sysconfigdata(
 
     let python_version = PythonVersion {
         major,
-        minor: Some(minor),
+        minor,
         implementation: PythonInterpreterKind::CPython,
     };
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
         libdir: python_paths.lib_dir.to_str().map(String::from),
-        shared,
+        shared: config_map.get_bool("Py_ENABLE_SHARED")?,
         ld_version,
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
@@ -433,17 +413,16 @@ fn load_cross_compile_from_headers(
 
     let python_version = PythonVersion {
         major,
-        minor: Some(minor),
+        minor,
         implementation: PythonInterpreterKind::CPython,
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
-    let shared = config_map.get_bool("Py_ENABLE_SHARED")?;
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
         libdir: python_paths.lib_dir.to_str().map(String::from),
-        shared,
+        shared: config_map.get_bool("Py_ENABLE_SHARED")?,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
@@ -581,86 +560,29 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
     }
 }
 
-fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
-    if cfg!(target_os = "windows") {
-        // Mirrors the behavior in CPython's `PC/pyconfig.h`.
+fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
+    let link_name = if env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() == "windows" {
+        // Link against python3.lib for the stable ABI on Windows.
+        // See https://www.python.org/dev/peps/pep-0384/#linkage
+        //
+        // This contains only the limited ABI symbols.
         if env::var_os("CARGO_FEATURE_ABI3").is_some() {
-            return "python3".to_string();
+            format!("python3")
+        } else {
+            format!("python{}{}", config.version.major, config.version.minor)
         }
-
-        let minor_or_empty_string = match version.minor {
-            Some(minor) => format!("{}", minor),
-            None => String::new(),
-        };
-        format!("python{}{}", version.major, minor_or_empty_string)
     } else {
-        match version.implementation {
-            PythonInterpreterKind::CPython => format!("python{}", ld_version),
-            PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
+        match config.version.implementation {
+            PythonInterpreterKind::CPython => format!("python{}", config.ld_version),
+            PythonInterpreterKind::PyPy => format!("pypy{}-c", config.version.major),
         }
-    }
-}
+    };
 
-fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
-    match env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
-        "windows" => get_rustc_link_lib_windows(config),
-        "macos" => get_rustc_link_lib_macos(config),
-        _ => get_rustc_link_lib_unix(config),
-    }
-}
-
-fn get_rustc_link_lib_unix(config: &InterpreterConfig) -> Result<String> {
-    if config.shared {
-        Ok(format!(
-            "cargo:rustc-link-lib={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        ))
-    } else {
-        Ok(format!(
-            "cargo:rustc-link-lib=static={}",
-            get_library_link_name(&config.version, &config.ld_version)
-        ))
-    }
-}
-
-fn get_macos_linkmodel(config: &InterpreterConfig) -> Result<String> {
-    // PyPy 3.6 ships with a shared library, but doesn't have Py_ENABLE_SHARED.
-    if config.version.implementation == PythonInterpreterKind::PyPy {
-        return Ok("shared".to_string());
-    }
-
-    let script = r#"
-import sysconfig
-
-if sysconfig.get_config_var("PYTHONFRAMEWORK"):
-    print("framework")
-elif sysconfig.get_config_var("Py_ENABLE_SHARED"):
-    print("shared")
-else:
-    print("static")
-"#;
-    let out = run_python_script(&config.executable, script)?;
-    Ok(out.trim_end().to_owned())
-}
-
-fn get_rustc_link_lib_macos(config: &InterpreterConfig) -> Result<String> {
-    // os x can be linked to a framework or static or dynamic, and
-    // Py_ENABLE_SHARED is wrong; framework means shared library
-    let link_name = get_library_link_name(&config.version, &config.ld_version);
-    match get_macos_linkmodel(config)?.as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static={}", link_name,)),
-        "shared" => Ok(format!("cargo:rustc-link-lib={}", link_name)),
-        "framework" => Ok(format!("cargo:rustc-link-lib={}", link_name,)),
-        other => bail!("unknown linkmodel {}", other),
-    }
-}
-
-fn get_rustc_link_lib_windows(config: &InterpreterConfig) -> Result<String> {
-    // Py_ENABLE_SHARED doesn't seem to be present on windows.
-    Ok(format!(
-        "cargo:rustc-link-lib=pythonXY:{}",
-        get_library_link_name(&config.version, &config.ld_version)
-    ))
+    format!(
+        "cargo:rustc-link-lib={link_model}{link_name}",
+        link_model = if config.shared { "" } else { "static=" },
+        link_name = link_name
+    )
 }
 
 fn find_interpreter() -> Result<PathBuf> {
@@ -731,20 +653,34 @@ if libdir is not None:
     print("libdir", libdir)
 print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
 print("base_prefix", sys.base_prefix)
+print("framework", bool(sysconfig.get_config_var('PYTHONFRAMEWORK')))
 print("shared", PYPY or ANACONDA or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
     let output = run_python_script(interpreter, script)?;
     let map: HashMap<String, String> = parse_script_output(&output);
+    let shared = match (
+        env::var("CARGO_CFG_TARGET_OS").unwrap().as_str(),
+        map["framework"].as_str(),
+        map["shared"].as_str(),
+    ) {
+        (_, _, "True")            // Py_ENABLE_SHARED is set
+        | ("windows", _, _)       // Windows always uses shared linking
+        | ("macos", "True", _)    // MacOS framework package uses shared linking
+          => true,
+        (_, _, "False") => false, // Any other platform, Py_ENABLE_SHARED not set
+        _ => bail!("Unrecognised link model combination")
+    };
+
     Ok(InterpreterConfig {
         version: PythonVersion {
             major: map["version_major"].parse()?,
-            minor: Some(map["version_minor"].parse()?),
+            minor: map["version_minor"].parse()?,
             implementation: map["implementation"].parse()?,
         },
         libdir: map.get("libdir").cloned(),
-        shared: map["shared"] == "True",
+        shared,
         ld_version: map["ld_version"].clone(),
         base_prefix: map["base_prefix"].clone(),
         executable: map["executable"].clone().into(),
@@ -753,14 +689,12 @@ print("calcsize_pointer", struct.calcsize("P"))
 }
 
 fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
-    if let Some(minor) = interpreter_config.version.minor {
-        if minor < PY3_MIN_MINOR {
-            bail!(
-                "Python 3 required version is 3.{}, current version is 3.{}",
-                PY3_MIN_MINOR,
-                minor
-            );
-        }
+    if interpreter_config.version.minor < PY3_MIN_MINOR {
+        bail!(
+            "Python 3 required version is 3.{}, current version is 3.{}",
+            PY3_MIN_MINOR,
+            interpreter_config.version.minor
+        );
     }
 
     check_target_architecture(interpreter_config)?;
@@ -768,7 +702,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || target_os == "windows" || target_os == "android" {
-        println!("{}", get_rustc_link_lib(&interpreter_config)?);
+        println!("{}", get_rustc_link_lib(&interpreter_config));
         if let Some(libdir) = &interpreter_config.libdir {
             println!("cargo:rustc-link-search=native={}", libdir);
         } else if target_os == "windows" {
@@ -796,25 +730,24 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         // Check any `abi3-py3*` feature is set. If not, use the interpreter version.
         let abi3_minor = (PY3_MIN_MINOR..=ABI3_MAX_MINOR)
             .find(|i| env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
-        match (abi3_minor, interpreter_config.version.minor) {
-            (Some(abi3_minor), Some(interpreter_minor)) if abi3_minor > interpreter_minor => bail!(
-                "You cannot set a mininimum Python version {} higher than the interpreter version {}",
-                abi3_minor,
-                interpreter_minor
+
+        match abi3_minor {
+            Some(minor) if minor > interpreter_config.version.minor => bail!(
+                "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",
+                minor,
+                interpreter_config.version.minor
             ),
-            _ => abi3_minor.or(interpreter_config.version.minor),
+            Some(minor) => minor,
+            None => interpreter_config.version.minor
         }
     } else {
         interpreter_config.version.minor
     };
 
-    if let Some(minor) = minor {
-        for i in PY3_MIN_MINOR..=minor {
-            println!("cargo:rustc-cfg=Py_3_{}", i);
-            flags += format!("CFG_Py_3_{},", i).as_ref();
-        }
+    for i in PY3_MIN_MINOR..=minor {
+        println!("cargo:rustc-cfg=Py_3_{}", i);
+        flags += format!("CFG_Py_3_{},", i).as_ref();
     }
-    println!("cargo:rustc-cfg=Py_3");
 
     Ok(flags)
 }
@@ -906,7 +839,7 @@ fn main() -> Result<()> {
     }
 
     // WITH_THREAD is always on for 3.7
-    if interpreter_config.version.major == 3 && interpreter_config.version.minor.unwrap_or(0) >= 7 {
+    if interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7 {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     }
 
