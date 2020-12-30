@@ -26,6 +26,7 @@ extern "C" {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_GetModuleDict")]
     pub fn PyImport_GetModuleDict() -> *mut PyObject;
+    // skipped Python 3.7 / ex-non-limited PyImport_GetModule
     pub fn PyImport_AddModuleObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_AddModule")]
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
@@ -67,6 +68,11 @@ extern "C" {
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
+    #[cfg(not(Py_3_9))]
+    #[deprecated(
+        since = "0.14.0",
+        note = "Removed in Python 3.9 as it was \"For internal use only\"."
+    )]
     pub fn PyImport_Cleanup();
     pub fn PyImport_ImportFrozenModuleObject(name: *mut PyObject) -> c_int;
     pub fn PyImport_ImportFrozenModule(name: *const c_char) -> c_int;
