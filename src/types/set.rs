@@ -38,7 +38,7 @@ impl PySet {
     }
 
     /// Creates a new empty set.
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+    pub fn empty(py: Python) -> PyResult<&PySet> {
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
     }
 
@@ -275,7 +275,7 @@ impl PyFrozenSet {
     }
 
     /// Creates a new empty frozen set
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+    pub fn empty(py: Python) -> PyResult<&PyFrozenSet> {
         unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
     }
 
@@ -372,16 +372,12 @@ mod hashbrown_hashset_conversion {
 
     #[test]
     fn test_extract_hashbrown_hashset() {
-        use std::iter::FromIterator;
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
         let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
-        assert_eq!(
-            hash_set,
-            hashbrown::HashSet::from_iter([1, 2, 3, 4, 5].iter().copied())
-        );
+        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
     }
 
     #[test]
@@ -402,7 +398,6 @@ mod test {
     use super::{PyFrozenSet, PySet};
     use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
-    use std::iter::FromIterator;
 
     #[test]
     fn test_set_new() {
@@ -562,10 +557,7 @@ mod test {
 
         let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
         let hash_set: HashSet<usize> = set.extract().unwrap();
-        assert_eq!(
-            hash_set,
-            HashSet::from_iter([1, 2, 3, 4, 5].iter().copied())
-        );
+        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
     }
 
     #[test]
@@ -575,10 +567,7 @@ mod test {
 
         let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
         let hash_set: BTreeSet<usize> = set.extract().unwrap();
-        assert_eq!(
-            hash_set,
-            BTreeSet::from_iter([1, 2, 3, 4, 5].iter().copied())
-        );
+        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
     }
 
     #[test]

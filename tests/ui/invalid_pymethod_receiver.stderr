@@ -12,3 +12,4 @@ error[E0277]: the trait bound `i32: From<&PyCell<MyClass>>` is not satisfied
           and 2 others
   = note: required because of the requirements on the impl of `Into<i32>` for `&PyCell<MyClass>`
   = note: required because of the requirements on the impl of `TryFrom<&PyCell<MyClass>>` for `i32`
+  = note: required by `std::convert::TryFrom::try_from`

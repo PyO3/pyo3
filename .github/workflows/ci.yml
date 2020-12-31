@@ -85,18 +85,18 @@ jobs:
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
       - name: Build docs
-        run: cargo doc --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo doc --features "num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
 
       - name: Build without default features
         run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 
       - name: Build with default features
-        run: cargo build --features "num-bigint num-complex" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo build --features "num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy-3.6'
         name: Test
-        run: cargo test --features "num-bigint num-complex" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --features "num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
@@ -139,7 +139,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features "num-bigint num-complex" --no-fail-fast
+          args: --features "num-bigint num-complex hashbrown" --no-fail-fast
         env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"

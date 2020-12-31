@@ -229,7 +229,7 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
 /// To allow multiple #[pymethods]/#[pyproto] block, we define inventory types.
 fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     // Try to build a unique type for better error messages
-    let name = format!("Pyo3MethodsInventoryFor{}", cls);
+    let name = format!("Pyo3MethodsInventoryFor{}", cls.unraw());
     let inventory_cls = syn::Ident::new(&name, Span::call_site());
 
     quote! {

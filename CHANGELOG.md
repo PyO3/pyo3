@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Stop including `Py_TRACE_REFS` config setting automatically if `Py_DEBUG` is set on Python 3.8 and up. [#1334](https://github.com/PyO3/pyo3/pull/1334)
 - Remove `#[deny(warnings)]` attribute (and instead refuse warnings only in CI). [#1340](https://github.com/PyO3/pyo3/pull/1340)
 - Fix deprecation warning for missing `__module__` with `#[pyclass]`. [#1343](https://github.com/PyO3/pyo3/pull/1343)
+- Correct return type of `PyFrozenSet::empty` to `&PyFrozenSet` (was incorrectly `&PySet`). [#1351](https://github.com/PyO3/pyo3/pull/1351)
 
 ## [0.13.0] - 2020-12-22
 ### Packaging

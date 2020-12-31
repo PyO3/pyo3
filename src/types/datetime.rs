@@ -73,7 +73,7 @@ pyobject_native_type!(
 );
 
 impl PyDate {
-    pub fn new<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p PyDate> {
+    pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
                 year,
@@ -88,7 +88,7 @@ impl PyDate {
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp<'p>(py: Python<'p>, timestamp: i64) -> PyResult<&'p PyDate> {
+    pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
         unsafe {
@@ -336,13 +336,13 @@ pyobject_native_type!(
 );
 
 impl PyDelta {
-    pub fn new<'p>(
-        py: Python<'p>,
+    pub fn new(
+        py: Python,
         days: i32,
         seconds: i32,
         microseconds: i32,
         normalize: bool,
-    ) -> PyResult<&'p PyDelta> {
+    ) -> PyResult<&PyDelta> {
         unsafe {
             let ptr = (PyDateTimeAPI.Delta_FromDelta)(
                 days as c_int,

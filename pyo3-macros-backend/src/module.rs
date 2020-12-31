@@ -58,7 +58,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(cap: &'a syn::PatType) -> syn::Result<method::FnArg<'a>> {
+fn wrap_fn_argument(cap: &syn::PatType) -> syn::Result<method::FnArg> {
     let (mutability, by_ref, ident) = match &*cap.pat {
         syn::Pat::Ident(patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),

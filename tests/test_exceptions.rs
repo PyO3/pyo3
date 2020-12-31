@@ -80,7 +80,7 @@ fn test_custom_error() {
 
 #[test]
 fn test_exception_nosegfault() {
-    use std::{net::TcpListener, panic};
+    use std::net::TcpListener;
     fn io_err() -> PyResult<()> {
         TcpListener::bind("no:address")?;
         Ok(())

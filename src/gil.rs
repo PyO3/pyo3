@@ -224,7 +224,7 @@ impl ReferencePool {
                 drop(locked);
                 out
             }};
-        };
+        }
 
         // Always increase reference counts first - as otherwise objects which have a
         // nonzero total reference count might be incorrectly dropped by Python during
