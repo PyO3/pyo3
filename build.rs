@@ -97,9 +97,7 @@ struct CrossCompileConfig {
 impl CrossCompileConfig {
     fn both() -> Result<Self> {
         Ok(CrossCompileConfig {
-            include_dir: Some(CrossCompileConfig::validate_variable(
-                "PYO3_CROSS_INCLUDE_DIR",
-            )?),
+            include_dir: env::var_os("PYO3_CROSS_INCLUDE_DIR").map(Into::into),
             ..CrossCompileConfig::lib_only()?
         })
     }
@@ -372,9 +370,9 @@ fn build_flags_from_config_map(config_map: &HashMap<String, String>) -> HashSet<
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 fn load_cross_compile_from_sysconfigdata(
-    python_paths: CrossCompileConfig,
+    cross_compile_config: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
-    let sysconfig_path = find_sysconfigdata(&python_paths)?;
+    let sysconfig_path = find_sysconfigdata(&cross_compile_config)?;
     let sysconfig_data = parse_sysconfigdata(sysconfig_path)?;
 
     let major = sysconfig_data.get_numeric("version_major")?;
@@ -393,7 +391,7 @@ fn load_cross_compile_from_sysconfigdata(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: python_paths.lib_dir.to_str().map(String::from),
+        libdir: cross_compile_config.lib_dir.to_str().map(String::from),
         shared: sysconfig_data.get_bool("Py_ENABLE_SHARED")?,
         ld_version,
         base_prefix: "".to_string(),
@@ -407,9 +405,9 @@ fn load_cross_compile_from_sysconfigdata(
 }
 
 fn load_cross_compile_from_headers(
-    python_paths: CrossCompileConfig,
+    cross_compile_config: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
-    let python_include_dir = python_paths.include_dir.unwrap();
+    let python_include_dir = cross_compile_config.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
@@ -426,7 +424,7 @@ fn load_cross_compile_from_headers(
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
-        libdir: python_paths.lib_dir.to_str().map(String::from),
+        libdir: cross_compile_config.lib_dir.to_str().map(String::from),
         shared: config_data.get_bool("Py_ENABLE_SHARED")?,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
@@ -439,17 +437,60 @@ fn load_cross_compile_from_headers(
     Ok((interpreter_config, build_flags))
 }
 
+fn windows_hardcoded_cross_compile(
+    cross_compile_config: CrossCompileConfig,
+) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+    let (major, minor) = if let Some(version) = cross_compile_config.version {
+        let mut parts = version.split('.');
+        match (
+            parts.next().and_then(|major| major.parse().ok()),
+            parts.next().and_then(|minor| minor.parse().ok()),
+            parts.next(),
+        ) {
+            (Some(major), Some(minor), None) => (major, minor),
+            _ => bail!(
+                "Expected major.minor version (e.g. 3.9) for PYO3_CROSS_VERSION, got `{}`",
+                version
+            ),
+        }
+    } else if let Some(minor_version) = get_abi3_minor_version() {
+        (3, minor_version)
+    } else {
+        bail!("One of PYO3_CROSS_INCLUDE_DIR, PYO3_CROSS_PYTHON_VERSION, or an abi3-py3* feature must be specified when cross-compiling for Windows.")
+    };
+
+    let python_version = PythonVersion {
+        major,
+        minor,
+        implementation: PythonInterpreterKind::CPython,
+    };
+
+    let interpreter_config = InterpreterConfig {
+        version: python_version,
+        libdir: cross_compile_config.lib_dir.to_str().map(String::from),
+        shared: true,
+        ld_version: format!("{}.{}", major, minor),
+        base_prefix: "".to_string(),
+        executable: PathBuf::new(),
+        calcsize_pointer: None,
+    };
+
+    Ok((interpreter_config, get_build_flags_windows()?))
+}
+
 fn load_cross_compile_info(
-    python_paths: CrossCompileConfig,
+    cross_compile_config: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
     let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
     // Because compiling for windows on linux still includes the unix target family
     if target_family == "unix" {
         // Configure for unix platforms using the sysconfigdata file
-        load_cross_compile_from_sysconfigdata(python_paths)
-    } else {
+        load_cross_compile_from_sysconfigdata(cross_compile_config)
+    } else if cross_compile_config.include_dir.is_some() {
         // Must configure by headers on windows platform
-        load_cross_compile_from_headers(python_paths)
+        load_cross_compile_from_headers(cross_compile_config)
+    } else {
+        windows_hardcoded_cross_compile(cross_compile_config)
     }
 }
 
@@ -458,7 +499,7 @@ fn load_cross_compile_info(
 /// sysconfig.get_config_vars.
 fn get_build_flags(python_path: &Path) -> Result<HashSet<BuildFlag>> {
     if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        return get_build_flags_windows(python_path);
+        return get_build_flags_windows();
     }
 
     let mut script = "import sysconfig; \
@@ -487,7 +528,7 @@ fn get_build_flags(python_path: &Path) -> Result<HashSet<BuildFlag>> {
     Ok(flags)
 }
 
-fn get_build_flags_windows(_: &Path) -> Result<HashSet<BuildFlag>> {
+fn get_build_flags_windows() -> Result<HashSet<BuildFlag>> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -547,9 +588,12 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
         //
         // This contains only the limited ABI symbols.
         if env::var_os("CARGO_FEATURE_ABI3").is_some() {
-            format!("python3")
+            "pythonXY:python3".to_owned()
         } else {
-            format!("python{}{}", config.version.major, config.version.minor)
+            format!(
+                "pythonXY:python{}{}",
+                config.version.major, config.version.minor
+            )
         }
     } else {
         match config.version.implementation {
@@ -705,10 +749,8 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
     let minor = if env::var_os("CARGO_FEATURE_ABI3").is_some() {
         println!("cargo:rustc-cfg=Py_LIMITED_API");
         // Check any `abi3-py3*` feature is set. If not, use the interpreter version.
-        let abi3_minor = (PY3_MIN_MINOR..=ABI3_MAX_MINOR)
-            .find(|i| env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
 
-        match abi3_minor {
+        match get_abi3_minor_version() {
             Some(minor) if minor > interpreter_config.version.minor => bail!(
                 "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",
                 minor,
@@ -763,10 +805,16 @@ fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<(
     Ok(())
 }
 
+fn get_abi3_minor_version() -> Option<u8> {
+    (PY3_MIN_MINOR..=ABI3_MAX_MINOR)
+        .find(|i| env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
+}
+
 fn abi3_without_interpreter() -> Result<()> {
     println!("cargo:rustc-cfg=Py_LIMITED_API");
     let mut flags = "FLAG_WITH_THREAD=1".to_string();
-    for minor in PY3_MIN_MINOR..=ABI3_MAX_MINOR {
+    let abi_version = get_abi3_minor_version().unwrap_or(ABI3_MAX_MINOR);
+    for minor in PY3_MIN_MINOR..=abi_version {
         println!("cargo:rustc-cfg=Py_3_{}", minor);
         flags += &format!(",CFG_Py_3_{}", minor);
     }
