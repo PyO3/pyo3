@@ -142,7 +142,7 @@ error: Annotating error messages for structs is not supported. Remove the annota
    --> $DIR/invalid_frompy_derive.rs:129:1
     |
 129 | #[pyo3(annotation = "should not work")]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    | ^
 
 error: Expected string literal.
    --> $DIR/invalid_frompy_derive.rs:136:25

@@ -126,10 +126,7 @@ mod complex_conversion {
 
     impl PyComplex {
         /// Creates a new Python `PyComplex` object from num_complex::Complex.
-        pub fn from_complex<'py, F: Into<c_double>>(
-            py: Python<'py>,
-            complex: Complex<F>,
-        ) -> &'py PyComplex {
+        pub fn from_complex<F: Into<c_double>>(py: Python, complex: Complex<F>) -> &PyComplex {
             unsafe {
                 let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());
                 py.from_owned_ptr(ptr)
