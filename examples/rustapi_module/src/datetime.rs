@@ -6,7 +6,7 @@ use pyo3::types::{
 use pyo3::wrap_pyfunction;
 
 #[pyfunction]
-fn make_date<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p PyDate> {
+fn make_date(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
     PyDate::new(py, year, month, day)
 }
 
@@ -19,7 +19,7 @@ fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn date_from_timestamp<'p>(py: Python<'p>, timestamp: i64) -> PyResult<&'p PyDate> {
+fn date_from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
     PyDate::from_timestamp(py, timestamp)
 }
 
@@ -93,12 +93,7 @@ fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn make_delta<'p>(
-    py: Python<'p>,
-    days: i32,
-    seconds: i32,
-    microseconds: i32,
-) -> PyResult<&'p PyDelta> {
+fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResult<&PyDelta> {
     PyDelta::new(py, days, seconds, microseconds, true)
 }
 
