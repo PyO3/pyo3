@@ -174,15 +174,103 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
 ///
 /// (hrm, this is sort of re-implementing what distutils does, except
 /// by passing command line args instead of referring to a python.h)
-type BuildFlag = &'static str;
+struct BuildFlags(HashSet<&'static str>);
 
-static BUILD_FLAGS: [BuildFlag; 5] = [
-    "WITH_THREAD",
-    "Py_DEBUG",
-    "Py_REF_DEBUG",
-    "Py_TRACE_REFS",
-    "COUNT_ALLOCS",
-];
+impl BuildFlags {
+    const ALL: [&'static str; 5] = [
+        "WITH_THREAD",
+        "Py_DEBUG",
+        "Py_REF_DEBUG",
+        "Py_TRACE_REFS",
+        "COUNT_ALLOCS",
+    ];
+
+    fn from_config_map(config_map: &HashMap<String, String>) -> Self {
+        Self(
+            BuildFlags::ALL
+                .iter()
+                .copied()
+                .filter(|flag| config_map.get(*flag).map_or(false, |value| value == "1"))
+                .collect(),
+        )
+    }
+
+    /// Examine python's compile flags to pass to cfg by launching
+    /// the interpreter and printing variables of interest from
+    /// sysconfig.get_config_vars.
+    fn from_interpreter(python_path: &Path) -> Result<Self> {
+        if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+            return Ok(Self::windows_hardcoded());
+        }
+
+        let mut script = "import sysconfig; \
+                        config = sysconfig.get_config_vars();"
+            .to_owned();
+
+        for k in BuildFlags::ALL.iter() {
+            script.push_str(&format!("print(config.get('{}', '0'));", k));
+        }
+
+        let stdout = run_python_script(python_path, &script)?;
+        let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
+        if split_stdout.len() != BuildFlags::ALL.len() {
+            bail!(
+                "Python stdout len didn't return expected number of lines: {}",
+                split_stdout.len()
+            );
+        }
+        let flags = BuildFlags::ALL
+            .iter()
+            .zip(split_stdout)
+            .filter(|(_, flag_value)| *flag_value == "1")
+            .map(|(&flag, _)| flag)
+            .collect();
+
+        Ok(Self(flags))
+    }
+
+    fn windows_hardcoded() -> Self {
+        // sysconfig is missing all the flags on windows, so we can't actually
+        // query the interpreter directly for its build flags.
+        //
+        // For the time being, this is the flags as defined in the python source's
+        // PC\pyconfig.h. This won't work correctly if someone has built their
+        // python with a modified pyconfig.h - sorry if that is you, you will have
+        // to comment/uncomment the lines below.
+        let mut flags = HashSet::new();
+        flags.insert("WITH_THREAD");
+
+        // This is defined #ifdef _DEBUG. The visual studio build seems to produce
+        // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
+        // Debug configuration, which this script doesn't currently support anyway.
+        // map.insert("Py_DEBUG", "1");
+
+        // Uncomment these manually if your python was built with these and you want
+        // the cfg flags to be set in rust.
+        //
+        // map.insert("Py_REF_DEBUG", "1");
+        // map.insert("Py_TRACE_REFS", "1");
+        // map.insert("COUNT_ALLOCS", 1");
+        Self(flags)
+    }
+
+    fn fixup(&mut self, interpreter_config: &InterpreterConfig) {
+        if self.0.contains("Py_DEBUG") {
+            self.0.insert("Py_REF_DEBUG");
+            if interpreter_config.version.major == 3 && interpreter_config.version.minor <= 7 {
+                // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
+                self.0.insert("Py_TRACE_REFS");
+            }
+        }
+
+        // WITH_THREAD is always on for Python 3.7, and for PyPy.
+        if (interpreter_config.version.implementation == PythonInterpreterKind::PyPy)
+            || (interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7)
+        {
+            self.0.insert("WITH_THREAD");
+        }
+    }
+}
 
 /// Attempts to parse the header at the given path, returning a map of definitions to their values.
 /// Each entry in the map directly corresponds to a `#define` in the given header.
@@ -199,23 +287,6 @@ fn parse_header_defines(header_path: impl AsRef<Path>) -> Result<HashMap<String,
         }
     }
     Ok(definitions)
-}
-
-fn fix_build_flags(build_flags: &mut HashSet<BuildFlag>, interpreter_config: &InterpreterConfig) {
-    if build_flags.contains("Py_DEBUG") {
-        build_flags.insert("Py_REF_DEBUG");
-        if interpreter_config.version.major == 3 && interpreter_config.version.minor <= 7 {
-            // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
-            build_flags.insert("Py_TRACE_REFS");
-        }
-    }
-
-    // WITH_THREAD is always on for Python 3.7, and for PyPy.
-    if (interpreter_config.version.implementation == PythonInterpreterKind::PyPy)
-        || (interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7)
-    {
-        build_flags.insert("WITH_THREAD");
-    }
 }
 
 fn parse_script_output(output: &str) -> HashMap<String, String> {
@@ -355,14 +426,6 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     sysconfig_paths
 }
 
-fn build_flags_from_config_map(config_map: &HashMap<String, String>) -> HashSet<BuildFlag> {
-    BUILD_FLAGS
-        .iter()
-        .copied()
-        .filter(|flag| config_map.get(*flag).map_or(false, |value| value == "1"))
-        .collect()
-}
-
 /// Find cross compilation information from sysconfigdata file
 ///
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
@@ -371,7 +434,7 @@ fn build_flags_from_config_map(config_map: &HashMap<String, String>) -> HashSet<
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 fn load_cross_compile_from_sysconfigdata(
     cross_compile_config: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+) -> Result<(InterpreterConfig, BuildFlags)> {
     let sysconfig_path = find_sysconfigdata(&cross_compile_config)?;
     let sysconfig_data = parse_sysconfigdata(sysconfig_path)?;
 
@@ -399,14 +462,14 @@ fn load_cross_compile_from_sysconfigdata(
         calcsize_pointer,
     };
 
-    let build_flags = build_flags_from_config_map(&sysconfig_data);
+    let build_flags = BuildFlags::from_config_map(&sysconfig_data);
 
     Ok((interpreter_config, build_flags))
 }
 
 fn load_cross_compile_from_headers(
     cross_compile_config: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+) -> Result<(InterpreterConfig, BuildFlags)> {
     let python_include_dir = cross_compile_config.include_dir.unwrap();
     let python_include_dir = Path::new(&python_include_dir);
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
@@ -432,14 +495,14 @@ fn load_cross_compile_from_headers(
         calcsize_pointer: None,
     };
 
-    let build_flags = build_flags_from_config_map(&config_data);
+    let build_flags = BuildFlags::from_config_map(&config_data);
 
     Ok((interpreter_config, build_flags))
 }
 
 fn windows_hardcoded_cross_compile(
     cross_compile_config: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+) -> Result<(InterpreterConfig, BuildFlags)> {
     let (major, minor) = if let Some(version) = cross_compile_config.version {
         let mut parts = version.split('.');
         match (
@@ -475,12 +538,12 @@ fn windows_hardcoded_cross_compile(
         calcsize_pointer: None,
     };
 
-    Ok((interpreter_config, get_build_flags_windows()?))
+    Ok((interpreter_config, BuildFlags::windows_hardcoded()))
 }
 
 fn load_cross_compile_info(
     cross_compile_config: CrossCompileConfig,
-) -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+) -> Result<(InterpreterConfig, BuildFlags)> {
     let target_family = env::var("CARGO_CFG_TARGET_FAMILY")?;
     // Because compiling for windows on linux still includes the unix target family
     if target_family == "unix" {
@@ -492,65 +555,6 @@ fn load_cross_compile_info(
     } else {
         windows_hardcoded_cross_compile(cross_compile_config)
     }
-}
-
-/// Examine python's compile flags to pass to cfg by launching
-/// the interpreter and printing variables of interest from
-/// sysconfig.get_config_vars.
-fn get_build_flags(python_path: &Path) -> Result<HashSet<BuildFlag>> {
-    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        return get_build_flags_windows();
-    }
-
-    let mut script = "import sysconfig; \
-                      config = sysconfig.get_config_vars();"
-        .to_owned();
-
-    for k in BUILD_FLAGS.iter() {
-        script.push_str(&format!("print(config.get('{}', '0'));", k));
-    }
-
-    let stdout = run_python_script(python_path, &script)?;
-    let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
-    if split_stdout.len() != BUILD_FLAGS.len() {
-        bail!(
-            "Python stdout len didn't return expected number of lines: {}",
-            split_stdout.len()
-        );
-    }
-    let flags = BUILD_FLAGS
-        .iter()
-        .zip(split_stdout)
-        .filter(|(_, flag_value)| *flag_value == "1")
-        .map(|(&flag, _)| flag)
-        .collect();
-
-    Ok(flags)
-}
-
-fn get_build_flags_windows() -> Result<HashSet<BuildFlag>> {
-    // sysconfig is missing all the flags on windows, so we can't actually
-    // query the interpreter directly for its build flags.
-    //
-    // For the time being, this is the flags as defined in the python source's
-    // PC\pyconfig.h. This won't work correctly if someone has built their
-    // python with a modified pyconfig.h - sorry if that is you, you will have
-    // to comment/uncomment the lines below.
-    let mut flags: HashSet<BuildFlag> = HashSet::new();
-    flags.insert("WITH_THREAD");
-
-    // This is defined #ifdef _DEBUG. The visual studio build seems to produce
-    // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
-    // Debug configuration, which this script doesn't currently support anyway.
-    // map.insert("Py_DEBUG", "1");
-
-    // Uncomment these manually if your python was built with these and you want
-    // the cfg flags to be set in rust.
-    //
-    // map.insert("Py_REF_DEBUG", "1");
-    // map.insert("Py_TRACE_REFS", "1");
-    // map.insert("COUNT_ALLOCS", 1");
-    Ok(flags)
 }
 
 /// Run a python script using the specified interpreter binary.
@@ -642,11 +646,14 @@ fn find_interpreter() -> Result<PathBuf> {
 /// 4. `python{major version}.{minor version}`
 ///
 /// If none of the above works, an error is returned
-fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashSet<BuildFlag>)> {
+fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, BuildFlags)> {
     let python_interpreter = find_interpreter()?;
     let interpreter_config = get_config_from_interpreter(&python_interpreter)?;
     if interpreter_config.version.major == 3 {
-        return Ok((interpreter_config, get_build_flags(&python_interpreter)?));
+        return Ok((
+            interpreter_config,
+            BuildFlags::from_interpreter(&python_interpreter)?,
+        ));
     }
 
     Err("No Python interpreter found".into())
@@ -850,10 +857,10 @@ fn main() -> Result<()> {
         find_interpreter_and_get_config()?
     };
 
-    fix_build_flags(&mut build_flags, &interpreter_config);
+    build_flags.fixup(&interpreter_config);
     configure(&interpreter_config)?;
 
-    for flag in &build_flags {
+    for flag in &build_flags.0 {
         println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, flag)
     }
 
