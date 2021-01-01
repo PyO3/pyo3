@@ -91,9 +91,11 @@ See https://github.com/japaric/rust-cross for a primer on cross compiling Rust i
 
 After you've obtained the above, you can build a cross compiled PyO3 module by setting a few extra environment variables:
 
-* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's Python interpreter. **It is only necessary if targeting Windows platforms**
 * `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file.
-* `PYO3_CROSS_PYTHON_VERSION`: This variable must be set if there are multiple versions of python compiled for a unix machine.
+* `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if pyo3 cannot determine the version to target by other means:
+  - From `PYO3_CROSS_INCLUDE_DIR` or abi3-py3* features when targeting Windows, or
+  - if there are multiple versions of python present in `PYO3_CROSS_LIB_DIR` when targeting unix.
+* `PYO3_CROSS_INCLUDE_DIR`: This variable can optionally be set to the directory containing the headers for the target's Python interpreter when targeting Windows.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 
