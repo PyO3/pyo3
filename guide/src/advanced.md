@@ -15,9 +15,3 @@ The caveat to these "owned references" is that Rust references do not normally c
 For most use cases this behaviour is invisible. Occasionally, however, users may need to clear memory usage sooner than PyO3 usually does. PyO3 exposes this functionality with the  the `GILPool` struct. When a `GILPool` is dropped, ***all*** owned references created after the `GILPool` was created will be cleared.
 
 The unsafe function `Python::new_pool` allows you to create a new `GILPool`. When doing this, you must be very careful to ensure that once the `GILPool` is dropped you do not retain access any owned references created after the `GILPool` was created.
-
-## The `nightly` feature
-
-The `pyo3/nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
-- `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object is a `PyBuffer`
-- `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.

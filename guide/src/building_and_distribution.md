@@ -42,7 +42,7 @@ There are two ways to distribute your module as a Python package: The old, [setu
 
 By default, Python extension modules can only be used with the same Python version they were compiled against -- if you build an extension module with Python 3.5, you can't import it using Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. This is also known as `abi3`.
 
-Note that [maturin] >= 0.9.0 or [setuptools-rust] >= 0.12.0 is going to support `abi3` wheels.
+Note that [maturin] >= 0.9.0 or [setuptools-rust] >= 0.11.4 support `abi3` wheels.
 See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) for more.
 
 There are three steps involved in making use of `abi3` when building Python packages as wheels:
