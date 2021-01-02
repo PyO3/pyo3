@@ -131,7 +131,7 @@ assert_eq!(obj_ref.num, 1);
 
 The `#[pyclass]` macro accepts the following parameters:
 
-* `name=XXX` - Set the class name shown in Python code. By default, the struct name is used as the class name.
+* `name="XXX"` - Set the class name shown in Python code. By default, the struct name is used as the class name.
 * `freelist=XXX` - The `freelist` parameter adds support of free allocation list to custom class.
 The performance improvement applies to types that are often created and deleted in a row,
 so that they can benefit from a freelist. `XXX` is a number of items for the free list.
