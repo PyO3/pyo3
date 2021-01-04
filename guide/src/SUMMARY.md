@@ -16,6 +16,7 @@
 - [GIL, mutability and object types](types.md)
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
+- [Features Reference](features.md)
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
 - [PyPy support](pypy.md)

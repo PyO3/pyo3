@@ -33,25 +33,35 @@ assert_approx_eq = "1.1.0"
 trybuild = "1.0.23"
 rustversion = "1.0"
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
+# features needed to run the PyO3 test suite
+pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initialize"] }
 
 [features]
-default = ["macros"]
-macros = ["ctor", "indoc", "inventory", "paste", "pyo3-macros", "unindent"]
+default = ["macros", "auto-initialize"]
+
+# Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
+macros = ["pyo3-macros", "ctor", "indoc", "inventory", "paste", "unindent"]
+
+# Use this feature when building an extension module.
+# It tells the linker to keep the python symbols unresolved,
+# so that the module can also be used with statically linked python interpreters.
+extension-module = []
+
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = []
+
 # With abi3, we can manually set the minimum Python version.
 abi3-py36 = ["abi3-py37"]
 abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3"]
 
+# Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
+# Python interpreter if needed.
+auto-initialize = []
+
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
-
-# Use this feature when building an extension module.
-# It tells the linker to keep the python symbols unresolved,
-# so that the module can also be used with statically linked python interpreters.
-extension-module = []
 
 [workspace]
 members = [

@@ -104,8 +104,9 @@ If you want your Rust application to create a Python interpreter internally and
 use it to run Python code, add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
-[dependencies]
-pyo3 = "0.13.0"
+[dependencies.pyo3]
+version = "0.13.0"
+features = ["auto-initialize"]
 ```
 
 Example program displaying the value of `sys.version` and the current user name:
