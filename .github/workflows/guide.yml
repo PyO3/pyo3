@@ -21,7 +21,7 @@ jobs:
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: '0.4.1'
+          mdbook-version: '0.4.5'
 
       # This builds the book in gh-pages-build. See https://github.com/rust-lang-nursery/mdBook/issues/698
       - name: Build the guide
