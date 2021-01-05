@@ -733,7 +733,9 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
         );
     }
 
-    check_target_architecture(interpreter_config)?;
+    if cross_compiling()?.is_none() {
+        check_target_architecture(interpreter_config)?;
+    }
     let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
