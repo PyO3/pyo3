@@ -76,6 +76,8 @@ where
         if subtype == Self::type_object_raw(py) {
             if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list(py).pop() {
                 ffi::PyObject_Init(obj, subtype);
+                #[cfg(not(Py_3_8))]
+                crate::pyclass::bpo_35810_workaround(py, subtype);
                 return obj as _;
             }
         }
@@ -87,13 +89,13 @@ where
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
 
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list(py).insert(obj.as_ptr()) {
-            match get_type_free(ffi::Py_TYPE(obj)) {
-                Some(free) => {
-                    let ty = ffi::Py_TYPE(obj);
-                    free(obj as *mut c_void);
-                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
-                }
-                None => tp_free_fallback(obj),
+            let ty = ffi::Py_TYPE(obj);
+            let free = get_type_free(ty).unwrap_or_else(|| tp_free_fallback(ty));
+            free(obj as *mut c_void);
+
+            #[cfg(Py_3_8)]
+            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                ffi::Py_DECREF(ty as *mut ffi::PyObject);
             }
         }
     }

@@ -1,11 +1,9 @@
 //! `PyClass` and related traits.
 use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
 use crate::class::proto_methods::PyProtoMethods;
-use crate::conversion::{AsPyPointer, FromPyPointer};
 use crate::derive_utils::PyBaseTypeUtils;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::types::PyAny;
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -21,6 +19,26 @@ unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
 #[inline]
 pub(crate) unsafe fn get_type_free(tp: *mut ffi::PyTypeObject) -> Option<ffi::freefunc> {
     mem::transmute(ffi::PyType_GetSlot(tp, ffi::Py_tp_free))
+}
+
+/// Workaround for Python issue 35810; no longer necessary in Python 3.8
+#[inline]
+#[cfg(not(Py_3_8))]
+pub(crate) unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObject) {
+    #[cfg(Py_LIMITED_API)]
+    {
+        // Must check version at runtime for abi3 wheels - they could run against a higher version
+        // than the build config suggests.
+        use crate::once_cell::GILOnceCell;
+        static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
+
+        if *IS_PYTHON_3_8.get_or_init(_py, || _py.version_info() >= (3, 8)) {
+            // No fix needed - the wheel is running on a sufficiently new interpreter.
+            return;
+        }
+    }
+
+    ffi::Py_INCREF(ty as *mut ffi::PyObject);
 }
 
 #[inline]
@@ -44,8 +62,13 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
             unreachable!("Subclassing native types isn't support in limited API mode");
         }
     }
+
     let alloc = get_type_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
-    alloc(subtype, 0) as _
+
+    #[cfg(not(Py_3_8))]
+    bpo_35810_workaround(py, subtype);
+
+    alloc(subtype, 0)
 }
 
 /// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
@@ -64,15 +87,15 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     /// `self_` must be a valid pointer to the Python heap.
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
-        let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
+        let obj = self_ as *mut ffi::PyObject;
 
-        match get_type_free(ffi::Py_TYPE(obj.as_ptr())) {
-            Some(free) => {
-                let ty = ffi::Py_TYPE(obj.as_ptr());
-                free(obj.as_ptr() as *mut c_void);
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
-            }
-            None => tp_free_fallback(obj.as_ptr()),
+        let ty = ffi::Py_TYPE(obj);
+        let free = get_type_free(ty).unwrap_or_else(|| tp_free_fallback(ty));
+        free(obj as *mut c_void);
+
+        #[cfg(Py_3_8)]
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
         }
     }
 }
@@ -89,18 +112,11 @@ fn tp_dealloc<T: PyClassAlloc>() -> Option<ffi::destructor> {
     Some(dealloc::<T>)
 }
 
-pub(crate) unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
-    let ty = ffi::Py_TYPE(obj);
+pub(crate) unsafe fn tp_free_fallback(ty: *mut ffi::PyTypeObject) -> ffi::freefunc {
     if ffi::PyType_IS_GC(ty) != 0 {
-        ffi::PyObject_GC_Del(obj as *mut c_void);
+        ffi::PyObject_GC_Del
     } else {
-        ffi::PyObject_Free(obj as *mut c_void);
-    }
-
-    // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-    // so we need to call DECREF here:
-    if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-        ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        ffi::PyObject_Free
     }
 }
 

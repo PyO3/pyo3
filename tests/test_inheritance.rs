@@ -209,3 +209,50 @@ mod inheriting_native_type {
         );
     }
 }
+
+#[pyclass(subclass)]
+struct SimpleClass {}
+
+#[pymethods]
+impl SimpleClass {
+    #[new]
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+#[test]
+fn test_subclass_ref_counts() {
+    // regression test for issue #1363
+    use pyo3::type_object::PyTypeObject;
+    Python::with_gil(|py| {
+        #[allow(non_snake_case)]
+        let SimpleClass = SimpleClass::type_object(py);
+        py_run!(
+            py,
+            SimpleClass,
+            r#"
+            import gc
+            import sys
+
+            class SubClass(SimpleClass):
+                pass
+
+            gc.collect()
+            count = sys.getrefcount(SubClass)
+
+            for i in range(1000):
+                c = SubClass()
+                del c
+
+            gc.collect()
+            after = sys.getrefcount(SubClass)
+            # depending on Python's GC the count may be either identical or exactly 1000 higher,
+            # both are expected values that are not representative of the issue.
+            #
+            # (With issue #1363 the count will be decreased.)
+            assert after == count or (after == count + 1000), f"{after} vs {count}"
+            "#
+        );
+    })
+}
