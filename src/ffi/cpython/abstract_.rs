@@ -1,5 +1,5 @@
 use crate::ffi::{PyObject, Py_buffer, Py_ssize_t};
-use libc::{c_char, c_int, c_void};
+use crate::libc::{c_char, c_int, c_void};
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 use crate::ffi::{
@@ -7,7 +7,7 @@ use crate::ffi::{
     PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 #[cfg(all(Py_3_8, not(PyPy)))]
-use libc::size_t;
+use crate::libc::size_t;
 
 extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]

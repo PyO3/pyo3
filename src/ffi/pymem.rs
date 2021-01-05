@@ -1,4 +1,4 @@
-use libc::size_t;
+use crate::libc::size_t;
 use std::os::raw::c_void;
 
 #[cfg(not(Py_LIMITED_API))]

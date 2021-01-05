@@ -87,7 +87,7 @@ pub fn prepare_freethreaded_python() {
                     }
                 }
             }
-            libc::atexit(finalize);
+            crate::libc::atexit(finalize);
 
             // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
             // > to call it yourself anymore.

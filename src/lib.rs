@@ -169,8 +169,7 @@ pub use {
 };
 
 // Re-exported for the `__wrap` functions
-#[doc(hidden)]
-pub use libc;
+pub use crate::libc_wrapper::libc;
 
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
@@ -193,6 +192,7 @@ mod gil;
 mod instance;
 #[macro_use]
 mod internal_tricks;
+mod libc_wrapper;
 #[cfg(not(Py_LIMITED_API))]
 pub mod marshal;
 pub mod once_cell;

@@ -1,7 +1,7 @@
 use crate::ffi::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::pyarena::PyArena;
-use libc::FILE;
+use crate::libc::FILE;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 

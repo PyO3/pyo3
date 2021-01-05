@@ -2,7 +2,7 @@ use crate::ffi::pystate::PyThreadState;
 #[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
 use crate::ffi::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
 
-use libc::wchar_t;
+use crate::libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 
 extern "C" {

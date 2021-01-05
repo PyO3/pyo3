@@ -1,6 +1,6 @@
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::wchar_t;
+use crate::libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg(not(Py_LIMITED_API))]

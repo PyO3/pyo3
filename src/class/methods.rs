@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::libc::c_int;
 use crate::{ffi, PyObject, Python};
-use libc::c_int;
 use std::ffi::CStr;
 use std::fmt;
 

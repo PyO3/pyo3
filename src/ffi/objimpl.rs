@@ -1,6 +1,6 @@
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::size_t;
+use crate::libc::size_t;
 use std::os::raw::{c_int, c_void};
 
 extern "C" {

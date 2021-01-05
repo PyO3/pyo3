@@ -210,7 +210,7 @@ pub type freefunc = unsafe extern "C" fn(arg1: *mut c_void);
 pub type destructor = unsafe extern "C" fn(arg1: *mut PyObject);
 #[cfg(not(Py_LIMITED_API))]
 pub type printfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut crate::libc::FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
 pub type getattrofunc =
@@ -245,7 +245,7 @@ pub type allocfunc =
 pub type vectorcallfunc = unsafe extern "C" fn(
     callable: *mut PyObject,
     args: *const *mut PyObject,
-    nargsf: libc::size_t,
+    nargsf: crate::libc::size_t,
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
@@ -657,7 +657,7 @@ extern "C" {
 
     #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
-    pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
+    pub fn PyObject_Print(o: *mut PyObject, fp: *mut crate::libc::FILE, flags: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Repr")]
     pub fn PyObject_Repr(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Str")]
