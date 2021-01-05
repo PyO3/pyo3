@@ -1,0 +1,14 @@
+error[E0277]: `Rc<i32>` cannot be sent between threads safely
+   --> $DIR/pyclass_send.rs:4:1
+    |
+4   | #[pyclass]
+    | ^^^^^^^^^^ `Rc<i32>` cannot be sent between threads safely
+    |
+   ::: $WORKSPACE/src/pyclass.rs
+    |
+    | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
+    |                                 ---- required by this bound in `ThreadCheckerStub`
+    |
+    = help: within `NotThreadSafe`, the trait `Send` is not implemented for `Rc<i32>`
+    = note: required because it appears within the type `NotThreadSafe`
+    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
