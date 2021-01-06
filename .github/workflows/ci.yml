@@ -91,22 +91,22 @@ jobs:
         run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
 
       - name: Build (all additive features)
-        run: cargo build --no-default-features --features "macros num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo build --no-default-features --features "macros num-bigint num-complex hashbrown serde" --verbose --target ${{ matrix.platform.rust-target }}
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy-3.6'
         name: Test
-        run: cargo test --no-default-features --features "macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
 
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3 macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
 
       # Run tests again, for abi3-py36 (the minimal Python version)
       - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
         name: Test (abi3-py36)
-        run: cargo test --no-default-features --features "abi3-py36 macros num-bigint num-complex hashbrown" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3-py36 macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
@@ -143,7 +143,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features "num-bigint num-complex hashbrown" --no-fail-fast
+          args: --features "num-bigint num-complex hashbrown serde" --no-fail-fast
         env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"

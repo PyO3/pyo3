@@ -5,6 +5,10 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Add `serde` feature to support `Serialize/Deserialize` for `Py<T>`. [#1366](https://github.com/PyO3/pyo3/pull/1366)
+
 ## [0.13.1] - 2021-01-10
 ### Added
 - Add support for `#[pyclass(dict)]` and `#[pyclass(weakref)]` with the `abi3` feature on Python 3.9 and up. [#1342](https://github.com/PyO3/pyo3/pull/1342)

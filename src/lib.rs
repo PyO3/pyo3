@@ -207,6 +207,9 @@ mod python;
 pub mod type_object;
 pub mod types;
 
+#[cfg(feature = "serde")]
+pub mod serde;
+
 /// The proc macros, which are also part of the prelude.
 #[cfg(feature = "macros")]
 pub mod proc_macro {
