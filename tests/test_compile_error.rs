@@ -26,6 +26,7 @@ fn test_compile_errors() {
     fn tests_rust_1_49(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_frompy_derive.rs");
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+        t.compile_fail("tests/ui/pyclass_send.rs");
 
         #[cfg(Py_LIMITED_API)]
         t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
