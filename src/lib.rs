@@ -168,8 +168,7 @@ pub use {
     unindent,  // Re-exported for py_run
 };
 
-// Re-exported for the `__wrap` functions
-pub use crate::libc_wrapper::libc;
+use crate::libc_wrapper::libc;
 
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
