@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::libc::c_int;
 use crate::panic::PanicException;
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
@@ -16,6 +15,7 @@ use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
 use std::os::raw::c_char;
+use std::os::raw::c_int;
 use std::ptr::NonNull;
 
 mod err_state;

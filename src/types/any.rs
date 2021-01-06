@@ -4,12 +4,12 @@ use crate::conversion::{
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
-use crate::libc::c_int;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
+use std::os::raw::c_int;
 
 /// A Python object with GIL lifetime
 ///

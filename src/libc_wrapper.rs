@@ -8,12 +8,8 @@
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod libc {
     extern "C" {
-        pub fn atexit(cb: extern "C" fn()) -> c_int;
+        pub fn atexit(cb: extern "C" fn()) -> std::os::raw::c_int;
     }
-    pub type c_char = i8;
-    pub type c_int = i32;
-    pub type c_ulong = u32;
-    pub type c_void = std::ffi::c_void;
     pub type intptr_t = isize;
     pub type size_t = usize;
     pub type ssize_t = isize;
@@ -25,10 +21,6 @@ pub mod libc {
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod libc {
     pub use libc::atexit;
-    pub use libc::c_char;
-    pub use libc::c_int;
-    pub use libc::c_ulong;
-    pub use libc::c_void;
     pub use libc::intptr_t;
     pub use libc::size_t;
     pub use libc::ssize_t;
