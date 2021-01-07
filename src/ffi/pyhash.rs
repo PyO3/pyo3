@@ -13,7 +13,7 @@ pub struct PyHash_FuncDef {
 impl Default for PyHash_FuncDef {
     #[inline]
     fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { std::mem::zeroed() }
     }
 }
 

@@ -43,7 +43,7 @@ pub struct PyObjectArenaAllocator {
 impl Default for PyObjectArenaAllocator {
     #[inline]
     fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { std::mem::zeroed() }
     }
 }
 #[cfg(not(Py_LIMITED_API))]

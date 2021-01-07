@@ -20,7 +20,7 @@ extern "C" {
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     #[allow(deprecated)]
-    PyEval_CallObjectWithKeywords(func, arg, ::std::ptr::null_mut())
+    PyEval_CallObjectWithKeywords(func, arg, std::ptr::null_mut())
 }
 
 extern "C" {
