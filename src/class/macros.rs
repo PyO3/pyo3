@@ -231,7 +231,7 @@ macro_rules! py_func_set {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> libc::c_int
+        ) -> std::os::raw::c_int
         where
             T: for<'p> $trait_name<'p>,
         {
@@ -260,7 +260,7 @@ macro_rules! py_func_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> libc::c_int
+        ) -> std::os::raw::c_int
         where
             T: for<'p> $trait_name<'p>,
         {
@@ -288,7 +288,7 @@ macro_rules! py_func_set_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> libc::c_int
+        ) -> std::os::raw::c_int
         where
             T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {

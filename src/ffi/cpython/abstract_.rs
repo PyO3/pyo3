@@ -1,5 +1,5 @@
 use crate::ffi::{PyObject, Py_buffer, Py_ssize_t};
-use libc::{c_char, c_int, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 use crate::ffi::{

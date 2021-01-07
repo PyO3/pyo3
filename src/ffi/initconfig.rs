@@ -1,7 +1,8 @@
 /* --- PyStatus ----------------------------------------------- */
 
 use crate::ffi::Py_ssize_t;
-use libc::{c_char, c_int, c_ulong, wchar_t};
+use libc::wchar_t;
+use std::os::raw::{c_char, c_int, c_ulong};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum _PyStatus_TYPE {

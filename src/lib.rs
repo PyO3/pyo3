@@ -173,10 +173,6 @@ pub use {
     unindent,  // Re-exported for py_run
 };
 
-// Re-exported for the `__wrap` functions
-#[doc(hidden)]
-pub use libc;
-
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
 pub mod buffer;
