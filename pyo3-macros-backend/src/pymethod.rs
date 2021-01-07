@@ -357,7 +357,7 @@ pub(crate) fn impl_wrap_setter(
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
-            _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> pyo3::libc::c_int
+            _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> std::os::raw::c_int
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             pyo3::callback_body_without_convert!(_py, {

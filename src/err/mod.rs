@@ -11,11 +11,11 @@ use crate::{
     AsPyPointer, FromPyPointer, IntoPy, Py, PyAny, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
 };
-use libc::c_int;
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
 use std::os::raw::c_char;
+use std::os::raw::c_int;
 use std::ptr::NonNull;
 
 mod err_state;

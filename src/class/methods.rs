@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::{ffi, PyObject, Python};
-use libc::c_int;
 use std::ffi::CStr;
 use std::fmt;
+use std::os::raw::c_int;
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` and `#[pyproto]` annotations.
