@@ -56,26 +56,3 @@ crate-type = ["cdylib", "rlib"]
 This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later. This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
 
 You can give the Python interpreter a chance to process the signal properly by calling `Python::check_signals`. It's good practice to call this function regularly if you have a long-running Rust function so that your users can cancel it.
-
-## Importing C extensions like Tensorflow and SciPy cause crashes on program exit for my Python embedded in Rust.
-
-This is because deinitialization is extremely sensitive to ordering, and if the sequence is wrong it's easy for C extensions to inadvertently cause errors like double-free. This will lead to crashes like `SIGSEGV` on program exit.
-
-If you are experiencing these errors, the workaround is to make PyO3 not call `Py_Finalize` on program exit. This can be done by the following steps:
-
-1. Disable the `auto-initialize` feature in your `Cargo.toml`:
-
-```toml
-# Cargo.toml
-[dependencies]
-pyo3 = { version = "0.13.0", default-features = false }
-```
-
-2. Call [`pyo3::prepare_freethreaded_python_without_finalizer`] before attempting to call any Python APIs.
-
-   ```rust
-   fn main() {
-       pyo3::call_freethreaded_python_without_finalizer();
-       // Rest of your program to follow.
-   }
-   ```

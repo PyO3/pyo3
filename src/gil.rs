@@ -42,13 +42,6 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// Python signal handling depends on the notion of a 'main thread', which must be
 /// the thread that initializes the Python interpreter.
 ///
-/// Additionally, this function will register an `atexit` callback to finalize the Python
-/// interpreter. Usually this is desirable - it flushes Python buffers and ensures that all
-/// Python objects are cleaned up appropriately. Some C extensions can have memory issues during
-/// finalization, so you may get crashes on program exit if your embedded Python program uses
-/// these extensions. If this is the case, you should use [`prepare_freethreaded_python_without_finalizer`]
-/// which does not register the `atexit` callback.
-///
 /// If both the Python interpreter and Python threading are already initialized,
 /// this function has no effect.
 ///
@@ -79,131 +72,9 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// ```
 #[cfg(all(Py_SHARED, not(PyPy)))]
 pub fn prepare_freethreaded_python() {
-    // Protect against race conditions when Python is not yet initialized
-    // and multiple threads concurrently call 'prepare_freethreaded_python()'.
-    // Note that we do not protect against concurrent initialization of the Python runtime
-    // by other users of the Python C API.
-    START.call_once_force(|_| unsafe {
-        // Use call_once_force because if initialization panics, it's okay to try again.
-        if ffi::Py_IsInitialized() != 0 {
-            // If Python is already initialized, we expect Python threading to also be initialized,
-            // as we can't make the existing Python main thread acquire the GIL.
-            assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
-        } else {
-            use parking_lot::Condvar;
-
-            // Initialize Python.
-            // We use Py_InitializeEx() with initsigs=0 to disable Python signal handling.
-            // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
-            // Note that the 'main thread' notion in Python isn't documented properly;
-            // and running Python without one is not officially supported.
-            static INITIALIZATION_THREAD_SIGNAL: Condvar = Condvar::new();
-            static INITIALIZATION_THREAD_MUTEX: Mutex<()> = const_mutex(());
-
-            // This thread will be responsible for initialization and finalization of the
-            // Python interpreter.
-            //
-            // This is necessary because Python's `threading` module requires that the same
-            // thread which started the interpreter also calls finalize. (If this is not the case,
-            // an AssertionError is raised during the Py_Finalize call.)
-            unsafe fn initialization_thread() {
-                let mut guard = INITIALIZATION_THREAD_MUTEX.lock();
-
-                ffi::Py_InitializeEx(0);
-
-                #[cfg(not(Py_3_7))] // Called by Py_InitializeEx in Python 3.7 and up.
-                ffi::PyEval_InitThreads();
-
-                // Import the threading module - this ensures that it will associate this
-                // thread as the "main" thread.
-                {
-                    let pool = GILPool::new();
-                    pool.python().import("threading").unwrap();
-                }
-
-                // Release the GIL, notify the original calling thread that Python is now
-                // initialized, and wait for notification to begin finalization.
-                let tstate = ffi::PyEval_SaveThread();
-
-                INITIALIZATION_THREAD_SIGNAL.notify_one();
-                INITIALIZATION_THREAD_SIGNAL.wait(&mut guard);
-
-                // Signal to finalize received.
-                ffi::PyEval_RestoreThread(tstate);
-                ffi::Py_Finalize();
-
-                INITIALIZATION_THREAD_SIGNAL.notify_one();
-            }
-
-            let mut guard = INITIALIZATION_THREAD_MUTEX.lock();
-            std::thread::spawn(|| initialization_thread());
-            INITIALIZATION_THREAD_SIGNAL.wait(&mut guard);
-
-            // Make sure Py_Finalize will be called before exiting.
-            extern "C" fn finalize_callback() {
-                unsafe {
-                    if ffi::Py_IsInitialized() != 0 {
-                        // Before blocking on the finalization thread, ensure this thread does not
-                        // hold the GIL - otherwise can result in a deadlock!
-                        ffi::PyGILState_Ensure();
-                        ffi::PyEval_SaveThread();
-
-                        // Notify initialization_thread to finalize, and wait.
-                        let mut guard = INITIALIZATION_THREAD_MUTEX.lock();
-                        INITIALIZATION_THREAD_SIGNAL.notify_one();
-                        INITIALIZATION_THREAD_SIGNAL.wait(&mut guard);
-                        assert_eq!(ffi::Py_IsInitialized(), 0);
-                    }
-                }
-            }
-
-            libc::atexit(finalize_callback);
-        }
-    });
-}
-
-/// Prepares the use of Python in a free-threaded context.
-///
-/// If the Python interpreter is not already initialized, this function
-/// will initialize it with disabled signal handling
-/// (Python will not raise the `KeyboardInterrupt` exception).
-/// Python signal handling depends on the notion of a 'main thread', which must be
-/// the thread that initializes the Python interpreter.
-///
-/// If both the Python interpreter and Python threading are already initialized,
-/// this function has no effect.
-///
-/// # Availability
-/// This function is only available when linking against Python distributions that contain a
-/// shared library.
-///
-/// This function is not available on PyPy.
-///
-/// # Panics
-/// - If the Python interpreter is initialized but Python threading is not,
-///   a panic occurs.
-///   It is not possible to safely access the Python runtime unless the main
-///   thread (the thread which originally initialized Python) also initializes
-///   threading.
-///
-/// # Example
-/// ```rust
-/// use pyo3::prelude::*;
-///
-/// # #[allow(clippy::needless_doctest_main)]
-/// fn main() {
-///     pyo3::prepare_freethreaded_python_without_finalizer();
-///     Python::with_gil(|py| {
-///         py.run("print('Hello World')", None, None)
-///     });
-/// }
-/// ```
-#[cfg(all(Py_SHARED, not(PyPy)))]
-pub fn prepare_freethreaded_python_without_finalizer() {
-    // Protect against race conditions when Python is not yet initialized
-    // and multiple threads concurrently call 'prepare_freethreaded_python()'.
-    // Note that we do not protect against concurrent initialization of the Python runtime
-    // by other users of the Python C API.
+    // Protect against race conditions when Python is not yet initialized and multiple threads
+    // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
+    // concurrent initialization of the Python runtime by other users of the Python C API.
     START.call_once_force(|_| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
         if ffi::Py_IsInitialized() != 0 {
@@ -213,8 +84,12 @@ pub fn prepare_freethreaded_python_without_finalizer() {
         } else {
             ffi::Py_InitializeEx(0);
 
-            #[cfg(not(Py_3_7))] // Called by Py_InitializeEx in Python 3.7 and up.
-            ffi::PyEval_InitThreads();
+            // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t
+            // have to call it yourself anymore.
+            #[cfg(not(Py_3_7))]
+            if ffi::PyEval_ThreadsInitialized() == 0 {
+                ffi::PyEval_InitThreads();
+            }
 
             // Release the GIL.
             ffi::PyEval_SaveThread();
@@ -222,8 +97,85 @@ pub fn prepare_freethreaded_python_without_finalizer() {
     });
 }
 
-/// RAII type that represents the Global Interpreter Lock acquisition. To get hold of a value
-/// of this type, see [`Python::acquire_gil`](struct.Python.html#method.acquire_gil).
+/// Executes the provided closure with an embedded Python interpreter.
+///
+/// This function intializes the Python interpreter, executes the provided closure, and then
+/// finalizes the Python interpreter.
+///
+/// After execution all Python resources are cleaned up, and no further Python APIs can be called.
+/// Because many Python modules implemented in C do not support multiple Python interpreters in a
+/// single process, it is not safe to call this function more than once. (Many such modules will not
+/// initialize correctly on the second run.)
+///
+/// # Availability
+/// This function is only available when linking against Python distributions that contain a shared
+/// library.
+///
+/// This function is not available on PyPy.
+///
+/// # Panics
+/// - If the Python interpreter is already initalized before calling this function.
+///
+/// # Safety
+/// - This function should only ever be called once per process (usually as part of the `main`
+///   function). It is also not thread-safe.
+/// - No Python APIs can be used after this function has finished executing.
+/// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
+///
+/// # Example
+/// ```rust
+/// use pyo3::prelude::*;
+///
+/// # #[allow(clippy::needless_doctest_main)]
+/// fn main() {
+///     unsafe {
+///         pyo3::with_embedded_python_interpreter(|py| {
+///             py.run("print('Hello World')", None, None)
+///         });
+///     }
+/// }
+/// ```
+#[cfg(all(Py_SHARED, not(PyPy)))]
+pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
+where
+    F: for<'p> FnOnce(Python<'p>) -> R,
+{
+    assert_eq!(
+        ffi::Py_IsInitialized(),
+        0,
+        "called `with_embedded_python_interpreter` but a Python interpreter is already running."
+    );
+
+    ffi::Py_InitializeEx(0);
+
+    // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have to
+    // call it yourself anymore.
+    #[cfg(not(Py_3_7))]
+    if ffi::PyEval_ThreadsInitialized() == 0 {
+        ffi::PyEval_InitThreads();
+    }
+
+    // Safe: the GIL is already held because of the Py_IntializeEx call.
+    let pool = GILPool::new();
+
+    // Import the threading module - this ensures that it will associate this thread as the "main"
+    // thread, which is important to avoid an `AssertionError` at finalization.
+    pool.python().import("threading").unwrap();
+
+    // Execute the closure.
+    let result = f(pool.python());
+
+    // Drop the pool before finalizing.
+    drop(pool);
+
+    // Finalize the Python interpreter.
+    ffi::Py_Finalize();
+
+    result
+}
+
+/// RAII type that represents the Global Interpreter Lock acquisition. To get hold of a value of
+/// this type, see [`Python::acquire_gil`](struct.Python.html#method.acquire_gil).
 ///
 /// # Example
 /// ```
@@ -249,13 +201,13 @@ impl GILGuard {
 
     /// PyO3 internal API for acquiring the GIL. The public API is Python::acquire_gil.
     ///
-    /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this
-    /// new `GILGuard` will also contain a `GILPool`.
+    /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this new
+    /// `GILGuard` will also contain a `GILPool`.
     pub(crate) fn acquire() -> GILGuard {
         // Maybe auto-initialize the GIL:
         //  - If auto-initialize feature set and supported, try to initalize the interpreter.
-        //  - If the auto-initialize feature is set but unsupported, emit hard errors only when
-        //    the extension-module feature is not activated - extension modules don't care about
+        //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
+        //    extension-module feature is not activated - extension modules don't care about
         //    auto-initialize so this avoids breaking existing builds.
         //  - Otherwise, just check the GIL is initialized.
         cfg_if::cfg_if! {
@@ -286,8 +238,9 @@ impl GILGuard {
                 // extension module feature enabled and PyPy or static linking
                 // OR auto-initialize feature not enabled
                 START.call_once_force(|_| unsafe {
-                    // Use call_once_force because if there is a panic because the interpreter is not
-                    // initialized, it's fine for the user to initialize the interpreter and retry.
+                    // Use call_once_force because if there is a panic because the interpreter is
+                    // not initialized, it's fine for the user to initialize the interpreter and
+                    // retry.
                     assert_ne!(
                         ffi::Py_IsInitialized(),
                         0,
