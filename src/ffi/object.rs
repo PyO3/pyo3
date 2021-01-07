@@ -29,27 +29,27 @@ pub struct PyObject {
 #[cfg(py_sys_config = "Py_TRACE_REFS")]
 #[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: ::std::ptr::null_mut(),
-    _ob_prev: ::std::ptr::null_mut(),
+    _ob_next: std::ptr::null_mut(),
+    _ob_prev: std::ptr::null_mut(),
     ob_refcnt: 1,
-    ob_type: ::std::ptr::null_mut(),
+    ob_type: std::ptr::null_mut(),
 };
 
 #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
 #[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
-    ob_type: ::std::ptr::null_mut(),
+    ob_type: std::ptr::null_mut(),
 };
 
 #[cfg(py_sys_config = "Py_TRACE_REFS")]
 #[cfg(PyPy)]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: ::std::ptr::null_mut(),
-    _ob_prev: ::std::ptr::null_mut(),
+    _ob_next: std::ptr::null_mut(),
+    _ob_prev: std::ptr::null_mut(),
     ob_refcnt: 1,
     ob_pypy_link: 0,
-    ob_type: ::std::ptr::null_mut(),
+    ob_type: std::ptr::null_mut(),
 };
 
 #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
@@ -57,7 +57,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
     ob_pypy_link: 0,
-    ob_type: ::std::ptr::null_mut(),
+    ob_type: std::ptr::null_mut(),
 };
 
 #[repr(C)]
@@ -413,7 +413,7 @@ mod typeobject {
         #[cfg(Py_3_8)]
         pub tp_vectorcall: Option<object::vectorcallfunc>,
         #[cfg(PyPy)]
-        pub tp_pypy_flags: ::std::os::raw::c_long,
+        pub tp_pypy_flags: std::os::raw::c_long,
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
         pub tp_allocs: Py_ssize_t,
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
