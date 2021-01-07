@@ -33,20 +33,20 @@ macro_rules! pyobject_native_type_base(
     ($name: ty $(;$generics: ident)* ) => {
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
 
-        impl<$($generics,)*> ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter)
-                   -> Result<(), ::std::fmt::Error>
+        impl<$($generics,)*> std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter)
+                   -> Result<(), std::fmt::Error>
             {
-                let s = self.repr().map_err(|_| ::std::fmt::Error)?;
+                let s = self.repr().map_err(|_| std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }
         }
 
-        impl<$($generics,)*> ::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter)
-                   -> Result<(), ::std::fmt::Error>
+        impl<$($generics,)*> std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter)
+                   -> Result<(), std::fmt::Error>
             {
-                let s = self.str().map_err(|_| ::std::fmt::Error)?;
+                let s = self.str().map_err(|_| std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -78,14 +78,14 @@ macro_rules! pyobject_native_type_named (
     ($name: ty $(;$generics: ident)*) => {
         $crate::pyobject_native_type_base!($name $(;$generics)*);
 
-        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
+        impl<$($generics,)*> std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
             fn as_ref(&self) -> &$crate::PyAny {
                 &self.0
             }
         }
 
-        impl<$($generics,)*> ::std::ops::Deref for $name {
+        impl<$($generics,)*> std::ops::Deref for $name {
             type Target = $crate::PyAny;
 
             #[inline]
@@ -119,7 +119,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
+        impl<'a, $($generics,)*> std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }

@@ -51,7 +51,7 @@ impl<'a> Enum<'a> {
         for (i, var) in self.variants.iter().enumerate() {
             let struct_derive = var.build();
             let ext = quote!(
-                let maybe_ret = || -> ::pyo3::PyResult<Self> {
+                let maybe_ret = || -> pyo3::PyResult<Self> {
                     #struct_derive
                 }();
                 if maybe_ret.is_ok() {
@@ -74,7 +74,7 @@ impl<'a> Enum<'a> {
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
             let err_msg = format!("'{}' object cannot be converted to '{}'", type_name, #error_names);
-            Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
+            Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
 }
@@ -255,9 +255,9 @@ impl<'a> Container<'a> {
             quote!("")
         };
         quote!(
-            let s = <::pyo3::types::PyTuple as ::pyo3::conversion::PyTryFrom>::try_from(obj)?;
+            let s = <pyo3::types::PyTuple as pyo3::conversion::PyTryFrom>::try_from(obj)?;
             if s.len() != #len {
-                return Err(::pyo3::exceptions::PyValueError::new_err(#msg))
+                return Err(pyo3::exceptions::PyValueError::new_err(#msg))
             }
             Ok(#self_ty(#fields))
         )
@@ -512,8 +512,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl#trait_generics ::pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
-            fn extract(obj: &#lt_param ::pyo3::PyAny) -> ::pyo3::PyResult<Self>  {
+        impl#trait_generics pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
+            fn extract(obj: &#lt_param pyo3::PyAny) -> pyo3::PyResult<Self>  {
                 #derives
             }
         }
