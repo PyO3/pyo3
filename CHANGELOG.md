@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `#[deny(warnings)]` attribute (and instead refuse warnings only in CI). [#1340](https://github.com/PyO3/pyo3/pull/1340)
 - Fix deprecation warning for missing `__module__` with `#[pyclass]`. [#1343](https://github.com/PyO3/pyo3/pull/1343)
 - Correct return type of `PyFrozenSet::empty` to `&PyFrozenSet` (was incorrectly `&PySet`). [#1351](https://github.com/PyO3/pyo3/pull/1351)
+- Fix missing `Py_INCREF` on heap type objects on Python versions before 3.8. [#1365](https://github.com/PyO3/pyo3/pull/1365)
 
 ## [0.13.0] - 2020-12-22
 ### Packaging
