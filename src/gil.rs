@@ -151,7 +151,9 @@ impl GILGuard {
                     "statically instead of with a shared library.\n\n",
                     "Please disable the `auto-initialize` feature, for example by entering the following ",
                     "in your cargo.toml:\n\n",
-                    "    pyo3 = { version = \"0.13.0\", default-features = false }\n\n",
+                    "    pyo3 = { version = \"",
+                    env!("CARGO_PKG_VERSION"),
+                    "\", default-features = false }\n\n",
                     "Alternatively, compile PyO3 using a Python distribution which contains a shared ",
                     "libary."
                 ));
@@ -160,7 +162,9 @@ impl GILGuard {
                     "The `auto-initialize` feature is not supported by PyPy.\n\n",
                     "Please disable the `auto-initialize` feature, for example by entering the following ",
                     "in your cargo.toml:\n\n",
-                    "    pyo3 = { version = \"0.13.0\", default-features = false }",
+                    "    pyo3 = { version = \"",
+                    env!("CARGO_PKG_VERSION"),
+                    "\", default-features = false }\n\n",
                 ));
             } else {
                 // extension module feature enabled and PyPy or static linking
