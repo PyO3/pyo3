@@ -10,7 +10,7 @@ use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, Expr, Token};
+use syn::{parse_quote, spanned::Spanned, Expr, Token};
 
 /// The parsed arguments of the pyclass macro
 pub struct PyClassArgs {
@@ -58,7 +58,7 @@ impl PyClassArgs {
         match expr {
             syn::Expr::Path(exp) if exp.path.segments.len() == 1 => self.add_path(exp),
             syn::Expr::Assign(assign) => self.add_assign(assign),
-            _ => Err(syn::Error::new_spanned(expr, "Failed to parse arguments")),
+            _ => bail_spanned!(expr.span() => "failed to parse arguments"),
         }
     }
 
@@ -69,20 +69,15 @@ impl PyClassArgs {
             syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
                 exp.path.segments.first().unwrap().ident.to_string()
             }
-            _ => {
-                return Err(syn::Error::new_spanned(assign, "Failed to parse arguments"));
-            }
+            _ => bail_spanned!(assign.span() => "failed to parse arguments"),
         };
 
         macro_rules! expected {
             ($expected: literal) => {
-                expected!($expected, right)
+                expected!($expected, right.span())
             };
-            ($expected: literal, $span: ident) => {
-                return Err(syn::Error::new_spanned(
-                    $span,
-                    concat!("Expected ", $expected),
-                ));
+            ($expected: literal, $span: expr) => {
+                bail_spanned!($span => concat!("expected ", $expected));
             };
         }
 
@@ -97,23 +92,18 @@ impl PyClassArgs {
                     ..
                 }) => {
                     self.name = Some(lit.parse().map_err(|_| {
-                        syn::Error::new_spanned(
-                            lit,
-                            "expected a single identifier in double-quotes",
-                        )
+                        err_spanned!(
+                                lit.span() => "expected a single identifier in double-quotes")
                     })?);
                 }
                 syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
-                    return Err(syn::Error::new_spanned(
-                        exp,
-                        format!(
-                            concat!(
-                                "since PyO3 0.13 a pyclass name should be in double-quotes, ",
-                                "e.g. \"{}\""
-                            ),
+                    bail_spanned!(
+                        exp.span() => format!(
+                            "since PyO3 0.13 a pyclass name should be in double-quotes, \
+                            e.g. \"{}\"",
                             exp.path.get_ident().expect("path has 1 segment")
-                        ),
-                    ));
+                        )
+                    );
                 }
                 _ => expected!("type name (e.g. \"Name\")"),
             },
@@ -136,7 +126,7 @@ impl PyClassArgs {
                 }
                 _ => expected!(r#"string literal (e.g., "my_mod")"#),
             },
-            _ => expected!("one of freelist/name/extends/module", left),
+            _ => expected!("one of freelist/name/extends/module", left.span()),
         };
 
         Ok(())
@@ -156,12 +146,9 @@ impl PyClassArgs {
             "unsendable" => {
                 self.has_unsendable = true;
             }
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    &exp.path,
-                    "Expected one of gc/weakref/subclass/dict/unsendable",
-                ))
-            }
+            _ => bail_spanned!(
+                exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable"
+            ),
         };
         Ok(())
     }
@@ -175,7 +162,11 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
     let doc = utils::get_doc(&class.attrs, text_signature, true)?;
     let mut descriptors = Vec::new();
 
-    check_generics(class)?;
+    ensure_spanned!(
+        class.generics.params.is_empty(),
+        class.generics.span() => "#[pyclass] cannot have generic parameters"
+    );
+
     if let syn::Fields::Named(fields) = &mut class.fields {
         for field in fields.named.iter_mut() {
             let field_descs = parse_descriptors(field)?;
@@ -184,10 +175,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
             }
         }
     } else {
-        return Err(syn::Error::new_spanned(
-            &class.fields,
-            "#[pyclass] can only be used with C-style structs",
-        ));
+        bail_spanned!(class.fields.span() => "#[pyclass] can only be used with C-style structs");
     }
 
     impl_class(&class.ident, &attr, doc, descriptors)
@@ -197,7 +185,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
 fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     let mut descs = Vec::new();
     let mut new_attrs = Vec::new();
-    for attr in item.attrs.iter() {
+    for attr in item.attrs.drain(..) {
         if let Ok(syn::Meta::List(list)) = attr.parse_meta() {
             if list.path.is_ident("pyo3") {
                 for meta in list.nested.iter() {
@@ -207,22 +195,18 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
                         } else if metaitem.path().is_ident("set") {
                             descs.push(FnType::Setter(SelfType::Receiver { mutable: true }));
                         } else {
-                            return Err(syn::Error::new_spanned(
-                                metaitem,
-                                "Only get and set are supported",
-                            ));
+                            bail_spanned!(metaitem.span() => "only get and set are supported");
                         }
                     }
                 }
             } else {
-                new_attrs.push(attr.clone())
+                new_attrs.push(attr)
             }
         } else {
-            new_attrs.push(attr.clone());
+            new_attrs.push(attr);
         }
     }
-    item.attrs.clear();
-    item.attrs.extend(new_attrs);
+    item.attrs = new_attrs;
     Ok(descs)
 }
 
@@ -515,15 +499,4 @@ fn impl_descriptors(
             }
         }
     })
-}
-
-fn check_generics(class: &mut syn::ItemStruct) -> syn::Result<()> {
-    if class.generics.params.is_empty() {
-        Ok(())
-    } else {
-        Err(syn::Error::new_spanned(
-            &class.generics,
-            "#[pyclass] cannot have generic parameters",
-        ))
-    }
 }

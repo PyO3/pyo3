@@ -1,5 +1,5 @@
-error: Expected &PyModule as first argument with `pass_module`.
+error: expected &PyModule as first argument with `pass_module`
  --> $DIR/invalid_need_module_arg_position.rs:6:13
   |
 6 |     fn fail(string: &str, module: &PyModule) -> PyResult<&str> {
-  |             ^^^^^^^^^^^^
+  |             ^^^^^^

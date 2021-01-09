@@ -1,6 +1,30 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::Span;
-use std::fmt::Display;
+use syn::spanned::Spanned;
+
+/// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
+macro_rules! err_spanned {
+    ($span:expr => $msg:expr) => {
+        syn::Error::new($span, $msg)
+    };
+}
+
+/// Macro inspired by `anyhow::bail!` to return a compiler error with the given span.
+macro_rules! bail_spanned {
+    ($span:expr => $msg:expr) => {
+        return Err(err_spanned!($span => $msg));
+    };
+}
+
+/// Macro inspired by `anyhow::ensure!` to return a compiler error with the given span if the
+/// specified condition is not met.
+macro_rules! ensure_spanned {
+    ($condition:expr, $span:expr => $msg:expr) => {
+        if !($condition) {
+            bail_spanned!($span => $msg);
+        }
+    }
+}
 
 /// Check if the given type `ty` is `pyo3::Python`.
 pub fn is_python(ty: &syn::Type) -> bool {
@@ -32,9 +56,9 @@ pub fn is_text_signature_attr(attr: &syn::Attribute) -> bool {
     attr.path.is_ident("text_signature")
 }
 
-fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
+fn parse_text_signature_attr(
     attr: &syn::Attribute,
-    python_name: &T,
+    python_name: &syn::Ident,
 ) -> syn::Result<Option<syn::LitStr>> {
     if !is_text_signature_attr(attr) {
         return Ok(None);
@@ -45,34 +69,25 @@ fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
         .next()
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .ok_or_else(|| {
-            syn::Error::new_spanned(
-                &python_name,
-                format!("failed to parse python name: {}", python_name),
-            )
-        })?;
+        .ok_or_else(|| err_spanned!(python_name.span() => "failed to parse python name"))?;
     match attr.parse_meta()? {
         syn::Meta::NameValue(syn::MetaNameValue {
             lit: syn::Lit::Str(lit),
             ..
         }) => {
             let value = lit.value();
-            if value.starts_with('(') && value.ends_with(')') {
-                Ok(Some(syn::LitStr::new(
-                    &(python_name_str.to_owned() + &value),
-                    lit.span(),
-                )))
-            } else {
-                Err(syn::Error::new_spanned(
-                    lit,
-                    "text_signature must start with \"(\" and end with \")\"",
-                ))
-            }
+            ensure_spanned!(
+                value.starts_with('(') && value.ends_with(')'),
+                lit.span() => "text_signature must start with \"(\" and end with \")\""
+            );
+            Ok(Some(syn::LitStr::new(
+                &(python_name_str.to_owned() + &value),
+                lit.span(),
+            )))
         }
-        meta => Err(syn::Error::new_spanned(
-            meta,
-            "text_signature must be of the form #[text_signature = \"\"]",
-        )),
+        meta => bail_spanned!(
+            meta.span() => "text_signature must be of the form #[text_signature = \"\"]"
+        ),
     }
 }
 
@@ -84,14 +99,11 @@ pub fn parse_text_signature_attrs(
     let mut attrs_out = Vec::with_capacity(attrs.len());
     for attr in attrs.drain(..) {
         if let Some(value) = parse_text_signature_attr(&attr, python_name)? {
-            if text_signature.is_some() {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "text_signature attribute already specified previously",
-                ));
-            } else {
-                text_signature = Some(value);
-            }
+            ensure_spanned!(
+                text_signature.is_none(),
+                attr.span() => "text_signature attribute already specified previously"
+            );
+            text_signature = Some(value);
         } else {
             attrs_out.push(attr);
         }
@@ -136,7 +148,7 @@ pub fn get_doc(
                     };
                     separator = "\n";
                 } else {
-                    return Err(syn::Error::new_spanned(metanv, "Invalid doc comment"));
+                    bail_spanned!(metanv.span() => "invalid doc comment")
                 }
             }
         }

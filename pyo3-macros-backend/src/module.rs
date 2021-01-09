@@ -8,7 +8,7 @@ use crate::pymethod::get_arg_names;
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{spanned::Spanned, Ident};
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
@@ -61,7 +61,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 fn wrap_fn_argument(cap: &syn::PatType) -> syn::Result<method::FnArg> {
     let (mutability, by_ref, ident) = match &*cap.pat {
         syn::Pat::Ident(patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
-        _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),
+        _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
     };
 
     Ok(method::FnArg {
@@ -83,7 +83,7 @@ fn extract_pyfn_attrs(
     let mut modname = None;
     let mut fn_attrs = PyFunctionAttr::default();
 
-    for attr in attrs.iter() {
+    for attr in attrs.drain(..) {
         match attr.parse_meta() {
             Ok(syn::Meta::List(list)) if list.path.is_ident("pyfn") => {
                 let meta: Vec<_> = list.nested.iter().cloned().collect();
@@ -93,37 +93,30 @@ fn extract_pyfn_attrs(
                         syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
                             modname = Some(path.clone())
                         }
-                        _ => {
-                            return Err(syn::Error::new_spanned(
-                                &meta[0],
-                                "The first parameter of pyfn must be a MetaItem",
-                            ))
-                        }
+                        _ => bail_spanned!(
+                            meta[0].span() => "the first parameter of pyfn must be a MetaItem"
+                        ),
                     }
                     // read Python function name
                     match &meta[1] {
                         syn::NestedMeta::Lit(syn::Lit::Str(lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
-                        _ => {
-                            return Err(syn::Error::new_spanned(
-                                &meta[1],
-                                "The second parameter of pyfn must be a Literal",
-                            ))
-                        }
+                        _ => bail_spanned!(
+                            meta[1].span() => "the second parameter of pyfn must be a Literal"
+                        ),
                     }
                     // Read additional arguments
                     if list.nested.len() >= 3 {
                         fn_attrs = PyFunctionAttr::from_meta(&meta[2..meta.len()])?;
                     }
                 } else {
-                    return Err(syn::Error::new_spanned(
-                        attr,
-                        format!("can not parse 'pyfn' params {:?}", attr),
-                    ));
+                    bail_spanned!(
+                        attr.span() => format!("can not parse 'pyfn' params {:?}", attr)
+                    );
                 }
             }
-            _ => new_attrs.push(attr.clone()),
+            _ => new_attrs.push(attr),
         }
     }
 
@@ -152,10 +145,7 @@ pub fn add_fn_to_module(
     for (i, input) in func.sig.inputs.iter().enumerate() {
         match input {
             syn::FnArg::Receiver(_) => {
-                return Err(syn::Error::new_spanned(
-                    input,
-                    "Unexpected receiver for #[pyfn]",
-                ))
+                bail_spanned!(input.span() => "unexpected receiver for #[pyfn]");
             }
             syn::FnArg::Typed(cap) => {
                 if pyfn_attrs.pass_module && i == 0 {
@@ -172,10 +162,9 @@ pub fn add_fn_to_module(
                             }
                         }
                     }
-                    return Err(syn::Error::new_spanned(
-                        cap,
-                        "Expected &PyModule as first argument with `pass_module`.",
-                    ));
+                    bail_spanned!(
+                        cap.span() => "expected &PyModule as first argument with `pass_module`"
+                    );
                 } else {
                     arguments.push(wrap_fn_argument(cap)?);
                 }

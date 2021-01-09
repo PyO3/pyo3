@@ -8,50 +8,38 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use quote::ToTokens;
 use std::collections::HashSet;
+use syn::spanned::Spanned;
 
 pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
-    if let Some((_, path, _)) = &mut ast.trait_ {
-        let proto = if let Some(segment) = path.segments.last() {
-            match segment.ident.to_string().as_str() {
-                "PyObjectProtocol" => &defs::OBJECT,
-                "PyAsyncProtocol" => &defs::ASYNC,
-                "PyMappingProtocol" => &defs::MAPPING,
-                "PyIterProtocol" => &defs::ITER,
-                "PyContextProtocol" => &defs::CONTEXT,
-                "PySequenceProtocol" => &defs::SEQ,
-                "PyNumberProtocol" => &defs::NUM,
-                "PyDescrProtocol" => &defs::DESCR,
-                "PyBufferProtocol" => &defs::BUFFER,
-                "PyGCProtocol" => &defs::GC,
-                _ => {
-                    return Err(syn::Error::new_spanned(
-                        path,
-                        "#[pyproto] can not be used with this block",
-                    ));
-                }
-            }
-        } else {
-            return Err(syn::Error::new_spanned(
-                path,
-                "#[pyproto] can only be used with protocol trait implementations",
-            ));
+    let (path, proto) = if let Some((_, path, _)) = &mut ast.trait_ {
+        let proto = match path.segments.last() {
+            Some(segment) if segment.ident == "PyObjectProtocol" => &defs::OBJECT,
+            Some(segment) if segment.ident == "PyAsyncProtocol" => &defs::ASYNC,
+            Some(segment) if segment.ident == "PyMappingProtocol" => &defs::MAPPING,
+            Some(segment) if segment.ident == "PyIterProtocol" => &defs::ITER,
+            Some(segment) if segment.ident == "PyContextProtocol" => &defs::CONTEXT,
+            Some(segment) if segment.ident == "PySequenceProtocol" => &defs::SEQ,
+            Some(segment) if segment.ident == "PyNumberProtocol" => &defs::NUM,
+            Some(segment) if segment.ident == "PyDescrProtocol" => &defs::DESCR,
+            Some(segment) if segment.ident == "PyBufferProtocol" => &defs::BUFFER,
+            Some(segment) if segment.ident == "PyGCProtocol" => &defs::GC,
+            _ => bail_spanned!(path.span() => "unrecognised trait for #[pyproto]"),
         };
-
-        let tokens = impl_proto_impl(&ast.self_ty, &mut ast.items, proto)?;
-
-        // attach lifetime
-        let mut seg = path.segments.pop().unwrap().into_value();
-        seg.arguments = syn::PathArguments::AngleBracketed(syn::parse_quote! {<'p>});
-        path.segments.push(seg);
-        ast.generics.params = syn::parse_quote! {'p};
-
-        Ok(tokens)
+        (path, proto)
     } else {
-        Err(syn::Error::new_spanned(
-            ast,
-            "#[pyproto] can only be used with protocol trait implementations",
-        ))
-    }
+        bail_spanned!(
+            ast.span() => "#[pyproto] can only be used with protocol trait implementations"
+        );
+    };
+
+    let tokens = impl_proto_impl(&ast.self_ty, &mut ast.items, proto)?;
+
+    // attach lifetime
+    let mut seg = path.segments.pop().unwrap().into_value();
+    seg.arguments = syn::PathArguments::AngleBracketed(syn::parse_quote! {<'p>});
+    path.segments.push(seg);
+    ast.generics.params = syn::parse_quote! {'p};
+    Ok(tokens)
 }
 
 fn impl_proto_impl(
@@ -80,10 +68,9 @@ fn impl_proto_impl(
                 let method = if let FnType::Fn(self_ty) = &fn_spec.tp {
                     pymethod::impl_proto_wrap(ty, &fn_spec, &self_ty)
                 } else {
-                    return Err(syn::Error::new_spanned(
-                        &met.sig,
-                        "Expected method with receiver for #[pyproto] method",
-                    ));
+                    bail_spanned!(
+                        met.sig.span() => "expected method with receiver for #[pyproto] method"
+                    );
                 };
 
                 let coexist = if m.can_coexist {

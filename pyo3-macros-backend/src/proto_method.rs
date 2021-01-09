@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::Token;
+use syn::{spanned::Spanned, Token};
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -109,12 +109,7 @@ fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Result<syn::Type> {
             syn::Type::Path(ref ty) => get_option_ty(&ty.path).unwrap_or_else(|| *cap.ty.clone()),
             _ => *cap.ty.clone(),
         },
-        ty => {
-            return Err(syn::Error::new_spanned(
-                ty,
-                format!("Unsupported argument type: {:?}", ty),
-            ))
-        }
+        ty => bail_spanned!(ty.span() => format!("unsupported argument type: {:?}", ty)),
     };
     insert_lifetime(&mut ty);
     Ok(ty)
@@ -166,7 +161,7 @@ fn modify_arg_ty(
         syn::FnArg::Typed(ref cap) => {
             sig.inputs[idx] = fix_name(&cap.pat, &decl1)?;
         }
-        _ => return Err(syn::Error::new_spanned(arg, "not supported")),
+        _ => bail_spanned!(arg.span() => "not supported"),
     }
 
     Ok(())
@@ -190,6 +185,6 @@ fn fix_name(pat: &syn::Pat, arg: &syn::FnArg) -> syn::Result<syn::FnArg> {
             ty: cap.ty.clone(),
         }))
     } else {
-        Err(syn::Error::new_spanned(arg, "Expected a typed argument"))
+        Err(err_spanned!(arg.span() => "expected a typed argument"))
     }
 }

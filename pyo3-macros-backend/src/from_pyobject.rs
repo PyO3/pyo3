@@ -1,5 +1,5 @@
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use proc_macro2::TokenStream;
+use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{parse_quote, Attribute, DataEnum, DeriveInput, Fields, Ident, Meta, MetaList, Result};
@@ -17,13 +17,11 @@ impl<'a> Enum<'a> {
     /// `data_enum` is the `syn` representation of the input enum, `ident` is the
     /// `Identifier` of the enum.
     fn new(data_enum: &'a DataEnum, ident: &'a Ident) -> Result<Self> {
-        if data_enum.variants.is_empty() {
-            return Err(spanned_err(
-                &ident,
-                "Cannot derive FromPyObject for empty enum.",
-            ));
-        }
-        let vars = data_enum
+        ensure_spanned!(
+            !data_enum.variants.is_empty(),
+            ident.span() => "cannot derive FromPyObject for empty enum"
+        );
+        let variants = data_enum
             .variants
             .iter()
             .map(|variant| {
@@ -40,7 +38,7 @@ impl<'a> Enum<'a> {
 
         Ok(Enum {
             enum_ident: ident,
-            variants: vars,
+            variants,
         })
     }
 
@@ -123,12 +121,10 @@ impl<'a> Container<'a> {
         attrs: Vec<ContainerAttribute>,
         is_enum_variant: bool,
     ) -> Result<Self> {
-        if fields.is_empty() {
-            return Err(spanned_err(
-                fields,
-                "Cannot derive FromPyObject for empty structs and variants.",
-            ));
-        }
+        ensure_spanned!(
+            !fields.is_empty(),
+            fields.span() => "cannot derive FromPyObject for empty structs and variants"
+        );
         let transparent = attrs
             .iter()
             .any(|attr| *attr == ContainerAttribute::Transparent);
@@ -166,17 +162,11 @@ impl<'a> Container<'a> {
                 }
                 ContainerType::Struct(fields)
             }
-            (Fields::Unit, _) => {
-                // covered by length check above
-                return Err(spanned_err(
-                    &fields,
-                    "Cannot derive FromPyObject for Unit structs and variants",
-                ));
-            }
+            (Fields::Unit, _) => unreachable!(), // covered by length check above
         };
         let err_name = attrs
             .iter()
-            .find_map(|a| a.annotation())
+            .find_map(|a| a.annotation().map(syn::LitStr::value))
             .unwrap_or_else(|| path.segments.last().unwrap().ident.to_string());
 
         let v = Container {
@@ -188,31 +178,13 @@ impl<'a> Container<'a> {
         Ok(v)
     }
 
-    fn verify_struct_container_attrs(
-        attrs: &'a [ContainerAttribute],
-        original: &[Attribute],
-    ) -> Result<()> {
+    fn verify_struct_container_attrs(attrs: &'a [ContainerAttribute]) -> Result<()> {
         for attr in attrs {
             match attr {
-                ContainerAttribute::Transparent => continue,
-                ContainerAttribute::ErrorAnnotation(_) => {
-                    let span = original
-                        .iter()
-                        .map(|a| a.span())
-                        .fold(None, |mut acc: Option<Span>, span| {
-                            if let Some(all) = acc.as_mut() {
-                                all.join(span)
-                            } else {
-                                Some(span)
-                            }
-                        })
-                        .unwrap_or_else(Span::call_site);
-                    return Err(syn::Error::new(
-                        span,
-                        "Annotating error messages for structs is \
-                                               not supported. Remove the annotation attribute.",
-                    ));
-                }
+                ContainerAttribute::Transparent => {}
+                ContainerAttribute::ErrorAnnotation(annotation) => bail_spanned!(
+                    annotation.span() => "annotation is not supported for structs"
+                ),
             }
         }
         Ok(())
@@ -247,7 +219,7 @@ impl<'a> Container<'a> {
         }
         let msg = if self.is_enum_variant {
             quote!(format!(
-                "Expected tuple of length {}, but got length {}.",
+                "expected tuple of length {}, but got length {}",
                 #len,
                 s.len()
             ))
@@ -279,12 +251,10 @@ impl<'a> Container<'a> {
     }
 
     fn check_transparent_len(fields: &Fields) -> Result<()> {
-        if fields.len() != 1 {
-            return Err(spanned_err(
-                fields,
-                "Transparent structs and variants can only have 1 field",
-            ));
-        }
+        ensure_spanned!(
+            fields.len() == 1,
+            fields.span() => "transparent structs and variants can only have 1 field"
+        );
         Ok(())
     }
 }
@@ -295,14 +265,14 @@ enum ContainerAttribute {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     Transparent,
     /// Change the name of an enum variant in the generated error message.
-    ErrorAnnotation(String),
+    ErrorAnnotation(syn::LitStr),
 }
 
 impl ContainerAttribute {
     /// Convenience method to access `ErrorAnnotation`.
-    fn annotation(&self) -> Option<String> {
+    fn annotation(&self) -> Option<&syn::LitStr> {
         match self {
-            ContainerAttribute::ErrorAnnotation(s) => Some(s.to_string()),
+            ContainerAttribute::ErrorAnnotation(s) => Some(s),
             _ => None,
         }
     }
@@ -311,30 +281,29 @@ impl ContainerAttribute {
     ///
     /// Fails if any are invalid.
     fn parse_attrs(value: &[Attribute]) -> Result<Vec<Self>> {
-        let mut attrs = Vec::new();
-        let list = get_pyo3_meta_list(value)?;
-        for meta in list.nested {
-            if let syn::NestedMeta::Meta(metaitem) = &meta {
-                match metaitem {
-                    Meta::Path(p) if p.is_ident("transparent") => {
-                        attrs.push(ContainerAttribute::Transparent);
-                        continue;
-                    }
-                    Meta::NameValue(nv) if nv.path.is_ident("annotation") => {
-                        if let syn::Lit::Str(s) = &nv.lit {
-                            attrs.push(ContainerAttribute::ErrorAnnotation(s.value()))
-                        } else {
-                            return Err(spanned_err(&nv.lit, "Expected string literal."));
+        get_pyo3_meta_list(value)?
+            .nested
+            .into_iter()
+            .map(|meta| {
+                if let syn::NestedMeta::Meta(metaitem) = &meta {
+                    match metaitem {
+                        Meta::Path(p) if p.is_ident("transparent") => {
+                            return Ok(ContainerAttribute::Transparent);
                         }
-                        continue;
+                        Meta::NameValue(nv) if nv.path.is_ident("annotation") => {
+                            if let syn::Lit::Str(s) = &nv.lit {
+                                return Ok(ContainerAttribute::ErrorAnnotation(s.clone()));
+                            } else {
+                                bail_spanned!(nv.lit.span() => "expected string literal for annotation");
+                            }
+                        }
+                        _ => {} // return Err below
                     }
-                    _ => {} // return Err below
                 }
-            }
 
-            return Err(spanned_err(meta, "Unrecognized `pyo3` container attribute"));
-        }
-        Ok(attrs)
+                bail_spanned!(meta.span() => "unknown `pyo3` container attribute");
+            })
+            .collect()
     }
 }
 
@@ -354,22 +323,17 @@ impl FieldAttribute {
         let metaitem = match list.nested.len() {
             0 => return Ok(None),
             1 => list.nested.into_iter().next().unwrap(),
-            _ => {
-                return Err(spanned_err(
-                    list.nested,
-                    "Only one of `item`, `attribute` can be provided, possibly with an \
-                     additional argument: `item(\"key\")` or `attribute(\"name\").",
-                ))
-            }
+            _ => bail_spanned!(
+                list.nested.span() =>
+                "only one of `attribute` or `item` can be provided"
+            ),
         };
         let meta = match metaitem {
             syn::NestedMeta::Meta(meta) => meta,
-            syn::NestedMeta::Lit(lit) => {
-                return Err(spanned_err(
-                    lit,
-                    "Expected `attribute` or `item`, not a literal.",
-                ))
-            }
+            syn::NestedMeta::Lit(lit) => bail_spanned!(
+                lit.span() =>
+                "expected `attribute` or `item`, got a literal"
+            ),
         };
         let path = meta.path();
         if path.is_ident("attribute") {
@@ -377,60 +341,54 @@ impl FieldAttribute {
         } else if path.is_ident("item") {
             Ok(Some(FieldAttribute::GetItem(Self::item_arg(meta)?)))
         } else {
-            Err(spanned_err(meta, "Expected `attribute` or `item`."))
+            bail_spanned!(meta.span() => "expected `attribute` or `item`");
         }
     }
 
     fn attribute_arg(meta: Meta) -> syn::Result<Option<syn::LitStr>> {
-        let arg_list = match meta {
+        let mut arg_list = match meta {
             Meta::List(list) => list,
             Meta::Path(_) => return Ok(None),
-            Meta::NameValue(nv) => {
-                let err_msg = "Expected a string literal or no argument: `pyo3(attribute(\"name\") or `pyo3(attribute)`";
-                return Err(spanned_err(nv, err_msg));
-            }
+            Meta::NameValue(nv) => bail_spanned!(
+                nv.span() =>
+                "expected a string literal or no argument: `pyo3(attribute(\"name\")` or \
+                `pyo3(attribute)`"
+            ),
         };
-        let arg_msg = "Expected a single string literal argument.";
-        let first = match arg_list.nested.len() {
-            1 => arg_list.nested.first().unwrap(),
-            _ => return Err(spanned_err(arg_list, arg_msg)),
-        };
-        if let syn::NestedMeta::Lit(syn::Lit::Str(litstr)) = first {
-            if litstr.value().is_empty() {
-                return Err(spanned_err(litstr, "Attribute name cannot be empty."));
+
+        if arg_list.nested.len() == 1 {
+            let arg = arg_list.nested.pop().unwrap().into_value();
+
+            if let syn::NestedMeta::Lit(syn::Lit::Str(litstr)) = arg {
+                ensure_spanned!(
+                    !litstr.value().is_empty(),
+                    litstr.span() => "attribute name cannot be empty"
+                );
+                return Ok(Some(litstr));
             }
-            return Ok(Some(parse_quote!(#litstr)));
         }
-        Err(spanned_err(first, arg_msg))
+
+        bail_spanned!(arg_list.span() => "expected a single string literal argument");
     }
 
     fn item_arg(meta: Meta) -> syn::Result<Option<syn::Lit>> {
-        let arg_list = match meta {
+        let mut arg_list = match meta {
             Meta::List(list) => list,
             Meta::Path(_) => return Ok(None),
-            Meta::NameValue(nv) => {
-                return Err(spanned_err(
-                    nv,
-                    "Expected a literal or no argument: `pyo3(item(\"key\") or `pyo3(item)`",
-                ))
-            }
+            Meta::NameValue(nv) => bail_spanned!(
+                nv.span() => "expected a literal or no argument: `pyo3(item(key)` or `pyo3(item)`"
+            ),
         };
-        let arg_msg = "Expected a single literal argument.";
-        if arg_list.nested.is_empty() {
-            return Err(spanned_err(arg_list, arg_msg));
-        } else if arg_list.nested.len() > 1 {
-            return Err(spanned_err(arg_list.nested, arg_msg));
-        }
-        let first = arg_list.nested.first().unwrap();
-        if let syn::NestedMeta::Lit(lit) = first {
-            return Ok(Some(parse_quote!(#lit)));
-        }
-        Err(spanned_err(first, arg_msg))
-    }
-}
 
-fn spanned_err<T: ToTokens>(tokens: T, msg: &str) -> syn::Error {
-    syn::Error::new_spanned(tokens, msg)
+        if arg_list.nested.len() == 1 {
+            let arg = arg_list.nested.pop().unwrap().into_value();
+            if let syn::NestedMeta::Lit(lit) = arg {
+                return Ok(Some(lit));
+            }
+        }
+
+        bail_spanned!(arg_list.span() => "expected a single literal argument");
+    }
 }
 
 /// Extract pyo3 metalist, flattens multiple lists into a single one.
@@ -456,12 +414,10 @@ fn get_pyo3_meta_list(attrs: &[Attribute]) -> Result<MetaList> {
 fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::LifetimeDef>> {
     let mut lifetimes = generics.lifetimes();
     let lifetime = lifetimes.next();
-    if lifetimes.next().is_some() {
-        return Err(spanned_err(
-            &generics,
-            "FromPyObject can be derived with at most one lifetime parameter.",
-        ));
-    }
+    ensure_spanned!(
+        lifetimes.next().is_none(),
+        generics.span() => "FromPyObject can be derived with at most one lifetime parameter"
+    );
     Ok(lifetime)
 }
 
@@ -496,17 +452,14 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         }
         syn::Data::Struct(st) => {
             let attrs = ContainerAttribute::parse_attrs(&tokens.attrs)?;
-            Container::verify_struct_container_attrs(&attrs, &tokens.attrs)?;
+            Container::verify_struct_container_attrs(&attrs)?;
             let ident = &tokens.ident;
             let st = Container::new(&st.fields, parse_quote!(#ident), attrs, false)?;
             st.build()
         }
-        syn::Data::Union(_) => {
-            return Err(spanned_err(
-                tokens,
-                "#[derive(FromPyObject)] is not supported for unions.",
-            ))
-        }
+        syn::Data::Union(_) => bail_spanned!(
+            tokens.span() => "#[derive(FromPyObject)] is not supported for unions"
+        ),
     };
 
     let ident = &tokens.ident;
