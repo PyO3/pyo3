@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate FFI definition `PyOS_AfterFork` for Python 3.7 and up. [#1348](https://github.com/PyO3/pyo3/pull/1348)
 - Deprecate FFI definition `PyCoro_Check` and `PyAsyncGen_Check` in favor of `PyCoro_CheckExact` and `PyAsyncGen_CheckExact` respectively to mirror Python API. [#1348](https://github.com/PyO3/pyo3/pull/1348)
 - Deprecate FFI definition `PyCoroWrapper_Check` which has never been in the Python API. [#1348](https://github.com/PyO3/pyo3/pull/1348)
+- Deprecate FFI definitions for `PyUnicode_FromUnicode`, `PyUnicode_AsUnicode` and `PyUnicode_AsUnicodeAndSize`, which will be removed from 3.12 and up due to [PEP 613](https://www.python.org/dev/peps/pep-0623/). [#1370](https://github.com/PyO3/pyo3/pull/1370)
 
 ### Removed
 - Remove FFI definition `PyFrame_ClearFreeList` when building for Python 3.9. [#1341](https://github.com/PyO3/pyo3/pull/1341)

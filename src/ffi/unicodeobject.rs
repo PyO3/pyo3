@@ -58,7 +58,8 @@ extern "C" {
         length: Py_ssize_t,
         fill_char: Py_UCS4,
     ) -> Py_ssize_t;
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_12)))]
+    #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromUnicode")]
     pub fn PyUnicode_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t) -> *mut PyObject;
 
@@ -85,10 +86,12 @@ extern "C" {
         copy_null: c_int,
     ) -> *mut Py_UCS4;
     pub fn PyUnicode_AsUCS4Copy(unicode: *mut PyObject) -> *mut Py_UCS4;
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_12)))]
+    #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUnicode")]
     pub fn PyUnicode_AsUnicode(unicode: *mut PyObject) -> *mut Py_UNICODE;
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_12)))]
+    #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUnicodeAndSize")]
     pub fn PyUnicode_AsUnicodeAndSize(
         unicode: *mut PyObject,
