@@ -831,11 +831,21 @@ fn abi3_without_interpreter() -> Result<()> {
     }
     println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
     println!("cargo:python_flags={}", flags);
+
+    // Unfortunately, on windows we can't build without at least providing
+    // python.lib to the linker. While maturin tells the linker the location
+    // of python.lib, we need to do the renaming here, otherwise cargo
+    // complains that the crate using pyo3 does not contains a `#[link(...)]`
+    // attribute with pythonXY.
+    if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
+        println!("cargo:rustc-link-lib=pythonXY:python3");
+    }
+
     Ok(())
 }
 
 fn main() -> Result<()> {
-    // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python (UNIX only).
+    // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
     // We only check for the abi3-py3{ABI3_MAX_MINOR} because lower versions depend on it.
     if env::var_os("PYO3_NO_PYTHON").is_some()
         && env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()

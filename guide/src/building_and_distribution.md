@@ -65,8 +65,7 @@ For example, if you set the `abi3-py36` feature, your extension wheel can be use
 If you set more that one of these api version feature flags the highest version always wins. For example, with both `abi3-py36` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.8 and up.
 PyO3 is only able to link your extension module to api3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.6, the build will fail.
 
-As an advanced feature, you can build PyO3 wheel without calling Python interpreter with
-the environment variable `PYO3_NO_PYTHON` set, but this only works on \*NIX.
+As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set. On unix systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` evironment variable to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
 ### Missing features
 
