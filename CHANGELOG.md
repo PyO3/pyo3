@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `auto-initialize` feature to control whether PyO3 should automatically initialize an embedded Python interpreter. For compatibility this feature is enabled by default in PyO3 0.13.1, but is planned to become opt-in from PyO3 0.14.0. [#1347](https://github.com/PyO3/pyo3/pull/1347)
 - Add support for cross-compiling to Windows without needing `PYO3_CROSS_INCLUDE_DIR`. [#1350](https://github.com/PyO3/pyo3/pull/1350)
 
-### Changed
+### Deprecated
 - Deprecate FFI definitions `PyEval_CallObjectWithKeywords`, `PyEval_CallObject`, `PyEval_CallFunction`, `PyEval_CallMethod` when building for Python 3.9. [#1338](https://github.com/PyO3/pyo3/pull/1338)
 - Deprecate FFI definitions `PyGetSetDef_DICT` and `PyGetSetDef_INIT` which have never been in the Python API. [#1341](https://github.com/PyO3/pyo3/pull/1341)
 - Deprecate FFI definitions `PyGen_NeedsFinalizing`, `PyImport_Cleanup` (removed in 3.9), and `PyOS_InitInterrupts` (3.10). [#1348](https://github.com/PyO3/pyo3/pull/1348)
@@ -62,8 +62,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Change `Debug` impl of `PyErr` to output more helpful information (acquiring the GIL if necessary). [#1275](https://github.com/PyO3/pyo3/pull/1275)
 - Rename `PyTypeInfo::is_instance` and `PyTypeInfo::is_exact_instance` to `PyTypeInfo::is_type_of` and `PyTypeInfo::is_exact_type_of`. [#1278](https://github.com/PyO3/pyo3/pull/1278)
 - Optimize `PyAny::call0`, `Py::call0` and `PyAny::call_method0` and `Py::call_method0` on Python 3.9 and up. [#1287](https://github.com/PyO3/pyo3/pull/1285)
-- Deprecate `Python::is_instance`, `Python::is_subclass`, `Python::release`, and `Python::xdecref`. [#1292](https://github.com/PyO3/pyo3/pull/1292)
 - Require double-quotes for pyclass name argument e.g `#[pyclass(name = "MyClass")]`. [#1303](https://github.com/PyO3/pyo3/pull/1303)
+
+### Deprecated
+- Deprecate `Python::is_instance`, `Python::is_subclass`, `Python::release`, and `Python::xdecref`. [#1292](https://github.com/PyO3/pyo3/pull/1292)
 
 ### Removed
 - Remove deprecated ffi definitions `PyUnicode_AsUnicodeCopy`, `PyUnicode_GetMax`, `_Py_CheckRecursionLimit`, `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`, `PyObject_CheckReadBuffer` and `PyObject_AsWriteBuffer`, which will be removed in Python 3.10. [#1217](https://github.com/PyO3/pyo3/pull/1217)
