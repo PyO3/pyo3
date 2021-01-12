@@ -62,3 +62,24 @@ These macros require a number of dependencies which may not be needed by users w
 The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
 - `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
 - `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
+
+### `serde`
+
+The `serde` feature enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).  
+This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
+
+```rust
+
+#[pyclass]
+#[derive(Serialize, Deserialize)]
+struct Permission {
+    name: String
+}
+
+#[pyclass]
+#[derive(Serialize, Deserialize)]
+struct User {
+    username: String,
+    permissions: Vec<Py<Permission>>
+}
+```
