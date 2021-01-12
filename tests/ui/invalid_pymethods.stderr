@@ -1,0 +1,65 @@
+error: class attribute methods cannot take arguments
+ --> $DIR/invalid_pymethods.rs:9:29
+  |
+9 |     fn class_attr_with_args(foo: i32) {}
+  |                             ^^^
+
+error: static method needs #[staticmethod] attribute
+  --> $DIR/invalid_pymethods.rs:14:5
+   |
+14 |     fn staticmethod_without_attribute() {}
+   |     ^^
+
+error: unexpected receiver for method
+  --> $DIR/invalid_pymethods.rs:20:35
+   |
+20 |     fn staticmethod_with_receiver(&self) {}
+   |                                   ^
+
+error: expected receiver for #[getter]
+  --> $DIR/invalid_pymethods.rs:33:5
+   |
+33 |     fn getter_without_receiver() {}
+   |     ^^
+
+error: expected receiver for #[setter]
+  --> $DIR/invalid_pymethods.rs:39:5
+   |
+39 |     fn setter_without_receiver() {}
+   |     ^^
+
+error: text_signature not allowed on __new__; if you want to add a signature on __new__, put it on the struct definition instead
+  --> $DIR/invalid_pymethods.rs:45:24
+   |
+45 |     #[text_signature = "()"]
+   |                        ^^^^
+
+error: text_signature not allowed with this method type
+  --> $DIR/invalid_pymethods.rs:52:24
+   |
+52 |     #[text_signature = "()"]
+   |                        ^^^^
+
+error: text_signature not allowed with this method type
+  --> $DIR/invalid_pymethods.rs:59:24
+   |
+59 |     #[text_signature = "()"]
+   |                        ^^^^
+
+error: text_signature not allowed with this method type
+  --> $DIR/invalid_pymethods.rs:66:24
+   |
+66 |     #[text_signature = "()"]
+   |                        ^^^^
+
+error: text_signature not allowed with this method type
+  --> $DIR/invalid_pymethods.rs:73:24
+   |
+73 |     #[text_signature = "()"]
+   |                        ^^^^
+
+error: cannot specify a second method type
+  --> $DIR/invalid_pymethods.rs:80:7
+   |
+80 |     #[staticmethod]
+   |       ^^^^^^^^^^^^

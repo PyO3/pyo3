@@ -133,7 +133,7 @@ impl<'a> FnSpec<'a> {
         let mut parse_receiver = |msg: &'static str| {
             inputs_iter
                 .next()
-                .ok_or_else(|| syn::Error::new_spanned(sig, msg))
+                .ok_or_else(|| err_spanned!(sig.span() => msg))
                 .and_then(parse_method_receiver)
         };
 
@@ -149,12 +149,10 @@ impl<'a> FnSpec<'a> {
         let fn_type = match fn_type_attr {
             Some(MethodTypeAttribute::StaticMethod) => FnType::FnStatic,
             Some(MethodTypeAttribute::ClassAttribute) => {
-                if !sig.inputs.is_empty() {
-                    return Err(syn::Error::new_spanned(
-                        name,
-                        "Class attribute methods cannot take arguments",
-                    ));
-                }
+                ensure_spanned!(
+                    sig.inputs.is_empty(),
+                    sig.inputs.span() => "class attribute methods cannot take arguments"
+                );
                 FnType::ClassAttribute
             }
             Some(MethodTypeAttribute::New) => FnType::FnNew,
@@ -183,7 +181,7 @@ impl<'a> FnSpec<'a> {
                 FnType::Setter(parse_receiver("expected receiver for #[setter]")?)
             }
             None => FnType::Fn(parse_receiver(
-                "Static method needs #[staticmethod] attribute",
+                "static method needs #[staticmethod] attribute",
             )?),
         };
 
@@ -191,10 +189,7 @@ impl<'a> FnSpec<'a> {
         for input in inputs_iter {
             match input {
                 syn::FnArg::Receiver(recv) => {
-                    return Err(syn::Error::new_spanned(
-                        recv,
-                        "Unexpected receiver for method",
-                    ));
+                    bail_spanned!(recv.span() => "unexpected receiver for method")
                 }
                 syn::FnArg::Typed(syn::PatType { pat, ty, .. }) => {
                     let (ident, by_ref, mutability) = match &**pat {
@@ -204,9 +199,7 @@ impl<'a> FnSpec<'a> {
                             mutability,
                             ..
                         }) => (ident, by_ref, mutability),
-                        _ => {
-                            return Err(syn::Error::new_spanned(pat, "unsupported argument"));
-                        }
+                        _ => bail_spanned!(pat.span() => "unsupported argument"),
                     };
 
                     arguments.push(FnArg {
@@ -229,7 +222,7 @@ impl<'a> FnSpec<'a> {
             if let Some(text_signature) =
                 utils::parse_text_signature_attrs(meth_attrs, &python_name)?
             {
-                Err(syn::Error::new_spanned(text_signature, error_msg))
+                bail_spanned!(text_signature.span() => error_msg)
             } else {
                 Ok(None)
             }
@@ -244,7 +237,7 @@ impl<'a> FnSpec<'a> {
                  __new__, put it on the struct definition instead",
             )?,
             FnType::FnCall(_) | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => {
-                parse_erroneous_text_signature("text_signature not allowed with this attribute")?
+                parse_erroneous_text_signature("text_signature not allowed with this method type")?
             }
         };
 
@@ -326,25 +319,20 @@ fn parse_method_attributes(
 
     macro_rules! set_ty {
         ($new_ty:expr, $ident:expr) => {
-            if ty.replace($new_ty).is_some() {
-                return Err(syn::Error::new_spanned(
-                    $ident,
-                    "Cannot specify a second method type",
-                ));
-            }
+            ensure_spanned!(
+               ty.replace($new_ty).is_none(),
+               $ident.span() => "cannot specify a second method type"
+            );
         };
     }
 
-    for attr in attrs.iter() {
+    for attr in attrs.drain(..) {
         match attr.parse_meta()? {
             syn::Meta::Path(name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     set_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
-                    return Err(syn::Error::new_spanned(
-                        name,
-                        "#[init] is disabled since PyO3 0.9.0",
-                    ));
+                    bail_spanned!(name.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if name.is_ident("call") || name.is_ident("__call__") {
                     set_ty!(MethodTypeAttribute::Call, name);
                 } else if name.is_ident("classmethod") {
@@ -355,10 +343,9 @@ fn parse_method_attributes(
                     set_ty!(MethodTypeAttribute::ClassAttribute, name);
                 } else if name.is_ident("setter") || name.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
-                        return Err(syn::Error::new_spanned(
-                            attr,
-                            "Inner style attribute is not supported for setter and getter",
-                        ));
+                        bail_spanned!(
+                            attr.span() => "inner attribute is not supported for setter and getter"
+                        );
                     }
                     if name.is_ident("setter") {
                         set_ty!(MethodTypeAttribute::Setter, name);
@@ -366,32 +353,28 @@ fn parse_method_attributes(
                         set_ty!(MethodTypeAttribute::Getter, name);
                     }
                 } else {
-                    new_attrs.push(attr.clone())
+                    new_attrs.push(attr)
                 }
             }
-            syn::Meta::List(syn::MetaList { path, nested, .. }) => {
+            syn::Meta::List(syn::MetaList {
+                path, mut nested, ..
+            }) => {
                 if path.is_ident("new") {
                     set_ty!(MethodTypeAttribute::New, path);
                 } else if path.is_ident("init") {
-                    return Err(syn::Error::new_spanned(
-                        path,
-                        "#[init] is disabled since PyO3 0.9.0",
-                    ));
+                    bail_spanned!(path.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if path.is_ident("call") {
                     set_ty!(MethodTypeAttribute::Call, path);
                 } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
-                        return Err(syn::Error::new_spanned(
-                            attr,
-                            "Inner style attribute is not supported for setter and getter",
-                        ));
+                        bail_spanned!(
+                            attr.span() => "inner attribute is not supported for setter and getter"
+                        );
                     }
-                    if nested.len() != 1 {
-                        return Err(syn::Error::new_spanned(
-                            attr,
-                            "setter/getter requires one value",
-                        ));
-                    }
+                    ensure_spanned!(
+                        nested.len() == 1,
+                        attr.span() => "setter/getter requires one value"
+                    );
 
                     if path.is_ident("setter") {
                         set_ty!(MethodTypeAttribute::Setter, path);
@@ -399,7 +382,7 @@ fn parse_method_attributes(
                         set_ty!(MethodTypeAttribute::Getter, path);
                     };
 
-                    property_name = match nested.first().unwrap() {
+                    property_name = match nested.pop().unwrap().into_value() {
                         syn::NestedMeta::Meta(syn::Meta::Path(w)) if w.segments.len() == 1 => {
                             Some(w.segments[0].ident.clone())
                         }
@@ -423,15 +406,14 @@ fn parse_method_attributes(
                     let attrs = PyFunctionAttr::from_meta(&nested)?;
                     args.extend(attrs.arguments)
                 } else {
-                    new_attrs.push(attr.clone())
+                    new_attrs.push(attr)
                 }
             }
-            syn::Meta::NameValue(_) => new_attrs.push(attr.clone()),
+            syn::Meta::NameValue(_) => new_attrs.push(attr),
         }
     }
 
-    attrs.clear();
-    attrs.extend(new_attrs);
+    *attrs = new_attrs;
 
     let python_name = if allow_custom_name {
         parse_method_name_attribute(ty.as_ref(), attrs, property_name)?
@@ -456,14 +438,8 @@ fn parse_method_name_attribute(
 
     // Reject some invalid combinations
     if let (Some(name), Some(ty)) = (&name, ty) {
-        match ty {
-            New | Call | Getter | Setter => {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "name not allowed with this method type",
-                ))
-            }
-            _ => {}
+        if let New | Call | Getter | Setter = ty {
+            bail_spanned!(name.span() => "name not allowed with this method type");
         }
     }
 
