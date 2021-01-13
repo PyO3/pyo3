@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - `prepare_freethreaded_python` will no longer register an `atexit` handler to call `Py_Finalize`. [#1355](https://github.com/PyO3/pyo3/pull/1355)
 
+### Fixed
+- Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)
+
 ## [0.13.1] - 2021-01-10
 ### Added
 - Add support for `#[pyclass(dict)]` and `#[pyclass(weakref)]` with the `abi3` feature on Python 3.9 and up. [#1342](https://github.com/PyO3/pyo3/pull/1342)

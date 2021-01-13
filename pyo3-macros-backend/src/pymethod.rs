@@ -392,13 +392,13 @@ pub fn impl_arg_params(
         if arg.py || spec.is_args(&arg.name) || spec.is_kwargs(&arg.name) {
             continue;
         }
-        let name = arg.name;
+        let name = arg.name.unraw().to_string();
         let kwonly = spec.is_kw_only(&arg.name);
         let opt = arg.optional.is_some() || spec.default_value(&arg.name).is_some();
 
         params.push(quote! {
             pyo3::derive_utils::ParamDescription {
-                name: stringify!(#name),
+                name: #name,
                 is_optional: #opt,
                 kw_only: #kwonly
             }

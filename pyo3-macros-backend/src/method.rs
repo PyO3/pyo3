@@ -215,7 +215,7 @@ impl<'a> FnSpec<'a> {
         }
 
         let ty = get_return_info(&sig.output);
-        let python_name = python_name.unwrap_or_else(|| name.unraw());
+        let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
         let mut parse_erroneous_text_signature = |error_msg: &str| {
             // try to parse anyway to give better error messages
