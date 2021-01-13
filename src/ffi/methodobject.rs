@@ -30,6 +30,14 @@ pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
     kwds: *mut PyObject,
 ) -> *mut PyObject;
 
+#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+pub type _PyCFunctionFastWithKeywords = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    args: *const *mut PyObject,
+    nargs: crate::ffi::pyport::Py_ssize_t,
+    kwnames: *mut PyObject,
+) -> *mut PyObject;
+
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
