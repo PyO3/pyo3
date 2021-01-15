@@ -30,6 +30,7 @@ pub use self::enumobject::*;
 pub use self::eval::*;
 pub use self::fileobject::*;
 pub use self::floatobject::*;
+#[cfg(not(Py_LIMITED_API))]
 pub use self::funcobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::genobject::*;
@@ -111,6 +112,8 @@ mod fileobject; // TODO: incomplete
 mod floatobject; // TODO supports PEP-384 only
 
 // skipped empty frameobject.h
+#[cfg(not(Py_LIMITED_API))]
+pub(crate) mod funcobject;
 // skipped genericaliasobject.h
 #[cfg(not(Py_LIMITED_API))]
 mod genobject; // TODO: incomplete
@@ -119,9 +122,11 @@ mod import; // TODO: incomplete
 // skipped interpreteridobject.h
 mod intrcheck; // TODO supports PEP-384 only
 mod iterobject;
-mod listobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
+mod listobject;
 // skipped longintrepr.h
+mod longobject;
+pub(crate) mod marshal;
+mod memoryobject;
 // skipped namespaceobject.h
 // skipped odictobject.h
 // skipped opcode.h
@@ -164,17 +169,14 @@ mod pyhash;
 mod pymem;
 mod typeslots;
 
-mod longobject;
 mod unicodeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
                    // mod longintrepr; TODO excluded by PEP-384
-mod memoryobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod rangeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod tupleobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
                  // mod odictobject; TODO new in 3.5
 mod methodobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod moduleobject;
 mod setobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-               // mod funcobject; TODO excluded by PEP-384
                // mod classobject; TODO excluded by PEP-384
 mod pycapsule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod sliceobject;
@@ -208,10 +210,6 @@ mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and
 
 // Additional headers that are not exported by Python.h
 pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-pub(crate) mod marshal;
-
-pub(crate) mod funcobject;
 
 #[cfg(not(Py_LIMITED_API))]
 mod cpython;
