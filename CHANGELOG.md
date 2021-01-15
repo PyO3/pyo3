@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - `prepare_freethreaded_python` will no longer register an `atexit` handler to call `Py_Finalize`. [#1355](https://github.com/PyO3/pyo3/pull/1355)
 - Mark FFI definitions `PyMarshal_WriteObjectToString`, `PyMarshal_ReadObjectFromString` as available in limited API.
-- Mark FFI definitions `PyListObject` and those from `funcobject.h` as requiring non-limited API.
-- Fix typo in FFI definition `PyFunction_Code` to `PyFunction_GetCode`.
+- Mark FFI definitions `PyListObject` and those from `funcobject.h` as requiring non-limited API.  [#1387](https://github.com/PyO3/pyo3/pull/1387)
+- Fix typo in FFI definition `PyFunction_Code` to `PyFunction_GetCode`. [#1387](https://github.com/PyO3/pyo3/pull/1387)
+
 
 ### Fixed
 - Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)
