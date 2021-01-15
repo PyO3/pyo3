@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Add unsafe API `with_embedded_python_interpreter` to initalize a Python interpreter, execute a closure, and finalize the interpreter. [#1355](https://github.com/PyO3/pyo3/pull/1355)
 - Add `serde` feature to support `Serialize/Deserialize` for `Py<T>`. [#1366](https://github.com/PyO3/pyo3/pull/1366)
+- Add FFI definition `_PyCFunctionFastWithKeywords` on Python 3.7 and up. [#1384](https://github.com/PyO3/pyo3/pull/1384)
 
 ### Changed
 - `prepare_freethreaded_python` will no longer register an `atexit` handler to call `Py_Finalize`. [#1355](https://github.com/PyO3/pyo3/pull/1355)
