@@ -356,6 +356,9 @@ impl<T> Py<T> {
     }
 
     /// Deprecated alias for [`from_owned_ptr`](#method.from_owned_ptr).
+    ///
+    /// # Safety
+    /// `ptr` must be a pointer to a Python object of type T.
     #[inline]
     #[deprecated = "this is a deprecated alias for Py::from_owned_ptr"]
     pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
