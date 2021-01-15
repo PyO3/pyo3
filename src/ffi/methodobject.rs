@@ -30,7 +30,7 @@ pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
     kwds: *mut PyObject,
 ) -> *mut PyObject;
 
-#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+#[cfg(Py_3_7)]
 pub type _PyCFunctionFastWithKeywords = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *const *mut PyObject,
