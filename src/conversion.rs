@@ -411,7 +411,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Relies on unsafe fn `from_owned_ptr_or_opt`.
+    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_owned_ptr_or_panic(py, ptr)
     }
@@ -419,7 +419,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Relies on unsafe fn `from_owned_ptr_or_opt`.
+    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
         Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
@@ -434,7 +434,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Relies on unsafe fn `from_borrowed_ptr_or_opt`.
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
@@ -442,7 +442,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Relies on unsafe fn `from_borrowed_ptr_or_opt`.
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_panic(py, ptr)
     }
@@ -450,7 +450,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Relies on unsafe fn `from_borrowed_ptr_or_opt`.
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr_or_err(
         py: Python<'p>,
         ptr: *mut ffi::PyObject,
