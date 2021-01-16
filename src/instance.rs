@@ -345,6 +345,9 @@ impl<T> Py<T> {
     /// # Safety
     /// `ptr` must be a pointer to a Python object of type T.
     ///
+    /// Callers must own the object referred to by `ptr`, as this function
+    /// implicitly takes ownership of that object.
+    ///
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
@@ -359,6 +362,9 @@ impl<T> Py<T> {
     ///
     /// # Safety
     /// `ptr` must be a pointer to a Python object of type T.
+    ///
+    /// Callers must own the object referred to by `ptr`, as this function
+    /// implicitly takes ownership of that object.
     #[inline]
     #[deprecated = "this is a deprecated alias for Py::from_owned_ptr"]
     pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {

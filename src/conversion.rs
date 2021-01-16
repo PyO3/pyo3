@@ -395,7 +395,9 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// # Safety
     ///
-    /// Implementations must ensure the object does not get freed during `'p` and avoid type confusion.
+    /// Implementations must ensure the object does not get freed during `'p`
+    /// and ensure that `ptr` is of the correct type.
+    /// Note that it must be safe to decrement the reference count of `ptr`.
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
     /// Convert from an arbitrary `PyObject` or panic.
     ///

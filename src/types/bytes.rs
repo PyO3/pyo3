@@ -70,7 +70,8 @@ impl PyBytes {
     ///
     /// # Safety
     ///
-    /// Unsafe as it deferences the raw pointer `ptr`.
+    /// This function dereferences the raw pointer `ptr`,
+    /// [which is an unsafe operation](https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html#unsafe-superpowers).
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
         py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
             ptr as *const _,
