@@ -70,8 +70,10 @@ impl PyBytes {
     ///
     /// # Safety
     ///
-    /// This function dereferences the raw pointer `ptr`,
-    /// [which is an unsafe operation](https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html#unsafe-superpowers).
+    /// This function dereferences the raw pointer `ptr` as the
+    /// leading pointer of a slice of length `len`. [As with
+    /// `std::slice::from_raw_parts`, this is
+    /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
         py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
             ptr as *const _,
