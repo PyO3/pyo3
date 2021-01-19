@@ -448,6 +448,10 @@ impl<'p> Python<'p> {
 
     /// Registers the object in the release pool, and does an unchecked downcast
     /// to the specific type.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
         T: PyNativeType + PyTypeInfo,
@@ -458,6 +462,10 @@ impl<'p> Python<'p> {
 
     /// Registers the object pointer in the release pool,
     /// and does an unchecked downcast to the specific type.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
@@ -470,6 +478,10 @@ impl<'p> Python<'p> {
     ///
     /// Returns `Err(PyErr)` if the pointer is NULL.
     /// Does an unchecked downcast to the specific type.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
@@ -482,6 +494,10 @@ impl<'p> Python<'p> {
     ///
     /// Returns `None` if the pointer is NULL.
     /// Does an unchecked downcast to the specific type.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
@@ -493,6 +509,10 @@ impl<'p> Python<'p> {
     /// Does an unchecked downcast to the specific type.
     ///
     /// Panics if the pointer is NULL.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
@@ -504,6 +524,10 @@ impl<'p> Python<'p> {
     /// Does an unchecked downcast to the specific type.
     ///
     /// Returns `Err(PyErr)` if the pointer is NULL.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
@@ -515,6 +539,10 @@ impl<'p> Python<'p> {
     /// Does an unchecked downcast to the specific type.
     ///
     /// Returns `None` if the pointer is NULL.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
