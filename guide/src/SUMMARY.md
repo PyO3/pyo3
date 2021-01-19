@@ -15,6 +15,7 @@
 - [Calling Python from Rust](python_from_rust.md)
 - [GIL, mutability and object types](types.md)
 - [Parallelism](parallelism.md)
+- [Async / Await](async-await.md)
 - [Debugging](debugging.md)
 - [Features Reference](features.md)
 - [Advanced Topics](advanced.md)
