@@ -157,6 +157,35 @@ impl PyDateTime {
         }
     }
 
+    pub fn new_with_fold<'p>(
+        py: Python<'p>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        microsecond: u32,
+        tzinfo: Option<&PyObject>,
+        fold: bool,
+    ) -> PyResult<&'p PyDateTime> {
+        unsafe {
+            let ptr = (PyDateTimeAPI.DateTime_FromDateAndTimeAndFold)(
+                year,
+                c_int::from(month),
+                c_int::from(day),
+                c_int::from(hour),
+                c_int::from(minute),
+                c_int::from(second),
+                microsecond as c_int,
+                opt_to_pyobj(py, tzinfo),
+                c_int::from(fold),
+                PyDateTimeAPI.DateTimeType,
+            );
+            py.from_owned_ptr_or_err(ptr)
+        }
+    }
+
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.from_timestamp`
