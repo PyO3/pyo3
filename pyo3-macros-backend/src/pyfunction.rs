@@ -56,12 +56,9 @@ impl PyFunctionAttr {
             NestedMeta::Lit(lit) => {
                 self.add_literal(item, lit)?;
             }
-            NestedMeta::Meta(syn::Meta::List(list)) => {
-                return Err(syn::Error::new_spanned(
-                    list,
-                    "List is not supported as argument",
-                ));
-            }
+            NestedMeta::Meta(syn::Meta::List(list)) => bail_spanned!(
+                list.span() => "list is not supported as argument"
+            ),
         }
         Ok(())
     }
@@ -75,20 +72,15 @@ impl PyFunctionAttr {
                 self.arguments.push(Argument::VarArgsSeparator);
                 Ok(())
             }
-            _ => Err(syn::Error::new_spanned(
-                item,
-                format!("Only \"*\" is supported here, got: {:?}", lit),
-            )),
+            _ => bail_spanned!(item.span() => "expected \"*\""),
         }
     }
 
     fn add_work(&mut self, item: &NestedMeta, path: &Path) -> syn::Result<()> {
-        if self.has_kw || self.has_kwargs {
-            return Err(syn::Error::new_spanned(
-                item,
-                "Positional argument or varargs(*) is not allowed after keyword arguments",
-            ));
-        }
+        ensure_spanned!(
+            !(self.has_kw || self.has_kwargs),
+            item.span() => "positional argument or varargs(*) not allowed after keyword arguments"
+        );
         if self.has_varargs {
             self.arguments.push(Argument::Kwarg(path.clone(), None));
         } else {
@@ -98,22 +90,18 @@ impl PyFunctionAttr {
     }
 
     fn vararg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
-        if self.has_kwargs || self.has_varargs {
-            return Err(syn::Error::new_spanned(
-                item,
-                "* is not allowed after varargs(*) or kwargs(**)",
-            ));
-        }
+        ensure_spanned!(
+            !(self.has_kwargs || self.has_varargs),
+            item.span() => "* is not allowed after varargs(*) or kwargs(**)"
+        );
         Ok(())
     }
 
     fn kw_arg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
-        if self.has_kwargs {
-            return Err(syn::Error::new_spanned(
-                item,
-                "Keyword argument or kwargs(**) is not allowed after kwargs(**)",
-            ));
-        }
+        ensure_spanned!(
+            !self.has_kwargs,
+            item.span() => "keyword argument or kwargs(**) is not allowed after kwargs(**)"
+        );
         Ok(())
     }
 
@@ -159,12 +147,7 @@ impl PyFunctionAttr {
             syn::Lit::Bool(litb) => {
                 self.add_nv_common(item, &nv.path, format!("{}", litb.value))?;
             }
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    nv.lit.clone(),
-                    "Only string literal is supported",
-                ));
-            }
+            _ => bail_spanned!(nv.lit.span() => "expected a string literal"),
         };
         Ok(())
     }
@@ -190,14 +173,10 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
             ident.set_span(*span);
             Ok(Some(ident))
         }
-        [(_, span)] => Err(syn::Error::new(
-            *span,
-            "Expected string literal for #[name] argument",
-        )),
-        [_first_attr, second_attr, ..] => Err(syn::Error::new(
-            second_attr.1,
-            "#[name] can not be specified multiple times",
-        )),
+        [(_, span)] => bail_spanned!(*span => "expected string literal for #[name] argument"),
+        [_first_attr, second_attr, ..] => bail_spanned!(
+            second_attr.1 => "#[name] can not be specified multiple times"
+        ),
     }
 }
 

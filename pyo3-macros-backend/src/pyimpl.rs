@@ -3,18 +3,16 @@
 use crate::pymethod;
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::spanned::Spanned;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
     if let Some((_, path, _)) = &ast.trait_ {
-        Err(syn::Error::new_spanned(
-            path,
-            "#[pymethods] cannot be used on trait impl blocks",
-        ))
+        bail_spanned!(path.span() => "#[pymethods] cannot be used on trait impl blocks");
     } else if ast.generics != Default::default() {
-        Err(syn::Error::new_spanned(
-            ast.generics.clone(),
-            "#[pymethods] cannot be used with lifetime parameters or generics",
-        ))
+        bail_spanned!(
+            ast.generics.span() =>
+            "#[pymethods] cannot be used with lifetime parameters or generics"
+        );
     } else {
         impl_methods(&ast.self_ty, &mut ast.items)
     }

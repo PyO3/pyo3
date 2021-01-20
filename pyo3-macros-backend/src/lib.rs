@@ -3,6 +3,10 @@
 
 #![recursion_limit = "1024"]
 
+// Listed first so that macros in this module are available in the rest of the crate.
+#[macro_use]
+mod utils;
+
 mod defs;
 mod from_pyobject;
 mod konst;
@@ -14,7 +18,6 @@ mod pyfunction;
 mod pyimpl;
 mod pymethod;
 mod pyproto;
-mod utils;
 
 pub use from_pyobject::build_derive_from_pyobject;
 pub use module::{add_fn_to_module, process_functions_in_module, py_init};

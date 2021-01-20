@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::Token;
+use syn::{spanned::Spanned, Token};
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -52,13 +52,26 @@ pub(crate) fn impl_method_proto(
     for (i, arg) in meth.args.iter().enumerate() {
         let idx = if meth.with_self { i + 1 } else { i };
         let arg_name = syn::Ident::new(arg, Span::call_site());
-        let arg_ty = get_arg_ty(sig, idx)?;
-
+        let input = match &mut sig.inputs[idx] {
+            syn::FnArg::Typed(input) => input,
+            receiver @ syn::FnArg::Receiver(_) => {
+                bail_spanned!(receiver.span() => "unexpected receiver in #[pyproto]")
+            }
+        };
+        // replace signature in trait with the parametrised one, which is identical to the declared
+        // function signature.
+        let decl = syn::parse_quote! { <#cls as #module::#proto<'p>>::#arg_name };
+        let mut arg_ty = match crate::utils::option_type_argument(&input.ty) {
+            Some(arg_ty) => {
+                let arg_ty = arg_ty.clone();
+                *input.ty = syn::parse_quote! { Option<#decl> };
+                arg_ty
+            }
+            None => std::mem::replace(&mut *input.ty, decl),
+        };
+        // ensure the type has all lifetimes so it can be used in the protocol trait associated type
+        insert_lifetime(&mut arg_ty);
         impl_types.push(quote! {type #arg_name = #arg_ty;});
-
-        let type1 = syn::parse_quote! { arg: <#cls as #module::#proto<'p>>::#arg_name};
-        let type2 = syn::parse_quote! { arg: Option<<#cls as #module::#proto<'p>>::#arg_name>};
-        modify_arg_ty(sig, idx, &type1, &type2)?;
     }
 
     if meth.with_self {
@@ -87,37 +100,6 @@ pub(crate) fn impl_method_proto(
             #res_type_def
         }
     })
-}
-
-/// Some hacks for arguments: get `T` from `Option<T>` and insert lifetime
-fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Result<syn::Type> {
-    fn get_option_ty(path: &syn::Path) -> Option<syn::Type> {
-        let seg = path.segments.last()?;
-        if seg.ident == "Option" {
-            if let syn::PathArguments::AngleBracketed(ref data) = seg.arguments {
-                if let Some(syn::GenericArgument::Type(ref ty)) = data.args.last() {
-                    return Some(ty.to_owned());
-                }
-            }
-        }
-        None
-    }
-
-    let mut ty = match &sig.inputs[idx] {
-        syn::FnArg::Typed(ref cap) => match &*cap.ty {
-            // For `Option<T>`, we use `T` as an associated type for the protocol.
-            syn::Type::Path(ref ty) => get_option_ty(&ty.path).unwrap_or_else(|| *cap.ty.clone()),
-            _ => *cap.ty.clone(),
-        },
-        ty => {
-            return Err(syn::Error::new_spanned(
-                ty,
-                format!("Unsupported argument type: {:?}", ty),
-            ))
-        }
-    };
-    insert_lifetime(&mut ty);
-    Ok(ty)
 }
 
 /// Insert lifetime `'p` to `PyRef<Self>` or references (e.g., `&PyType`).
@@ -152,44 +134,11 @@ fn insert_lifetime(ty: &mut syn::Type) {
     }
 }
 
-fn modify_arg_ty(
-    sig: &mut syn::Signature,
-    idx: usize,
-    decl1: &syn::FnArg,
-    decl2: &syn::FnArg,
-) -> syn::Result<()> {
-    let arg = sig.inputs[idx].clone();
-    match arg {
-        syn::FnArg::Typed(ref cap) if crate::utils::option_type_argument(&*cap.ty).is_some() => {
-            sig.inputs[idx] = fix_name(&cap.pat, &decl2)?;
-        }
-        syn::FnArg::Typed(ref cap) => {
-            sig.inputs[idx] = fix_name(&cap.pat, &decl1)?;
-        }
-        _ => return Err(syn::Error::new_spanned(arg, "not supported")),
-    }
-
-    Ok(())
-}
-
 fn modify_self_ty(sig: &mut syn::Signature) {
     match sig.inputs[0] {
         syn::FnArg::Receiver(ref mut slf) => {
             slf.reference = Some((Token![&](Span::call_site()), syn::parse_quote! {'p}));
         }
         syn::FnArg::Typed(_) => {}
-    }
-}
-
-fn fix_name(pat: &syn::Pat, arg: &syn::FnArg) -> syn::Result<syn::FnArg> {
-    if let syn::FnArg::Typed(ref cap) = arg {
-        Ok(syn::FnArg::Typed(syn::PatType {
-            attrs: cap.attrs.clone(),
-            pat: Box::new(pat.clone()),
-            colon_token: cap.colon_token,
-            ty: cap.ty.clone(),
-        }))
-    } else {
-        Err(syn::Error::new_spanned(arg, "Expected a typed argument"))
     }
 }

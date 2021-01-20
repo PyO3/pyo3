@@ -12,8 +12,8 @@ fmt:
 
 clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
-	cargo clippy --features="num-bigint num-complex hashbrown" --tests -- -Dwarnings
-	cargo clippy --features="abi3 num-bigint num-complex hashbrown" --tests -- -Dwarnings
+	cargo clippy --features="num-bigint num-complex hashbrown serde" --tests -- -Dwarnings
+	cargo clippy --features="abi3 num-bigint num-complex hashbrown serde" --tests -- -Dwarnings
 	for example in examples/*; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
 
 lint: fmt clippy

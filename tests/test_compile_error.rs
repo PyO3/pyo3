@@ -6,6 +6,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
+    t.compile_fail("tests/ui/invalid_pymethods.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/static_ref.rs");

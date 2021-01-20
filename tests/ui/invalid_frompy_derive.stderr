@@ -1,64 +1,64 @@
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
  --> $DIR/invalid_frompy_derive.rs:4:11
   |
 4 | struct Foo();
   |           ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
  --> $DIR/invalid_frompy_derive.rs:7:13
   |
 7 | struct Foo2 {}
   |             ^^
 
-error: Cannot derive FromPyObject for empty enum.
+error: cannot derive FromPyObject for empty enum
   --> $DIR/invalid_frompy_derive.rs:10:6
    |
 10 | enum EmptyEnum {}
    |      ^^^^^^^^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:14:15
    |
 14 |     EmptyTuple(),
    |               ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:20:17
    |
 20 |     EmptyStruct {},
    |                 ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:26:27
    |
 26 | struct EmptyTransparentTup();
    |                           ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:30:31
    |
 30 | struct EmptyTransparentStruct {}
    |                               ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:35:15
    |
 35 |     EmptyTuple(),
    |               ^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
   --> $DIR/invalid_frompy_derive.rs:42:17
    |
 42 |     EmptyStruct {},
    |                 ^^
 
-error: Transparent structs and variants can only have 1 field
+error: transparent structs and variants can only have 1 field
   --> $DIR/invalid_frompy_derive.rs:48:35
    |
 48 | struct TransparentTupTooManyFields(String, String);
    |                                   ^^^^^^^^^^^^^^^^
 
-error: Transparent structs and variants can only have 1 field
+error: transparent structs and variants can only have 1 field
   --> $DIR/invalid_frompy_derive.rs:52:39
    |
 52 |   struct TransparentStructTooManyFields {
@@ -68,13 +68,13 @@ error: Transparent structs and variants can only have 1 field
 55 | | }
    | |_^
 
-error: Transparent structs and variants can only have 1 field
+error: transparent structs and variants can only have 1 field
   --> $DIR/invalid_frompy_derive.rs:60:15
    |
 60 |     EmptyTuple(String, String),
    |               ^^^^^^^^^^^^^^^^
 
-error: Transparent structs and variants can only have 1 field
+error: transparent structs and variants can only have 1 field
   --> $DIR/invalid_frompy_derive.rs:67:17
    |
 67 |       EmptyStruct {
@@ -84,87 +84,85 @@ error: Transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: Expected `attribute` or `item`.
+error: expected `attribute` or `item`
   --> $DIR/invalid_frompy_derive.rs:76:12
    |
 76 |     #[pyo3(attr)]
    |            ^^^^
 
-error: Expected a single string literal argument.
-  --> $DIR/invalid_frompy_derive.rs:82:22
+error: expected a single string literal argument
+  --> $DIR/invalid_frompy_derive.rs:82:12
    |
 82 |     #[pyo3(attribute(1))]
-   |                      ^
+   |            ^^^^^^^^^
 
-error: Expected a single string literal argument.
+error: expected a single string literal argument
   --> $DIR/invalid_frompy_derive.rs:88:12
    |
 88 |     #[pyo3(attribute("a", "b"))]
-   |            ^^^^^^^^^^^^^^^^^^^
+   |            ^^^^^^^^^
 
-error: Attribute name cannot be empty.
+error: attribute name cannot be empty
   --> $DIR/invalid_frompy_derive.rs:94:22
    |
 94 |     #[pyo3(attribute(""))]
    |                      ^^
 
-error: Expected a single string literal argument.
+error: expected a single string literal argument
    --> $DIR/invalid_frompy_derive.rs:100:12
     |
 100 |     #[pyo3(attribute())]
-    |            ^^^^^^^^^^^
+    |            ^^^^^^^^^
 
-error: Expected a single literal argument.
-   --> $DIR/invalid_frompy_derive.rs:106:17
+error: expected a single literal argument
+   --> $DIR/invalid_frompy_derive.rs:106:12
     |
 106 |     #[pyo3(item("a", "b"))]
-    |                 ^^^^^^^^
+    |            ^^^^
 
-error: Expected a single literal argument.
+error: expected a single literal argument
    --> $DIR/invalid_frompy_derive.rs:112:12
     |
 112 |     #[pyo3(item())]
-    |            ^^^^^^
+    |            ^^^^
 
-error: Only one of `item`, `attribute` can be provided, possibly with an additional argument: `item("key")` or `attribute("name").
+error: only one of `attribute` or `item` can be provided
    --> $DIR/invalid_frompy_derive.rs:118:12
     |
 118 |     #[pyo3(item, attribute)]
-    |            ^^^^^^^^^^^^^^^
+    |            ^^^^
 
-error: Unrecognized `pyo3` container attribute
+error: unknown `pyo3` container attribute
    --> $DIR/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
-    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |        ^^^^^^^
 
-error: Annotating error messages for structs is not supported. Remove the annotation attribute.
-   --> $DIR/invalid_frompy_derive.rs:129:1
+error: annotation is not supported for structs
+   --> $DIR/invalid_frompy_derive.rs:129:21
     |
 129 | #[pyo3(annotation = "should not work")]
-    | ^
+    |                     ^^^^^^^^^^^^^^^^^
 
-error: Expected string literal.
+error: expected string literal for annotation
    --> $DIR/invalid_frompy_derive.rs:136:25
     |
 136 |     #[pyo3(annotation = 1)]
     |                         ^
 
-error: FromPyObject can be derived with at most one lifetime parameter.
+error: FromPyObject can be derived with at most one lifetime parameter
    --> $DIR/invalid_frompy_derive.rs:141:22
     |
 141 | enum TooManyLifetimes<'a, 'b> {
-    |                      ^^^^^^^^
+    |                      ^
 
-error: #[derive(FromPyObject)] is not supported for unions.
+error: #[derive(FromPyObject)] is not supported for unions
    --> $DIR/invalid_frompy_derive.rs:147:1
     |
-147 | / union Union {
-148 | |     a: usize,
-149 | | }
-    | |_^
+147 | union Union {
+    | ^^^^^
 
-error: Cannot derive FromPyObject for empty structs and variants.
+error: cannot derive FromPyObject for empty structs and variants
    --> $DIR/invalid_frompy_derive.rs:151:10
     |
 151 | #[derive(FromPyObject)]

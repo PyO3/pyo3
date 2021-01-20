@@ -290,6 +290,10 @@ pub trait PyTryFrom<'v>: Sized + PyNativeType {
 
     /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
 }
 
@@ -387,24 +391,66 @@ impl IntoPy<Py<PyTuple>> for () {
 
 /// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
 pub unsafe trait FromPyPointer<'p>: Sized {
+    /// Convert from an arbitrary `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Implementations must ensure the object does not get freed during `'p`
+    /// and ensure that `ptr` is of the correct type.
+    /// Note that it must be safe to decrement the reference count of `ptr`.
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
+    /// Convert from an arbitrary `PyObject` or panic.
+    ///
+    /// # Safety
+    ///
+    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_owned_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
+    /// Convert from an arbitrary `PyObject` or panic.
+    ///
+    /// # Safety
+    ///
+    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_owned_ptr_or_panic(py, ptr)
     }
+    /// Convert from an arbitrary `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
         Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
     }
+    /// Convert from an arbitrary borrowed `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Implementations must ensure the object does not get freed during `'p` and avoid type confusion.
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
         -> Option<&'p Self>;
+    /// Convert from an arbitrary borrowed `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_opt(py, ptr).unwrap_or_else(|| err::panic_after_error(py))
     }
+    /// Convert from an arbitrary borrowed `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_panic(py, ptr)
     }
+    /// Convert from an arbitrary borrowed `PyObject`.
+    ///
+    /// # Safety
+    ///
+    /// Relies on unsafe fn [`from_borrowed_ptr_or_opt`](#method.from_borrowed_ptr_or_opt).
     unsafe fn from_borrowed_ptr_or_err(
         py: Python<'p>,
         ptr: *mut ffi::PyObject,

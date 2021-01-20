@@ -152,7 +152,7 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(all(Py_SHARED, not(PyPy)))]
-pub use crate::gil::prepare_freethreaded_python;
+pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
@@ -206,6 +206,9 @@ pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;
+
+#[cfg(feature = "serde")]
+pub mod serde;
 
 /// The proc macros, which are also part of the prelude.
 #[cfg(feature = "macros")]

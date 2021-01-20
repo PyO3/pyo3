@@ -609,3 +609,106 @@ fn test_from_sequence() {
     let typeobj = py.get_type::<FromSequence>();
     py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]")
 }
+
+#[pyclass]
+struct r#RawIdents {
+    #[pyo3(get, set)]
+    r#type: PyObject,
+    r#subtype: PyObject,
+    r#subsubtype: PyObject,
+}
+
+#[pymethods]
+impl r#RawIdents {
+    #[new]
+    pub fn r#new(
+        r#_py: Python,
+        r#type: PyObject,
+        r#subtype: PyObject,
+        r#subsubtype: PyObject,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            r#type,
+            r#subtype,
+            r#subsubtype,
+        })
+    }
+
+    #[getter(r#subtype)]
+    pub fn r#get_subtype(&self) -> PyObject {
+        self.r#subtype.clone()
+    }
+
+    #[setter(r#subtype)]
+    pub fn r#set_subtype(&mut self, r#subtype: PyObject) {
+        self.r#subtype = r#subtype;
+    }
+
+    #[getter]
+    pub fn r#get_subsubtype(&self) -> PyObject {
+        self.r#subsubtype.clone()
+    }
+
+    #[setter]
+    pub fn r#set_subsubtype(&mut self, r#subsubtype: PyObject) {
+        self.r#subsubtype = r#subsubtype;
+    }
+
+    #[call]
+    pub fn r#call(&mut self, r#type: PyObject) {
+        self.r#type = r#type;
+    }
+
+    #[staticmethod]
+    pub fn r#static_method(r#type: PyObject) -> PyObject {
+        r#type
+    }
+
+    #[classmethod]
+    pub fn r#class_method(_: &PyType, r#type: PyObject) -> PyObject {
+        r#type
+    }
+
+    #[classattr]
+    pub fn r#class_attr_fn() -> i32 {
+        5
+    }
+
+    #[classattr]
+    const r#CLASS_ATTR_CONST: i32 = 6;
+}
+
+#[test]
+fn test_raw_idents() {
+    Python::with_gil(|py| {
+        let raw_idents_type = py.get_type::<r#RawIdents>();
+        py_run!(
+            py,
+            raw_idents_type,
+            r#"
+            instance = raw_idents_type(type=None, subtype=5, subsubtype="foo")
+
+            assert instance.type is None
+            assert instance.subtype == 5
+            assert instance.subsubtype == "foo"
+
+            instance.type = 1
+            instance.subtype = 2
+            instance.subsubtype = 3
+
+            assert instance.type == 1
+            assert instance.subtype == 2
+            assert instance.subsubtype == 3
+
+            assert raw_idents_type.static_method(type=30) == 30
+            assert instance.class_method(type=40) == 40
+
+            instance(type=50)
+            assert instance.type == 50
+
+            assert raw_idents_type.class_attr_fn == 5
+            assert raw_idents_type.CLASS_ATTR_CONST == 6
+            "#
+        );
+    })
+}

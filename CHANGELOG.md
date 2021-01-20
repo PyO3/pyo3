@@ -5,6 +5,22 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Add unsafe API `with_embedded_python_interpreter` to initalize a Python interpreter, execute a closure, and finalize the interpreter. [#1355](https://github.com/PyO3/pyo3/pull/1355)
+- Add `serde` feature to support `Serialize/Deserialize` for `Py<T>`. [#1366](https://github.com/PyO3/pyo3/pull/1366)
+- Add FFI definition `_PyCFunctionFastWithKeywords` on Python 3.7 and up. [#1384](https://github.com/PyO3/pyo3/pull/1384)
+
+### Changed
+- `prepare_freethreaded_python` will no longer register an `atexit` handler to call `Py_Finalize`. [#1355](https://github.com/PyO3/pyo3/pull/1355)
+- Mark FFI definitions `PyMarshal_WriteObjectToString`, `PyMarshal_ReadObjectFromString` as available in limited API.
+- Mark FFI definitions `PyListObject` and those from `funcobject.h` as requiring non-limited API.  [#1387](https://github.com/PyO3/pyo3/pull/1387)
+- Fix typo in FFI definition `PyFunction_Code` to `PyFunction_GetCode`. [#1387](https://github.com/PyO3/pyo3/pull/1387)
+
+
+### Fixed
+- Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)
+
 ## [0.13.1] - 2021-01-10
 ### Added
 - Add support for `#[pyclass(dict)]` and `#[pyclass(weakref)]` with the `abi3` feature on Python 3.9 and up. [#1342](https://github.com/PyO3/pyo3/pull/1342)

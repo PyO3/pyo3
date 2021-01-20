@@ -4,7 +4,7 @@ use crate::method::{FnArg, FnSpec, FnType, SelfType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::ext::IdentExt;
+use syn::{ext::IdentExt, spanned::Spanned};
 
 pub enum PropertyType<'a> {
     Descriptor(&'a syn::Field),
@@ -44,16 +44,12 @@ pub fn gen_py_method(
 }
 
 fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
-    let err_msg = |typ| format!("A Python method can't have a generic {} parameter", typ);
+    let err_msg = |typ| format!("a Python method can't have a generic {} parameter", typ);
     for param in &sig.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}
-            syn::GenericParam::Type(_) => {
-                return Err(syn::Error::new_spanned(param, err_msg("type")));
-            }
-            syn::GenericParam::Const(_) => {
-                return Err(syn::Error::new_spanned(param, err_msg("const")));
-            }
+            syn::GenericParam::Type(_) => bail_spanned!(param.span() => err_msg("type")),
+            syn::GenericParam::Const(_) => bail_spanned!(param.span() => err_msg("const")),
         }
     }
     Ok(())
@@ -263,12 +259,10 @@ pub fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStr
 
 fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
-    if !args.is_empty() {
-        return Err(syn::Error::new_spanned(
-            args[0].ty,
-            "Getter function can only have one argument of type pyo3::Python",
-        ));
-    }
+    ensure_spanned!(
+        args.is_empty(),
+        args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
+    );
 
     let name = &spec.name;
     let fncall = if py_arg.is_some() {
@@ -317,15 +311,12 @@ fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
     let (py_arg, args) = split_off_python_arg(&spec.args);
 
     if args.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &spec.name,
-            "Setter function expected to have one argument",
-        ));
+        bail_spanned!(spec.name.span() => "setter function expected to have one argument");
     } else if args.len() > 1 {
-        return Err(syn::Error::new_spanned(
-            &args[1].ty,
-            "Setter function can have at most two arguments: one of pyo3::Python, and one other",
-        ));
+        bail_spanned!(
+            args[1].ty.span() =>
+            "setter function can have at most two arguments ([pyo3::Python,] and value)"
+        );
     }
 
     let name = &spec.name;
@@ -401,13 +392,13 @@ pub fn impl_arg_params(
         if arg.py || spec.is_args(&arg.name) || spec.is_kwargs(&arg.name) {
             continue;
         }
-        let name = arg.name;
+        let name = arg.name.unraw().to_string();
         let kwonly = spec.is_kw_only(&arg.name);
         let opt = arg.optional.is_some() || spec.default_value(&arg.name).is_some();
 
         params.push(quote! {
             pyo3::derive_utils::ParamDescription {
-                name: stringify!(#name),
+                name: #name,
                 is_optional: #opt,
                 kw_only: #kwonly
             }
