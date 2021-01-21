@@ -157,6 +157,8 @@ impl PyDateTime {
         }
     }
 
+    #[cfg(not(PyPy))]
+    /// Alternate constructor that takes a `fold` argument
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         year: i32,
