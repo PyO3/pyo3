@@ -158,7 +158,8 @@ impl PyDateTime {
     }
 
     #[cfg(not(PyPy))]
-    /// Alternate constructor that takes a `fold` argument
+    /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
+    /// signifies a leap second
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         year: i32,
@@ -407,5 +408,21 @@ unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject
     match opt {
         Some(tzi) => tzi.as_ptr(),
         None => py.None().as_ptr(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_new_with_fold() {
+        pyo3::Python::with_gil(|py| {
+            use pyo3::types::{PyDateTime, PyTimeAccess};
+
+            let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
+            let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
+
+            assert_eq!(a.unwrap().get_fold(), 0);
+            assert_eq!(b.unwrap().get_fold(), 1);
+        });
     }
 }
