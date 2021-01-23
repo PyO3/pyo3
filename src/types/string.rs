@@ -44,27 +44,26 @@ impl PyString {
     /// (containing unpaired surrogates).
     #[inline]
     pub fn to_str(&self) -> PyResult<&str> {
-        #[cfg(not(Py_LIMITED_API))]
-        unsafe {
-            let mut size: ffi::Py_ssize_t = 0;
-            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) as *const u8;
-            if data.is_null() {
-                Err(PyErr::fetch(self.py()))
-            } else {
-                let slice = std::slice::from_raw_parts(data, size as usize);
-                Ok(std::str::from_utf8_unchecked(slice))
+        let utf8_slice = {
+            cfg_if::cfg_if! {
+                if #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
+                    // PyUnicode_AsUTF8AndSize only available on limited API from Python 3.10 and up.
+                    let mut size: ffi::Py_ssize_t = 0;
+                    let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
+                    if data.is_null() {
+                        return Err(PyErr::fetch(self.py()));
+                    } else {
+                        unsafe { std::slice::from_raw_parts(data as *const u8, size as usize) }
+                    }
+                } else {
+                    let bytes = unsafe {
+                        self.py().from_owned_ptr_or_err::<PyBytes>(ffi::PyUnicode_AsUTF8String(self.as_ptr()))?
+                    };
+                    bytes.as_bytes()
+                }
             }
-        }
-        #[cfg(Py_LIMITED_API)]
-        unsafe {
-            let data = ffi::PyUnicode_AsUTF8String(self.as_ptr());
-            if data.is_null() {
-                Err(PyErr::fetch(self.py()))
-            } else {
-                let bytes = self.py().from_owned_ptr::<PyBytes>(data);
-                Ok(std::str::from_utf8_unchecked(bytes.as_bytes()))
-            }
-        }
+        };
+        Ok(unsafe { std::str::from_utf8_unchecked(utf8_slice) })
     }
 
     /// Converts the `PyString` into a Rust string.
