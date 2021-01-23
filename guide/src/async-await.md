@@ -152,9 +152,7 @@ thread.
 We can, however, override the default test harness and provide our own. `pyo3-asyncio` provides some
 utilities to help us do just that!
 
-### Creating A PyO3 Asyncio Integration Test
-
-#### Main Test File
+### Main Test File
 First, we need to create the test's main file. Although these tests are considered integration
 tests, we cannot put them in the `tests` directory since that is a special directory owned by
 Cargo. Instead, we put our tests in a `pytests` directory, although the name `pytests` is just
@@ -167,7 +165,7 @@ fn main() {
 }
 ```
 
-#### Test Manifest Entry
+### Test Manifest Entry
 Next, we need to add our test file to the Cargo manifest. Add the following section to your
 `Cargo.toml`
 
@@ -180,7 +178,7 @@ harness = false
 
 At this point you should be able to run the test via `cargo test`
 
-#### Using the PyO3 Asyncio Test Harness
+### Using the PyO3 Asyncio Test Harness
 Now that we've got our test registered with `cargo test`, we can start using the PyO3 Asyncio
 test harness.
 
@@ -197,7 +195,7 @@ fn main() {
 }
 ```
 
-##### Tokio's Main Function
+#### Tokio's Main Function
 
 As we mentioned earlier, Tokio requires some additional initialization. If you're going to use the 
 Tokio runtime, you'll need to call one of the initialization functions in the `pyo3_asyncio::tokio` 
@@ -211,7 +209,7 @@ fn main() {
 ```
 
 
-#### Adding Tests to the PyO3 Asyncio Test Harness
+### Adding Tests to the PyO3 Asyncio Test Harness
 
 ```rust
 use std::{time::Duration, thread};
