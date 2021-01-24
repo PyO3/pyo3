@@ -19,7 +19,9 @@
 - [Features Reference](features.md)
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
-- [PyPy support](pypy.md)
+  - [PyPy support](building_and_distribution/pypy.md)
+- [Useful Crates](ecosystem.md)
+  - [Logging](ecosystem/logging.md)
 - [FAQ & Troubleshooting](faq.md)
 
 ---
@@ -27,5 +29,4 @@
 [Appendix A: Migration Guide](migration.md)
 [Appendix B: PyO3 and rust-cpython](rust_cpython.md)
 [Appendix C: Trait bounds](trait_bounds.md)
-[Appendix D: Logging](logging.md)
 [CHANGELOG](changelog.md)
