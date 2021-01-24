@@ -57,7 +57,7 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-//! version = "0.13.1"
+//! version = "0.13.2"
 //! features = ["extension-module"]
 //! ```
 //!
@@ -120,7 +120,7 @@
 //!
 //! ```toml
 //! [dependencies.pyo3]
-//! version = "0.13.1"
+//! version = "0.13.2"
 //! features = ["auto-initialize"]
 //! ```
 //!
