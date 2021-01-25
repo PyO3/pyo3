@@ -21,8 +21,8 @@ This function simply sleeps for 1 second and returns. So what does this look lik
 
 First, it helps to have a little background on Python's async functions. 
 Async functions in python are simply functions that return a `coroutine` object. You can read more about 
-`coroutine` objects in the [Python 3 docs](https://docs.python.org/3/library/asyncio-task.html), but
-for our purposes, we really don't need to know much about them. The key factor here is that calling
+`coroutine` objects in the [Python 3 docs](https://docs.python.org/3/library/asyncio-task.html).
+For our purposes, we really don't need to know much about them. The key factor here is that calling
 an `async` function is _just like calling a regular function_, the only difference is that we have
 to do something special with the object that it returns.
 
