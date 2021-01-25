@@ -93,7 +93,7 @@ async def rust_sleep():
 ## Managing Event Loops
 
 Python's event loop requires some special treatment, especially regarding the main thread. Some of
-Python's Asyncio features, like proper signal handling, require control over the main thread, which
+Python's `asyncio` features, like proper signal handling, require control over the main thread, which
 doesn't always play well with Rust.
 
 Luckily, Rust's event loops are pretty flexible and don't _need_ control over the main thread, so in
