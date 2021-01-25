@@ -1,12 +1,16 @@
 # Async / Await
 
-Both Python and Rust have support for async functions, but bindings for these functions are not as 
-straightforward as they are for blocking functions. Both languages have a fairly distinct model for 
-async functions and Python's needs in particular can sometimes be restrictive.
+If you are working with a Python library that makes use of async functions or wish to provide 
+Python bindings for an async Rust library, [`pyo3-asyncio`](https://github.com/awestlake87/pyo3-asyncio)
+likely has the tools you need. It provides conversions between async functions in both Python and 
+Rust and was designed with first-class support for popular Rust runtimes such as 
+[`tokio`](https://tokio.rs/) and [`async-std`](https://async.rs/). In addition, all async Python 
+code runs on the default `asyncio` event loop, so `pyo3-asyncio` should work just fine with existing 
+Python libraries.
 
-[`pyo3-asyncio`](https://github.com/awestlake87/pyo3-asyncio) was created to provide conversions 
-between async Python and async Rust as well as manage the nitty gritty details of Python's event 
-loop.
+In the following sections, we'll give a general overview of `pyo3-asyncio` explaining how to call 
+async Python functions with PyO3, how to call async Rust functions from Python, and how to configure
+your codebase to manage the runtimes of both.
 
 ## Awaiting an Async Python Function in Rust
 
@@ -18,7 +22,7 @@ async def py_sleep():
     await asyncio.sleep(1)
 ```
 
-Async functions in python are simply functions that return a `coroutine` object. For our purposes, 
+**Async functions in Python are simply functions that return a `coroutine` object**. For our purposes, 
 we really don't need to know much about these `coroutine` objects. The key factor here is that calling
 an `async` function is _just like calling a regular function_, the only difference is that we have
 to do something special with the object that it returns.
@@ -39,7 +43,7 @@ let future = Python::with_gil(|py| {
     let coroutine = example.call_method0("py_sleep")?;
 
     // convert the coroutine into a Rust future
-    pyo3_asyncio::into_future(py, coroutine)
+    pyo3_asyncio::into_future(coroutine)
 })?;
 
 // await the future
@@ -68,8 +72,8 @@ Similar to Python, Rust's async functions also return a special object called a
 let future = rust_sleep();
 ```
 
-We can convert this future object into Python to make it `awaitable`. This tells Python that you can
-use the `await` keyword with it. In order to do this, we'll call 
+We can convert this `Future` object into Python to make it `awaitable`. This tells Python that you 
+can use the `await` keyword with it. In order to do this, we'll call 
 [`pyo3_asyncio::async_std::into_coroutine`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.into_coroutine.html):
 
 ```rust
@@ -120,7 +124,7 @@ since it's not a good idea to make long blocking calls during an async function.
 >     Runtime::new().block_on(_main_impl());   
 > }
 > ```
-> Making a long blocking call inside the future that's being driven by `block_on` prevents that
+> Making a long blocking call inside the `Future` that's being driven by `block_on` prevents that
 > thread from doing anything else and can spell trouble for some runtimes (also this will actually 
 > deadlock a single-threaded runtime!). Many runtimes have some sort of `spawn_blocking` mechanism 
 > that can avoid this problem, but again that's not something we can use here.
@@ -166,13 +170,16 @@ function, so there doesn't seem to be a good way to allow Python to gain control
 thread.
 
 We can, however, override the default test harness and provide our own. `pyo3-asyncio` provides some
-utilities to help us do just that!
+utilities to help us do just that! In the following sections, we will provide an overview for 
+constructing a Cargo integration test with `pyo3-asyncio` and adding your tests to it.
 
 ### Main Test File
 First, we need to create the test's main file. Although these tests are considered integration
 tests, we cannot put them in the `tests` directory since that is a special directory owned by
-Cargo. Instead, we put our tests in a `pytests` directory, although the name `pytests` is just
-a convention.
+Cargo. Instead, we put our tests in a `pytests` directory.
+
+> The name `pytests` is just a convention. You can name this folder anything you want in your own
+> projects.
 
 `pytests/test_example.rs`
 ```rust
@@ -182,7 +189,7 @@ fn main() {
 ```
 
 ### Test Manifest Entry
-Next, we need to add our test file to the Cargo manifest. Add the following section to your
+Next, we need to add our test file to the Cargo manifest by adding the following section to the
 `Cargo.toml`
 
 ```toml
@@ -204,6 +211,9 @@ pyo3-asyncio = { version = "0.13", features = ["testing", "async-std-runtime"] }
 ```
 
 Now, in your test's main file, call [`pyo3_asyncio::async_std::testing::test_main`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/testing/fn.test_main.html):
+
+> If you're not using `async-std`, you should use the corresponding `test_main` for your runtime.
+> These functions typically follow this format: `pyo3_asyncio::<runtime>::testing::test_main`
 
 ```rust
 fn main() {
