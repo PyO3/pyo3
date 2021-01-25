@@ -145,6 +145,7 @@ fn main() {
             // Run the Python event loop until the given future completes
             pyo3_asyncio::async_std::run_until_complete(py, async {
                 // PyO3 is initialized - Ready to go
+                async_std::task::sleep(std::time::Duration::from_secs(1)).await;
                 Ok(())
             })?;
 
