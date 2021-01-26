@@ -66,7 +66,7 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.ob_base)
     }
-    unsafe fn py_init(&mut self, value: T) {
+    fn py_init(&mut self, value: T) {
         self.value = ManuallyDrop::new(UnsafeCell::new(value));
     }
     unsafe fn py_drop(&mut self, py: Python) {
@@ -396,7 +396,7 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.inner.ob_base)
     }
-    unsafe fn py_init(&mut self, value: T) {
+    fn py_init(&mut self, value: T) {
         self.inner.value = ManuallyDrop::new(UnsafeCell::new(value));
     }
     unsafe fn py_drop(&mut self, py: Python) {

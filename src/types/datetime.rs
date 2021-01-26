@@ -403,7 +403,7 @@ impl PyDeltaAccess for PyDelta {
 }
 
 // Utility function
-unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
+fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
     // Convenience function for unpacking Options to either an Object or None
     match opt {
         Some(tzi) => tzi.as_ptr(),

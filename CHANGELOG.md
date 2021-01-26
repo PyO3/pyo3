@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Mark FFI definitions `PyMarshal_WriteObjectToString`, `PyMarshal_ReadObjectFromString` as available in limited API.
 - Mark FFI definitions `PyListObject` and those from `funcobject.h` as requiring non-limited API.  [#1387](https://github.com/PyO3/pyo3/pull/1387)
 - Fix typo in FFI definition `PyFunction_Code` to `PyFunction_GetCode`. [#1387](https://github.com/PyO3/pyo3/pull/1387)
+- Mark `PyLayout::py_init`, `PyClassDict::clear_dict`, and `opt_to_pyobj` safe, as they do not perform any unsafe operations. [#1404](https://github.com/PyO3/pyo3/pull/1404)
 
 ### Fixed
 - Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)

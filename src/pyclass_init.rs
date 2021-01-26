@@ -149,9 +149,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     fn init_class<L: PyLayout<T>>(self, layout: &mut L) {
         let Self { init, super_init } = self;
-        unsafe {
-            layout.py_init(init);
-        }
+        layout.py_init(init);
         if let Some(super_obj) = layout.get_super() {
             super_init.init_class(super_obj);
         }
