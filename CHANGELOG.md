@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)
 - Fix unqualified `Result` usage in `pyobject_native_type_base`. [#1402](https://github.com/PyO3/pyo3/pull/1402)
+- Fix build on systems where the default Python encoding is not UTF-8. [#1405](https://github.com/PyO3/pyo3/pull/1405)
 
 ## [0.13.1] - 2021-01-10
 ### Added
