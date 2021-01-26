@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Mark FFI definitions `PyListObject` and those from `funcobject.h` as requiring non-limited API.  [#1387](https://github.com/PyO3/pyo3/pull/1387)
 - Fix typo in FFI definition `PyFunction_Code` to `PyFunction_GetCode`. [#1387](https://github.com/PyO3/pyo3/pull/1387)
 
-
 ### Fixed
 - Fix support for using `r#raw_idents` as argument names in pyfunctions. [#1383](https://github.com/PyO3/pyo3/pull/1383)
+- Fix unqualified `Result` usage in `pyobject_native_type_base`. [#1402](https://github.com/PyO3/pyo3/pull/1402)
 
 ## [0.13.1] - 2021-01-10
 ### Added
