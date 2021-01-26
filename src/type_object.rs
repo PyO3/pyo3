@@ -20,7 +20,7 @@ pub unsafe trait PyLayout<T: PyTypeInfo> {
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         None
     }
-    unsafe fn py_init(&mut self, _value: T) {}
+    fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
 

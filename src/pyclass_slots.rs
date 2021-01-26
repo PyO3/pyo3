@@ -6,7 +6,7 @@ use crate::{ffi, Python};
 pub trait PyClassDict {
     const IS_DUMMY: bool = true;
     fn new() -> Self;
-    unsafe fn clear_dict(&mut self, _py: Python) {}
+    fn clear_dict(&mut self, _py: Python) {}
     private_decl! {}
 }
 
@@ -47,9 +47,9 @@ impl PyClassDict for PyClassDictSlot {
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
-    unsafe fn clear_dict(&mut self, _py: Python) {
+    fn clear_dict(&mut self, _py: Python) {
         if !self.0.is_null() {
-            ffi::PyDict_Clear(self.0)
+            unsafe { ffi::PyDict_Clear(self.0) }
         }
     }
 }
