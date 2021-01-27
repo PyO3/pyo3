@@ -91,6 +91,16 @@ fn impl_wrap_common(
     slf: TokenStream,
     body: TokenStream,
 ) -> TokenStream {
+    let body = if spec.is_async {
+        quote! {
+            pyo3::Python::with_gil(move |py| pyo3_asyncio::async_std::into_coroutine(py, #body))
+        }
+    } else {
+        quote! {
+            #body
+        }
+    };
+
     let python_name = &spec.python_name;
     if spec.args.is_empty() && noargs {
         quote! {
@@ -380,6 +390,16 @@ pub fn impl_arg_params(
     self_: Option<&syn::Type>,
     body: TokenStream,
 ) -> TokenStream {
+    let body = if spec.is_async {
+        quote! {
+            pyo3::Python::with_gil(move |py| pyo3_asyncio::async_std::into_coroutine(py, #body))
+        }
+    } else {
+        quote! {
+            #body
+        }
+    };
+
     if spec.args.is_empty() {
         return quote! {
             #body

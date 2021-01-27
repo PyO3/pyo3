@@ -31,12 +31,17 @@ serde = {version = "1.0", optional = true}
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
+async-std = "1.9"
 trybuild = "1.0.23"
 rustversion = "1.0"
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
 # features needed to run the PyO3 test suite
 pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initialize"] }
+pyo3-asyncio = { git = "https://github.com/awestlake87/pyo3-asyncio", branch = "attributes", features = ["attributes", "testing", "async-std-runtime"] }
 serde_json = "1.0.61"
+
+[patch.crates-io]
+pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initialize"] }
 
 [features]
 default = ["macros", "auto-initialize"]
@@ -64,6 +69,11 @@ auto-initialize = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
+
+[[test]]
+name = "test_async_fn"
+path = "pytests/test_async_fn.rs"
+harness = false
 
 [workspace]
 members = [

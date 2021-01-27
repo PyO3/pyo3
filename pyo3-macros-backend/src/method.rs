@@ -85,6 +85,7 @@ impl SelfType {
 
 #[derive(Clone, Debug)]
 pub struct FnSpec<'a> {
+    pub is_async: bool,
     pub tp: FnType,
     // Rust function name
     pub name: &'a syn::Ident,
@@ -244,6 +245,7 @@ impl<'a> FnSpec<'a> {
         let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
 
         Ok(FnSpec {
+            is_async: sig.asyncness.is_some(),
             tp: fn_type,
             name,
             python_name,
