@@ -560,9 +560,20 @@ fn load_cross_compile_info(
 /// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
     let out = Command::new(interpreter)
-        .args(&["-c", script])
+        .env("PYTHONIOENCODING", "utf-8")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output();
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child
+                .stdin
+                .as_mut()
+                .expect("piped stdin")
+                .write_all(script.as_bytes())?;
+            child.wait_with_output()
+        });
 
     match out {
         Err(err) => {
@@ -580,7 +591,7 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
                 );
             }
         }
-        Ok(ok) if !ok.status.success() => bail!("Python script failed: {}"),
+        Ok(ok) if !ok.status.success() => bail!("Python script failed"),
         Ok(ok) => Ok(String::from_utf8(ok.stdout)?),
     }
 }
