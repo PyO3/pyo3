@@ -58,11 +58,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument(cap: &syn::PatType, is_async: bool) -> syn::Result<method::FnArg> {
-    if is_async && utils::is_python(&cap.ty) {
-        bail_spanned!(cap.ty.span() => "Python argument is not supported on async functions");
-    }
-
+fn wrap_fn_argument(cap: &syn::PatType) -> syn::Result<method::FnArg> {
     let (mutability, by_ref, ident) = match &*cap.pat {
         syn::Pat::Ident(patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
@@ -144,8 +140,6 @@ pub fn add_fn_to_module(
     python_name: Ident,
     pyfn_attrs: PyFunctionAttr,
 ) -> syn::Result<TokenStream> {
-    let is_async = func.sig.asyncness.is_some();
-
     let mut arguments = Vec::new();
 
     for (i, input) in func.sig.inputs.iter().enumerate() {
@@ -172,7 +166,7 @@ pub fn add_fn_to_module(
                         cap.span() => "expected &PyModule as first argument with `pass_module`"
                     );
                 } else {
-                    arguments.push(wrap_fn_argument(cap, is_async)?);
+                    arguments.push(wrap_fn_argument(cap)?);
                 }
             }
         }
@@ -186,7 +180,7 @@ pub fn add_fn_to_module(
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
     let spec = method::FnSpec {
-        is_async,
+        is_async: func.sig.asyncness.is_some(),
         tp: method::FnType::FnStatic,
         name: &function_wrapper_ident,
         python_name,
