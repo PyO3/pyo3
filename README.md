@@ -164,7 +164,7 @@ about this topic.
  * [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere_
  * [tokenizers](https://github.com/huggingface/tokenizers/tree/master/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust_
  * [pyre](https://github.com/Project-Dream-Weaver/Pyre) _Fast Python HTTP server written in Rust_
- * [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/python) _Fast JSON Schema validation library_
+ * [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library_
  * [css-inline](https://github.com/Stranger6667/css-inline/tree/master/python) _CSS inlining for Python implemented in Rust_
 
 ## License
