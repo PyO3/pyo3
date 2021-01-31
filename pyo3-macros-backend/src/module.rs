@@ -2,7 +2,7 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 use crate::method;
-use crate::pyfunction::PyFunctionAttr;
+use crate::pyfunction::{PyFunctionArgAttrs, PyFunctionAttr};
 use crate::pymethod;
 use crate::pymethod::get_arg_names;
 use crate::utils;
@@ -58,7 +58,9 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument(cap: &syn::PatType) -> syn::Result<method::FnArg> {
+fn wrap_fn_argument(cap: &mut syn::PatType) -> syn::Result<method::FnArg> {
+    let arg_attrs = PyFunctionArgAttrs::from_attrs(&mut cap.attrs)?;
+
     let (mutability, by_ref, ident) = match &*cap.pat {
         syn::Pat::Ident(patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
         _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
@@ -71,6 +73,7 @@ fn wrap_fn_argument(cap: &syn::PatType) -> syn::Result<method::FnArg> {
         ty: &cap.ty,
         optional: utils::option_type_argument(&cap.ty),
         py: utils::is_python(&cap.ty),
+        attrs: arg_attrs,
     })
 }
 
@@ -142,7 +145,7 @@ pub fn add_fn_to_module(
 ) -> syn::Result<TokenStream> {
     let mut arguments = Vec::new();
 
-    for (i, input) in func.sig.inputs.iter().enumerate() {
+    for (i, input) in func.sig.inputs.iter_mut().enumerate() {
         match input {
             syn::FnArg::Receiver(_) => {
                 bail_spanned!(input.span() => "unexpected receiver for #[pyfn]");

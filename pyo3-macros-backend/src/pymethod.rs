@@ -1,4 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::attrs::FromPyWithAttribute;
 use crate::konst::ConstSpec;
 use crate::method::{FnArg, FnSpec, FnType, SelfType};
 use crate::utils;
@@ -491,6 +492,12 @@ fn impl_arg_param(
         (None, false) => quote! { panic!("Failed to extract required method argument") },
     };
 
+    let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
+        quote! {#expr_path(_obj).map_err(#transform_error)?}
+    } else {
+        quote! {_obj.extract().map_err(#transform_error)?}
+    };
+
     return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
         let (tref, mut_) = preprocess_tref(tref, self_);
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
@@ -513,7 +520,7 @@ fn impl_arg_param(
 
         quote! {
             let #mut_ _tmp: #target_ty = match #arg_value {
-                Some(_obj) => _obj.extract().map_err(#transform_error)?,
+                Some(_obj) => #extract,
                 None => #default,
             };
             let #arg_name = #borrow_tmp;
@@ -521,7 +528,7 @@ fn impl_arg_param(
     } else {
         quote! {
             let #arg_name = match #arg_value {
-                Some(_obj) => _obj.extract().map_err(#transform_error)?,
+                Some(_obj) => #extract,
                 None => #default,
             };
         }

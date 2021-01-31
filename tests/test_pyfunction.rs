@@ -3,7 +3,7 @@ use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
 use pyo3::types::PyCFunction;
 #[cfg(not(Py_LIMITED_API))]
-use pyo3::types::PyFunction;
+use pyo3::types::{PyDateTime, PyFunction};
 use pyo3::{raw_pycfunction, wrap_pyfunction};
 
 mod common;
@@ -109,6 +109,59 @@ fn test_functions_with_function_args() {
             "#
         );
     }
+}
+
+#[cfg(not(Py_LIMITED_API))]
+fn datetime_to_timestamp(dt: &PyAny) -> PyResult<i64> {
+    let dt: &PyDateTime = dt.extract()?;
+    let ts: f64 = dt.call_method0("timestamp")?.extract()?;
+
+    Ok(ts as i64)
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[pyfunction]
+fn function_with_custom_conversion(
+    #[pyo3(from_py_with = "datetime_to_timestamp")] timestamp: i64,
+) -> i64 {
+    timestamp
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[test]
+fn test_function_with_custom_conversion() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
+
+    pyo3::py_run!(
+        py,
+        custom_conv_func,
+        r#"
+        import datetime
+
+        dt = datetime.datetime.fromtimestamp(1612040400)
+        assert custom_conv_func(dt) == 1612040400
+        "#
+    )
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[test]
+fn test_function_with_custom_conversion_error() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let custom_conv_func = wrap_pyfunction!(function_with_custom_conversion)(py).unwrap();
+
+    py_expect_exception!(
+        py,
+        custom_conv_func,
+        "custom_conv_func(['a'])",
+        PyTypeError,
+        "argument 'timestamp': 'list' object cannot be converted to 'PyDateTime'"
+    );
 }
 
 #[test]

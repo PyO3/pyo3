@@ -1,3 +1,4 @@
+use crate::attrs::FromPyWithAttribute;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::punctuated::Punctuated;
@@ -85,7 +86,7 @@ enum ContainerType<'a> {
     /// Struct Container, e.g. `struct Foo { a: String }`
     ///
     /// Variant contains the list of field identifiers and the corresponding extraction call.
-    Struct(Vec<(&'a Ident, FieldAttribute)>),
+    Struct(Vec<(&'a Ident, FieldAttributes)>),
     /// Newtype struct container, e.g. `#[transparent] struct Foo { a: String }`
     ///
     /// The field specified by the identifier is extracted directly from the object.
@@ -156,9 +157,8 @@ impl<'a> Container<'a> {
                         .ident
                         .as_ref()
                         .expect("Named fields should have identifiers");
-                    let attr = FieldAttribute::parse_attrs(&field.attrs)?
-                        .unwrap_or(FieldAttribute::GetAttr(None));
-                    fields.push((ident, attr))
+                    let attrs = FieldAttributes::parse_attrs(&field.attrs)?;
+                    fields.push((ident, attrs))
                 }
                 ContainerType::Struct(fields)
             }
@@ -235,17 +235,24 @@ impl<'a> Container<'a> {
         )
     }
 
-    fn build_struct(&self, tups: &[(&Ident, FieldAttribute)]) -> TokenStream {
+    fn build_struct(&self, tups: &[(&Ident, FieldAttributes)]) -> TokenStream {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-        for (ident, attr) in tups {
-            let ext_fn = match attr {
-                FieldAttribute::GetAttr(Some(name)) => quote!(getattr(#name)),
-                FieldAttribute::GetAttr(None) => quote!(getattr(stringify!(#ident))),
-                FieldAttribute::GetItem(Some(key)) => quote!(get_item(#key)),
-                FieldAttribute::GetItem(None) => quote!(get_item(stringify!(#ident))),
+        for (ident, attrs) in tups {
+            let getter = match &attrs.getter {
+                FieldGetter::GetAttr(Some(name)) => quote!(getattr(#name)),
+                FieldGetter::GetAttr(None) => quote!(getattr(stringify!(#ident))),
+                FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
+                FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
-            fields.push(quote!(#ident: obj.#ext_fn?.extract()?));
+
+            let get_field = quote!(obj.#getter?);
+            let extractor = match &attrs.from_py_with {
+                None => quote!(#get_field.extract()?),
+                Some(FromPyWithAttribute(expr_path)) => quote! (#expr_path(#get_field)?),
+            };
+
+            fields.push(quote!(#ident: #extractor));
         }
         quote!(Ok(#self_ty{#fields}))
     }
@@ -309,40 +316,59 @@ impl ContainerAttribute {
 
 /// Attributes for deriving FromPyObject scoped on fields.
 #[derive(Clone, Debug)]
-enum FieldAttribute {
+struct FieldAttributes {
+    getter: FieldGetter,
+    from_py_with: Option<FromPyWithAttribute>,
+}
+
+#[derive(Clone, Debug)]
+enum FieldGetter {
     GetItem(Option<syn::Lit>),
     GetAttr(Option<syn::LitStr>),
 }
 
-impl FieldAttribute {
-    /// Extract the field attribute.
+impl FieldAttributes {
+    /// Extract the field attributes.
     ///
-    /// Currently fails if more than 1 attribute is passed in `pyo3`
-    fn parse_attrs(attrs: &[Attribute]) -> Result<Option<Self>> {
+    fn parse_attrs(attrs: &[Attribute]) -> Result<Self> {
+        let mut getter = None;
+        let mut from_py_with = None;
+
         let list = get_pyo3_meta_list(attrs)?;
-        let metaitem = match list.nested.len() {
-            0 => return Ok(None),
-            1 => list.nested.into_iter().next().unwrap(),
-            _ => bail_spanned!(
-                list.nested.span() =>
-                "only one of `attribute` or `item` can be provided"
-            ),
-        };
-        let meta = match metaitem {
-            syn::NestedMeta::Meta(meta) => meta,
-            syn::NestedMeta::Lit(lit) => bail_spanned!(
-                lit.span() =>
-                "expected `attribute` or `item`, got a literal"
-            ),
-        };
-        let path = meta.path();
-        if path.is_ident("attribute") {
-            Ok(Some(FieldAttribute::GetAttr(Self::attribute_arg(meta)?)))
-        } else if path.is_ident("item") {
-            Ok(Some(FieldAttribute::GetItem(Self::item_arg(meta)?)))
-        } else {
-            bail_spanned!(meta.span() => "expected `attribute` or `item`");
+
+        for meta_item in list.nested {
+            let meta = match meta_item {
+                syn::NestedMeta::Meta(meta) => meta,
+                syn::NestedMeta::Lit(lit) => bail_spanned!(
+                    lit.span() =>
+                    "expected `attribute`, `item` or `from_py_with`, got a literal"
+                ),
+            };
+            let path = meta.path();
+
+            if path.is_ident("attribute") {
+                ensure_spanned!(
+                    getter.is_none(),
+                    meta.span() => "only one of `attribute` or `item` can be provided"
+                );
+                getter = Some(FieldGetter::GetAttr(Self::attribute_arg(meta)?))
+            } else if path.is_ident("item") {
+                ensure_spanned!(
+                    getter.is_none(),
+                    meta.span() => "only one of `attribute` or `item` can be provided"
+                );
+                getter = Some(FieldGetter::GetItem(Self::item_arg(meta)?))
+            } else if path.is_ident("from_py_with") {
+                from_py_with = Some(Self::from_py_with_arg(meta)?)
+            } else {
+                bail_spanned!(meta.span() => "expected `attribute`, `item` or `from_py_with`")
+            };
         }
+
+        Ok(FieldAttributes {
+            getter: getter.unwrap_or(FieldGetter::GetAttr(None)),
+            from_py_with,
+        })
     }
 
     fn attribute_arg(meta: Meta) -> syn::Result<Option<syn::LitStr>> {
@@ -389,6 +415,10 @@ impl FieldAttribute {
 
         bail_spanned!(arg_list.span() => "expected a single literal argument");
     }
+
+    fn from_py_with_arg(meta: Meta) -> syn::Result<FromPyWithAttribute> {
+        FromPyWithAttribute::from_meta(meta)
+    }
 }
 
 /// Extract pyo3 metalist, flattens multiple lists into a single one.
@@ -426,7 +456,7 @@ fn verify_and_get_lifetime(generics: &syn::Generics) -> Result<Option<&syn::Life
 ///   * Max 1 lifetime specifier, will be tied to `FromPyObject`'s specifier
 ///   * At least one field, in case of `#[transparent]`, exactly one field
 ///   * At least one variant for enums.
-///   * Fields of input structs and enums must implement `FromPyObject`
+///   * Fields of input structs and enums must implement `FromPyObject` or be annotated with `from_py_with`
 ///   * Derivation for structs with generic fields like `struct<T> Foo(T)`
 ///     adds `T: FromPyObject` on the derived implementation.
 pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
