@@ -22,6 +22,7 @@
   - [PyPy support](building_and_distribution/pypy.md)
 - [Useful Crates](ecosystem.md)
   - [Logging](ecosystem/logging.md)
+  - [Async / Await](ecosystem/async-await.md)
 - [FAQ & Troubleshooting](faq.md)
 
 ---
