@@ -166,7 +166,7 @@ about this topic.
  * [pyre](https://github.com/Project-Dream-Weaver/Pyre) _Fast Python HTTP server written in Rust_
  * [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library_
  * [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust_
- * [cryptography](https://github.com/pyca/cryptography/tree/master/src/rust) _Python cryptography lirbary with some functionality in Rust_
+ * [cryptography](https://github.com/pyca/cryptography/tree/master/src/rust) _Python cryptography library with some functionality in Rust_
 
 ## License
 
