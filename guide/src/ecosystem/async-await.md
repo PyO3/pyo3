@@ -109,10 +109,9 @@ implementations _prefer_ control over the main thread, this can still make some 
 ### PyO3 Asyncio Initialization
 
 Because Python needs to control the main thread, we can't use the convenient proc macros from Rust
-runtimes to handle the `main` function or `#[test]` functions. 
-
-Instead, the initialization for PyO3 has to be done manually from the `main` function and the main 
+runtimes to handle the `main` function or `#[test]` functions. Instead, the initialization for PyO3 has to be done from the `main` function and the main 
 thread must block on [`pyo3_asyncio::run_forever`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.run_forever.html) or [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
+
 Because we have to block on one of those functions, we can't use [`#[async_std::main]`](https://docs.rs/async-std/latest/async_std/attr.main.html) or [`#[tokio::main]`](https://docs.rs/tokio/1.1.0/tokio/attr.main.html)
 since it's not a good idea to make long blocking calls during an async function.
 
@@ -127,39 +126,31 @@ since it's not a good idea to make long blocking calls during an async function.
 > Making a long blocking call inside the `Future` that's being driven by `block_on` prevents that
 > thread from doing anything else and can spell trouble for some runtimes (also this will actually 
 > deadlock a single-threaded runtime!). Many runtimes have some sort of `spawn_blocking` mechanism 
-> that can avoid this problem, but again that's not something we can use here.
+> that can avoid this problem, but again that's not something we can use here since we need it to 
+> block on the _main_ thread.
 
-In addition, some runtimes, such as `tokio`, may require some additional initialization since their 
-runtimes are customizable. For `tokio`, this initialization happens during the 
-[`#[tokio::main]`](https://docs.rs/tokio/1.1.0/tokio/attr.main.html) proc  macro, but since we can't 
-use that for our purposes, it has to be initialized manually. See the [`pyo3-asyncio`](https://docs.rs/pyo3-asyncio/latest) API docs for 
-more information.
+For this reason, `pyo3-asyncio` provides its own set of proc macros to provide you with this 
+initialization. These macros are intended to mirror the initialization of `async-std` and `tokio` 
+while also satisfying the Python runtime's needs.
 
-Here's a full example of PyO3 initialization:
+Here's a full example of PyO3 initialization with the `async-std` runtime:
 ```rust
 use pyo3::prelude::*;
 
-fn main() {
-    // if using tokio, you should perform some additional initialization here:
-    // pyo3_asyncio::tokio::init_multi_thread();
+#[pyo3_asyncio::async_std::main]
+async fn main() -> PyResult<()> {
+    // PyO3 is initialized - Ready to go
 
-    Python::with_gil(|py| {
-        // Initialize the runtime
-        pyo3_asyncio::with_runtime(py, || {
-            // Run the Python event loop until the given future completes
-            pyo3_asyncio::async_std::run_until_complete(py, async {
-                // PyO3 is initialized - Ready to go
-                async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-                Ok(())
-            })?;
+    let fut = Python::with_gil(|py| {
+        let asyncio = py.import("asyncio")?;
 
-            Ok(())
-        })
-        .map_err(|e| {
-            e.print_and_set_sys_last_vars(py);  
-        })
-        .unwrap();
-    })
+        // convert asyncio.sleep into a Rust Future
+        pyo3_asyncio::into_future(asyncio.call_method1("sleep", (1.into_py(py),))?)
+    })?;
+
+    fut.await?;
+
+    Ok(())
 }
 ```
 
@@ -181,14 +172,25 @@ Cargo. Instead, we put our tests in a `pytests` directory.
 > The name `pytests` is just a convention. You can name this folder anything you want in your own
 > projects.
 
-`pytests/test_example.rs`
-```rust
-fn main() {
+We'll also want to provide the test's main function. Most of the functionality that the test harness needs is packed in the [`pyo3_asyncio::testing::main`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/testing/fn.main.html) function. This function will parse the test's CLI arguments, collect and pass the functions marked with [`#[pyo3_asyncio::async_std::test]`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html) or [`#[pyo3_asyncio::tokio::test]`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html) and pass them into the test harness for running and filtering.
 
+`pytests/test_example.rs` for the `tokio` runtime:
+```rust
+#[pyo3_asyncio::tokio::main]
+async fn main() -> pyo3::PyResult<()> {
+    pyo3_asyncio::testing::main().await
 }
 ```
 
-### Test Manifest Entry
+`pytests/test_example.rs` for the `async-std` runtime:
+```rust
+#[pyo3_asyncio::async_std::main]
+async fn main() -> pyo3::PyResult<()> {
+    pyo3_asyncio::testing::main().await
+}
+```
+
+### Cargo Configuration
 Next, we need to add our test file to the Cargo manifest by adding the following section to the
 `Cargo.toml`
 
@@ -199,70 +201,70 @@ path = "pytests/test_example.rs"
 harness = false
 ```
 
-At this point you should be able to run the test via `cargo test`
+Also add the `testing` and `attributes` features to the `pyo3-asyncio` dependency and select your preferred runtime:
 
-### Using the PyO3 Asyncio Test Harness
-Now that we've got our test registered with `cargo test`, we can start using the PyO3 Asyncio
-test harness.
-
-In your `Cargo.toml` add the testing feature to `pyo3-asyncio` and select your preferred runtime:
 ```toml
-pyo3-asyncio = { version = "0.13", features = ["testing", "async-std-runtime"] }
+pyo3-asyncio = { version = "0.13", features = ["testing", "attributes", "async-std-runtime"] }
 ```
 
-Now, in your test's main file, call [`pyo3_asyncio::async_std::testing::test_main`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/testing/fn.test_main.html):
-
-> If you're not using `async-std`, you should use the corresponding `test_main` for your runtime.
-> These functions typically follow this format: `pyo3_asyncio::<runtime>::testing::test_main`
-
-```rust
-fn main() {
-    pyo3_asyncio::async_std::testing::test_main("Example Test Suite", vec![]);
-}
-```
-
-#### Tokio's Main Function
-
-As we mentioned earlier, `tokio` requires some additional initialization. If you're going to use the 
-`tokio` runtime, you'll need to call one of the initialization functions in the `pyo3_asyncio::tokio` 
-module before running [`pyo3_asyncio::tokio::testing::test_main`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/testing/fn.test_main.html).
-
-```rust
-fn main() {
-    pyo3_asyncio::tokio::init_multi_thread();
-    pyo3_asyncio::tokio::testing::test_main("Example Test Suite", vec![]);
-}
-```
-
+At this point, you should be able to run the test via `cargo test`
 
 ### Adding Tests to the PyO3 Asyncio Test Harness
 
+We can add tests anywhere in the test crate with the runtime's corresponding `#[test]` attribute:
+
+For `async-std` use the [`pyo3_asyncio::async_std::test`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html) attribute:
 ```rust
-use std::{time::Duration, thread};
+mod tests {
+    use std::{time::Duration, thread};
 
-use pyo3_asyncio::testing::Test;
+    use pyo3::prelude::*;
 
-fn main() {
-    pyo3_asyncio::async_std::testing::test_main(
-        "Example Test Suite",
-        vec![
-            // An async test
-            Test::new_async(
-                "test_async_sleep".into(),
-                async move {
-                    async_std::task::sleep(Duration::from_secs(1)).await;
-                    Ok(())
-                }
-            ),
-            // A blocking test
-            pyo3_asyncio::async_std::testing::new_sync_test(
-                "test_sync_sleep".into(),
-                || {
-                    thread::sleep(Duration::from_secs(1));
-                    Ok(())
-                }
-            )
-        ]
-    );
+    // tests can be async
+    #[pyo3_asyncio::async_std::test]
+    async fn test_async_sleep() -> PyResult<()> {
+        async_std::task::sleep(Duration::from_secs(1)).await;
+        Ok(())
+    }
+
+    // they can also be synchronous
+    #[pyo3_asyncio::async_std::test]
+    fn test_blocking_sleep() -> PyResult<()> {
+        thread::sleep(Duration::from_secs(1));
+        Ok(())
+    }
+}
+
+#[pyo3_asyncio::async_std::main]
+async fn main() -> pyo3::PyResult<()> {
+    pyo3_asyncio::testing::main().await
+}
+```
+
+For `tokio` use the [`pyo3_asyncio::tokio::test`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html) attribute:
+```rust
+mod tests {
+    use std::{time::Duration, thread};
+
+    use pyo3::prelude::*;
+
+    // tests can be async
+    #[pyo3_asyncio::tokio::test]
+    async fn test_async_sleep() -> PyResult<()> {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        Ok(())
+    }
+
+    // they can also be synchronous
+    #[pyo3_asyncio::tokio::test]
+    fn test_blocking_sleep() -> PyResult<()> {
+        thread::sleep(Duration::from_secs(1));
+        Ok(())
+    }
+}
+
+#[pyo3_asyncio::tokio::main]
+async fn main() -> pyo3::PyResult<()> {
+    pyo3_asyncio::testing::main().await
 }
 ```
