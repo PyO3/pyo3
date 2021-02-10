@@ -9,10 +9,17 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-    t.compile_fail("tests/ui/static_ref.rs");
 
+    tests_rust_1_45(&t);
     tests_rust_1_48(&t);
     tests_rust_1_49(&t);
+
+    #[rustversion::since(1.45)]
+    fn tests_rust_1_45(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/static_ref.rs");
+    }
+    #[rustversion::before(1.45)]
+    fn tests_rust_1_45(_t: &trybuild::TestCases) {}
 
     #[rustversion::since(1.48)]
     fn tests_rust_1_48(t: &trybuild::TestCases) {

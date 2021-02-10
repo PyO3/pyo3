@@ -3,8 +3,8 @@ use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 use crate::ffi::{
-    vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
-    PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
+    pyport::PY_SSIZE_T_MAX, vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET,
+    PyTuple_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 #[cfg(all(Py_3_8, not(PyPy)))]
 use libc::size_t;
@@ -43,7 +43,7 @@ const PY_VECTORCALL_ARGUMENTS_OFFSET: Py_ssize_t =
 #[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
-    assert!(n <= (Py_ssize_t::MAX as size_t));
+    assert!(n <= (PY_SSIZE_T_MAX as size_t));
     (n as Py_ssize_t) & !PY_VECTORCALL_ARGUMENTS_OFFSET
 }
 

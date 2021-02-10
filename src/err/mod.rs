@@ -594,12 +594,8 @@ mod tests {
         assert!(debug_str.starts_with("PyErr { "));
         assert!(debug_str.ends_with(" }"));
 
-        let mut fields = debug_str
-            .strip_prefix("PyErr { ")
-            .unwrap()
-            .strip_suffix(" }")
-            .unwrap()
-            .split(", ");
+        // strip "PyErr { " and " }"
+        let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
 
         assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
         if py.version_info() >= (3, 7) {

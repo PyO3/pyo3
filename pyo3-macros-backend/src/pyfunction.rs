@@ -174,8 +174,8 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
             Ok(Some(ident))
         }
         [(_, span)] => bail_spanned!(*span => "expected string literal for #[name] argument"),
-        [_first_attr, second_attr, ..] => bail_spanned!(
-            second_attr.1 => "#[name] can not be specified multiple times"
+        slice => bail_spanned!(
+            slice[1].1 => "#[name] can not be specified multiple times"
         ),
     }
 }

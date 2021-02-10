@@ -85,6 +85,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     ///
     /// # Safety
     /// `self_` must be a valid pointer to the Python heap.
+    #[allow(clippy::clippy::collapsible_if)] // for if cfg!
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = self_ as *mut ffi::PyObject;
@@ -93,9 +94,10 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
         let free = get_type_free(ty).unwrap_or_else(|| tp_free_fallback(ty));
         free(obj as *mut c_void);
 
-        #[cfg(Py_3_8)]
-        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        if cfg!(Py_3_8) {
+            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+            }
         }
     }
 }
@@ -194,8 +196,7 @@ where
     slots.maybe_push(ffi::Py_tp_new, new.map(|v| v as _));
     slots.maybe_push(ffi::Py_tp_call, call.map(|v| v as _));
 
-    #[cfg(Py_3_9)]
-    {
+    if cfg!(Py_3_9) {
         let members = py_class_members::<T>();
         if !members.is_empty() {
             slots.push(ffi::Py_tp_members, into_raw(members))
@@ -265,18 +266,18 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 
     // Setting buffer protocols via slots doesn't work until Python 3.9, so on older versions we
     // must manually fixup the type object.
-    #[cfg(not(Py_3_9))]
-    if let Some(buffer) = T::get_buffer() {
-        unsafe {
-            (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
-            (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
+    if cfg!(not(Py_3_9)) {
+        if let Some(buffer) = T::get_buffer() {
+            unsafe {
+                (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
+                (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
+            }
         }
     }
 
     // Setting tp_dictoffset and tp_weaklistoffset via slots doesn't work until Python 3.9, so on
     // older versions again we must fixup the type object.
-    #[cfg(not(Py_3_9))]
-    {
+    if cfg!(not(Py_3_9)) {
         // __dict__ support
         if let Some(dict_offset) = PyCell::<T>::dict_offset() {
             unsafe {
@@ -400,6 +401,13 @@ fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
     members
 }
 
+// Stub needed since the `if cfg!()` above still compiles contained code.
+#[cfg(not(Py_3_9))]
+fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
+    vec![]
+}
+
+#[allow(clippy::clippy::collapsible_if)] // for if cfg!
 fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
@@ -429,7 +437,16 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
 
     // PyPy doesn't automatically adds __dict__ getter / setter.
     // PyObject_GenericGetDict not in the limited API until Python 3.10.
-    #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+    push_dict_getset::<T>(&mut props);
+
+    if !props.is_empty() {
+        props.push(unsafe { std::mem::zeroed() });
+    }
+    props
+}
+
+#[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+fn push_dict_getset<T: PyClass>(props: &mut Vec<ffi::PyGetSetDef>) {
     if !T::Dict::IS_DUMMY {
         props.push(ffi::PyGetSetDef {
             name: "__dict__\0".as_ptr() as *mut c_char,
@@ -439,11 +456,10 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
             closure: ptr::null_mut(),
         });
     }
-    if !props.is_empty() {
-        props.push(unsafe { std::mem::zeroed() });
-    }
-    props
 }
+
+#[cfg(any(PyPy, all(Py_LIMITED_API, not(Py_3_10))))]
+fn push_dict_getset<T: PyClass>(_: &mut Vec<ffi::PyGetSetDef>) {}
 
 /// This trait is implemented for `#[pyclass]` and handles following two situations:
 /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.

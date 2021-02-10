@@ -84,6 +84,7 @@ where
         crate::pyclass::default_new::<Self>(py, subtype) as _
     }
 
+    #[allow(clippy::clippy::collapsible_if)] // for if cfg!
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);
@@ -93,9 +94,10 @@ where
             let free = get_type_free(ty).unwrap_or_else(|| tp_free_fallback(ty));
             free(obj as *mut c_void);
 
-            #[cfg(Py_3_8)]
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+            if cfg!(Py_3_8) {
+                if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                }
             }
         }
     }
