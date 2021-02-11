@@ -56,6 +56,6 @@ extern "C" {
     pub fn PyComplex_RealAsDouble(op: *mut PyObject) -> c_double;
     #[cfg_attr(PyPy, link_name = "PyPyComplex_ImagAsDouble")]
     pub fn PyComplex_ImagAsDouble(op: *mut PyObject) -> c_double;
-// skipped non-limited PyComplex_AsCComplex
-// skipped non-limited _PyComplex_FormatAdvancedWriter
+    // skipped non-limited PyComplex_AsCComplex
+    // skipped non-limited _PyComplex_FormatAdvancedWriter
 }

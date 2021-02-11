@@ -80,8 +80,8 @@ extern "C" {
     #[cfg(Py_3_8)]
     pub fn PyCompile_OpcodeStackEffectWithJump(opcode: c_int, oparg: c_int, jump: c_int) -> c_int;
 
-// skipped non-limited _PyASTOptimizeState
-// skipped non-limited _PyAST_Optimize
+    // skipped non-limited _PyASTOptimizeState
+    // skipped non-limited _PyAST_Optimize
 }
 
 pub const Py_single_input: c_int = 256;

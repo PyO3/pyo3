@@ -2,11 +2,10 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
 #[pyfunction]
-fn issue_219() -> PyResult<()> {
+fn issue_219() {
     // issue 219: acquiring GIL inside #[pyfunction] deadlocks.
     let gil = Python::acquire_gil();
     let _py = gil.python();
-    Ok(())
 }
 
 #[pymodule]

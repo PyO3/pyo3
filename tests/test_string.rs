@@ -4,9 +4,7 @@ use pyo3::wrap_pyfunction;
 mod common;
 
 #[pyfunction]
-fn take_str(_s: &str) -> PyResult<()> {
-    Ok(())
-}
+fn take_str(_s: &str) {}
 
 #[test]
 fn test_unicode_encode_error() {

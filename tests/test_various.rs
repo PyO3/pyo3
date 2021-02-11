@@ -14,12 +14,11 @@ struct MutRefArg {
 
 #[pymethods]
 impl MutRefArg {
-    fn get(&self) -> PyResult<i32> {
-        Ok(self.n)
+    fn get(&self) -> i32 {
+        self.n
     }
-    fn set_other(&self, mut other: PyRefMut<MutRefArg>) -> PyResult<()> {
+    fn set_other(&self, mut other: PyRefMut<MutRefArg>) {
         other.n = 100;
-        Ok(())
     }
 }
 
@@ -44,8 +43,8 @@ struct PyUsize {
 }
 
 #[pyfunction]
-fn get_zero() -> PyResult<PyUsize> {
-    Ok(PyUsize { value: 0 })
+fn get_zero() -> PyUsize {
+    PyUsize { value: 0 }
 }
 
 #[test]
@@ -56,7 +55,7 @@ fn return_custom_class() {
     let py = gil.python();
 
     // Using from rust
-    assert_eq!(get_zero().unwrap().value, 0);
+    assert_eq!(get_zero().value, 0);
 
     // Using from python
     let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();

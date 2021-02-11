@@ -51,6 +51,6 @@ extern "C" {
     pub fn PyCodec_ReplaceErrors(exc: *mut PyObject) -> *mut PyObject;
     pub fn PyCodec_XMLCharRefReplaceErrors(exc: *mut PyObject) -> *mut PyObject;
     pub fn PyCodec_BackslashReplaceErrors(exc: *mut PyObject) -> *mut PyObject;
-// skipped non-limited PyCodec_NameReplaceErrors from Include/codecs.h
-// skipped non-limited Py_hexdigits from Include/codecs.h
+    // skipped non-limited PyCodec_NameReplaceErrors from Include/codecs.h
+    // skipped non-limited Py_hexdigits from Include/codecs.h
 }

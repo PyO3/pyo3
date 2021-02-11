@@ -79,9 +79,9 @@ pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyAsyncGen_Type: PyTypeObject;
-// skipped _PyAsyncGenASend_Type
-// skipped _PyAsyncGenWrappedValue_Type
-// skipped _PyAsyncGenAThrow_Type
+    // skipped _PyAsyncGenASend_Type
+    // skipped _PyAsyncGenWrappedValue_Type
+    // skipped _PyAsyncGenAThrow_Type
 }
 
 // skipped PyAsyncGen_New

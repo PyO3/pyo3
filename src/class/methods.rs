@@ -10,15 +10,15 @@ use std::os::raw::c_int;
 #[derive(Debug)]
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
-    New(PyMethodDef),
+    New(PyMethodDef<ffi::newfunc>),
     /// Represents class `__call__` method
-    Call(PyMethodDef),
+    Call(PyMethodDef<ffi::PyCFunctionWithKeywords>),
     /// Represents class method
-    Class(PyMethodDef),
+    Class(PyMethodDef<PyMethodType>),
     /// Represents static method
-    Static(PyMethodDef),
+    Static(PyMethodDef<PyMethodType>),
     /// Represents normal method
-    Method(PyMethodDef),
+    Method(PyMethodDef<PyMethodType>),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),
     /// Represents getter descriptor, used by `#[getter]`
@@ -31,14 +31,12 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
-    PyNewFunc(ffi::newfunc),
-    PyInitFunc(ffi::initproc),
 }
 
 #[derive(Clone, Debug)]
-pub struct PyMethodDef {
+pub struct PyMethodDef<MethodT> {
     pub(crate) ml_name: &'static CStr,
-    pub(crate) ml_meth: PyMethodType,
+    pub(crate) ml_meth: MethodT,
     pub(crate) ml_flags: c_int,
     pub(crate) ml_doc: &'static CStr,
 }
@@ -63,7 +61,9 @@ pub struct PySetterDef {
     doc: &'static CStr,
 }
 
-unsafe impl Sync for PyMethodDef {}
+// Safe because ml_meth (the T) cannot be accessed outside of the crate, so only safe-to-sync values
+// are stored in this structure.
+unsafe impl<T> Sync for PyMethodDef<T> {}
 
 unsafe impl Sync for ffi::PyMethodDef {}
 
@@ -82,39 +82,42 @@ fn get_doc(doc: &str) -> &CStr {
     CStr::from_bytes_with_nul(doc.as_bytes()).expect("Document must be terminated with NULL byte")
 }
 
-impl PyMethodDef {
-    pub(crate) fn get_new_func(&self) -> Option<ffi::newfunc> {
-        if let PyMethodType::PyNewFunc(new_func) = self.ml_meth {
-            Some(new_func)
-        } else {
-            None
+impl PyMethodDef<ffi::newfunc> {
+    /// Define a `__new__` function.
+    pub fn new_func(name: &'static str, newfunc: ffi::newfunc, doc: &'static str) -> Self {
+        Self {
+            ml_name: get_name(name),
+            ml_meth: newfunc,
+            ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            ml_doc: get_doc(doc),
         }
     }
+}
 
-    pub(crate) fn get_cfunction_with_keywords(&self) -> Option<ffi::PyCFunctionWithKeywords> {
-        if let PyMethodType::PyCFunctionWithKeywords(func) = self.ml_meth {
-            Some(func)
-        } else {
-            None
+impl PyMethodDef<ffi::PyCFunctionWithKeywords> {
+    /// Define a `__call__` function.
+    pub fn call_func(
+        name: &'static str,
+        callfunc: ffi::PyCFunctionWithKeywords,
+        flags: c_int,
+        doc: &'static str,
+    ) -> Self {
+        Self {
+            ml_name: get_name(name),
+            ml_meth: callfunc,
+            ml_flags: flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            ml_doc: get_doc(doc),
         }
     }
+}
 
+impl PyMethodDef<PyMethodType> {
     /// Define a function with no `*args` and `**kwargs`.
     pub fn cfunction(name: &'static str, cfunction: ffi::PyCFunction, doc: &'static str) -> Self {
         Self {
             ml_name: get_name(name),
             ml_meth: PyMethodType::PyCFunction(cfunction),
             ml_flags: ffi::METH_NOARGS,
-            ml_doc: get_doc(doc),
-        }
-    }
-
-    /// Define a `__new__` function.
-    pub fn new_func(name: &'static str, newfunc: ffi::newfunc, doc: &'static str) -> Self {
-        Self {
-            ml_name: get_name(name),
-            ml_meth: PyMethodType::PyNewFunc(newfunc),
-            ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
             ml_doc: get_doc(doc),
         }
     }
@@ -139,8 +142,6 @@ impl PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
             PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth) },
-            PyMethodType::PyNewFunc(meth) => unsafe { std::mem::transmute(meth) },
-            PyMethodType::PyInitFunc(meth) => unsafe { std::mem::transmute(meth) },
         };
 
         ffi::PyMethodDef {

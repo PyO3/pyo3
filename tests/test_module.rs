@@ -39,14 +39,13 @@ fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
     #[pyfn(m, "sum_as_string")]
-    fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
-        let out = sum_as_string(a, b);
-        Ok(out)
+    fn sum_as_string_py(_py: Python, a: i64, b: i64) -> String {
+        sum_as_string(a, b)
     }
 
     #[pyfn(m, "no_parameters")]
-    fn no_parameters() -> PyResult<usize> {
-        Ok(42)
+    fn no_parameters() -> usize {
+        42
     }
 
     #[pyfn(m, "with_module", pass_module)]
@@ -106,7 +105,8 @@ fn test_module_with_functions() {
 }
 
 #[pymodule(other_name)]
-fn some_name(_: Python, _: &PyModule) -> PyResult<()> {
+fn some_name(_: Python, m: &PyModule) -> PyResult<()> {
+    m.add("other_name", "other_name")?;
     Ok(())
 }
 
