@@ -115,6 +115,7 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
 
 impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
+    #[allow(clippy::manual_strip)] // for strip_prefix replacement supporting rust < 1.45
     pub fn parse(
         sig: &'a syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
@@ -139,10 +140,12 @@ impl<'a> FnSpec<'a> {
 
         // strip get_ or set_
         let strip_fn_name = |prefix: &'static str| {
-            name.unraw()
-                .to_string()
-                .strip_prefix(prefix)
-                .map(|rest| syn::Ident::new(rest, name.span()))
+            let ident = name.unraw().to_string();
+            if ident.starts_with(prefix) {
+                Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
+            } else {
+                None
+            }
         };
 
         // Parse receiver & function type for various method types

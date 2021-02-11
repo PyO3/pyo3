@@ -2,6 +2,8 @@
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 
+extern crate proc_macro;
+
 use proc_macro::TokenStream;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,

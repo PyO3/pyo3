@@ -48,7 +48,12 @@ impl ElementType {
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
             [char] | [b'@', char] => native_element_type_from_type_char(*char),
-            [modifier, char] if matches!(modifier, b'=' | b'<' | b'>' | b'!') => {
+            [modifier, char]
+                if (*modifier == b'='
+                    || *modifier == b'<'
+                    || *modifier == b'>'
+                    || *modifier == b'!') =>
+            {
                 standard_element_type_from_type_char(*char)
             }
             _ => ElementType::Unknown,

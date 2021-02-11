@@ -71,6 +71,7 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// }
 /// ```
 #[cfg(all(Py_SHARED, not(PyPy)))]
+#[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
@@ -86,9 +87,10 @@ pub fn prepare_freethreaded_python() {
 
             // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t
             // have to call it yourself anymore.
-            #[cfg(not(Py_3_7))]
-            if ffi::PyEval_ThreadsInitialized() == 0 {
-                ffi::PyEval_InitThreads();
+            if cfg!(not(Py_3_7)) {
+                if ffi::PyEval_ThreadsInitialized() == 0 {
+                    ffi::PyEval_InitThreads();
+                }
             }
 
             // Release the GIL.
@@ -136,6 +138,7 @@ pub fn prepare_freethreaded_python() {
 /// }
 /// ```
 #[cfg(all(Py_SHARED, not(PyPy)))]
+#[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
     F: for<'p> FnOnce(Python<'p>) -> R,
@@ -150,9 +153,10 @@ where
 
     // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have to
     // call it yourself anymore.
-    #[cfg(not(Py_3_7))]
-    if ffi::PyEval_ThreadsInitialized() == 0 {
-        ffi::PyEval_InitThreads();
+    if cfg!(not(Py_3_7)) {
+        if ffi::PyEval_ThreadsInitialized() == 0 {
+            ffi::PyEval_InitThreads();
+        }
     }
 
     // Safe: the GIL is already held because of the Py_IntializeEx call.
