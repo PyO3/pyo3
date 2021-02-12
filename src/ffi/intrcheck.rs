@@ -20,6 +20,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyOS_AfterFork")]
     pub fn PyOS_AfterFork();
 
-// skipped non-limited _PyOS_IsMainThread
-// skipped non-limited Windows _PyOS_SigintEvent
+    // skipped non-limited _PyOS_IsMainThread
+    // skipped non-limited Windows _PyOS_SigintEvent
 }

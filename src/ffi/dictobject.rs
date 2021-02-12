@@ -64,7 +64,7 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItemString")]
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char) -> c_int;
-// skipped 3.10 / ex-non-limited PyObject_GenericGetDict
+    // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

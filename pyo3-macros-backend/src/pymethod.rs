@@ -663,7 +663,7 @@ pub fn impl_py_method_def_call(spec: &FnSpec, wrapper: &TokenStream) -> TokenStr
         pyo3::class::PyMethodDefType::Call({
             #wrapper
 
-            pyo3::class::PyMethodDef::cfunction_with_keywords(
+            pyo3::class::PyMethodDef::call_func(
                 concat!(stringify!(#python_name), "\0"),
                 __wrap,
                 pyo3::ffi::METH_STATIC,

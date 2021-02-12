@@ -22,12 +22,12 @@ impl Reader {
     fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
         slf
     }
-    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
-        Ok(Iter {
+    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> Iter {
+        Iter {
             reader: slf.into(),
             keys,
             idx: 0,
-        })
+        }
     }
     fn get_iter_and_reset(
         mut slf: PyRefMut<Self>,

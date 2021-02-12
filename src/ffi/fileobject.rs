@@ -29,7 +29,7 @@ extern "C" {
     pub static mut Py_FileSystemDefaultEncoding: *const c_char;
     pub static mut Py_FileSystemDefaultEncodeErrors: *const c_char;
     pub static mut Py_HasFileSystemDefaultEncoding: c_int;
-// skipped Python 3.7 / ex-non-limited Py_UTF8Mode
+    // skipped Python 3.7 / ex-non-limited Py_UTF8Mode
 }
 
 // skipped _PyIsSelectable_fd

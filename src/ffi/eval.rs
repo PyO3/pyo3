@@ -22,6 +22,6 @@ extern "C" {
         closure: *mut PyObject,
     ) -> *mut PyObject;
 
-// skipped non-limited _PyEval_EvalCodeWithName
-// skipped non-limited _PyEval_CallTracing
+    // skipped non-limited _PyEval_EvalCodeWithName
+    // skipped non-limited _PyEval_CallTracing
 }

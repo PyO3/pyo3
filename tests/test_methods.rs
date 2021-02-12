@@ -13,8 +13,8 @@ struct InstanceMethod {
 #[pymethods]
 impl InstanceMethod {
     /// Test method
-    fn method(&self) -> PyResult<i32> {
-        Ok(self.member)
+    fn method(&self) -> i32 {
+        self.member
     }
 
     // Checks that &Self works
@@ -30,7 +30,7 @@ fn instance_method() {
 
     let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
     let obj_ref = obj.borrow();
-    assert_eq!(obj_ref.method().unwrap(), 42);
+    assert_eq!(obj_ref.method(), 42);
     py_assert!(py, obj, "obj.method() == 42");
     py_assert!(py, obj, "obj.add_other(obj) == 84");
     py_assert!(py, obj, "obj.method.__doc__ == 'Test method'");
@@ -43,8 +43,8 @@ struct InstanceMethodWithArgs {
 
 #[pymethods]
 impl InstanceMethodWithArgs {
-    fn method(&self, multiplier: i32) -> PyResult<i32> {
-        Ok(self.member * multiplier)
+    fn method(&self, multiplier: i32) -> i32 {
+        self.member * multiplier
     }
 }
 
@@ -56,7 +56,7 @@ fn instance_method_with_args() {
 
     let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
     let obj_ref = obj.borrow();
-    assert_eq!(obj_ref.method(6).unwrap(), 42);
+    assert_eq!(obj_ref.method(6), 42);
     let d = [("obj", obj)].into_py_dict(py);
     py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
     py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
@@ -134,8 +134,8 @@ impl StaticMethod {
 
     #[staticmethod]
     /// Test static method.
-    fn method(_py: Python) -> PyResult<&'static str> {
-        Ok("StaticMethod.method()!")
+    fn method(_py: Python) -> &'static str {
+        "StaticMethod.method()!"
     }
 }
 
@@ -144,7 +144,7 @@ fn static_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
+    assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
     let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
     let run = |code| {
@@ -164,8 +164,8 @@ struct StaticMethodWithArgs {}
 #[pymethods]
 impl StaticMethodWithArgs {
     #[staticmethod]
-    fn method(_py: Python, input: i32) -> PyResult<String> {
-        Ok(format!("0x{:x}", input))
+    fn method(_py: Python, input: i32) -> String {
+        format!("0x{:x}", input)
     }
 }
 
@@ -174,7 +174,7 @@ fn static_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
+    assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
     let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
     py.run("assert C.method(1337) == '0x539'", None, Some(d))
@@ -187,41 +187,36 @@ struct MethArgs {}
 #[pymethods]
 impl MethArgs {
     #[args(test)]
-    fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {
-        Ok(test.unwrap_or(10))
+    fn get_optional(&self, test: Option<i32>) -> i32 {
+        test.unwrap_or(10)
     }
-    fn get_optional2(&self, test: Option<i32>) -> PyResult<Option<i32>> {
-        Ok(test)
+    fn get_optional2(&self, test: Option<i32>) -> Option<i32> {
+        test
     }
     #[args(test = "None")]
-    fn get_optional3(&self, test: Option<i32>) -> PyResult<Option<i32>> {
-        Ok(test)
+    fn get_optional3(&self, test: Option<i32>) -> Option<i32> {
+        test
     }
     fn get_optional_positional(
         &self,
         _t1: Option<i32>,
         t2: Option<i32>,
         _t3: Option<i32>,
-    ) -> PyResult<Option<i32>> {
-        Ok(t2)
+    ) -> Option<i32> {
+        t2
     }
 
     #[args(test = "10")]
-    fn get_default(&self, test: i32) -> PyResult<i32> {
-        Ok(test)
+    fn get_default(&self, test: i32) -> i32 {
+        test
     }
     #[args("*", test = 10)]
-    fn get_kwarg(&self, test: i32) -> PyResult<i32> {
-        Ok(test)
+    fn get_kwarg(&self, test: i32) -> i32 {
+        test
     }
     #[args(args = "*", kwargs = "**")]
-    fn get_kwargs(
-        &self,
-        py: Python,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<PyObject> {
-        Ok([args.into(), kwargs.to_object(py)].to_object(py))
+    fn get_kwargs(&self, py: Python, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
+        [args.into(), kwargs.to_object(py)].to_object(py)
     }
 
     #[args(args = "*", kwargs = "**")]
@@ -236,28 +231,28 @@ impl MethArgs {
     }
 
     #[args("*", a = 2, b = 3)]
-    fn get_kwargs_only_with_defaults(&self, a: i32, b: i32) -> PyResult<i32> {
-        Ok(a + b)
+    fn get_kwargs_only_with_defaults(&self, a: i32, b: i32) -> i32 {
+        a + b
     }
 
     #[args("*", a, b)]
-    fn get_kwargs_only(&self, a: i32, b: i32) -> PyResult<i32> {
-        Ok(a + b)
+    fn get_kwargs_only(&self, a: i32, b: i32) -> i32 {
+        a + b
     }
 
     #[args("*", a = 1, b)]
-    fn get_kwargs_only_with_some_default(&self, a: i32, b: i32) -> PyResult<i32> {
-        Ok(a + b)
+    fn get_kwargs_only_with_some_default(&self, a: i32, b: i32) -> i32 {
+        a + b
     }
 
     #[args(a, b = 2, "*", c = 3)]
-    fn get_pos_arg_kw_sep1(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
-        Ok(a + b + c)
+    fn get_pos_arg_kw_sep1(&self, a: i32, b: i32, c: i32) -> i32 {
+        a + b + c
     }
 
     #[args(a, "*", b = 2, c = 3)]
-    fn get_pos_arg_kw_sep2(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
-        Ok(a + b + c)
+    fn get_pos_arg_kw_sep2(&self, a: i32, b: i32, c: i32) -> i32 {
+        a + b + c
     }
 
     #[args(kwargs = "**")]
@@ -417,14 +412,14 @@ struct MethDocs {
 #[pymethods]
 impl MethDocs {
     /// A method with "documentation" as well.
-    fn method(&self) -> PyResult<i32> {
-        Ok(0)
+    fn method(&self) -> i32 {
+        0
     }
 
     #[getter]
     /// `int`: a very "important" member of 'this' instance.
-    fn get_x(&self) -> PyResult<i32> {
-        Ok(self.x)
+    fn get_x(&self) -> i32 {
+        self.x
     }
 }
 

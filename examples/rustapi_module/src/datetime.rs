@@ -192,12 +192,12 @@ impl TzClass {
         PyDelta::new(py, 0, 3600, 0, true)
     }
 
-    fn tzname(&self, _py: Python<'_>, _dt: &PyDateTime) -> PyResult<String> {
-        Ok(String::from("+01:00"))
+    fn tzname(&self, _py: Python<'_>, _dt: &PyDateTime) -> String {
+        String::from("+01:00")
     }
 
-    fn dst(&self, _py: Python<'_>, _dt: &PyDateTime) -> PyResult<Option<&PyDelta>> {
-        Ok(None)
+    fn dst(&self, _py: Python<'_>, _dt: &PyDateTime) -> Option<&PyDelta> {
+        None
     }
 }
 

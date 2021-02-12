@@ -48,7 +48,7 @@ extern "C" {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
-// skipped non-limited _PyMethodWrapper_Type
+    // skipped non-limited _PyMethodWrapper_Type
 }
 
 extern "C" {

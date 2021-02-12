@@ -10,14 +10,14 @@ struct MyClass {}
 impl MyClass {
     #[staticmethod]
     #[args(args = "*")]
-    fn test_args(args: &PyTuple) -> PyResult<&PyTuple> {
-        Ok(args)
+    fn test_args(args: &PyTuple) -> &PyTuple {
+        args
     }
 
     #[staticmethod]
     #[args(kwargs = "**")]
-    fn test_kwargs(kwargs: Option<&PyDict>) -> PyResult<Option<&PyDict>> {
-        Ok(kwargs)
+    fn test_kwargs(kwargs: Option<&PyDict>) -> Option<&PyDict> {
+        kwargs
     }
 }
 

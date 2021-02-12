@@ -11,19 +11,18 @@ struct ClassWithProperties {
 
 #[pymethods]
 impl ClassWithProperties {
-    fn get_num(&self) -> PyResult<i32> {
-        Ok(self.num)
+    fn get_num(&self) -> i32 {
+        self.num
     }
 
     #[getter(DATA)]
     /// a getter for data
-    fn get_data(&self) -> PyResult<i32> {
-        Ok(self.num)
+    fn get_data(&self) -> i32 {
+        self.num
     }
     #[setter(DATA)]
-    fn set_data(&mut self, value: i32) -> PyResult<()> {
+    fn set_data(&mut self, value: i32) {
         self.num = value;
-        Ok(())
     }
 
     #[getter]
@@ -79,8 +78,8 @@ struct GetterSetter {
 
 #[pymethods]
 impl GetterSetter {
-    fn get_num2(&self) -> PyResult<i32> {
-        Ok(self.num)
+    fn get_num2(&self) -> i32 {
+        self.num
     }
 }
 

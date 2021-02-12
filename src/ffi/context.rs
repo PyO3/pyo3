@@ -7,7 +7,7 @@ extern "C" {
     pub static mut PyContextVar_Type: PyTypeObject;
     // skipped non-limited opaque PyContextVar
     pub static mut PyContextToken_Type: PyTypeObject;
-// skipped non-limited opaque PyContextToken
+    // skipped non-limited opaque PyContextToken
 }
 
 #[inline]
@@ -41,5 +41,5 @@ extern "C" {
     ) -> c_int;
     pub fn PyContextVar_Set(var: *mut PyObject, value: *mut PyObject) -> *mut PyObject;
     pub fn PyContextVar_Reset(var: *mut PyObject, token: *mut PyObject) -> c_int;
-// skipped non-limited _PyContext_NewHamtForTests
+    // skipped non-limited _PyContext_NewHamtForTests
 }
