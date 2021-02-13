@@ -166,12 +166,14 @@ pub use crate::types::PyAny;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
-    ctor,      // Re-exported for pyproto
     indoc,     // Re-exported for py_run
     inventory, // Re-exported for pymethods
     paste,     // Re-exported for wrap_function
     unindent,  // Re-exported for py_run
 };
+
+#[macro_use]
+mod internal_tricks;
 
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
@@ -193,8 +195,6 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
-#[macro_use]
-mod internal_tricks;
 #[cfg(not(Py_LIMITED_API))]
 pub mod marshal;
 pub mod once_cell;

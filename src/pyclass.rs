@@ -1,15 +1,13 @@
 //! `PyClass` and related traits.
-use crate::class::methods::{PyClassAttributeDef, PyMethodDefType, PyMethods};
-use crate::class::proto_methods::PyProtoMethods;
-use crate::derive_utils::PyBaseTypeUtils;
+use crate::class::impl_::PyClassImpl;
+use crate::class::methods::PyMethodDefType;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
-use std::marker::PhantomData;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
-use std::{mem, ptr, thread};
+use std::{mem, ptr};
 
 #[inline]
 unsafe fn get_type_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
@@ -125,12 +123,7 @@ pub(crate) unsafe fn tp_free_fallback(ty: *mut ffi::PyTypeObject) -> ffi::freefu
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<Layout = PyCell<Self>, AsRefTarget = PyCell<Self>>
-    + Sized
-    + PyClassSend
-    + PyClassAlloc
-    + PyMethods
-    + PyProtoMethods
+    PyTypeInfo<Layout = PyCell<Self>, AsRefTarget = PyCell<Self>> + Sized + PyClassAlloc + PyClassImpl
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -143,7 +136,7 @@ pub trait PyClass:
 
 /// For collecting slot items.
 #[derive(Default)]
-pub(crate) struct TypeSlots(Vec<ffi::PyType_Slot>);
+struct TypeSlots(Vec<ffi::PyType_Slot>);
 
 impl TypeSlots {
     fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
@@ -186,9 +179,8 @@ where
         slots.push(ffi::Py_tp_doc, doc);
     }
 
-    let (new, call, methods) = py_class_method_defs::<T>();
-    slots.push(ffi::Py_tp_new, new as _);
-    if let Some(call_meth) = call {
+    slots.push(ffi::Py_tp_new, T::get_new() as _);
+    if let Some(call_meth) = T::get_call() {
         slots.push(ffi::Py_tp_call, call_meth as _);
     }
 
@@ -200,6 +192,7 @@ where
     }
 
     // normal methods
+    let methods = py_class_method_defs::<T>();
     if !methods.is_empty() {
         slots.push(ffi::Py_tp_methods, into_raw(methods));
     }
@@ -304,56 +297,23 @@ fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
     flags.try_into().unwrap()
 }
 
-pub(crate) fn py_class_attributes<T: PyMethods>() -> impl Iterator<Item = PyClassAttributeDef> {
-    T::py_methods().into_iter().filter_map(|def| match def {
-        PyMethodDefType::ClassAttribute(attr) => Some(attr.to_owned()),
-        _ => None,
-    })
-}
-
-unsafe extern "C" fn fallback_new(
-    _subtype: *mut ffi::PyTypeObject,
-    _args: *mut ffi::PyObject,
-    _kwds: *mut ffi::PyObject,
-) -> *mut ffi::PyObject {
-    crate::callback_body!(py, {
-        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
-            "No constructor defined",
-        ))
-    })
-}
-
-fn py_class_method_defs<T: PyMethods>() -> (
-    ffi::newfunc,
-    Option<ffi::PyCFunctionWithKeywords>,
-    Vec<ffi::PyMethodDef>,
-) {
+fn py_class_method_defs<T: PyClassImpl>() -> Vec<ffi::PyMethodDef> {
     let mut defs = Vec::new();
-    let mut call = None;
-    let mut new = fallback_new as ffi::newfunc;
 
-    for def in T::py_methods() {
-        match def {
-            PyMethodDefType::New(def) => {
-                new = def.ml_meth;
-            }
-            PyMethodDefType::Call(def) => {
-                call = Some(def.ml_meth);
-            }
-            PyMethodDefType::Method(def)
-            | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => {
-                defs.push(def.as_method_def());
-            }
-            _ => (),
+    T::for_each_method_def(|def| match def {
+        PyMethodDefType::Method(def)
+        | PyMethodDefType::Class(def)
+        | PyMethodDefType::Static(def) => {
+            defs.push(def.as_method_def());
         }
-    }
+        _ => (),
+    });
 
     if !defs.is_empty() {
         defs.push(unsafe { std::mem::zeroed() });
     }
 
-    (new, call, defs)
+    defs
 }
 
 /// Generates the __dictoffset__ and __weaklistoffset__ members, to set tp_dictoffset and
@@ -410,27 +370,15 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
 fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
-    for def in T::py_methods() {
-        match def {
-            PyMethodDefType::Getter(getter) => {
-                if !defs.contains_key(getter.name) {
-                    #[allow(deprecated)]
-                    let _ = defs.insert(getter.name.to_owned(), PY_GET_SET_DEF_INIT);
-                }
-                let def = defs.get_mut(getter.name).expect("Failed to call get_mut");
-                getter.copy_to(def);
-            }
-            PyMethodDefType::Setter(setter) => {
-                if !defs.contains_key(setter.name) {
-                    #[allow(deprecated)]
-                    let _ = defs.insert(setter.name.to_owned(), PY_GET_SET_DEF_INIT);
-                }
-                let def = defs.get_mut(setter.name).expect("Failed to call get_mut");
-                setter.copy_to(def);
-            }
-            _ => (),
+    T::for_each_method_def(|def| match def {
+        PyMethodDefType::Getter(getter) => {
+            getter.copy_to(defs.entry(getter.name).or_insert(PY_GET_SET_DEF_INIT));
         }
-    }
+        PyMethodDefType::Setter(setter) => {
+            setter.copy_to(defs.entry(setter.name).or_insert(PY_GET_SET_DEF_INIT));
+        }
+        _ => (),
+    });
 
     let mut props: Vec<_> = defs.values().cloned().collect();
 
@@ -459,76 +407,3 @@ fn push_dict_getset<T: PyClass>(props: &mut Vec<ffi::PyGetSetDef>) {
 
 #[cfg(any(PyPy, all(Py_LIMITED_API, not(Py_3_10))))]
 fn push_dict_getset<T: PyClass>(_: &mut Vec<ffi::PyGetSetDef>) {}
-
-/// This trait is implemented for `#[pyclass]` and handles following two situations:
-/// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
-///    This implementation is used by default. Compile fails if `T: !Send`.
-/// 2. In case `T` is `!Send`, `ThreadChecker` panics when `T` is accessed by another thread.
-///    This implementation is used when `#[pyclass(unsendable)]` is given.
-///    Panicking makes it safe to expose `T: !Send` to the Python interpreter, where all objects
-///    can be accessed by multiple threads by `threading` module.
-pub trait PyClassSend: Sized {
-    type ThreadChecker: PyClassThreadChecker<Self>;
-}
-
-#[doc(hidden)]
-pub trait PyClassThreadChecker<T>: Sized {
-    fn ensure(&self);
-    fn new() -> Self;
-    private_decl! {}
-}
-
-/// Stub checker for `Send` types.
-#[doc(hidden)]
-pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
-
-impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
-    fn ensure(&self) {}
-    fn new() -> Self {
-        ThreadCheckerStub(PhantomData)
-    }
-    private_impl! {}
-}
-
-impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
-    fn ensure(&self) {}
-    fn new() -> Self {
-        ThreadCheckerStub(PhantomData)
-    }
-    private_impl! {}
-}
-
-/// Thread checker for unsendable types.
-/// Panics when the value is accessed by another thread.
-#[doc(hidden)]
-pub struct ThreadCheckerImpl<T>(thread::ThreadId, PhantomData<T>);
-
-impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
-    fn ensure(&self) {
-        if thread::current().id() != self.0 {
-            panic!(
-                "{} is unsendable, but sent to another thread!",
-                std::any::type_name::<T>()
-            );
-        }
-    }
-    fn new() -> Self {
-        ThreadCheckerImpl(thread::current().id(), PhantomData)
-    }
-    private_impl! {}
-}
-
-/// Thread checker for types that have `Send` and `extends=...`.
-/// Ensures that `T: Send` and the parent is not accessed by another thread.
-#[doc(hidden)]
-pub struct ThreadCheckerInherited<T: Send, U: PyBaseTypeUtils>(PhantomData<T>, U::ThreadChecker);
-
-impl<T: Send, U: PyBaseTypeUtils> PyClassThreadChecker<T> for ThreadCheckerInherited<T, U> {
-    fn ensure(&self) {
-        self.1.ensure();
-    }
-    fn new() -> Self {
-        ThreadCheckerInherited(PhantomData, U::ThreadChecker::new())
-    }
-    private_impl! {}
-}

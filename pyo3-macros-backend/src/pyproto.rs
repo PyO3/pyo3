@@ -136,14 +136,14 @@ fn impl_proto_methods(
         // For now we emit this always for buffer methods, even on 3.9+.
         // Maybe in the future we can access Py_3_9 here and define it.
         maybe_buffer_methods = Some(quote! {
-            impl pyo3::class::proto_methods::PyBufferProtocolProcs<#ty>
-                for pyo3::class::proto_methods::PyClassProtocols<#ty>
+            impl pyo3::class::impl_::PyBufferProtocolProcs<#ty>
+                for pyo3::class::impl_::PyClassImplCollector<#ty>
             {
                 fn buffer_procs(
                     self
-                ) -> Option<&'static pyo3::class::proto_methods::PyBufferProcs> {
-                    static PROCS: pyo3::class::proto_methods::PyBufferProcs
-                        = pyo3::class::proto_methods::PyBufferProcs {
+                ) -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
+                    static PROCS: pyo3::class::impl_::PyBufferProcs
+                        = pyo3::class::impl_::PyBufferProcs {
                             bf_getbuffer: Some(pyo3::class::buffer::getbuffer::<#ty>),
                             bf_releasebuffer: Some(pyo3::class::buffer::releasebuffer::<#ty>),
                         };
@@ -174,8 +174,8 @@ fn impl_proto_methods(
     quote! {
         #maybe_buffer_methods
 
-        impl pyo3::class::proto_methods::#slots_trait<#ty>
-            for pyo3::class::proto_methods::PyClassProtocols<#ty>
+        impl pyo3::class::impl_::#slots_trait<#ty>
+            for pyo3::class::impl_::PyClassImplCollector<#ty>
         {
             fn #slots_trait_slots(self) -> &'static [pyo3::ffi::PyType_Slot] {
                 &[#(#tokens),*]

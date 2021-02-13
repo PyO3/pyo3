@@ -9,16 +9,12 @@ use std::os::raw::c_int;
 /// It is used by the `#[pymethods]` and `#[pyproto]` annotations.
 #[derive(Debug)]
 pub enum PyMethodDefType {
-    /// Represents class `__new__` method
-    New(PyMethodDef<ffi::newfunc>),
-    /// Represents class `__call__` method
-    Call(PyMethodDef<ffi::PyCFunctionWithKeywords>),
     /// Represents class method
-    Class(PyMethodDef<PyMethodType>),
+    Class(PyMethodDef),
     /// Represents static method
-    Static(PyMethodDef<PyMethodType>),
+    Static(PyMethodDef),
     /// Represents normal method
-    Method(PyMethodDef<PyMethodType>),
+    Method(PyMethodDef),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),
     /// Represents getter descriptor, used by `#[getter]`
@@ -34,9 +30,9 @@ pub enum PyMethodType {
 }
 
 #[derive(Clone, Debug)]
-pub struct PyMethodDef<MethodT> {
+pub struct PyMethodDef {
     pub(crate) ml_name: &'static CStr,
-    pub(crate) ml_meth: MethodT,
+    pub(crate) ml_meth: PyMethodType,
     pub(crate) ml_flags: c_int,
     pub(crate) ml_doc: &'static CStr,
 }
@@ -61,17 +57,11 @@ pub struct PySetterDef {
     doc: &'static CStr,
 }
 
-// Safe because ml_meth (the T) cannot be accessed outside of the crate, so only safe-to-sync values
-// are stored in this structure.
-unsafe impl<T> Sync for PyMethodDef<T> {}
-
-unsafe impl Sync for ffi::PyMethodDef {}
+unsafe impl Sync for PyMethodDef {}
 
 unsafe impl Sync for PyGetterDef {}
 
 unsafe impl Sync for PySetterDef {}
-
-unsafe impl Sync for ffi::PyGetSetDef {}
 
 fn get_name(name: &str) -> &CStr {
     CStr::from_bytes_with_nul(name.as_bytes())
@@ -82,36 +72,7 @@ fn get_doc(doc: &str) -> &CStr {
     CStr::from_bytes_with_nul(doc.as_bytes()).expect("Document must be terminated with NULL byte")
 }
 
-impl PyMethodDef<ffi::newfunc> {
-    /// Define a `__new__` function.
-    pub fn new_func(name: &'static str, newfunc: ffi::newfunc, doc: &'static str) -> Self {
-        Self {
-            ml_name: get_name(name),
-            ml_meth: newfunc,
-            ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-            ml_doc: get_doc(doc),
-        }
-    }
-}
-
-impl PyMethodDef<ffi::PyCFunctionWithKeywords> {
-    /// Define a `__call__` function.
-    pub fn call_func(
-        name: &'static str,
-        callfunc: ffi::PyCFunctionWithKeywords,
-        flags: c_int,
-        doc: &'static str,
-    ) -> Self {
-        Self {
-            ml_name: get_name(name),
-            ml_meth: callfunc,
-            ml_flags: flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-            ml_doc: get_doc(doc),
-        }
-    }
-}
-
-impl PyMethodDef<PyMethodType> {
+impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
     pub fn cfunction(name: &'static str, cfunction: ffi::PyCFunction, doc: &'static str) -> Self {
         Self {
@@ -217,14 +178,6 @@ impl PySetterDef {
     }
 }
 
-/// Indicates that the type `T` has some Python methods.
-pub trait PyMethods {
-    /// Returns all methods that are defined for a class.
-    fn py_methods() -> Vec<&'static PyMethodDefType> {
-        Vec::new()
-    }
-}
-
 /// Implementation detail. Only to be used through our proc macro code.
 /// Method storage for `#[pyclass]`.
 /// Allows arbitrary `#[pymethod]/#[pyproto]` blocks to submit their methods,
@@ -245,14 +198,4 @@ pub trait PyMethodsInventory: inventory::Collect {
 #[cfg(feature = "macros")]
 pub trait HasMethodsInventory {
     type Methods: PyMethodsInventory;
-}
-
-#[cfg(feature = "macros")]
-impl<T: HasMethodsInventory> PyMethods for T {
-    fn py_methods() -> Vec<&'static PyMethodDefType> {
-        inventory::iter::<T::Methods>
-            .into_iter()
-            .flat_map(PyMethodsInventory::get)
-            .collect()
-    }
 }
