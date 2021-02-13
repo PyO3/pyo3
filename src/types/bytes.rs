@@ -1,7 +1,4 @@
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject, PyErr};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -61,6 +58,31 @@ impl PyBytes {
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
             init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pypybytes.into_ref(py))
+        }
+    }
+
+    pub fn new_with_resize<F>(py: Python, len: usize, init: F) -> PyResult<&PyBytes>
+        where
+            F: FnOnce(&mut [u8]) -> PyResult<usize>,
+    {
+        unsafe {
+            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            // Check for an allocation error and return it
+            let pypybytes: Py<PyBytes> = Py::from_owned_ptr_or_err(py, pyptr)?;
+            let buffer = ffi::PyBytes_AsString(pyptr) as *mut u8;
+            debug_assert!(!buffer.is_null());
+            // Zero-initialise the uninitialised bytestring
+            std::ptr::write_bytes(buffer, 0u8, len);
+            // (Further) Initialise the bytestring in init
+            // If init returns an Err, pypybytearray will automatically deallocate the buffer
+            let resize = init(std::slice::from_raw_parts_mut(buffer, len)).unwrap();
+            let result = ffi::_PyBytes_Resize(&mut pypybytes.as_ptr(), resize as ffi::Py_ssize_t);
+            if result == 0 {
+                Ok(pypybytes.into_ref(py))
+            } else {
+                Err(PyErr::fetch(py))
+            }
+
         }
     }
 
