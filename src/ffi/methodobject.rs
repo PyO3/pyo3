@@ -1,4 +1,4 @@
-use crate::ffi::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::ffi::object::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 use std::mem;
 use std::os::raw::{c_char, c_int};
 
@@ -16,7 +16,7 @@ pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
+    PyObject_TypeCheck(op, &mut PyCFunction_Type)
 }
 
 pub type PyCFunction =
