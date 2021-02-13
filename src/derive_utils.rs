@@ -136,6 +136,7 @@ impl ModuleDef {
     /// # Safety
     /// `name` must be a null-terminated string.
     pub const unsafe fn new(name: &'static str) -> Self {
+        #[allow(deprecated)]
         let mut init = ffi::PyModuleDef_INIT;
         init.m_name = name.as_ptr() as *const _;
         ModuleDef(UnsafeCell::new(init))

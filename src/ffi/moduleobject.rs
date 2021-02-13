@@ -30,8 +30,12 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
     #[cfg(not(all(windows, PyPy)))]
+    #[deprecated(note = "Python 3.2")]
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
+    // skipped non-limited _PyModule_Clear
+    // skipped non-limited _PyModule_ClearDict
+    // skipped non-limited _PyModuleSpec_IsInitializing
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDef")]
     pub fn PyModule_GetDef(arg1: *mut PyObject) -> *mut PyModuleDef;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetState")]
@@ -71,6 +75,8 @@ pub struct PyModuleDef_Slot {
 pub const Py_mod_create: c_int = 1;
 pub const Py_mod_exec: c_int = 2;
 
+// skipped non-limited _Py_mod_LAST_SLOT
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyModuleDef {
@@ -85,6 +91,10 @@ pub struct PyModuleDef {
     pub m_free: Option<freefunc>,
 }
 
+/// Helper initial value of [`PyModuleDef`] for a Python class.
+///
+/// Not present in the Python C API.
+#[deprecated(note = "not present in Python headers; to be removed")]
 pub const PyModuleDef_INIT: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
     m_name: std::ptr::null(),

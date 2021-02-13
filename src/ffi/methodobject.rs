@@ -8,6 +8,12 @@ extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
+#[cfg(Py_3_9)]
+#[inline]
+pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
+}
+
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
@@ -38,11 +44,14 @@ pub type _PyCFunctionFastWithKeywords = unsafe extern "C" fn(
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
+// skipped PyCMethod (since 3.9)
+
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
+    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyCFunction_Call(
         f: *mut PyObject,
         args: *mut PyObject,
@@ -59,6 +68,10 @@ pub struct PyMethodDef {
     pub ml_doc: *const c_char,
 }
 
+/// Helper initial value of [`PyMethodDef`] for a Python class.
+///
+/// Not present in the Python C API.
+#[deprecated(note = "not present in Python headers; to be removed")]
 pub const PyMethodDef_INIT: PyMethodDef = PyMethodDef {
     ml_name: std::ptr::null(),
     ml_meth: None,
@@ -73,16 +86,18 @@ impl Default for PyMethodDef {
 }
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]
+    pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
+
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
     pub fn PyCFunction_NewEx(
         ml: *mut PyMethodDef,
         slf: *mut PyObject,
         module: *mut PyObject,
     ) -> *mut PyObject;
-
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]
-    pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
 }
+
+// skipped non-limited / 3.9 PyCMethod_New
 
 /* Flag passed to newmethodobject */
 pub const METH_VARARGS: c_int = 0x0001;
@@ -109,6 +124,10 @@ be specified alone or with METH_KEYWORDS. */
 #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
 pub const METH_FASTCALL: c_int = 0x0080;
 
+// skipped METH_STACKLESS
+// skipped METH_METHOD
+
 extern "C" {
+    #[cfg(not(Py_3_9))]
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }

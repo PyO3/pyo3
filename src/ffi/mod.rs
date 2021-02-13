@@ -127,6 +127,10 @@ mod listobject;
 mod longobject;
 pub(crate) mod marshal;
 mod memoryobject;
+mod methodobject; // TODO: incomplete
+mod modsupport; // TODO: incomplete
+mod moduleobject; // TODO: incomplete
+
 // skipped namespaceobject.h
 // skipped odictobject.h
 // skipped opcode.h
@@ -174,8 +178,6 @@ mod unicodeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.
 mod rangeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod tupleobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
                  // mod odictobject; TODO new in 3.5
-mod methodobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod moduleobject;
 mod setobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
                // mod classobject; TODO excluded by PEP-384
 mod pycapsule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
@@ -191,7 +193,6 @@ mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 
 
 #[cfg(Py_LIMITED_API)]
 mod pyarena {}
-mod modsupport; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 #[cfg(not(Py_LIMITED_API))]
 mod pyarena; // TODO: incomplete
 mod pythonrun; // TODO some functions need to be moved to pylifecycle

@@ -350,6 +350,7 @@ fn py_class_method_defs<T: PyMethods>() -> (
     }
 
     if !defs.is_empty() {
+        #[allow(deprecated)]
         defs.push(ffi::PyMethodDef_INIT);
     }
 

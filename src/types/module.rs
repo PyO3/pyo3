@@ -121,7 +121,12 @@ impl PyModule {
     /// May fail if the module does not have a `__file__` attribute.
     #[cfg(not(all(windows, PyPy)))]
     pub fn filename(&self) -> PyResult<&str> {
-        unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
+        unsafe {
+            self.str_from_ptr(
+                #[allow(deprecated)]
+                ffi::PyModule_GetFilename(self.as_ptr()),
+            )
+        }
     }
 
     /// Calls a function in the module.
