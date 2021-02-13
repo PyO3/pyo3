@@ -14,9 +14,16 @@ pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
 }
 
+#[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCFunction_Type)
+}
+
+#[cfg(not(Py_3_9))]
+#[inline]
+pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
 }
 
 pub type PyCFunction =
