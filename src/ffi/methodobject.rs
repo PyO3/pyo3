@@ -1,4 +1,6 @@
-use crate::ffi::object::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
+use crate::ffi::object::{PyObject, PyTypeObject, Py_TYPE};
+#[cfg(Py_3_9)]
+use crate::ffi::PyObject_TypeCheck;
 use std::mem;
 use std::os::raw::{c_char, c_int};
 
