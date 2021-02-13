@@ -9,7 +9,7 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::{PyAny, PyDict, PyList};
+use crate::types::{PyAny, PyDict, PyList, PyString};
 use crate::types::{PyCFunction, PyTuple};
 use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
@@ -122,10 +122,9 @@ impl PyModule {
     #[cfg(not(all(windows, PyPy)))]
     pub fn filename(&self) -> PyResult<&str> {
         unsafe {
-            self.str_from_ptr(
-                #[allow(deprecated)]
-                ffi::PyModule_GetFilename(self.as_ptr()),
-            )
+            self.py()
+                .from_owned_ptr_or_err::<PyString>(ffi::PyModule_GetFilenameObject(self.as_ptr()))?
+                .to_str()
         }
     }
 
