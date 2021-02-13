@@ -77,17 +77,6 @@ pub struct PyMethodDef {
     pub ml_doc: *const c_char,
 }
 
-/// Helper initial value of [`PyMethodDef`] for a Python class.
-///
-/// Not present in the Python C API.
-#[deprecated(note = "not present in Python headers; to be removed")]
-pub const PyMethodDef_INIT: PyMethodDef = PyMethodDef {
-    ml_name: std::ptr::null(),
-    ml_meth: None,
-    ml_flags: 0,
-    ml_doc: std::ptr::null(),
-};
-
 impl Default for PyMethodDef {
     fn default() -> PyMethodDef {
         unsafe { mem::zeroed() }

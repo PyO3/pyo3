@@ -350,8 +350,7 @@ fn py_class_method_defs<T: PyMethods>() -> (
     }
 
     if !defs.is_empty() {
-        #[allow(deprecated)]
-        defs.push(ffi::PyMethodDef_INIT);
+        defs.push(unsafe { std::mem::zeroed() });
     }
 
     (new, call, defs)
@@ -399,6 +398,14 @@ fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
     vec![]
 }
 
+const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
+    name: ptr::null_mut(),
+    get: None,
+    set: None,
+    doc: ptr::null_mut(),
+    closure: ptr::null_mut(),
+};
+
 #[allow(clippy::clippy::collapsible_if)] // for if cfg!
 fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
@@ -408,7 +415,7 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
             PyMethodDefType::Getter(getter) => {
                 if !defs.contains_key(getter.name) {
                     #[allow(deprecated)]
-                    let _ = defs.insert(getter.name.to_owned(), ffi::PyGetSetDef_INIT);
+                    let _ = defs.insert(getter.name.to_owned(), PY_GET_SET_DEF_INIT);
                 }
                 let def = defs.get_mut(getter.name).expect("Failed to call get_mut");
                 getter.copy_to(def);
@@ -416,7 +423,7 @@ fn py_class_properties<T: PyClass>() -> Vec<ffi::PyGetSetDef> {
             PyMethodDefType::Setter(setter) => {
                 if !defs.contains_key(setter.name) {
                     #[allow(deprecated)]
-                    let _ = defs.insert(setter.name.to_owned(), ffi::PyGetSetDef_INIT);
+                    let _ = defs.insert(setter.name.to_owned(), PY_GET_SET_DEF_INIT);
                 }
                 let def = defs.get_mut(setter.name).expect("Failed to call get_mut");
                 setter.copy_to(def);
