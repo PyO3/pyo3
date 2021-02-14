@@ -12,6 +12,7 @@ pub mod frameobject;
 // skipped initconfig.h
 // skipped interpreteridobject.h
 pub mod listobject;
+pub mod object;
 
 pub use self::abstract_::*;
 #[cfg(not(PyPy))]
@@ -22,3 +23,4 @@ pub use self::code::*;
 pub use self::dictobject::*;
 pub use self::frameobject::*;
 pub use self::listobject::*;
+pub use self::object::*;

@@ -1,9 +1,55 @@
+// FFI note: this file changed a lot between 3.6 and 3.10.
+// Some missing definitions may not be marked "skipped".
 use crate::ffi::pyport::{Py_hash_t, Py_ssize_t};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 
-pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;
+#[cfg(Py_LIMITED_API)]
+opaque_struct!(PyTypeObject);
+
+#[cfg(not(Py_LIMITED_API))]
+pub use crate::ffi::cpython::object::PyTypeObject;
+
+// _PyObject_HEAD_EXTRA: conditionally defined in PyObject_HEAD_INIT
+// _PyObject_EXTRA_INIT: conditionally defined in PyObject_HEAD_INIT
+
+#[cfg(py_sys_config = "Py_TRACE_REFS")]
+#[cfg(not(PyPy))]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    _ob_next: std::ptr::null_mut(),
+    _ob_prev: std::ptr::null_mut(),
+    ob_refcnt: 1,
+    ob_type: std::ptr::null_mut(),
+};
+
+#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+#[cfg(not(PyPy))]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 1,
+    ob_type: std::ptr::null_mut(),
+};
+
+#[cfg(py_sys_config = "Py_TRACE_REFS")]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    _ob_next: std::ptr::null_mut(),
+    _ob_prev: std::ptr::null_mut(),
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
+    ob_type: std::ptr::null_mut(),
+};
+
+#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
+    ob_type: std::ptr::null_mut(),
+};
+
+// skipped PyObject_VAR_HEAD
+// skipped Py_INVALID_SIZE
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -26,39 +72,8 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[cfg(not(PyPy))]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: std::ptr::null_mut(),
-    _ob_prev: std::ptr::null_mut(),
-    ob_refcnt: 1,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
-#[cfg(not(PyPy))]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    ob_refcnt: 1,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[cfg(PyPy)]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: std::ptr::null_mut(),
-    _ob_prev: std::ptr::null_mut(),
-    ob_refcnt: 1,
-    ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
-#[cfg(PyPy)]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    ob_refcnt: 1,
-    ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
-};
+// skipped _PyObject_CAST
+// skipped _PyObject_CAST_CONST
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -66,6 +81,11 @@ pub struct PyVarObject {
     pub ob_base: PyObject,
     pub ob_size: Py_ssize_t,
 }
+
+// skipped _PyVarObject_CAST
+// skipped _PyVarObject_CAST_CONST
+
+// skipped _Py_REFCNT: defined in Py_REFCNT
 
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
@@ -84,6 +104,18 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     (*(ob as *mut PyVarObject)).ob_size
 }
+
+#[inline]
+pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
+    (Py_TYPE(ob) == tp) as c_int
+}
+
+// skipped _Py_SET_REFCNT
+// skipped Py_SET_REFCNT
+// skipped _Py_SET_TYPE
+// skipped Py_SET_TYPE
+// skipped _Py_SET_SIZE
+// skipped Py_SET_SIZE
 
 pub type unaryfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 
@@ -119,88 +151,6 @@ pub type ssizessizeobjargproc = unsafe extern "C" fn(
 pub type objobjargproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
 
-#[cfg(not(Py_LIMITED_API))]
-mod bufferinfo {
-    use crate::ffi::pyport::Py_ssize_t;
-    use std::os::raw::{c_char, c_int, c_void};
-    use std::ptr;
-
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    pub struct Py_buffer {
-        pub buf: *mut c_void,
-        pub obj: *mut crate::ffi::PyObject,
-        pub len: Py_ssize_t,
-        pub itemsize: Py_ssize_t,
-        pub readonly: c_int,
-        pub ndim: c_int,
-        pub format: *mut c_char,
-        pub shape: *mut Py_ssize_t,
-        pub strides: *mut Py_ssize_t,
-        pub suboffsets: *mut Py_ssize_t,
-        pub internal: *mut c_void,
-    }
-
-    impl Py_buffer {
-        pub const fn new() -> Self {
-            Py_buffer {
-                buf: ptr::null_mut(),
-                obj: ptr::null_mut(),
-                len: 0,
-                itemsize: 0,
-                readonly: 0,
-                ndim: 0,
-                format: ptr::null_mut(),
-                shape: ptr::null_mut(),
-                strides: ptr::null_mut(),
-                suboffsets: ptr::null_mut(),
-                internal: ptr::null_mut(),
-            }
-        }
-    }
-
-    pub type getbufferproc = unsafe extern "C" fn(
-        arg1: *mut crate::ffi::PyObject,
-        arg2: *mut Py_buffer,
-        arg3: c_int,
-    ) -> c_int;
-    pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut crate::ffi::PyObject, arg2: *mut Py_buffer);
-
-    /// Maximum number of dimensions
-    pub const PyBUF_MAX_NDIM: c_int = 64;
-
-    /* Flags for getting buffers */
-    pub const PyBUF_SIMPLE: c_int = 0;
-    pub const PyBUF_WRITABLE: c_int = 0x0001;
-    /*  we used to include an E, backwards compatible alias  */
-    pub const PyBUF_WRITEABLE: c_int = PyBUF_WRITABLE;
-    pub const PyBUF_FORMAT: c_int = 0x0004;
-    pub const PyBUF_ND: c_int = 0x0008;
-    pub const PyBUF_STRIDES: c_int = 0x0010 | PyBUF_ND;
-    pub const PyBUF_C_CONTIGUOUS: c_int = 0x0020 | PyBUF_STRIDES;
-    pub const PyBUF_F_CONTIGUOUS: c_int = 0x0040 | PyBUF_STRIDES;
-    pub const PyBUF_ANY_CONTIGUOUS: c_int = 0x0080 | PyBUF_STRIDES;
-    pub const PyBUF_INDIRECT: c_int = 0x0100 | PyBUF_STRIDES;
-
-    pub const PyBUF_CONTIG: c_int = PyBUF_ND | PyBUF_WRITABLE;
-    pub const PyBUF_CONTIG_RO: c_int = PyBUF_ND;
-
-    pub const PyBUF_STRIDED: c_int = PyBUF_STRIDES | PyBUF_WRITABLE;
-    pub const PyBUF_STRIDED_RO: c_int = PyBUF_STRIDES;
-
-    pub const PyBUF_RECORDS: c_int = PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT;
-    pub const PyBUF_RECORDS_RO: c_int = PyBUF_STRIDES | PyBUF_FORMAT;
-
-    pub const PyBUF_FULL: c_int = PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT;
-    pub const PyBUF_FULL_RO: c_int = PyBUF_INDIRECT | PyBUF_FORMAT;
-
-    pub const PyBUF_READ: c_int = 0x100;
-    pub const PyBUF_WRITE: c_int = 0x200;
-}
-#[cfg(not(Py_LIMITED_API))]
-pub use self::bufferinfo::*;
-
 pub type objobjproc = unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
 pub type visitproc = unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void) -> c_int;
 pub type traverseproc =
@@ -208,9 +158,6 @@ pub type traverseproc =
 
 pub type freefunc = unsafe extern "C" fn(arg1: *mut c_void);
 pub type destructor = unsafe extern "C" fn(arg1: *mut PyObject);
-#[cfg(not(Py_LIMITED_API))]
-pub type printfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
 pub type getattrofunc =
@@ -241,328 +188,6 @@ pub type newfunc = unsafe extern "C" fn(
 ) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
-#[cfg(Py_3_8)]
-pub type vectorcallfunc = unsafe extern "C" fn(
-    callable: *mut PyObject,
-    args: *const *mut PyObject,
-    nargsf: libc::size_t,
-    kwnames: *mut PyObject,
-) -> *mut PyObject;
-
-#[cfg(Py_LIMITED_API)]
-mod typeobject {
-    opaque_struct!(PyTypeObject);
-}
-
-#[cfg(not(Py_LIMITED_API))]
-mod typeobject {
-    use crate::ffi::pyport::Py_ssize_t;
-    use crate::ffi::{self, object};
-    use std::mem;
-    use std::os::raw::{c_char, c_uint, c_ulong, c_void};
-    use std::ptr;
-
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    pub struct PyNumberMethods {
-        pub nb_add: Option<object::binaryfunc>,
-        pub nb_subtract: Option<object::binaryfunc>,
-        pub nb_multiply: Option<object::binaryfunc>,
-        pub nb_remainder: Option<object::binaryfunc>,
-        pub nb_divmod: Option<object::binaryfunc>,
-        pub nb_power: Option<object::ternaryfunc>,
-        pub nb_negative: Option<object::unaryfunc>,
-        pub nb_positive: Option<object::unaryfunc>,
-        pub nb_absolute: Option<object::unaryfunc>,
-        pub nb_bool: Option<object::inquiry>,
-        pub nb_invert: Option<object::unaryfunc>,
-        pub nb_lshift: Option<object::binaryfunc>,
-        pub nb_rshift: Option<object::binaryfunc>,
-        pub nb_and: Option<object::binaryfunc>,
-        pub nb_xor: Option<object::binaryfunc>,
-        pub nb_or: Option<object::binaryfunc>,
-        pub nb_int: Option<object::unaryfunc>,
-        pub nb_reserved: *mut c_void,
-        pub nb_float: Option<object::unaryfunc>,
-        pub nb_inplace_add: Option<object::binaryfunc>,
-        pub nb_inplace_subtract: Option<object::binaryfunc>,
-        pub nb_inplace_multiply: Option<object::binaryfunc>,
-        pub nb_inplace_remainder: Option<object::binaryfunc>,
-        pub nb_inplace_power: Option<object::ternaryfunc>,
-        pub nb_inplace_lshift: Option<object::binaryfunc>,
-        pub nb_inplace_rshift: Option<object::binaryfunc>,
-        pub nb_inplace_and: Option<object::binaryfunc>,
-        pub nb_inplace_xor: Option<object::binaryfunc>,
-        pub nb_inplace_or: Option<object::binaryfunc>,
-        pub nb_floor_divide: Option<object::binaryfunc>,
-        pub nb_true_divide: Option<object::binaryfunc>,
-        pub nb_inplace_floor_divide: Option<object::binaryfunc>,
-        pub nb_inplace_true_divide: Option<object::binaryfunc>,
-        pub nb_index: Option<object::unaryfunc>,
-        pub nb_matrix_multiply: Option<object::binaryfunc>,
-        pub nb_inplace_matrix_multiply: Option<object::binaryfunc>,
-    }
-
-    macro_rules! as_expr {
-        ($e:expr) => {
-            $e
-        };
-    }
-
-    #[repr(C)]
-    #[derive(Clone)]
-    pub struct PySequenceMethods {
-        pub sq_length: Option<object::lenfunc>,
-        pub sq_concat: Option<object::binaryfunc>,
-        pub sq_repeat: Option<object::ssizeargfunc>,
-        pub sq_item: Option<object::ssizeargfunc>,
-        pub was_sq_slice: *mut c_void,
-        pub sq_ass_item: Option<object::ssizeobjargproc>,
-        pub was_sq_ass_slice: *mut c_void,
-        pub sq_contains: Option<object::objobjproc>,
-        pub sq_inplace_concat: Option<object::binaryfunc>,
-        pub sq_inplace_repeat: Option<object::ssizeargfunc>,
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Default)]
-    pub struct PyMappingMethods {
-        pub mp_length: Option<object::lenfunc>,
-        pub mp_subscript: Option<object::binaryfunc>,
-        pub mp_ass_subscript: Option<object::objobjargproc>,
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Default)]
-    pub struct PyAsyncMethods {
-        pub am_await: Option<object::unaryfunc>,
-        pub am_aiter: Option<object::unaryfunc>,
-        pub am_anext: Option<object::unaryfunc>,
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Default)]
-    pub struct PyBufferProcs {
-        pub bf_getbuffer: Option<object::getbufferproc>,
-        pub bf_releasebuffer: Option<object::releasebufferproc>,
-    }
-
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub struct PyTypeObject {
-        #[cfg(PyPy)]
-        pub ob_refcnt: Py_ssize_t,
-        #[cfg(PyPy)]
-        pub ob_pypy_link: Py_ssize_t,
-        #[cfg(PyPy)]
-        pub ob_type: *mut PyTypeObject,
-        #[cfg(PyPy)]
-        pub ob_size: Py_ssize_t,
-        #[cfg(not(PyPy))]
-        pub ob_base: object::PyVarObject,
-        pub tp_name: *const c_char,
-        pub tp_basicsize: Py_ssize_t,
-        pub tp_itemsize: Py_ssize_t,
-        pub tp_dealloc: Option<object::destructor>,
-        #[cfg(not(Py_3_8))]
-        pub tp_print: Option<object::printfunc>,
-        #[cfg(Py_3_8)]
-        pub tp_vectorcall_offset: Py_ssize_t,
-        pub tp_getattr: Option<object::getattrfunc>,
-        pub tp_setattr: Option<object::setattrfunc>,
-        pub tp_as_async: *mut PyAsyncMethods,
-        pub tp_repr: Option<object::reprfunc>,
-        pub tp_as_number: *mut PyNumberMethods,
-        pub tp_as_sequence: *mut PySequenceMethods,
-        pub tp_as_mapping: *mut PyMappingMethods,
-        pub tp_hash: Option<object::hashfunc>,
-        pub tp_call: Option<object::ternaryfunc>,
-        pub tp_str: Option<object::reprfunc>,
-        pub tp_getattro: Option<object::getattrofunc>,
-        pub tp_setattro: Option<object::setattrofunc>,
-        pub tp_as_buffer: *mut PyBufferProcs,
-        pub tp_flags: c_ulong,
-        pub tp_doc: *const c_char,
-        pub tp_traverse: Option<object::traverseproc>,
-        pub tp_clear: Option<object::inquiry>,
-        pub tp_richcompare: Option<object::richcmpfunc>,
-        pub tp_weaklistoffset: Py_ssize_t,
-        pub tp_iter: Option<object::getiterfunc>,
-        pub tp_iternext: Option<object::iternextfunc>,
-        pub tp_methods: *mut ffi::methodobject::PyMethodDef,
-        pub tp_members: *mut ffi::structmember::PyMemberDef,
-        pub tp_getset: *mut ffi::descrobject::PyGetSetDef,
-        pub tp_base: *mut PyTypeObject,
-        pub tp_dict: *mut object::PyObject,
-        pub tp_descr_get: Option<object::descrgetfunc>,
-        pub tp_descr_set: Option<object::descrsetfunc>,
-        pub tp_dictoffset: Py_ssize_t,
-        pub tp_init: Option<object::initproc>,
-        pub tp_alloc: Option<object::allocfunc>,
-        pub tp_new: Option<object::newfunc>,
-        pub tp_free: Option<object::freefunc>,
-        pub tp_is_gc: Option<object::inquiry>,
-        pub tp_bases: *mut object::PyObject,
-        pub tp_mro: *mut object::PyObject,
-        pub tp_cache: *mut object::PyObject,
-        pub tp_subclasses: *mut object::PyObject,
-        pub tp_weaklist: *mut object::PyObject,
-        pub tp_del: Option<object::destructor>,
-        pub tp_version_tag: c_uint,
-        pub tp_finalize: Option<object::destructor>,
-        #[cfg(Py_3_8)]
-        pub tp_vectorcall: Option<object::vectorcallfunc>,
-        #[cfg(PyPy)]
-        pub tp_pypy_flags: std::os::raw::c_long,
-        #[cfg(py_sys_config = "COUNT_ALLOCS")]
-        pub tp_allocs: Py_ssize_t,
-        #[cfg(py_sys_config = "COUNT_ALLOCS")]
-        pub tp_frees: Py_ssize_t,
-        #[cfg(py_sys_config = "COUNT_ALLOCS")]
-        pub tp_maxalloc: Py_ssize_t,
-        #[cfg(py_sys_config = "COUNT_ALLOCS")]
-        pub tp_prev: *mut PyTypeObject,
-        #[cfg(py_sys_config = "COUNT_ALLOCS")]
-        pub tp_next: *mut PyTypeObject,
-    }
-
-    macro_rules! _type_object_init {
-        ({$($head:tt)*}, $($tail:tt)*) => {
-            as_expr! {
-                PyTypeObject {
-                    $($head)*
-                    tp_name: ptr::null(),
-                    tp_basicsize: 0,
-                    tp_itemsize: 0,
-                    tp_dealloc: None,
-                    #[cfg(not(Py_3_8))]
-                    tp_print: None,
-                    #[cfg(Py_3_8)]
-                    tp_vectorcall_offset: 0,
-                    tp_getattr: None,
-                    tp_setattr: None,
-                    tp_as_async: ptr::null_mut(),
-                    tp_repr: None,
-                    tp_as_number: ptr::null_mut(),
-                    tp_as_sequence: ptr::null_mut(),
-                    tp_as_mapping: ptr::null_mut(),
-                    tp_hash: None,
-                    tp_call: None,
-                    tp_str: None,
-                    tp_getattro: None,
-                    tp_setattro: None,
-                    tp_as_buffer: ptr::null_mut(),
-                    tp_flags: object::Py_TPFLAGS_DEFAULT,
-                    tp_doc: ptr::null(),
-                    tp_traverse: None,
-                    tp_clear: None,
-                    tp_richcompare: None,
-                    tp_weaklistoffset: 0,
-                    tp_iter: None,
-                    tp_iternext: None,
-                    tp_methods: ptr::null_mut(),
-                    tp_members: ptr::null_mut(),
-                    tp_getset: ptr::null_mut(),
-                    tp_base: ptr::null_mut(),
-                    tp_dict: ptr::null_mut(),
-                    tp_descr_get: None,
-                    tp_descr_set: None,
-                    tp_dictoffset: 0,
-                    tp_init: None,
-                    tp_alloc: None,
-                    tp_new: None,
-                    tp_free: None,
-                    tp_is_gc: None,
-                    tp_bases: ptr::null_mut(),
-                    tp_mro: ptr::null_mut(),
-                    tp_cache: ptr::null_mut(),
-                    tp_subclasses: ptr::null_mut(),
-                    tp_weaklist: ptr::null_mut(),
-                    tp_del: None,
-                    tp_version_tag: 0,
-                    tp_finalize: None,
-                    #[cfg(Py_3_8)]
-                    tp_vectorcall: None,
-                    $($tail)*
-                }
-            }
-        }
-    }
-
-    #[cfg(PyPy)]
-    macro_rules! type_object_init {
-        ($($tail:tt)*) => {
-            _type_object_init!({
-                    ob_refcnt: 1,
-                    ob_pypy_link: 0,
-                    ob_type: ptr::null_mut(),
-                    ob_size: 0,
-                },
-                tp_pypy_flags: 0,
-                $($tail)*
-            )
-        }
-    }
-
-    #[cfg(not(PyPy))]
-    macro_rules! type_object_init {
-        ($($tail:tt)*) => {
-            _type_object_init!({
-                ob_base: object::PyVarObject {
-                    ob_base: object::PyObject_HEAD_INIT,
-                    ob_size: 0
-                },},
-                $($tail)*
-            )
-        }
-    }
-
-    #[cfg(py_sys_config = "COUNT_ALLOCS")]
-    pub const PyTypeObject_INIT: PyTypeObject = type_object_init! {
-        tp_allocs: 0,
-        tp_frees: 0,
-        tp_maxalloc: 0,
-        tp_prev: ptr::null_mut(),
-        tp_next: ptr::null_mut(),
-    };
-
-    #[cfg(not(py_sys_config = "COUNT_ALLOCS"))]
-    pub const PyTypeObject_INIT: PyTypeObject = type_object_init!();
-
-    #[repr(C)]
-    #[derive(Clone)]
-    pub struct PyHeapTypeObject {
-        pub ht_type: PyTypeObject,
-        pub as_async: PyAsyncMethods,
-        pub as_number: PyNumberMethods,
-        pub as_mapping: PyMappingMethods,
-        pub as_sequence: PySequenceMethods,
-        pub as_buffer: PyBufferProcs,
-        pub ht_name: *mut object::PyObject,
-        pub ht_slots: *mut object::PyObject,
-        pub ht_qualname: *mut object::PyObject,
-        pub ht_cached_keys: *mut c_void,
-    }
-
-    impl Default for PyHeapTypeObject {
-        #[inline]
-        fn default() -> Self {
-            unsafe { mem::zeroed() }
-        }
-    }
-
-    #[inline]
-    pub unsafe fn PyHeapType_GET_MEMBERS(
-        etype: *mut PyHeapTypeObject,
-    ) -> *mut ffi::structmember::PyMemberDef {
-        let py_type = object::Py_TYPE(etype as *mut object::PyObject);
-        let ptr = etype.offset((*py_type).tp_basicsize);
-        ptr as *mut ffi::structmember::PyMemberDef
-    }
-}
-
-// The exported types depend on whether Py_LIMITED_API is set
-pub use self::typeobject::*;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -602,6 +227,10 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyType_GetSlot")]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int) -> *mut c_void;
+
+    // skipped non-limited / 3.9 PyType_FromModuleAndSpec
+    // skipped non-limited / 3.9 PyType_GetModule
+    // skipped non-limited / 3.9 PyType_GetModuleState
 }
 
 extern "C" {
@@ -630,16 +259,6 @@ extern "C" {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 }
 
-#[inline]
-pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
-}
-
-#[inline]
-pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyType_Type) as c_int
-}
-
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_Ready")]
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
@@ -655,9 +274,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_Modified")]
     pub fn PyType_Modified(t: *mut PyTypeObject);
 
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
-    pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Repr")]
     pub fn PyObject_Repr(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Str")]
@@ -694,10 +310,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_SelfIter")]
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;
 
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg(not(PyPy))]
-    pub fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject;
-
     #[cfg_attr(PyPy, link_name = "PyPyObject_GenericGetAttr")]
     pub fn PyObject_GenericGetAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_GenericSetAttr")]
@@ -725,11 +337,6 @@ extern "C" {
     pub fn PyCallable_Check(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_ClearWeakRefs")]
     pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject);
-    #[cfg(not(Py_LIMITED_API))]
-    pub fn PyObject_CallFinalizer(arg1: *mut PyObject);
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
-    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyObject_Dir")]
     pub fn PyObject_Dir(arg1: *mut PyObject) -> *mut PyObject;
@@ -749,6 +356,7 @@ pub const Py_TPFLAGS_BASETYPE: c_ulong = 1 << 10;
 /// Set if the type implements the vectorcall protocol (PEP 590)
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 pub const Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
+// skipped non-limited _Py_TPFLAGS_HAVE_VECTORCALL
 
 /// Set if the type is 'ready' -- fully initialized
 pub const Py_TPFLAGS_READY: c_ulong = 1 << 12;
@@ -761,12 +369,16 @@ pub const Py_TPFLAGS_HAVE_GC: c_ulong = 1 << 14;
 
 const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_ulong = 0;
 
+// skipped Py_TPFLAGS_METHOD_DESCRIPTOR
+
 /// Objects support type attribute cache
 pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
 pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = 1 << 19;
 
 /* Type is abstract and cannot be instantiated */
 pub const Py_TPFLAGS_IS_ABSTRACT: c_ulong = 1 << 20;
+
+// skipped non-limited / 3.10 Py_TPFLAGS_HAVE_AM_SEND
 
 /* These flags are used to determine if a type is a subclass. */
 pub const Py_TPFLAGS_LONG_SUBCLASS: c_ulong = 1 << 24;
@@ -783,22 +395,8 @@ pub const Py_TPFLAGS_DEFAULT: c_ulong =
 
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
 
-#[inline]
-#[cfg(Py_LIMITED_API)]
-pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
-    ((PyType_GetFlags(t) & f) != 0) as c_int
-}
-
-#[inline]
-#[cfg(not(Py_LIMITED_API))]
-pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
-    (((*t).tp_flags & f) != 0) as c_int
-}
-
-#[inline]
-pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
-    PyType_HasFeature(t, f)
-}
+// skipped _Py_RefTotal
+// skipped _Py_NegativeRefCount
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
@@ -855,14 +453,17 @@ extern "C" {
     pub fn Py_IncRef(o: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
+
+    // skipped Py_NewRef
+    // skipped Py_XNewRef
+    // skipped _Py_NewRef
+    // skipped _Py_XNewRef
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
-    #[cfg_attr(PyPy, link_name = "_PyPy_NotImplementedStruct")]
-    static mut _Py_NotImplementedStruct: PyObject;
 }
 
 #[inline]
@@ -870,10 +471,20 @@ pub unsafe fn Py_None() -> *mut PyObject {
     &mut _Py_NoneStruct
 }
 
+// skipped Py_RETURN_NONE
+
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "_PyPy_NotImplementedStruct")]
+    static mut _Py_NotImplementedStruct: PyObject;
+}
+
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     &mut _Py_NotImplementedStruct
 }
+
+// skipped Py_RETURN_NOTIMPLEMENTED
 
 /* Rich comparison opcodes */
 pub const Py_LT: c_int = 0;
@@ -883,17 +494,48 @@ pub const Py_NE: c_int = 3;
 pub const Py_GT: c_int = 4;
 pub const Py_GE: c_int = 5;
 
+// skipped non-limited / 3.10 PySendResult
+
+// skipped Py_RETURN_RICHCOMPARE
+
 #[inline]
+#[cfg(Py_LIMITED_API)]
+pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
+    ((PyType_GetFlags(t) & f) != 0) as c_int
+}
+
+#[inline]
+#[cfg(not(Py_LIMITED_API))]
+pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
+    (((*t).tp_flags & f) != 0) as c_int
+}
+
+#[inline]
+pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
+    PyType_HasFeature(t, f)
+}
+
+#[inline]
+pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
+    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
+}
+
+#[inline]
+pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &mut PyType_Type) as c_int
+}
+
+#[inline]
+// #[deprecated(note = "not present in Python headers; to be removed")]
 pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
     1
 }
 
 #[inline]
+// #[deprecated(note = "not present in Python headers; to be removed")]
 pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
     0
 }
 
-#[cfg(not(PyPy))]
-extern "C" {
-    pub fn _PyObject_GetDictPtr(obj: *mut PyObject) -> *mut *mut PyObject;
-}
+// #[deprecated(note = "not present in Python headers; to be removed")]
+pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;

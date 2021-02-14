@@ -132,6 +132,7 @@ mod modsupport; // TODO: incomplete
 mod moduleobject; // TODO: incomplete
 
 // skipped namespaceobject.h
+mod object;
 // skipped odictobject.h
 // skipped opcode.h
 // skipped osdefs.h
@@ -166,7 +167,6 @@ mod pyport;
 
 #[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
 mod initconfig;
-mod object;
 mod objimpl;
 mod pydebug;
 mod pyhash;
