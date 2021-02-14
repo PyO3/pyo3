@@ -142,6 +142,15 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
         return Ok(None);
     }
 
+    if target == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
+        // Not cross-compiling to compile for x86-64 Python from macOS arm64
+        return Ok(None);
+    }
+    if target == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
+        // Not cross-compiling to compile for arm64 Python from macOS x86_64
+        return Ok(None);
+    }
+
     if host.starts_with(&format!(
         "{}-{}-{}",
         env::var("CARGO_CFG_TARGET_ARCH")?,
