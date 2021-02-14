@@ -216,7 +216,7 @@ mod typeobject {
         pub tp_itemsize: Py_ssize_t,
         pub tp_dealloc: Option<object::destructor>,
         #[cfg(not(Py_3_8))]
-        pub tp_print: Option<object::printfunc>,
+        pub tp_print: Option<printfunc>,
         #[cfg(Py_3_8)]
         pub tp_vectorcall_offset: Py_ssize_t,
         pub tp_getattr: Option<object::getattrfunc>,
