@@ -13,7 +13,7 @@ The table below contains the Python type and the corresponding function argument
 | Python        | Rust                            | Rust (Python-native) |
 | ------------- |:-------------------------------:|:--------------------:|
 | `object`      | -                               | `&PyAny`             |
-| `str`         | `String`, `Cow<str>`, `&str`    | `&PyUnicode`         |
+| `str`         | `String`, `Cow<str>`, `&str`, `OsString`, `PathBuf` | `&PyUnicode` |
 | `bytes`       | `Vec<u8>`, `&[u8]`              | `&PyBytes`           |
 | `bool`        | `bool`                          | `&PyBool`            |
 | `int`         | Any integer type (`i32`, `u32`, `usize`, etc) | `&PyLong` |
