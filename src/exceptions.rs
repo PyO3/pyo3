@@ -207,176 +207,89 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $legacy_name:ident, $exc_name:ident, $layout:path) => (
+    ($name:ident, $exc_name:ident, $layout:path) => (
         pub struct $name($crate::PyAny);
-
-        #[deprecated(note = "Exceptions now have a `Py` prefix, e.g. `PyException`, `PyTypeError`")]
-        pub type $legacy_name = $crate::Py<$name>;
 
         $crate::impl_exception_boilerplate!($name);
         $crate::pyobject_native_type_core!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject), Some("builtins"));
     );
-    ($name:ident, $legacy_name:ident, $exc_name:ident) => (
-        impl_native_exception!($name, $legacy_name, $exc_name, ffi::PyBaseExceptionObject);
+    ($name:ident, $exc_name:ident) => (
+        impl_native_exception!($name, $exc_name, ffi::PyBaseExceptionObject);
     )
 );
 
 impl PySizedLayout<PyBaseException> for ffi::PyBaseExceptionObject {}
 
-impl_native_exception!(PyBaseException, BaseException, PyExc_BaseException);
-impl_native_exception!(PyException, Exception, PyExc_Exception);
-impl_native_exception!(
-    PyStopAsyncIteration,
-    StopAsyncIteration,
-    PyExc_StopAsyncIteration
-);
+impl_native_exception!(PyBaseException, PyExc_BaseException);
+impl_native_exception!(PyException, PyExc_Exception);
+impl_native_exception!(PyStopAsyncIteration, PyExc_StopAsyncIteration);
 impl_native_exception!(
     PyStopIteration,
-    StopIteration,
     PyExc_StopIteration,
     ffi::PyStopIterationObject
 );
-impl_native_exception!(PyGeneratorExit, GeneratorExit, PyExc_GeneratorExit);
-impl_native_exception!(PyArithmeticError, ArithmeticError, PyExc_ArithmeticError);
-impl_native_exception!(PyLookupError, LookupError, PyExc_LookupError);
+impl_native_exception!(PyGeneratorExit, PyExc_GeneratorExit);
+impl_native_exception!(PyArithmeticError, PyExc_ArithmeticError);
+impl_native_exception!(PyLookupError, PyExc_LookupError);
 
-impl_native_exception!(PyAssertionError, AssertionError, PyExc_AssertionError);
-impl_native_exception!(PyAttributeError, AttributeError, PyExc_AttributeError);
-impl_native_exception!(PyBufferError, BufferError, PyExc_BufferError);
-impl_native_exception!(PyEOFError, EOFError, PyExc_EOFError);
-impl_native_exception!(
-    PyFloatingPointError,
-    FloatingPointError,
-    PyExc_FloatingPointError
-);
-impl_native_exception!(PyOSError, OSError, PyExc_OSError, ffi::PyOSErrorObject);
-impl_native_exception!(PyImportError, ImportError, PyExc_ImportError);
+impl_native_exception!(PyAssertionError, PyExc_AssertionError);
+impl_native_exception!(PyAttributeError, PyExc_AttributeError);
+impl_native_exception!(PyBufferError, PyExc_BufferError);
+impl_native_exception!(PyEOFError, PyExc_EOFError);
+impl_native_exception!(PyFloatingPointError, PyExc_FloatingPointError);
+impl_native_exception!(PyOSError, PyExc_OSError, ffi::PyOSErrorObject);
+impl_native_exception!(PyImportError, PyExc_ImportError);
 
-impl_native_exception!(
-    PyModuleNotFoundError,
-    ModuleNotFoundError,
-    PyExc_ModuleNotFoundError
-);
+impl_native_exception!(PyModuleNotFoundError, PyExc_ModuleNotFoundError);
 
-impl_native_exception!(PyIndexError, IndexError, PyExc_IndexError);
-impl_native_exception!(PyKeyError, KeyError, PyExc_KeyError);
-impl_native_exception!(
-    PyKeyboardInterrupt,
-    KeyboardInterrupt,
-    PyExc_KeyboardInterrupt
-);
-impl_native_exception!(PyMemoryError, MemoryError, PyExc_MemoryError);
-impl_native_exception!(PyNameError, NameError, PyExc_NameError);
-impl_native_exception!(PyOverflowError, OverflowError, PyExc_OverflowError);
-impl_native_exception!(PyRuntimeError, RuntimeError, PyExc_RuntimeError);
-impl_native_exception!(PyRecursionError, RecursionError, PyExc_RecursionError);
-impl_native_exception!(
-    PyNotImplementedError,
-    NotImplementedError,
-    PyExc_NotImplementedError
-);
-impl_native_exception!(
-    PySyntaxError,
-    SyntaxError,
-    PyExc_SyntaxError,
-    ffi::PySyntaxErrorObject
-);
-impl_native_exception!(PyReferenceError, ReferenceError, PyExc_ReferenceError);
-impl_native_exception!(PySystemError, SystemError, PyExc_SystemError);
-impl_native_exception!(
-    PySystemExit,
-    SystemExit,
-    PyExc_SystemExit,
-    ffi::PySystemExitObject
-);
-impl_native_exception!(PyTypeError, TypeError, PyExc_TypeError);
-impl_native_exception!(
-    PyUnboundLocalError,
-    UnboundLocalError,
-    PyExc_UnboundLocalError
-);
+impl_native_exception!(PyIndexError, PyExc_IndexError);
+impl_native_exception!(PyKeyError, PyExc_KeyError);
+impl_native_exception!(PyKeyboardInterrupt, PyExc_KeyboardInterrupt);
+impl_native_exception!(PyMemoryError, PyExc_MemoryError);
+impl_native_exception!(PyNameError, PyExc_NameError);
+impl_native_exception!(PyOverflowError, PyExc_OverflowError);
+impl_native_exception!(PyRuntimeError, PyExc_RuntimeError);
+impl_native_exception!(PyRecursionError, PyExc_RecursionError);
+impl_native_exception!(PyNotImplementedError, PyExc_NotImplementedError);
+impl_native_exception!(PySyntaxError, PyExc_SyntaxError, ffi::PySyntaxErrorObject);
+impl_native_exception!(PyReferenceError, PyExc_ReferenceError);
+impl_native_exception!(PySystemError, PyExc_SystemError);
+impl_native_exception!(PySystemExit, PyExc_SystemExit, ffi::PySystemExitObject);
+impl_native_exception!(PyTypeError, PyExc_TypeError);
+impl_native_exception!(PyUnboundLocalError, PyExc_UnboundLocalError);
 impl_native_exception!(
     PyUnicodeError,
-    UnicodeError,
     PyExc_UnicodeError,
     ffi::PyUnicodeErrorObject
 );
-impl_native_exception!(
-    PyUnicodeDecodeError,
-    UnicodeDecodeError,
-    PyExc_UnicodeDecodeError
-);
-impl_native_exception!(
-    PyUnicodeEncodeError,
-    UnicodeEncodeError,
-    PyExc_UnicodeEncodeError
-);
-impl_native_exception!(
-    PyUnicodeTranslateError,
-    UnicodeTranslateError,
-    PyExc_UnicodeTranslateError
-);
-impl_native_exception!(PyValueError, ValueError, PyExc_ValueError);
-impl_native_exception!(
-    PyZeroDivisionError,
-    ZeroDivisionError,
-    PyExc_ZeroDivisionError
-);
+impl_native_exception!(PyUnicodeDecodeError, PyExc_UnicodeDecodeError);
+impl_native_exception!(PyUnicodeEncodeError, PyExc_UnicodeEncodeError);
+impl_native_exception!(PyUnicodeTranslateError, PyExc_UnicodeTranslateError);
+impl_native_exception!(PyValueError, PyExc_ValueError);
+impl_native_exception!(PyZeroDivisionError, PyExc_ZeroDivisionError);
 
-impl_native_exception!(PyBlockingIOError, BlockingIOError, PyExc_BlockingIOError);
-impl_native_exception!(PyBrokenPipeError, BrokenPipeError, PyExc_BrokenPipeError);
-impl_native_exception!(
-    PyChildProcessError,
-    ChildProcessError,
-    PyExc_ChildProcessError
-);
-impl_native_exception!(PyConnectionError, ConnectionError, PyExc_ConnectionError);
-impl_native_exception!(
-    PyConnectionAbortedError,
-    ConnectionAbortedError,
-    PyExc_ConnectionAbortedError
-);
-impl_native_exception!(
-    PyConnectionRefusedError,
-    ConnectionRefusedError,
-    PyExc_ConnectionRefusedError
-);
-impl_native_exception!(
-    PyConnectionResetError,
-    ConnectionResetError,
-    PyExc_ConnectionResetError
-);
-impl_native_exception!(PyFileExistsError, FileExistsError, PyExc_FileExistsError);
-impl_native_exception!(
-    PyFileNotFoundError,
-    FileNotFoundError,
-    PyExc_FileNotFoundError
-);
-impl_native_exception!(PyInterruptedError, InterruptedError, PyExc_InterruptedError);
-impl_native_exception!(
-    PyIsADirectoryError,
-    IsADirectoryError,
-    PyExc_IsADirectoryError
-);
-impl_native_exception!(
-    PyNotADirectoryError,
-    NotADirectoryError,
-    PyExc_NotADirectoryError
-);
-impl_native_exception!(PyPermissionError, PermissionError, PyExc_PermissionError);
-impl_native_exception!(
-    PyProcessLookupError,
-    ProcessLookupError,
-    PyExc_ProcessLookupError
-);
-impl_native_exception!(PyTimeoutError, TimeoutError, PyExc_TimeoutError);
+impl_native_exception!(PyBlockingIOError, PyExc_BlockingIOError);
+impl_native_exception!(PyBrokenPipeError, PyExc_BrokenPipeError);
+impl_native_exception!(PyChildProcessError, PyExc_ChildProcessError);
+impl_native_exception!(PyConnectionError, PyExc_ConnectionError);
+impl_native_exception!(PyConnectionAbortedError, PyExc_ConnectionAbortedError);
+impl_native_exception!(PyConnectionRefusedError, PyExc_ConnectionRefusedError);
+impl_native_exception!(PyConnectionResetError, PyExc_ConnectionResetError);
+impl_native_exception!(PyFileExistsError, PyExc_FileExistsError);
+impl_native_exception!(PyFileNotFoundError, PyExc_FileNotFoundError);
+impl_native_exception!(PyInterruptedError, PyExc_InterruptedError);
+impl_native_exception!(PyIsADirectoryError, PyExc_IsADirectoryError);
+impl_native_exception!(PyNotADirectoryError, PyExc_NotADirectoryError);
+impl_native_exception!(PyPermissionError, PyExc_PermissionError);
+impl_native_exception!(PyProcessLookupError, PyExc_ProcessLookupError);
+impl_native_exception!(PyTimeoutError, PyExc_TimeoutError);
 
 #[cfg(not(all(windows, PyPy)))]
-impl_native_exception!(PyEnvironmentError, EnvironmentError, PyExc_EnvironmentError);
+impl_native_exception!(PyEnvironmentError, PyExc_EnvironmentError);
 #[cfg(not(all(windows, PyPy)))]
-impl_native_exception!(PyIOError, IOError, PyExc_IOError);
+impl_native_exception!(PyIOError, PyExc_IOError);
 #[cfg(all(windows, not(PyPy)))]
-impl_native_exception!(PyWindowsError, WindowsError, PyExc_WindowsError);
+impl_native_exception!(PyWindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {
     pub fn new<'p>(

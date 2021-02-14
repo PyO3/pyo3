@@ -54,21 +54,9 @@ extern "C" {
     pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
 
-#[deprecated(since = "0.14.0", note = "use PyCoro_CheckExact instead")]
-#[inline]
-pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &mut PyCoro_Type)
-}
-
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
-}
-
-#[deprecated(since = "0.14.0", note = "not in Python API")]
-#[inline]
-pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &mut _PyCoroWrapper_Type)
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -85,12 +73,6 @@ extern "C" {
 }
 
 // skipped PyAsyncGen_New
-
-#[deprecated(since = "0.14.0", note = "use PyCoro_CheckExact instead")]
-#[inline]
-pub unsafe fn PyAsyncGen_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &mut PyAsyncGen_Type)
-}
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {

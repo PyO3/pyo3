@@ -551,51 +551,6 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
-    /// Checks whether `obj` is an instance of type `T`.
-    ///
-    /// This is equivalent to the Python `isinstance` function.
-    #[deprecated(since = "0.13.0", note = "Please use obj.is_instance::<T>() instead")]
-    pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
-        T::type_object(self).is_instance(obj)
-    }
-
-    /// Checks whether type `T` is subclass of type `U`.
-    ///
-    /// This is equivalent to the Python `issubclass` function.
-    #[deprecated(
-        since = "0.13.0",
-        note = "Please use T::type_object(py).is_subclass::<U>() instead"
-    )]
-    pub fn is_subclass<T, U>(self) -> PyResult<bool>
-    where
-        T: PyTypeObject,
-        U: PyTypeObject,
-    {
-        T::type_object(self).is_subclass::<U>()
-    }
-
-    /// Releases a PyObject reference.
-    #[inline]
-    #[deprecated(since = "0.13.0", note = "Please just drop ob instead")]
-    pub fn release<T>(self, ob: T)
-    where
-        T: IntoPyPointer,
-    {
-        unsafe {
-            let ptr = ob.into_ptr();
-            if !ptr.is_null() {
-                ffi::Py_DECREF(ptr);
-            }
-        }
-    }
-
-    /// Releases a `ffi::PyObject` pointer.
-    #[inline]
-    #[deprecated(since = "0.13.0", note = "Please just drop obj instead")]
-    pub fn xdecref<T: IntoPyPointer>(self, ptr: T) {
-        unsafe { ffi::Py_XDECREF(ptr.into_ptr()) };
-    }
-
     /// Lets the Python interpreter check for pending signals and invoke the
     /// corresponding signal handlers. This can run arbitrary Python code.
     ///
@@ -691,7 +646,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::{IntoPyDict, PyAny, PyBool, PyInt, PyList};
+    use crate::types::{IntoPyDict, PyList};
 
     #[test]
     fn test_eval() {
@@ -732,28 +687,6 @@ mod test {
             .extract()
             .unwrap();
         assert_eq!(v, 2);
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_instance() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        assert!(py
-            .is_instance::<PyBool, PyAny>(PyBool::new(py, true).into())
-            .unwrap());
-        let list = PyList::new(py, &[1, 2, 3, 4]);
-        assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
-        assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_is_subclass() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        assert!(py.is_subclass::<PyBool, PyInt>().unwrap());
-        assert!(!py.is_subclass::<PyBool, PyList>().unwrap());
     }
 
     #[test]
