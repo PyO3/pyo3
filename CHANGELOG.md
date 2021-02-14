@@ -8,13 +8,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 ### Added
 - Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Add FFI definition `Py_IS_TYPE`.
 
 ### Changed
 - Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Deprecate FFI definitions `PyModule_GetFilename`, `PyMethodDef_INIT`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Deprecate FFI definitions `PyObject_Check`, `PySuper_Check`, `FreeFunc`.
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type.
 
 ## [0.13.2] - 2021-02-12
 ### Packaging

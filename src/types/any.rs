@@ -48,12 +48,19 @@ impl crate::AsPyPointer for PyAny {
 unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
 impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
 
+#[allow(non_snake_case)]
+// Copied here as the macro does not accept deprecated functions.
+// Originally ffi::object::PyObject_Check, but this is not in the Python C API.
+fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
+    1
+}
+
 pyobject_native_type_info!(
     PyAny,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
     Some("builtins"),
-    ffi::PyObject_Check
+    PyObject_Check
 );
 
 pyobject_native_type_extract!(PyAny);
