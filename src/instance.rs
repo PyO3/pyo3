@@ -358,19 +358,6 @@ impl<T> Py<T> {
         }
     }
 
-    /// Deprecated alias for [`from_owned_ptr`](#method.from_owned_ptr).
-    ///
-    /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T.
-    ///
-    /// Callers must own the object referred to by `ptr`, as this function
-    /// implicitly takes ownership of that object.
-    #[inline]
-    #[deprecated = "this is a deprecated alias for Py::from_owned_ptr"]
-    pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
-        Py::from_owned_ptr(py, ptr)
-    }
-
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
     ///
     /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.

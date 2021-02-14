@@ -58,7 +58,7 @@ pub trait PyTimeAccess {
     fn get_second(&self) -> u8;
     fn get_microsecond(&self) -> u32;
     #[cfg(not(PyPy))]
-    fn get_fold(&self) -> u8;
+    fn get_fold(&self) -> bool;
 }
 
 /// Bindings around `datetime.date`
@@ -256,8 +256,8 @@ impl PyTimeAccess for PyDateTime {
     }
 
     #[cfg(not(PyPy))]
-    fn get_fold(&self) -> u8 {
-        unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) as u8 }
+    fn get_fold(&self) -> bool {
+        unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) > 0 }
     }
 }
 
@@ -338,8 +338,8 @@ impl PyTimeAccess for PyTime {
     }
 
     #[cfg(not(PyPy))]
-    fn get_fold(&self) -> u8 {
-        unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) as u8 }
+    fn get_fold(&self) -> bool {
+        unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
     }
 }
 
@@ -421,8 +421,8 @@ mod tests {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
-            assert_eq!(a.unwrap().get_fold(), 0);
-            assert_eq!(b.unwrap().get_fold(), 1);
+            assert_eq!(a.unwrap().get_fold(), false);
+            assert_eq!(b.unwrap().get_fold(), true);
         });
     }
 }
