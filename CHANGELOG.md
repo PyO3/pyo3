@@ -5,6 +5,17 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+### Added
+- Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+
+### Changed
+- Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Deprecate FFI definitions `PyModule_GetFilename`, `PyMethodDef_INIT`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+
+### Fixed
+- Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+
 ## [0.13.2] - 2021-02-12
 ### Packaging
 - Lower minimum supported Rust version to 1.41. [#1421](https://github.com/PyO3/pyo3/pull/1421)

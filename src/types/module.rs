@@ -121,7 +121,12 @@ impl PyModule {
     /// May fail if the module does not have a `__file__` attribute.
     #[cfg(not(all(windows, PyPy)))]
     pub fn filename(&self) -> PyResult<&str> {
-        unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
+        use crate::types::PyString;
+        unsafe {
+            self.py()
+                .from_owned_ptr_or_err::<PyString>(ffi::PyModule_GetFilenameObject(self.as_ptr()))?
+                .to_str()
+        }
     }
 
     /// Calls a function in the module.
