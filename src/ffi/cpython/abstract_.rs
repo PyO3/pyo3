@@ -1,4 +1,4 @@
-use crate::ffi::{PyObject, Py_buffer, Py_ssize_t, _PyObject_NextNotImplemented};
+use crate::ffi::{PyObject, Py_buffer, Py_ssize_t};
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -270,7 +270,9 @@ extern "C" {
 #[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
-        Some(tp_iternext) => tp_iternext as *const c_void != _PyObject_NextNotImplemented as _,
+        Some(tp_iternext) => {
+            tp_iternext as *const c_void != crate::ffi::_PyObject_NextNotImplemented as _
+        }
         None => false,
     }) as c_int
 }
