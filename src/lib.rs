@@ -180,6 +180,7 @@ pub mod buffer;
 pub mod callback;
 pub mod class;
 pub mod conversion;
+mod conversions;
 #[macro_use]
 #[doc(hidden)]
 pub mod derive_utils;

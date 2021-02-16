@@ -131,6 +131,13 @@ impl<'a> ToPyObject for Cow<'a, str> {
     }
 }
 
+impl IntoPy<PyObject> for Cow<'_, str> {
+    #[inline]
+    fn into_py(self, py: Python) -> PyObject {
+        self.to_object(py)
+    }
+}
+
 /// Converts a Rust `String` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
