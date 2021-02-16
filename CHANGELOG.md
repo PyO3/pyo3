@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove deprecated ffi definitions `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
 - Remove deprecated redundant methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
 - Remove ffi definition ``PyMethodDef_INIT`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
+- Remove FFI definition `PyTypeObject_INIT`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)

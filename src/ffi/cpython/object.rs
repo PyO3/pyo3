@@ -106,7 +106,6 @@ mod typeobject {
     use crate::ffi::{PyObject, Py_ssize_t};
     use std::mem;
     use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
-    use std::ptr;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -147,12 +146,6 @@ mod typeobject {
         pub nb_index: Option<object::unaryfunc>,
         pub nb_matrix_multiply: Option<object::binaryfunc>,
         pub nb_inplace_matrix_multiply: Option<object::binaryfunc>,
-    }
-
-    macro_rules! as_expr {
-        ($e:expr) => {
-            $e
-        };
     }
 
     #[repr(C)]
@@ -276,111 +269,6 @@ mod typeobject {
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
         pub tp_next: *mut PyTypeObject,
     }
-
-    macro_rules! _type_object_init {
-        ({$($head:tt)*}, $($tail:tt)*) => {
-            as_expr! {
-                PyTypeObject {
-                    $($head)*
-                    tp_name: ptr::null(),
-                    tp_basicsize: 0,
-                    tp_itemsize: 0,
-                    tp_dealloc: None,
-                    #[cfg(not(Py_3_8))]
-                    tp_print: None,
-                    #[cfg(Py_3_8)]
-                    tp_vectorcall_offset: 0,
-                    tp_getattr: None,
-                    tp_setattr: None,
-                    tp_as_async: ptr::null_mut(),
-                    tp_repr: None,
-                    tp_as_number: ptr::null_mut(),
-                    tp_as_sequence: ptr::null_mut(),
-                    tp_as_mapping: ptr::null_mut(),
-                    tp_hash: None,
-                    tp_call: None,
-                    tp_str: None,
-                    tp_getattro: None,
-                    tp_setattro: None,
-                    tp_as_buffer: ptr::null_mut(),
-                    tp_flags: object::Py_TPFLAGS_DEFAULT,
-                    tp_doc: ptr::null(),
-                    tp_traverse: None,
-                    tp_clear: None,
-                    tp_richcompare: None,
-                    tp_weaklistoffset: 0,
-                    tp_iter: None,
-                    tp_iternext: None,
-                    tp_methods: ptr::null_mut(),
-                    tp_members: ptr::null_mut(),
-                    tp_getset: ptr::null_mut(),
-                    tp_base: ptr::null_mut(),
-                    tp_dict: ptr::null_mut(),
-                    tp_descr_get: None,
-                    tp_descr_set: None,
-                    tp_dictoffset: 0,
-                    tp_init: None,
-                    tp_alloc: None,
-                    tp_new: None,
-                    tp_free: None,
-                    tp_is_gc: None,
-                    tp_bases: ptr::null_mut(),
-                    tp_mro: ptr::null_mut(),
-                    tp_cache: ptr::null_mut(),
-                    tp_subclasses: ptr::null_mut(),
-                    tp_weaklist: ptr::null_mut(),
-                    tp_del: None,
-                    tp_version_tag: 0,
-                    tp_finalize: None,
-                    #[cfg(Py_3_8)]
-                    tp_vectorcall: None,
-                    $($tail)*
-                }
-            }
-        }
-    }
-
-    #[cfg(PyPy)]
-    macro_rules! type_object_init {
-        ($($tail:tt)*) => {
-            _type_object_init!({
-                    ob_refcnt: 1,
-                    ob_pypy_link: 0,
-                    ob_type: ptr::null_mut(),
-                    ob_size: 0,
-                },
-                tp_pypy_flags: 0,
-                $($tail)*
-            )
-        }
-    }
-
-    #[cfg(not(PyPy))]
-    macro_rules! type_object_init {
-        ($($tail:tt)*) => {
-            _type_object_init!({
-                ob_base: object::PyVarObject {
-                    ob_base: object::PyObject_HEAD_INIT,
-                    ob_size: 0
-                },},
-                $($tail)*
-            )
-        }
-    }
-
-    #[cfg(py_sys_config = "COUNT_ALLOCS")]
-    #[deprecated(note = "not present in Python headers; to be removed")]
-    pub const PyTypeObject_INIT: PyTypeObject = type_object_init! {
-        tp_allocs: 0,
-        tp_frees: 0,
-        tp_maxalloc: 0,
-        tp_prev: ptr::null_mut(),
-        tp_next: ptr::null_mut(),
-    };
-
-    #[cfg(not(py_sys_config = "COUNT_ALLOCS"))]
-    #[deprecated(note = "not present in Python headers; to be removed")]
-    pub const PyTypeObject_INIT: PyTypeObject = type_object_init!();
 
     #[repr(C)]
     #[derive(Clone)]
