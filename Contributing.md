@@ -53,15 +53,25 @@ Formatting, linting and tests are checked for all Rust and Python code. In addit
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
-### Minimum supported Rust version
+## Python and Rust version support policy
+
+PyO3 aims to keep sufficient compatibility to make packaging Python extensions built with PyO3 feasible on most common package managers.
+
+To keep package maintainers' lives simpler, PyO3 will commit, wherever possible, to only adjust minimum supported Rust and Python versions at the same time. This bump will only come in an `0.x` release, roughly once per year, after the oldest supported Python version reaches its end-of-life. (Check https://endoflife.date/python for a clear timetable on these.)
+
+Below are guidelines on what compatibility all PRs are expected to deliver for each language.
+
+### Python
+
+PyO3 supports all oficially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
+
+### Rust
 
 PyO3 aims to make use of up-to-date Rust language features to keep the implementation as efficient as possible.
 
-However, there will always be support for at least the last few Rust compiler versions, so that users have time to update.
+The minimum Rust version supported will be decided when the release which bumps Python and Rust versions is made. At the time, the minimum Rust version will be set no higher than the lowest Rust version shipped in the current Debian, RHEL and Alpine Linux distributions.
 
-If your PR needs to bump the minimum supported Rust version, this is acceptable with the following conditions:
-- Any changes which require a more recent version than what is [currently available on stable Red Hat Enterprise Linux](https://access.redhat.com/documentation/en-us/red_hat_developer_tools/1/) will be postponed. (This is to allow package managers to update support for newer `rustc` versions; RHEL was arbitrarily picked because their update policy is clear.)
-- You might be asked to do extra work to tidy up other parts of the PyO3 codebase which can use the compiler version bump :)
+CI tests both the most recent stable Rust version and the minimum supported Rust version. Because of Rust's stability guarantees this is sufficient to confirm support for all Rust versions in between.
 
 ## Benchmarking
 
