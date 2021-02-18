@@ -610,10 +610,10 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
 pub fn impl_py_method_def_new(cls: &syn::Type, wrapper: &TokenStream) -> TokenStream {
     quote! {
         impl pyo3::class::impl_::PyClassNewImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
-            fn new_impl(self) -> pyo3::ffi::newfunc {
+            fn new_impl(self) -> Option<pyo3::ffi::newfunc> {
                 #wrapper
 
-                __wrap
+                Some(__wrap)
             }
         }
     }

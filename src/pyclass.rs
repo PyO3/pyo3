@@ -100,6 +100,20 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     }
 }
 
+// Default new implementation
+
+unsafe extern "C" fn fallback_new(
+    _subtype: *mut ffi::PyTypeObject,
+    _args: *mut ffi::PyObject,
+    _kwds: *mut ffi::PyObject,
+) -> *mut ffi::PyObject {
+    crate::callback_body!(py, {
+        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+            "No constructor defined",
+        ))
+    })
+}
+
 unsafe extern "C" fn tp_dealloc<T>(obj: *mut ffi::PyObject)
 where
     T: PyClassAlloc,
@@ -179,7 +193,7 @@ where
         slots.push(ffi::Py_tp_doc, doc);
     }
 
-    slots.push(ffi::Py_tp_new, T::get_new() as _);
+    slots.push(ffi::Py_tp_new, T::get_new().unwrap_or(fallback_new) as _);
     if let Some(call_meth) = T::get_call() {
         slots.push(ffi::Py_tp_call, call_meth as _);
     }
@@ -208,7 +222,7 @@ where
     T::for_each_proto_slot(|slot| {
         has_gc_methods |= slot.slot == ffi::Py_tp_clear;
         has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
-        slots.0.push(slot);
+        slots.0.push(*slot);
     });
 
     slots.push(0, ptr::null_mut());

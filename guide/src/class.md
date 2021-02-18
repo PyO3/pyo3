@@ -775,13 +775,13 @@ pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
 impl pyo3::class::impl_::PyClassImpl for MyClass {
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
-    fn for_each_method_def<Visitor: FnMut(&'static pyo3::class::PyMethodDefType)>(visitor: Visitor) {
+    fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
         pyo3::inventory::iter::<Pyo3MethodsInventoryForMyClass>
             .into_iter()
             .flat_map(pyo3::class::methods::PyMethodsInventory::get)
             .for_each(visitor)
     }
-    fn get_new() -> pyo3::ffi::newfunc {
+    fn get_new() -> Option<pyo3::ffi::newfunc> {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
         collector.new_impl()
@@ -791,7 +791,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         let collector = PyClassImplCollector::<MyClass>::new();
         collector.call_impl()
     }
-    fn for_each_proto_slot<Visitor: FnMut(pyo3::ffi::PyType_Slot)>(visitor: Visitor) {
+    fn for_each_proto_slot(visitor: impl FnMut(&pyo3::ffi::PyType_Slot)) {
         // Implementation which uses dtolnay specialization to load all slots.
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
@@ -805,7 +805,6 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
             .chain(collector.sequence_protocol_slots())
             .chain(collector.async_protocol_slots())
             .chain(collector.buffer_protocol_slots())
-            .cloned()
             .for_each(visitor);
     }
 

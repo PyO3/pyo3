@@ -41,14 +41,14 @@ pub trait PyClassImpl: Sized {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
-    fn for_each_method_def<Visitor: FnMut(&'static PyMethodDefType)>(_visitor: Visitor) {}
-    fn get_new() -> ffi::newfunc {
-        fallback_new
+    fn for_each_method_def(_visitor: impl FnMut(&PyMethodDefType)) {}
+    fn get_new() -> Option<ffi::newfunc> {
+        None
     }
     fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
-    fn for_each_proto_slot<Visitor: FnMut(ffi::PyType_Slot)>(_visitor: Visitor) {}
+    fn for_each_proto_slot(_visitor: impl FnMut(&ffi::PyType_Slot)) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
     }
@@ -57,12 +57,12 @@ pub trait PyClassImpl: Sized {
 // Traits describing known special methods.
 
 pub trait PyClassNewImpl<T> {
-    fn new_impl(self) -> ffi::newfunc;
+    fn new_impl(self) -> Option<ffi::newfunc>;
 }
 
 impl<T> PyClassNewImpl<T> for &'_ PyClassImplCollector<T> {
-    fn new_impl(self) -> ffi::newfunc {
-        fallback_new
+    fn new_impl(self) -> Option<ffi::newfunc> {
+        None
     }
 }
 
@@ -189,20 +189,6 @@ impl<T> PyBufferProtocolProcs<T> for &'_ PyClassImplCollector<T> {
     fn buffer_procs(self) -> Option<&'static PyBufferProcs> {
         None
     }
-}
-
-// Default new implementation
-
-unsafe extern "C" fn fallback_new(
-    _subtype: *mut ffi::PyTypeObject,
-    _args: *mut ffi::PyObject,
-    _kwds: *mut ffi::PyObject,
-) -> *mut ffi::PyObject {
-    crate::callback_body!(py, {
-        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
-            "No constructor defined",
-        ))
-    })
 }
 
 // Thread checkers
