@@ -180,6 +180,7 @@ pub fn add_fn_to_module(
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
     let spec = method::FnSpec {
+        is_async: func.sig.asyncness.is_some(),
         tp: method::FnType::FnStatic,
         name: &function_wrapper_ident,
         python_name,
