@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PYO3_CROSS_LIB_DIR` enviroment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
 - Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 - Fix FFI definition `PyIter_Check` missing for Python 3.7 and earlier with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
+- Fix FFI definition `PyIndex_Check` missing with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
 
 ## [0.13.2] - 2021-02-12
 ### Packaging
