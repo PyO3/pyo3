@@ -209,5 +209,5 @@ mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and
 // Additional headers that are not exported by Python.h
 pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 mod cpython;
