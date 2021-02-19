@@ -266,16 +266,11 @@ extern "C" {
     pub fn PyBuffer_Release(view: *mut Py_buffer);
 }
 
-#[inline]
-#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
-pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
-        Some(tp_iternext) => {
-            tp_iternext as *const c_void != crate::ffi::_PyObject_NextNotImplemented as _
-        }
-        None => false,
-    }) as c_int
-}
+// PyIter_Check defined in ffi/abstract_.rs
+// PyIndex_Check defined in ffi/abstract_.rs
+// Not defined here because this file is not compiled under the
+// limited API, but the macros need to be defined for 3.6, 3.7 which
+// predate the limited API changes.
 
 // skipped PySequence_ITEM
 

@@ -51,6 +51,9 @@ extern "C" {
         ...
     ) -> *mut PyObject;
 
+    // skipped _PyObject_CallFunction_SizeT
+    // skipped _PyObject_CallMethod_SizeT
+
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallMethodObjArgs")]
@@ -84,16 +87,27 @@ extern "C" {
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetIter")]
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
+}
 
-    // PyIter_Check for unlimited API is in cpython/abstract_.rs
-    #[cfg(any(all(Py_LIMITED_API, Py_3_8), PyPy))]
-    #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
-    pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
+#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
+pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
+    (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
+        Some(tp_iternext) => {
+            tp_iternext as *const std::os::raw::c_void
+                != crate::ffi::_PyObject_NextNotImplemented as _
+        }
+        None => false,
+    }) as c_int
 }
 
 extern "C" {
+    #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
+    pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
+    // skipped non-limited / 3.10 PyIter_Send
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;
@@ -134,13 +148,9 @@ extern "C" {
     pub fn PyNumber_Xor(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Or")]
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-
-    #[cfg(PyPy)]
-    #[link_name = "PyPyIndex_Check"]
-    pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
 #[inline]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     let tp_as_number = (*Py_TYPE(o)).tp_as_number;
@@ -148,6 +158,10 @@ pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
 }
 
 extern "C" {
+    #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
+    #[link_name = "PyPyIndex_Check"]
+    pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Index")]
     pub fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_AsSsize_t")]
@@ -232,7 +246,9 @@ extern "C" {
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Fast")]
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char) -> *mut PyObject;
-    // TODO: PySequence_Fast macros
+    // skipped PySequenc_Fast_GET_SIZE
+    // skipped PySequenc_Fast_GET_ITEM
+    // skipped PySequenc_Fast_GET_ITEMS
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Contains")]
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject) -> c_int;
