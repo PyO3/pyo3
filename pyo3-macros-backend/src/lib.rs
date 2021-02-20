@@ -7,6 +7,7 @@
 #[macro_use]
 mod utils;
 
+mod attrs;
 mod defs;
 mod from_pyobject;
 mod konst;

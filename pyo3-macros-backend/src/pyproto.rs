@@ -62,8 +62,7 @@ fn impl_proto_impl(
             }
             // Add non-slot methods to inventory like `#[pymethods]`
             if let Some(m) = proto.get_method(&met.sig.ident) {
-                let name = &met.sig.ident;
-                let fn_spec = FnSpec::parse(&met.sig, &mut met.attrs, false)?;
+                let fn_spec = FnSpec::parse(&mut met.sig, &mut met.attrs, false)?;
 
                 let method = if let FnType::Fn(self_ty) = &fn_spec.tp {
                     pymethod::impl_proto_wrap(ty, &fn_spec, &self_ty)
@@ -79,6 +78,7 @@ fn impl_proto_impl(
                 } else {
                     quote!(0)
                 };
+                let name = &met.sig.ident;
                 // TODO(kngwyu): Set ml_doc
                 py_methods.push(quote! {
                     pyo3::class::PyMethodDefType::Method({

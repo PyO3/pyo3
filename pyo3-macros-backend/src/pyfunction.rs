@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::attrs::FromPyWithAttribute;
 use crate::module::add_fn_to_module;
 use proc_macro2::TokenStream;
 use syn::ext::IdentExt;
@@ -25,6 +26,11 @@ pub struct PyFunctionAttr {
     has_varargs: bool,
     has_kwargs: bool,
     pub pass_module: bool,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct PyFunctionArgAttrs {
+    pub from_py_with: Option<FromPyWithAttribute>,
 }
 
 impl syn::parse::Parse for PyFunctionAttr {
@@ -184,6 +190,50 @@ pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Re
     let python_name =
         parse_name_attribute(&mut ast.attrs)?.unwrap_or_else(|| ast.sig.ident.unraw());
     add_fn_to_module(ast, python_name, args)
+}
+
+fn extract_pyo3_metas(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Vec<syn::NestedMeta>> {
+    let mut new_attrs = Vec::new();
+    let mut metas = Vec::new();
+
+    for attr in attrs.drain(..) {
+        if let syn::Meta::List(meta_list) = attr.parse_meta()? {
+            if meta_list.path.is_ident("pyo3") {
+                for meta in meta_list.nested {
+                    metas.push(meta);
+                }
+            } else {
+                new_attrs.push(attr)
+            }
+        }
+    }
+    *attrs = new_attrs;
+
+    Ok(metas)
+}
+
+impl PyFunctionArgAttrs {
+    /// Parses #[pyo3(from_python_with = "func")]
+    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
+        let mut from_py_with = None;
+
+        for meta in extract_pyo3_metas(attrs)? {
+            let meta = match meta {
+                NestedMeta::Meta(meta) => meta,
+                NestedMeta::Lit(lit) => {
+                    bail_spanned!(lit.span() => "expected `from_py_with`, got a literal")
+                }
+            };
+
+            if meta.path().is_ident("from_py_with") {
+                from_py_with = Some(FromPyWithAttribute::from_meta(meta)?);
+            } else {
+                bail_spanned!(meta.span() => "only `from_py_with` is supported")
+            }
+        }
+
+        Ok(PyFunctionArgAttrs { from_py_with })
+    }
 }
 
 #[cfg(test)]
