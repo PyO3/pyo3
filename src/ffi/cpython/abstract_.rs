@@ -271,7 +271,7 @@ extern "C" {
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
         Some(tp_iternext) => {
-            tp_iternext as *const c_void != crate::ffi::object::_PyObject_NextNotImplemented as _
+            tp_iternext as *const c_void != crate::ffi::_PyObject_NextNotImplemented as _
         }
         None => false,
     }) as c_int
