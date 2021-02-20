@@ -148,7 +148,7 @@ macro_rules! pyobject_native_type_sized {
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
             type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
             type BaseNativeType = $name;
-            type ThreadChecker = $crate::pyclass::ThreadCheckerStub<$crate::PyObject>;
+            type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
         }
     }
 }

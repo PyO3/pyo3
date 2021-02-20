@@ -1,7 +1,8 @@
 //! Includes `PyCell` implementation.
+use crate::class::impl_::PyClassThreadChecker;
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::exceptions::PyRuntimeError;
-use crate::pyclass::{PyClass, PyClassThreadChecker};
+use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};

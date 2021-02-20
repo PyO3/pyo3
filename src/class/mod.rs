@@ -11,13 +11,13 @@ pub mod buffer;
 pub mod context;
 pub mod descr;
 pub mod gc;
+#[doc(hidden)]
+pub mod impl_;
 pub mod iter;
 pub mod mapping;
 #[doc(hidden)]
 pub mod methods;
 pub mod number;
-#[doc(hidden)]
-pub mod proto_methods;
 pub mod pyasync;
 pub mod sequence;
 

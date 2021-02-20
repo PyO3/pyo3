@@ -1,11 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::conversion::IntoPyPointer;
 use crate::once_cell::GILOnceCell;
-use crate::pyclass::{create_type_object, py_class_attributes, PyClass};
+use crate::pyclass::{create_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
+use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
@@ -195,9 +195,11 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for attr in py_class_attributes::<T>() {
-            items.push((attr.name, (attr.meth)(py)));
-        }
+        T::for_each_method_def(|def| {
+            if let PyMethodDefType::ClassAttribute(attr) = def {
+                items.push((attr.name, (attr.meth)(py)));
+            }
+        });
 
         // Now we hold the GIL and we can assume it won't be released until we
         // return from the function.

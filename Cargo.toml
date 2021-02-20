@@ -16,7 +16,6 @@ edition = "2018"
 
 [dependencies]
 cfg-if = { version = "1.0" }
-ctor = { version = "0.1", optional = true }
 # must stay at 0.3.x for Rust 1.41 compatibility
 indoc = { version = "0.3.6", optional = true }
 inventory = { version = "0.1.4", optional = true }
@@ -44,7 +43,7 @@ serde_json = "1.0.61"
 default = ["macros", "auto-initialize"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
-macros = ["pyo3-macros", "ctor", "indoc", "inventory", "paste", "unindent"]
+macros = ["pyo3-macros", "indoc", "inventory", "paste", "unindent"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
