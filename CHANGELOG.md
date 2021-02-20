@@ -15,14 +15,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
 - Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Deprecate FFI definitions `PyModule_GetFilename`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
-- Deprecate FFI definitions `PyObject_Check`, `PySuper_Check`, `FreeFunc`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove deprecated ffi definitions `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
 - Remove deprecated redundant methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove ffi definition ``PyMethodDef_INIT`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove FFI definition `PyTypeObject_INIT`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Remove many ffi definitions which never existed in the Python C-API:
+  - (previously deprecated) `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check` [#1426](https://github.com/PyO3/pyo3/pull/1426)
+  - `PyMethodDef_INIT` [#1426](https://github.com/PyO3/pyo3/pull/1426)
+  - `PyTypeObject_INIT` [#1429](https://github.com/PyO3/pyo3/pull/1429)
+  - `PyObject_Check`, `PySuper_Check`, and `FreeFunc` [#1438](https://github.com/PyO3/pyo3/pull/1438)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
