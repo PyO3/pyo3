@@ -33,21 +33,24 @@ pub struct ParamDescription {
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_fn_args<'p>(
-    fname: Option<&str>,
+    fname: &str,
     params: &[ParamDescription],
     args: &'p PyTuple,
     kwargs: Option<&'p PyDict>,
+    num_positional_params: usize,
     accept_args: bool,
     accept_kwargs: bool,
     output: &mut [Option<&'p PyAny>],
 ) -> PyResult<(&'p PyTuple, Option<&'p PyDict>)> {
-    let nargs = args.len();
-    let mut used_args = 0;
     macro_rules! raise_error {
         ($s: expr $(,$arg:expr)*) => (return Err(PyTypeError::new_err(format!(
-            concat!("{} ", $s), fname.unwrap_or("function") $(,$arg)*
+            concat!("{} ", $s), fname $(,$arg)*
         ))))
     }
+
+    let nargs = args.len();
+    let provided_positional_args = std::cmp::min(nargs, num_positional_params);
+
     // Copy kwargs not to modify it
     let kwargs = match kwargs {
         Some(k) => Some(k.copy()?),
@@ -57,8 +60,8 @@ pub fn parse_fn_args<'p>(
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
         *out = match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
-                if i < nargs {
-                    raise_error!("got multiple values for argument: {}", p.name)
+                if i < provided_positional_args {
+                    raise_error!("got multiple values for argument '{}'", p.name)
                 }
                 kwargs.as_ref().unwrap().del_item(p.name)?;
                 Some(kwarg)
@@ -66,15 +69,14 @@ pub fn parse_fn_args<'p>(
             None => {
                 if p.kw_only {
                     if !p.is_optional {
-                        raise_error!("missing required keyword-only argument: {}", p.name)
+                        raise_error!("missing required keyword-only argument '{}'", p.name)
                     }
                     None
                 } else if i < nargs {
-                    used_args += 1;
                     Some(args.get_item(i))
                 } else {
                     if !p.is_optional {
-                        raise_error!("missing required positional argument: {}", p.name)
+                        raise_error!("missing required positional argument '{}'", p.name)
                     }
                     None
                 }
@@ -88,18 +90,21 @@ pub fn parse_fn_args<'p>(
         raise_error!("got an unexpected keyword argument: {}", key)
     }
     // Raise an error when we get too many positional args
-    if !accept_args && used_args < nargs {
+    if !accept_args && num_positional_params < nargs {
         raise_error!(
-            "takes at most {} positional argument{} ({} given)",
-            used_args,
-            if used_args == 1 { "" } else { "s" },
-            nargs
+            "takes {} positional argument{} but {} {} given",
+            num_positional_params,
+            if num_positional_params == 1 { "" } else { "s" },
+            nargs,
+            if nargs == 1 { "was" } else { "were" }
         )
     }
     // Adjust the remaining args
     let args = if accept_args {
         let py = args.py();
-        let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
+        let slice = args
+            .slice(num_positional_params as isize, nargs as isize)
+            .into_py(py);
         py.checked_cast_as(slice).unwrap()
     } else {
         args

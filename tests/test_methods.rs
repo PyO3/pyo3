@@ -245,6 +245,11 @@ impl MethArgs {
         a + b
     }
 
+    #[args(args = "*", a)]
+    fn get_args_and_required_keyword(&self, py: Python, args: &PyTuple, a: i32) -> PyObject {
+        (args, a).to_object(py)
+    }
+
     #[args(a, b = 2, "*", c = 3)]
     fn get_pos_arg_kw_sep1(&self, a: i32, b: i32, c: i32) -> i32 {
         a + b + c
@@ -362,6 +367,23 @@ fn meth_args() {
         py,
         inst,
         "inst.get_kwargs_only_with_some_default()",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_args_and_required_keyword(1, 2, a=3) == ((1, 2), 3)"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_args_and_required_keyword(a=1) == ((), 1)"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_args_and_required_keyword()",
         PyTypeError
     );
 

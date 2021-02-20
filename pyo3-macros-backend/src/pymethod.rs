@@ -407,6 +407,7 @@ pub fn impl_arg_params(
     }
 
     let mut params = Vec::new();
+    let mut num_positional_params = 0usize;
 
     for arg in spec.args.iter() {
         if arg.py || spec.is_args(&arg.name) || spec.is_kwargs(&arg.name) {
@@ -416,6 +417,10 @@ pub fn impl_arg_params(
         let kwonly = spec.is_kw_only(&arg.name);
         let opt = arg.optional.is_some() || spec.default_value(&arg.name).is_some();
 
+        if !kwonly {
+            num_positional_params += 1;
+        }
+
         params.push(quote! {
             pyo3::derive_utils::ParamDescription {
                 name: #name,
@@ -424,6 +429,8 @@ pub fn impl_arg_params(
             }
         });
     }
+
+    let num_normal_params = params.len();
 
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
@@ -441,7 +448,7 @@ pub fn impl_arg_params(
             _ => continue,
         }
     }
-    let num_normal_params = params.len();
+
     // create array of arguments, and then parse
     quote! {{
         const PARAMS: &'static [pyo3::derive_utils::ParamDescription] = &[
@@ -449,14 +456,12 @@ pub fn impl_arg_params(
         ];
 
         let mut output = [None; #num_normal_params];
-        let mut _args = _args;
-        let mut _kwargs = _kwargs;
-
         let (_args, _kwargs) = pyo3::derive_utils::parse_fn_args(
-            Some(_LOCATION),
+            _LOCATION,
             PARAMS,
             _args,
             _kwargs,
+            #num_positional_params,
             #accept_args,
             #accept_kwargs,
             &mut output
