@@ -318,18 +318,18 @@ fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, 
     script += r#"
 print("version_major", build_time_vars["VERSION"][0])  # 3
 print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
-if "WITH_THREAD" in build_time_vars:
-    print("WITH_THREAD", build_time_vars["WITH_THREAD"])
-if "Py_TRACE_REFS" in build_time_vars:
-    print("Py_TRACE_REFS", build_time_vars["Py_TRACE_REFS"])
-if "COUNT_ALLOCS" in build_time_vars:
-    print("COUNT_ALLOCS", build_time_vars["COUNT_ALLOCS"])
-if "Py_REF_DEBUG" in build_time_vars:
-    print("Py_REF_DEBUG", build_time_vars["Py_REF_DEBUG"])
-print("Py_DEBUG", build_time_vars["Py_DEBUG"])
-print("Py_ENABLE_SHARED", build_time_vars["Py_ENABLE_SHARED"])
-print("LDVERSION", build_time_vars["LDVERSION"])
-print("SIZEOF_VOID_P", build_time_vars["SIZEOF_VOID_P"])
+KEYS = [
+    "WITH_THREAD",
+    "Py_DEBUG",
+    "Py_REF_DEBUG",
+    "Py_TRACE_REFS",
+    "COUNT_ALLOCS",
+    "Py_ENABLE_SHARED",
+    "LDVERSION",
+    "SIZEOF_VOID_P"
+]
+for key in KEYS:
+    print(key, build_time_vars.get(key, 0))
 "#;
     let output = run_python_script(&find_interpreter()?, &script)?;
 
@@ -690,30 +690,30 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, BuildFlags)> 
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
+import os.path
 import platform
 import struct
 import sys
-import sysconfig
-import os.path
+from sysconfig import get_config_var
 
 PYPY = platform.python_implementation() == "PyPy"
 
 # Anaconda based python distributions have a static python executable, but include
 # the shared library. Use the shared library for embedding to avoid rust trying to
 # LTO the static library (and failing with newer gcc's, because it is old).
-ANACONDA = os.path.exists(os.path.join(sys.base_prefix, 'conda-meta'))
+ANACONDA = os.path.exists(os.path.join(sys.base_prefix, "conda-meta"))
 
-libdir = sysconfig.get_config_var('LIBDIR')
+libdir = get_config_var("LIBDIR")
 
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print("implementation", platform.python_implementation())
 if libdir is not None:
     print("libdir", libdir)
-print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
+print("ld_version", get_config_var("LDVERSION") or get_config_var("py_version_short"))
 print("base_prefix", sys.base_prefix)
-print("framework", bool(sysconfig.get_config_var('PYTHONFRAMEWORK')))
-print("shared", PYPY or ANACONDA or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
+print("framework", bool(get_config_var("PYTHONFRAMEWORK")))
+print("shared", PYPY or ANACONDA or bool(get_config_var("Py_ENABLE_SHARED")))
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
