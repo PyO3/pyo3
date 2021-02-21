@@ -10,111 +10,245 @@ use crate::exceptions::PyTypeError;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
-use crate::{ffi, GILPool, IntoPy, PyCell, Python};
+use crate::{ffi, GILPool, PyCell, Python};
 use std::cell::UnsafeCell;
 
-/// Description of a python parameter; used for `parse_args()`.
 #[derive(Debug)]
-pub struct ParamDescription {
-    /// The name of the parameter.
+pub struct KeywordOnlyParameterDescription {
     pub name: &'static str,
-    /// Whether the parameter is optional.
-    pub is_optional: bool,
-    /// Whether the parameter is optional.
-    pub kw_only: bool,
+    pub required: bool,
 }
 
-/// Parse argument list
-///
-/// * fname:  Name of the current function
-/// * params: Declared parameters of the function
-/// * args:   Positional arguments
-/// * kwargs: Keyword arguments
-/// * output: Output array that receives the arguments.
-///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_fn_args<'p>(
-    fname: &str,
-    params: &[ParamDescription],
-    args: &'p PyTuple,
-    kwargs: Option<&'p PyDict>,
-    num_positional_params: usize,
-    accept_args: bool,
-    accept_kwargs: bool,
-    output: &mut [Option<&'p PyAny>],
-) -> PyResult<(&'p PyTuple, Option<&'p PyDict>)> {
-    macro_rules! raise_error {
-        ($s: expr $(,$arg:expr)*) => (return Err(PyTypeError::new_err(format!(
-            concat!("{} ", $s), fname $(,$arg)*
-        ))))
-    }
+#[derive(Debug)]
+pub struct FunctionDescription {
+    pub fname: &'static str,
+    pub positional_parameter_names: &'static [&'static str],
+    pub positional_only_parameters: usize,
+    pub required_positional_parameters: usize,
+    pub keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+    pub accept_varargs: bool,
+    pub accept_varkeywords: bool,
+}
 
-    let nargs = args.len();
-    let provided_positional_args = std::cmp::min(nargs, num_positional_params);
+impl FunctionDescription {
+    pub fn extract_arguments<'p>(
+        &self,
+        args: &'p PyTuple,
+        kwargs: Option<&'p PyDict>,
+        output: &mut [Option<&'p PyAny>],
+    ) -> PyResult<(Option<&'p PyTuple>, Option<&'p PyDict>)> {
+        let num_positional_parameters = self.positional_parameter_names.len();
 
-    // Copy kwargs not to modify it
-    let kwargs = match kwargs {
-        Some(k) => Some(k.copy()?),
-        None => None,
-    };
-    // Iterate through the parameters and assign values to output:
-    for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        *out = match kwargs.and_then(|d| d.get_item(p.name)) {
-            Some(kwarg) => {
-                if i < provided_positional_args {
-                    raise_error!("got multiple values for argument '{}'", p.name)
-                }
-                kwargs.as_ref().unwrap().del_item(p.name)?;
-                Some(kwarg)
+        debug_assert!(self.positional_only_parameters <= num_positional_parameters);
+        debug_assert!(self.required_positional_parameters <= num_positional_parameters);
+        debug_assert_eq!(
+            output.len(),
+            num_positional_parameters + self.keyword_only_parameters.len()
+        );
+
+        // Handle positional arguments
+        let (args_provided, varargs) = {
+            let args_provided = args.len();
+
+            if self.accept_varargs {
+                (
+                    std::cmp::min(num_positional_parameters, args_provided),
+                    Some(args.slice(num_positional_parameters as isize, args_provided as isize)),
+                )
+            } else if args_provided > num_positional_parameters {
+                return Err(self.too_many_positional_arguments(args_provided));
+            } else {
+                (args_provided, None)
             }
-            None => {
-                if p.kw_only {
-                    if !p.is_optional {
-                        raise_error!("missing required keyword-only argument '{}'", p.name)
-                    }
-                    None
-                } else if i < nargs {
-                    Some(args.get_item(i))
-                } else {
-                    if !p.is_optional {
-                        raise_error!("missing required positional argument '{}'", p.name)
-                    }
-                    None
-                }
+        };
+
+        // Copy positional arguments into output
+        for (out, arg) in output[..args_provided].iter_mut().zip(args) {
+            *out = Some(arg);
+        }
+
+        // Handle keyword arguments
+        let varkeywords = match (kwargs, self.accept_varkeywords) {
+            (Some(kwargs), true) => {
+                let mut varkeywords = None;
+                self.extract_keyword_arguments(kwargs, output, |name, value| {
+                    varkeywords
+                        .get_or_insert_with(|| PyDict::new(kwargs.py()))
+                        .set_item(name, value)
+                })?;
+                varkeywords
+            }
+            (Some(kwargs), false) => {
+                self.extract_keyword_arguments(kwargs, output, |name, _| {
+                    Err(self.unexpected_keyword_argument(name))
+                })?;
+                None
+            }
+            (None, _) => None,
+        };
+
+        // Check that there's sufficient positional arguments once keyword arguments are specified
+        if args_provided < self.required_positional_parameters {
+            let missing_positional_arguments: Vec<_> = self.positional_parameter_names
+                [..self.required_positional_parameters]
+                .iter()
+                .copied()
+                .zip(output.iter())
+                .filter_map(|(param, out)| if out.is_none() { Some(param) } else { None })
+                .collect();
+            if !missing_positional_arguments.is_empty() {
+                return Err(
+                    self.missing_required_arguments("positional", &missing_positional_arguments)
+                );
             }
         }
+
+        // Check no missing required keyword arguments
+        let missing_keyword_only_arguments: Vec<_> = self
+            .keyword_only_parameters
+            .iter()
+            .zip(&output[num_positional_parameters..])
+            .filter_map(|(keyword_desc, out)| {
+                if keyword_desc.required && out.is_none() {
+                    Some(keyword_desc.name)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if !missing_keyword_only_arguments.is_empty() {
+            return Err(self.missing_required_arguments("keyword", &missing_keyword_only_arguments));
+        }
+
+        Ok((varargs, varkeywords))
     }
-    let is_kwargs_empty = kwargs.as_ref().map_or(true, |dict| dict.is_empty());
-    // Raise an error when we get an unknown key
-    if !accept_kwargs && !is_kwargs_empty {
-        let (key, _) = kwargs.unwrap().iter().next().unwrap();
-        raise_error!("got an unexpected keyword argument: {}", key)
+
+    #[inline]
+    fn extract_keyword_arguments<'p>(
+        &self,
+        kwargs: &'p PyDict,
+        output: &mut [Option<&'p PyAny>],
+        mut unexpected_keyword_handler: impl FnMut(&'p PyAny, &'p PyAny) -> PyResult<()>,
+    ) -> PyResult<()> {
+        let (args_output, kwargs_output) =
+            output.split_at_mut(self.positional_parameter_names.len());
+        let mut positional_only_keyword_arguments = Vec::new();
+        'kwarg_loop: for (kwarg_name, value) in kwargs {
+            let utf8_string = match kwarg_name.downcast::<PyString>()?.to_str() {
+                Ok(utf8_string) => utf8_string,
+                // This keyword is not a UTF8 string: all PyO3 argument names are guaranteed to be
+                // UTF8 by construction.
+                Err(_) => {
+                    unexpected_keyword_handler(kwarg_name, value)?;
+                    continue 'kwarg_loop;
+                }
+            };
+
+            // Compare the keyword name against each parameter in turn. This is exactly the same method
+            // which CPython uses to map keyword names. Although it's O(num_parameters), the number of
+            // parameters is expected to be small so it's not worth constructing a mapping.
+            for (param, out) in self.keyword_only_parameters.iter().zip(&mut *kwargs_output) {
+                if utf8_string == param.name {
+                    *out = Some(value);
+                    continue 'kwarg_loop;
+                }
+            }
+
+            // Repeat for positional parameters
+            for (i, (&param, out)) in self
+                .positional_parameter_names
+                .iter()
+                .zip(&mut *args_output)
+                .enumerate()
+            {
+                if utf8_string == param {
+                    if i < self.positional_only_parameters {
+                        positional_only_keyword_arguments.push(param);
+                    } else {
+                        match out {
+                            Some(_) => return Err(self.multiple_values_for_argument(param)),
+                            None => {
+                                *out = Some(value);
+                            }
+                        }
+                    }
+                    continue 'kwarg_loop;
+                }
+            }
+
+            unexpected_keyword_handler(kwarg_name, value)?;
+        }
+
+        if positional_only_keyword_arguments.is_empty() {
+            Ok(())
+        } else {
+            Err(self.positional_only_keyword_arguments(&positional_only_keyword_arguments))
+        }
     }
-    // Raise an error when we get too many positional args
-    if !accept_args && num_positional_params < nargs {
-        raise_error!(
-            "takes {} positional argument{} but {} {} given",
-            num_positional_params,
-            if num_positional_params == 1 { "" } else { "s" },
-            nargs,
-            if nargs == 1 { "was" } else { "were" }
-        )
+
+    fn too_many_positional_arguments(&self, args_provided: usize) -> PyErr {
+        let was = if args_provided == 1 { "was" } else { "were" };
+        let msg = if self.required_positional_parameters != self.positional_parameter_names.len() {
+            format!(
+                "{} takes from {} to {} positional arguments but {} {} given",
+                self.fname,
+                self.required_positional_parameters,
+                self.positional_parameter_names.len(),
+                args_provided,
+                was
+            )
+        } else {
+            format!(
+                "{} takes {} positional arguments but {} {} given",
+                self.fname,
+                self.positional_parameter_names.len(),
+                args_provided,
+                was
+            )
+        };
+        PyTypeError::new_err(msg)
     }
-    // Adjust the remaining args
-    let args = if accept_args {
-        let py = args.py();
-        let slice = args
-            .slice(num_positional_params as isize, nargs as isize)
-            .into_py(py);
-        py.checked_cast_as(slice).unwrap()
-    } else {
-        args
-    };
-    let kwargs = if accept_kwargs && is_kwargs_empty {
-        None
-    } else {
-        kwargs
-    };
-    Ok((args, kwargs))
+
+    fn multiple_values_for_argument(&self, argument: &str) -> PyErr {
+        PyTypeError::new_err(format!(
+            "{} got multiple values for argument '{}'",
+            self.fname, argument
+        ))
+    }
+
+    fn unexpected_keyword_argument(&self, argument: &PyAny) -> PyErr {
+        PyTypeError::new_err(format!(
+            "{} got an unexpected keyword argument '{}'",
+            self.fname, argument
+        ))
+    }
+
+    fn positional_only_keyword_arguments(&self, parameter_names: &[&str]) -> PyErr {
+        let mut msg = format!(
+            "{} got some positional-only arguments passed as keyword arguments: ",
+            self.fname
+        );
+        write_parameter_list(&mut msg, parameter_names);
+        PyTypeError::new_err(msg)
+    }
+
+    fn missing_required_arguments(&self, argument_type: &str, parameter_names: &[&str]) -> PyErr {
+        let arguments = if parameter_names.len() == 1 {
+            "argument"
+        } else {
+            "arguments"
+        };
+        let mut msg = format!(
+            "{} missing {} required {} {}: ",
+            self.fname,
+            parameter_names.len(),
+            argument_type,
+            arguments,
+        );
+        write_parameter_list(&mut msg, parameter_names);
+        PyTypeError::new_err(msg)
+    }
 }
 
 /// Add the argument name to the error message of an error which occurred during argument extraction
@@ -255,5 +389,21 @@ impl<'a> From<Python<'a>> for PyFunctionArguments<'a> {
 impl<'a> From<&'a PyModule> for PyFunctionArguments<'a> {
     fn from(module: &'a PyModule) -> PyFunctionArguments<'a> {
         PyFunctionArguments::PyModule(module)
+    }
+}
+
+fn write_parameter_list(msg: &mut String, parameter_names: &[&str]) {
+    for (i, parameter) in parameter_names.iter().enumerate() {
+        if i != 0 && parameter_names.len() > 2 {
+            msg.push(',');
+        }
+
+        if i == parameter_names.len() - 1 {
+            msg.push_str(" and ")
+        }
+
+        msg.push('\'');
+        msg.push_str(parameter);
+        msg.push('\'');
     }
 }

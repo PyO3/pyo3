@@ -406,8 +406,9 @@ pub fn impl_arg_params(
         };
     }
 
-    let mut params = Vec::new();
-    let mut num_positional_params = 0usize;
+    let mut positional_parameter_names = Vec::new();
+    let mut required_positional_parameters = 0usize;
+    let mut keyword_only_parameters = Vec::new();
 
     for arg in spec.args.iter() {
         if arg.py || spec.is_args(&arg.name) || spec.is_kwargs(&arg.name) {
@@ -415,22 +416,24 @@ pub fn impl_arg_params(
         }
         let name = arg.name.unraw().to_string();
         let kwonly = spec.is_kw_only(&arg.name);
-        let opt = arg.optional.is_some() || spec.default_value(&arg.name).is_some();
+        let required = !(arg.optional.is_some() || spec.default_value(&arg.name).is_some());
 
-        if !kwonly {
-            num_positional_params += 1;
-        }
-
-        params.push(quote! {
-            pyo3::derive_utils::ParamDescription {
-                name: #name,
-                is_optional: #opt,
-                kw_only: #kwonly
+        if kwonly {
+            keyword_only_parameters.push(quote! {
+                pyo3::derive_utils::KeywordOnlyParameterDescription {
+                    name: #name,
+                    required: #required,
+                }
+            });
+        } else {
+            if required {
+                required_positional_parameters += 1;
             }
-        });
+            positional_parameter_names.push(name);
+        }
     }
 
-    let num_normal_params = params.len();
+    let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
 
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
@@ -451,21 +454,19 @@ pub fn impl_arg_params(
 
     // create array of arguments, and then parse
     quote! {{
-        const PARAMS: &'static [pyo3::derive_utils::ParamDescription] = &[
-            #(#params),*
-        ];
+        const DESCRIPTION: pyo3::derive_utils::FunctionDescription = pyo3::derive_utils::FunctionDescription {
+            fname: _LOCATION,
+            positional_parameter_names: &[#(#positional_parameter_names),*],
+            // TODO: https://github.com/PyO3/pyo3/issues/1439 - support specifying these
+            positional_only_parameters: 0,
+            required_positional_parameters: #required_positional_parameters,
+            keyword_only_parameters: &[#(#keyword_only_parameters),*],
+            accept_varargs: #accept_args,
+            accept_varkeywords: #accept_kwargs,
+        };
 
-        let mut output = [None; #num_normal_params];
-        let (_args, _kwargs) = pyo3::derive_utils::parse_fn_args(
-            _LOCATION,
-            PARAMS,
-            _args,
-            _kwargs,
-            #num_positional_params,
-            #accept_args,
-            #accept_kwargs,
-            &mut output
-        )?;
+        let mut output = [None; #num_params];
+        let (_args, _kwargs) = DESCRIPTION.extract_arguments(_args, _kwargs, &mut output)?;
 
         #(#param_conversion)*
 
@@ -497,15 +498,31 @@ fn impl_arg_param(
     };
 
     if spec.is_args(&name) {
-        return quote! {
-            let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())
-                .map_err(#transform_error)?;
+        return if arg.optional.is_some() {
+            quote! {
+                let #arg_name = _args.map(|args| args.extract())
+                    .transpose()
+                    .map_err(#transform_error)?;
+            }
+        } else {
+            quote! {
+                let #arg_name = _args.unwrap().extract()
+                    .map_err(#transform_error)?;
+            }
         };
     } else if spec.is_kwargs(&name) {
+        // FIXME: check the below?
+        // ensure_spanned!(
+        //     arg.optional.is_some(),
+        //     arg.name.span() => "kwargs must be Option<_>"
+        // );
         return quote! {
-            let #arg_name = _kwargs;
+            let #arg_name = _kwargs.map(|kwargs| kwargs.extract())
+                .transpose()
+                .map_err(#transform_error)?;
         };
     }
+
     let arg_value = quote!(output[#option_pos]);
     *option_pos += 1;
 

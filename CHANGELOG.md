@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 - Fix FFI definition `PyIndex_Check` missing with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
 - Fix incorrect `TypeError` raised when keyword-only argument passed along with a positional argument in `*args`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
+- Fix inability to use a named lifetime for `&PyTuple` of `*args` in `#[pyfunction]`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
 
 ## [0.13.2] - 2021-02-12
 ### Packaging

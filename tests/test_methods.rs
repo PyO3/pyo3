@@ -49,7 +49,6 @@ impl InstanceMethodWithArgs {
 }
 
 #[test]
-#[allow(dead_code)]
 fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
