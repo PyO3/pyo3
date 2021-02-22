@@ -4,8 +4,8 @@ use crate::konst::ConstSpec;
 use crate::method::{FnArg, FnSpec, FnType, SelfType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
-use syn::{ext::IdentExt, spanned::Spanned};
+use quote::{quote, quote_spanned};
+use syn::{ext::IdentExt, spanned::Spanned, Result};
 
 pub enum PropertyType<'a> {
     Descriptor(&'a syn::Field),
@@ -22,29 +22,29 @@ pub fn gen_py_method(
     cls: &syn::Type,
     sig: &mut syn::Signature,
     meth_attrs: &mut Vec<syn::Attribute>,
-) -> syn::Result<GeneratedPyMethod> {
+) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
     let spec = FnSpec::parse(sig, &mut *meth_attrs, true)?;
 
     Ok(match &spec.tp {
         FnType::Fn(self_ty) => GeneratedPyMethod::Method(impl_py_method_def(
             &spec,
-            &impl_wrap(cls, &spec, self_ty, true),
+            &impl_wrap(cls, &spec, self_ty, true)?,
         )),
         FnType::FnNew => {
-            GeneratedPyMethod::New(impl_py_method_def_new(cls, &impl_wrap_new(cls, &spec)))
+            GeneratedPyMethod::New(impl_py_method_def_new(cls, &impl_wrap_new(cls, &spec)?))
         }
         FnType::FnCall(self_ty) => GeneratedPyMethod::Call(impl_py_method_def_call(
             cls,
-            &impl_wrap(cls, &spec, self_ty, false),
+            &impl_wrap(cls, &spec, self_ty, false)?,
         )),
         FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def_class(
             &spec,
-            &impl_wrap_class(cls, &spec),
+            &impl_wrap_class(cls, &spec)?,
         )),
         FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def_static(
             &spec,
-            &impl_wrap_static(cls, &spec),
+            &impl_wrap_static(cls, &spec)?,
         )),
         FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_method_class_attribute(
             &spec,
@@ -98,7 +98,7 @@ pub fn impl_wrap(
     spec: &FnSpec<'_>,
     self_ty: &SelfType,
     noargs: bool,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
     impl_wrap_common(cls, spec, noargs, slf, body)
@@ -110,10 +110,10 @@ fn impl_wrap_common(
     noargs: bool,
     slf: TokenStream,
     body: TokenStream,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let python_name = &spec.python_name;
     if spec.args.is_empty() && noargs {
-        quote! {
+        Ok(quote! {
             unsafe extern "C" fn __wrap(
                 _slf: *mut pyo3::ffi::PyObject,
                 _args: *mut pyo3::ffi::PyObject,
@@ -126,11 +126,10 @@ fn impl_wrap_common(
                     pyo3::callback::convert(_py, #body)
                 })
             }
-        }
+        })
     } else {
-        let body = impl_arg_params(&spec, Some(cls), body);
-
-        quote! {
+        let body = impl_arg_params(&spec, Some(cls), body)?;
+        Ok(quote! {
             unsafe extern "C" fn __wrap(
                 _slf: *mut pyo3::ffi::PyObject,
                 _args: *mut pyo3::ffi::PyObject,
@@ -146,18 +145,22 @@ fn impl_wrap_common(
                     pyo3::callback::convert(_py, #body)
                 })
             }
-        }
+        })
     }
 }
 
 /// Generate function wrapper for protocol method (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -> TokenStream {
+pub fn impl_proto_wrap(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    self_ty: &SelfType,
+) -> Result<TokenStream> {
     let python_name = &spec.python_name;
     let cb = impl_call(cls, &spec);
-    let body = impl_arg_params(&spec, Some(cls), cb);
+    let body = impl_arg_params(&spec, Some(cls), cb)?;
     let slf = self_ty.receiver(cls);
 
-    quote! {
+    Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
@@ -173,27 +176,25 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -
                 pyo3::callback::convert(_py, #body)
             })
         }
-    }
+    })
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
+pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
-    let body = impl_arg_params(spec, Some(cls), cb);
+    let body = impl_arg_params(spec, Some(cls), cb)?;
 
-    quote! {
+    Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             subtype: *mut pyo3::ffi::PyTypeObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            use pyo3::type_object::PyTypeInfo;
             use pyo3::callback::IntoPyCallbackOutput;
-            use std::convert::TryFrom;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             pyo3::callback_body_without_convert!(_py, {
@@ -205,19 +206,19 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                 Ok(cell as *mut pyo3::ffi::PyObject)
             })
         }
-    }
+    })
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
+pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(&_cls, #(#names),*) };
 
-    let body = impl_arg_params(spec, Some(cls), cb);
+    let body = impl_arg_params(spec, Some(cls), cb)?;
 
-    quote! {
+    Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _cls: *mut pyo3::ffi::PyObject,
@@ -233,19 +234,19 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                 pyo3::callback::convert(_py, #body)
             })
         }
-    }
+    })
 }
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
+pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
 
-    let body = impl_arg_params(spec, Some(cls), cb);
+    let body = impl_arg_params(spec, Some(cls), cb)?;
 
-    quote! {
+    Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
@@ -260,7 +261,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                 pyo3::callback::convert(_py, #body)
             })
         }
-    }
+    })
 }
 
 /// Generate a wrapper for initialization of a class attribute from a method
@@ -399,11 +400,9 @@ pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
     body: TokenStream,
-) -> TokenStream {
+) -> Result<TokenStream> {
     if spec.args.is_empty() {
-        return quote! {
-            #body
-        };
+        return Ok(body);
     }
 
     let mut positional_parameter_names = Vec::new();
@@ -438,7 +437,7 @@ pub fn impl_arg_params(
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
     for (idx, arg) in spec.args.iter().enumerate() {
-        param_conversion.push(impl_arg_param(&arg, &spec, idx, self_, &mut option_pos));
+        param_conversion.push(impl_arg_param(&arg, &spec, idx, self_, &mut option_pos)?);
     }
 
     let (mut accept_args, mut accept_kwargs) = (false, false);
@@ -453,25 +452,27 @@ pub fn impl_arg_params(
     }
 
     // create array of arguments, and then parse
-    quote! {{
-        const DESCRIPTION: pyo3::derive_utils::FunctionDescription = pyo3::derive_utils::FunctionDescription {
-            fname: _LOCATION,
-            positional_parameter_names: &[#(#positional_parameter_names),*],
-            // TODO: https://github.com/PyO3/pyo3/issues/1439 - support specifying these
-            positional_only_parameters: 0,
-            required_positional_parameters: #required_positional_parameters,
-            keyword_only_parameters: &[#(#keyword_only_parameters),*],
-            accept_varargs: #accept_args,
-            accept_varkeywords: #accept_kwargs,
-        };
+    Ok(quote! {
+        {
+            const DESCRIPTION: pyo3::derive_utils::FunctionDescription = pyo3::derive_utils::FunctionDescription {
+                fname: _LOCATION,
+                positional_parameter_names: &[#(#positional_parameter_names),*],
+                // TODO: https://github.com/PyO3/pyo3/issues/1439 - support specifying these
+                positional_only_parameters: 0,
+                required_positional_parameters: #required_positional_parameters,
+                keyword_only_parameters: &[#(#keyword_only_parameters),*],
+                accept_varargs: #accept_args,
+                accept_varkeywords: #accept_kwargs,
+            };
 
-        let mut output = [None; #num_params];
-        let (_args, _kwargs) = DESCRIPTION.extract_arguments(_args, _kwargs, &mut output)?;
+            let mut output = [None; #num_params];
+            let (_args, _kwargs) = DESCRIPTION.extract_arguments(_args, _kwargs, &mut output)?;
 
-        #(#param_conversion)*
+            #(#param_conversion)*
 
-        #body
-    }}
+            #body
+        }
+    })
 }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
@@ -482,13 +483,14 @@ fn impl_arg_param(
     idx: usize,
     self_: Option<&syn::Type>,
     option_pos: &mut usize,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let arg_name = syn::Ident::new(&format!("arg{}", idx), Span::call_site());
 
     if arg.py {
-        return quote! {
+        return Ok(quote_spanned! {
+            arg.ty.span() =>
             let #arg_name = _py;
-        };
+        });
     }
 
     let ty = arg.ty;
@@ -498,29 +500,26 @@ fn impl_arg_param(
     };
 
     if spec.is_args(&name) {
-        return if arg.optional.is_some() {
-            quote! {
-                let #arg_name = _args.map(|args| args.extract())
-                    .transpose()
-                    .map_err(#transform_error)?;
-            }
-        } else {
-            quote! {
-                let #arg_name = _args.unwrap().extract()
-                    .map_err(#transform_error)?;
-            }
-        };
+        ensure_spanned!(
+            arg.optional.is_none(),
+            arg.name.span() => "args cannot be optional"
+        );
+        return Ok(quote_spanned! {
+            arg.ty.span() =>
+            let #arg_name = _args.unwrap().extract()
+                .map_err(#transform_error)?;
+        });
     } else if spec.is_kwargs(&name) {
-        // FIXME: check the below?
-        // ensure_spanned!(
-        //     arg.optional.is_some(),
-        //     arg.name.span() => "kwargs must be Option<_>"
-        // );
-        return quote! {
+        ensure_spanned!(
+            arg.optional.is_some(),
+            arg.name.span() => "kwargs must be Option<_>"
+        );
+        return Ok(quote_spanned! {
+            arg.ty.span() =>
             let #arg_name = _kwargs.map(|kwargs| kwargs.extract())
                 .transpose()
                 .map_err(#transform_error)?;
-        };
+        });
     }
 
     let arg_value = quote!(output[#option_pos]);
@@ -559,20 +558,22 @@ fn impl_arg_param(
             )
         };
 
-        quote! {
+        Ok(quote_spanned! {
+            arg.ty.span() =>
             let #mut_ _tmp: #target_ty = match #arg_value {
                 Some(_obj) => #extract,
                 None => #default,
             };
             let #arg_name = #borrow_tmp;
-        }
+        })
     } else {
-        quote! {
+        Ok(quote_spanned! {
+            arg.ty.span() =>
             let #arg_name = match #arg_value {
                 Some(_obj) => #extract,
                 None => #default,
             };
-        }
+        })
     };
 
     /// Replace `Self`, remove lifetime and get mutability from the type

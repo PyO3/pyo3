@@ -89,12 +89,12 @@ impl FunctionDescription {
 
         // Check that there's sufficient positional arguments once keyword arguments are specified
         if args_provided < self.required_positional_parameters {
-            let missing_positional_arguments: Vec<_> = self.positional_parameter_names
-                [..self.required_positional_parameters]
+            let missing_positional_arguments: Vec<_> = self
+                .positional_parameter_names
                 .iter()
-                .copied()
+                .take(self.required_positional_parameters)
                 .zip(output.iter())
-                .filter_map(|(param, out)| if out.is_none() { Some(param) } else { None })
+                .filter_map(|(param, out)| if out.is_none() { Some(*param) } else { None })
                 .collect();
             if !missing_positional_arguments.is_empty() {
                 return Err(
@@ -148,33 +148,30 @@ impl FunctionDescription {
             // Compare the keyword name against each parameter in turn. This is exactly the same method
             // which CPython uses to map keyword names. Although it's O(num_parameters), the number of
             // parameters is expected to be small so it's not worth constructing a mapping.
-            for (param, out) in self.keyword_only_parameters.iter().zip(&mut *kwargs_output) {
-                if utf8_string == param.name {
-                    *out = Some(value);
-                    continue 'kwarg_loop;
-                }
+            if let Some(i) = self
+                .keyword_only_parameters
+                .iter()
+                .position(|param| utf8_string == param.name)
+            {
+                kwargs_output[i] = Some(value);
+                continue 'kwarg_loop;
             }
 
             // Repeat for positional parameters
-            for (i, (&param, out)) in self
+            if let Some((i, param)) = self
                 .positional_parameter_names
                 .iter()
-                .zip(&mut *args_output)
                 .enumerate()
+                .find(|&(_, param)| utf8_string == *param)
             {
-                if utf8_string == param {
-                    if i < self.positional_only_parameters {
-                        positional_only_keyword_arguments.push(param);
-                    } else {
-                        match out {
-                            Some(_) => return Err(self.multiple_values_for_argument(param)),
-                            None => {
-                                *out = Some(value);
-                            }
-                        }
+                if i < self.positional_only_parameters {
+                    positional_only_keyword_arguments.push(*param);
+                } else {
+                    if args_output[i].replace(value).is_some() {
+                        return Err(self.multiple_values_for_argument(param));
                     }
-                    continue 'kwarg_loop;
                 }
+                continue 'kwarg_loop;
             }
 
             unexpected_keyword_handler(kwarg_name, value)?;
@@ -229,7 +226,7 @@ impl FunctionDescription {
             "{} got some positional-only arguments passed as keyword arguments: ",
             self.fname
         );
-        write_parameter_list(&mut msg, parameter_names);
+        push_parameter_list(&mut msg, parameter_names);
         PyTypeError::new_err(msg)
     }
 
@@ -246,7 +243,7 @@ impl FunctionDescription {
             argument_type,
             arguments,
         );
-        write_parameter_list(&mut msg, parameter_names);
+        push_parameter_list(&mut msg, parameter_names);
         PyTypeError::new_err(msg)
     }
 }
@@ -392,18 +389,62 @@ impl<'a> From<&'a PyModule> for PyFunctionArguments<'a> {
     }
 }
 
-fn write_parameter_list(msg: &mut String, parameter_names: &[&str]) {
+fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
     for (i, parameter) in parameter_names.iter().enumerate() {
-        if i != 0 && parameter_names.len() > 2 {
-            msg.push(',');
-        }
+        if i != 0 {
+            if parameter_names.len() > 2 {
+                msg.push(',');
+            }
 
-        if i == parameter_names.len() - 1 {
-            msg.push_str(" and ")
+            if i == parameter_names.len() - 1 {
+                msg.push_str(" and ")
+            } else {
+                msg.push(' ')
+            }
         }
 
         msg.push('\'');
         msg.push_str(parameter);
         msg.push('\'');
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::push_parameter_list;
+
+    #[test]
+    fn push_parameter_list_empty() {
+        let mut s = String::new();
+        push_parameter_list(&mut s, &[]);
+        assert_eq!(&s, "");
+    }
+
+    #[test]
+    fn push_parameter_list_one() {
+        let mut s = String::new();
+        push_parameter_list(&mut s, &["a"]);
+        assert_eq!(&s, "'a'");
+    }
+
+    #[test]
+    fn push_parameter_list_two() {
+        let mut s = String::new();
+        push_parameter_list(&mut s, &["a", "b"]);
+        assert_eq!(&s, "'a' and 'b'");
+    }
+
+    #[test]
+    fn push_parameter_list_three() {
+        let mut s = String::new();
+        push_parameter_list(&mut s, &["a", "b", "c"]);
+        assert_eq!(&s, "'a', 'b', and 'c'");
+    }
+
+    #[test]
+    fn push_parameter_list_four() {
+        let mut s = String::new();
+        push_parameter_list(&mut s, &["a", "b", "c", "d"]);
+        assert_eq!(&s, "'a', 'b', 'c', and 'd'");
     }
 }

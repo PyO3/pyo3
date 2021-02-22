@@ -8,7 +8,7 @@ use crate::pymethod::get_arg_names;
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{spanned::Spanned, Ident};
+use syn::{spanned::Spanned, Ident, Result};
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
@@ -197,7 +197,7 @@ pub fn add_fn_to_module(
 
     let name = &func.sig.ident;
     let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
-    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, pyfn_attrs.pass_module);
+    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, pyfn_attrs.pass_module)?;
     Ok(quote! {
         #wrapper
         pub(crate) fn #function_wrapper_ident<'a>(
@@ -223,7 +223,7 @@ fn function_c_wrapper(
     wrapper_ident: &Ident,
     spec: &method::FnSpec<'_>,
     pass_module: bool,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let names: Vec<Ident> = get_arg_names(&spec);
     let cb;
     let slf_module;
@@ -240,8 +240,8 @@ fn function_c_wrapper(
         };
         slf_module = None;
     };
-    let body = pymethod::impl_arg_params(spec, None, cb);
-    quote! {
+    let body = pymethod::impl_arg_params(spec, None, cb)?;
+    Ok(quote! {
         unsafe extern "C" fn #wrapper_ident(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
@@ -256,5 +256,5 @@ fn function_c_wrapper(
                 #body
             })
         }
-    }
+    })
 }
