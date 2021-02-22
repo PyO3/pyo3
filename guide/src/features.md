@@ -34,11 +34,7 @@ See the [building and distribution](building_and_distribution.md#minimum-python-
 
 This feature changes [`Python::with_gil`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.with_gil) and [`Python::acquire_gil`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.acquire_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`](https://docs.rs/pyo3/latest/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
-This feature is not needed for extension modules, but for compatibility it is enabled by default until at least the PyO3 0.14 release.
-
-If you choose not to enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
-
-> This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
+If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
 
 ## Advanced Features
 
@@ -67,7 +63,7 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 
 ### `serde`
 
-The `serde` feature enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).  
+The `serde` feature enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust

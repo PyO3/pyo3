@@ -217,7 +217,7 @@ impl GILGuard {
         cfg_if::cfg_if! {
             if #[cfg(all(feature = "auto-initialize", Py_SHARED, not(PyPy)))] {
                 prepare_freethreaded_python();
-            } else if #[cfg(all(feature = "auto-initialize", not(feature = "extension-module"), not(Py_SHARED), not(__pyo3_ci)))] {
+            } else if #[cfg(all(feature = "auto-initialize", not(Py_SHARED), not(__pyo3_ci)))] {
                 compile_error!(concat!(
                     "The `auto-initialize` feature is not supported when linking Python ",
                     "statically instead of with a shared library.\n\n",
@@ -229,7 +229,7 @@ impl GILGuard {
                     "Alternatively, compile PyO3 using a Python distribution which contains a shared ",
                     "libary."
                 ));
-            } else if #[cfg(all(feature = "auto-initialize", not(feature = "extension-module"), PyPy, not(__pyo3_ci)))] {
+            } else if #[cfg(all(feature = "auto-initialize", PyPy, not(__pyo3_ci)))] {
                 compile_error!(concat!(
                     "The `auto-initialize` feature is not supported by PyPy.\n\n",
                     "Please disable the `auto-initialize` feature, for example by entering the following ",

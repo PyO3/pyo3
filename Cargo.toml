@@ -40,7 +40,7 @@ pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initi
 serde_json = "1.0.61"
 
 [features]
-default = ["macros", "auto-initialize"]
+default = ["macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "inventory", "paste", "unindent"]
