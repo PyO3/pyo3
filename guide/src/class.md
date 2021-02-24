@@ -707,8 +707,6 @@ pyclass dependent on whether there is an impl block, we'd need to implement the 
 To enable this, we use a static registry type provided by [inventory](https://github.com/dtolnay/inventory),
 which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick.
 See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_macros_backend::py_class` for more details.
-Also for `#[pyproto]`, we use a similar, but more task-specific registry and
-initialize it using the [ctor](https://github.com/mmastrac/rust-ctor) crate.
 
 Specifically, the following implementation is generated:
 
@@ -776,9 +774,17 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
     fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
-        pyo3::inventory::iter::<Pyo3MethodsInventoryForMyClass>
+        use pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<MyClass>::new();
+        pyo3::inventory::iter::<<MyClass as pyo3::class::methods::HasMethodsInventory>::Methods>
             .into_iter()
             .flat_map(pyo3::class::methods::PyMethodsInventory::get)
+            .chain(collector.object_protocol_methods())
+            .chain(collector.async_protocol_methods())
+            .chain(collector.context_protocol_methods())
+            .chain(collector.descr_protocol_methods())
+            .chain(collector.mapping_protocol_methods())
+            .chain(collector.number_protocol_methods())
             .for_each(visitor)
     }
     fn get_new() -> Option<pyo3::ffi::newfunc> {

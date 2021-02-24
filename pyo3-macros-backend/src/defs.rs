@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::proto_method::MethodProto;
+use proc_macro2::Span;
 use std::collections::HashSet;
 
 /// Predicates for `#[pyproto]`.
@@ -9,9 +10,7 @@ pub struct Proto {
     /// The path to the module which contains this proto implementation.
     module: &'static str,
     /// Trait which stores the slots
-    pub slots_trait: &'static str,
     /// Trait method which accesses the slots.
-    pub slots_trait_slots: &'static str,
     /// All methods.
     pub methods: &'static [MethodProto],
     /// All methods registered as normal methods like `#[pymethods]`.
@@ -63,6 +62,31 @@ impl Proto {
 
             all_methods_implemented
         })
+    }
+
+    pub(crate) fn slots_trait(&self) -> syn::Ident {
+        syn::Ident::new(&format!("Py{}ProtocolSlots", self.name), Span::call_site())
+    }
+
+    pub(crate) fn slots_trait_slots(&self) -> syn::Ident {
+        syn::Ident::new(
+            &format!("{}_protocol_slots", self.name.to_ascii_lowercase()),
+            Span::call_site(),
+        )
+    }
+
+    pub(crate) fn methods_trait(&self) -> syn::Ident {
+        syn::Ident::new(
+            &format!("Py{}ProtocolMethods", self.name),
+            Span::call_site(),
+        )
+    }
+
+    pub(crate) fn methods_trait_methods(&self) -> syn::Ident {
+        syn::Ident::new(
+            &format!("{}_protocol_methods", self.name.to_ascii_lowercase()),
+            Span::call_site(),
+        )
     }
 }
 
@@ -120,8 +144,6 @@ impl SlotDef {
 pub const OBJECT: Proto = Proto {
     name: "Object",
     module: "pyo3::class::basic",
-    slots_trait: "PyObjectProtocolSlots",
-    slots_trait_slots: "object_protocol_slots",
     methods: &[
         MethodProto::new("__getattr__", "PyObjectGetAttrProtocol")
             .args(&["Name"])
@@ -169,8 +191,6 @@ pub const OBJECT: Proto = Proto {
 pub const ASYNC: Proto = Proto {
     name: "Async",
     module: "pyo3::class::pyasync",
-    slots_trait: "PyAsyncProtocolSlots",
-    slots_trait_slots: "async_protocol_slots",
     methods: &[
         MethodProto::new("__await__", "PyAsyncAwaitProtocol").args(&["Receiver"]),
         MethodProto::new("__aiter__", "PyAsyncAiterProtocol").args(&["Receiver"]),
@@ -194,8 +214,6 @@ pub const ASYNC: Proto = Proto {
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
     module: "pyo3::class::buffer",
-    slots_trait: "PyBufferProtocolSlots",
-    slots_trait_slots: "buffer_protocol_slots",
     methods: &[
         MethodProto::new("bf_getbuffer", "PyBufferGetBufferProtocol").has_self(),
         MethodProto::new("bf_releasebuffer", "PyBufferReleaseBufferProtocol").has_self(),
@@ -214,8 +232,6 @@ pub const BUFFER: Proto = Proto {
 pub const CONTEXT: Proto = Proto {
     name: "Context",
     module: "pyo3::class::context",
-    slots_trait: "",
-    slots_trait_slots: "",
     methods: &[
         MethodProto::new("__enter__", "PyContextEnterProtocol").has_self(),
         MethodProto::new("__exit__", "PyContextExitProtocol")
@@ -232,8 +248,6 @@ pub const CONTEXT: Proto = Proto {
 pub const GC: Proto = Proto {
     name: "GC",
     module: "pyo3::class::gc",
-    slots_trait: "PyGCProtocolSlots",
-    slots_trait_slots: "gc_protocol_slots",
     methods: &[
         MethodProto::new("__traverse__", "PyGCTraverseProtocol")
             .has_self()
@@ -250,10 +264,8 @@ pub const GC: Proto = Proto {
 };
 
 pub const DESCR: Proto = Proto {
-    name: "Descriptor",
+    name: "Descr",
     module: "pyo3::class::descr",
-    slots_trait: "PyDescrProtocolSlots",
-    slots_trait_slots: "descr_protocol_slots",
     methods: &[
         MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Receiver", "Inst", "Owner"]),
         MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Receiver", "Inst", "Value"]),
@@ -277,8 +289,6 @@ pub const DESCR: Proto = Proto {
 pub const ITER: Proto = Proto {
     name: "Iter",
     module: "pyo3::class::iter",
-    slots_trait: "PyIterProtocolSlots",
-    slots_trait_slots: "iter_protocol_slots",
     py_methods: &[],
     methods: &[
         MethodProto::new("__iter__", "PyIterIterProtocol").args(&["Receiver"]),
@@ -293,8 +303,6 @@ pub const ITER: Proto = Proto {
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
     module: "pyo3::class::mapping",
-    slots_trait: "PyMappingProtocolSlots",
-    slots_trait_slots: "mapping_protocol_slots",
     methods: &[
         MethodProto::new("__len__", "PyMappingLenProtocol").has_self(),
         MethodProto::new("__getitem__", "PyMappingGetItemProtocol")
@@ -328,8 +336,6 @@ pub const MAPPING: Proto = Proto {
 pub const SEQ: Proto = Proto {
     name: "Sequence",
     module: "pyo3::class::sequence",
-    slots_trait: "PySequenceProtocolSlots",
-    slots_trait_slots: "sequence_protocol_slots",
     methods: &[
         MethodProto::new("__len__", "PySequenceLenProtocol").has_self(),
         MethodProto::new("__getitem__", "PySequenceGetItemProtocol")
@@ -387,8 +393,6 @@ pub const SEQ: Proto = Proto {
 pub const NUM: Proto = Proto {
     name: "Number",
     module: "pyo3::class::number",
-    slots_trait: "PyNumberProtocolSlots",
-    slots_trait_slots: "number_protocol_slots",
     methods: &[
         MethodProto::new("__add__", "PyNumberAddProtocol").args(&["Left", "Right"]),
         MethodProto::new("__sub__", "PyNumberSubProtocol").args(&["Left", "Right"]),

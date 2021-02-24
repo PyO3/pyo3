@@ -427,9 +427,17 @@ fn impl_class(
             type ThreadChecker = #thread_checker;
 
             fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
+                use pyo3::class::impl_::*;
+                let collector = PyClassImplCollector::<#cls>::new();
                 pyo3::inventory::iter::<<#cls as pyo3::class::methods::HasMethodsInventory>::Methods>
                     .into_iter()
                     .flat_map(pyo3::class::methods::PyMethodsInventory::get)
+                    .chain(collector.object_protocol_methods())
+                    .chain(collector.async_protocol_methods())
+                    .chain(collector.context_protocol_methods())
+                    .chain(collector.descr_protocol_methods())
+                    .chain(collector.mapping_protocol_methods())
+                    .chain(collector.number_protocol_methods())
                     .for_each(visitor)
             }
             fn get_new() -> Option<pyo3::ffi::newfunc> {

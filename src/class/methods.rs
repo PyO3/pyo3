@@ -25,16 +25,26 @@ pub enum PyMethodDefType {
 
 #[derive(Copy, Clone, Debug)]
 pub enum PyMethodType {
-    PyCFunction(ffi::PyCFunction),
-    PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
+    PyCFunction(PyCFunction),
+    PyCFunctionWithKeywords(PyCFunctionWithKeywords),
 }
 
+// These two newtype structs serve no purpose other than wrapping the raw ffi types (which are
+// function pointers) - because function pointers aren't allowed in const fn, but types wrapping
+// them are!
+#[derive(Clone, Copy, Debug)]
+pub struct PyCFunction(pub ffi::PyCFunction);
+#[derive(Clone, Copy, Debug)]
+pub struct PyCFunctionWithKeywords(pub ffi::PyCFunctionWithKeywords);
+
+// TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
+// until `CStr::from_bytes_with_nul_unchecked` is const fn.
 #[derive(Clone, Debug)]
 pub struct PyMethodDef {
-    pub(crate) ml_name: &'static CStr,
+    pub(crate) ml_name: &'static str,
     pub(crate) ml_meth: PyMethodType,
     pub(crate) ml_flags: c_int,
-    pub(crate) ml_doc: &'static CStr,
+    pub(crate) ml_doc: &'static str,
 }
 
 #[derive(Copy, Clone)]
@@ -74,42 +84,42 @@ fn get_doc(doc: &str) -> &CStr {
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
-    pub fn cfunction(name: &'static str, cfunction: ffi::PyCFunction, doc: &'static str) -> Self {
+    pub const fn cfunction(name: &'static str, cfunction: PyCFunction, doc: &'static str) -> Self {
         Self {
-            ml_name: get_name(name),
+            ml_name: name,
             ml_meth: PyMethodType::PyCFunction(cfunction),
             ml_flags: ffi::METH_NOARGS,
-            ml_doc: get_doc(doc),
+            ml_doc: doc,
         }
     }
 
     /// Define a function that can take `*args` and `**kwargs`.
-    pub fn cfunction_with_keywords(
+    pub const fn cfunction_with_keywords(
         name: &'static str,
-        cfunction: ffi::PyCFunctionWithKeywords,
+        cfunction: PyCFunctionWithKeywords,
         flags: c_int,
         doc: &'static str,
     ) -> Self {
         Self {
-            ml_name: get_name(name),
+            ml_name: name,
             ml_meth: PyMethodType::PyCFunctionWithKeywords(cfunction),
             ml_flags: flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS,
-            ml_doc: get_doc(doc),
+            ml_doc: doc,
         }
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
-            PyMethodType::PyCFunction(meth) => meth,
-            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyCFunction(meth) => meth.0,
+            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth.0) },
         };
 
         ffi::PyMethodDef {
-            ml_name: self.ml_name.as_ptr(),
+            ml_name: get_name(self.ml_name).as_ptr(),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
-            ml_doc: self.ml_doc.as_ptr(),
+            ml_doc: get_doc(self.ml_doc).as_ptr(),
         }
     }
 }

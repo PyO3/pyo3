@@ -81,20 +81,20 @@ fn impl_proto_impl(
                 let name = &met.sig.ident;
                 // TODO(kngwyu): Set ml_doc
                 py_methods.push(quote! {
-                    pyo3::class::PyMethodDefType::Method({
-                        #method
-                        pyo3::class::PyMethodDef::cfunction_with_keywords(
-                            concat!(stringify!(#name), "\0"),
-                            __wrap,
-                            #coexist,
-                            "\0"
-                        )
-                    })
+                    pyo3::class::PyMethodDef::cfunction_with_keywords(
+                        concat!(stringify!(#name), "\0"),
+                        {
+                            #method
+                            pyo3::class::methods::PyCFunctionWithKeywords(__wrap)
+                        },
+                        #coexist,
+                        "\0"
+                    )
                 });
             }
         }
     }
-    let normal_methods = submit_normal_methods(py_methods, ty);
+    let normal_methods = impl_normal_methods(py_methods, ty, proto);
     let protocol_methods = impl_proto_methods(method_names, ty, proto);
     Ok(quote! {
         #trait_impls
@@ -103,15 +103,25 @@ fn impl_proto_impl(
     })
 }
 
-fn submit_normal_methods(py_methods: Vec<TokenStream>, ty: &syn::Type) -> TokenStream {
+fn impl_normal_methods(
+    py_methods: Vec<TokenStream>,
+    ty: &syn::Type,
+    proto: &defs::Proto,
+) -> TokenStream {
     if py_methods.is_empty() {
-        return quote! {};
+        return TokenStream::default();
     }
+
+    let methods_trait = proto.methods_trait();
+    let methods_trait_methods = proto.methods_trait_methods();
     quote! {
-        pyo3::inventory::submit! {
-            #![crate = pyo3] {
-                type Inventory = <#ty as pyo3::class::methods::HasMethodsInventory>::Methods;
-                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(vec![#(#py_methods),*])
+        impl pyo3::class::impl_::#methods_trait<#ty>
+            for pyo3::class::impl_::PyClassImplCollector<#ty>
+        {
+            fn #methods_trait_methods(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[pyo3::class::methods::PyMethodDefType] =
+                    &[#(pyo3::class::methods::PyMethodDefType::Method(#py_methods)),*];
+                METHODS
             }
         }
     }
@@ -122,13 +132,13 @@ fn impl_proto_methods(
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> TokenStream {
-    if proto.slots_trait.is_empty() {
+    if method_names.is_empty() {
         return TokenStream::default();
     }
 
     let module = proto.module();
-    let slots_trait = syn::Ident::new(proto.slots_trait, Span::call_site());
-    let slots_trait_slots = syn::Ident::new(proto.slots_trait_slots, Span::call_site());
+    let slots_trait = proto.slots_trait();
+    let slots_trait_slots = proto.slots_trait_slots();
 
     let mut maybe_buffer_methods = None;
     if proto.name == "Buffer" {
