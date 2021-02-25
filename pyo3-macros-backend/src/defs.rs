@@ -147,7 +147,6 @@ pub const OBJECT: Proto = Proto {
     py_methods: &[
         PyMethod::new("__format__", "FormatProtocolImpl"),
         PyMethod::new("__bytes__", "BytesProtocolImpl"),
-        PyMethod::new("__unicode__", "UnicodeProtocolImpl"),
     ],
     slot_defs: &[
         SlotDef::new(&["__str__"], "Py_tp_str", "str"),
