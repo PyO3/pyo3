@@ -1,12 +1,8 @@
-import os
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
 import word_count
-
-current_dir = os.path.abspath(os.path.dirname(__file__))
-path = os.path.join(current_dir, "zen-of-python.txt")
 
 
 @pytest.fixture(scope="session")
