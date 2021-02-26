@@ -593,7 +593,7 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
 
                 pyo3::class::PyMethodDef::cfunction(
                     concat!(stringify!(#python_name), "\0"),
-                    __wrap,
+                    pyo3::class::methods::PyCFunction(__wrap),
                     #doc
                 )
             })
@@ -605,7 +605,7 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
 
                 pyo3::class::PyMethodDef::cfunction_with_keywords(
                     concat!(stringify!(#python_name), "\0"),
-                    __wrap,
+                    pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
                     0,
                     #doc
                 )
@@ -635,7 +635,7 @@ pub fn impl_py_method_def_class(spec: &FnSpec, wrapper: &TokenStream) -> TokenSt
 
             pyo3::class::PyMethodDef::cfunction_with_keywords(
                 concat!(stringify!(#python_name), "\0"),
-                __wrap,
+                pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
                 pyo3::ffi::METH_CLASS,
                 #doc
             )
@@ -652,7 +652,7 @@ pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
 
             pyo3::class::PyMethodDef::cfunction_with_keywords(
                 concat!(stringify!(#python_name), "\0"),
-                __wrap,
+                pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
                 pyo3::ffi::METH_STATIC,
                 #doc
             )

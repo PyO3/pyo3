@@ -210,7 +210,7 @@ pub fn add_fn_to_module(
             pyo3::types::PyCFunction::internal_new(
                 name,
                 doc,
-                pyo3::class::PyMethodType::PyCFunctionWithKeywords(#wrapper_ident),
+                unsafe { std::mem::transmute(#wrapper_ident as *const std::os::raw::c_void) },
                 pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                 args.into(),
             )

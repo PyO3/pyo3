@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
-use crate::{ffi, AsPyPointer, PyMethodDef, PyMethodType};
+use crate::{ffi, AsPyPointer};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
@@ -36,7 +36,7 @@ impl PyCFunction {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
-            PyMethodType::PyCFunctionWithKeywords(fun),
+            unsafe { std::mem::transmute(fun) },
             ffi::METH_VARARGS | ffi::METH_KEYWORDS,
             py_or_module,
         )
@@ -52,7 +52,7 @@ impl PyCFunction {
         Self::internal_new(
             get_name(name)?,
             get_doc(doc)?,
-            PyMethodType::PyCFunction(fun),
+            fun,
             ffi::METH_NOARGS,
             py_or_module,
         )
@@ -62,18 +62,17 @@ impl PyCFunction {
     pub fn internal_new<'a>(
         name: &'static CStr,
         doc: &'static CStr,
-        method_type: PyMethodType,
+        method: ffi::PyCFunction,
         flags: std::os::raw::c_int,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
-        let method_def = PyMethodDef {
-            ml_name: name,
-            ml_meth: method_type,
+        let def = ffi::PyMethodDef {
+            ml_name: name.as_ptr(),
+            ml_meth: Some(method),
             ml_flags: flags,
-            ml_doc: doc,
+            ml_doc: doc.as_ptr(),
         };
-        let def = method_def.as_method_def();
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);

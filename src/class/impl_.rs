@@ -78,99 +78,54 @@ impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
 
 // All traits describing slots, as well as the fallback implementations for unimplemented protos
 //
-// Protos which are implented use dtolnay specialization to implement for PyClassImplCollector<T>.
+// Protos which are implemented use dtolnay specialization to implement for PyClassImplCollector<T>.
 //
 // See https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
 
-pub trait PyObjectProtocolSlots<T> {
-    fn object_protocol_slots(self) -> &'static [ffi::PyType_Slot];
+macro_rules! slots_trait {
+    ($name:ident, $function_name: ident) => {
+        pub trait $name<T> {
+            fn $function_name(self) -> &'static [ffi::PyType_Slot];
+        }
+
+        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
+            fn $function_name(self) -> &'static [ffi::PyType_Slot] {
+                &[]
+            }
+        }
+    };
 }
 
-impl<T> PyObjectProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn object_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
+slots_trait!(PyObjectProtocolSlots, object_protocol_slots);
+slots_trait!(PyDescrProtocolSlots, descr_protocol_slots);
+slots_trait!(PyGCProtocolSlots, gc_protocol_slots);
+slots_trait!(PyIterProtocolSlots, iter_protocol_slots);
+slots_trait!(PyMappingProtocolSlots, mapping_protocol_slots);
+slots_trait!(PyNumberProtocolSlots, number_protocol_slots);
+slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
+slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
+slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
+
+macro_rules! methods_trait {
+    ($name:ident, $function_name: ident) => {
+        pub trait $name<T> {
+            fn $function_name(self) -> &'static [PyMethodDefType];
+        }
+
+        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
+            fn $function_name(self) -> &'static [PyMethodDefType] {
+                &[]
+            }
+        }
+    };
 }
 
-pub trait PyDescrProtocolSlots<T> {
-    fn descr_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyDescrProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn descr_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyGCProtocolSlots<T> {
-    fn gc_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyGCProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn gc_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyIterProtocolSlots<T> {
-    fn iter_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyIterProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn iter_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyMappingProtocolSlots<T> {
-    fn mapping_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyMappingProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn mapping_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyNumberProtocolSlots<T> {
-    fn number_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyNumberProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn number_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyAsyncProtocolSlots<T> {
-    fn async_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyAsyncProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn async_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PySequenceProtocolSlots<T> {
-    fn sequence_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PySequenceProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn sequence_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
-
-pub trait PyBufferProtocolSlots<T> {
-    fn buffer_protocol_slots(self) -> &'static [ffi::PyType_Slot];
-}
-
-impl<T> PyBufferProtocolSlots<T> for &'_ PyClassImplCollector<T> {
-    fn buffer_protocol_slots(self) -> &'static [ffi::PyType_Slot] {
-        &[]
-    }
-}
+methods_trait!(PyObjectProtocolMethods, object_protocol_methods);
+methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);
+methods_trait!(PyContextProtocolMethods, context_protocol_methods);
+methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
+methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
+methods_trait!(PyNumberProtocolMethods, number_protocol_methods);
 
 // On Python < 3.9 setting the buffer protocol using slots doesn't work, so these procs are used
 // on those versions to set the slots manually (on the limited API).
