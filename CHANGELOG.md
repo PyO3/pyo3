@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Deprecate FFI definitions `PyModule_GetFilename`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - The `auto-initialize` feature is no longer enabled by default. [#1443](https://github.com/PyO3/pyo3/pull/1443)
+- Change `PyCFunction::new()` and `PyCFunction::new_with_keywords()` to take `&'static str` arguments rather than implicitly copying (and leaking) them. [#1450](https://github.com/PyO3/pyo3/pull/1450)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)

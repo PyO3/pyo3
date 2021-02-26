@@ -192,8 +192,7 @@ pub fn add_fn_to_module(
         doc,
     };
 
-    let doc = syn::LitByteStr::new(spec.doc.value().as_bytes(), spec.doc.span());
-
+    let doc = &spec.doc;
     let python_name = &spec.python_name;
 
     let name = &func.sig.ident;
@@ -205,13 +204,13 @@ pub fn add_fn_to_module(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
             let name = concat!(stringify!(#python_name), "\0");
-            let name = std::ffi::CStr::from_bytes_with_nul(name.as_bytes()).unwrap();
-            let doc = std::ffi::CStr::from_bytes_with_nul(#doc).unwrap();
             pyo3::types::PyCFunction::internal_new(
-                name,
-                doc,
-                unsafe { std::mem::transmute(#wrapper_ident as *const std::os::raw::c_void) },
-                pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
+                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                    name,
+                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper_ident),
+                    0,
+                    #doc,
+                ),
                 args.into(),
             )
         }

@@ -318,7 +318,7 @@ fn py_class_method_defs<T: PyClassImpl>() -> Vec<ffi::PyMethodDef> {
         PyMethodDefType::Method(def)
         | PyMethodDefType::Class(def)
         | PyMethodDefType::Static(def) => {
-            defs.push(def.as_method_def());
+            defs.push(def.as_method_def().unwrap());
         }
         _ => (),
     });

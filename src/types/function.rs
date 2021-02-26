@@ -1,9 +1,10 @@
-use std::ffi::{CStr, CString};
-
-use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
-use crate::{ffi, AsPyPointer};
+use crate::{
+    class::methods::{self, PyMethodDef},
+    ffi, AsPyPointer,
+};
+use crate::{derive_utils::PyFunctionArguments, methods::NulByteInString};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
@@ -11,33 +12,23 @@ pub struct PyCFunction(PyAny);
 
 pyobject_native_var_type!(PyCFunction, ffi::PyCFunction_Type, ffi::PyCFunction_Check);
 
-fn get_name(name: &str) -> PyResult<&'static CStr> {
-    let cstr = CString::new(name)
-        .map_err(|_| PyValueError::new_err("Function name cannot contain contain NULL byte."))?;
-    Ok(Box::leak(cstr.into_boxed_c_str()))
-}
-
-fn get_doc(doc: &str) -> PyResult<&'static CStr> {
-    let cstr = CString::new(doc)
-        .map_err(|_| PyValueError::new_err("Document cannot contain contain NULL byte."))?;
-    Ok(Box::leak(cstr.into_boxed_c_str()))
-}
-
 impl PyCFunction {
     /// Create a new built-in function with keywords.
     ///
     /// See [raw_pycfunction] for documentation on how to get the `fun` argument.
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
-        name: &str,
-        doc: &str,
+        name: &'static str,
+        doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            get_name(name)?,
-            get_doc(doc)?,
-            unsafe { std::mem::transmute(fun) },
-            ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            PyMethodDef::cfunction_with_keywords(
+                name,
+                methods::PyCFunctionWithKeywords(fun),
+                0,
+                doc,
+            ),
             py_or_module,
         )
     }
@@ -45,34 +36,25 @@ impl PyCFunction {
     /// Create a new built-in function without keywords.
     pub fn new<'a>(
         fun: ffi::PyCFunction,
-        name: &str,
-        doc: &str,
+        name: &'static str,
+        doc: &'static str,
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            get_name(name)?,
-            get_doc(doc)?,
-            fun,
-            ffi::METH_NOARGS,
+            PyMethodDef::cfunction(name, methods::PyCFunction(fun), doc),
             py_or_module,
         )
     }
 
     #[doc(hidden)]
-    pub fn internal_new<'a>(
-        name: &'static CStr,
-        doc: &'static CStr,
-        method: ffi::PyCFunction,
-        flags: std::os::raw::c_int,
-        py_or_module: PyFunctionArguments<'a>,
-    ) -> PyResult<&'a Self> {
+    pub fn internal_new(
+        method_def: PyMethodDef,
+        py_or_module: PyFunctionArguments,
+    ) -> PyResult<&Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
-        let def = ffi::PyMethodDef {
-            ml_name: name.as_ptr(),
-            ml_meth: Some(method),
-            ml_flags: flags,
-            ml_doc: doc.as_ptr(),
-        };
+        let def = method_def
+            .as_method_def()
+            .map_err(|NulByteInString(err)| PyValueError::new_err(err))?;
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);

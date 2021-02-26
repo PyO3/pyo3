@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::{ffi, PyObject, Python};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_int;
 
@@ -73,15 +73,6 @@ unsafe impl Sync for PyGetterDef {}
 
 unsafe impl Sync for PySetterDef {}
 
-fn get_name(name: &str) -> &CStr {
-    CStr::from_bytes_with_nul(name.as_bytes())
-        .expect("Method name must be terminated with NULL byte")
-}
-
-fn get_doc(doc: &str) -> &CStr {
-    CStr::from_bytes_with_nul(doc.as_bytes()).expect("Document must be terminated with NULL byte")
-}
-
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
     pub const fn cfunction(name: &'static str, cfunction: PyCFunction, doc: &'static str) -> Self {
@@ -109,18 +100,18 @@ impl PyMethodDef {
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub fn as_method_def(&self) -> ffi::PyMethodDef {
+    pub(crate) fn as_method_def(&self) -> Result<ffi::PyMethodDef, NulByteInString> {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth.0,
             PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth.0) },
         };
 
-        ffi::PyMethodDef {
-            ml_name: get_name(self.ml_name).as_ptr(),
+        Ok(ffi::PyMethodDef {
+            ml_name: get_name(self.ml_name)?.as_ptr(),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
-            ml_doc: get_doc(self.ml_doc).as_ptr(),
-        }
+            ml_doc: get_doc(self.ml_doc)?.as_ptr(),
+        })
     }
 }
 
@@ -128,7 +119,7 @@ impl PyClassAttributeDef {
     /// Define a class attribute.
     pub fn new(name: &'static str, meth: for<'p> fn(Python<'p>) -> PyObject) -> Self {
         Self {
-            name: get_name(name),
+            name: get_name(name).unwrap(),
             meth,
         }
     }
@@ -148,9 +139,9 @@ impl PyGetterDef {
     /// Define a getter.
     pub fn new(name: &'static str, getter: ffi::getter, doc: &'static str) -> Self {
         Self {
-            name: get_name(name),
+            name: get_name(name).unwrap(),
             meth: getter,
-            doc: get_doc(doc),
+            doc: get_doc(doc).unwrap(),
         }
     }
 
@@ -170,9 +161,9 @@ impl PySetterDef {
     /// Define a setter.
     pub fn new(name: &'static str, setter: ffi::setter, doc: &'static str) -> Self {
         Self {
-            name: get_name(name),
+            name: get_name(name).unwrap(),
             meth: setter,
-            doc: get_doc(doc),
+            doc: get_doc(doc).unwrap(),
         }
     }
 
@@ -208,4 +199,26 @@ pub trait PyMethodsInventory: inventory::Collect {
 #[cfg(feature = "macros")]
 pub trait HasMethodsInventory {
     type Methods: PyMethodsInventory;
+}
+
+#[derive(Debug)]
+pub(crate) struct NulByteInString(pub(crate) &'static str);
+
+fn get_name(name: &'static str) -> Result<&'static CStr, NulByteInString> {
+    extract_cstr_or_leak_cstring(name, "Function name cannot contain NUL byte.")
+}
+
+fn get_doc(doc: &'static str) -> Result<&'static CStr, NulByteInString> {
+    extract_cstr_or_leak_cstring(doc, "Document cannot contain NUL byte.")
+}
+
+fn extract_cstr_or_leak_cstring(
+    src: &'static str,
+    err_msg: &'static str,
+) -> Result<&'static CStr, NulByteInString> {
+    CStr::from_bytes_with_nul(src.as_bytes())
+        .or_else(|_| {
+            CString::new(src.as_bytes()).map(|c_string| &*Box::leak(c_string.into_boxed_c_str()))
+        })
+        .map_err(|_| NulByteInString(err_msg))
 }
