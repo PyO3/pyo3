@@ -2,7 +2,7 @@
 
 PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.
 
-By default, the `macros` and `auto-initialize` features are enabled.
+By default, only the `macros` feature is enabled.
 
 ## Features for extension module authors
 
