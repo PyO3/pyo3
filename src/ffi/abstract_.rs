@@ -89,7 +89,10 @@ extern "C" {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
+// Defined as this macro in Python 3.6, 3.7 limited API, but relies on
+// non-limited PyTypeObject. Don't expose this since it cannot be used.
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*crate::ffi::Py_TYPE(o)).tp_iternext {
         Some(tp_iternext) => {
@@ -150,7 +153,9 @@ extern "C" {
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
 }
 
-#[cfg(not(any(all(Py_3_8, Py_LIMITED_API), PyPy)))]
+// Defined as this macro in Python 3.6, 3.7 limited API, but relies on
+// non-limited PyTypeObject. Don't expose this since it cannot be used.
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[inline]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     let tp_as_number = (*Py_TYPE(o)).tp_as_number;
