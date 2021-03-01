@@ -186,59 +186,108 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 });
 
-tuple_conversion!(1, (ref0, 0, A));
-tuple_conversion!(2, (ref0, 0, A), (ref1, 1, B));
-tuple_conversion!(3, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C));
-tuple_conversion!(4, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D));
+tuple_conversion!(1, (ref0, 0, T0));
+tuple_conversion!(2, (ref0, 0, T0), (ref1, 1, T1));
+tuple_conversion!(3, (ref0, 0, T0), (ref1, 1, T1), (ref2, 2, T2));
+tuple_conversion!(
+    4,
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3)
+);
 tuple_conversion!(
     5,
-    (ref0, 0, A),
-    (ref1, 1, B),
-    (ref2, 2, C),
-    (ref3, 3, D),
-    (ref4, 4, E)
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4)
 );
 tuple_conversion!(
     6,
-    (ref0, 0, A),
-    (ref1, 1, B),
-    (ref2, 2, C),
-    (ref3, 3, D),
-    (ref4, 4, E),
-    (ref5, 5, F)
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5)
 );
 tuple_conversion!(
     7,
-    (ref0, 0, A),
-    (ref1, 1, B),
-    (ref2, 2, C),
-    (ref3, 3, D),
-    (ref4, 4, E),
-    (ref5, 5, F),
-    (ref6, 6, G)
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6)
 );
 tuple_conversion!(
     8,
-    (ref0, 0, A),
-    (ref1, 1, B),
-    (ref2, 2, C),
-    (ref3, 3, D),
-    (ref4, 4, E),
-    (ref5, 5, F),
-    (ref6, 6, G),
-    (ref7, 7, H)
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6),
+    (ref7, 7, T7)
 );
 tuple_conversion!(
     9,
-    (ref0, 0, A),
-    (ref1, 1, B),
-    (ref2, 2, C),
-    (ref3, 3, D),
-    (ref4, 4, E),
-    (ref5, 5, F),
-    (ref6, 6, G),
-    (ref7, 7, H),
-    (ref8, 8, I)
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6),
+    (ref7, 7, T7),
+    (ref8, 8, T8)
+);
+tuple_conversion!(
+    10,
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6),
+    (ref7, 7, T7),
+    (ref8, 8, T8),
+    (ref9, 9, T9)
+);
+tuple_conversion!(
+    11,
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6),
+    (ref7, 7, T7),
+    (ref8, 8, T8),
+    (ref9, 9, T9),
+    (ref10, 10, T10)
+);
+
+tuple_conversion!(
+    12,
+    (ref0, 0, T0),
+    (ref1, 1, T1),
+    (ref2, 2, T2),
+    (ref3, 3, T3),
+    (ref4, 4, T4),
+    (ref5, 5, T5),
+    (ref6, 6, T6),
+    (ref7, 7, T7),
+    (ref8, 8, T8),
+    (ref9, 9, T9),
+    (ref10, 10, T10),
+    (ref11, 11, T11)
 );
 
 #[cfg(test)]
@@ -312,5 +361,69 @@ mod test {
         assert_eq!(1, slice[0].extract().unwrap());
         assert_eq!(2, slice[1].extract().unwrap());
         assert_eq!(3, slice[2].extract().unwrap());
+    }
+
+    #[test]
+    fn test_tuple_lengths_up_to_12() {
+        Python::with_gil(|py| {
+            let t0 = (0,).to_object(py);
+            let t1 = (0, 1).to_object(py);
+            let t2 = (0, 1, 2).to_object(py);
+            let t3 = (0, 1, 2, 3).to_object(py);
+            let t4 = (0, 1, 2, 3, 4).to_object(py);
+            let t5 = (0, 1, 2, 3, 4, 5).to_object(py);
+            let t6 = (0, 1, 2, 3, 4, 5, 6).to_object(py);
+            let t7 = (0, 1, 2, 3, 4, 5, 6, 7).to_object(py);
+            let t8 = (0, 1, 2, 3, 4, 5, 6, 7, 8).to_object(py);
+            let t9 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9).to_object(py);
+            let t10 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).to_object(py);
+            let t11 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11).to_object(py);
+
+            assert_eq!(t0.extract::<(i32,)>(py).unwrap(), (0,));
+            assert_eq!(t1.extract::<(i32, i32)>(py).unwrap(), (0, 1,));
+            assert_eq!(t2.extract::<(i32, i32, i32)>(py).unwrap(), (0, 1, 2,));
+            assert_eq!(
+                t3.extract::<(i32, i32, i32, i32,)>(py).unwrap(),
+                (0, 1, 2, 3,)
+            );
+            assert_eq!(
+                t4.extract::<(i32, i32, i32, i32, i32,)>(py).unwrap(),
+                (0, 1, 2, 3, 4,)
+            );
+            assert_eq!(
+                t5.extract::<(i32, i32, i32, i32, i32, i32,)>(py).unwrap(),
+                (0, 1, 2, 3, 4, 5,)
+            );
+            assert_eq!(
+                t6.extract::<(i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6,)
+            );
+            assert_eq!(
+                t7.extract::<(i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6, 7,)
+            );
+            assert_eq!(
+                t8.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6, 7, 8,)
+            );
+            assert_eq!(
+                t9.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6, 7, 8, 9,)
+            );
+            assert_eq!(
+                t10.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,)
+            );
+            assert_eq!(
+                t11.extract::<(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32,)>(py)
+                    .unwrap(),
+                (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,)
+            );
+        })
     }
 }
