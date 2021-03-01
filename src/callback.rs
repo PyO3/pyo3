@@ -9,6 +9,7 @@ use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
 use std::isize;
 use std::os::raw::c_int;
+use std::panic::UnwindSafe;
 
 /// A type which can be the return type of a python C-API callback
 pub trait PyCallbackOutput: Copy {
@@ -194,9 +195,9 @@ where
 #[doc(hidden)]
 #[macro_export]
 macro_rules! callback_body {
-    ($py:ident, $body:expr) => {{
-        $crate::callback_body_without_convert!($py, $crate::callback::convert($py, $body))
-    }};
+    ($py:ident, $body:expr) => {
+        $crate::callback::handle_panic(|$py| $crate::callback::convert($py, $body))
+    };
 }
 
 /// Variant of the above which does not perform the callback conversion. This allows the callback
@@ -210,12 +211,12 @@ macro_rules! callback_body {
 /// }
 /// ```
 ///
-/// It is wrapped in proc macros with callback_body_without_convert like so:
+/// It is wrapped in proc macros with handle_panic like so:
 ///
 /// ```ignore
-/// pyo3::callback_body_without_convert!(py, {
+/// pyo3::callback::handle_panic(|_py| {
 ///     let _slf = #slf;
-///     pyo3::callback::convert(py, #foo)
+///     pyo3::callback::convert(_py, #foo)
 /// })
 /// ```
 ///
@@ -231,33 +232,32 @@ macro_rules! callback_body {
 /// Then this will fail to compile, because the result of #foo borrows _slf, but _slf drops when
 /// the block passed to the macro ends.
 #[doc(hidden)]
-#[macro_export]
-macro_rules! callback_body_without_convert {
-    ($py:ident, $body:expr) => {{
-        let pool = $crate::GILPool::new();
-        let unwind_safe_py = std::panic::AssertUnwindSafe(pool.python());
-        let result = match std::panic::catch_unwind(move || -> $crate::PyResult<_> {
-            let $py = *unwind_safe_py;
-            $body
-        }) {
+pub unsafe fn handle_panic<F, R>(body: F) -> R
+where
+    F: FnOnce(Python) -> crate::PyResult<R> + UnwindSafe,
+    R: PyCallbackOutput,
+{
+    let pool = crate::GILPool::new();
+    let unwind_safe_py = std::panic::AssertUnwindSafe(pool.python());
+    let result =
+        match std::panic::catch_unwind(move || -> crate::PyResult<_> { body(*unwind_safe_py) }) {
             Ok(result) => result,
             Err(e) => {
                 // Try to format the error in the same way panic does
                 if let Some(string) = e.downcast_ref::<String>() {
-                    Err($crate::panic::PanicException::new_err((string.clone(),)))
+                    Err(crate::panic::PanicException::new_err((string.clone(),)))
                 } else if let Some(s) = e.downcast_ref::<&str>() {
-                    Err($crate::panic::PanicException::new_err((s.to_string(),)))
+                    Err(crate::panic::PanicException::new_err((s.to_string(),)))
                 } else {
-                    Err($crate::panic::PanicException::new_err((
+                    Err(crate::panic::PanicException::new_err((
                         "panic from Rust code",
                     )))
                 }
             }
         };
 
-        result.unwrap_or_else(|e| {
-            e.restore(pool.python());
-            $crate::callback::callback_error()
-        })
-    }};
+    result.unwrap_or_else(|e| {
+        e.restore(pool.python());
+        crate::callback::callback_error()
+    })
 }

@@ -428,8 +428,8 @@ fn impl_class(
 
             fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
                 use pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<#cls>::new();
-                pyo3::inventory::iter::<<#cls as pyo3::class::methods::HasMethodsInventory>::Methods>
+                let collector = PyClassImplCollector::<Self>::new();
+                pyo3::inventory::iter::<<Self as pyo3::class::methods::HasMethodsInventory>::Methods>
                     .into_iter()
                     .flat_map(pyo3::class::methods::PyMethodsInventory::get)
                     .chain(collector.object_protocol_methods())
@@ -442,19 +442,19 @@ fn impl_class(
             }
             fn get_new() -> Option<pyo3::ffi::newfunc> {
                 use pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<#cls>::new();
+                let collector = PyClassImplCollector::<Self>::new();
                 collector.new_impl()
             }
             fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
                 use pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<#cls>::new();
+                let collector = PyClassImplCollector::<Self>::new();
                 collector.call_impl()
             }
 
             fn for_each_proto_slot(visitor: impl FnMut(&pyo3::ffi::PyType_Slot)) {
                 // Implementation which uses dtolnay specialization to load all slots.
                 use pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<#cls>::new();
+                let collector = PyClassImplCollector::<Self>::new();
                 collector.object_protocol_slots()
                     .iter()
                     .chain(collector.number_protocol_slots())
@@ -470,7 +470,7 @@ fn impl_class(
 
             fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
                 use pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<#cls>::new();
+                let collector = PyClassImplCollector::<Self>::new();
                 collector.buffer_procs()
             }
         }

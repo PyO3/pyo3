@@ -1,11 +1,25 @@
-error[E0597]: `pool` does not live long enough
+error[E0495]: cannot infer an appropriate lifetime for lifetime parameter `'p` due to conflicting requirements
  --> $DIR/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
-  | |
-  | borrowed value does not live long enough
-  | `pool` dropped here while still borrowed
-  | cast requires that `pool` is borrowed for `'static`
   |
-  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the body at 4:1...
+ --> $DIR/static_ref.rs:4:1
+  |
+4 | #[pyfunction]
+  | ^^^^^^^^^^^^^
+note: ...so that the types are compatible
+ --> $DIR/static_ref.rs:4:1
+  |
+4 | #[pyfunction]
+  | ^^^^^^^^^^^^^
+  = note: expected `pyo3::Python<'_>`
+             found `pyo3::Python<'_>`
+  = note: but, the lifetime must be valid for the static lifetime...
+note: ...so that reference does not outlive borrowed content
+ --> $DIR/static_ref.rs:4:1
+  |
+4 | #[pyfunction]
+  | ^^^^^^^^^^^^^
+  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
