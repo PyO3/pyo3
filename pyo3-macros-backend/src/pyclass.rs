@@ -17,8 +17,11 @@ use syn::{parse_quote, spanned::Spanned, Expr, Token};
 pub struct PyClassArgs {
     pub freelist: Option<syn::Expr>,
     pub name: Option<syn::Ident>,
-    pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
+    pub has_dict: bool,
+    pub has_weaklist: bool,
+    pub is_gc: bool,
+    pub is_basetype: bool,
     pub has_extends: bool,
     pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
@@ -42,10 +45,11 @@ impl Default for PyClassArgs {
             freelist: None,
             name: None,
             module: None,
-            // We need the 0 as value for the constant we're later building using quote for when there
-            // are no other flags
-            flags: vec![parse_quote! { 0 }],
             base: parse_quote! { pyo3::PyAny },
+            has_dict: false,
+            has_weaklist: false,
+            is_gc: false,
+            is_basetype: false,
             has_extends: false,
             has_unsendable: false,
         }
@@ -136,14 +140,19 @@ impl PyClassArgs {
     /// Match a single flag
     fn add_path(&mut self, exp: &syn::ExprPath) -> syn::Result<()> {
         let flag = exp.path.segments.first().unwrap().ident.to_string();
-        let mut push_flag = |flag| {
-            self.flags.push(syn::Expr::Path(flag));
-        };
         match flag.as_str() {
-            "gc" => push_flag(parse_quote! {pyo3::type_flags::GC}),
-            "weakref" => push_flag(parse_quote! {pyo3::type_flags::WEAKREF}),
-            "subclass" => push_flag(parse_quote! {pyo3::type_flags::BASETYPE}),
-            "dict" => push_flag(parse_quote! {pyo3::type_flags::DICT}),
+            "gc" => {
+                self.is_gc = true;
+            }
+            "weakref" => {
+                self.has_weaklist = true;
+            }
+            "subclass" => {
+                self.is_basetype = true;
+            }
+            "dict" => {
+                self.has_dict = true;
+            }
             "unsendable" => {
                 self.has_unsendable = true;
             }
@@ -293,29 +302,14 @@ fn impl_class(
     };
 
     // insert space for weak ref
-    let mut has_weakref = false;
-    let mut has_dict = false;
-    let mut has_gc = false;
-    for f in attr.flags.iter() {
-        if let syn::Expr::Path(epath) = f {
-            if epath.path == parse_quote! { pyo3::type_flags::WEAKREF } {
-                has_weakref = true;
-            } else if epath.path == parse_quote! { pyo3::type_flags::DICT } {
-                has_dict = true;
-            } else if epath.path == parse_quote! { pyo3::type_flags::GC } {
-                has_gc = true;
-            }
-        }
-    }
-
-    let weakref = if has_weakref {
+    let weakref = if attr.has_weaklist {
         quote! { pyo3::pyclass_slots::PyClassWeakRefSlot }
     } else if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::WeakRef }
     } else {
         quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
-    let dict = if has_dict {
+    let dict = if attr.has_dict {
         quote! { pyo3::pyclass_slots::PyClassDictSlot }
     } else if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::Dict }
@@ -329,7 +323,7 @@ fn impl_class(
     };
 
     // Enforce at compile time that PyGCProtocol is implemented
-    let gc_impl = if has_gc {
+    let gc_impl = if attr.is_gc {
         let closure_name = format!("__assertion_closure_{}", cls);
         let closure_token = syn::Ident::new(&closure_name, Span::call_site());
         quote! {
@@ -357,12 +351,6 @@ fn impl_class(
     };
 
     let base = &attr.base;
-    let flags = &attr.flags;
-    let extended = if attr.has_extends {
-        quote! { pyo3::type_flags::EXTENDED }
-    } else {
-        quote! { 0 }
-    };
     let base_layout = if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
     } else {
@@ -397,9 +385,12 @@ fn impl_class(
         quote! { pyo3::class::impl_::ThreadCheckerStub<#cls> }
     };
 
+    let is_gc = attr.is_gc;
+    let is_basetype = attr.is_basetype;
+    let is_subclass = attr.has_extends;
+
     Ok(quote! {
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
-            type Type = #cls;
             type BaseType = #base;
             type Layout = pyo3::PyCell<Self>;
             type BaseLayout = #base_layout;
@@ -408,8 +399,6 @@ fn impl_class(
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
-            const DESCRIPTION: &'static str = #doc;
-            const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
             fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
@@ -440,6 +429,11 @@ fn impl_class(
         #impl_inventory
 
         impl pyo3::class::impl_::PyClassImpl for #cls {
+            const DESCRIPTION: &'static str = #doc;
+            const IS_GC: bool = #is_gc;
+            const IS_BASETYPE: bool = #is_basetype;
+            const IS_SUBCLASS: bool = #is_subclass;
+
             type ThreadChecker = #thread_checker;
 
             fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {

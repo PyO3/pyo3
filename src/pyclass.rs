@@ -2,7 +2,7 @@
 use crate::class::impl_::PyClassImpl;
 use crate::class::methods::PyMethodDefType;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{type_flags, PyLayout};
+use crate::type_object::PyLayout;
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -40,12 +40,12 @@ pub(crate) unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObjec
 }
 
 #[inline]
-pub(crate) unsafe fn default_new<T: PyTypeInfo>(
+pub(crate) unsafe fn default_new<T: PyClassImpl>(
     py: Python,
     subtype: *mut ffi::PyTypeObject,
 ) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
-    if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
+    if T::IS_SUBCLASS && T::BaseLayout::IS_NATIVE_TYPE {
         #[cfg(not(Py_LIMITED_API))]
         {
             let base_tp = T::BaseType::type_object_raw(py);
@@ -70,7 +70,7 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
 }
 
 /// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
-pub trait PyClassAlloc: PyTypeInfo + Sized {
+pub trait PyClassAlloc: PyClassImpl {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
@@ -153,6 +153,7 @@ pub trait PyClass:
 struct TypeSlots(Vec<ffi::PyType_Slot>);
 
 impl TypeSlots {
+    #[inline]
     fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
         self.0.push(ffi::PyType_Slot { slot, pfunc });
     }
@@ -174,6 +175,7 @@ fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_ch
     })
 }
 
+#[inline]
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
@@ -300,12 +302,12 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
 fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
-    let mut flags = if has_gc_methods || T::FLAGS & type_flags::GC != 0 {
+    let mut flags = if has_gc_methods || T::IS_GC {
         ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
     } else {
         ffi::Py_TPFLAGS_DEFAULT
     };
-    if T::FLAGS & type_flags::BASETYPE != 0 {
+    if T::IS_BASETYPE {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
     flags.try_into().unwrap()
