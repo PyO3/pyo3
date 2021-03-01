@@ -216,7 +216,7 @@ macro_rules! callback_body {
 /// ```ignore
 /// pyo3::callback::handle_panic(|_py| {
 ///     let _slf = #slf;
-///     pyo3::callback::convert(py, #foo)
+///     pyo3::callback::convert(_py, #foo)
 /// })
 /// ```
 ///
@@ -232,12 +232,11 @@ macro_rules! callback_body {
 /// Then this will fail to compile, because the result of #foo borrows _slf, but _slf drops when
 /// the block passed to the macro ends.
 #[doc(hidden)]
-pub unsafe fn handle_panic<
-    R: PyCallbackOutput,
+pub unsafe fn handle_panic<F, R>(body: F) -> R
+where
     F: FnOnce(Python) -> crate::PyResult<R> + UnwindSafe,
->(
-    body: F,
-) -> R {
+    R: PyCallbackOutput,
+{
     let pool = crate::GILPool::new();
     let unwind_safe_py = std::panic::AssertUnwindSafe(pool.python());
     let result =
