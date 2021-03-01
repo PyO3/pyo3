@@ -25,7 +25,7 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
             const NAME: &'static str = concat!(stringify!(#name), "\0");
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME) };
 
-            pyo3::callback_body!(_py, { MODULE_DEF.make_module(#doc, #fnname) })
+            pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(#doc, #fnname) })
         }
     }
 }
@@ -229,14 +229,14 @@ fn function_c_wrapper(
     let slf_module;
     if pass_module {
         cb = quote! {
-            #name(_slf, #(#names),*)
+            pyo3::callback::convert(_py, #name(_slf, #(#names),*))
         };
         slf_module = Some(quote! {
             let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
         });
     } else {
         cb = quote! {
-            #name(#(#names),*)
+            pyo3::callback::convert(_py, #name(#(#names),*))
         };
         slf_module = None;
     };
@@ -248,7 +248,7 @@ fn function_c_wrapper(
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
-            pyo3::callback_body!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 #slf_module
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);

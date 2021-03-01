@@ -121,9 +121,9 @@ fn impl_wrap_common(
             {
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#python_name), "()");
-                pyo3::callback_body_without_convert!(_py, {
+                pyo3::callback::handle_panic(|_py| {
                     #slf
-                    pyo3::callback::convert(_py, #body)
+                    #body
                 })
             }
         }
@@ -138,12 +138,12 @@ fn impl_wrap_common(
             {
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#python_name), "()");
-                pyo3::callback_body_without_convert!(_py, {
+                pyo3::callback::handle_panic(|_py| {
                     #slf
                     let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                     let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                    pyo3::callback::convert(_py, #body)
+                    #body
                 })
             }
         }
@@ -165,12 +165,12 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                pyo3::callback::convert(_py, #body)
+                #body
             })
         }
     }
@@ -196,7 +196,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             use std::convert::TryFrom;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
@@ -213,7 +213,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
-    let cb = quote! { #cls::#name(&_cls, #(#names),*) };
+    let cb = quote! { pyo3::callback::convert(_py, #cls::#name(&_cls, #(#names),*)) };
 
     let body = impl_arg_params(spec, Some(cls), cb);
 
@@ -225,12 +225,12 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                pyo3::callback::convert(_py, #body)
+                #body
             })
         }
     }
@@ -241,7 +241,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
-    let cb = quote! { #cls::#name(#(#names),*) };
+    let cb = quote! { pyo3::callback::convert(_py, #cls::#name(#(#names),*)) };
 
     let body = impl_arg_params(spec, Some(cls), cb);
 
@@ -253,11 +253,11 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                pyo3::callback::convert(_py, #body)
+                #body
             })
         }
     }
@@ -319,7 +319,7 @@ pub(crate) fn impl_wrap_getter(
             _slf: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 #slf
                 pyo3::callback::convert(_py, #getter_impl)
             })
@@ -371,7 +371,7 @@ pub(crate) fn impl_wrap_setter(
             _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> std::os::raw::c_int
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
-            pyo3::callback_body_without_convert!(_py, {
+            pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
                 let _val = pyo3::FromPyObject::extract(_value)?;
@@ -392,7 +392,7 @@ pub fn get_arg_names(spec: &FnSpec) -> Vec<syn::Ident> {
 fn impl_call(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let fname = &spec.name;
     let names = get_arg_names(spec);
-    quote! { #cls::#fname(_slf, #(#names),*) }
+    quote! { pyo3::callback::convert(_py, #cls::#fname(_slf, #(#names),*)) }
 }
 
 pub fn impl_arg_params(
