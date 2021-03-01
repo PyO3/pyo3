@@ -19,6 +19,7 @@ pub struct KeywordOnlyParameterDescription {
     pub required: bool,
 }
 
+/// Function argument specification for a #[pyfunction] or #[pymethod].
 #[derive(Debug)]
 pub struct FunctionDescription {
     pub fname: &'static str,
@@ -31,6 +32,17 @@ pub struct FunctionDescription {
 }
 
 impl FunctionDescription {
+    /// Extracts the `args` and `kwargs` provided into `output`, according to this function
+    /// definition.
+    ///
+    /// `output` must have the same length as this function has positional and keyword-only
+    /// parameters (as per the `positional_parameter_names` and `keyword_only_parameters`
+    /// respectively).
+    ///
+    /// If `accept_varargs` or `accept_varkeywords`, then the returned `&PyTuple` and `&PyDict` may
+    /// be `Some` if there are extra arguments.
+    ///
+    /// Unexpected, duplicate or invalid arguments will cause this function to return `TypeError`.
     pub fn extract_arguments<'p>(
         &self,
         args: &'p PyTuple,
@@ -134,14 +146,14 @@ impl FunctionDescription {
         let (args_output, kwargs_output) =
             output.split_at_mut(self.positional_parameter_names.len());
         let mut positional_only_keyword_arguments = Vec::new();
-        'kwarg_loop: for (kwarg_name, value) in kwargs {
+        for (kwarg_name, value) in kwargs {
             let utf8_string = match kwarg_name.downcast::<PyString>()?.to_str() {
                 Ok(utf8_string) => utf8_string,
                 // This keyword is not a UTF8 string: all PyO3 argument names are guaranteed to be
                 // UTF8 by construction.
                 Err(_) => {
                     unexpected_keyword_handler(kwarg_name, value)?;
-                    continue 'kwarg_loop;
+                    continue;
                 }
             };
 
@@ -154,7 +166,7 @@ impl FunctionDescription {
                 .position(|param| utf8_string == param.name)
             {
                 kwargs_output[i] = Some(value);
-                continue 'kwarg_loop;
+                continue;
             }
 
             // Repeat for positional parameters
@@ -166,12 +178,10 @@ impl FunctionDescription {
             {
                 if i < self.positional_only_parameters {
                     positional_only_keyword_arguments.push(*param);
-                } else {
-                    if args_output[i].replace(value).is_some() {
-                        return Err(self.multiple_values_for_argument(param));
-                    }
+                } else if args_output[i].replace(value).is_some() {
+                    return Err(self.multiple_values_for_argument(param));
                 }
-                continue 'kwarg_loop;
+                continue;
             }
 
             unexpected_keyword_handler(kwarg_name, value)?;
