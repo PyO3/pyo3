@@ -6,7 +6,16 @@ use pymethod::GeneratedPyMethod;
 use quote::quote;
 use syn::spanned::Spanned;
 
-pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
+/// The mechanism used to collect `#[pymethods]` into the type object
+pub enum PyClassMethodsType {
+    Specialization,
+    Inventory,
+}
+
+pub fn build_py_methods(
+    ast: &mut syn::ItemImpl,
+    methods_type: PyClassMethodsType,
+) -> syn::Result<TokenStream> {
     if let Some((_, path, _)) = &ast.trait_ {
         bail_spanned!(path.span() => "#[pymethods] cannot be used on trait impl blocks");
     } else if ast.generics != Default::default() {
@@ -15,11 +24,15 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
             "#[pymethods] cannot be used with lifetime parameters or generics"
         );
     } else {
-        impl_methods(&ast.self_ty, &mut ast.items)
+        impl_methods(&ast.self_ty, &mut ast.items, methods_type)
     }
 }
 
-pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Result<TokenStream> {
+pub fn impl_methods(
+    ty: &syn::Type,
+    impls: &mut Vec<syn::ImplItem>,
+    methods_type: PyClassMethodsType,
+) -> syn::Result<TokenStream> {
     let mut new_impls = Vec::new();
     let mut call_impls = Vec::new();
     let mut methods = Vec::new();
@@ -51,18 +64,46 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Resu
         }
     }
 
+    let methods_registration = match methods_type {
+        PyClassMethodsType::Specialization => impl_py_methods(ty, methods),
+        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods),
+    };
+
     Ok(quote! {
         #(#new_impls)*
 
         #(#call_impls)*
 
-        pyo3::inventory::submit! {
-            #![crate = pyo3] {
-                type Inventory = <#ty as pyo3::class::methods::HasMethodsInventory>::Methods;
-                <Inventory as pyo3::class::methods::PyMethodsInventory>::new(vec![#(#methods),*])
+        #methods_registration
+    })
+}
+
+fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
+    quote! {
+        impl pyo3::class::impl_::PyMethods<#ty>
+            for pyo3::class::impl_::PyClassImplCollector<#ty>
+        {
+            fn py_methods(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
+                METHODS
             }
         }
-    })
+    }
+}
+
+fn submit_methods_inventory(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
+    if methods.is_empty() {
+        return TokenStream::default();
+    }
+
+    quote! {
+        pyo3::inventory::submit! {
+            #![crate = pyo3] {
+                type Inventory = <#ty as pyo3::class::impl_::HasMethodsInventory>::Methods;
+                <Inventory as pyo3::class::impl_::PyMethodsInventory>::new(vec![#(#methods),*])
+            }
+        }
+    }
 }
 
 fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {

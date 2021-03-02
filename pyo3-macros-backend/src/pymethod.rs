@@ -689,7 +689,10 @@ pub fn impl_py_method_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) 
         pyo3::class::PyMethodDefType::ClassAttribute({
             #wrapper
 
-            pyo3::class::PyClassAttributeDef::new(concat!(stringify!(#python_name), "\0"), __wrap)
+            pyo3::class::PyClassAttributeDef::new(
+                concat!(stringify!(#python_name), "\0"),
+                pyo3::class::methods::PyClassAttributeFactory(__wrap)
+            )
         })
     }
 }
@@ -700,7 +703,10 @@ pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) ->
         pyo3::class::PyMethodDefType::ClassAttribute({
             #wrapper
 
-            pyo3::class::PyClassAttributeDef::new(concat!(stringify!(#python_name), "\0"), __wrap)
+            pyo3::class::PyClassAttributeDef::new(
+                concat!(stringify!(#python_name), "\0"),
+                pyo3::class::methods::PyClassAttributeFactory(__wrap)
+            )
         })
     }
 }
@@ -726,7 +732,11 @@ pub(crate) fn impl_py_setter_def(
         pyo3::class::PyMethodDefType::Setter({
             #wrapper
 
-            pyo3::class::PySetterDef::new(concat!(stringify!(#python_name), "\0"), __wrap, #doc)
+            pyo3::class::PySetterDef::new(
+                concat!(stringify!(#python_name), "\0"),
+                pyo3::class::methods::PySetter(__wrap),
+                #doc
+            )
         })
     }
 }
@@ -740,7 +750,11 @@ pub(crate) fn impl_py_getter_def(
         pyo3::class::PyMethodDefType::Getter({
             #wrapper
 
-            pyo3::class::PyGetterDef::new(concat!(stringify!(#python_name), "\0"), __wrap, #doc)
+            pyo3::class::PyGetterDef::new(
+                concat!(stringify!(#python_name), "\0"),
+                pyo3::class::methods::PyGetter(__wrap),
+                #doc
+            )
         })
     }
 }

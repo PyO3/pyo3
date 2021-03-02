@@ -332,7 +332,7 @@ impl SubClass {
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
 - For simple fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
-- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the `#[pymethods]` block.
+- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
 We'll cover each of these in the following sections.
 
@@ -711,6 +711,8 @@ See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works)
 Specifically, the following implementation is generated:
 
 ```rust
+# #[cfg(not(feature = "multiple-pymethods"))]
+# { // The implementation differs slightly with the multiple-pymethods feature
 use pyo3::prelude::*;
 
 /// Class for demonstration
@@ -754,31 +756,14 @@ impl pyo3::IntoPy<PyObject> for MyClass {
     }
 }
 
-pub struct Pyo3MethodsInventoryForMyClass {
-    methods: Vec<pyo3::class::PyMethodDefType>,
-}
-impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass {
-    fn new(methods: Vec<pyo3::class::PyMethodDefType>) -> Self {
-        Self { methods }
-    }
-    fn get(&'static self) -> &'static [pyo3::class::PyMethodDefType] {
-        &self.methods
-    }
-}
-impl pyo3::class::methods::HasMethodsInventory for MyClass {
-    type Methods = Pyo3MethodsInventoryForMyClass;
-}
-pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
-
 impl pyo3::class::impl_::PyClassImpl for MyClass {
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
     fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
-        pyo3::inventory::iter::<<MyClass as pyo3::class::methods::HasMethodsInventory>::Methods>
-            .into_iter()
-            .flat_map(pyo3::class::methods::PyMethodsInventory::get)
+        collector.py_methods().iter()
+            .chain(collector.py_class_descriptors())
             .chain(collector.object_protocol_methods())
             .chain(collector.async_protocol_methods())
             .chain(collector.context_protocol_methods())
@@ -824,6 +809,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
 # let py = gil.python();
 # let cls = py.get_type::<MyClass>();
 # pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
+# }
 ```
 
 

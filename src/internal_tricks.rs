@@ -1,3 +1,4 @@
+use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -35,4 +36,18 @@ macro_rules! pyo3_exception {
 
         $crate::create_exception_type_object!(pyo3_runtime, $name, $base);
     };
+}
+
+#[derive(Debug)]
+pub(crate) struct NulByteInString(pub(crate) &'static str);
+
+pub(crate) fn extract_cstr_or_leak_cstring(
+    src: &'static str,
+    err_msg: &'static str,
+) -> Result<&'static CStr, NulByteInString> {
+    CStr::from_bytes_with_nul(src.as_bytes())
+        .or_else(|_| {
+            CString::new(src.as_bytes()).map(|c_string| &*Box::leak(c_string.into_boxed_c_str()))
+        })
+        .map_err(|_| NulByteInString(err_msg))
 }
