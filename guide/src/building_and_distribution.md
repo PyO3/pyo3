@@ -36,7 +36,7 @@ On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, 
 
 ## Distribution
 
-There are two ways to distribute your module as a Python package: The old, [setuptools-rust], and the new, [maturin]. setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). maturin doesn't need any configuration files, however it does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)) and requires a rigid project structure, while setuptools-rust allows (and sometimes requires) configuration with python code.
+There are two ways to distribute your module as a Python package: [setuptools-rust] and [maturin]. setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). It allows (and sometimes requires) writing custom workflows in python. maturin has only few options and works without any additional configuration, instead it requires a rigid project structure and does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)), multiple extensions or running python scripts at build time.
 
 ## `Py_LIMITED_API`/`abi3`
 
