@@ -172,7 +172,7 @@ pub use {
 };
 
 #[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-pub use inventory;
+pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
 
 #[macro_use]
 mod internal_tricks;
