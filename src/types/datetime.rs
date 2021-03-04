@@ -413,6 +413,7 @@ fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(PyPy))]
     #[test]
     fn test_new_with_fold() {
         pyo3::Python::with_gil(|py| {
