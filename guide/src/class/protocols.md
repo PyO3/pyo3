@@ -299,5 +299,5 @@ In Python a generator can also return a value. To express this in Rust, PyO3 pro
 both `Yield` values and `Return` a final value - see its docs for further details and an example.
 
 [`PyGCProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html
-[`PyGCProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/number/trait.PyNumberProtocol.html
+[`PyNumberProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/number/trait.PyNumberProtocol.html
 [`PyObjectProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/basic/trait.PyObjectProtocol.html

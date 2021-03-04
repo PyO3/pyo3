@@ -19,7 +19,7 @@ pub struct KeywordOnlyParameterDescription {
     pub required: bool,
 }
 
-/// Function argument specification for a #[pyfunction] or #[pymethod].
+/// Function argument specification for a `#[pyfunction]` or `#[pymethod]`.
 #[derive(Debug)]
 pub struct FunctionDescription {
     pub fname: &'static str,
