@@ -132,7 +132,7 @@ impl PyModule {
     /// Calls a function in the module.
     ///
     /// This is equivalent to the Python expression `module.name(*args, **kwargs)`.
-    pub fn call(
+    pub fn call_function(
         &self,
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
@@ -144,15 +144,41 @@ impl PyModule {
     /// Calls a function in the module with only positional arguments.
     ///
     /// This is equivalent to the Python expression `module.name(*args)`.
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call_function1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.getattr(name)?.call1(args)
     }
 
     /// Calls a function in the module without arguments.
     ///
     /// This is equivalent to the Python expression `module.name()`.
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call_function0(&self, name: &str) -> PyResult<&PyAny> {
         self.getattr(name)?.call0()
+    }
+
+    #[deprecated(since = "0.14.0", note = "Renamed to call_function() for consistency.")]
+    pub fn call(
+        &self,
+        name: &str,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyAny> {
+        self.call_function(name, args, kwargs)
+    }
+
+    #[deprecated(
+        since = "0.14.0",
+        note = "Renamed to call_function1() for consistency."
+    )]
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+        self.call_function1(name, args)
+    }
+
+    #[deprecated(
+        since = "0.14.0",
+        note = "Renamed to call_function0() for consistency."
+    )]
+    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+        self.call_function0(name)
     }
 
     /// Gets a member from the module.
