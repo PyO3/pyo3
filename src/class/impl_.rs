@@ -4,7 +4,7 @@ use crate::{derive_utils::PyBaseTypeUtils, ffi, PyMethodDefType, PyNativeType};
 use std::{marker::PhantomData, thread};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
-/// applied to apply implementations from #[pymethods] & #[pyproto]
+/// applied to apply implementations from `#[pymethods]` & `#[pyproto]`
 pub struct PyClassImplCollector<T>(PhantomData<T>);
 
 impl<T> PyClassImplCollector<T> {
