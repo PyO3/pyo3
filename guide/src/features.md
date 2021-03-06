@@ -55,6 +55,14 @@ These macros require a number of dependencies which may not be needed by users w
 
 > This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
 
+### `multiple-pymethods`
+
+This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block.
+
+Most users should only need a single `#[pymethods]` per `#[pyclass]`. In addition, not all platforms (e.g. Wasm) are supported by `inventory`. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.
+
+See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
+
 ### `nightly`
 
 The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:

@@ -76,6 +76,50 @@ impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
     }
 }
 
+// General methods implementation: either dtolnay specialization trait or inventory if
+// multiple-pymethods feature is enabled.
+
+macro_rules! methods_trait {
+    ($name:ident, $function_name: ident) => {
+        pub trait $name<T> {
+            fn $function_name(self) -> &'static [PyMethodDefType];
+        }
+
+        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
+            fn $function_name(self) -> &'static [PyMethodDefType] {
+                &[]
+            }
+        }
+    };
+}
+
+/// Implementation detail. Only to be used through our proc macro code.
+/// Method storage for `#[pyclass]`.
+/// Allows arbitrary `#[pymethod]` blocks to submit their methods,
+/// which are eventually collected by `#[pyclass]`.
+#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
+pub trait PyMethodsInventory: inventory::Collect {
+    /// Create a new instance
+    fn new(methods: Vec<PyMethodDefType>) -> Self;
+
+    /// Returns the methods for a single `#[pymethods] impl` block
+    fn get(&'static self) -> &'static [PyMethodDefType];
+}
+
+/// Implemented for `#[pyclass]` in our proc macro code.
+/// Indicates that the pyclass has its own method storage.
+#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
+pub trait HasMethodsInventory {
+    type Methods: PyMethodsInventory;
+}
+
+// Methods from #[pyo3(get, set)] on struct fields.
+methods_trait!(PyClassDescriptors, py_class_descriptors);
+
+// Methods from #[pymethods] if not using inventory.
+#[cfg(not(feature = "multiple-pymethods"))]
+methods_trait!(PyMethods, py_methods);
+
 // All traits describing slots, as well as the fallback implementations for unimplemented protos
 //
 // Protos which are implemented use dtolnay specialization to implement for PyClassImplCollector<T>.
@@ -105,20 +149,6 @@ slots_trait!(PyNumberProtocolSlots, number_protocol_slots);
 slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
 slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
 slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
-
-macro_rules! methods_trait {
-    ($name:ident, $function_name: ident) => {
-        pub trait $name<T> {
-            fn $function_name(self) -> &'static [PyMethodDefType];
-        }
-
-        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
-            fn $function_name(self) -> &'static [PyMethodDefType] {
-                &[]
-            }
-        }
-    };
-}
 
 methods_trait!(PyObjectProtocolMethods, object_protocol_methods);
 methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);

@@ -166,11 +166,13 @@ pub use crate::types::PyAny;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
-    indoc,     // Re-exported for py_run
-    inventory, // Re-exported for pymethods
-    paste,     // Re-exported for wrap_function
-    unindent,  // Re-exported for py_run
+    indoc,    // Re-exported for py_run
+    paste,    // Re-exported for wrap_function
+    unindent, // Re-exported for py_run
 };
+
+#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
+pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
 
 #[macro_use]
 mod internal_tricks;
@@ -216,7 +218,15 @@ pub mod serde;
 pub mod proc_macro {
     pub use pyo3_macros::pymodule;
     /// The proc macro attributes
-    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pyproto};
+    pub use pyo3_macros::{pyfunction, pyproto};
+
+    #[cfg(not(feature = "multiple-pymethods"))]
+    pub use pyo3_macros::{pyclass, pymethods};
+
+    #[cfg(feature = "multiple-pymethods")]
+    pub use pyo3_macros::{
+        pyclass_with_inventory as pyclass, pymethods_with_inventory as pymethods,
+    };
 }
 
 /// Returns a function that takes a [Python] instance and returns a Python function.

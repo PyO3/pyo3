@@ -88,7 +88,7 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown serde"
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown serde multiple-pymethods"
 
       - name: Build docs
         run: cargo doc --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
@@ -156,16 +156,15 @@ jobs:
           toolchain: nightly
           override: true
           profile: minimal
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "num-bigint num-complex hashbrown serde" --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-          RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      - run: cargo test --no-default-features --no-fail-fast
+      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
       - uses: actions-rs/grcov@v0.1
         id: coverage
       - uses: codecov/codecov-action@v1
         with:
           file: ${{ steps.coverage.outputs.report }}
+    env:
+      CARGO_TERM_VERBOSE: true
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"

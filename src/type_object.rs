@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
+use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::{create_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
@@ -197,7 +198,14 @@ impl LazyStaticType {
         let mut items = vec![];
         T::for_each_method_def(|def| {
             if let PyMethodDefType::ClassAttribute(attr) = def {
-                items.push((attr.name, (attr.meth)(py)));
+                items.push((
+                    extract_cstr_or_leak_cstring(
+                        attr.name,
+                        "class attribute name cannot contain nul bytes",
+                    )
+                    .unwrap(),
+                    (attr.meth.0)(py),
+                ));
             }
         });
 

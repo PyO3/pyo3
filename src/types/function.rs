@@ -1,10 +1,10 @@
+use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
 use crate::{
     class::methods::{self, PyMethodDef},
     ffi, AsPyPointer,
 };
-use crate::{derive_utils::PyFunctionArguments, methods::NulByteInString};
 
 /// Represents a builtin Python function object.
 #[repr(transparent)]
@@ -54,7 +54,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let def = method_def
             .as_method_def()
-            .map_err(|NulByteInString(err)| PyValueError::new_err(err))?;
+            .map_err(|err| PyValueError::new_err(err.0))?;
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
             let name = m.name()?.into_py(py);

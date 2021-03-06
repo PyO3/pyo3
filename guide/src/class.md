@@ -1,8 +1,10 @@
 # Python Classes
 
-PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs. This chapter will discuss the functionality and configuration they offer.
+PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
-For ease of discovery, below is a list of all custom attributes with links to the relevant section of this chapter:
+The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` to generate a Python type for it. A struct will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) Finally, there may be multiple `#[pyproto]` trait implementations for the struct, which are used to define certain python magic methods such as `__str__`.
+
+This chapter will discuss the functionality and configuration these attributes offer. Below is a list of links to the relevant section of this chapter for each:
 
 - [`#[pyclass]`](#defining-a-new-class)
   - [`#[pyo3(get, set)]`](#object-properties-using-pyo3get-set)
@@ -31,9 +33,9 @@ struct MyClass {
 }
 ```
 
-Because Python objects are freely shared between threads by the Python interpreter, all structs annotated with `#[pyclass]` must implement `Send`.
+Because Python objects are freely shared between threads by the Python interpreter, all structs annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
 
-The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass`. To see these generated implementations, refer to the section [How methods are implemented](#how-methods-are-implemented) at the end of this chapter.
+The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
 ## Adding the class to a module
 
@@ -332,7 +334,7 @@ impl SubClass {
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
 - For simple fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
-- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the `#[pymethods]` block.
+- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
 We'll cover each of these in the following sections.
 
@@ -444,7 +446,8 @@ To define a Python compatible method, an `impl` block for your struct has to be 
 block with some variations, like descriptors, class method static methods, etc.
 
 Since Rust allows any number of `impl` blocks, you can easily split methods
-between those accessible to Python (and Rust) and those accessible only to Rust.
+between those accessible to Python (and Rust) and those accessible only to Rust. However to have multiple
+`#[pymethods]`-annotated `impl` blocks for the same struct you must enable the [`multiple-pymethods`] feature of PyO3.
 
 ```rust
 # use pyo3::prelude::*;
@@ -698,20 +701,21 @@ num=44, debug=false
 num=-1, debug=false
 ```
 
-## How methods are implemented
+## Implementation details
 
-Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
-trait with a function that returns all methods. Since it's impossible to make the code generation in
-pyclass dependent on whether there is an impl block, we'd need to implement the trait on
-`#[pyclass]` and override the implementation in `#[pymethods]`.
-To enable this, we use a static registry type provided by [inventory](https://github.com/dtolnay/inventory),
-which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick.
-See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_macros_backend::py_class` for more details.
+The `#[pyclass]` macros rely on a lot of conditional code generation: each `#[pyclass]` can optionally have a `#[pymethods]` block as well as several different possible `#[pyproto]` trait implementations.
 
-Specifically, the following implementation is generated:
+To support this flexibility the `#[pyclass]` macro expands to a blob of boilerplate code which sets up the structure for ["dtolnay specialization"](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md). This implementation pattern enables the Rust compiler to use `#[pymethods]` and `#[pyproto]` implementations when they are present, and fall back to default (empty) definitions when they are not.
+
+This simple technique works for the case when there is zero or one implementations. To support multiple `#[pymethods]` for a `#[pyclass]` (in the [`multiple-pymethods`] feature), a registry mechanism provided by the [`inventory`](https://github.com/dtolnay/inventory) crate is used instead. This collects `impl`s at library load time, but isn't supported on all platforms. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
+
+The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:
 
 ```rust
-use pyo3::prelude::*;
+# #[cfg(not(feature = "multiple-pymethods"))]
+# {
+# use pyo3::prelude::*;
+// Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
 
 /// Class for demonstration
 struct MyClass {
@@ -754,31 +758,14 @@ impl pyo3::IntoPy<PyObject> for MyClass {
     }
 }
 
-pub struct Pyo3MethodsInventoryForMyClass {
-    methods: Vec<pyo3::class::PyMethodDefType>,
-}
-impl pyo3::class::methods::PyMethodsInventory for Pyo3MethodsInventoryForMyClass {
-    fn new(methods: Vec<pyo3::class::PyMethodDefType>) -> Self {
-        Self { methods }
-    }
-    fn get(&'static self) -> &'static [pyo3::class::PyMethodDefType] {
-        &self.methods
-    }
-}
-impl pyo3::class::methods::HasMethodsInventory for MyClass {
-    type Methods = Pyo3MethodsInventoryForMyClass;
-}
-pyo3::inventory::collect!(Pyo3MethodsInventoryForMyClass);
-
 impl pyo3::class::impl_::PyClassImpl for MyClass {
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
     fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
-        pyo3::inventory::iter::<<MyClass as pyo3::class::methods::HasMethodsInventory>::Methods>
-            .into_iter()
-            .flat_map(pyo3::class::methods::PyMethodsInventory::get)
+        collector.py_methods().iter()
+            .chain(collector.py_class_descriptors())
             .chain(collector.object_protocol_methods())
             .chain(collector.async_protocol_methods())
             .chain(collector.context_protocol_methods())
@@ -824,6 +811,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
 # let py = gil.python();
 # let cls = py.get_type::<MyClass>();
 # pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
+# }
 ```
 
 
@@ -840,3 +828,5 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 
 [classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
+
+[`multiple-pymethods`]: features.md#multiple-pymethods
