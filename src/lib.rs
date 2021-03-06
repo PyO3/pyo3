@@ -363,7 +363,7 @@ macro_rules! py_run_impl {
             // panic before flushing. This is where this hack comes into place
             $py.run("import sys; sys.stderr.flush()", None, None)
                 .unwrap();
-            panic!($code.to_string())
+            panic!("{}", $code)
         }
     }};
 }
