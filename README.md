@@ -14,7 +14,7 @@
 
 * Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/master/Contributing.md)
 
-* Berif Architecture Guide: [github](https://github.com/PyO3/pyo3/blob/master/Architecture.md)
+* Brief Architecture Guide: [github](https://github.com/PyO3/pyo3/blob/master/Architecture.md)
 
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
