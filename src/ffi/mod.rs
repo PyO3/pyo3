@@ -36,8 +36,6 @@ pub use self::funcobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::genobject::*;
 pub use self::import::*;
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-pub use self::initconfig::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
 pub use self::listobject::*;
@@ -164,8 +162,6 @@ mod pyport;
 // [cfg(not(Py_LIMITED_API))]
 // mod pytime; contains nothing of interest
 
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-mod initconfig;
 mod objimpl;
 mod pydebug;
 mod pyhash;

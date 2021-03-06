@@ -19,7 +19,6 @@ pub struct PyStatus {
     pub exitcode: c_int,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyStatus_Ok() -> PyStatus;
     pub fn PyStatus_Error(err_msg: *const c_char) -> PyStatus;
@@ -39,7 +38,6 @@ pub struct PyWideStringList {
     pub items: *mut *mut wchar_t,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyWideStringList_Append(list: *mut PyWideStringList, item: *const wchar_t) -> PyStatus;
     pub fn PyWideStringList_Insert(
@@ -70,7 +68,6 @@ pub struct PyPreConfig {
     pub allocator: c_int,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyPreConfig_InitPythonConfig(config: *mut PyPreConfig);
     pub fn PyPreConfig_InitIsolatedConfig(config: *mut PyPreConfig);
@@ -150,7 +147,6 @@ pub struct PyConfig {
     pub orig_argv: PyWideStringList,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyConfig_InitPythonConfig(config: *mut PyConfig);
     pub fn PyConfig_InitIsolatedConfig(config: *mut PyConfig);
@@ -186,7 +182,6 @@ extern "C" {
 
 /* --- Helper functions --------------------------------------- */
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn Py_GetArgcArgv(argc: *mut c_int, argv: *mut *mut *mut wchar_t);
 }
