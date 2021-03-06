@@ -9,7 +9,7 @@ pub mod compile;
 pub mod dictobject;
 // skipped fileobject.h
 pub mod frameobject;
-// skipped import.h
+pub mod import;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub mod initconfig;
 // skipped interpreteridobject.h
@@ -28,6 +28,7 @@ pub use self::compile::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
 pub use self::frameobject::*;
+pub use self::import::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::initconfig::*;
 pub use self::listobject::*;
