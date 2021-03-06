@@ -19,7 +19,7 @@ extern "C" {
     pub fn _Py_IsCoreInitialized() -> c_int;
 
     pub fn Py_InitializeFromConfig(config: *const PyConfig) -> PyStatus;
-    // skipped _Py_InitializeMain
+    pub fn _Py_InitializeMain() -> PyStatus;
 
     pub fn Py_RunMain() -> c_int;
 
