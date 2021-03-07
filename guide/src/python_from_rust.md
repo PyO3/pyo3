@@ -237,11 +237,11 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyModule};
+use pyo3::types::PyModule;
 
 fn main() {   
     Python::with_gil(|py| {
-        let CustomManager = PyModule::from_code(py, r#"
+        let custom_manager = PyModule::from_code(py, r#"
 class House(object):
     def __init__(self, address):
         self.address = address
@@ -251,7 +251,7 @@ class House(object):
         print(f"Thank you for visiting {self.address}, come again soon!")
         "#, "objects.py", "objects").unwrap();
         
-        let house = CustomManager.call1("House", ("123 Main Street",)).unwrap();
+        let house = custom_manager.call1("House", ("123 Main Street",)).unwrap();
         house.call_method0("__enter__").unwrap();
         house.call_method1("__exit__", ("", "", "")).unwrap();
     })
