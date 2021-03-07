@@ -14,7 +14,7 @@
 
 * Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/master/Contributing.md)
 
-* Brief Architecture Guide: [github](https://github.com/PyO3/pyo3/blob/master/Architecture.md)
+* Architecture Guide: [github](https://github.com/PyO3/pyo3/blob/master/Architecture.md)
 
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
