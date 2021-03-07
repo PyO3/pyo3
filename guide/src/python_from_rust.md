@@ -230,3 +230,30 @@ def leaky_relu(x, slope=0.01):
 
 [`Python::run`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.run
 [`py_run!`]: https://docs.rs/pyo3/latest/pyo3/macro.py_run.html
+
+## Need to use a context manager from Rust?
+
+Use context managers by directly invoking `__enter__` and `__exit__`.
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyModule};
+
+fn main() {   
+    Python::with_gil(|py| {
+        let CustomManager = PyModule::from_code(py, r#"
+class House(object):
+    def __init__(self, address):
+        self.address = address
+    def __enter__(self):
+        print(f"Welcome to {self.address}!")
+    def __exit__(self, type, value, traceback):
+        print(f"Thank you for visiting {self.address}, come again soon!")
+        "#, "objects.py", "objects").unwrap();
+        
+        let house = CustomManager.call1("House", ("123 Main Street",)).unwrap();
+        house.call_method0("__enter__").unwrap();
+        house.call_method1("__exit__", ("", "", "")).unwrap();
+    })
+}
+```
