@@ -2,9 +2,7 @@
 
 use crate::method::{FnType, SelfType};
 use crate::pyimpl::PyClassMethodsType;
-use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter, PropertyType,
-};
+use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -508,18 +506,14 @@ fn impl_descriptors(
                     let name = field.ident.as_ref().unwrap().unraw();
                     let doc = utils::get_doc(&field.attrs, None, true)
                         .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
-
+                    let property_type = PropertyType::Descriptor(&field);
                     match desc {
-                        FnType::Getter(self_ty) => Ok(impl_py_getter_def(
-                            &name,
-                            &doc,
-                            &impl_wrap_getter(&cls, PropertyType::Descriptor(&field), &self_ty)?,
-                        )),
-                        FnType::Setter(self_ty) => Ok(impl_py_setter_def(
-                            &name,
-                            &doc,
-                            &impl_wrap_setter(&cls, PropertyType::Descriptor(&field), &self_ty)?,
-                        )),
+                        FnType::Getter(self_ty) => {
+                            impl_py_getter_def(cls, property_type, self_ty, &name, &doc)
+                        }
+                        FnType::Setter(self_ty) => {
+                            impl_py_setter_def(cls, property_type, self_ty, &name, &doc)
+                        }
                         _ => unreachable!(),
                     }
                 })
