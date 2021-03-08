@@ -248,12 +248,30 @@ class House(object):
     def __enter__(self):
         print(f"Welcome to {self.address}!")
     def __exit__(self, type, value, traceback):
-        print(f"Thank you for visiting {self.address}, come again soon!")
+        if type:
+            print(f"Sorry you had {type} trouble at {self.address}")
+        else:
+            print(f"Thank you for visiting {self.address}, come again soon!")
+
         "#, "objects.py", "objects").unwrap();
         
         let house = custom_manager.call1("House", ("123 Main Street",)).unwrap();
+
         house.call_method0("__enter__").unwrap();
-        house.call_method1("__exit__", ("", "", "")).unwrap();
+
+        let result = py.eval("undefined_variable + 1", None, None);
+        match result {
+            Ok(_) => {
+                let none = py.None();
+                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
+            },
+            Err(e) => {
+                house.call_method1(
+                    "__exit__",
+                    (e.ptype(py), e.pvalue(py), e.ptraceback(py))
+                ).unwrap();
+            }
+        }
     })
 }
 ```
