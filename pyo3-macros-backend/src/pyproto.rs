@@ -64,33 +64,22 @@ fn impl_proto_impl(
             if let Some(m) = proto.get_method(&met.sig.ident) {
                 let fn_spec = FnSpec::parse(&mut met.sig, &mut met.attrs, false)?;
 
+                let flags = if m.can_coexist {
+                    // We need METH_COEXIST here to prevent __add__  from overriding __radd__
+                    Some(quote!(pyo3::ffi::METH_COEXIST))
+                } else {
+                    None
+                };
+
                 let method = if let FnType::Fn(self_ty) = &fn_spec.tp {
-                    pymethod::impl_proto_wrap(ty, &fn_spec, &self_ty)?
+                    pymethod::impl_py_method_def(ty, &fn_spec, &self_ty, flags)?
                 } else {
                     bail_spanned!(
                         met.sig.span() => "expected method with receiver for #[pyproto] method"
                     );
                 };
 
-                let coexist = if m.can_coexist {
-                    // We need METH_COEXIST here to prevent __add__  from overriding __radd__
-                    quote!(pyo3::ffi::METH_COEXIST)
-                } else {
-                    quote!(0)
-                };
-                let name = &met.sig.ident;
-                // TODO(kngwyu): Set ml_doc
-                py_methods.push(quote! {
-                    pyo3::class::PyMethodDef::cfunction_with_keywords(
-                        concat!(stringify!(#name), "\0"),
-                        {
-                            #method
-                            pyo3::class::methods::PyCFunctionWithKeywords(__wrap)
-                        },
-                        #coexist,
-                        "\0"
-                    )
-                });
+                py_methods.push(method);
             }
         }
     }
@@ -120,7 +109,7 @@ fn impl_normal_methods(
         {
             fn #methods_trait_methods(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
                 static METHODS: &[pyo3::class::methods::PyMethodDefType] =
-                    &[#(pyo3::class::methods::PyMethodDefType::Method(#py_methods)),*];
+                    &[#(#py_methods),*];
                 METHODS
             }
         }
