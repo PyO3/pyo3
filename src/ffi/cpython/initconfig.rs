@@ -19,7 +19,6 @@ pub struct PyStatus {
     pub exitcode: c_int,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyStatus_Ok() -> PyStatus;
     pub fn PyStatus_Error(err_msg: *const c_char) -> PyStatus;
@@ -39,7 +38,6 @@ pub struct PyWideStringList {
     pub items: *mut *mut wchar_t,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyWideStringList_Append(list: *mut PyWideStringList, item: *const wchar_t) -> PyStatus;
     pub fn PyWideStringList_Insert(
@@ -70,7 +68,6 @@ pub struct PyPreConfig {
     pub allocator: c_int,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyPreConfig_InitPythonConfig(config: *mut PyPreConfig);
     pub fn PyPreConfig_InitIsolatedConfig(config: *mut PyPreConfig);
@@ -102,7 +99,10 @@ pub struct PyConfig {
     pub filesystem_errors: *mut wchar_t,
     pub pycache_prefix: *mut wchar_t,
     pub parse_argv: c_int,
+    #[cfg(Py_3_10)]
+    pub orig_argv: PyWideStringList,
     pub argv: PyWideStringList,
+    #[cfg(not(Py_3_10))]
     pub program_name: *mut wchar_t,
     pub xoptions: PyWideStringList,
     pub warnoptions: PyWideStringList,
@@ -125,9 +125,14 @@ pub struct PyConfig {
     pub legacy_windows_stdio: c_int,
 
     pub check_hash_pycs_mode: *mut wchar_t,
+    #[cfg(Py_3_10)]
+    pub program_name: *mut wchar_t,
     pub pathconfig_warnings: c_int,
     pub pythonpath_env: *mut wchar_t,
     pub home: *mut wchar_t,
+    #[cfg(Py_3_10)]
+    pub platlibdir: *mut wchar_t,
+
     pub module_search_paths_set: c_int,
     pub module_search_paths: PyWideStringList,
     pub executable: *mut wchar_t,
@@ -136,7 +141,7 @@ pub struct PyConfig {
     pub base_prefix: *mut wchar_t,
     pub exec_prefix: *mut wchar_t,
     pub base_exec_prefix: *mut wchar_t,
-    #[cfg(Py_3_9)]
+    #[cfg(all(Py_3_9, not(Py_3_10)))]
     pub platlibdir: *mut wchar_t,
     pub skip_source_first_line: c_int,
     pub run_command: *mut wchar_t,
@@ -146,11 +151,10 @@ pub struct PyConfig {
     pub _init_main: c_int,
     #[cfg(Py_3_9)]
     pub _isolated_interpreter: c_int,
-    #[cfg(Py_3_9)]
+    #[cfg(all(Py_3_9, not(Py_3_10)))]
     pub orig_argv: PyWideStringList,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyConfig_InitPythonConfig(config: *mut PyConfig);
     pub fn PyConfig_InitIsolatedConfig(config: *mut PyConfig);
@@ -186,7 +190,6 @@ extern "C" {
 
 /* --- Helper functions --------------------------------------- */
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn Py_GetArgcArgv(argc: *mut c_int, argv: *mut *mut *mut wchar_t);
 }

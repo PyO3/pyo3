@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add #[pyo3(from_py_with = "...")]` attribute for function arguments and struct fields to override the default from-Python conversion. [#1411](https://github.com/PyO3/pyo3/pull/1411)
 - Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Add FFI definition `Py_IS_TYPE`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Add FFI definition `_Py_InitializeMain`. [#1473](https://github.com/PyO3/pyo3/pull/1473)
 
 ### Changed
 - Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
