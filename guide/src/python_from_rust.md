@@ -261,7 +261,8 @@ class House(object):
 
         let result = py.eval("undefined_variable + 1", None, None);
         
-        // If the eval threw an exception we'll pass it through to the context manager. Otherwise, __exit__  is called with empty arguments.
+        // If the eval threw an exception we'll pass it through to the context manager. 
+        // Otherwise, __exit__  is called with empty arguments (Python "None").
         match result {
             Ok(_) => {
                 let none = py.None();
