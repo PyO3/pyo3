@@ -255,11 +255,13 @@ class House(object):
 
         "#, "objects.py", "objects").unwrap();
         
-        let house = custom_manager.call1("House", ("123 Main Street",)).unwrap();
+        let house = custom_manager.call_method1("House", ("123 Main Street",)).unwrap();
 
         house.call_method0("__enter__").unwrap();
 
         let result = py.eval("undefined_variable + 1", None, None);
+        
+        // If the eval threw an exception we'll pass it through to the context manager. Otherwise, __exit__  is called with empty arguments.
         match result {
             Ok(_) => {
                 let none = py.None();
