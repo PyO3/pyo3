@@ -407,12 +407,18 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
             "Could not find either libpython.so or _sysconfigdata*.py in {}",
             cross.lib_dir.display()
         );
-    } else if sysconfig_paths.len() > 1 {
-        bail!(
-            "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
-            variable to the wanted version on your system\nsysconfigdata paths = {:?}",
-            sysconfig_paths
-        )
+    } else {
+        if let Some(sysconfig_name) = env::var_os("_PYTHON_SYSCONFIGDATA_NAME") {
+            sysconfig_paths.retain(|p| *p == Path::new(&sysconfig_name).with_extension("py"));
+        }
+        if sysconfig_paths.len() > 1 {
+            bail!(
+                "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
+                variable to the wanted version on your system or set the _PYTHON_SYSCONFIGDATA_NAME \
+                variable to the wanted sysconfigdata file name\nsysconfigdata paths = {:?}",
+                sysconfig_paths
+            )
+        }
     }
 
     Ok(sysconfig_paths.remove(0))
