@@ -257,7 +257,7 @@ class House(object):
         
         let house = custom_manager.call_function1("House", ("123 Main Street",)).unwrap();
 
-        house.call_method0("__enter__").unwrap();
+        house.call_function0("__enter__").unwrap();
 
         let result = py.eval("undefined_variable + 1", None, None);
         
