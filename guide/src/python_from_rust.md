@@ -255,7 +255,7 @@ class House(object):
 
         "#, "house.py", "house").unwrap();
         
-        let house = custom_manager.call_method1("House", ("123 Main Street",)).unwrap();
+        let house = custom_manager.call_function1("House", ("123 Main Street",)).unwrap();
 
         house.call_method0("__enter__").unwrap();
 
@@ -266,10 +266,10 @@ class House(object):
         match result {
             Ok(_) => {
                 let none = py.None();
-                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
+                house.call_function1("__exit__", (&none, &none, &none)).unwrap();
             },
             Err(e) => {
-                house.call_method1(
+                house.call_function1(
                     "__exit__",
                     (e.ptype(py), e.pvalue(py), e.ptraceback(py))
                 ).unwrap();
