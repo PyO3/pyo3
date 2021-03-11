@@ -1,0 +1,11 @@
+error: Python functions cannot have generic type parameters
+ --> $DIR/invalid_pyfunctions.rs:4:21
+  |
+4 | fn generic_function<T>(value: T) {}
+  |                     ^
+
+error: Python functions cannot have `impl Trait` arguments
+ --> $DIR/invalid_pyfunctions.rs:7:36
+  |
+7 | fn impl_trait_function(impl_trait: impl AsRef<PyAny>) {}
+  |                                    ^^^^

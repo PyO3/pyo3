@@ -63,8 +63,8 @@ pub fn gen_py_method(
     })
 }
 
-fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
-    let err_msg = |typ| format!("a Python method can't have a generic {} parameter", typ);
+pub(crate) fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
+    let err_msg = |typ| format!("Python functions cannot have generic {} parameters", typ);
     for param in &sig.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}

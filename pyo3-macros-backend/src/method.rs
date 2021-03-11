@@ -6,7 +6,6 @@ use crate::utils;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
-use std::ops::Deref;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 
@@ -19,6 +18,44 @@ pub struct FnArg<'a> {
     pub optional: Option<&'a syn::Type>,
     pub py: bool,
     pub attrs: PyFunctionArgAttrs,
+}
+
+impl<'a> FnArg<'a> {
+    /// Transforms a rust fn arg parsed with syn into a method::FnArg
+    pub fn parse(arg: &'a mut syn::FnArg) -> syn::Result<Self> {
+        match arg {
+            syn::FnArg::Receiver(recv) => {
+                bail_spanned!(recv.span() => "unexpected receiver")
+            } // checked in parse_fn_type
+            syn::FnArg::Typed(cap) => {
+                ensure_spanned!(
+                    !matches!(&*cap.ty, syn::Type::ImplTrait(_)),
+                    cap.ty.span() => IMPL_TRAIT_ERR
+                );
+
+                let arg_attrs = PyFunctionArgAttrs::from_attrs(&mut cap.attrs)?;
+                let (ident, by_ref, mutability) = match *cap.pat {
+                    syn::Pat::Ident(syn::PatIdent {
+                        ref ident,
+                        ref by_ref,
+                        ref mutability,
+                        ..
+                    }) => (ident, by_ref, mutability),
+                    _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
+                };
+
+                Ok(FnArg {
+                    name: ident,
+                    by_ref,
+                    mutability,
+                    ty: &cap.ty,
+                    optional: utils::option_type_argument(&cap.ty),
+                    py: utils::is_python(&cap.ty),
+                    attrs: arg_attrs,
+                })
+            }
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug, Copy, Eq)]
@@ -111,7 +148,13 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
         syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
             mutable: recv.mutability.is_some(),
         }),
-        syn::FnArg::Typed(syn::PatType { ty, .. }) => Ok(SelfType::TryFromPyCell(ty.span())),
+        syn::FnArg::Typed(syn::PatType { ty, .. }) => {
+            ensure_spanned!(
+                !matches!(&**ty, syn::Type::ImplTrait(_)),
+                ty.span() => IMPL_TRAIT_ERR
+            );
+            Ok(SelfType::TryFromPyCell(ty.span()))
+        }
     }
 }
 
@@ -138,9 +181,16 @@ impl<'a> FnSpec<'a> {
         let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
 
         let arguments = if skip_first_arg {
-            Self::parse_arguments(&mut sig.inputs.iter_mut().skip(1))?
+            sig.inputs
+                .iter_mut()
+                .skip(1)
+                .map(FnArg::parse)
+                .collect::<syn::Result<_>>()?
         } else {
-            Self::parse_arguments(&mut sig.inputs.iter_mut())?
+            sig.inputs
+                .iter_mut()
+                .map(FnArg::parse)
+                .collect::<syn::Result<_>>()?
         };
 
         Ok(FnSpec {
@@ -184,44 +234,6 @@ impl<'a> FnSpec<'a> {
         };
 
         Ok(text_signature)
-    }
-
-    fn parse_arguments(
-        // inputs: &'a mut [syn::FnArg],
-        inputs_iter: impl Iterator<Item = &'a mut syn::FnArg>,
-    ) -> syn::Result<Vec<FnArg<'a>>> {
-        let mut arguments = vec![];
-        for input in inputs_iter {
-            match input {
-                syn::FnArg::Receiver(recv) => {
-                    bail_spanned!(recv.span() => "unexpected receiver for method")
-                } // checked in parse_fn_type
-                syn::FnArg::Typed(cap) => {
-                    let arg_attrs = PyFunctionArgAttrs::from_attrs(&mut cap.attrs)?;
-                    let (ident, by_ref, mutability) = match *cap.pat {
-                        syn::Pat::Ident(syn::PatIdent {
-                            ref ident,
-                            ref by_ref,
-                            ref mutability,
-                            ..
-                        }) => (ident, by_ref, mutability),
-                        _ => bail_spanned!(cap.pat.span() => "unsupported argument"),
-                    };
-
-                    arguments.push(FnArg {
-                        name: ident,
-                        by_ref,
-                        mutability,
-                        ty: cap.ty.deref(),
-                        optional: utils::option_type_argument(cap.ty.deref()),
-                        py: utils::is_python(cap.ty.deref()),
-                        attrs: arg_attrs,
-                    });
-                }
-            }
-        }
-
-        Ok(arguments)
     }
 
     fn parse_fn_type(
@@ -493,3 +505,5 @@ fn parse_method_name_attribute(
         _ => name,
     })
 }
+
+const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";

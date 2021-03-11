@@ -10,7 +10,7 @@ error: static method needs #[staticmethod] attribute
 14 |     fn staticmethod_without_attribute() {}
    |     ^^
 
-error: unexpected receiver for method
+error: unexpected receiver
   --> $DIR/invalid_pymethods.rs:20:35
    |
 20 |     fn staticmethod_with_receiver(&self) {}
@@ -63,3 +63,21 @@ error: cannot specify a second method type
    |
 80 |     #[staticmethod]
    |       ^^^^^^^^^^^^
+
+error: Python functions cannot have generic type parameters
+  --> $DIR/invalid_pymethods.rs:86:23
+   |
+86 |     fn generic_method<T>(value: T) {}
+   |                       ^
+
+error: Python functions cannot have `impl Trait` arguments
+  --> $DIR/invalid_pymethods.rs:92:48
+   |
+92 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+   |                                                ^^^^
+
+error: Python functions cannot have `impl Trait` arguments
+  --> $DIR/invalid_pymethods.rs:97:56
+   |
+97 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+   |                                                        ^^^^
