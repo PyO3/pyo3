@@ -253,7 +253,7 @@ class House(object):
         else:
             print(f"Thank you for visiting {self.address}, come again soon!")
 
-        "#, "objects.py", "objects").unwrap();
+        "#, "house.py", "house").unwrap();
         
         let house = custom_manager.call_method1("House", ("123 Main Street",)).unwrap();
 
