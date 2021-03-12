@@ -28,10 +28,9 @@ impl<'a> FnArg<'a> {
                 bail_spanned!(recv.span() => "unexpected receiver")
             } // checked in parse_fn_type
             syn::FnArg::Typed(cap) => {
-                ensure_spanned!(
-                    !matches!(&*cap.ty, syn::Type::ImplTrait(_)),
-                    cap.ty.span() => IMPL_TRAIT_ERR
-                );
+                if let syn::Type::ImplTrait(_) = &*cap.ty {
+                    bail_spanned!(cap.ty.span() => IMPL_TRAIT_ERR);
+                }
 
                 let arg_attrs = PyFunctionArgAttrs::from_attrs(&mut cap.attrs)?;
                 let (ident, by_ref, mutability) = match *cap.pat {
@@ -149,10 +148,9 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
             mutable: recv.mutability.is_some(),
         }),
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {
-            ensure_spanned!(
-                !matches!(&**ty, syn::Type::ImplTrait(_)),
-                ty.span() => IMPL_TRAIT_ERR
-            );
+            if let syn::Type::ImplTrait(_) = &**ty {
+                bail_spanned!(ty.span() => IMPL_TRAIT_ERR);
+            }
             Ok(SelfType::TryFromPyCell(ty.span()))
         }
     }
