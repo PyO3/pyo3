@@ -397,9 +397,14 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let sysconfig_name = env::var_os("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
         .iter()
-        .filter_map(|p| fs::canonicalize(p).ok())
+        .filter_map(|p| {
+            fs::canonicalize(p)
+                .ok()
+                .filter(|p| p.file_stem() == sysconfig_name.as_deref())
+        })
         .collect::<Vec<PathBuf>>();
     sysconfig_paths.dedup();
     if sysconfig_paths.is_empty() {
@@ -407,18 +412,13 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
             "Could not find either libpython.so or _sysconfigdata*.py in {}",
             cross.lib_dir.display()
         );
-    } else {
-        if let Some(sysconfig_name) = env::var_os("_PYTHON_SYSCONFIGDATA_NAME") {
-            sysconfig_paths.retain(|p| *p == Path::new(&sysconfig_name).with_extension("py"));
-        }
-        if sysconfig_paths.len() > 1 {
-            bail!(
-                "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
-                variable to the wanted version on your system or set the _PYTHON_SYSCONFIGDATA_NAME \
-                variable to the wanted sysconfigdata file name\nsysconfigdata paths = {:?}",
-                sysconfig_paths
-            )
-        }
+    } else if sysconfig_paths.len() > 1 {
+        bail!(
+            "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
+            variable to the wanted version on your system or set the _PYTHON_SYSCONFIGDATA_NAME \
+            variable to the wanted sysconfigdata file name\nsysconfigdata paths = {:?}",
+            sysconfig_paths
+        )
     }
 
     Ok(sysconfig_paths.remove(0))
