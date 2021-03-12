@@ -401,9 +401,11 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let mut sysconfig_paths = sysconfig_paths
         .iter()
         .filter_map(|p| {
-            fs::canonicalize(p)
-                .ok()
-                .filter(|p| p.file_stem() == sysconfig_name.as_deref())
+            let canonical = fs::canonicalize(p).ok();
+            match &sysconfig_name {
+                Some(_) => canonical.filter(|p| p.file_stem() == sysconfig_name.as_deref()),
+                None => canonical,
+            }
         })
         .collect::<Vec<PathBuf>>();
     sysconfig_paths.dedup();
