@@ -12,7 +12,7 @@ fn _get_subclasses<'p>(
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.get(py_type)?)].into_py_dict(*py);
+    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(*py);
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
@@ -108,7 +108,7 @@ fn test_datetime_utc() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
-    let timezone = datetime.get("timezone").unwrap();
+    let timezone = datetime.getattr("timezone").unwrap();
     let utc = timezone.getattr("utc").unwrap().to_object(py);
 
     let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
