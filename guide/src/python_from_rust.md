@@ -266,10 +266,10 @@ class House(object):
         match result {
             Ok(_) => {
                 let none = py.None();
-                house.call_function1("__exit__", (&none, &none, &none)).unwrap();
+                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
             },
             Err(e) => {
-                house.call_function1(
+                house.call_method1(
                     "__exit__",
                     (e.ptype(py), e.pvalue(py), e.ptraceback(py))
                 ).unwrap();
