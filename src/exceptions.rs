@@ -101,7 +101,7 @@ macro_rules! import_exception {
                         let imp = py
                             .import(stringify!($module))
                             .expect(concat!("Can not import module: ", stringify!($module)));
-                        let cls = imp.get(stringify!($name)).expect(concat!(
+                        let cls = imp.getattr(stringify!($name)).expect(concat!(
                             "Can not load exception class: {}.{}",
                             stringify!($module),
                             ".",

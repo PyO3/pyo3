@@ -141,7 +141,7 @@ fn test_module_from_code() {
     .expect("Module code should be loaded");
 
     let add_func = adder_mod
-        .get("add")
+        .getattr("add")
         .expect("Add function should be in the module")
         .to_object(py);
 

@@ -115,7 +115,7 @@ use pyo3::prelude::*;
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let builtins = PyModule::import(py, "builtins")?;
-        let total: i32 = builtins.call_function1("sum", (vec![1, 2, 3],))?.extract()?;
+        let total: i32 = builtins.getattr("sum")?.call1((vec![1, 2, 3],))?.extract()?;
         assert_eq!(total, 6);
         Ok(())
     })
@@ -215,12 +215,12 @@ def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
     "#, "activators.py", "activators")?;
 
-    let relu_result: f64 = activators.call_function1("relu", (-1.0,))?.extract()?;
+    let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
     let kwargs = [("slope", 0.2)].into_py_dict(py);
     let lrelu_result: f64 = activators
-        .call_function("leaky_relu", (-1.0,), Some(kwargs))?
+        .getattr("leaky_relu")?.call((-1.0,), Some(kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
@@ -239,7 +239,7 @@ Use context managers by directly invoking `__enter__` and `__exit__`.
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
-fn main() {   
+fn main() {
     Python::with_gil(|py| {
         let custom_manager = PyModule::from_code(py, r#"
 class House(object):
@@ -254,14 +254,15 @@ class House(object):
             print(f"Thank you for visiting {self.address}, come again soon!")
 
         "#, "house.py", "house").unwrap();
-        
-        let house = custom_manager.call_function1("House", ("123 Main Street",)).unwrap();
+
+        let house_class = custom_manager.getattr("House").unwrap();
+        let house = house_class.call1(("123 Main Street",)).unwrap();
 
         house.call_method0("__enter__").unwrap();
 
         let result = py.eval("undefined_variable + 1", None, None);
-        
-        // If the eval threw an exception we'll pass it through to the context manager. 
+
+        // If the eval threw an exception we'll pass it through to the context manager.
         // Otherwise, __exit__  is called with empty arguments (Python "None").
         match result {
             Ok(_) => {
