@@ -13,6 +13,8 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+mod common;
+
 #[pyclass]
 struct TestBufferClass {
     vec: Vec<u8>,
@@ -93,8 +95,7 @@ fn test_buffer() {
         )
         .unwrap();
         let env = [("ob", instance)].into_py_dict(py);
-        py.run("assert bytes(ob) == b' 23'", None, Some(env))
-            .unwrap();
+        py_assert!(py, *env, "bytes(ob) == b' 23'");
     }
 
     assert!(drop_called.load(Ordering::Relaxed));

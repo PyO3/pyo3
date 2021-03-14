@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
 use pyo3::PyMappingProtocol;
+
+mod common;
 
 #[pyclass]
 struct Mapping {
@@ -66,35 +69,36 @@ impl PyMappingProtocol for Mapping {
     }
 }
 
+/// Return a dict with `m = Mapping(['1', '2', '3'])`.
+fn map_dict(py: Python) -> &pyo3::types::PyDict {
+    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
+    py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
+    d
+}
+
 #[test]
 fn test_getitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
+    let d = map_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
-
-    run("m = Mapping(['1', '2', '3']); assert m['1'] == 0");
-    run("m = Mapping(['1', '2', '3']); assert m['2'] == 1");
-    run("m = Mapping(['1', '2', '3']); assert m['3'] == 2");
-    err("m = Mapping(['1', '2', '3']); print(m['4'])");
+    py_assert!(py, *d, "m['1'] == 0");
+    py_assert!(py, *d, "m['2'] == 1");
+    py_assert!(py, *d, "m['3'] == 2");
+    py_expect_exception!(py, *d, "print(m['4'])", PyKeyError);
 }
 
 #[test]
 fn test_setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
+    let d = map_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
-
-    run("m = Mapping(['1', '2', '3']); m['1'] = 4; assert m['1'] == 4");
-    run("m = Mapping(['1', '2', '3']); m['0'] = 0; assert m['0'] == 0");
-    run("m = Mapping(['1', '2', '3']); len(m) == 4");
-    err("m = Mapping(['1', '2', '3']); m[0] = 'hello'");
-    err("m = Mapping(['1', '2', '3']); m[0] = -1");
+    py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
+    py_run!(py, *d, "m['0'] = 0; assert m['0'] == 0");
+    py_assert!(py, *d, "len(m) == 4");
+    py_expect_exception!(py, *d, "m[0] = 'hello'", PyTypeError);
+    py_expect_exception!(py, *d, "m[0] = -1", PyTypeError);
 }
 
 #[test]
@@ -102,16 +106,14 @@ fn test_delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
-
-    run(
-        "m = Mapping(['1', '2', '3']); del m['1']; assert len(m) == 2; \
-         assert m['2'] == 1; assert m['3'] == 2",
+    let d = map_dict(py);
+    py_run!(
+        py,
+        *d,
+        "del m['1']; assert len(m) == 2 and m['2'] == 1 and m['3'] == 2"
     );
-    err("m = Mapping(['1', '2', '3']); del m[-1]");
-    err("m = Mapping(['1', '2', '3']); del m['4']");
+    py_expect_exception!(py, *d, "del m[-1]", PyTypeError);
+    py_expect_exception!(py, *d, "del m['4']", PyKeyError);
 }
 
 #[test]
@@ -119,8 +121,6 @@ fn test_reversed() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-
-    run("m = Mapping(['1', '2']); assert set(reversed(m)) == {'1', '2'}");
+    let d = map_dict(py);
+    py_assert!(py, *d, "set(reversed(m)) == {'1', '2', '3'}");
 }

@@ -331,10 +331,11 @@ macro_rules! wrap_pymodule {
 /// });
 /// ```
 ///
-/// If you need to prepare the `locals` dict by yourself, you can pass it by `*locals`.
+/// If you need to prepare the `locals` dict by yourself, you can pass it as `*locals`.
 ///
 /// ```
-/// # use pyo3::prelude::*;
+/// use pyo3::prelude::*;
+/// use pyo3::types::IntoPyDict;
 /// #[pyclass]
 /// struct MyClass {}
 /// #[pymethods]
@@ -343,7 +344,7 @@ macro_rules! wrap_pymodule {
 ///     fn new() -> Self { MyClass {} }
 /// }
 /// Python::with_gil(|py| {
-///    let locals = [("C", py.get_type::<MyClass>())];
+///    let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
 ///    pyo3::py_run!(py, *locals, "c = C()");
 /// });
 /// ```
