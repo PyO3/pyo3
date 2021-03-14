@@ -13,7 +13,6 @@ use crate::types::{PyAny, PyDict, PyList};
 use crate::types::{PyCFunction, PyTuple};
 use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 use std::str;
 
 /// Represents a Python `module` object.
@@ -32,9 +31,8 @@ impl PyModule {
 
     /// Imports the Python module with the specified name.
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        crate::types::with_tmp_string(py, name, |name| unsafe {
-            py.from_owned_ptr_or_err(ffi::PyImport_Import(name))
-        })
+        let name: PyObject = name.into_py(py);
+        unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
     }
 
     /// Loads the Python code specified into a new module.
@@ -95,25 +93,19 @@ impl PyModule {
         }
     }
 
-    unsafe fn str_from_ptr(&self, ptr: *const c_char) -> PyResult<&str> {
-        if ptr.is_null() {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            let slice = CStr::from_ptr(ptr).to_bytes();
-            match str::from_utf8(slice) {
-                Ok(s) => Ok(s),
-                Err(e) => Err(PyErr::from_instance(
-                    exceptions::PyUnicodeDecodeError::new_utf8(self.py(), slice, e)?,
-                )),
-            }
-        }
-    }
-
     /// Returns the module's name.
     ///
     /// May fail if the module does not have a `__name__` attribute.
     pub fn name(&self) -> PyResult<&str> {
-        unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
+        let ptr = unsafe { ffi::PyModule_GetName(self.as_ptr()) };
+        if ptr.is_null() {
+            Err(PyErr::fetch(self.py()))
+        } else {
+            let name = unsafe { CStr::from_ptr(ptr) }
+                .to_str()
+                .expect("PyModule_GetName expected to return utf8");
+            Ok(name)
+        }
     }
 
     /// Returns the module's filename.
@@ -309,5 +301,18 @@ impl PyModule {
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
         let name = fun.getattr("__name__")?.extract()?;
         self.add(name, fun)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{types::PyModule, Python};
+
+    #[test]
+    fn module_import_and_name() {
+        Python::with_gil(|py| {
+            let builtins = PyModule::import(py, "builtins").unwrap();
+            assert_eq!(builtins.name().unwrap(), "builtins");
+        })
     }
 }
