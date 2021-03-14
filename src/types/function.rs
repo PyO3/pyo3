@@ -23,12 +23,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::cfunction_with_keywords(
-                name,
-                methods::PyCFunctionWithKeywords(fun),
-                0,
-                doc,
-            ),
+            PyMethodDef::cfunction_with_keywords(name, methods::PyCFunctionWithKeywords(fun), doc),
             py_or_module,
         )
     }
@@ -41,7 +36,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::cfunction(name, methods::PyCFunction(fun), doc),
+            PyMethodDef::noargs(name, methods::PyCFunction(fun), doc),
             py_or_module,
         )
     }

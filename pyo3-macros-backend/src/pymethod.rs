@@ -27,39 +27,32 @@ pub fn gen_py_method(
     let spec = FnSpec::parse(sig, &mut *meth_attrs, true)?;
 
     Ok(match &spec.tp {
-        FnType::Fn(self_ty) => GeneratedPyMethod::Method(impl_py_method_def(
-            &spec,
-            &impl_wrap(cls, &spec, self_ty, true)?,
-        )),
-        FnType::FnNew => {
-            GeneratedPyMethod::New(impl_py_method_def_new(cls, &impl_wrap_new(cls, &spec)?))
+        FnType::Fn(self_ty) => {
+            GeneratedPyMethod::Method(impl_py_method_def(cls, &spec, self_ty, None)?)
         }
-        FnType::FnCall(self_ty) => GeneratedPyMethod::Call(impl_py_method_def_call(
-            cls,
-            &impl_wrap(cls, &spec, self_ty, false)?,
-        )),
-        FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def_class(
-            &spec,
-            &impl_wrap_class(cls, &spec)?,
-        )),
-        FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def_static(
-            &spec,
-            &impl_wrap_static(cls, &spec)?,
-        )),
-        FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_method_class_attribute(
-            &spec,
-            &impl_wrap_class_attribute(cls, &spec),
-        )),
+        FnType::FnNew => GeneratedPyMethod::New(impl_py_method_def_new(cls, &spec)?),
+        FnType::FnCall(self_ty) => {
+            GeneratedPyMethod::Call(impl_py_method_def_call(cls, &spec, self_ty)?)
+        }
+        FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def_class(cls, &spec)?),
+        FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def_static(cls, &spec)?),
+        FnType::ClassAttribute => {
+            GeneratedPyMethod::Method(impl_py_method_class_attribute(cls, &spec))
+        }
         FnType::Getter(self_ty) => GeneratedPyMethod::Method(impl_py_getter_def(
+            cls,
+            PropertyType::Function(&spec),
+            self_ty,
             &spec.python_name,
             &spec.doc,
-            &impl_wrap_getter(cls, PropertyType::Function(&spec), self_ty)?,
-        )),
+        )?),
         FnType::Setter(self_ty) => GeneratedPyMethod::Method(impl_py_setter_def(
+            cls,
+            PropertyType::Function(&spec),
+            self_ty,
             &spec.python_name,
             &spec.doc,
-            &impl_wrap_setter(cls, PropertyType::Function(&spec), self_ty)?,
-        )),
+        )?),
     })
 }
 
@@ -92,82 +85,24 @@ pub fn gen_py_const(
     Ok(None)
 }
 
-/// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap(
+/// Generate function wrapper for PyCFunctionWithKeywords
+pub fn impl_wrap_cfunction_with_keywords(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     self_ty: &SelfType,
-    noargs: bool,
 ) -> Result<TokenStream> {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
-    impl_wrap_common(cls, spec, noargs, slf, body)
-}
-
-fn impl_wrap_common(
-    cls: &syn::Type,
-    spec: &FnSpec<'_>,
-    noargs: bool,
-    slf: TokenStream,
-    body: TokenStream,
-) -> Result<TokenStream> {
     let python_name = &spec.python_name;
-    if spec.args.is_empty() && noargs {
-        Ok(quote! {
-            unsafe extern "C" fn __wrap(
-                _slf: *mut pyo3::ffi::PyObject,
-                _args: *mut pyo3::ffi::PyObject,
-            ) -> *mut pyo3::ffi::PyObject
-            {
-                const _LOCATION: &'static str = concat!(
-                    stringify!(#cls), ".", stringify!(#python_name), "()");
-                pyo3::callback::handle_panic(|_py| {
-                    #slf
-                    #body
-                })
-            }
-        })
-    } else {
-        let body = impl_arg_params(&spec, Some(cls), body)?;
-        Ok(quote! {
-            unsafe extern "C" fn __wrap(
-                _slf: *mut pyo3::ffi::PyObject,
-                _args: *mut pyo3::ffi::PyObject,
-                _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
-            {
-                const _LOCATION: &'static str = concat!(
-                    stringify!(#cls), ".", stringify!(#python_name), "()");
-                pyo3::callback::handle_panic(|_py| {
-                    #slf
-                    let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                    let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
-
-                    #body
-                })
-            }
-        })
-    }
-}
-
-/// Generate function wrapper for protocol method (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_proto_wrap(
-    cls: &syn::Type,
-    spec: &FnSpec<'_>,
-    self_ty: &SelfType,
-) -> Result<TokenStream> {
-    let python_name = &spec.python_name;
-    let cb = impl_call(cls, &spec);
-    let body = impl_arg_params(&spec, Some(cls), cb)?;
-    let slf = self_ty.receiver(cls);
-
+    let body = impl_arg_params(&spec, Some(cls), body)?;
     Ok(quote! {
-        #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
+            const _LOCATION: &'static str = concat!(
+                stringify!(#cls), ".", stringify!(#python_name), "()");
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -177,6 +112,28 @@ pub fn impl_proto_wrap(
             })
         }
     })
+}
+
+/// Generate function wrapper PyCFunction
+pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -> TokenStream {
+    let body = impl_call(cls, &spec);
+    let slf = self_ty.receiver(cls);
+    let python_name = &spec.python_name;
+    assert!(spec.args.is_empty());
+    quote! {
+        unsafe extern "C" fn __wrap(
+            _slf: *mut pyo3::ffi::PyObject,
+            _args: *mut pyo3::ffi::PyObject,
+        ) -> *mut pyo3::ffi::PyObject
+        {
+            const _LOCATION: &'static str = concat!(
+                stringify!(#cls), ".", stringify!(#python_name), "()");
+            pyo3::callback::handle_panic(|_py| {
+                #slf
+                #body
+            })
+        }
+    }
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
@@ -606,39 +563,50 @@ fn impl_arg_param(
     }
 }
 
-pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
+pub fn impl_py_method_def(
+    cls: &syn::Type,
+    spec: &FnSpec,
+    self_ty: &SelfType,
+    flags: Option<TokenStream>,
+) -> Result<TokenStream> {
+    let add_flags = flags.map(|flags| quote!(.flags(#flags)));
     let python_name = &spec.python_name;
     let doc = &spec.doc;
     if spec.args.is_empty() {
-        quote! {
+        let wrapper = impl_wrap_noargs(cls, spec, self_ty);
+        Ok(quote! {
             pyo3::class::PyMethodDefType::Method({
                 #wrapper
 
-                pyo3::class::PyMethodDef::cfunction(
+                pyo3::class::PyMethodDef::noargs(
                     concat!(stringify!(#python_name), "\0"),
                     pyo3::class::methods::PyCFunction(__wrap),
                     #doc
                 )
+                #add_flags
+
             })
-        }
+        })
     } else {
-        quote! {
+        let wrapper = impl_wrap_cfunction_with_keywords(cls, &spec, self_ty)?;
+        Ok(quote! {
             pyo3::class::PyMethodDefType::Method({
                 #wrapper
 
                 pyo3::class::PyMethodDef::cfunction_with_keywords(
                     concat!(stringify!(#python_name), "\0"),
                     pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
-                    0,
                     #doc
                 )
+                #add_flags
             })
-        }
+        })
     }
 }
 
-pub fn impl_py_method_def_new(cls: &syn::Type, wrapper: &TokenStream) -> TokenStream {
-    quote! {
+pub fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    let wrapper = impl_wrap_new(cls, &spec)?;
+    Ok(quote! {
         impl pyo3::class::impl_::PyClassNewImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
             fn new_impl(self) -> Option<pyo3::ffi::newfunc> {
                 #wrapper
@@ -646,44 +614,45 @@ pub fn impl_py_method_def_new(cls: &syn::Type, wrapper: &TokenStream) -> TokenSt
                 Some(__wrap)
             }
         }
-    }
+    })
 }
 
-pub fn impl_py_method_def_class(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
+pub fn impl_py_method_def_class(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    let wrapper = impl_wrap_class(cls, &spec)?;
     let python_name = &spec.python_name;
     let doc = &spec.doc;
-    quote! {
+    Ok(quote! {
         pyo3::class::PyMethodDefType::Class({
             #wrapper
 
             pyo3::class::PyMethodDef::cfunction_with_keywords(
                 concat!(stringify!(#python_name), "\0"),
                 pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
-                pyo3::ffi::METH_CLASS,
                 #doc
-            )
+            ).flags(pyo3::ffi::METH_CLASS)
         })
-    }
+    })
 }
 
-pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
+pub fn impl_py_method_def_static(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    let wrapper = impl_wrap_static(cls, &spec)?;
     let python_name = &spec.python_name;
     let doc = &spec.doc;
-    quote! {
+    Ok(quote! {
         pyo3::class::PyMethodDefType::Static({
             #wrapper
 
             pyo3::class::PyMethodDef::cfunction_with_keywords(
                 concat!(stringify!(#python_name), "\0"),
                 pyo3::class::methods::PyCFunctionWithKeywords(__wrap),
-                pyo3::ffi::METH_STATIC,
                 #doc
-            )
+            ).flags(pyo3::ffi::METH_STATIC)
         })
-    }
+    })
 }
 
-pub fn impl_py_method_class_attribute(spec: &FnSpec<'_>, wrapper: &TokenStream) -> TokenStream {
+pub fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
+    let wrapper = impl_wrap_class_attribute(cls, &spec);
     let python_name = &spec.python_name;
     quote! {
         pyo3::class::PyMethodDefType::ClassAttribute({
@@ -711,8 +680,13 @@ pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) ->
     }
 }
 
-pub fn impl_py_method_def_call(cls: &syn::Type, wrapper: &TokenStream) -> TokenStream {
-    quote! {
+pub fn impl_py_method_def_call(
+    cls: &syn::Type,
+    spec: &FnSpec,
+    self_ty: &SelfType,
+) -> Result<TokenStream> {
+    let wrapper = impl_wrap_cfunction_with_keywords(cls, &spec, self_ty)?;
+    Ok(quote! {
         impl pyo3::class::impl_::PyClassCallImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
             fn call_impl(self) -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
                 #wrapper
@@ -720,15 +694,18 @@ pub fn impl_py_method_def_call(cls: &syn::Type, wrapper: &TokenStream) -> TokenS
                 Some(__wrap)
             }
         }
-    }
+    })
 }
 
 pub(crate) fn impl_py_setter_def(
+    cls: &syn::Type,
+    property_type: PropertyType,
+    self_ty: &SelfType,
     python_name: &syn::Ident,
     doc: &syn::LitStr,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
+) -> Result<TokenStream> {
+    let wrapper = impl_wrap_setter(cls, property_type, self_ty)?;
+    Ok(quote! {
         pyo3::class::PyMethodDefType::Setter({
             #wrapper
 
@@ -738,15 +715,18 @@ pub(crate) fn impl_py_setter_def(
                 #doc
             )
         })
-    }
+    })
 }
 
 pub(crate) fn impl_py_getter_def(
+    cls: &syn::Type,
+    property_type: PropertyType,
+    self_ty: &SelfType,
     python_name: &syn::Ident,
     doc: &syn::LitStr,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
+) -> Result<TokenStream> {
+    let wrapper = impl_wrap_getter(cls, property_type, self_ty)?;
+    Ok(quote! {
         pyo3::class::PyMethodDefType::Getter({
             #wrapper
 
@@ -756,7 +736,7 @@ pub(crate) fn impl_py_getter_def(
                 #doc
             )
         })
-    }
+    })
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present

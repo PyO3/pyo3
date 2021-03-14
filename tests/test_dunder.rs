@@ -109,6 +109,10 @@ fn string_methods() {
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
     py_assert!(py, obj, "bytes(obj) == b'bytes'");
+
+    // Test that `__bytes__` takes no arguments (should be METH_NOARGS)
+    py_assert!(py, obj, "obj.__bytes__() == b'bytes'");
+    py_expect_exception!(py, obj, "obj.__bytes__('unexpected argument')", PyTypeError);
 }
 
 #[pyclass]

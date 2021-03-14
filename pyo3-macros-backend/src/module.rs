@@ -177,7 +177,6 @@ pub fn add_fn_to_module(
                 pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
                     name,
                     pyo3::class::methods::PyCFunctionWithKeywords(#wrapper_ident),
-                    0,
                     #doc,
                 ),
                 args.into(),

@@ -82,7 +82,7 @@ unsafe impl Sync for PySetterDef {}
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
-    pub const fn cfunction(name: &'static str, cfunction: PyCFunction, doc: &'static str) -> Self {
+    pub const fn noargs(name: &'static str, cfunction: PyCFunction, doc: &'static str) -> Self {
         Self {
             ml_name: name,
             ml_meth: PyMethodType::PyCFunction(cfunction),
@@ -95,15 +95,19 @@ impl PyMethodDef {
     pub const fn cfunction_with_keywords(
         name: &'static str,
         cfunction: PyCFunctionWithKeywords,
-        flags: c_int,
         doc: &'static str,
     ) -> Self {
         Self {
             ml_name: name,
             ml_meth: PyMethodType::PyCFunctionWithKeywords(cfunction),
-            ml_flags: flags | ffi::METH_VARARGS | ffi::METH_KEYWORDS,
+            ml_flags: ffi::METH_VARARGS | ffi::METH_KEYWORDS,
             ml_doc: doc,
         }
+    }
+
+    pub const fn flags(mut self, flags: c_int) -> Self {
+        self.ml_flags |= flags;
+        self
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
