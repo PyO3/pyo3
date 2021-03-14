@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::{derive_utils::PyBaseTypeUtils, ffi, PyMethodDefType, PyNativeType, PyTypeInfo};
+use crate::{derive_utils::PyBaseTypeUtils, ffi, PyMethodDefType, PyNativeType};
 use std::{marker::PhantomData, thread};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
@@ -31,9 +31,9 @@ impl<T> Copy for PyClassImplCollector<T> {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl: Sized + PyTypeInfo {
+pub trait PyClassImpl: Sized {
     /// Class doc string
-    const DESCRIPTION: &'static str = "\0";
+    const DOC: &'static str = "\0";
 
     /// #[pyclass(gc)]
     const IS_GC: bool = false;

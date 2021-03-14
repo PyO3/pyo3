@@ -40,7 +40,7 @@ pub(crate) unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObjec
 }
 
 #[inline]
-pub(crate) unsafe fn default_new<T: PyClassImpl>(
+pub(crate) unsafe fn default_new<T: PyTypeInfo + PyClassImpl>(
     py: Python,
     subtype: *mut ffi::PyTypeObject,
 ) -> *mut ffi::PyObject {
@@ -70,7 +70,7 @@ pub(crate) unsafe fn default_new<T: PyClassImpl>(
 }
 
 /// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
-pub trait PyClassAlloc: PyClassImpl {
+pub trait PyClassAlloc: PyTypeInfo + PyClassImpl {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
@@ -153,14 +153,13 @@ pub trait PyClass:
 struct TypeSlots(Vec<ffi::PyType_Slot>);
 
 impl TypeSlots {
-    #[inline]
     fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
         self.0.push(ffi::PyType_Slot { slot, pfunc });
     }
 }
 
 fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
-    Ok(match T::DESCRIPTION {
+    Ok(match T::DOC {
         "\0" => None,
         s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
         // If the description is not null-terminated, create CString and leak it
@@ -175,7 +174,6 @@ fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_ch
     })
 }
 
-#[inline]
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
@@ -255,15 +253,15 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // Running this causes PyPy to segfault.
     #[cfg(all(not(PyPy), not(Py_3_10)))]
     {
-        if T::DESCRIPTION != "\0" {
+        if T::DOC != "\0" {
             unsafe {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
                 ffi::PyObject_Free((*type_object).tp_doc as _);
-                let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
-                data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
+                let data = ffi::PyObject_Malloc(T::DOC.len());
+                data.copy_from(T::DOC.as_ptr() as _, T::DOC.len());
                 (*type_object).tp_doc = data as _;
             }
         }

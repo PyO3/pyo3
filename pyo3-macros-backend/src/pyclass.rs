@@ -429,7 +429,7 @@ fn impl_class(
         #impl_inventory
 
         impl pyo3::class::impl_::PyClassImpl for #cls {
-            const DESCRIPTION: &'static str = #doc;
+            const DOC: &'static str = #doc;
             const IS_GC: bool = #is_gc;
             const IS_BASETYPE: bool = #is_basetype;
             const IS_SUBCLASS: bool = #is_subclass;

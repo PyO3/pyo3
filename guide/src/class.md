@@ -756,7 +756,7 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 }
 
 impl pyo3::class::impl_::PyClassImpl for MyClass {
-    const DESCRIPTION: &'static str = "Class for demonstration";
+    const DOC: &'static str = "Class for demonstration";
     const IS_GC: bool = false;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
