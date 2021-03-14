@@ -12,16 +12,16 @@ If you want to become familiar with the codebase you are in the right place!
 PyO3 provides a bridge between Rust and Python, based on the [Python C/API].
 Thus, PyO3 has low-level bindings of these API as its core.
 On top of that, we have higher-level bindings to operate Python objects safely.
-Also, to define Python classes and functions in Rust code, we have `trait PyClass<T>` and a set of
+Also, to define Python classes and functions in Rust code, we have `trait PyClass` and a set of
 protocol traits (e.g., `PyIterProtocol`) for supporting object protocols (i.e., `__dunder__` methods).
 Since implementing `PyClass` requires lots of boilerplate, we have a proc-macro `#[pyclass]`.
 
-To summarize, there are five main parts to the PyO3 codebase.
+To summarize, there are six main parts to the PyO3 codebase.
 1. [Low-level bindings of Python C/API.](#1-low-level-bindings-of-python-capi)
     - [`src/ffi`]
 2. [Bindings to Python objects.](#2-bindings-to-python-objects)
     - [`src/instance.rs`] and [`src/types`]
-3. [`PyClass<T>` and related functionalities.](#3-pyclasst-and-related-functionalities)
+3. [`PyClass` and related functionalities.](#3-pyclass-and-related-functionalities)
     - [`src/pycell.rs`], [`src/pyclass.rs`], and more
 4. [Protocol methods like `__getitem__`.](#4-protocol-methods)
     - [`src/class`]
@@ -40,10 +40,10 @@ However, we still lack some APIs and are continuously updating the the module to
 the file contents upstream in CPython.
 The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
-In the [`src/ffi`] module, you see lots of feature gates such as `#[cfg(Py_LIMITED_API)]`,
+In the [`src/ffi`] module, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_37)]`, and `#[cfg(PyPy)]`.
 `Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python C/API.
-With `Py_LIMITED_API`, we can build Python-version-agnostic binary called
+With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
 [abi3 wheel](https://pyo3.rs/v0.13.2/building_and_distribution.html#py_limited_apiabi3).
 `Py_37` means that the API is available from Python >= 3.7.
 There are also `Py_38`, `Py_39`, and so on.
@@ -91,7 +91,7 @@ Since we need lots of boilerplate for implementing common traits for these types
 (e.g., `AsPyPointer`, `AsRef<PyAny>`, and `Debug`), we have some macros in
 [`src/types/mod.rs`].
 
-## 3. `PyClass<T>` and related functionalities
+## 3. `PyClass` and related functionalities
 [`src/pycell.rs`], [`src/pyclass.rs`], and [`src/type_object.rs`] contain types and
 traits to make `#[pyclass]` work.
 Also, [`src/pyclass_init.rs`] and [`src/pyclass_slots.rs`] have related functionalities.
@@ -155,18 +155,18 @@ such as parsing function arguments.
 
 ## 6. `build.rs`
 PyO3's `build.rs` is relatively long (about 900 lines) to support some complex build cases.
-Here we list up some of its functionalities:
-- Check if we are building a Python-extension or not.
-  - If we are building an extesion (e.g., Python library installable by `pip`),
+Below is a non-exhaustive list of its functionality:
+- Check if we are building a Python extension.
+  - If we are building an extension (e.g., Python library installable by `pip`),
   we don't link `libpython`.
-  Currently we use `extension-module` feature for this purpose, but it can change in the future.
+  Currently we use the `extension-module` feature for this purpose. This may change in the future.
   See [#1123](https://github.com/PyO3/pyo3/pull/1123).
 - Find the interpreter for build and detect the Python version.
   - We have to set some version flags like `Py_37`.
-  - Also, if the interpreter is PyPy, we set `PyPy`.
+  - If the interpreter is PyPy, we set `PyPy`.
 - Cross-compiling support.
   - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
-  from environmental variable (`PYO3_CROSS_INCLUDE_DIR` and `PYO3_CROSS_PYTHON`) or system files.
+  from environment variables (`PYO3_CROSS_INCLUDE_DIR` and `PYO3_CROSS_PYTHON`) or system files.
 
 [`build.rs`]: https://github.com/PyO3/pyo3/tree/master/src/build.rs
 
