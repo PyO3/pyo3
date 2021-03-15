@@ -9,7 +9,7 @@ If you want to become familiar with the codebase you are in the right place!
 
 ## Overview
 
-PyO3 provides a bridge between Rust and Python, based on the [Python C/API].
+PyO3 provides a bridge between Rust and Python, based on the [Python/C API].
 Thus, PyO3 has low-level bindings of these API as its core.
 On top of that, we have higher-level bindings to operate Python objects safely.
 Also, to define Python classes and functions in Rust code, we have `trait PyClass` and a set of
@@ -17,7 +17,7 @@ protocol traits (e.g., `PyIterProtocol`) for supporting object protocols (i.e., 
 Since implementing `PyClass` requires lots of boilerplate, we have a proc-macro `#[pyclass]`.
 
 To summarize, there are six main parts to the PyO3 codebase.
-1. [Low-level bindings of Python C/API.](#1-low-level-bindings-of-python-capi)
+1. [Low-level bindings of Python/C API.](#1-low-level-bindings-of-python-capi)
     - [`src/ffi`]
 2. [Bindings to Python objects.](#2-bindings-to-python-objects)
     - [`src/instance.rs`] and [`src/types`]
@@ -30,8 +30,8 @@ To summarize, there are six main parts to the PyO3 codebase.
 6. [`build.rs`](#6-buildrs)
     - [`build.rs`](https://github.com/PyO3/pyo3/tree/master/build.rs)
 
-## 1. Low-level bindings of Python C/API
-[`src/ffi`] contains wrappers of [Python C/API](https://docs.python.org/3/c-api/).
+## 1. Low-level bindings of Python/C API
+[`src/ffi`] contains wrappers of [Python/C API].
 
 We aim to provide straight-forward Rust wrappers resembling the file structure of
 [`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
@@ -42,7 +42,7 @@ The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and con
 
 In the [`src/ffi`] module, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_37)]`, and `#[cfg(PyPy)]`.
-`Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python C/API.
+`Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python/C API.
 With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
 [abi3 wheel](https://pyo3.rs/v0.13.2/building_and_distribution.html#py_limited_apiabi3).
 `Py_37` means that the API is available from Python >= 3.7.
@@ -133,7 +133,7 @@ For example, you can see `type({})` shows `dict` and `type(type({}))` shows `typ
 ## 4. Protocol methods
 Python has some built-in special methods called dunder, such as `__iter__`.
 They are called [abstract objects layer](https://docs.python.org/3/c-api/abstract.html) in
-Python C/API.
+Python/C API.
 We provide a way to implement those protocols by using `#[pyproto]` and specific traits, such
 as `PyIterProtocol`.
 [`src/class`] defines these traits.
@@ -154,27 +154,26 @@ some internal tricks for making `#[pyproto]` flexible.
 such as parsing function arguments.
 
 ## 6. `build.rs`
-PyO3's `build.rs` is relatively long (about 900 lines) to support some complex build cases.
+PyO3's [`build.rs`](https://github.com/PyO3/pyo3/tree/master/build.rs) is relatively long
+(about 900 lines) to support multiple architectures, interpreters, and usages.
 Below is a non-exhaustive list of its functionality:
+- Cross-compiling support.
+  - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
+  from environment variables (`PYO3_CROSS_INCLUDE_DIR` and `PYO3_CROSS_PYTHON`) or system files.
+- Find the interpreter for build and detect the Python version.
+  - We have to set some version flags like `Py_37`.
+  - If the interpreter is PyPy, we set `PyPy`.
 - Check if we are building a Python extension.
   - If we are building an extension (e.g., Python library installable by `pip`),
   we don't link `libpython`.
   Currently we use the `extension-module` feature for this purpose. This may change in the future.
   See [#1123](https://github.com/PyO3/pyo3/pull/1123).
-- Find the interpreter for build and detect the Python version.
-  - We have to set some version flags like `Py_37`.
-  - If the interpreter is PyPy, we set `PyPy`.
-- Cross-compiling support.
-  - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
-  from environment variables (`PYO3_CROSS_INCLUDE_DIR` and `PYO3_CROSS_PYTHON`) or system files.
-
-[`build.rs`]: https://github.com/PyO3/pyo3/tree/master/src/build.rs
 
 <!-- External Links -->
-[Python C/API](https://docs.python.org/3/c-api/).
+[Python/C API]: https://docs.python.org/3/c-api/
 <!-- Crates -->
-[`pyo3-macros`]: (https://github.com/PyO3/pyo3/tree/master/pyo3-macros)
-[`pyo3-macros-backend`]: (https://github.com/PyO3/pyo3/tree/master/pyo3-macros-backend)
+[`pyo3-macros`]: https://github.com/PyO3/pyo3/tree/master/pyo3-macros
+[`pyo3-macros-backend`]: https://github.com/PyO3/pyo3/tree/master/pyo3-macros-backend
 <!-- Directories -->
 [`src/class`]: https://github.com/PyO3/pyo3/tree/master/src/class
 [`src/ffi`]: https://github.com/PyO3/pyo3/tree/master/src/ffi
