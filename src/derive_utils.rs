@@ -22,7 +22,8 @@ pub struct KeywordOnlyParameterDescription {
 /// Function argument specification for a `#[pyfunction]` or `#[pymethod]`.
 #[derive(Debug)]
 pub struct FunctionDescription {
-    pub fname: &'static str,
+    pub cls_name: Option<&'static str>,
+    pub func_name: &'static str,
     pub positional_parameter_names: &'static [&'static str],
     pub positional_only_parameters: usize,
     pub required_positional_parameters: usize,
@@ -32,6 +33,13 @@ pub struct FunctionDescription {
 }
 
 impl FunctionDescription {
+    fn full_name(&self) -> String {
+        if let Some(cls_name) = self.cls_name {
+            format!("{}.{}", cls_name, self.func_name)
+        } else {
+            self.func_name.to_string()
+        }
+    }
     /// Extracts the `args` and `kwargs` provided into `output`, according to this function
     /// definition.
     ///
@@ -199,7 +207,7 @@ impl FunctionDescription {
         let msg = if self.required_positional_parameters != self.positional_parameter_names.len() {
             format!(
                 "{} takes from {} to {} positional arguments but {} {} given",
-                self.fname,
+                self.full_name(),
                 self.required_positional_parameters,
                 self.positional_parameter_names.len(),
                 args_provided,
@@ -208,7 +216,7 @@ impl FunctionDescription {
         } else {
             format!(
                 "{} takes {} positional arguments but {} {} given",
-                self.fname,
+                self.full_name(),
                 self.positional_parameter_names.len(),
                 args_provided,
                 was
@@ -220,21 +228,23 @@ impl FunctionDescription {
     fn multiple_values_for_argument(&self, argument: &str) -> PyErr {
         PyTypeError::new_err(format!(
             "{} got multiple values for argument '{}'",
-            self.fname, argument
+            self.full_name(),
+            argument
         ))
     }
 
     fn unexpected_keyword_argument(&self, argument: &PyAny) -> PyErr {
         PyTypeError::new_err(format!(
             "{} got an unexpected keyword argument '{}'",
-            self.fname, argument
+            self.full_name(),
+            argument
         ))
     }
 
     fn positional_only_keyword_arguments(&self, parameter_names: &[&str]) -> PyErr {
         let mut msg = format!(
             "{} got some positional-only arguments passed as keyword arguments: ",
-            self.fname
+            self.full_name()
         );
         push_parameter_list(&mut msg, parameter_names);
         PyTypeError::new_err(msg)
@@ -248,7 +258,7 @@ impl FunctionDescription {
         };
         let mut msg = format!(
             "{} missing {} required {} {}: ",
-            self.fname,
+            self.full_name(),
             parameter_names.len(),
             argument_type,
             arguments,
