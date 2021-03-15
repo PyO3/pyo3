@@ -232,7 +232,6 @@ fn function_c_wrapper(
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#name), "()");
             pyo3::callback::handle_panic(|_py| {
                 #slf_module
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
