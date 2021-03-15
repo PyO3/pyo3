@@ -101,7 +101,7 @@ pub fn impl_wrap_cfunction_with_keywords(
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -125,7 +125,7 @@ pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) 
             _args: *mut pyo3::ffi::PyObject,
         ) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 #body
@@ -151,7 +151,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
         {
             use pyo3::callback::IntoPyCallbackOutput;
 
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -180,7 +180,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -208,7 +208,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -274,7 +274,7 @@ pub(crate) fn impl_wrap_getter(
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 pyo3::callback::convert(_py, #getter_impl)
@@ -326,7 +326,7 @@ pub(crate) fn impl_wrap_setter(
             _slf: *mut pyo3::ffi::PyObject,
             _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> std::os::raw::c_int
         {
-            const _LOCATION: &'static str = concat!(stringify!(#python_name), "()");
+            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);

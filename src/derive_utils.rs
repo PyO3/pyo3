@@ -35,9 +35,9 @@ pub struct FunctionDescription {
 impl FunctionDescription {
     fn full_name(&self) -> String {
         if let Some(cls_name) = self.cls_name {
-            format!("{}.{}", cls_name, self.func_name)
+            format!("{}.{}()", cls_name, self.func_name)
         } else {
-            self.func_name.to_string()
+            format!("{}()", self.func_name)
         }
     }
     /// Extracts the `args` and `kwargs` provided into `output`, according to this function
