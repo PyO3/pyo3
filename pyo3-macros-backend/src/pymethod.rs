@@ -93,7 +93,6 @@ pub fn impl_wrap_cfunction_with_keywords(
 ) -> Result<TokenStream> {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
-    let python_name = &spec.python_name;
     let body = impl_arg_params(&spec, Some(cls), body)?;
     Ok(quote! {
         unsafe extern "C" fn __wrap(
@@ -101,7 +100,6 @@ pub fn impl_wrap_cfunction_with_keywords(
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -117,7 +115,6 @@ pub fn impl_wrap_cfunction_with_keywords(
 pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -> TokenStream {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
-    let python_name = &spec.python_name;
     assert!(spec.args.is_empty());
     quote! {
         unsafe extern "C" fn __wrap(
@@ -125,7 +122,6 @@ pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) 
             _args: *mut pyo3::ffi::PyObject,
         ) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 #body
@@ -137,7 +133,6 @@ pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
-    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
     let body = impl_arg_params(spec, Some(cls), cb)?;
@@ -151,7 +146,6 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
         {
             use pyo3::callback::IntoPyCallbackOutput;
 
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -167,7 +161,6 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
-    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(&_cls, #(#names),*)) };
 
@@ -180,7 +173,6 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -195,7 +187,6 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let name = &spec.name;
-    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(#(#names),*)) };
 
@@ -208,7 +199,6 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -256,17 +246,14 @@ pub(crate) fn impl_wrap_getter(
     property_type: PropertyType,
     self_ty: &SelfType,
 ) -> syn::Result<TokenStream> {
-    let (python_name, getter_impl) = match property_type {
+    let getter_impl = match property_type {
         PropertyType::Descriptor(field) => {
             let name = field.ident.as_ref().unwrap();
-            (
-                name.unraw(),
-                quote!({
-                    _slf.#name.clone()
-                }),
-            )
+            quote!({
+                _slf.#name.clone()
+            })
         }
-        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_getter(cls, spec)?),
+        PropertyType::Function(spec) => impl_call_getter(cls, spec)?,
     };
 
     let slf = self_ty.receiver(cls);
@@ -274,7 +261,6 @@ pub(crate) fn impl_wrap_getter(
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 pyo3::callback::convert(_py, #getter_impl)
@@ -311,12 +297,12 @@ pub(crate) fn impl_wrap_setter(
     property_type: PropertyType,
     self_ty: &SelfType,
 ) -> syn::Result<TokenStream> {
-    let (python_name, setter_impl) = match property_type {
+    let setter_impl = match property_type {
         PropertyType::Descriptor(field) => {
             let name = field.ident.as_ref().unwrap();
-            (name.unraw(), quote!({ _slf.#name = _val; }))
+            quote!({ _slf.#name = _val; })
         }
-        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_setter(cls, spec)?),
+        PropertyType::Function(spec) => impl_call_setter(cls, spec)?,
     };
 
     let slf = self_ty.receiver(cls);
@@ -326,7 +312,6 @@ pub(crate) fn impl_wrap_setter(
             _slf: *mut pyo3::ffi::PyObject,
             _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> std::os::raw::c_int
         {
-            const _LOCATION: &'static str = stringify!(#python_name);
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
@@ -411,13 +396,14 @@ pub fn impl_arg_params(
     } else {
         quote! { None }
     };
+    let python_name = &spec.python_name;
 
     // create array of arguments, and then parse
     Ok(quote! {
         {
             const DESCRIPTION: pyo3::derive_utils::FunctionDescription = pyo3::derive_utils::FunctionDescription {
                 cls_name: #cls_name,
-                func_name: _LOCATION,
+                func_name: stringify!(#python_name),
                 positional_parameter_names: &[#(#positional_parameter_names),*],
                 // TODO: https://github.com/PyO3/pyo3/issues/1439 - support specifying these
                 positional_only_parameters: 0,
