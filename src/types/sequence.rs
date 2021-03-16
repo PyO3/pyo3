@@ -287,12 +287,14 @@ macro_rules! array_impls {
                 fn extract(obj: &'source PyAny) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     // first try buffer protocol
-                    if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
-                        if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
+                    if unsafe { ffi::PyObject_CheckBuffer(obj.as_ptr()) } == 1 {
+                        if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
+                            if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
+                                buf.release(obj.py());
+                                return Ok(array);
+                            }
                             buf.release(obj.py());
-                            return Ok(array);
                         }
-                        buf.release(obj.py());
                     }
                     // fall back to sequence protocol
                     extract_sequence_into_slice(obj, &mut array)?;
