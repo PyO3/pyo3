@@ -1,27 +1,27 @@
 # PyO3
 
 [![Actions Status](https://github.com/PyO3/pyo3/workflows/Test/badge.svg)](https://github.com/PyO3/pyo3/actions)
-[![codecov](https://codecov.io/gh/PyO3/pyo3/branch/master/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
+[![codecov](https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
 [![minimum rustc 1.41](https://img.shields.io/badge/rustc-1.41+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![Join the dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 
 [Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with Python code from a Rust binary, as well as writing native Python modules.
 
-* User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
+* User Guide: [stable](https://pyo3.rs) | [main](https://pyo3.rs/main)
 
-* API Documentation: [stable](https://docs.rs/pyo3/) |  [master](https://pyo3.rs/master/doc)
+* API Documentation: [stable](https://docs.rs/pyo3/) |  [main](https://pyo3.rs/main/doc)
 
-* Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/master/Contributing.md)
+* Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
-A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
+A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/main/rust_cpython.html).
 
 ## Usage
 
 PyO3 supports Python 3.6 and up. The minimum required Rust version is 1.41.
 
 Building with PyPy is also possible (via cpyext) for Python 3.6, targeted PyPy version is 7.3+.
-Please refer to the [pypy section in the guide](https://pyo3.rs/master/building_and_distribution/pypy.html).
+Please refer to the [pypy section in the guide](https://pyo3.rs/main/building_and_distribution/pypy.html).
 
 You can either write a native Python module in Rust, or use Python from a Rust binary.
 
@@ -96,7 +96,7 @@ rustflags = [
 
 While developing, you can symlink (or copy) and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd`, and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
-To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count), while maturin should work on your crate without any configuration.
+To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](https://github.com/PyO3/pyo3/tree/main/examples/word-count), while maturin should work on your crate without any configuration.
 
 ## Using Python from Rust
 
@@ -136,7 +136,7 @@ fn main_(py: Python) -> PyResult<()> {
 }
 ```
 
-Our guide has [a section](https://pyo3.rs/master/python_from_rust.html) with lots of examples
+Our guide has [a section](https://pyo3.rs/main/python_from_rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries
@@ -152,7 +152,7 @@ about this topic.
 ## Examples
 
  * [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
- * [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/master/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
+ * [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
  * [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library_
  * [autopy](https://github.com/autopilot-rs/autopy) _A simple, cross-platform GUI automation library for Python and Rust._
    * Contains an example of building wheels on TravisCI and appveyor using [cibuildwheel](https://github.com/joerick/cibuildwheel)
@@ -167,7 +167,7 @@ about this topic.
  * [pyre](https://github.com/Project-Dream-Weaver/Pyre) _Fast Python HTTP server written in Rust_
  * [jsonschema-rs](https://github.com/Stranger6667/jsonschema-rs/tree/master/bindings/python) _Fast JSON Schema validation library_
  * [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust_
- * [cryptography](https://github.com/pyca/cryptography/tree/master/src/rust) _Python cryptography library with some functionality in Rust_
+ * [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust_
  * [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust_
 
 ## License

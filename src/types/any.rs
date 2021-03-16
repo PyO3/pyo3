@@ -20,7 +20,7 @@ use std::os::raw::c_int;
 /// `PyAny` is used as a reference with a lifetime that represents that the GIL
 /// is held, therefore its API does not require a `Python<'py>` token.
 ///
-/// See [the guide](https://pyo3.rs/master/types.html) for an explanation
+/// See [the guide](https://pyo3.rs/main/types.html) for an explanation
 /// of the different Python object types.
 ///
 /// # Example
