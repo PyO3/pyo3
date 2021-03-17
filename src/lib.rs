@@ -289,10 +289,10 @@ macro_rules! wrap_pymodule {
 /// # Example
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// let list = PyList::new(py, &[1, 2, 3]);
-/// py_run!(py, list, "assert list == [1, 2, 3]");
+/// Python::with_gil(|py| {
+///     let list = PyList::new(py, &[1, 2, 3]);
+///     py_run!(py, list, "assert list == [1, 2, 3]");
+/// });
 /// ```
 ///
 /// You can use this macro to test pyfunctions or pyclasses quickly.
@@ -320,15 +320,33 @@ macro_rules! wrap_pymodule {
 ///         (self.hour, self.minute, self.second)
 ///     }
 /// }
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// let time = PyCell::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
-/// let time_as_tuple = (8, 43, 16);
-/// py_run!(py, time time_as_tuple, r#"
-/// assert time.hour == 8
-/// assert time.repl_japanese() == "8時43分16秒"
-/// assert time.as_tuple() == time_as_tuple
-/// "#);
+/// Python::with_gil(|py| {
+///     let time = PyCell::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+///     let time_as_tuple = (8, 43, 16);
+///     py_run!(py, time time_as_tuple, r#"
+///         assert time.hour == 8
+///         assert time.repl_japanese() == "8時43分16秒"
+///         assert time.as_tuple() == time_as_tuple
+///     "#);
+/// });
+/// ```
+///
+/// If you need to prepare the `locals` dict by yourself, you can pass it as `*locals`.
+///
+/// ```
+/// use pyo3::prelude::*;
+/// use pyo3::types::IntoPyDict;
+/// #[pyclass]
+/// struct MyClass {}
+/// #[pymethods]
+/// impl MyClass {
+///     #[new]
+///     fn new() -> Self { MyClass {} }
+/// }
+/// Python::with_gil(|py| {
+///    let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
+///    pyo3::py_run!(py, *locals, "c = C()");
+/// });
 /// ```
 ///
 /// **Note**
@@ -345,6 +363,12 @@ macro_rules! py_run {
     ($py:expr, $($val:ident)+, $code:expr) => {{
         $crate::py_run_impl!($py, $($val)+, &$crate::unindent::unindent($code))
     }};
+    ($py:expr, *$dict:expr, $code:literal) => {{
+        $crate::py_run_impl!($py, *$dict, $crate::indoc::indoc!($code))
+    }};
+    ($py:expr, *$dict:expr, $code:expr) => {{
+        $crate::py_run_impl!($py, *$dict, &$crate::unindent::unindent($code))
+    }};
 }
 
 #[macro_export]
@@ -355,8 +379,10 @@ macro_rules! py_run_impl {
         use $crate::types::IntoPyDict;
         use $crate::ToPyObject;
         let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
-
-        if let Err(e) = $py.run($code, None, Some(d)) {
+        $crate::py_run_impl!($py, *d, $code)
+    }};
+    ($py:expr, *$dict:expr, $code:expr) => {{
+        if let Err(e) = $py.run($code, None, Some($dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we

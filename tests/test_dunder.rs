@@ -4,7 +4,7 @@ use pyo3::class::{
 };
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PySlice, PyType};
+use pyo3::types::{PySlice, PyType};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::convert::TryFrom;
 use std::{isize, iter};
@@ -450,11 +450,9 @@ fn test_cls_impl() {
     let py = gil.python();
 
     let ob = Py::new(py, Test {}).unwrap();
-    let d = [("ob", ob)].into_py_dict(py);
 
-    py.run("assert ob[1] == 'int'", None, Some(d)).unwrap();
-    py.run("assert ob[100:200:1] == 'slice'", None, Some(d))
-        .unwrap();
+    py_assert!(py, ob, "ob[1] == 'int'");
+    py_assert!(py, ob, "ob[100:200:1] == 'slice'");
 }
 
 #[pyclass(dict, subclass)]

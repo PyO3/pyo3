@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
 use pyo3::{py_run, wrap_pyfunction, PyCell};
 
@@ -29,9 +28,7 @@ fn mut_ref_arg() {
     let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
     let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
-    let d = [("inst1", &inst1), ("inst2", &inst2)].into_py_dict(py);
-
-    py.run("inst1.set_other(inst2)", None, Some(d)).unwrap();
+    py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
     let inst2 = inst2.as_ref(py).borrow();
     assert_eq!(inst2.n, 100);
 }
