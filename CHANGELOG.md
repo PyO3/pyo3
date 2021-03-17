@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `PyMethodDef_INIT` [#1426](https://github.com/PyO3/pyo3/pull/1426)
   - `PyTypeObject_INIT` [#1429](https://github.com/PyO3/pyo3/pull/1429)
   - `PyObject_Check`, `PySuper_Check`, and `FreeFunc` [#1438](https://github.com/PyO3/pyo3/pull/1438)
+- Remove pyclass implementation details `Type`, `DESCRIPTION`, and `FLAGS` from `PyTypeInfo`. [#1456](https://github.com/PyO3/pyo3/pull/1456)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)

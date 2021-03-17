@@ -46,25 +46,6 @@ pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 /// Otherwise, implementing this trait is undefined behavior.
 pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 
-/// Our custom type flags
-#[doc(hidden)]
-pub mod type_flags {
-    /// Type object supports Python GC
-    pub const GC: usize = 1;
-
-    /// Type object supports Python weak references
-    pub const WEAKREF: usize = 1 << 1;
-
-    /// Type object can be used as the base type of another type
-    pub const BASETYPE: usize = 1 << 2;
-
-    /// The instances of this type have a dictionary containing instance variables
-    pub const DICT: usize = 1 << 3;
-
-    /// The class declared by #[pyclass(extends=~)]
-    pub const EXTENDED: usize = 1 << 4;
-}
-
 /// Python type information.
 /// All Python native types(e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
 ///
@@ -72,20 +53,11 @@ pub mod type_flags {
 ///  - specifying the incorrect layout can lead to memory errors
 ///  - the return value of type_object must always point to the same PyTypeObject instance
 pub unsafe trait PyTypeInfo: Sized {
-    /// Type of objects to store in PyObject struct
-    type Type;
-
     /// Class name
     const NAME: &'static str;
 
     /// Module name, if any
     const MODULE: Option<&'static str>;
-
-    /// Class doc string
-    const DESCRIPTION: &'static str = "\0";
-
-    /// Type flags (ie PY_TYPE_FLAG_GC, PY_TYPE_FLAG_WEAKREF)
-    const FLAGS: usize = 0;
 
     /// Base class
     type BaseType: PyTypeInfo + PyTypeObject;

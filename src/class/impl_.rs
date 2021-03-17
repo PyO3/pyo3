@@ -32,6 +32,18 @@ impl<T> Copy for PyClassImplCollector<T> {}
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
 pub trait PyClassImpl: Sized {
+    /// Class doc string
+    const DOC: &'static str = "\0";
+
+    /// #[pyclass(gc)]
+    const IS_GC: bool = false;
+
+    /// #[pyclass(subclass)]
+    const IS_BASETYPE: bool = false;
+
+    /// #[pyclass(extends=...)]
+    const IS_SUBCLASS: bool = false;
+
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
     ///    This implementation is used by default. Compile fails if `T: !Send`.

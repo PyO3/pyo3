@@ -726,7 +726,6 @@ struct MyClass {
 impl pyo3::pyclass::PyClassAlloc for MyClass {}
 
 unsafe impl pyo3::PyTypeInfo for MyClass {
-    type Type = MyClass;
     type BaseType = PyAny;
     type BaseLayout = pyo3::pycell::PyCellBase<PyAny>;
     type Layout = PyCell<Self>;
@@ -735,8 +734,6 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
 
     const NAME: &'static str = "MyClass";
     const MODULE: Option<&'static str> = None;
-    const DESCRIPTION: &'static str = "Class for demonstration";
-    const FLAGS: usize = 0;
 
     #[inline]
     fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
@@ -759,6 +756,10 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 }
 
 impl pyo3::class::impl_::PyClassImpl for MyClass {
+    const DOC: &'static str = "Class for demonstration";
+    const IS_GC: bool = false;
+    const IS_BASETYPE: bool = false;
+    const IS_SUBCLASS: bool = false;
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
     fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
@@ -776,18 +777,18 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
     }
     fn get_new() -> Option<pyo3::ffi::newfunc> {
         use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<MyClass>::new();
+        let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
     }
     fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
         use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<MyClass>::new();
+        let collector = PyClassImplCollector::<Self>::new();
         collector.call_impl()
     }
     fn for_each_proto_slot(visitor: impl FnMut(&pyo3::ffi::PyType_Slot)) {
         // Implementation which uses dtolnay specialization to load all slots.
         use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<MyClass>::new();
+        let collector = PyClassImplCollector::<Self>::new();
         collector.object_protocol_slots()
             .iter()
             .chain(collector.number_protocol_slots())
@@ -803,7 +804,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
 
     fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
         use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<MyClass>::new();
+        let collector = PyClassImplCollector::<Self>::new();
         collector.buffer_procs()
     }
 }

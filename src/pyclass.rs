@@ -2,7 +2,7 @@
 use crate::class::impl_::PyClassImpl;
 use crate::class::methods::PyMethodDefType;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{type_flags, PyLayout};
+use crate::type_object::PyLayout;
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -40,12 +40,12 @@ pub(crate) unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObjec
 }
 
 #[inline]
-pub(crate) unsafe fn default_new<T: PyTypeInfo>(
+pub(crate) unsafe fn default_new<T: PyTypeInfo + PyClassImpl>(
     py: Python,
     subtype: *mut ffi::PyTypeObject,
 ) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
-    if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
+    if T::IS_SUBCLASS && T::BaseLayout::IS_NATIVE_TYPE {
         #[cfg(not(Py_LIMITED_API))]
         {
             let base_tp = T::BaseType::type_object_raw(py);
@@ -70,7 +70,7 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo>(
 }
 
 /// This trait enables custom `tp_new`/`tp_dealloc` implementations for `T: PyClass`.
-pub trait PyClassAlloc: PyTypeInfo + Sized {
+pub trait PyClassAlloc: PyTypeInfo + PyClassImpl {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
@@ -159,7 +159,7 @@ impl TypeSlots {
 }
 
 fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
-    Ok(match T::DESCRIPTION {
+    Ok(match T::DOC {
         "\0" => None,
         s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
         // If the description is not null-terminated, create CString and leak it
@@ -253,15 +253,15 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // Running this causes PyPy to segfault.
     #[cfg(all(not(PyPy), not(Py_3_10)))]
     {
-        if T::DESCRIPTION != "\0" {
+        if T::DOC != "\0" {
             unsafe {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
                 ffi::PyObject_Free((*type_object).tp_doc as _);
-                let data = ffi::PyObject_Malloc(T::DESCRIPTION.len());
-                data.copy_from(T::DESCRIPTION.as_ptr() as _, T::DESCRIPTION.len());
+                let data = ffi::PyObject_Malloc(T::DOC.len());
+                data.copy_from(T::DOC.as_ptr() as _, T::DOC.len());
                 (*type_object).tp_doc = data as _;
             }
         }
@@ -300,12 +300,12 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
 fn py_class_flags<T: PyClass + PyTypeInfo>(has_gc_methods: bool) -> c_uint {
-    let mut flags = if has_gc_methods || T::FLAGS & type_flags::GC != 0 {
+    let mut flags = if has_gc_methods || T::IS_GC {
         ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
     } else {
         ffi::Py_TPFLAGS_DEFAULT
     };
-    if T::FLAGS & type_flags::BASETYPE != 0 {
+    if T::IS_BASETYPE {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
     flags.try_into().unwrap()
