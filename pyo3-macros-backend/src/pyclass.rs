@@ -179,15 +179,24 @@ pub fn build_py_class(
         class.generics.span() => "#[pyclass] cannot have generic parameters"
     );
 
-    if let syn::Fields::Named(fields) = &mut class.fields {
-        for field in fields.named.iter_mut() {
-            let field_descs = parse_descriptors(field)?;
-            if !field_descs.is_empty() {
-                descriptors.push((field.clone(), field_descs));
+    match &mut class.fields {
+        syn::Fields::Named(fields) => {
+            for field in fields.named.iter_mut() {
+                let field_descs = parse_descriptors(field)?;
+                if !field_descs.is_empty() {
+                    descriptors.push((field.clone(), field_descs));
+                }
             }
         }
-    } else {
-        bail_spanned!(class.fields.span() => "#[pyclass] can only be used with C-style structs");
+        syn::Fields::Unnamed(fields) => {
+            for field in fields.unnamed.iter_mut() {
+                let field_descs = parse_descriptors(field)?;
+                if !field_descs.is_empty() {
+                    descriptors.push((field.clone(), field_descs));
+                }
+            }
+        }
+        syn::Fields::Unit => { /* No fields for unit struct */ }
     }
 
     impl_class(&class.ident, &attr, doc, descriptors, methods_type)
