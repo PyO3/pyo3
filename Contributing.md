@@ -4,6 +4,9 @@ Thank you for your interest in contributing to PyO3! All are welcome - please co
 
 If you are searching for ideas how to contribute, please read the "Getting started contributing" section. Once you've found an issue to contribute to, you may find the section "Writing pull requests" helpful.
 
+If you want to become familiar with the codebase, check
+[Architecture.md](https://github.com/PyO3/pyo3/tree/master/Architecture.md).
+
 ## Getting started contributing
 
 Please join in with any part of PyO3 which interests you. We use Github issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
