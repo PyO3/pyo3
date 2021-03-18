@@ -83,33 +83,35 @@ impl PySequenceProtocol for ByteSequence {
     }
 }
 
+/// Return a dict with `s = ByteSequence([1, 2, 3])`.
+fn seq_dict(py: Python) -> &pyo3::types::PyDict {
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    // Though we can construct `s` in Rust, let's test `__new__` works.
+    py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
+    d
+}
+
 #[test]
 fn test_getitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let d = seq_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
-
-    run("s = ByteSequence([1, 2, 3]); assert s[0] == 1");
-    run("s = ByteSequence([1, 2, 3]); assert s[1] == 2");
-    run("s = ByteSequence([1, 2, 3]); assert s[2] == 3");
-    err("s = ByteSequence([1, 2, 3]); print(s[-4])");
-    err("s = ByteSequence([1, 2, 3]); print(s[4])");
+    py_assert!(py, *d, "s[0] == 1");
+    py_assert!(py, *d, "s[1] == 2");
+    py_assert!(py, *d, "s[2] == 3");
+    py_expect_exception!(py, *d, "print(s[-4])", PyIndexError);
+    py_expect_exception!(py, *d, "print(s[4])", PyIndexError);
 }
 
 #[test]
 fn test_setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let d = seq_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
-
-    run("s = ByteSequence([1, 2, 3]); s[0] = 4; assert list(s) == [4, 2, 3]");
-    err("s = ByteSequence([1, 2, 3]); s[0] = 'hello'");
+    py_run!(py, *d, "s[0] = 4; assert list(s) == [4, 2, 3]");
+    py_expect_exception!(py, *d, "s[0] = 'hello'", PyTypeError);
 }
 
 #[test]
@@ -118,15 +120,39 @@ fn test_delitem() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
 
-    run("s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]");
-    run("s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]");
-    run("s = ByteSequence([1, 2, 3]); del s[-1]; assert list(s) == [1, 2]");
-    run("s = ByteSequence([1, 2, 3]); del s[-2]; assert list(s) == [1, 3]");
-    err("s = ByteSequence([1, 2, 3]); del s[-4]; print(list(s))");
-    err("s = ByteSequence([1, 2, 3]); del s[4]");
+    py_run!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[0]; assert list(s) == [2, 3]"
+    );
+    py_run!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[1]; assert list(s) == [1, 3]"
+    );
+    py_run!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[-1]; assert list(s) == [1, 2]"
+    );
+    py_run!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[-2]; assert list(s) == [1, 3]"
+    );
+    py_expect_exception!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[-4]; print(list(s))",
+        PyIndexError
+    );
+    py_expect_exception!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2, 3]); del s[4]",
+        PyIndexError
+    );
 }
 
 #[test]
@@ -134,14 +160,13 @@ fn test_contains() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let d = seq_dict(py);
 
-    run("s = ByteSequence([1, 2, 3]); assert 1 in s");
-    run("s = ByteSequence([1, 2, 3]); assert 2 in s");
-    run("s = ByteSequence([1, 2, 3]); assert 3 in s");
-    run("s = ByteSequence([1, 2, 3]); assert 4 not in s");
-    run("s = ByteSequence([1, 2, 3]); assert 'hello' not in s");
+    py_assert!(py, *d, "1 in s");
+    py_assert!(py, *d, "2 in s");
+    py_assert!(py, *d, "3 in s");
+    py_assert!(py, *d, "4 not in s");
+    py_assert!(py, *d, "'hello' not in s");
 }
 
 #[test]
@@ -149,12 +174,19 @@ fn test_concat() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let d = seq_dict(py);
 
-    run("s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1+s2) == [1, 2, 3, 4]");
-    err("s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2");
+    py_run!(
+        py,
+        *d,
+        "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
+    );
+    py_expect_exception!(
+        py,
+        *d,
+        "s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2",
+        PyTypeError
+    );
 }
 
 #[test]
@@ -162,12 +194,14 @@ fn test_inplace_concat() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let d = seq_dict(py);
 
-    run("s = ByteSequence([1, 2]); s += ByteSequence([3, 4]); assert list(s) == [1, 2, 3, 4]");
-    err("s = ByteSequence([1, 2]); s += 'hello'");
+    py_run!(
+        py,
+        *d,
+        "s += ByteSequence([4, 5]); assert list(s) == [1, 2, 3, 4, 5]"
+    );
+    py_expect_exception!(py, *d, "s += 'hello'", PyTypeError);
 }
 
 #[test]
@@ -175,12 +209,10 @@ fn test_repeat() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+    let d = seq_dict(py);
 
-    run("s1 = ByteSequence([1, 2, 3]); s2 = s1*2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
-    err("s1 = ByteSequence([1, 2, 3]); s2 = s1*-1; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+    py_run!(py, *d, "s2 = s * 2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+    py_expect_exception!(py, *d, "s2 = s * -1", PyValueError);
 }
 
 #[test]
@@ -189,11 +221,13 @@ fn test_inplace_repeat() {
     let py = gil.python();
 
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-    let run = |code| py.run(code, None, Some(d)).unwrap();
-    let err = |code| py.run(code, None, Some(d)).unwrap_err();
 
-    run("s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]");
-    err("s = ByteSequence([1, 2); s *= -1");
+    py_run!(
+        py,
+        *d,
+        "s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]"
+    );
+    py_expect_exception!(py, *d, "s = ByteSequence([1, 2]); s *= -1", PyValueError);
 }
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>

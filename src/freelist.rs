@@ -2,6 +2,7 @@
 
 //! Free allocation list
 
+use crate::class::impl_::PyClassImpl;
 use crate::pyclass::{get_type_free, tp_free_fallback, PyClassAlloc};
 use crate::type_object::{PyLayout, PyTypeInfo};
 use crate::{ffi, AsPyPointer, FromPyPointer, PyAny, Python};
@@ -69,7 +70,7 @@ impl<T> FreeList<T> {
 
 impl<T> PyClassAlloc for T
 where
-    T: PyTypeInfo + PyClassWithFreeList,
+    T: PyTypeInfo + PyClassImpl + PyClassWithFreeList,
 {
     unsafe fn new(py: Python, subtype: *mut ffi::PyTypeObject) -> *mut Self::Layout {
         // if subtype is not equal to this type, we cannot use the freelist

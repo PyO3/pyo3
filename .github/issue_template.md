@@ -9,7 +9,7 @@ When reporting a bug, please provide the following information. If this is not a
  - How did you install python (e.g. apt or pyenv)? Did you use a virtualenv?:
  - Your Rust version (`rustc --version`):
  - Your PyO3 version:
- - Have you tried using latest PyO3 master (replace `version = "0.x.y"` with `git = "https://github.com/PyO3/pyo3")?`:
+ - Have you tried using latest PyO3 main (replace `version = "0.x.y"` with `git = "https://github.com/PyO3/pyo3")?`:
 
 ### 💥 Reproducing
 

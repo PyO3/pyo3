@@ -2,8 +2,8 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
-    PyTryFrom, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, PyResult, PyTryFrom,
+    Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::os::raw::c_char;
@@ -51,7 +51,7 @@ impl PyString {
                     let mut size: ffi::Py_ssize_t = 0;
                     let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
                     if data.is_null() {
-                        return Err(PyErr::fetch(self.py()));
+                        return Err(crate::PyErr::fetch(self.py()));
                     } else {
                         unsafe { std::slice::from_raw_parts(data as *const u8, size as usize) }
                     }
@@ -85,24 +85,6 @@ impl PyString {
                 String::from_utf8_lossy(bytes.as_bytes())
             }
         }
-    }
-}
-
-/// Convenience for calling Python APIs with a temporary string
-/// object created from a given Rust string.
-pub(crate) fn with_tmp_string<F, R>(py: Python, s: &str, f: F) -> PyResult<R>
-where
-    F: FnOnce(*mut ffi::PyObject) -> PyResult<R>,
-{
-    unsafe {
-        let s_obj =
-            ffi::PyUnicode_FromStringAndSize(s.as_ptr() as *const _, s.len() as ffi::Py_ssize_t);
-        if s_obj.is_null() {
-            return Err(PyErr::fetch(py));
-        }
-        let ret = f(s_obj);
-        ffi::Py_DECREF(s_obj);
-        ret
     }
 }
 

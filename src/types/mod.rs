@@ -22,7 +22,6 @@ pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-pub(crate) use self::string::with_tmp_string;
 pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
@@ -197,7 +196,6 @@ macro_rules! pyobject_native_type_info(
     ($name: ty, $layout: path, $typeobject: expr,
      $module: expr $(, $checkfunction:path)? $(;$generics: ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            type Type = ();
             type BaseType = $crate::PyAny;
             type Layout = $layout;
             type BaseLayout = $crate::ffi::PyObject;

@@ -143,12 +143,11 @@ def test_time_fold(fold):
     assert t.fold == fold
 
 
-@pytest.mark.xfail
 @pytest.mark.parametrize(
     "args", [(-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, -1)]
 )
-def test_invalid_time_fails_xfail(args):
-    with pytest.raises(ValueError):
+def test_invalid_time_fails_overflow(args):
+    with pytest.raises(OverflowError):
         rdt.make_time(*args)
 
 

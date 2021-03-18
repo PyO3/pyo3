@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 
 env:
@@ -84,32 +84,43 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
+      - name: Prepare workflow settings
+        id: settings
+        shell: bash
+        run: |
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown serde multiple-pymethods"
+
       - name: Build docs
-        run: cargo doc --no-default-features --features "macros num-bigint num-complex hashbrown" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo doc --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Build (no features)
-        run: cargo build --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo build --lib --tests --no-default-features
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: matrix.python-version != 'pypy-3.6'
+        name: Test (no features)
+        run: cargo test --no-default-features
 
       - name: Build (all additive features)
-        run: cargo build --no-default-features --features "macros num-bigint num-complex hashbrown serde" --verbose --target ${{ matrix.platform.rust-target }}
+        run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy-3.6'
         name: Test
-        run: cargo test --no-default-features --features "macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests again, for abi3-py36 (the minimal Python version)
       - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
         name: Test (abi3-py36)
-        run: cargo test --no-default-features --features "abi3-py36 macros num-bigint num-complex hashbrown serde" --target ${{ matrix.platform.rust-target }}
+        run: cargo test --no-default-features --features "abi3-py36 ${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml --target ${{ matrix.platform.rust-target }}
+        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
 
       - name: Install python test dependencies
         run: |
@@ -122,10 +133,15 @@ jobs:
           for example_dir in examples/*; do
               tox --discover $(which python) -c $example_dir -e py
           done
+        env:
+          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
 
     env:
+      CARGO_TERM_VERBOSE: true
+      CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"
       # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
       # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
       PYO3_CI: 1
@@ -140,16 +156,15 @@ jobs:
           toolchain: nightly
           override: true
           profile: minimal
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "num-bigint num-complex hashbrown serde" --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-          RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      - run: cargo test --no-default-features --no-fail-fast
+      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
       - uses: actions-rs/grcov@v0.1
         id: coverage
       - uses: codecov/codecov-action@v1
         with:
           file: ${{ steps.coverage.outputs.report }}
+    env:
+      CARGO_TERM_VERBOSE: true
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"

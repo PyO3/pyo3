@@ -23,6 +23,13 @@ macro_rules! bail {
     ($fmt: literal $(, $args: expr)+) => { return Err(format!($fmt $(,$args)+).into()); };
 }
 
+// Show warning. If needed, please extend this macro to support arguments.
+macro_rules! warn {
+    ($msg: literal) => {
+        println!(concat!("cargo:warning=", $msg));
+    };
+}
+
 /// Information returned from python interpreter
 #[derive(Debug)]
 struct InterpreterConfig {
@@ -34,13 +41,23 @@ struct InterpreterConfig {
     base_prefix: String,
     executable: PathBuf,
     calcsize_pointer: Option<u32>,
+    implementation: PythonInterpreterKind,
 }
 
-#[derive(Debug, Clone)]
+impl InterpreterConfig {
+    fn is_pypy(&self) -> bool {
+        self.implementation == PythonInterpreterKind::PyPy
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 struct PythonVersion {
     major: u8,
     minor: u8,
-    implementation: PythonInterpreterKind,
+}
+
+impl PythonVersion {
+    const PY37: Self = PythonVersion { major: 3, minor: 7 };
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +75,10 @@ impl FromStr for PythonInterpreterKind {
             _ => bail!("Invalid interpreter: {}", s),
         }
     }
+}
+
+fn is_abi3() -> bool {
+    env::var_os("CARGO_FEATURE_ABI3").is_some()
 }
 
 trait GetPrimitive {
@@ -266,16 +287,14 @@ impl BuildFlags {
     fn fixup(&mut self, interpreter_config: &InterpreterConfig) {
         if self.0.contains("Py_DEBUG") {
             self.0.insert("Py_REF_DEBUG");
-            if interpreter_config.version.major == 3 && interpreter_config.version.minor <= 7 {
+            if interpreter_config.version <= PythonVersion::PY37 {
                 // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
                 self.0.insert("Py_TRACE_REFS");
             }
         }
 
         // WITH_THREAD is always on for Python 3.7, and for PyPy.
-        if (interpreter_config.version.implementation == PythonInterpreterKind::PyPy)
-            || (interpreter_config.version.major == 3 && interpreter_config.version.minor >= 7)
-        {
+        if interpreter_config.is_pypy() || interpreter_config.version >= PythonVersion::PY37 {
             self.0.insert("WITH_THREAD");
         }
     }
@@ -318,18 +337,18 @@ fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, 
     script += r#"
 print("version_major", build_time_vars["VERSION"][0])  # 3
 print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
-if "WITH_THREAD" in build_time_vars:
-    print("WITH_THREAD", build_time_vars["WITH_THREAD"])
-if "Py_TRACE_REFS" in build_time_vars:
-    print("Py_TRACE_REFS", build_time_vars["Py_TRACE_REFS"])
-if "COUNT_ALLOCS" in build_time_vars:
-    print("COUNT_ALLOCS", build_time_vars["COUNT_ALLOCS"])
-if "Py_REF_DEBUG" in build_time_vars:
-    print("Py_REF_DEBUG", build_time_vars["Py_REF_DEBUG"])
-print("Py_DEBUG", build_time_vars["Py_DEBUG"])
-print("Py_ENABLE_SHARED", build_time_vars["Py_ENABLE_SHARED"])
-print("LDVERSION", build_time_vars["LDVERSION"])
-print("SIZEOF_VOID_P", build_time_vars["SIZEOF_VOID_P"])
+KEYS = [
+    "WITH_THREAD",
+    "Py_DEBUG",
+    "Py_REF_DEBUG",
+    "Py_TRACE_REFS",
+    "COUNT_ALLOCS",
+    "Py_ENABLE_SHARED",
+    "LDVERSION",
+    "SIZEOF_VOID_P"
+]
+for key in KEYS:
+    print(key, build_time_vars.get(key, 0))
 "#;
     let output = run_python_script(&find_interpreter()?, &script)?;
 
@@ -378,9 +397,16 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let sysconfig_name = env::var_os("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
         .iter()
-        .filter_map(|p| fs::canonicalize(p).ok())
+        .filter_map(|p| {
+            let canonical = fs::canonicalize(p).ok();
+            match &sysconfig_name {
+                Some(_) => canonical.filter(|p| p.file_stem() == sysconfig_name.as_deref()),
+                None => canonical,
+            }
+        })
         .collect::<Vec<PathBuf>>();
     sysconfig_paths.dedup();
     if sysconfig_paths.is_empty() {
@@ -391,7 +417,8 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     } else if sysconfig_paths.len() > 1 {
         bail!(
             "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
-            variable to the wanted version on your system\nsysconfigdata paths = {:?}",
+            variable to the wanted version on your system or set the _PYTHON_SYSCONFIGDATA_NAME \
+            variable to the wanted sysconfigdata file name\nsysconfigdata paths = {:?}",
             sysconfig_paths
         )
     }
@@ -455,11 +482,7 @@ fn load_cross_compile_from_sysconfigdata(
     };
     let calcsize_pointer = sysconfig_data.get_numeric("SIZEOF_VOID_P").ok();
 
-    let python_version = PythonVersion {
-        major,
-        minor,
-        implementation: PythonInterpreterKind::CPython,
-    };
+    let python_version = PythonVersion { major, minor };
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
@@ -469,6 +492,7 @@ fn load_cross_compile_from_sysconfigdata(
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer,
+        implementation: PythonInterpreterKind::CPython,
     };
 
     let build_flags = BuildFlags::from_config_map(&sysconfig_data);
@@ -486,11 +510,7 @@ fn load_cross_compile_from_headers(
     let major = patchlevel_defines.get_numeric("PY_MAJOR_VERSION")?;
     let minor = patchlevel_defines.get_numeric("PY_MINOR_VERSION")?;
 
-    let python_version = PythonVersion {
-        major,
-        minor,
-        implementation: PythonInterpreterKind::CPython,
-    };
+    let python_version = PythonVersion { major, minor };
 
     let config_data = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
 
@@ -502,6 +522,7 @@ fn load_cross_compile_from_headers(
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer: None,
+        implementation: PythonInterpreterKind::CPython,
     };
 
     let build_flags = BuildFlags::from_config_map(&config_data);
@@ -531,11 +552,7 @@ fn windows_hardcoded_cross_compile(
         bail!("One of PYO3_CROSS_INCLUDE_DIR, PYO3_CROSS_PYTHON_VERSION, or an abi3-py3* feature must be specified when cross-compiling for Windows.")
     };
 
-    let python_version = PythonVersion {
-        major,
-        minor,
-        implementation: PythonInterpreterKind::CPython,
-    };
+    let python_version = PythonVersion { major, minor };
 
     let interpreter_config = InterpreterConfig {
         version: python_version,
@@ -545,6 +562,7 @@ fn windows_hardcoded_cross_compile(
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
         calcsize_pointer: None,
+        implementation: PythonInterpreterKind::CPython,
     };
 
     Ok((interpreter_config, BuildFlags::windows_hardcoded()))
@@ -609,6 +627,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
     let link_name = if env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() == "windows" {
         if env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() == "gnu" {
             // https://packages.msys2.org/base/mingw-w64-python
+            // TODO: ABI3?
             format!(
                 "pythonXY:python{}.{}",
                 config.version.major, config.version.minor
@@ -618,7 +637,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
             // See https://www.python.org/dev/peps/pep-0384/#linkage
             //
             // This contains only the limited ABI symbols.
-            if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+            if is_abi3() {
                 "pythonXY:python3".to_owned()
             } else {
                 format!(
@@ -628,7 +647,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
             }
         }
     } else {
-        match config.version.implementation {
+        match config.implementation {
             PythonInterpreterKind::CPython => format!("python{}", config.ld_version),
             PythonInterpreterKind::PyPy => format!("pypy{}-c", config.version.major),
         }
@@ -690,30 +709,30 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, BuildFlags)> 
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
+import os.path
 import platform
 import struct
 import sys
-import sysconfig
-import os.path
+from sysconfig import get_config_var
 
 PYPY = platform.python_implementation() == "PyPy"
 
 # Anaconda based python distributions have a static python executable, but include
 # the shared library. Use the shared library for embedding to avoid rust trying to
 # LTO the static library (and failing with newer gcc's, because it is old).
-ANACONDA = os.path.exists(os.path.join(sys.base_prefix, 'conda-meta'))
+ANACONDA = os.path.exists(os.path.join(sys.base_prefix, "conda-meta"))
 
-libdir = sysconfig.get_config_var('LIBDIR')
+libdir = get_config_var("LIBDIR")
 
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print("implementation", platform.python_implementation())
 if libdir is not None:
     print("libdir", libdir)
-print("ld_version", sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
+print("ld_version", get_config_var("LDVERSION") or get_config_var("py_version_short"))
 print("base_prefix", sys.base_prefix)
-print("framework", bool(sysconfig.get_config_var('PYTHONFRAMEWORK')))
-print("shared", PYPY or ANACONDA or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')))
+print("framework", bool(get_config_var("PYTHONFRAMEWORK")))
+print("shared", PYPY or ANACONDA or bool(get_config_var("Py_ENABLE_SHARED")))
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
@@ -736,8 +755,8 @@ print("calcsize_pointer", struct.calcsize("P"))
         version: PythonVersion {
             major: map["version_major"].parse()?,
             minor: map["version_minor"].parse()?,
-            implementation: map["implementation"].parse()?,
         },
+        implementation: map["implementation"].parse()?,
         libdir: map.get("libdir").cloned(),
         shared,
         ld_version: map["ld_version"].clone(),
@@ -781,14 +800,21 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
         println!("cargo:rustc-cfg=Py_SHARED");
     }
 
-    if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
+    let is_abi3 = is_abi3();
+
+    if interpreter_config.is_pypy() {
         println!("cargo:rustc-cfg=PyPy");
+        if is_abi3 {
+            warn!(
+                "PyPy does not yet support abi3 so the resulting wheel will be version-specific. \
+                See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
+            )
+        }
     };
 
-    let minor = if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+    let minor = if is_abi3 {
         println!("cargo:rustc-cfg=Py_LIMITED_API");
         // Check any `abi3-py3*` feature is set. If not, use the interpreter version.
-
         match get_abi3_minor_version() {
             Some(minor) if minor > interpreter_config.version.minor => bail!(
                 "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",

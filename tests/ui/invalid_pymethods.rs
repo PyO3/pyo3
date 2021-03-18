@@ -81,5 +81,20 @@ impl MyClass {
     fn multiple_method_types() {}
 }
 
+#[pymethods]
+impl MyClass {
+    fn generic_method<T>(value: T) {}
+}
+
+
+#[pymethods]
+impl MyClass {
+    fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+}
+
+#[pymethods]
+impl MyClass {
+    fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+}
 
 fn main() {}

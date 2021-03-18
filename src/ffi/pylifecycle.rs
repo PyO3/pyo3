@@ -1,6 +1,4 @@
 use crate::ffi::pystate::PyThreadState;
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-use crate::ffi::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
 
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
@@ -52,25 +50,4 @@ type PyOS_sighandler_t = unsafe extern "C" fn(arg1: c_int);
 extern "C" {
     pub fn PyOS_getsig(arg1: c_int) -> PyOS_sighandler_t;
     pub fn PyOS_setsig(arg1: c_int, arg2: PyOS_sighandler_t) -> PyOS_sighandler_t;
-}
-
-// "private" functions in cpython/pylifecycle.h accepted in PEP 587
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub fn Py_PreInitialize(src_config: *const PyPreConfig) -> PyStatus;
-    pub fn Py_PreInitializeFromBytesArgs(
-        src_config: *const PyPreConfig,
-        argc: Py_ssize_t,
-        argv: *mut *mut c_char,
-    ) -> PyStatus;
-    pub fn Py_PreInitializeFromArgs(
-        src_config: *const PyPreConfig,
-        argc: Py_ssize_t,
-        argv: *mut *mut wchar_t,
-    ) -> PyStatus;
-
-    pub fn Py_InitializeFromConfig(config: *const PyConfig) -> PyStatus;
-
-    pub fn Py_RunMain() -> c_int;
 }

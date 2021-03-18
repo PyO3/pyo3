@@ -489,12 +489,12 @@ mod bigint_conversion {
                 .unwrap();
             // Checks if Python Long -> Rust BigUint conversion is correct if N is small
             let py_result: BigUint =
-                FromPyObject::extract(fib.call1("fib", (400,)).unwrap()).unwrap();
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((400,)).unwrap()).unwrap();
             assert_eq!(rs_result, py_result);
             // Checks if Python Long -> Rust BigUint conversion is correct if N is large
             let rs_result: BigUint = rust_fib(2000);
             let py_result: BigUint =
-                FromPyObject::extract(fib.call1("fib", (2000,)).unwrap()).unwrap();
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((2000,)).unwrap()).unwrap();
             assert_eq!(rs_result, py_result);
         }
 
@@ -512,12 +512,14 @@ mod bigint_conversion {
                 .unwrap();
             // Checks if Python Long -> Rust BigInt conversion is correct if N is small
             let py_result: BigInt =
-                FromPyObject::extract(fib.call1("fib_neg", (400,)).unwrap()).unwrap();
+                FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((400,)).unwrap())
+                    .unwrap();
             assert_eq!(rs_result, py_result);
             // Checks if Python Long -> Rust BigInt conversion is correct if N is large
             let rs_result = rust_fib::<BigInt>(2000) * -1;
             let py_result: BigInt =
-                FromPyObject::extract(fib.call1("fib_neg", (2000,)).unwrap()).unwrap();
+                FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((2000,)).unwrap())
+                    .unwrap();
             assert_eq!(rs_result, py_result);
         }
 
@@ -550,7 +552,8 @@ mod bigint_conversion {
             let gil = Python::acquire_gil();
             let py = gil.python();
             let fib = python_fib(py);
-            let zero: BigInt = FromPyObject::extract(fib.call1("fib", (0,)).unwrap()).unwrap();
+            let zero: BigInt =
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((0,)).unwrap()).unwrap();
             assert_eq!(zero, BigInt::from(0));
         }
 

@@ -524,18 +524,3 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyType_Type) as c_int
 }
-
-#[inline]
-#[deprecated(note = "not present in Python headers; to be removed")]
-pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
-    1
-}
-
-#[inline]
-#[deprecated(note = "not present in Python headers; to be removed")]
-pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
-    0
-}
-
-#[deprecated(note = "not present in Python headers; to be removed")]
-pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;

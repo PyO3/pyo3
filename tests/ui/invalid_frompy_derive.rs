@@ -153,4 +153,16 @@ enum UnitEnum {
     Unit,
 }
 
+#[derive(FromPyObject)]
+struct InvalidFromPyWith {
+    #[pyo3(from_py_with)]
+    field: String,
+}
+
+#[derive(FromPyObject)]
+struct InvalidFromPyWithLiteral {
+    #[pyo3(from_py_with = func)]
+    field: String,
+}
+
 fn main() {}

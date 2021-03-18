@@ -11,11 +11,11 @@ python setup.py install
 ## Usage
 
 ```python
-from word_count import search_py, WordCounter
+from word_count import search_py, search, search_sequential
 
-search_py("path/to/file", "word")
-WordCounter("path/to/file").search("word")
-WordCounter("path/to/file").search_sequential("word")
+search_py("foo bar", "foo")
+search("foo bar", "foo")
+search_sequential("foo bar", "foo")
 ```
 
 ## Benchmark

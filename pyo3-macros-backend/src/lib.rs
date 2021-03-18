@@ -7,6 +7,7 @@
 #[macro_use]
 mod utils;
 
+mod attrs;
 mod defs;
 mod from_pyobject;
 mod konst;
@@ -23,6 +24,6 @@ pub use from_pyobject::build_derive_from_pyobject;
 pub use module::{add_fn_to_module, process_functions_in_module, py_init};
 pub use pyclass::{build_py_class, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionAttr};
-pub use pyimpl::build_py_methods;
+pub use pyimpl::{build_py_methods, PyClassMethodsType};
 pub use pyproto::build_py_proto;
 pub use utils::get_doc;

@@ -84,7 +84,7 @@ error: transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: expected `attribute` or `item`
+error: expected `attribute`, `item` or `from_py_with`
   --> $DIR/invalid_frompy_derive.rs:76:12
    |
 76 |     #[pyo3(attr)]
@@ -127,10 +127,10 @@ error: expected a single literal argument
     |            ^^^^
 
 error: only one of `attribute` or `item` can be provided
-   --> $DIR/invalid_frompy_derive.rs:118:12
+   --> $DIR/invalid_frompy_derive.rs:118:18
     |
 118 |     #[pyo3(item, attribute)]
-    |            ^^^^
+    |                  ^^^^^^^^^
 
 error: unknown `pyo3` container attribute
    --> $DIR/invalid_frompy_derive.rs:123:8
@@ -169,3 +169,15 @@ error: cannot derive FromPyObject for empty structs and variants
     |          ^^^^^^^^^^^^
     |
     = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected a name-value: `pyo3(from_py_with = "func")`
+   --> $DIR/invalid_frompy_derive.rs:158:12
+    |
+158 |     #[pyo3(from_py_with)]
+    |            ^^^^^^^^^^^^
+
+error: expected literal
+   --> $DIR/invalid_frompy_derive.rs:164:27
+    |
+164 |     #[pyo3(from_py_with = func)]
+    |                           ^^^^

@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
+use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-
 mod common;
 
 #[pyclass]
@@ -83,25 +83,43 @@ fn test_module_with_functions() {
     )]
     .into_py_dict(py);
 
-    let run = |code| {
-        py.run(code, None, Some(d))
-            .map_err(|e| e.print(py))
-            .unwrap()
-    };
-
-    run("assert module_with_functions.__doc__ == 'This module is implemented in Rust.'");
-    run("assert module_with_functions.sum_as_string(1, 2) == '3'");
-    run("assert module_with_functions.no_parameters() == 42");
-    run("assert module_with_functions.foo == 'bar'");
-    run("assert module_with_functions.AnonClass != None");
-    run("assert module_with_functions.LocatedClass != None");
-    run("assert module_with_functions.LocatedClass.__module__ == 'module'");
-    run("assert module_with_functions.double(3) == 6");
-    run("assert module_with_functions.double.__doc__ == 'Doubles the given value'");
-    run("assert module_with_functions.also_double(3) == 6");
-    run("assert module_with_functions.also_double.__doc__ == 'Doubles the given value'");
-    run("assert module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2");
-    run("assert module_with_functions.with_module() == 'module_with_functions'");
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.__doc__ == 'This module is implemented in Rust.'"
+    );
+    py_assert!(py, *d, "module_with_functions.sum_as_string(1, 2) == '3'");
+    py_assert!(py, *d, "module_with_functions.no_parameters() == 42");
+    py_assert!(py, *d, "module_with_functions.foo == 'bar'");
+    py_assert!(py, *d, "module_with_functions.AnonClass != None");
+    py_assert!(py, *d, "module_with_functions.LocatedClass != None");
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.LocatedClass.__module__ == 'module'"
+    );
+    py_assert!(py, *d, "module_with_functions.double(3) == 6");
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.double.__doc__ == 'Doubles the given value'"
+    );
+    py_assert!(py, *d, "module_with_functions.also_double(3) == 6");
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.also_double.__doc__ == 'Doubles the given value'"
+    );
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2"
+    );
+    py_assert!(
+        py,
+        *d,
+        "module_with_functions.with_module() == 'module_with_functions'"
+    );
 }
 
 #[pymodule(other_name)]
@@ -119,12 +137,7 @@ fn test_module_renaming() {
 
     let d = [("different_name", wrap_pymodule!(other_name)(py))].into_py_dict(py);
 
-    py.run(
-        "assert different_name.__name__ == 'other_name'",
-        None,
-        Some(d),
-    )
-    .unwrap();
+    py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
 }
 
 #[test]
@@ -141,7 +154,7 @@ fn test_module_from_code() {
     .expect("Module code should be loaded");
 
     let add_func = adder_mod
-        .get("add")
+        .getattr("add")
         .expect("Add function should be in the module")
         .to_object(py);
 

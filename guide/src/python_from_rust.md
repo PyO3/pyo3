@@ -115,7 +115,7 @@ use pyo3::prelude::*;
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let builtins = PyModule::import(py, "builtins")?;
-        let total: i32 = builtins.call1("sum", (vec![1, 2, 3],))?.extract()?;
+        let total: i32 = builtins.getattr("sum")?.call1((vec![1, 2, 3],))?.extract()?;
         assert_eq!(total, 6);
         Ok(())
     })
@@ -215,12 +215,12 @@ def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
     "#, "activators.py", "activators")?;
 
-    let relu_result: f64 = activators.call1("relu", (-1.0,))?.extract()?;
+    let relu_result: f64 = activators.getattr("relu")?.call1((-1.0,))?.extract()?;
     assert_eq!(relu_result, 0.0);
 
     let kwargs = [("slope", 0.2)].into_py_dict(py);
     let lrelu_result: f64 = activators
-        .call("leaky_relu", (-1.0,), Some(kwargs))?
+        .getattr("leaky_relu")?.call((-1.0,), Some(kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())
@@ -230,3 +230,52 @@ def leaky_relu(x, slope=0.01):
 
 [`Python::run`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.run
 [`py_run!`]: https://docs.rs/pyo3/latest/pyo3/macro.py_run.html
+
+## Need to use a context manager from Rust?
+
+Use context managers by directly invoking `__enter__` and `__exit__`.
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyModule;
+
+fn main() {
+    Python::with_gil(|py| {
+        let custom_manager = PyModule::from_code(py, r#"
+class House(object):
+    def __init__(self, address):
+        self.address = address
+    def __enter__(self):
+        print(f"Welcome to {self.address}!")
+    def __exit__(self, type, value, traceback):
+        if type:
+            print(f"Sorry you had {type} trouble at {self.address}")
+        else:
+            print(f"Thank you for visiting {self.address}, come again soon!")
+
+        "#, "house.py", "house").unwrap();
+
+        let house_class = custom_manager.getattr("House").unwrap();
+        let house = house_class.call1(("123 Main Street",)).unwrap();
+
+        house.call_method0("__enter__").unwrap();
+
+        let result = py.eval("undefined_variable + 1", None, None);
+
+        // If the eval threw an exception we'll pass it through to the context manager.
+        // Otherwise, __exit__  is called with empty arguments (Python "None").
+        match result {
+            Ok(_) => {
+                let none = py.None();
+                house.call_method1("__exit__", (&none, &none, &none)).unwrap();
+            },
+            Err(e) => {
+                house.call_method1(
+                    "__exit__",
+                    (e.ptype(py), e.pvalue(py), e.ptraceback(py))
+                ).unwrap();
+            }
+        }
+    })
+}
+```

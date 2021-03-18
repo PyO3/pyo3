@@ -3,6 +3,18 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.13.* to 0.14
+
+### `auto-initialize` feature is now opt-in
+
+For projects embedding Python in Rust, PyO3 no longer automatically initalizes a Python interpreter on the first call to `Python::with_gil` (or `Python::acquire_gil`) unless the [`auto-initalize` feature](features.md#auto-initalize) is enabled.
+
+### New `multiple-pymethods` feature
+
+`#[pymethods]` have been reworked with a simpler default implementation which removes the dependency on the `inventory` crate. This reduces dependencies and compile times for the majority of users.
+
+The limitation of the new default implementation is that it cannot support multiple `#[pymethods]` blocks for the same `#[pyclass]`. If you need this functionality, you must enable the `multiple-pymethods` feature which will switch `#[pymethods]` to the inventory-based implementation.
+
 ## from 0.12.* to 0.13
 
 ### Minimum Rust version increased to Rust 1.45

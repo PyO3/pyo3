@@ -41,12 +41,12 @@ pub unsafe trait PyNativeType: Sized {
 ///  - [`Py::borrow`](#method.borrow), [`Py::try_borrow`](#method.try_borrow),
 ///    [`Py::borrow_mut`](#method.borrow_mut), or [`Py::try_borrow_mut`](#method.try_borrow_mut),
 ///    to directly access a `#[pyclass]` value (which has RefCell-like behavior, see
-///    [the `PyCell` guide entry](https://pyo3.rs/master/class.html#pycell-and-interior-mutability)
+///    [the `PyCell` guide entry](https://pyo3.rs/main/class.html#pycell-and-interior-mutability)
 ///    ).
 ///  - Use methods directly on `Py`, such as [`Py::call`](#method.call) and
 ///    [`Py::call_method`](#method.call_method).
 ///
-/// See [the guide](https://pyo3.rs/master/types.html) for an explanation
+/// See [the guide](https://pyo3.rs/main/types.html) for an explanation
 /// of the different Python object types.
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);

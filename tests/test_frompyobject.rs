@@ -299,3 +299,30 @@ fn test_err_rename() {
         "TypeError: 'dict' object cannot be converted to 'Union[str, uint, int]'"
     );
 }
+
+#[derive(Debug, FromPyObject)]
+pub struct Zap {
+    #[pyo3(item)]
+    name: String,
+
+    #[pyo3(from_py_with = "PyAny::len", item("my_object"))]
+    some_object_length: usize,
+}
+
+#[test]
+fn test_from_py_with() {
+    Python::with_gil(|py| {
+        let py_zap = py
+            .eval(
+                r#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
+                None,
+                None,
+            )
+            .expect("failed to create dict");
+
+        let zap = Zap::extract(py_zap).unwrap();
+
+        assert_eq!(zap.name, "whatever");
+        assert_eq!(zap.some_object_length, 3usize);
+    });
+}

@@ -7,7 +7,8 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,
-    build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyFunctionAttr,
+    build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
+    PyFunctionAttr,
 };
 use quote::quote;
 use syn::parse_macro_input;
@@ -56,27 +57,22 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let mut ast = parse_macro_input!(input as syn::ItemStruct);
-    let args = parse_macro_input!(attr as PyClassArgs);
-    let expanded = build_py_class(&mut ast, &args).unwrap_or_else(|e| e.to_compile_error());
+    pyclass_impl(attr, input, PyClassMethodsType::Specialization)
+}
 
-    quote!(
-        #ast
-        #expanded
-    )
-    .into()
+#[proc_macro_attribute]
+pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStream {
+    pyclass_impl(attr, input, PyClassMethodsType::Inventory)
 }
 
 #[proc_macro_attribute]
 pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
-    let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_methods(&mut ast).unwrap_or_else(|e| e.to_compile_error());
+    pymethods_impl(input, PyClassMethodsType::Specialization)
+}
 
-    quote!(
-        #ast
-        #expanded
-    )
-    .into()
+#[proc_macro_attribute]
+pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStream {
+    pymethods_impl(input, PyClassMethodsType::Inventory)
 }
 
 #[proc_macro_attribute]
@@ -98,6 +94,35 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
     let expanded = build_derive_from_pyobject(&ast).unwrap_or_else(|e| e.to_compile_error());
     quote!(
+        #expanded
+    )
+    .into()
+}
+
+fn pyclass_impl(
+    attr: TokenStream,
+    input: TokenStream,
+    methods_type: PyClassMethodsType,
+) -> TokenStream {
+    let mut ast = parse_macro_input!(input as syn::ItemStruct);
+    let args = parse_macro_input!(attr as PyClassArgs);
+    let expanded =
+        build_py_class(&mut ast, &args, methods_type).unwrap_or_else(|e| e.to_compile_error());
+
+    quote!(
+        #ast
+        #expanded
+    )
+    .into()
+}
+
+fn pymethods_impl(input: TokenStream, methods_type: PyClassMethodsType) -> TokenStream {
+    let mut ast = parse_macro_input!(input as syn::ItemImpl);
+    let expanded =
+        build_py_methods(&mut ast, methods_type).unwrap_or_else(|e| e.to_compile_error());
+
+    quote!(
+        #ast
         #expanded
     )
     .into()

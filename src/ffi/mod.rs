@@ -12,6 +12,7 @@ macro_rules! opaque_struct {
     };
 }
 
+pub use self::abstract_::*;
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
@@ -35,8 +36,6 @@ pub use self::funcobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::genobject::*;
 pub use self::import::*;
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-pub use self::initconfig::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
 pub use self::listobject::*;
@@ -47,7 +46,6 @@ pub use self::methodobject::*;
 pub use self::modsupport::*;
 pub use self::moduleobject::*;
 pub use self::object::*;
-pub use self::objectabstract::*; // FIXME: no matching objectabstract.h in cpython master
 pub use self::objimpl::*;
 pub use self::osmodule::*;
 pub use self::pyarena::*;
@@ -76,8 +74,7 @@ pub use self::weakrefobject::*;
 
 #[cfg(not(Py_LIMITED_API))]
 pub use self::cpython::*;
-
-// skipped abstract.h
+mod abstract_;
 // skipped asdl.h
 // skipped ast.h
 mod bltinmodule;
@@ -165,8 +162,6 @@ mod pyport;
 // [cfg(not(Py_LIMITED_API))]
 // mod pytime; contains nothing of interest
 
-#[cfg(all(Py_3_8, not(any(PY_LIMITED_API, PyPy))))]
-mod initconfig;
 mod objimpl;
 mod pydebug;
 mod pyhash;
@@ -199,8 +194,6 @@ mod pythonrun; // TODO some functions need to be moved to pylifecycle
                //mod pylifecycle; // TODO new in 3.5
 mod osmodule;
 mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-mod objectabstract; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 // mod pyctype; TODO excluded by PEP-384
 mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5

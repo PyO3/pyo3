@@ -1,33 +1,48 @@
 # Changelog
 All notable changes to this project will be documented in this file. For help with updating to new
-PyO3 versions, please see the [migration guide](https://pyo3.rs/master/migration.html).
+PyO3 versions, please see the [migration guide](https://pyo3.rs/main/migration.html).
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Packaging
+- Update `num-bigint` optional dependency to 0.4. [#1481](https://github.com/PyO3/pyo3/pull/1481)
+- Update `num-complex` optional dependency to 0.4. [#1482](https://github.com/PyO3/pyo3/pull/1482)
+
 ### Added
 - Add conversions between `OsStr`/`OsString`/`Path`/`PathBuf` and Python strings. [#1379](https://github.com/PyO3/pyo3/pull/1379)
+- Add #[pyo3(from_py_with = "...")]` attribute for function arguments and struct fields to override the default from-Python conversion. [#1411](https://github.com/PyO3/pyo3/pull/1411)
 - Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Add FFI definition `Py_IS_TYPE`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Add FFI definition `_Py_InitializeMain`. [#1473](https://github.com/PyO3/pyo3/pull/1473)
 
 ### Changed
 - Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
 - Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Deprecate FFI definitions `PyModule_GetFilename`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
-- Deprecate FFI definitions `PyObject_Check`, `PySuper_Check`, `FreeFunc`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- The `auto-initialize` feature is no longer enabled by default. [#1443](https://github.com/PyO3/pyo3/pull/1443)
+- Change `PyCFunction::new()` and `PyCFunction::new_with_keywords()` to take `&'static str` arguments rather than implicitly copying (and leaking) them. [#1450](https://github.com/PyO3/pyo3/pull/1450)
+- Deprecate `PyModule` methods `call`, `call0`, `call1` and `get`. [#1492](https://github.com/PyO3/pyo3/pull/1492)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove deprecated ffi definitions `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
 - Remove deprecated redundant methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove ffi definition ``PyMethodDef_INIT`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove FFI definition `PyTypeObject_INIT`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Remove many ffi definitions which never existed in the Python C-API:
+  - (previously deprecated) `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check` [#1426](https://github.com/PyO3/pyo3/pull/1426)
+  - `PyMethodDef_INIT` [#1426](https://github.com/PyO3/pyo3/pull/1426)
+  - `PyTypeObject_INIT` [#1429](https://github.com/PyO3/pyo3/pull/1429)
+  - `PyObject_Check`, `PySuper_Check`, and `FreeFunc` [#1438](https://github.com/PyO3/pyo3/pull/1438)
+- Remove pyclass implementation details `Type`, `DESCRIPTION`, and `FLAGS` from `PyTypeInfo`. [#1456](https://github.com/PyO3/pyo3/pull/1456)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - `PYO3_CROSS_LIB_DIR` enviroment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
 - Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Fix FFI definition `PyIndex_Check` missing with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
+- Fix incorrect `TypeError` raised when keyword-only argument passed along with a positional argument in `*args`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
+- Fix inability to use a named lifetime for `&PyTuple` of `*args` in `#[pyfunction]`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
+- Fix inability to add `#[text_signature]` to some `#[pyproto]` methods. [#1483](https://github.com/PyO3/pyo3/pull/1483)
 
 ## [0.13.2] - 2021-02-12
 ### Packaging
@@ -99,6 +114,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definitions for `PyBuffer_SizeFromFormat`, `PyObject_LengthHint`, `PyObject_CallNoArgs`, `PyObject_CallOneArg`, `PyObject_CallMethodNoArgs`, `PyObject_CallMethodOneArg`, `PyObject_VectorcallDict`, and `PyObject_VectorcallMethod`. [#1287](https://github.com/PyO3/pyo3/pull/1287)
 - Add conversions between `u128`/`i128` and `PyLong` for PyPy. [#1310](https://github.com/PyO3/pyo3/pull/1310)
 - Add `Python::version()` and `Python::version_info()` to get the running interpreter version. [#1322](https://github.com/PyO3/pyo3/pull/1322)
+- Add conversions for tuples of length 10, 11, and 12. [#1454](https://github.com/PyO3/pyo3/pull/1454)
 
 ### Changed
 - Change return type of `PyType::name()` from `Cow<str>` to `PyResult<&str>`. [#1152](https://github.com/PyO3/pyo3/pull/1152)

@@ -49,7 +49,6 @@ impl InstanceMethodWithArgs {
 }
 
 #[test]
-#[allow(dead_code)]
 fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -57,10 +56,8 @@ fn instance_method_with_args() {
     let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
     let obj_ref = obj.borrow();
     assert_eq!(obj_ref.method(6), 42);
-    let d = [("obj", obj)].into_py_dict(py);
-    py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
-    py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
-        .unwrap();
+    py_assert!(py, obj, "obj.method(3) == 21");
+    py_assert!(py, obj, "obj.method(multiplier=6) == 42");
 }
 
 #[pyclass]
@@ -86,15 +83,10 @@ fn class_method() {
     let py = gil.python();
 
     let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
-    let run = |code| {
-        py.run(code, None, Some(d))
-            .map_err(|e| e.print(py))
-            .unwrap()
-    };
-    run("assert C.method() == 'ClassMethod.method()!'");
-    run("assert C().method() == 'ClassMethod.method()!'");
-    run("assert C.method.__doc__ == 'Test class method.'");
-    run("assert C().method.__doc__ == 'Test class method.'");
+    py_assert!(py, *d, "C.method() == 'ClassMethod.method()!'");
+    py_assert!(py, *d, "C().method() == 'ClassMethod.method()!'");
+    py_assert!(py, *d, "C.method.__doc__ == 'Test class method.'");
+    py_assert!(py, *d, "C().method.__doc__ == 'Test class method.'");
 }
 
 #[pyclass]
@@ -114,12 +106,11 @@ fn class_method_with_args() {
     let py = gil.python();
 
     let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
-    py.run(
-        "assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'",
-        None,
-        Some(d),
-    )
-    .unwrap();
+    py_assert!(
+        py,
+        *d,
+        "C.method('abc') == 'ClassMethodWithArgs.method(abc)'"
+    );
 }
 
 #[pyclass]
@@ -147,15 +138,10 @@ fn static_method() {
     assert_eq!(StaticMethod::method(py), "StaticMethod.method()!");
 
     let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
-    let run = |code| {
-        py.run(code, None, Some(d))
-            .map_err(|e| e.print(py))
-            .unwrap()
-    };
-    run("assert C.method() == 'StaticMethod.method()!'");
-    run("assert C().method() == 'StaticMethod.method()!'");
-    run("assert C.method.__doc__ == 'Test static method.'");
-    run("assert C().method.__doc__ == 'Test static method.'");
+    py_assert!(py, *d, "C.method() == 'StaticMethod.method()!'");
+    py_assert!(py, *d, "C().method() == 'StaticMethod.method()!'");
+    py_assert!(py, *d, "C.method.__doc__ == 'Test static method.'");
+    py_assert!(py, *d, "C().method.__doc__ == 'Test static method.'");
 }
 
 #[pyclass]
@@ -177,8 +163,7 @@ fn static_method_with_args() {
     assert_eq!(StaticMethodWithArgs::method(py, 1234), "0x4d2");
 
     let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
-    py.run("assert C.method(1337) == '0x539'", None, Some(d))
-        .unwrap();
+    py_assert!(py, *d, "C.method(1337) == '0x539'");
 }
 
 #[pyclass]
@@ -243,6 +228,11 @@ impl MethArgs {
     #[args("*", a = 1, b)]
     fn get_kwargs_only_with_some_default(&self, a: i32, b: i32) -> i32 {
         a + b
+    }
+
+    #[args(args = "*", a)]
+    fn get_args_and_required_keyword(&self, py: Python, args: &PyTuple, a: i32) -> PyObject {
+        (args, a).to_object(py)
     }
 
     #[args(a, b = 2, "*", c = 3)]
@@ -365,6 +355,23 @@ fn meth_args() {
         PyTypeError
     );
 
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_args_and_required_keyword(1, 2, a=3) == ((1, 2), 3)"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_args_and_required_keyword(a=1) == ((), 1)"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_args_and_required_keyword()",
+        PyTypeError
+    );
+
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
     py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
     py_run!(
@@ -428,15 +435,17 @@ fn meth_doc() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
-    let run = |code| {
-        py.run(code, None, Some(d))
-            .map_err(|e| e.print(py))
-            .unwrap()
-    };
-
-    run("assert C.__doc__ == 'A class with \"documentation\".'");
-    run("assert C.method.__doc__ == 'A method with \"documentation\" as well.'");
-    run("assert C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'");
+    py_assert!(py, *d, "C.__doc__ == 'A class with \"documentation\".'");
+    py_assert!(
+        py,
+        *d,
+        "C.method.__doc__ == 'A method with \"documentation\" as well.'"
+    );
+    py_assert!(
+        py,
+        *d,
+        "C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'"
+    );
 }
 
 #[pyclass]
@@ -509,20 +518,31 @@ fn method_with_pyclassarg() {
     let py = gil.python();
     let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
     let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-    let objs = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
-    let run = |code| {
-        py.run(code, None, Some(objs))
-            .map_err(|e| e.print(py))
-            .unwrap()
-    };
-    run("obj = obj1.add(obj2); assert obj.value == 20");
-    run("obj = obj1.add_pyref(obj2); assert obj.value == 20");
-    run("obj = obj1.optional_add(); assert obj.value == 20");
-    run("obj = obj1.optional_add(obj2); assert obj.value == 20");
-    run("obj1.inplace_add(obj2); assert obj.value == 20");
-    run("obj1.inplace_add_pyref(obj2); assert obj2.value == 30");
-    run("obj1.optional_inplace_add(); assert obj2.value == 30");
-    run("obj1.optional_inplace_add(obj2); assert obj2.value == 40");
+    let d = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+    py_run!(py, *d, "obj = obj1.add(obj2); assert obj.value == 20");
+    py_run!(py, *d, "obj = obj1.add_pyref(obj2); assert obj.value == 20");
+    py_run!(py, *d, "obj = obj1.optional_add(); assert obj.value == 20");
+    py_run!(
+        py,
+        *d,
+        "obj = obj1.optional_add(obj2); assert obj.value == 20"
+    );
+    py_run!(py, *d, "obj1.inplace_add(obj2); assert obj.value == 20");
+    py_run!(
+        py,
+        *d,
+        "obj1.inplace_add_pyref(obj2); assert obj2.value == 30"
+    );
+    py_run!(
+        py,
+        *d,
+        "obj1.optional_inplace_add(); assert obj2.value == 30"
+    );
+    py_run!(
+        py,
+        *d,
+        "obj1.optional_inplace_add(obj2); assert obj2.value == 40"
+    );
 }
 
 #[pyclass]
