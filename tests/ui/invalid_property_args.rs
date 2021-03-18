@@ -24,4 +24,7 @@ impl ClassWithSetter {
     fn setter_with_too_many_args(&mut self, py: Python, foo: u32, bar: u32) {}
 }
 
+#[pyclass]
+struct TupleGetterSetter(#[pyo3(get, set)] i32);
+
 fn main() {}

@@ -506,18 +506,21 @@ fn impl_descriptors(
         .flat_map(|(field, fns)| {
             fns.iter()
                 .map(|desc| {
-                    let name = field.ident.as_ref().unwrap().unraw();
-                    let doc = utils::get_doc(&field.attrs, None, true)
-                        .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
-                    let property_type = PropertyType::Descriptor(&field);
-                    match desc {
-                        FnType::Getter(self_ty) => {
-                            impl_py_getter_def(cls, property_type, self_ty, &name, &doc)
+                    if let Some(name) = field.ident.as_ref().map(|ident| ident.unraw()) {
+                        let doc = utils::get_doc(&field.attrs, None, true)
+                            .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
+                        let property_type = PropertyType::Descriptor(&field);
+                        match desc {
+                            FnType::Getter(self_ty) => {
+                                impl_py_getter_def(cls, property_type, self_ty, &name, &doc)
+                            }
+                            FnType::Setter(self_ty) => {
+                                impl_py_setter_def(cls, property_type, self_ty, &name, &doc)
+                            }
+                            _ => unreachable!(),
                         }
-                        FnType::Setter(self_ty) => {
-                            impl_py_setter_def(cls, property_type, self_ty, &name, &doc)
-                        }
-                        _ => unreachable!(),
+                    } else {
+                        bail_spanned!(field.span() => "get/set are not supported on tuple struct field");
                     }
                 })
                 .collect::<Vec<syn::Result<TokenStream>>>()
