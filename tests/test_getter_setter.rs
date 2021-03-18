@@ -154,7 +154,7 @@ fn tuple_struct_getter_setter() {
 
     let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
 
-    py_run!(py, inst, "assert inst.num == 10");
+    py_assert!(py, inst, "inst.num == 10");
     py_run!(py, inst, "inst.num = 20");
-    py_run!(py, inst, "assert inst.num == 20");
+    py_assert!(py, inst, "inst.num == 20");
 }

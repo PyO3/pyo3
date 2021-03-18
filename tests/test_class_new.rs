@@ -37,14 +37,14 @@ impl UnitClassWithNew {
 
 #[test]
 fn unit_class_with_new() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<UnitClassWithNew>();
-    assert!(typeobj
-        .call((), None)
-        .unwrap()
-        .cast_as::<PyCell<UnitClassWithNew>>()
-        .is_ok());
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<UnitClassWithNew>();
+        assert!(typeobj
+            .call((), None)
+            .unwrap()
+            .cast_as::<PyCell<UnitClassWithNew>>()
+            .is_ok());
+    });
 }
 
 #[pyclass]
@@ -60,13 +60,13 @@ impl TupleClassWithNew {
 
 #[test]
 fn tuple_class_with_new() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<TupleClassWithNew>();
-    let wrp = typeobj.call((42,), None).unwrap();
-    let obj = wrp.cast_as::<PyCell<TupleClassWithNew>>().unwrap();
-    let obj_ref = obj.borrow();
-    assert_eq!(obj_ref.0, 42);
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<TupleClassWithNew>();
+        let wrp = typeobj.call((42,), None).unwrap();
+        let obj = wrp.cast_as::<PyCell<TupleClassWithNew>>().unwrap();
+        let obj_ref = obj.borrow();
+        assert_eq!(obj_ref.0, 42);
+    });
 }
 
 #[pyclass]

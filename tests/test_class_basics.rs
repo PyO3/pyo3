@@ -23,13 +23,13 @@ struct UnitClass;
 
 #[test]
 fn unit_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<UnitClass>();
-    // By default, don't allow creating instances from python.
-    assert!(typeobj.call((), None).is_err());
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<UnitClass>();
+        // By default, don't allow creating instances from python.
+        assert!(typeobj.call((), None).is_err());
 
-    py_assert!(py, typeobj, "typeobj.__name__ == 'UnitClass'");
+        py_assert!(py, typeobj, "typeobj.__name__ == 'UnitClass'");
+    });
 }
 
 /// Line1
@@ -309,10 +309,10 @@ struct TupleClass(i32);
 
 #[test]
 fn test_tuple_struct_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<TupleClass>();
-    assert!(typeobj.call((), None).is_err());
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<TupleClass>();
+        assert!(typeobj.call((), None).is_err());
 
-    py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
+        py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
+    });
 }
