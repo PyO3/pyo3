@@ -286,6 +286,10 @@ macro_rules! wrap_pymodule {
 
 /// A convenient macro to execute a Python code snippet, with some local variables set.
 ///
+/// # Panics
+/// This macro internally calls [`Python::run`](struct.Python.html#method.run) and panics
+/// if it returns `Err`, after printing the error to stdout.
+///
 /// # Examples
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
@@ -297,7 +301,6 @@ macro_rules! wrap_pymodule {
 ///
 /// You can use this macro to test pyfunctions or pyclasses quickly.
 ///
-/// # Examples
 /// ```
 /// use pyo3::{prelude::*, py_run, PyCell};
 /// #[pyclass]

@@ -266,22 +266,16 @@ To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
 ```rust,compile_fail
-use pyo3::prelude::*;
-
-let gil = Python::acquire_gil();
-let py = gil.python();
-
+# pyo3::Python::with_gil(|py| {
 py.None().get_refcnt();
+# })
 ```
 
 After:
 ```rust
-use pyo3::prelude::*;
-
-let gil = Python::acquire_gil();
-let py = gil.python();
-
+# pyo3::Python::with_gil(|py| {
 py.None().get_refcnt(py);
+# })
 ```
 
 ## from 0.9.* to 0.10
@@ -296,18 +290,20 @@ Before:
 ```rust,compile_fail
 use pyo3::ObjectProtocol;
 
-let gil = pyo3::Python::acquire_gil();
-let obj = gil.python().eval("lambda: 'Hi :)'", None, None).unwrap();
+# pyo3::Python::with_gil(|py| {
+let obj = py.eval("lambda: 'Hi :)'", None, None).unwrap();
 let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
 assert_eq!(hi.len().unwrap(), 5);
+# })
 ```
 
 After:
 ```rust
-let gil = pyo3::Python::acquire_gil();
-let obj = gil.python().eval("lambda: 'Hi :)'", None, None).unwrap();
+# pyo3::Python::with_gil(|py| {
+let obj = py.eval("lambda: 'Hi :)'", None, None).unwrap();
 let hi: &pyo3::types::PyString = obj.call0().unwrap().downcast().unwrap();
 assert_eq!(hi.len().unwrap(), 5);
+# })
 ```
 
 ### No `#![feature(specialization)]` in user code
@@ -380,16 +376,16 @@ impl Names {
         self.names.append(&mut other.names)
     }
 }
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let names = PyCell::new(py, Names::new()).unwrap();
-# pyo3::py_run!(py, names, r"
-# try:
-#    names.merge(names)
-#    assert False, 'Unreachable'
-# except RuntimeError as e:
-#    assert str(e) == 'Already borrowed'
-# ");
+# Python::with_gil(|py| {
+#     let names = PyCell::new(py, Names::new()).unwrap();
+#     pyo3::py_run!(py, names, r"
+#     try:
+#        names.merge(names)
+#        assert False, 'Unreachable'
+#     except RuntimeError as e:
+#        assert str(e) == 'Already borrowed'
+#     ");
+# })
 ```
 `Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
 Given this `#[pyclass]`, calling `names.merge(names)` in Python raises
@@ -410,9 +406,9 @@ Before:
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
-let gil = Python::acquire_gil();
-let py = gil.python();
+# Python::with_gil(|py| {
 let obj_ref = PyRef::new(py, MyClass {}).unwrap();
+# })
 ```
 
 After:
@@ -420,10 +416,10 @@ After:
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
-let gil = Python::acquire_gil();
-let py = gil.python();
+# Python::with_gil(|py| {
 let obj = PyCell::new(py, MyClass {}).unwrap();
 let obj_ref = obj.borrow();
+# })
 ```
 
 #### Object extraction
@@ -445,8 +441,7 @@ After:
 # use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}
 # #[pymethods] impl MyClass { #[new]fn new() -> Self { MyClass {} }}
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# Python::with_gil(|py| {
 # let typeobj = py.get_type::<MyClass>();
 # let d = [("c", typeobj)].into_py_dict(py);
 # let create_obj = || py.eval("c()", None, Some(d)).unwrap();
@@ -458,6 +453,7 @@ let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the ob
     // we need to drop obj_ref before we can extract a PyRefMut due to Rust's rules of references
 }
 let obj_ref_mut: PyRefMut<MyClass> = obj.extract().unwrap();
+# })
 ```
 
 

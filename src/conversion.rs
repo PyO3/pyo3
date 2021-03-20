@@ -18,10 +18,11 @@ use std::ptr::NonNull;
 ///
 /// ```
 /// use pyo3::{AsPyPointer, prelude::*};
-/// let gil = Python::acquire_gil();
-/// let dict = pyo3::types::PyDict::new(gil.python());
-/// // All native object wrappers implement AsPyPointer!!!
-/// assert_ne!(dict.as_ptr(), std::ptr::null_mut());
+/// Python::with_gil(|py| {
+///     let dict = pyo3::types::PyDict::new(py);
+///     // All native object wrappers implement AsPyPointer!!!
+///     assert_ne!(dict.as_ptr(), std::ptr::null_mut());
+/// });
 /// ```
 pub trait AsPyPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).

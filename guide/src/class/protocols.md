@@ -275,17 +275,12 @@ impl PyIterProtocol for Container {
     }
 }
 
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let inst = pyo3::PyCell::new(
-#     py,
-#     Container {
-#         iter: vec![1, 2, 3, 4],
-#     },
-# )
-# .unwrap();
-# pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
-# pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
+# Python::with_gil(|py| {
+#     let container = Container { iter: vec![1, 2, 3, 4] };
+#     let inst = pyo3::PyCell::new(py, container).unwrap();
+#     pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
+#     pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
+# });
 ```
 
 For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library

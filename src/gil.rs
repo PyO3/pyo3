@@ -178,8 +178,11 @@ where
     result
 }
 
-/// RAII type that represents the Global Interpreter Lock acquisition. To get hold of a value of
-/// this type, see [`Python::acquire_gil`](struct.Python.html#method.acquire_gil).
+/// RAII type that represents the Global Interpreter Lock acquisition.
+///
+/// Users are strongly encouraged to [`Python::with_gil`](struct.Python.html#method.with_gil)
+/// instead of directly constructing this type.
+/// See [`Python::acquire_gil`](struct.Python.html#method.acquire_gil) for more.
 ///
 /// # Examples
 /// ```

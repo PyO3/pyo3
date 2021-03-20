@@ -85,25 +85,25 @@ struct MyClass {
     num: i32,
     debug: bool,
 }
-let gil = Python::acquire_gil();
-let py = gil.python();
-let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
-{
-    let obj_ref = obj.borrow(); // Get PyRef
-    assert_eq!(obj_ref.num, 3);
-    // You cannot get PyRefMut unless all PyRefs are dropped
-    assert!(obj.try_borrow_mut().is_err());
-}
-{
-    let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
-    obj_mut.num = 5;
-    // You cannot get any other refs until the PyRefMut is dropped
-    assert!(obj.try_borrow().is_err());
-    assert!(obj.try_borrow_mut().is_err());
-}
+Python::with_gil(|py| {
+    let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
+    {
+        let obj_ref = obj.borrow(); // Get PyRef
+        assert_eq!(obj_ref.num, 3);
+        // You cannot get PyRefMut unless all PyRefs are dropped
+        assert!(obj.try_borrow_mut().is_err());
+    }
+    {
+        let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
+        obj_mut.num = 5;
+        // You cannot get any other refs until the PyRefMut is dropped
+        assert!(obj.try_borrow().is_err());
+        assert!(obj.try_borrow_mut().is_err());
+    }
 
-// You can convert `&PyCell` to a Python object
-pyo3::py_run!(py, obj, "assert obj.num == 5")
+    // You can convert `&PyCell` to a Python object
+    pyo3::py_run!(py, obj, "assert obj.num == 5");
+});
 ```
 
 `&PyCell<T>` is bounded by the same lifetime as a [`GILGuard`].
@@ -118,15 +118,14 @@ struct MyClass {
     num: i32,
 }
 fn return_myclass() -> Py<MyClass> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    Py::new(py, MyClass { num: 1 }).unwrap()
+    Python::with_gil(|py| Py::new(py, MyClass { num: 1 }).unwrap())
 }
-let gil = Python::acquire_gil();
 let obj = return_myclass();
-let cell = obj.as_ref(gil.python()); // Py<MyClass>::as_ref returns &PyCell<MyClass>
-let obj_ref = cell.borrow(); // Get PyRef<T>
-assert_eq!(obj_ref.num, 1);
+Python::with_gil(|py|{
+    let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
+    let obj_ref = cell.borrow(); // Get PyRef<T>
+    assert_eq!(obj_ref.num, 1);
+});
 ```
 
 ## Customizing the class
@@ -261,10 +260,10 @@ impl SubSubClass {
         SubClass::method2(super_).map(|x| x * v)
     }
 }
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
-# pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
+# Python::with_gil(|py| {
+#     let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
+#     pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
+# });
 ```
 
 You can also inherit native types such as `PyDict`, if they implement
@@ -274,8 +273,7 @@ However, because of some technical problems, we don't currently provide safe upc
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
 
 ```rust
-# #[cfg(Py_LIMITED_API)] fn main() {}
-# #[cfg(not(Py_LIMITED_API))] fn main() {
+# #[cfg(not(Py_LIMITED_API))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{AsPyPointer, PyNativeType};
@@ -300,10 +298,10 @@ impl DictWithCounter {
         dict.set_item(key, value)
     }
 }
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
-# pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+# Python::with_gil(|py| {
+#     let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
+#     pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+# });
 # }
 ```
 
@@ -563,10 +561,10 @@ impl MyClass {
     }
 }
 
-let gil = Python::acquire_gil();
-let py = gil.python();
-let my_class = py.get_type::<MyClass>();
-pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
+Python::with_gil(|py| {
+    let my_class = py.get_type::<MyClass>();
+    pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
+});
 ```
 
 Note that unlike class variables defined in Python code, class attributes defined in Rust cannot
@@ -712,8 +710,7 @@ This simple technique works for the case when there is zero or one implementatio
 The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:
 
 ```rust
-# #[cfg(not(feature = "multiple-pymethods"))]
-# {
+# #[cfg(not(feature = "multiple-pymethods"))] {
 # use pyo3::prelude::*;
 // Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
 
@@ -808,10 +805,10 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         collector.buffer_procs()
     }
 }
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-# let cls = py.get_type::<MyClass>();
-# pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
+# Python::with_gil(|py| {
+#     let cls = py.get_type::<MyClass>();
+#     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
+# });
 # }
 ```
 
