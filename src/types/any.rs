@@ -28,12 +28,13 @@ use std::os::raw::c_int;
 /// ```
 /// use pyo3::prelude::*;
 /// use pyo3::types::{PyAny, PyDict, PyList};
-/// let gil = Python::acquire_gil();
-/// let dict = PyDict::new(gil.python());
-/// assert!(dict.is_instance::<PyAny>().unwrap());
-/// let any: &PyAny = dict.as_ref();
-/// assert!(any.downcast::<PyDict>().is_ok());
-/// assert!(any.downcast::<PyList>().is_err());
+/// Python::with_gil(|py| {
+///     let dict = PyDict::new(py);
+///     assert!(dict.is_instance::<PyAny>().unwrap());
+///     let any: &PyAny = dict.as_ref();
+///     assert!(any.downcast::<PyDict>().is_ok());
+///     assert!(any.downcast::<PyList>().is_err());
+/// });
 /// ```
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
@@ -255,16 +256,16 @@ impl PyAny {
     /// # use pyo3::prelude::*;
     /// use pyo3::types::IntoPyDict;
     ///
-    /// let gil = Python::acquire_gil();
-    /// let py = gil.python();
-    /// let list = vec![3, 6, 5, 4, 7].to_object(py);
-    /// let dict = vec![("reverse", true)].into_py_dict(py);
-    /// list.call_method(py, "sort", (), Some(dict)).unwrap();
-    /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+    /// Python::with_gil(|py| {
+    ///     let list = vec![3, 6, 5, 4, 7].to_object(py);
+    ///     let dict = vec![("reverse", true)].into_py_dict(py);
+    ///     list.call_method(py, "sort", (), Some(dict)).unwrap();
+    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     ///
-    /// let new_element = 1.to_object(py);
-    /// list.call_method(py, "append", (new_element,), None).unwrap();
-    /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3, 1]);
+    ///     let new_element = 1.to_object(py);
+    ///     list.call_method(py, "append", (new_element,), None).unwrap();
+    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3, 1]);
+    /// });
     /// ```
     pub fn call_method(
         &self,

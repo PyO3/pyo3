@@ -170,8 +170,7 @@ For a `Py<PyList>`, the conversions are as below:
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyList;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# Python::with_gil(|py| {
 let list: Py<PyList> = PyList::empty(py).into();
 
 // To &PyList with Py::as_ref() (borrows from the Py)
@@ -184,14 +183,14 @@ let _: &PyList = list.into_ref(py);
 # let list = list_clone;
 // To Py<PyAny> (aka PyObject) with .into()
 let _: Py<PyAny> = list.into();
+# })
 ```
 
 For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
 
 ```rust
 # use pyo3::prelude::*;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# Python::with_gil(|py| {
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
@@ -215,6 +214,7 @@ let _: PyRef<MyClass> = my_class.try_borrow(py)?;
 let _: PyRefMut<MyClass> = my_class.try_borrow_mut(py)?;
 # Ok(())
 # }).unwrap();
+# });
 ```
 
 ### `PyCell<SomeType>`

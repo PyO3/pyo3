@@ -121,15 +121,15 @@ impl<T: PyClass> PyCellInner<T> {
 ///     name: &'static str,
 ///     author: &'static str,
 /// }
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
 /// let book = Book {
 ///     name: "The Man in the High Castle",
 ///     author: "Philip Kindred Dick",
 /// };
-/// let book_cell = PyCell::new(py, book).unwrap();
-/// // you can expose PyCell to Python snippets
-/// pyo3::py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
+/// Python::with_gil(|py| {
+///     let book_cell = PyCell::new(py, book).unwrap();
+///     // `&PyCell` implements `ToPyObject`, so you can use it in a Python snippet
+///     pyo3::py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
+/// });
 /// ```
 /// You can use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`,
 /// though you rarely need it.
@@ -154,10 +154,10 @@ impl<T: PyClass> PyCellInner<T> {
 ///         Ok(*counter)
 ///     }
 /// }
-/// # let gil = Python::acquire_gil();
-/// # let py = gil.python();
-/// # let counter = PyCell::new(py, Counter::default()).unwrap();
-/// # pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
+/// # Python::with_gil(|py| {
+/// #     let counter = PyCell::new(py, Counter::default()).unwrap();
+/// #     pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
+/// # });
 /// ```
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
@@ -245,18 +245,18 @@ impl<T: PyClass> PyCell<T> {
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
-    /// let gil = Python::acquire_gil();
-    /// let py = gil.python();
-    /// let c = PyCell::new(py, Class {}).unwrap();
-    /// {
-    ///     let m = c.borrow_mut();
-    ///     assert!(c.try_borrow().is_err());
-    /// }
+    /// Python::with_gil(|py| {
+    ///     let c = PyCell::new(py, Class {}).unwrap();
+    ///     {
+    ///         let m = c.borrow_mut();
+    ///         assert!(c.try_borrow().is_err());
+    ///     }
     ///
-    /// {
-    ///     let m = c.borrow();
-    ///     assert!(c.try_borrow().is_ok());
-    /// }
+    ///     {
+    ///         let m = c.borrow();
+    ///         assert!(c.try_borrow().is_ok());
+    ///     }
+    /// });
     /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
         self.thread_checker.ensure();
@@ -280,15 +280,15 @@ impl<T: PyClass> PyCell<T> {
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
-    /// let gil = Python::acquire_gil();
-    /// let py = gil.python();
-    /// let c = PyCell::new(py, Class {}).unwrap();
-    /// {
-    ///     let m = c.borrow();
-    ///     assert!(c.try_borrow_mut().is_err());
-    /// }
+    /// Python::with_gil(|py| {
+    ///     let c = PyCell::new(py, Class {}).unwrap();
+    ///     {
+    ///         let m = c.borrow();
+    ///         assert!(c.try_borrow_mut().is_err());
+    ///     }
     ///
-    /// assert!(c.try_borrow_mut().is_ok());
+    ///     assert!(c.try_borrow_mut().is_ok());
+    /// });
     /// ```
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
         self.thread_checker.ensure();
@@ -315,19 +315,19 @@ impl<T: PyClass> PyCell<T> {
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
-    /// let gil = Python::acquire_gil();
-    /// let py = gil.python();
-    /// let c = PyCell::new(py, Class {}).unwrap();
+    /// Python::with_gil(|py| {
+    ///     let c = PyCell::new(py, Class {}).unwrap();
     ///
-    /// {
-    ///     let m = c.borrow_mut();
-    ///     assert!(unsafe { c.try_borrow_unguarded() }.is_err());
-    /// }
+    ///     {
+    ///         let m = c.borrow_mut();
+    ///         assert!(unsafe { c.try_borrow_unguarded() }.is_err());
+    ///     }
     ///
-    /// {
-    ///     let m = c.borrow();
-    ///     assert!(unsafe { c.try_borrow_unguarded() }.is_ok());
-    /// }
+    ///     {
+    ///         let m = c.borrow();
+    ///         assert!(unsafe { c.try_borrow_unguarded() }.is_ok());
+    ///     }
+    /// });
     /// ```
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
         self.thread_checker.ensure();
@@ -485,10 +485,10 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 ///         format!("{}(base: {}, cnt: {})", slf.name, basename, refcnt)
 ///     }
 /// }
-/// # let gil = Python::acquire_gil();
-/// # let py = gil.python();
-/// # let sub = PyCell::new(py, Child::new()).unwrap();
-/// # pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
+/// # Python::with_gil(|py| {
+/// #     let sub = PyCell::new(py, Child::new()).unwrap();
+/// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
+/// # });
 /// ```
 pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
@@ -549,10 +549,10 @@ where
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
     ///     }
     /// }
-    /// # let gil = Python::acquire_gil();
-    /// # let py = gil.python();
-    /// # let sub = PyCell::new(py, Sub::new()).unwrap();
-    /// # pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
+    /// # Python::with_gil(|py| {
+    /// #     let sub = PyCell::new(py, Sub::new()).unwrap();
+    /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
+    /// # });
     /// ```
     pub fn into_super(self) -> PyRef<'p, U> {
         let PyRef { inner } = self;

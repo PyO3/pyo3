@@ -30,6 +30,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// ```
 /// # use pyo3::prelude::*;
 /// # use pyo3::py_run;
+/// # use pyo3::types::IntoPyDict;
 /// #[pyclass(subclass)]
 /// struct BaseClass {
 ///     #[pyo3(get)]
@@ -55,14 +56,18 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///             .add_subclass(SubSubClass { subsubname: "subsub" })
 ///     }
 /// }
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// let typeobj = py.get_type::<SubSubClass>();
-/// let inst = typeobj.call((), None).unwrap();
-/// py_run!(py, inst, r#"
-///         assert inst.basename == 'base'
-///         assert inst.subname == 'sub'
-///         assert inst.subsubname == 'subsub'"#);
+/// Python::with_gil(|py| {
+///     let typeobj = py.get_type::<SubSubClass>();
+///     let sub_sub_class = typeobj.call((), None).unwrap();
+///     py_run!(
+///         py,
+///         sub_sub_class,
+///         r#"
+///  assert sub_sub_class.basename == 'base'
+///  assert sub_sub_class.subname == 'sub'
+///  assert sub_sub_class.subsubname == 'subsub'"#
+///     );
+/// });
 /// ```
 pub struct PyClassInitializer<T: PyClass> {
     init: T,

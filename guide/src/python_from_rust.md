@@ -38,21 +38,20 @@ fn main() {
     let arg2 = "arg2";
     let arg3 = "arg3";
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let obj = SomeObject::new(py);
 
-    let obj = SomeObject::new(py);
+        // call object without empty arguments
+        obj.call0(py);
 
-    // call object without empty arguments
-    obj.call0(py);
+        // call object with PyTuple
+        let args = PyTuple::new(py, &[arg1, arg2, arg3]);
+        obj.call1(py, args);
 
-    // call object with PyTuple
-    let args = PyTuple::new(py, &[arg1, arg2, arg3]);
-    obj.call1(py, args);
-
-    // pass arguments as rust tuple
-    let args = (arg1, arg2, arg3);
-    obj.call1(py, args);
+        // pass arguments as rust tuple
+        let args = (arg1, arg2, arg3);
+        obj.call1(py, args);
+    });
 }
 ```
 
@@ -79,23 +78,22 @@ fn main() {
     let key2 = "key2";
     let val2 = 2;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let obj = SomeObject::new(py);
 
-    let obj = SomeObject::new(py);
+        // call object with PyDict
+        let kwargs = [(key1, val1)].into_py_dict(py);
+        obj.call(py, (), Some(kwargs));
 
-    // call object with PyDict
-    let kwargs = [(key1, val1)].into_py_dict(py);
-    obj.call(py, (), Some(kwargs));
+        // pass arguments as Vec
+        let kwargs = vec![(key1, val1), (key2, val2)];
+        obj.call(py, (), Some(kwargs.into_py_dict(py)));
 
-    // pass arguments as Vec
-    let kwargs = vec![(key1, val1), (key2, val2)];
-    obj.call(py, (), Some(kwargs.into_py_dict(py)));
-
-    // pass arguments as HashMap
-    let mut kwargs = HashMap::<&str, i32>::new();
-    kwargs.insert(key1, 1);
-    obj.call(py, (), Some(kwargs.into_py_dict(py)));
+        // pass arguments as HashMap
+        let mut kwargs = HashMap::<&str, i32>::new();
+        kwargs.insert(key1, 1);
+        obj.call(py, (), Some(kwargs.into_py_dict(py)));
+   });
 }
 ```
 

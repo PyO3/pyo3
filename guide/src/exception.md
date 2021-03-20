@@ -23,14 +23,11 @@ use pyo3::exceptions::PyException;
 
 create_exception!(mymodule, CustomError, PyException);
 
-fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+Python::with_gil(|py| {
     let ctx = [("CustomError", py.get_type::<CustomError>())].into_py_dict(py);
-
-    py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
-    py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
-}
+    pyo3::py_run!(py, *ctx, "assert str(CustomError) == \"<class 'mymodule.CustomError'>\"");
+    pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
+});
 ```
 
 When using PyO3 to create an extension module, you can add the new exception to
@@ -58,13 +55,11 @@ To raise an exception, first you need to obtain an exception type and construct 
 use pyo3::{Python, PyErr};
 use pyo3::exceptions::PyTypeError;
 
-fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+Python::with_gil(|py| {
     PyTypeError::new_err("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
-}
+});
 ```
 
 From `pyfunction`s and `pyclass` methods, returning an `Err(PyErr)` is enough;
@@ -103,14 +98,12 @@ In PyO3 every native type has access to the [`PyAny::is_instance`] method which 
 use pyo3::Python;
 use pyo3::types::{PyBool, PyList};
 
-fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+Python::with_gil(|py| {
     assert!(PyBool::new(py, true).is_instance::<PyBool>().unwrap());
     let list = PyList::new(py, &[1, 2, 3, 4]);
     assert!(!list.is_instance::<PyBool>().unwrap());
     assert!(list.is_instance::<PyList>().unwrap());
-}
+});
 ```
 [`PyAny::is_instance`] calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyType.html#method.is_instance)
 method to do the actual work.
@@ -120,10 +113,10 @@ To check the type of an exception, you can similarly do:
 ```rust
 # use pyo3::exceptions::PyTypeError;
 # use pyo3::prelude::*;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
+# Python::with_gil(|py| {
 # let err = PyTypeError::new_err(());
 err.is_instance::<PyTypeError>(py);
+# });
 ```
 
 ## Handling Rust errors

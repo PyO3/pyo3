@@ -133,10 +133,7 @@ impl PyByteArray {
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
-    /// # use pyo3::types::IntoPyDict;
-    /// # let gil = Python::acquire_gil();
-    /// # let py = gil.python();
-    /// #
+    /// # Python::with_gil(|py| {
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
     /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
@@ -144,8 +141,8 @@ impl PyByteArray {
     /// copied_message[11] = b'!';
     /// assert_eq!(b"Hello World!", copied_message.as_slice());
     ///
-    /// let locals = [("bytearray", bytearray)].into_py_dict(py);
-    /// py.run("assert bytearray == b'Hello World.'", None, Some(locals)).unwrap();
+    /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
+    /// # });
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         unsafe { self.as_bytes() }.to_vec()
