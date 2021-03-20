@@ -92,6 +92,12 @@ impl EmptyClass2 {
     #[staticmethod]
     #[name = "custom_static"]
     fn bar_static() {}
+
+    #[getter]
+    #[name = "custom_getter"]
+    fn foo(&self) -> i32 {
+        5
+    }
 }
 
 #[test]
@@ -106,8 +112,14 @@ fn custom_names() {
         typeobj,
         "typeobj.custom_static.__name__ == 'custom_static'"
     );
+    py_assert!(
+        py,
+        typeobj,
+        "typeobj.custom_getter.__name__ == 'custom_getter'"
+    );
     py_assert!(py, typeobj, "not hasattr(typeobj, 'bar')");
     py_assert!(py, typeobj, "not hasattr(typeobj, 'bar_static')");
+    py_assert!(py, typeobj, "not hasattr(typeobj, 'foo')");
 }
 
 #[pyclass]

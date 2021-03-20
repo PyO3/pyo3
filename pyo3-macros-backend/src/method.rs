@@ -468,7 +468,16 @@ fn parse_method_attributes(
     *attrs = new_attrs;
 
     let python_name = if allow_custom_name {
-        parse_method_name_attribute(ty.as_ref(), attrs, property_name)?
+        match parse_method_name_attribute(ty.as_ref(), attrs)? {
+            Some(python_name) if property_name.is_some() => {
+                return Err(syn::Error::new_spanned(
+                    python_name,
+                    "name cannot be specified twice",
+                ));
+            }
+            Some(python_name) => Some(python_name),
+            None => property_name,
+        }
     } else {
         property_name
     };
@@ -483,14 +492,13 @@ fn parse_method_attributes(
 fn parse_method_name_attribute(
     ty: Option<&MethodTypeAttribute>,
     attrs: &mut Vec<syn::Attribute>,
-    property_name: Option<syn::Ident>,
 ) -> syn::Result<Option<syn::Ident>> {
     use MethodTypeAttribute::*;
     let name = parse_name_attribute(attrs)?;
 
     // Reject some invalid combinations
     if let (Some(name), Some(ty)) = (&name, ty) {
-        if let New | Call | Getter | Setter = ty {
+        if let New | Call = ty {
             bail_spanned!(name.span() => "name not allowed with this method type");
         }
     }
@@ -499,7 +507,6 @@ fn parse_method_name_attribute(
     Ok(match ty {
         Some(New) => Some(syn::Ident::new("__new__", proc_macro2::Span::call_site())),
         Some(Call) => Some(syn::Ident::new("__call__", proc_macro2::Span::call_site())),
-        Some(Getter) | Some(Setter) => property_name,
         _ => name,
     })
 }
