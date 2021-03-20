@@ -18,6 +18,20 @@ fn empty_class() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
 
+#[pyclass]
+struct UnitClass;
+
+#[test]
+fn unit_class() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<UnitClass>();
+        // By default, don't allow creating instances from python.
+        assert!(typeobj.call((), None).is_err());
+
+        py_assert!(py, typeobj, "typeobj.__name__ == 'UnitClass'");
+    });
+}
+
 /// Line1
 ///Line2
 ///  Line3
@@ -288,4 +302,17 @@ fn test_pymethods_from_py_with() {
         "#
         );
     })
+}
+
+#[pyclass]
+struct TupleClass(i32);
+
+#[test]
+fn test_tuple_struct_class() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<TupleClass>();
+        assert!(typeobj.call((), None).is_err());
+
+        py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
+    });
 }

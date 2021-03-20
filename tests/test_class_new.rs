@@ -25,6 +25,51 @@ fn empty_class_with_new() {
 }
 
 #[pyclass]
+struct UnitClassWithNew;
+
+#[pymethods]
+impl UnitClassWithNew {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[test]
+fn unit_class_with_new() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<UnitClassWithNew>();
+        assert!(typeobj
+            .call((), None)
+            .unwrap()
+            .cast_as::<PyCell<UnitClassWithNew>>()
+            .is_ok());
+    });
+}
+
+#[pyclass]
+struct TupleClassWithNew(i32);
+
+#[pymethods]
+impl TupleClassWithNew {
+    #[new]
+    fn new(arg: i32) -> Self {
+        Self(arg)
+    }
+}
+
+#[test]
+fn tuple_class_with_new() {
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<TupleClassWithNew>();
+        let wrp = typeobj.call((42,), None).unwrap();
+        let obj = wrp.cast_as::<PyCell<TupleClassWithNew>>().unwrap();
+        let obj_ref = obj.borrow();
+        assert_eq!(obj_ref.0, 42);
+    });
+}
+
+#[pyclass]
 #[derive(Debug)]
 struct NewWithOneArg {
     _data: i32,

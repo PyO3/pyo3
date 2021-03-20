@@ -130,3 +130,31 @@ fn ref_getter_setter() {
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
 }
+
+#[pyclass]
+struct TupleClassGetterSetter(i32);
+
+#[pymethods]
+impl TupleClassGetterSetter {
+    #[getter(num)]
+    fn get_num(&self) -> i32 {
+        self.0
+    }
+
+    #[setter(num)]
+    fn set_num(&mut self, value: i32) {
+        self.0 = value;
+    }
+}
+
+#[test]
+fn tuple_struct_getter_setter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
+
+    py_assert!(py, inst, "inst.num == 10");
+    py_run!(py, inst, "inst.num = 20");
+    py_assert!(py, inst, "inst.num == 20");
+}
