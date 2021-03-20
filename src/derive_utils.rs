@@ -320,7 +320,7 @@ impl ModuleDef {
             return Err(crate::PyErr::fetch(py));
         }
         let module = py.from_owned_ptr_or_err::<PyModule>(module)?;
-        module.add("__doc__", doc)?;
+        module.setattr("__doc__", doc)?;
         initializer(py, module)?;
         Ok(crate::IntoPyPointer::into_ptr(module))
     }

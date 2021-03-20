@@ -226,6 +226,15 @@ fn test_module_dict() {
     py_assert!(py, module, "module.yay == 'me'");
 }
 
+#[test]
+fn test_module_dunder_all() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let module = pyo3::wrap_pymodule!(foobar_module)(py);
+
+    py_assert!(py, module, "module.__all__ == ['foobar']");
+}
+
 #[pyfunction]
 fn subfunction() -> String {
     "Subfunction".to_string()
