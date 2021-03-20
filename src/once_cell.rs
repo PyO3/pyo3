@@ -8,7 +8,7 @@ use std::cell::UnsafeCell;
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
 /// GIL. For an example, see [the FAQ section](https://pyo3.rs/main/faq.html) of the guide.
 ///
-/// # Example
+/// # Examples
 ///
 /// The following example shows how to use `GILOnceCell` to share a reference to a Python list
 /// between threads:

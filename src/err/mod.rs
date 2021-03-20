@@ -110,7 +110,7 @@ impl PyErr {
     /// instance of that type.
     /// Otherwise, a `TypeError` is created instead.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, IntoPy, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {
@@ -155,7 +155,7 @@ impl PyErr {
     ///
     /// The object will be normalized first if needed.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {
@@ -171,7 +171,7 @@ impl PyErr {
     ///
     /// The object will be normalized first if needed.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {
@@ -188,7 +188,7 @@ impl PyErr {
     ///
     /// The object will be normalized first if needed.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {
@@ -375,7 +375,7 @@ impl PyErr {
 
     /// Clone the PyErr. This requires the GIL, which is why PyErr does not implement Clone.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
     /// Python::with_gil(|py| {

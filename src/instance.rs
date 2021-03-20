@@ -113,7 +113,7 @@ where
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// Useful when returning GIL-bound references from functions. In the snippet below, note that
     /// the `'py` lifetime of the input GIL lifetime is also given to the returned reference:

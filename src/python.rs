@@ -140,7 +140,7 @@ impl Python<'_> {
     /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
     ///   initialized.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use pyo3::prelude::*;
     /// Python::with_gil(|py| -> PyResult<()> {
@@ -187,7 +187,7 @@ impl<'p> Python<'p> {
 
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict; use pyo3::wrap_pyfunction;
     /// use pyo3::exceptions::PyRuntimeError;
@@ -234,7 +234,7 @@ impl<'p> Python<'p> {
     /// do much with those without a `Python<'p>` token, for which you'd need to
     /// reacquire the GIL.
     ///
-    /// # Example
+    /// # Examples
     /// ```compile_fail
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyString;
@@ -277,7 +277,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     ///
-    /// # Example:
+    /// # Examples
     /// ```
     /// # use pyo3::{types::{PyBytes, PyDict}, prelude::*};
     /// # let gil = pyo3::Python::acquire_gil();
@@ -300,7 +300,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     ///
-    /// # Example:
+    /// # Examples
     /// ```
     /// use pyo3::{types::{PyBytes, PyDict}, prelude::*};
     /// let gil = pyo3::Python::acquire_gil();
@@ -398,7 +398,7 @@ impl<'p> Python<'p> {
     ///
     /// This is a wrapper around the ffi call Py_GetVersion.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// # use pyo3::Python;
     /// Python::with_gil(|py| {
@@ -418,7 +418,7 @@ impl<'p> Python<'p> {
     /// Gets the running Python interpreter version as a struct similar to
     /// `sys.version_info`.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// # use pyo3::Python;
     /// Python::with_gil(|py| {
@@ -599,7 +599,7 @@ impl<'p> Python<'p> {
     /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
     /// released.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// # use pyo3::prelude::*;
     /// let gil = Python::acquire_gil();

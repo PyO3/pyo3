@@ -456,7 +456,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// Wraps a borrowed reference to a value in a `PyCell<T>`.
 ///
 /// See the [`PyCell`](struct.PyCell.html) documentation for more.
-/// # Example
+/// # Examples
 /// You can use `PyRef` as an alternative of `&self` receiver when
 /// - You need to access the pointer of `PyCell`.
 /// - You want to get super class.

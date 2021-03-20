@@ -18,7 +18,7 @@ pub const VERSION: i32 = 4;
 ///
 /// See the [Python documentation](https://docs.python.org/3/library/marshal.html) for more details.
 ///
-/// # Example:
+/// # Examples
 /// ```
 /// # use pyo3::{marshal, types::PyDict};
 /// # let gil = pyo3::Python::acquire_gil();

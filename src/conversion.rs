@@ -14,7 +14,7 @@ use std::ptr::NonNull;
 ///
 /// This trait is implemented for types that internally wrap a pointer to a Python object.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use pyo3::{AsPyPointer, prelude::*};
