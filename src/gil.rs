@@ -58,7 +58,7 @@ pub(crate) fn gil_is_acquired() -> bool {
 ///   thread (the thread which originally initialized Python) also initializes
 ///   threading.
 ///
-/// # Example
+/// # Examples
 /// ```rust
 /// use pyo3::prelude::*;
 ///
@@ -124,7 +124,7 @@ pub fn prepare_freethreaded_python() {
 /// - No Python APIs can be used after this function has finished executing.
 /// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
 ///
-/// # Example
+/// # Examples
 /// ```rust
 /// use pyo3::prelude::*;
 ///
@@ -181,7 +181,7 @@ where
 /// RAII type that represents the Global Interpreter Lock acquisition. To get hold of a value of
 /// this type, see [`Python::acquire_gil`](struct.Python.html#method.acquire_gil).
 ///
-/// # Example
+/// # Examples
 /// ```
 /// use pyo3::Python;
 ///

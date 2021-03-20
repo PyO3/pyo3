@@ -25,7 +25,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///
 /// You can use this type to initalize complicatedly nested `#[pyclass]`.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use pyo3::prelude::*;
@@ -79,7 +79,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 
     /// Constructs a new initializer from base class' initializer.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// # use pyo3::prelude::*;
     /// #[pyclass]

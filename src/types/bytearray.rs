@@ -28,7 +28,7 @@ impl PyByteArray {
     /// * If `init` returns `Err(e)`, `new_with` will return `Err(e)`.
     /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyByteArray)`.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use pyo3::{prelude::*, types::PyByteArray};
     /// Python::with_gil(|py| -> PyResult<()> {
@@ -128,7 +128,7 @@ impl PyByteArray {
 
     /// Copies the contents of the bytearray to a Rust vector.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use pyo3::prelude::*;

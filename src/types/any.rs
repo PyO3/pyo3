@@ -23,7 +23,7 @@ use std::os::raw::c_int;
 /// See [the guide](https://pyo3.rs/main/types.html) for an explanation
 /// of the different Python object types.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use pyo3::prelude::*;
@@ -250,7 +250,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
-    /// # Example
+    /// # Examples
     /// ```rust
     /// # use pyo3::prelude::*;
     /// use pyo3::types::IntoPyDict;

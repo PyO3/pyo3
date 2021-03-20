@@ -8,7 +8,7 @@ use crate::{PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// # use pyo3::prelude::*;
