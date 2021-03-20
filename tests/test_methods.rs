@@ -727,3 +727,29 @@ fn test_raw_idents() {
         );
     })
 }
+
+// Regression test for issue 1505 - Python argument not detected correctly when inside a macro.
+
+#[pyclass]
+struct Issue1505 {}
+
+macro_rules! issue_1505 {
+    (
+        #[pymethods]
+        impl $ty: ty {
+            fn $fn:ident (&self, $arg:ident : $arg_ty:ty) {}
+        }
+    ) => {
+        #[pymethods]
+        impl $ty {
+            fn $fn(&self, $arg: $arg_ty) {}
+        }
+    };
+}
+
+issue_1505!(
+    #[pymethods]
+    impl Issue1505 {
+        fn issue_1505(&self, _py: Python<'_>) {}
+    }
+);
