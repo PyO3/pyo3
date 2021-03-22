@@ -151,36 +151,44 @@ impl CrossCompileConfig {
 }
 
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
-    let target = env::var("TARGET")?;
-    let host = env::var("HOST")?;
-    if target == host {
-        // Not cross-compiling
-        return Ok(None);
-    }
+    if env::var_os("PYO3_CROSS").is_none()
+        && env::var_os("PYO3_CROSS_LIB_DIR").is_none()
+        && env::var_os("PYO3_CROSS_INCLUDE_DIR").is_none()
+        && env::var_os("PYO3_CROSS_VERSION").is_none()
+        && env::var_os("PYO3_CROSS_PYTHON_VERSION").is_none()
+    {
+        let target = env::var("TARGET")?;
+        let host = env::var("HOST")?;
+        if target == host {
+            // Not cross-compiling
+            return Ok(None);
+        }
 
-    if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
-        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
-        return Ok(None);
-    }
+        if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
+            // Not cross-compiling to compile for 32-bit Python from windows 64-bit
+            return Ok(None);
+        }
 
-    if target == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
-        // Not cross-compiling to compile for x86-64 Python from macOS arm64
-        return Ok(None);
-    }
-    if target == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
-        // Not cross-compiling to compile for arm64 Python from macOS x86_64
-        return Ok(None);
-    }
+        if target == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
+            // Not cross-compiling to compile for x86-64 Python from macOS arm64
+            return Ok(None);
+        }
 
-    if host.starts_with(&format!(
-        "{}-{}-{}",
-        env::var("CARGO_CFG_TARGET_ARCH")?,
-        env::var("CARGO_CFG_TARGET_VENDOR")?,
-        env::var("CARGO_CFG_TARGET_OS")?
-    )) {
-        // Not cross-compiling if arch-vendor-os is all the same
-        // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
-        return Ok(None);
+        if target == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
+            // Not cross-compiling to compile for arm64 Python from macOS x86_64
+            return Ok(None);
+        }
+
+        if host.starts_with(&format!(
+            "{}-{}-{}",
+            env::var("CARGO_CFG_TARGET_ARCH")?,
+            env::var("CARGO_CFG_TARGET_VENDOR")?,
+            env::var("CARGO_CFG_TARGET_OS")?
+        )) {
+            // Not cross-compiling if arch-vendor-os is all the same
+            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
+            return Ok(None);
+        }
     }
 
     if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
