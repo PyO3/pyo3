@@ -806,7 +806,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
         println!("cargo:rustc-cfg=PyPy");
         if is_abi3 {
             warn!(
-                "PyPy does not yet support abi3 so the resulting wheel will be version-specific. \
+                "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
                 See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
             )
         }
