@@ -90,6 +90,10 @@ jobs:
         run: |
           echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown serde multiple-pymethods"
 
+      - if: matrix.msrv == 'MSRV'
+        name: Prepare minimal package versions (MSRV only)
+        run: cargo update -p hashbrown --precise 0.9.1
+
       - name: Build docs
         run: cargo doc --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
