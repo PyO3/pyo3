@@ -886,13 +886,17 @@ fn abi3_without_interpreter() -> Result<()> {
     println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
     println!("cargo:python_flags={}", flags);
 
-    // Unfortunately, on windows we can't build without at least providing
-    // python.lib to the linker. While maturin tells the linker the location
-    // of python.lib, we need to do the renaming here, otherwise cargo
-    // complains that the crate using pyo3 does not contains a `#[link(...)]`
-    // attribute with pythonXY.
     if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
+        // Unfortunately, on windows we can't build without at least providing
+        // python.lib to the linker. While maturin tells the linker the location
+        // of python.lib, we need to do the renaming here, otherwise cargo
+        // complains that the crate using pyo3 does not contains a `#[link(...)]`
+        // attribute with pythonXY.
         println!("cargo:rustc-link-lib=pythonXY:python3");
+
+        // Match `get_config_from_interpreter()` and `windows_hardcoded_cross_compile()`:
+        // assume "Py_ENABLE_SHARED" to be set on Windows.
+        println!("cargo:rustc-cfg=Py_SHARED");
     }
 
     Ok(())
