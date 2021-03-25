@@ -625,26 +625,23 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
 
 fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
     let link_name = if env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() == "windows" {
-        if env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() == "gnu" {
+        if is_abi3() {
+            // Link against python3.lib for the stable ABI on Windows.
+            // See https://www.python.org/dev/peps/pep-0384/#linkage
+            //
+            // This contains only the limited ABI symbols.
+            "pythonXY:python3".to_owned()
+        } else if env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() == "gnu" {
             // https://packages.msys2.org/base/mingw-w64-python
-            // TODO: ABI3?
             format!(
                 "pythonXY:python{}.{}",
                 config.version.major, config.version.minor
             )
         } else {
-            // Link against python3.lib for the stable ABI on Windows.
-            // See https://www.python.org/dev/peps/pep-0384/#linkage
-            //
-            // This contains only the limited ABI symbols.
-            if is_abi3() {
-                "pythonXY:python3".to_owned()
-            } else {
-                format!(
-                    "pythonXY:python{}{}",
-                    config.version.major, config.version.minor
-                )
-            }
+            format!(
+                "pythonXY:python{}{}",
+                config.version.major, config.version.minor
+            )
         }
     } else {
         match config.implementation {
