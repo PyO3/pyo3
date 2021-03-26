@@ -398,55 +398,52 @@ macro_rules! py_run_impl {
 }
 
 /// Test readme and user guide
-#[doc(hidden)]
+#[cfg(doctest)]
 pub mod doc_test {
-    macro_rules! doc_comment {
-        ($x:expr, $module:item) => {
-            #[doc = $x]
-            $module
+    macro_rules! doctest_impl {
+        ($doc:expr, $mod:ident) => {
+            #[doc = $doc]
+            mod $mod {}
         };
     }
 
     macro_rules! doctest {
-        ($x:expr, $y:ident) => {
-            doc_comment!(include_str!($x), mod $y {});
+        ($path:expr, $mod:ident) => {
+            doctest_impl!(include_str!(concat!("../", $path)), $mod);
         };
     }
 
-    doctest!("../README.md", readme_md);
-    doctest!("../guide/src/advanced.md", guide_advanced_md);
+    doctest!("README.md", readme_md);
+    doctest!("guide/src/advanced.md", guide_advanced_md);
     doctest!(
-        "../guide/src/building_and_distribution.md",
+        "guide/src/building_and_distribution.md",
         guide_building_and_distribution_md
     );
     doctest!(
-        "../guide/src/building_and_distribution/pypy.md",
+        "guide/src/building_and_distribution/pypy.md",
         guide_building_and_distribution_pypy_md
     );
-    doctest!("../guide/src/class.md", guide_class_md);
-    doctest!("../guide/src/class/protocols.md", guide_class_protocols_md);
-    doctest!("../guide/src/conversions.md", guide_conversions_md);
+    doctest!("guide/src/class.md", guide_class_md);
+    doctest!("guide/src/class/protocols.md", guide_class_protocols_md);
+    doctest!("guide/src/conversions.md", guide_conversions_md);
     doctest!(
-        "../guide/src/conversions/tables.md",
+        "guide/src/conversions/tables.md",
         guide_conversions_tables_md
     );
     doctest!(
-        "../guide/src/conversions/traits.md",
+        "guide/src/conversions/traits.md",
         guide_conversions_traits_md
     );
-    doctest!("../guide/src/debugging.md", guide_debugging_md);
-    doctest!("../guide/src/exception.md", guide_exception_md);
-    doctest!("../guide/src/function.md", guide_function_md);
-    doctest!("../guide/src/migration.md", guide_migration_md);
-    doctest!("../guide/src/module.md", guide_module_md);
-    doctest!("../guide/src/parallelism.md", guide_parallelism_md);
-    doctest!(
-        "../guide/src/python_from_rust.md",
-        guide_python_from_rust_md
-    );
-    doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
-    doctest!("../guide/src/trait_bounds.md", guide_trait_bounds_md);
-    doctest!("../guide/src/types.md", guide_types_md);
+    doctest!("guide/src/debugging.md", guide_debugging_md);
+    doctest!("guide/src/exception.md", guide_exception_md);
+    doctest!("guide/src/function.md", guide_function_md);
+    doctest!("guide/src/migration.md", guide_migration_md);
+    doctest!("guide/src/module.md", guide_module_md);
+    doctest!("guide/src/parallelism.md", guide_parallelism_md);
+    doctest!("guide/src/python_from_rust.md", guide_python_from_rust_md);
+    doctest!("guide/src/rust_cpython.md", guide_rust_cpython_md);
+    doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
+    doctest!("guide/src/types.md", guide_types_md);
 }
 
 // interim helper until #[cfg(panic = ...)] is stable
