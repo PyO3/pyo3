@@ -140,6 +140,7 @@ methods_trait!(PyMethods, py_methods);
 
 macro_rules! slots_trait {
     ($name:ident, $function_name: ident) => {
+        #[allow(clippy::upper_case_acronyms)]
         pub trait $name<T> {
             fn $function_name(self) -> &'static [ffi::PyType_Slot];
         }

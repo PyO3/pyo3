@@ -82,13 +82,13 @@ fn data_is_dropped() {
 
 #[allow(dead_code)]
 #[pyclass]
-struct GCIntegration {
+struct GcIntegration {
     self_ref: PyObject,
     dropped: TestDropCall,
 }
 
 #[pyproto]
-impl PyGCProtocol for GCIntegration {
+impl PyGCProtocol for GcIntegration {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
         visit.call(&self.self_ref)
     }
@@ -108,7 +108,7 @@ fn gc_integration() {
         let py = gil.python();
         let inst = PyCell::new(
             py,
-            GCIntegration {
+            GcIntegration {
                 self_ref: py.None(),
                 dropped: TestDropCall {
                     drop_called: Arc::clone(&drop_called),
@@ -128,10 +128,10 @@ fn gc_integration() {
 }
 
 #[pyclass(gc)]
-struct GCIntegration2 {}
+struct GcIntegration2 {}
 
 #[pyproto]
-impl PyGCProtocol for GCIntegration2 {
+impl PyGCProtocol for GcIntegration2 {
     fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
@@ -142,7 +142,7 @@ impl PyGCProtocol for GCIntegration2 {
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, GCIntegration2 {}).unwrap();
+    let inst = PyCell::new(py, GcIntegration2 {}).unwrap();
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 

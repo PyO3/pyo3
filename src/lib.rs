@@ -191,7 +191,7 @@ pub mod derive_utils;
 mod err;
 pub mod exceptions;
 /// Raw ffi declarations for the c interface of python
-#[allow(clippy::unknown_clippy_lints)]
+#[allow(clippy::upper_case_acronyms)]
 #[allow(clippy::missing_safety_doc)]
 pub mod ffi;
 pub mod freelist;
