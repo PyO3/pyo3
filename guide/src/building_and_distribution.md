@@ -84,17 +84,13 @@ Cross compiling PyO3 modules is relatively straightforward and requires a few pi
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
 * A Python interpreter that's already been compiled for your target.
 * A Python interpreter that is built for your host and available through the `PATH` or setting the [`PYO3_PYTHON`](#python-version) variable.
-* The headers that match the above interpreter.
 
-See https://github.com/japaric/rust-cross for a primer on cross compiling Rust in general.
+See [github.com/japaric/rust-cross](https://github.com/japaric/rust-cross) for a primer on cross compiling Rust in general.
 
 After you've obtained the above, you can build a cross compiled PyO3 module by setting a few extra environment variables:
 
-* `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file.
-* `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if pyo3 cannot determine the version to target by other means:
-  - From `PYO3_CROSS_INCLUDE_DIR` or abi3-py3* features when targeting Windows, or
-  - if there are multiple versions of python present in `PYO3_CROSS_LIB_DIR` when targeting unix.
-* `PYO3_CROSS_INCLUDE_DIR`: This variable can optionally be set to the directory containing the headers for the target's Python interpreter when targeting Windows.
+* `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import libraries for the Windows target.
+* `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 
@@ -112,13 +108,15 @@ export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 cargo build --target armv7-unknown-linux-gnueabihf
 ```
 
-Or another example with the same sys root but building for windows:
+Or another example with the same sys root but building for Windows:
 ```sh
-export PYO3_CROSS_INCLUDE_DIR="/home/pyo3/cross/sysroot/usr/include"
+export PYO3_CROSS_PYTHON_VERSION=3.9
 export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target x86_64-pc-windows-gnu
 ```
+
+Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
 ## Bazel
 
