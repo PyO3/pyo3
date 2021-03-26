@@ -446,11 +446,13 @@ pub trait PyNumberRPowProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberRLShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberRRShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
@@ -516,11 +518,13 @@ pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<()>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberILShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberIRShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
@@ -738,6 +742,7 @@ where
     crate::callback_body!(py, {
         let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
         let other = py.from_borrowed_ptr::<crate::PyAny>(other);
+        #[allow(clippy::needless_question_mark)]
         call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
         ffi::Py_INCREF(slf);
         Ok::<_, PyErr>(slf)

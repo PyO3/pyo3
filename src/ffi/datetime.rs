@@ -365,14 +365,12 @@ pub struct PyDateTime_CAPI {
     pub TZInfoType: *mut PyTypeObject,
     #[cfg(all(Py_3_7, not(PyPy)))]
     pub TimeZone_UTC: *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "_PyPyDate_FromDate")]
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
         month: c_int,
         day: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "_PyPyDateTime_FromDateAndTime")]
     pub DateTime_FromDateAndTime: unsafe extern "C" fn(
         year: c_int,
         month: c_int,
@@ -384,7 +382,6 @@ pub struct PyDateTime_CAPI {
         tzinfo: *mut PyObject,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "_PyPyTime_FromTime")]
     pub Time_FromTime: unsafe extern "C" fn(
         hour: c_int,
         minute: c_int,
@@ -393,7 +390,6 @@ pub struct PyDateTime_CAPI {
         tzinfo: *mut PyObject,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "_PyPyDelta_FromDelta")]
     pub Delta_FromDelta: unsafe extern "C" fn(
         days: c_int,
         seconds: c_int,

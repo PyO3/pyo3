@@ -197,6 +197,7 @@ macro_rules! create_exception_type_object {
 
 macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $layout:path) => (
+        #[allow(clippy::upper_case_acronyms)]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);

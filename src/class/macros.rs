@@ -162,6 +162,7 @@ macro_rules! py_binary_self_func {
             $crate::callback_body!(py, {
                 let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
+                #[allow(clippy::needless_question_mark)]
                 call_operator_mut!(py, slf_, $f, arg).convert(py)?;
                 ffi::Py_INCREF(slf);
                 Ok::<_, $crate::err::PyErr>(slf)
