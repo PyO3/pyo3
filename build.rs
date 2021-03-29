@@ -516,15 +516,18 @@ fn windows_hardcoded_cross_compile(
 fn load_cross_compile_info(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, BuildFlags)> {
-    match env::var("CARGO_CFG_TARGET_FAMILY") {
+    match env::var_os("CARGO_CFG_TARGET_FAMILY") {
         // Configure for unix platforms using the sysconfigdata file
-        Ok(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
+        Some(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
         // Use hardcoded interpreter config when targeting Windows
-        Ok(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
-        // ???
-        Ok(os) => Err(format!("Unsupported target OS family: {}", os).into()),
-        // wasm32-wasi / bare metal ?
-        Err(_) => Err("CARGO_CFG_TARGET_FAMILY is not set when cross-compiling".into()),
+        Some(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
+        // Waiting for users to tell us what they expect on their target platform
+        Some(os) => bail!(
+            "Unsupported target OS family for cross-compilation: {:?}",
+            os
+        ),
+        // Unknown os family - try to do something useful
+        None => load_cross_compile_from_sysconfigdata(cross_compile_config),
     }
 }
 
