@@ -849,6 +849,7 @@ fn main() -> Result<()> {
     if env::var_os("PYO3_NO_PYTHON").is_some()
         && env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()
     {
+        println!("cargo:rerun-if-env-changed=PYO3_NO_PYTHON");
         return abi3_without_interpreter();
     }
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
@@ -881,7 +882,13 @@ fn main() -> Result<()> {
         // TODO: Find out how we can set -undefined dynamic_lookup here (if this is possible)
     }
 
-    for var in ["LIB", "LD_LIBRARY_PATH", "PYO3_PYTHON"].iter() {
+    for var in &[
+        "LIB",
+        "LD_LIBRARY_PATH",
+        "PYO3_PYTHON",
+        "PYO3_CROSS_LIB_DIR",
+        "PYO3_CROSS_PYTHON_VERSION",
+    ] {
         println!("cargo:rerun-if-env-changed={}", var);
     }
 
