@@ -144,8 +144,6 @@ impl CrossCompileConfig {
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
     if env::var_os("PYO3_CROSS").is_none()
         && env::var_os("PYO3_CROSS_LIB_DIR").is_none()
-        && env::var_os("PYO3_CROSS_INCLUDE_DIR").is_none()
-        && env::var_os("PYO3_CROSS_VERSION").is_none()
         && env::var_os("PYO3_CROSS_PYTHON_VERSION").is_none()
     {
         let target = env::var("TARGET")?;
@@ -489,7 +487,7 @@ fn windows_hardcoded_cross_compile(
         ) {
             (Some(major), Some(minor), None) => (major, minor),
             _ => bail!(
-                "Expected major.minor version (e.g. 3.9) for PYO3_CROSS_VERSION, got `{}`",
+                "Expected major.minor version (e.g. 3.9) for PYO3_CROSS_PYTHON_VERSION, got `{}`",
                 version
             ),
         }
