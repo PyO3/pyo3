@@ -119,6 +119,11 @@ cargo build --target x86_64-pc-windows-gnu
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
+As an advanced feature, `PYO3_CROSS_NO_ENABLE_SHARED` can be set to enable support for static linking
+of the Python interpreter library when targeting Windows.
+It can only be used for building Rust applications embedding a Python interpreter,
+and is ignored for the Python extension modules (when `extension-module` feature is enabled).
+
 ## Bazel
 
 For an example of how to build python extensions using Bazel, see https://github.com/TheButlah/rules_pyo3

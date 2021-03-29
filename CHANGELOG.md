@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `PyObject_Check`, `PySuper_Check`, and `FreeFunc` [#1438](https://github.com/PyO3/pyo3/pull/1438)
 - Remove pyclass implementation details `Type`, `DESCRIPTION`, and `FLAGS` from `PyTypeInfo`. [#1456](https://github.com/PyO3/pyo3/pull/1456)
 - Remove `__doc__` from module's `__all__`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
-- Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality.
+- Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality. [#1521](https://github.com/PyO3/pyo3/pull/1521)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix use of Python argument for #[pymethods] inside macro expansions. [#1505](https://github.com/PyO3/pyo3/pull/1505)
 - Always use cross-compiling configuration if any of the environment variables are set. [#1514](https://github.com/PyO3/pyo3/pull/1514)
 - Support `EnvironmentError`, `IOError`, and `WindowsError` on PyPy. [#1533](https://github.com/PyO3/pyo3/pull/1533)
+- Assume `Py_ENABLE_SHARED` config to be enabled when cross-compiling for Windows, and add a manual override via `PYO3_CROSS_NO_ENABLE_SHARED`. [#1532](https://github.com/PyO3/pyo3/pull/1532)
 
 ## [0.13.2] - 2021-02-12
 ### Packaging

@@ -145,6 +145,7 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
     if env::var_os("PYO3_CROSS").is_none()
         && env::var_os("PYO3_CROSS_LIB_DIR").is_none()
         && env::var_os("PYO3_CROSS_PYTHON_VERSION").is_none()
+        && env::var_os("PYO3_CROSS_NO_ENABLE_SHARED").is_none()
     {
         let target = env::var("TARGET")?;
         let host = env::var("HOST")?;
@@ -503,10 +504,19 @@ fn windows_hardcoded_cross_compile(
 
     let python_version = PythonVersion { major, minor };
 
+    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    let no_enable_shared = env::var_os("PYO3_CROSS_NO_ENABLE_SHARED").is_some();
+
+    if no_enable_shared && is_extension_module {
+        warn!(
+            "PYO3_CROSS_NO_ENABLE_SHARED cannot be used for extension modules and will be ignored"
+        );
+    }
+
     let interpreter_config = InterpreterConfig {
         version: python_version,
         libdir: cross_compile_config.lib_dir.to_str().map(String::from),
-        shared: true,
+        shared: !no_enable_shared || is_extension_module,
         ld_version: format!("{}.{}", major, minor),
         base_prefix: "".to_string(),
         executable: PathBuf::new(),
@@ -904,6 +914,7 @@ fn main_impl() -> Result<()> {
         "PYO3_PYTHON",
         "PYO3_CROSS_LIB_DIR",
         "PYO3_CROSS_PYTHON_VERSION",
+        "PYO3_CROSS_NO_ENABLE_SHARED",
     ] {
         println!("cargo:rerun-if-env-changed={}", var);
     }
