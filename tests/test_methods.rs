@@ -753,3 +753,69 @@ issue_1505!(
         fn issue_1505(&self, _py: Python<'_>) {}
     }
 );
+
+// Regression test for issue 1506 - incorrect macro hygiene.
+// By applying the `#[pymethods]` attribute inside a macro_rules! macro, this separates the macro
+// call scope from the scope of the impl block. For this to work our macros must be careful to not
+// cheat hygeine!
+
+#[pyclass]
+struct Issue1506 {}
+
+macro_rules! issue_1506 {
+    (#[pymethods] $($body:tt)*) => {
+        #[pymethods]
+        $($body)*
+    };
+}
+
+issue_1506!(
+    #[pymethods]
+    impl Issue1506 {
+        fn issue_1506(
+            &self,
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+
+        #[new]
+        fn issue_1506_new(
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) -> Self {
+            Issue1506 {}
+        }
+
+        #[getter("foo")]
+        fn issue_1506_getter(&self, _py: Python<'_>) -> i32 {
+            5
+        }
+
+        #[setter("foo")]
+        fn issue_1506_setter(&self, _py: Python<'_>, _value: i32) {}
+
+        #[staticmethod]
+        fn issue_1506_static(
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+
+        #[classmethod]
+        fn issue_1506_class(
+            _cls: &PyType,
+            _py: Python<'_>,
+            _arg: &PyAny,
+            _args: &PyTuple,
+            _kwargs: Option<&PyDict>,
+        ) {
+        }
+    }
+);

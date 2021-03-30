@@ -94,17 +94,18 @@ pub fn impl_wrap_cfunction_with_keywords(
 ) -> Result<TokenStream> {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
-    let body = impl_arg_params(&spec, Some(cls), body)?;
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(&spec, Some(cls), body, &py)?;
     Ok(quote! {{
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            pyo3::callback::handle_panic(|_py| {
+            pyo3::callback::handle_panic(|#py| {
                 #slf
-                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                 #body
             })
@@ -138,7 +139,8 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
     let name = &spec.name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
-    let body = impl_arg_params(spec, Some(cls), cb)?;
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(spec, Some(cls), cb, &py)?;
 
     Ok(quote! {{
         #[allow(unused_mut)]
@@ -149,12 +151,12 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
         {
             use pyo3::callback::IntoPyCallbackOutput;
 
-            pyo3::callback::handle_panic(|_py| {
-                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            pyo3::callback::handle_panic(|#py| {
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
-                let initializer: pyo3::PyClassInitializer::<#cls> = #body.convert(_py)?;
-                let cell = initializer.create_cell_from_subtype(_py, subtype)?;
+                let initializer: pyo3::PyClassInitializer::<#cls> = #body.convert(#py)?;
+                let cell = initializer.create_cell_from_subtype(#py, subtype)?;
                 Ok(cell as *mut pyo3::ffi::PyObject)
             })
         }
@@ -167,8 +169,8 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
     let name = &spec.name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(&_cls, #(#names),*)) };
-
-    let body = impl_arg_params(spec, Some(cls), cb)?;
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(spec, Some(cls), cb, &py)?;
 
     Ok(quote! {{
         #[allow(unused_mut)]
@@ -177,10 +179,10 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            pyo3::callback::handle_panic(|_py| {
-                let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
-                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            pyo3::callback::handle_panic(|#py| {
+                let _cls = pyo3::types::PyType::from_type_ptr(#py, _cls as *mut pyo3::ffi::PyTypeObject);
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                 #body
             })
@@ -194,8 +196,8 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
     let name = &spec.name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(#(#names),*)) };
-
-    let body = impl_arg_params(spec, Some(cls), cb)?;
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(spec, Some(cls), cb, &py)?;
 
     Ok(quote! {{
         #[allow(unused_mut)]
@@ -204,9 +206,9 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            pyo3::callback::handle_panic(|_py| {
-                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            pyo3::callback::handle_panic(|#py| {
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                 #body
             })
@@ -349,6 +351,7 @@ pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
     body: TokenStream,
+    py: &syn::Ident,
 ) -> Result<TokenStream> {
     if spec.args.is_empty() {
         return Ok(body);
@@ -382,11 +385,20 @@ pub fn impl_arg_params(
     }
 
     let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
+    let args_array = syn::Ident::new("output", Span::call_site());
 
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
     for (idx, arg) in spec.args.iter().enumerate() {
-        param_conversion.push(impl_arg_param(&arg, &spec, idx, self_, &mut option_pos)?);
+        param_conversion.push(impl_arg_param(
+            &arg,
+            &spec,
+            idx,
+            self_,
+            &mut option_pos,
+            py,
+            &args_array,
+        )?);
     }
 
     let (mut accept_args, mut accept_kwargs) = (false, false);
@@ -422,8 +434,8 @@ pub fn impl_arg_params(
                 accept_varkeywords: #accept_kwargs,
             };
 
-            let mut output = [None; #num_params];
-            let (_args, _kwargs) = DESCRIPTION.extract_arguments(_args, _kwargs, &mut output)?;
+            let mut #args_array = [None; #num_params];
+            let (_args, _kwargs) = DESCRIPTION.extract_arguments(_args, _kwargs, &mut #args_array)?;
 
             #(#param_conversion)*
 
@@ -440,20 +452,25 @@ fn impl_arg_param(
     idx: usize,
     self_: Option<&syn::Type>,
     option_pos: &mut usize,
+    py: &syn::Ident,
+    args_array: &syn::Ident,
 ) -> Result<TokenStream> {
+    // Use this macro inside this function, to ensure that all code generated here is associated
+    // with the function argument
+    macro_rules! quote_arg_span {
+        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
+    }
+
     let arg_name = syn::Ident::new(&format!("arg{}", idx), Span::call_site());
 
     if arg.py {
-        return Ok(quote_spanned! {
-            arg.ty.span() =>
-            let #arg_name = _py;
-        });
+        return Ok(quote_arg_span! { let #arg_name = #py; });
     }
 
     let ty = arg.ty;
     let name = arg.name;
-    let transform_error = quote! {
-        |e| pyo3::derive_utils::argument_extraction_error(_py, stringify!(#name), e)
+    let transform_error = quote_arg_span! {
+        |e| pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
     };
 
     if spec.is_args(&name) {
@@ -461,38 +478,37 @@ fn impl_arg_param(
             arg.optional.is_none(),
             arg.name.span() => "args cannot be optional"
         );
-        return Ok(quote_spanned! {
-            arg.ty.span() =>
-            let #arg_name = _args.unwrap().extract()
-                .map_err(#transform_error)?;
+        return Ok(quote_arg_span! {
+            let #arg_name = _args.unwrap().extract().map_err(#transform_error)?;
         });
     } else if spec.is_kwargs(&name) {
         ensure_spanned!(
             arg.optional.is_some(),
             arg.name.span() => "kwargs must be Option<_>"
         );
-        return Ok(quote_spanned! {
-            arg.ty.span() =>
+        return Ok(quote_arg_span! {
             let #arg_name = _kwargs.map(|kwargs| kwargs.extract())
                 .transpose()
                 .map_err(#transform_error)?;
         });
     }
 
-    let arg_value = quote!(output[#option_pos]);
+    let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
     let default = match (spec.default_value(name), arg.optional.is_some()) {
-        (Some(default), true) if default.to_string() != "None" => quote! { Some(#default) },
-        (Some(default), _) => quote! { #default },
-        (None, true) => quote! { None },
-        (None, false) => quote! { panic!("Failed to extract required method argument") },
+        (Some(default), true) if default.to_string() != "None" => {
+            quote_arg_span! { Some(#default) }
+        }
+        (Some(default), _) => quote_arg_span! { #default },
+        (None, true) => quote_arg_span! { None },
+        (None, false) => quote_arg_span! { panic!("Failed to extract required method argument") },
     };
 
     let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
-        quote! {#expr_path(_obj).map_err(#transform_error)?}
+        quote_arg_span! { #expr_path(_obj).map_err(#transform_error)?}
     } else {
-        quote! {_obj.extract().map_err(#transform_error)?}
+        quote_arg_span! { _obj.extract().map_err(#transform_error)?}
     };
 
     return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
@@ -500,23 +516,22 @@ fn impl_arg_param(
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
             (
-                quote! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
+                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
                 if mut_.is_some() {
-                    quote! { _tmp.as_deref_mut() }
+                    quote_arg_span! { _tmp.as_deref_mut() }
                 } else {
-                    quote! { _tmp.as_deref() }
+                    quote_arg_span! { _tmp.as_deref() }
                 },
             )
         } else {
             // Get &T from PyRef<T>
             (
-                quote! { <#tref as pyo3::derive_utils::ExtractExt>::Target },
-                quote! { &#mut_ *_tmp },
+                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt>::Target },
+                quote_arg_span! { &#mut_ *_tmp },
             )
         };
 
-        Ok(quote_spanned! {
-            arg.ty.span() =>
+        Ok(quote_arg_span! {
             let #mut_ _tmp: #target_ty = match #arg_value {
                 Some(_obj) => #extract,
                 None => #default,
@@ -524,8 +539,7 @@ fn impl_arg_param(
             let #arg_name = #borrow_tmp;
         })
     } else {
-        Ok(quote_spanned! {
-            arg.ty.span() =>
+        Ok(quote_arg_span! {
             let #arg_name = match #arg_value {
                 Some(_obj) => #extract,
                 None => #default,

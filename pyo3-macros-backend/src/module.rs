@@ -225,17 +225,18 @@ fn function_c_wrapper(
         };
         slf_module = None;
     };
-    let body = impl_arg_params(spec, None, cb)?;
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(spec, None, cb, &py)?;
     Ok(quote! {
         unsafe extern "C" fn #wrapper_ident(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            pyo3::callback::handle_panic(|_py| {
+            pyo3::callback::handle_panic(|#py| {
                 #slf_module
-                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                 #body
             })
