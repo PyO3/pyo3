@@ -390,12 +390,16 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
             cross.lib_dir.display()
         );
     } else if sysconfig_paths.len() > 1 {
-        bail!(
-            "Detected multiple possible python versions, please set the PYO3_PYTHON_VERSION \
-            variable to the wanted version on your system or set the _PYTHON_SYSCONFIGDATA_NAME \
-            variable to the wanted sysconfigdata file name\nsysconfigdata paths = {:?}",
-            sysconfig_paths
-        )
+        let mut error_msg = String::from(
+            "Detected multiple possible Python versions. Please set either the \
+            PYO3_CROSS_PYTHON_VERSION variable to the wanted version or the \
+            _PYTHON_SYSCONFIGDATA_NAME variable to the wanted sysconfigdata file name.\n\n\
+            sysconfigdata files found:",
+        );
+        for path in sysconfig_paths {
+            error_msg += &format!("\n\t{}", path.display());
+        }
+        bail!("{}", error_msg);
     }
 
     Ok(sysconfig_paths.remove(0))
@@ -846,7 +850,7 @@ fn abi3_without_interpreter() -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+fn main_impl() -> Result<()> {
     // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
     // We only check for the abi3-py3{ABI3_MAX_MINOR} because lower versions depend on it.
     if env::var_os("PYO3_NO_PYTHON").is_some()
@@ -913,4 +917,12 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn main() {
+    // Print out error messages using display, to get nicer formatting.
+    let _ = main_impl().map_err(|e| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1)
+    });
 }
