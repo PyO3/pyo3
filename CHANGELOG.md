@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix inability to add `#[text_signature]` to some `#[pyproto]` methods. [#1483](https://github.com/PyO3/pyo3/pull/1483)
 - Fix use of Python argument for #[pymethods] inside macro expansions. [#1505](https://github.com/PyO3/pyo3/pull/1505)
 - Always use cross-compiling configuration if any of the environment variables are set. [#1514](https://github.com/PyO3/pyo3/pull/1514)
+- Support `EnvironmentError`, `IOError`, and `WindowsError` on PyPy. [#1533](https://github.com/PyO3/pyo3/pull/1533)
 
 ## [0.13.2] - 2021-02-12
 ### Packaging

@@ -283,11 +283,12 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyExc_TimeoutError")]
     pub static mut PyExc_TimeoutError: *mut PyObject;
 
-    #[cfg(not(all(windows, PyPy)))]
+    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
     pub static mut PyExc_EnvironmentError: *mut PyObject;
-    #[cfg(not(all(windows, PyPy)))]
+    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
     pub static mut PyExc_IOError: *mut PyObject;
-    #[cfg(all(windows, not(PyPy)))]
+    #[cfg(windows)]
+    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
     pub static mut PyExc_WindowsError: *mut PyObject;
 
     pub static mut PyExc_RecursionErrorInst: *mut PyObject;
