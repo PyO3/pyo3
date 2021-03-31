@@ -17,13 +17,15 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
-use crate::err::{self, PyResult};
-use crate::{exceptions, ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, Python};
-use std::ffi::CStr;
+use crate::{
+    err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyResult,
+    Python,
+};
 use std::marker::PhantomData;
 use std::os::raw;
 use std::pin::Pin;
 use std::{cell, mem, ptr, slice};
+use std::{ffi::CStr, fmt::Debug};
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 // use Pin<Box> because Python expects that the Py_buffer struct has a stable memory address
@@ -34,6 +36,24 @@ pub struct PyBuffer<T>(Pin<Box<ffi::Py_buffer>>, PhantomData<T>);
 // Accessing the buffer contents is protected using the GIL.
 unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
+
+impl<T> Debug for PyBuffer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("PyBuffer")
+            .field("buf", &self.0.buf)
+            .field("obj", &self.0.obj)
+            .field("len", &self.0.len)
+            .field("itemsize", &self.0.itemsize)
+            .field("readonly", &self.0.readonly)
+            .field("ndim", &self.0.ndim)
+            .field("format", &self.0.format)
+            .field("shape", &self.0.shape)
+            .field("strides", &self.0.strides)
+            .field("suboffsets", &self.0.suboffsets)
+            .field("internal", &self.0.internal)
+            .finish()
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ElementType {
@@ -147,19 +167,6 @@ pub unsafe trait Element: Copy {
     fn is_compatible_format(format: &CStr) -> bool;
 }
 
-fn validate(b: &ffi::Py_buffer) -> PyResult<()> {
-    // shape and stride information must be provided when we use PyBUF_FULL_RO
-    if b.shape.is_null() {
-        return Err(exceptions::PyBufferError::new_err("Shape is Null"));
-    }
-    if b.strides.is_null() {
-        return Err(exceptions::PyBufferError::new_err(
-            "PyBuffer: Strides is Null",
-        ));
-    }
-    Ok(())
-}
-
 impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
     fn extract(obj: &PyAny) -> PyResult<PyBuffer<T>> {
         Self::get(obj)
@@ -169,25 +176,37 @@ impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
 impl<T: Element> PyBuffer<T> {
     /// Get the underlying buffer from the specified python object.
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
-        unsafe {
-            let mut buf = Box::pin(ffi::Py_buffer::new());
+        // TODO: use nightly API Box::new_uninit() once stable
+        let mut buf = Box::new(mem::MaybeUninit::uninit());
+        let buf: Box<ffi::Py_buffer> = unsafe {
             err::error_on_minusone(
                 obj.py(),
-                ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO),
+                ffi::PyObject_GetBuffer(obj.as_ptr(), buf.as_mut_ptr(), ffi::PyBUF_FULL_RO),
             )?;
-            validate(&buf)?;
-            let buf = PyBuffer(buf, PhantomData);
-            // Type Check
-            if mem::size_of::<T>() == buf.item_size()
-                && (buf.0.buf as usize) % mem::align_of::<T>() == 0
-                && T::is_compatible_format(buf.format())
-            {
-                Ok(buf)
-            } else {
-                Err(exceptions::PyBufferError::new_err(
-                    "Incompatible type as buffer",
-                ))
-            }
+            // Safety: buf is initialized by PyObject_GetBuffer.
+            // TODO: use nightly API Box::assume_init() once stable
+            mem::transmute(buf)
+        };
+        // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
+        // will call PyBuffer_Release (thus avoiding any leaks).
+        let buf = PyBuffer(Pin::from(buf), PhantomData);
+
+        if buf.0.shape.is_null() {
+            Err(PyBufferError::new_err("shape is null"))
+        } else if buf.0.strides.is_null() {
+            Err(PyBufferError::new_err("strides is null"))
+        } else if mem::size_of::<T>() != buf.item_size() || !T::is_compatible_format(buf.format()) {
+            Err(PyBufferError::new_err(format!(
+                "buffer contents are not compatible with {}",
+                std::any::type_name::<T>()
+            )))
+        } else if buf.0.buf.align_offset(mem::align_of::<T>()) != 0 {
+            Err(PyBufferError::new_err(format!(
+                "buffer contents are insufficiently aligned for {}",
+                std::any::type_name::<T>()
+            )))
+        } else {
+            Ok(buf)
         }
     }
 
@@ -441,9 +460,11 @@ impl<T: Element> PyBuffer<T> {
 
     fn copy_to_slice_impl(&self, py: Python, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(exceptions::PyBufferError::new_err(
-                "Slice length does not match buffer length.",
-            ));
+            return Err(PyBufferError::new_err(format!(
+                "slice to copy to (of length {}) does not match buffer length of {}",
+                target.len(),
+                self.item_count()
+            )));
         }
         unsafe {
             err::error_on_minusone(
@@ -525,12 +546,13 @@ impl<T: Element> PyBuffer<T> {
 
     fn copy_from_slice_impl(&self, py: Python, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
-            return buffer_readonly_error();
-        }
-        if mem::size_of_val(source) != self.len_bytes() {
-            return Err(exceptions::PyBufferError::new_err(
-                "Slice length does not match buffer length.",
-            ));
+            return Err(PyBufferError::new_err("cannot write to read-only buffer"));
+        } else if mem::size_of_val(source) != self.len_bytes() {
+            return Err(PyBufferError::new_err(format!(
+                "slice to copy from (of length {}) does not match buffer length of {}",
+                source.len(),
+                self.item_count()
+            )));
         }
         unsafe {
             err::error_on_minusone(
@@ -560,13 +582,6 @@ impl<T: Element> PyBuffer<T> {
             ptr::drop_in_place(inner);
         }
     }
-}
-
-#[inline(always)]
-fn buffer_readonly_error() -> PyResult<()> {
-    Err(exceptions::PyBufferError::new_err(
-        "Cannot write to read-only buffer.",
-    ))
 }
 
 impl<T> Drop for PyBuffer<T> {
