@@ -95,7 +95,6 @@ jobs:
         run: cargo update -p hashbrown --precise 0.9.1
 
       - name: Build docs
-<<<<<<< HEAD
         run: cargo doc --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Build (no features)
@@ -108,33 +107,16 @@ jobs:
 
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
-=======
-        run: cargo doc --features "num-bigint num-complex hashbrown" --verbose
-
-      - name: Build without default features
-        run: cargo build --no-default-features --verbose
-
-      - name: Build with default features
-        run: cargo build --features "num-bigint num-complex hashbrown" --verbose
->>>>>>> set rust target through env
 
       # Run tests (except on PyPy, because no embedding API).
       - if: matrix.python-version != 'pypy-3.6'
         name: Test
-<<<<<<< HEAD
         run: cargo test --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests again, but in abi3 mode
       - if: matrix.python-version != 'pypy-3.6'
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
-=======
-        run: cargo test --features "num-bigint num-complex hashbrown"
-      # Run tests again, but in abi3 mode
-      - if: matrix.python-version != 'pypy-3.6'
-        name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3,macros"
->>>>>>> set rust target through env
 
       # Run tests again, for abi3-py36 (the minimal Python version)
       - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
@@ -159,10 +141,7 @@ jobs:
           TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
 
     env:
-<<<<<<< HEAD
       CARGO_TERM_VERBOSE: true
-=======
->>>>>>> set rust target through env
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
