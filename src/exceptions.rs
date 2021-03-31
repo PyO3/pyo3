@@ -274,11 +274,9 @@ impl_native_exception!(PyPermissionError, PyExc_PermissionError);
 impl_native_exception!(PyProcessLookupError, PyExc_ProcessLookupError);
 impl_native_exception!(PyTimeoutError, PyExc_TimeoutError);
 
-#[cfg(not(all(windows, PyPy)))]
 impl_native_exception!(PyEnvironmentError, PyExc_EnvironmentError);
-#[cfg(not(all(windows, PyPy)))]
 impl_native_exception!(PyIOError, PyExc_IOError);
-#[cfg(all(windows, not(PyPy)))]
+#[cfg(windows)]
 impl_native_exception!(PyWindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {
