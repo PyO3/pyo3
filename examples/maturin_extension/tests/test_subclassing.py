@@ -1,6 +1,6 @@
 import platform
 
-from maturin_extension import subclassing
+import maturin_extension.subclassing
 
 PYPY = platform.python_implementation() == "PyPy"
 

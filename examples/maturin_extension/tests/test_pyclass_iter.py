@@ -1,5 +1,5 @@
 import pytest
-from maturin_extension import pyclass_iter
+import maturin_extension.pyclass_iter
 
 
 def test_iter():

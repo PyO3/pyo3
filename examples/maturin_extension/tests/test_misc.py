@@ -1,4 +1,4 @@
-from maturin_extension import misc
+import maturin_extension.misc
 
 
 def test_issue_219():

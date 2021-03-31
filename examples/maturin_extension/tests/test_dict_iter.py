@@ -1,5 +1,5 @@
 import pytest
-from maturin_extension import dict_iter as rdi
+import maturin_extension.dict_iter as rdi
 
 
 @pytest.mark.parametrize("size", [64, 128, 256])

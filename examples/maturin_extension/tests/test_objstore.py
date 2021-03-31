@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from maturin_extension import objstore
+import maturin_extension.objstore
 
 PYPY = platform.python_implementation() == "PyPy"
 

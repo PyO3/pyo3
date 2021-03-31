@@ -4,7 +4,7 @@ import platform
 
 import psutil
 import pytest
-from maturin_extension import buf_and_str as bf
+import maturin_extension.buf_and_str as bf
 
 PYPY = platform.python_implementation() == "PyPy"
 

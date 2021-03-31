@@ -1,7 +1,7 @@
 from hypothesis import given, assume
 from hypothesis import strategies as st
 
-from maturin_extension import othermod
+import maturin_extension.othermod
 
 INTEGER32_ST = st.integers(min_value=(-(2 ** 31)), max_value=(2 ** 31 - 1))
 USIZE_ST = st.integers(min_value=othermod.USIZE_MIN, max_value=othermod.USIZE_MAX)
