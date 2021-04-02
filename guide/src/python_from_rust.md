@@ -57,7 +57,7 @@ fn main() {
 
 ### Creating keyword arguments
 
-For the `call` and `call_method` APIs, `kwargs` can be `None` or `Some(&PyDict)`. You can use the [`IntoPyDict`](https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html) trait to convert other dict-like containers, e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and `Vec`s where each element is a two-element tuple.
+For the `call` and `call_method` APIs, `kwargs` can be `None` or `Some(&PyDict)`. You can use the [`IntoPyDict`]({{#PYO3_DOCS_URL}}/pyo3/types/trait.IntoPyDict.html) trait to convert other dict-like containers, e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and `Vec`s where each element is a two-element tuple.
 
 ```rust
 use pyo3::prelude::*;
@@ -103,7 +103,7 @@ If you already have some existing Python code that you need to execute from Rust
 
 ### Want to access Python APIs? Then use `PyModule::import`.
 
-[`Pymodule::import`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyModule.html#method.import) can
+[`Pymodule::import`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.import) can
 be used to get handle to a Python module from Rust. You can use this to import and use any Python
 module available in your environment.
 
@@ -122,7 +122,7 @@ fn main() -> PyResult<()> {
 
 ### Want to run just an expression? Then use `eval`.
 
-[`Python::eval`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.eval) is
+[`Python::eval`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
 and return the evaluated value as a `&PyAny` object.
 
@@ -195,7 +195,7 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 ## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[PyModule::from_code](https://docs.rs/pyo3/latest/pyo3/types/struct.PyModule.html#method.from_code)
+[PyModule::from_code]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
@@ -226,8 +226,8 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
-[`Python::run`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.run
-[`py_run!`]: https://docs.rs/pyo3/latest/pyo3/macro.py_run.html
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
+[`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?
 

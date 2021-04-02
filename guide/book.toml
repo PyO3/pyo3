@@ -2,3 +2,6 @@
 title = "PyO3 user guide"
 description = "PyO3 user guide"
 author = "PyO3 Project and Contributors"
+
+[preprocessor.pyo3_version]
+command = "python guide/pyo3_version.py"

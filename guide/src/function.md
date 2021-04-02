@@ -202,14 +202,14 @@ then use a `#[pyclass]` struct with that container as a field as a way to pass t
 the FFI barrier. You can even make that class callable with `__call__` so it looks like a function
 in Python code.
 
-[`PyAny::is_callable`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.is_callable
-[`PyAny::call`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call
-[`PyAny::call0`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call0
-[`PyAny::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call1
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
-[`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html
-[`PyFunction`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyFunction.html
-[`PyCFunction`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyCFunction.html
+[`PyAny::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.is_callable
+[`PyAny::call`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call
+[`PyAny::call0`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call0
+[`PyAny::call1`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call1
+[`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
+[`wrap_pyfunction!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.wrap_pyfunction.html
+[`PyFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFunction.html
+[`PyCFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyCFunction.html
 
 ### Accessing the module of a function
 
