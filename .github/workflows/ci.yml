@@ -45,7 +45,7 @@ jobs:
       fail-fast: false  # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6]
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6, pypy-3.7]
         platform: [
           { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
@@ -53,8 +53,11 @@ jobs:
           { os: "windows-latest", python-architecture: "x86", rust-target: "i686-pc-windows-msvc" },
         ]
         exclude:
-          # There is no 64-bit pypy on windows
+          # There is no 64-bit pypy on windows for pypy-3.6
           - python-version: pypy-3.6
+            platform: { os: "windows-latest", python-architecture: "x64" }
+          # pypy on windows for pypy-3.7 coming in next PyPy release
+          - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x64" }
         include:
           # Test minimal supported Rust version
@@ -101,7 +104,7 @@ jobs:
         run: cargo build --lib --tests --no-default-features
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: matrix.python-version != 'pypy-3.6'
+      - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
         run: cargo test --no-default-features
 
@@ -109,17 +112,17 @@ jobs:
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests (except on PyPy, because no embedding API).
-      - if: matrix.python-version != 'pypy-3.6'
+      - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
         run: cargo test --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests again, but in abi3 mode
-      - if: matrix.python-version != 'pypy-3.6'
+      - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests again, for abi3-py36 (the minimal Python version)
-      - if: (matrix.python-version != 'pypy-3.6') && (matrix.python-version != '3.6')
+      - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.6') }}
         name: Test (abi3-py36)
         run: cargo test --no-default-features --features "abi3-py36 ${{ steps.settings.outputs.all_additive_features }}"
 
@@ -129,7 +132,7 @@ jobs:
       - name: Install python test dependencies
         run: |
           python -m pip install -U pip setuptools
-          pip install setuptools-rust pytest pytest-benchmark tox tox-venv
+          pip install setuptools-rust pytest pytest-benchmark tox
 
       - name: Test example extension modules
         shell: bash
