@@ -82,26 +82,6 @@
 //! }
 //! ```
 //!
-//! On Windows and linux, you can build normally with `cargo build
-//! --release`. On macOS, you need to set additional linker arguments. One
-//! option is to compile with `cargo rustc --release -- -C link-arg=-undefined
-//! -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with
-//! the following content:
-//!
-//! ```toml
-//! [target.x86_64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//!
-//! [target.aarch64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//! ```
-//!
 //! While developing, you symlink (or copy) and rename the shared library from
 //! the target folder: On macOS, rename `libstring_sum.dylib` to
 //! `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on
