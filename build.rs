@@ -729,19 +729,32 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
     }
 
     check_target_architecture(interpreter_config)?;
-    let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
 
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    if !is_extension_module || target_os == "windows" || target_os == "android" {
-        println!("{}", get_rustc_link_lib(&interpreter_config));
-        if let Some(libdir) = &interpreter_config.libdir {
-            println!("cargo:rustc-link-search=native={}", libdir);
-        } else if target_os == "windows" {
+    match (is_extension_module, target_os.as_str()) {
+        (_, "windows") => {
+            // always link on windows, even with extension module
+            println!("{}", get_rustc_link_lib(&interpreter_config));
             println!(
                 "cargo:rustc-link-search=native={}\\libs",
                 interpreter_config.base_prefix
             );
         }
+        (true, "macos") => {
+            // with extension module on macos some extra linker arguments are needed
+            println!("cargo:rustc-cdylib-link-arg=-undefined");
+            println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+        }
+        (false, _) | (_, "android") => {
+            // other systems, only link libs if not extension module
+            // android always link.
+            println!("{}", get_rustc_link_lib(&interpreter_config));
+            if let Some(libdir) = &interpreter_config.libdir {
+                println!("cargo:rustc-link-search=native={}", libdir);
+            }
+        }
+        _ => {}
     }
 
     if interpreter_config.shared {
@@ -883,10 +896,6 @@ fn main_impl() -> Result<()> {
 
     for flag in &build_flags.0 {
         println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, flag)
-    }
-
-    if env::var_os("TARGET") == Some("x86_64-apple-darwin".into()) {
-        // TODO: Find out how we can set -undefined dynamic_lookup here (if this is possible)
     }
 
     for var in &[
