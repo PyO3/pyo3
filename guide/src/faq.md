@@ -13,7 +13,7 @@
 
 PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` but relies solely on the Python GIL for thread safety. This means it can be used in place of `lazy_static` or `once_cell` where you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for an example how to use it.
 
-[`GILOnceCell`]: https://docs.rs/pyo3/latest/pyo3/once_cell/struct.GILOnceCell.html
+[`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/once_cell/struct.GILOnceCell.html
 
 ## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
@@ -21,7 +21,7 @@ Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` t
 
 ```toml
 [dependencies.pyo3]
-version = "*"
+version = "{{#PYO3_VERSION}}"
 
 [features]
 extension-module = ["pyo3/extension-module"]

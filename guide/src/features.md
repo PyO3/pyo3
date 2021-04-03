@@ -32,7 +32,7 @@ See the [building and distribution](building_and_distribution.md#minimum-python-
 
 ### `auto-initalize`
 
-This feature changes [`Python::with_gil`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.with_gil) and [`Python::acquire_gil`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.acquire_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`](https://docs.rs/pyo3/latest/pyo3/fn.prepare_freethreaded_python.html)) if needed.
+This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) and [`Python::acquire_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.acquire_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
 If you do not enable this feature, you should call `pyo3::prepare_freethreaded_python()` before attempting to call any other Python APIs.
 

@@ -49,7 +49,7 @@ fn mymodule(py: Python, m: &PyModule) -> PyResult<()> {
 
 ## Raising an exception
 
-To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`], then call the [`PyErr::restore`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
+To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`], then call the [`PyErr::restore`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
 
 ```rust
 use pyo3::{Python, PyErr};
@@ -105,7 +105,7 @@ Python::with_gil(|py| {
     assert!(list.is_instance::<PyList>().unwrap());
 });
 ```
-[`PyAny::is_instance`] calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/latest/pyo3/types/struct.PyType.html#method.is_instance)
+[`PyAny::is_instance`] calls the underlying [`PyType::is_instance`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyType.html#method.is_instance)
 method to do the actual work.
 
 To check the type of an exception, you can similarly do:
@@ -122,7 +122,7 @@ err.is_instance::<PyTypeError>(py);
 ## Handling Rust errors
 
 The vast majority of operations in this library will return
-[`PyResult<T>`](https://docs.rs/pyo3/latest/pyo3/prelude/type.PyResult.html),
+[`PyResult<T>`]({{#PYO3_DOCS_URL}}/pyo3/prelude/type.PyResult.html),
 which is an alias for the type `Result<T, PyErr>`.
 
 A [`PyErr`] represents a Python exception. Errors within the PyO3 library are also exposed as
@@ -181,7 +181,7 @@ fn parse_int(s: String) -> PyResult<usize> {
 The code snippet above will raise a `ValueError` in Python if `String::parse()` returns an error.
 
 If lazy construction of the Python exception instance is desired, the
-[`PyErrArguments`](https://docs.rs/pyo3/latest/pyo3/trait.PyErrArguments.html)
+[`PyErrArguments`]({{#PYO3_DOCS_URL}}/pyo3/trait.PyErrArguments.html)
 trait can be implemented. In that case, actual exception argument creation is delayed
 until the `PyErr` is needed.
 
@@ -209,13 +209,13 @@ fn tell(file: &PyAny) -> PyResult<u64> {
 
 ```
 
-[`pyo3::exceptions`](https://docs.rs/pyo3/latest/pyo3/exceptions/index.html)
+[`pyo3::exceptions`]({{#PYO3_DOCS_URL}}/pyo3/exceptions/index.html)
 defines exceptions for several standard library modules.
 
-[`create_exception!`]: https://docs.rs/pyo3/latest/pyo3/macro.create_exception.html
-[`import_exception!`]: https://docs.rs/pyo3/latest/pyo3/macro.import_exception.html
+[`create_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.create_exception.html
+[`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
 
-[`PyErr`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html
-[`PyErr::from_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.from_instance
-[`Python::is_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.is_instance
-[`PyAny::is_instance`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#method.is_instance
+[`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
+[`PyErr::from_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_instance
+[`Python::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.is_instance
+[`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance

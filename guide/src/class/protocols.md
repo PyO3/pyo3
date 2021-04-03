@@ -204,7 +204,7 @@ struct GCTracked {} // Fails because it does not implement PyGCProtocol
 ### Iterator Types
 
 Iterators can be defined using the
-[`PyIterProtocol`](https://docs.rs/pyo3/latest/pyo3/class/iter/trait.PyIterProtocol.html) trait.
+[`PyIterProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
   * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
   * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
@@ -290,9 +290,9 @@ documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
 
 This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.
 In Python a generator can also return a value. To express this in Rust, PyO3 provides the
-[`IterNextOutput`](https://docs.rs/pyo3/latest/pyo3/class/iter/enum.IterNextOutput.html) enum to
+[`IterNextOutput`]({{#PYO3_DOCS_URL}}/pyo3/class/iter/enum.IterNextOutput.html) enum to
 both `Yield` values and `Return` a final value - see its docs for further details and an example.
 
-[`PyGCProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html
-[`PyNumberProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/number/trait.PyNumberProtocol.html
-[`PyObjectProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/basic/trait.PyObjectProtocol.html
+[`PyGCProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html
+[`PyNumberProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/number/trait.PyNumberProtocol.html
+[`PyObjectProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/basic/trait.PyObjectProtocol.html

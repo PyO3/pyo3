@@ -137,7 +137,7 @@ The `#[pyclass]` macro accepts the following parameters:
 The performance improvement applies to types that are often created and deleted in a row,
 so that they can benefit from a freelist. `XXX` is a number of items for the free list.
 * `gc` - Classes with the `gc` parameter participate in Python garbage collection.
-If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`](https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
+If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class.
@@ -267,7 +267,7 @@ impl SubSubClass {
 ```
 
 You can also inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`](https://docs.rs/pyo3/latest/pyo3/type_object/trait.PySizedLayout.html). However, this is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
+[`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html). However, this is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
@@ -813,15 +813,15 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
 ```
 
 
-[`GILGuard`]: https://docs.rs/pyo3/latest/pyo3/struct.GILGuard.html
-[`PyTypeInfo`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeInfo.html
-[`PyTypeObject`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeObject.html
+[`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
+[`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
+[`PyTypeObject`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeObject.html
 
-[`PyCell`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html
-[`PyClass`]: https://docs.rs/pyo3/latest/pyo3/pyclass/trait.PyClass.html
-[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
-[`PyClassInitializer<T>`]: https://docs.rs/pyo3/latest/pyo3/pyclass_init/struct.PyClassInitializer.html
+[`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
+[`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
+[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
+[`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 

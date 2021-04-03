@@ -21,11 +21,19 @@ jobs:
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: '0.4.5'
+          mdbook-version: '0.4.9'
+
+      - name: Prepare tag
+        id: prepare_tag
+        run: |
+          TAG_NAME="${GITHUB_REF##*/}"
+          echo "::set-output name=tag_name::${TAG_NAME}"
 
       # This builds the book in gh-pages-build. See https://github.com/rust-lang-nursery/mdBook/issues/698
       - name: Build the guide
         run: mdbook build -d ../gh-pages-build guide
+        env:
+          PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
         # This adds the docs to gh-pages-build/doc
       - name: Build the doc
@@ -33,12 +41,6 @@ jobs:
           cargo doc --features="default num-bigint num-complex" --no-deps
           cp -r target/doc gh-pages-build/doc
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
-
-      - name: Prepare tag
-        id: prepare_tag
-        run: |
-          TAG_NAME="${GITHUB_REF##*/}"
-          echo "::set-output name=tag_name::${TAG_NAME}"
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3.7.0-8

@@ -221,10 +221,10 @@ impl IntoPy<PyObject> for MyPyObjectWrapper {
 converted into [`PyObject`]. `IntoPy<PyObject>` serves the
 same purpose, except that it consumes `self`.
 
-[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.IntoPy.html
-[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
-[`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.ToPyObject.html
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/type.PyObject.html
+[`IntoPy`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPy.html
+[`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
+[`ToPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.ToPyObject.html
+[`PyObject`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyObject.html
 
-[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRefMut.html
+[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html

@@ -14,7 +14,8 @@ If you have e.g. a library crate and a profiling crate alongside, you need to us
 
 ```toml
 [dependencies]
-pyo3 = "0.6"
+pyo3 = { {{#PYO3_CRATE_VERSION}} }
+
 
 [lib]
 name = "hyperjson"
@@ -29,7 +30,7 @@ And this in the profiling crate:
 ```toml
 [dependencies]
 my_main_crate = { path = "..", default-features = false }
-pyo3 = "0.6"
+pyo3 = { {{#PYO3_CRATE_VERSION}} }
 ```
 
 On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a Python installation.
@@ -51,7 +52,7 @@ There are three steps involved in making use of `abi3` when building Python pack
 
 ```toml
 [dependencies]
-pyo3 = { version = "...", features = ["abi3"]}
+pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3"] }
 ```
 
 2. Ensure that the built shared objects are correctly marked as `abi3`. This is accomplished by telling your build system that you're using the limited API.

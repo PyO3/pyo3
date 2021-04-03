@@ -397,7 +397,7 @@ However, for `#[pyproto]` and some functions, you need to manually fix the code.
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
 To upgrade code, please use
-[`PyCell::new`](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html#method.new) instead.
+[`PyCell::new`]({{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html#method.new) instead.
 If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 
@@ -499,11 +499,11 @@ impl PySequenceProtocol for ByteSequence {
 }
 ```
 
-[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
-[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
-[`PyCell`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html
-[`PyBorrowMutError`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyBorrowMutError.html
-[`PyRef`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyRef.html
+[`FromPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.FromPyObject.html
+[`PyAny`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyAny.html
+[`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
+[`PyBorrowMutError`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyBorrowMutError.html
+[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
