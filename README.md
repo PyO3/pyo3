@@ -2,21 +2,16 @@
 
 [![actions status](https://github.com/PyO3/pyo3/workflows/CI/badge.svg)](https://github.com/PyO3/pyo3/actions)
 [![codecov](https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
-[![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
+[![crates.io](https://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
 [![minimum rustc 1.41](https://img.shields.io/badge/rustc-1.41+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
+[![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
-[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with Python code from a Rust binary, as well as writing native Python modules.
+[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
 
 * User Guide: [stable](https://pyo3.rs) | [main](https://pyo3.rs/main)
 
 * API Documentation: [stable](https://docs.rs/pyo3/) |  [main](https://pyo3.rs/main/doc)
-
-* Contributing Notes: [github](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
-
-* Architecture Guide: [github](https://github.com/PyO3/pyo3/blob/master/Architecture.md)
-
-A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/main/rust_cpython.html).
 
 ## Usage
 
@@ -154,6 +149,20 @@ about this topic.
  * [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust_
  * [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust_
  * [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust_
+
+## Contributing
+
+Everyone is welcomed to contribute to PyO3! There are many ways to support the project, such as:
+- help PyO3 users with issues on Github and Gitter
+- improve documentation
+- write features and bugfixes
+- publish blogs and examples of how to use PyO3
+
+Our [contributing notes](https://github.com/PyO3/pyo3/blob/main/Contributing.md) and [architecture guide](https://github.com/PyO3/pyo3/blob/master/Architecture.md) have more resources if you wish to volunteer time for PyO3 and are searching where to start.
+
+If you don't have time to contribute yourself but still wish to support the project's future success, some of our maintainers have Github sponsorship pages:
+
+* [davidhewitt](https://github.com/sponsors/davidhewitt)
 
 ## License
 
