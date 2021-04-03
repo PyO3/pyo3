@@ -2,9 +2,9 @@
 
 Thank you for your interest in contributing to PyO3! All are welcome - please consider reading our [Code of Conduct](Code-of-Conduct.md) to keep our community positive and inclusive.
 
-If you are searching for ideas how to contribute, please read the "Getting started contributing" section. Once you've found an issue to contribute to, you may find the section "Writing pull requests" helpful.
+If you are searching for ideas how to contribute, proceed to the ["Getting started contributing"](#getting-started-contributing) section. If you have found a specific issue to contribute to and need information about the development process, you may find the section ["Writing pull requests"](#writing-pull-requests) helpful.
 
-If you want to become familiar with the codebase, check
+If you want to become familiar with the codebase, see
 [Architecture.md](https://github.com/PyO3/pyo3/tree/master/Architecture.md).
 
 ## Getting started contributing
@@ -78,10 +78,18 @@ CI tests both the most recent stable Rust version and the minimum supported Rust
 
 ## Benchmarking
 
-PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please feel welcome to open PRs with new benchmarks if you're interested in helping to expand it!
+PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please open PRs with new benchmarks if you're interested in helping to expand it!
 
 First, there are Rust-based benchmarks located in the `benches` subdirectory. As long as you have a nightly rust compiler available on your system, you can run these benchmarks with:
 
     cargo +nightly bench
 
-Second, there is a Python-based benchmark contained in the `word-count` example. You can read more about it [here](examples/word-count#benchmark).
+Second, there is a Python-based benchmark contained in the `pyo3-benchmarks` example. You can read more about it [here](examples/pyo3-benchmarks).
+
+## Sponsor this project
+
+At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on [Github](https://github.com/PyO3/pyo3/issues/new) or [Gitter](https://gitter.im/PyO3/Lobby) and we can discuss.
+
+In the meanwhile, some of our maintainers have personal Github sponsorship pages and would be grateful for your support:
+
+* [davidhewitt](https://github.com/sponsors/davidhewitt)
