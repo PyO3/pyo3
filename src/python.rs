@@ -695,11 +695,6 @@ mod test {
 
     #[test]
     fn test_allow_threads_panics_safely() {
-        // TODO replace with #[cfg(panic = "unwind")] once stable
-        if !crate::cfg_panic_unwind() {
-            return;
-        }
-
         let gil = Python::acquire_gil();
         let py = gil.python();
 

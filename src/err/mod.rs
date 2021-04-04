@@ -557,12 +557,6 @@ mod tests {
     #[test]
     #[should_panic(expected = "new panic")]
     fn fetching_panic_exception_resumes_unwind() {
-        // TODO replace with #[cfg(panic = "unwind")] once stable
-        if !crate::cfg_panic_unwind() {
-            // panic to meet the expected abort in panic=abort :-/
-            panic!("new panic");
-        }
-
         use crate::panic::PanicException;
 
         let gil = Python::acquire_gil();
