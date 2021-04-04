@@ -425,9 +425,3 @@ pub mod doc_test {
     doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
     doctest!("guide/src/types.md", guide_types_md);
 }
-
-// interim helper until #[cfg(panic = ...)] is stable
-#[cfg(test)]
-fn cfg_panic_unwind() -> bool {
-    option_env!("RUSTFLAGS").map_or(true, |var| !var.contains("-Cpanic=abort"))
-}
