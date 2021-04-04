@@ -69,6 +69,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - uses: actions/cache@v2
+        # macOS seems to have a problem when the proc_macro_hack crates are cached.
+        # We can cache macOS in CI once we drop support for Rust older than 1.45
+        if: matrix.platform.os != 'macOS-latest'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -98,7 +109,7 @@ jobs:
         run: cargo update -p hashbrown --precise 0.9.1
 
       - name: Build docs
-        run: cargo doc --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
