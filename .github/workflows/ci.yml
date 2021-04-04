@@ -158,20 +158,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
+      - name: install grcov
+        run: |
+          wget https://github.com/mozilla/grcov/releases/download/v${GRCOV_VERSION}/grcov-linux-x86_64.tar.bz2 -qO- | tar -xjvf -
+          mv grcov ~/.cargo/bin
+        env:
+          GRCOV_VERSION: 0.7.1
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
           profile: minimal
-      - run: cargo test --no-default-features --no-fail-fast
-      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
-      - uses: actions-rs/grcov@v0.1
-        id: coverage
+          components: llvm-tools-preview
+      - run: LLVM_PROFILE_FILE="coverage-%p-%m.profraw" cargo test --no-default-features --no-fail-fast
+      - run: LLVM_PROFILE_FILE="coverage-features-%p-%m.profraw" cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
+      # can't yet use actions-rs/grcov with source-based coverage: https://github.com/actions-rs/grcov/issues/105
+      # - uses: actions-rs/grcov@v0.1
+      #   id: coverage
+      # - uses: codecov/codecov-action@v1
+      #   with:
+      #     file: ${{ steps.coverage.outputs.report }}
+      - run: grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing -o coverage.lcov
       - uses: codecov/codecov-action@v1
         with:
-          file: ${{ steps.coverage.outputs.report }}
+          file: coverage.lcov
+
     env:
       CARGO_TERM_VERBOSE: true
-      CARGO_INCREMENTAL: 0
-      RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-      RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      RUSTFLAGS: "-Zinstrument-coverage"
+      RUSTDOCFLAGS: "-Zinstrument-coverage"
