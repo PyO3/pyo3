@@ -16,9 +16,9 @@ The [`PyObjectProtocol`] trait provides several basic customizations.
 
 To customize object attribute access, define the following methods:
 
-  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
-  * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
+  * `fn __getattr__(&self, name: impl FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __setattr__(&mut self, name: impl FromPyObject, value: impl FromPyObject) -> PyResult<()>`
+  * `fn __delattr__(&mut self, name: impl FromPyObject) -> PyResult<()>`
 
 Each method corresponds to Python's `self.attr`, `self.attr = value` and `del self.attr` code.
 
