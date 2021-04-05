@@ -204,6 +204,45 @@ where _N_ is the length of the sequence.
     Used by the `*=` operator, after trying the numeric in place multiplication via
     the `PyNumberProtocol` trait method.
 
+### Emulating mapping containers (such as dictionaries)
+
+The [`PyMappingProtocol`] trait allows to emulate
+[mapping container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
+
+For a mapping, the keys may be Python objects of arbitrary type.
+
+  * `fn __len__(&self) -> PyResult<usize>`
+
+    Implements the built-in function `len()` for the mapping.
+
+  * `fn __getitem__(&self, key: impl FromPyObject) -> PyResult<impl ToPyObject>`
+
+    Implements evaluation of the `self[key]` element.
+    If `key` is of an inappropriate type, `TypeError` may be raised;
+    if `key` is missing (not in the container), `KeyError` should be raised.
+
+  * `fn __setitem__(&mut self, key: impl FromPyObject, value: impl FromPyObject) -> PyResult<()>`
+
+    Implements assignment to the `self[key]` element or insertion of a new `key`
+    mapping to `value`.
+    Should only be implemented if the mapping support changes to the values for keys,
+    or if new keys can be added.
+    The same exceptions should be raised for improper key values as
+    for the `__getitem__()` method.
+
+  * `fn __delitem__(&mut self, key: impl FromPyObject) -> PyResult<()>`
+
+    Implements deletion of the `self[key]` element.
+    Should only be implemented if the mapping supports removal of keys.
+    The same exceptions should be raised for improper key values as
+    for the `__getitem__()` method.
+
+  * `fn __reversed__(&self) -> PyResult<impl ToPyObject>`
+
+    Called (if present) by the `reversed()` built-in to implement reverse iteration.
+    It should return a new iterator object that iterates over all the objects in
+    the container in reverse order.
+
 ### Garbage Collector Integration
 
 If your type owns references to other Python objects, you will need to
@@ -351,6 +390,7 @@ In Python a generator can also return a value. To express this in Rust, PyO3 pro
 both `Yield` values and `Return` a final value - see its docs for further details and an example.
 
 [`PyGCProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html
+[`PyMappingProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/mapping/trait.PyMappingProtocol.html
 [`PyNumberProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/number/trait.PyNumberProtocol.html
 [`PyObjectProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/basic/trait.PyObjectProtocol.html
 [`PySequenceProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/sequence/trait.PySequenceProtocol.html
