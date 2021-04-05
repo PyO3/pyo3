@@ -61,7 +61,7 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
 
 ### Emulating numeric types
 
-The [`PyNumberProtocol`] trait allows [emulate numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
+The [`PyNumberProtocol`] trait allows to emulate [numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
 
   * `fn __add__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
   * `fn __sub__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
@@ -105,12 +105,6 @@ The reflected operations are also available:
 
 The code generated for these methods expect that all arguments match the
 signature, or raise a TypeError.
-
-*Note*: Currently implementing the method for a binary arithmetic operations
-(e.g, `__add__`) shadows the reflected operation (e.g, `__radd__`).  This is
-being addressed in [#844](https://github.com/PyO3/pyo3/issues/844).  to make
-these methods
-
 
 This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
 `*=`, `@=`, `/=`, `//=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `|=`):
