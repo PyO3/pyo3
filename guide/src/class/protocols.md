@@ -141,6 +141,69 @@ Other:
   * `fn __index__(&'p self) -> PyResult<impl ToPyObject>`
   * `fn __round__(&'p self, ndigits: Option<impl FromPyObject>) -> PyResult<impl ToPyObject>`
 
+### Emulating sequential containers (such as lists or tuples)
+
+The [`PySequenceProtocol`] trait allows to emulate
+[sequential container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
+
+For a sequence, the allowable keys should be the integers _k_ for which _0 <= k < N_,
+where _N_ is the length of the sequence.
+
+  * `fn __len__(&self) -> PyResult<usize>`
+
+    Implements the built-in function `len()` for the sequence.
+
+  * `fn __getitem__(&self, idx: isize) -> PyResult<impl ToPyObject>`
+
+    Implements evaluation of the `self[idx]` element.
+    If the `idx` value is outside the set of indexes for the sequence, `IndexError` should be raised.
+
+    *Note:* Negative integer indexes are handled as follows: if `__len__()` is defined,
+    it is called and the sequence length is used to compute a positive index,
+    which is passed to `__getitem__()`.
+    If `__len__()` is not defined, the index is passed as is to the function.
+
+  * `fn __setitem__(&mut self, idx: isize, value: impl FromPyObject) -> PyResult<()>`
+
+    Implements assignment to the `self[idx]` element. Same note as for `__getitem__()`.
+    Should only be implemented if sequence elements can be replaced.
+
+  * `fn __delitem__(&mut self, idx: isize) -> PyResult<()>`
+
+    Implements deletion of the `self[idx]` element. Same note as for `__getitem__()`.
+    Should only be implemented if sequence elements can be deleted.
+
+  * `fn __contains__(&self, item: impl FromPyObject) -> PyResult<bool>`
+
+    Implements membership test operators.
+    Should return true if `item` is in `self`, false otherwise.
+    For objects that don’t define `__contains__()`, the membership test simply
+    traverses the sequence until it finds a match.
+
+  * `fn __concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+
+    Concatenates two sequences.
+    Used by the `+` operator, after trying the numeric addition via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __repeat__(&self, count: isize) -> PyResult<impl ToPyObject>`
+
+    Repeats the sequence `count` times.
+    Used by the `*` operator, after trying the numeric multiplication via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __inplace_concat__(&mut self, other: impl FromPyObject) -> PyResult<Self>`
+
+    Concatenates two sequences in place. Returns the modified first operand.
+    Used by the `+=` operator, after trying the numeric in place addition via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __inplace_repeat__(&mut self, count: isize) -> PyResult<Self>`
+
+    Repeats the sequence `count` times in place. Returns the modified first operand.
+    Used by the `*=` operator, after trying the numeric in place multiplication via
+    the `PyNumberProtocol` trait method.
+
 ### Garbage Collector Integration
 
 If your type owns references to other Python objects, you will need to
@@ -290,3 +353,4 @@ both `Yield` values and `Return` a final value - see its docs for further detail
 [`PyGCProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html
 [`PyNumberProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/number/trait.PyNumberProtocol.html
 [`PyObjectProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/basic/trait.PyObjectProtocol.html
+[`PySequenceProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/sequence/trait.PySequenceProtocol.html
