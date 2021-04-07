@@ -16,9 +16,9 @@ The [`PyObjectProtocol`] trait provides several basic customizations.
 
 To customize object attribute access, define the following methods:
 
-  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
-  * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
+  * `fn __getattr__(&self, name: impl FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __setattr__(&mut self, name: impl FromPyObject, value: impl FromPyObject) -> PyResult<()>`
+  * `fn __delattr__(&mut self, name: impl FromPyObject) -> PyResult<()>`
 
 Each method corresponds to Python's `self.attr`, `self.attr = value` and `del self.attr` code.
 
@@ -61,7 +61,7 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
 
 ### Emulating numeric types
 
-The [`PyNumberProtocol`] trait allows [emulate numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
+The [`PyNumberProtocol`] trait can be implemented to emulate [numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
 
   * `fn __add__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
   * `fn __sub__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
@@ -106,12 +106,6 @@ The reflected operations are also available:
 The code generated for these methods expect that all arguments match the
 signature, or raise a TypeError.
 
-*Note*: Currently implementing the method for a binary arithmetic operations
-(e.g, `__add__`) shadows the reflected operation (e.g, `__radd__`).  This is
-being addressed in [#844](https://github.com/PyO3/pyo3/issues/844).  to make
-these methods
-
-
 This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
 `*=`, `@=`, `/=`, `//=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `|=`):
 
@@ -146,6 +140,108 @@ Other:
 
   * `fn __index__(&'p self) -> PyResult<impl ToPyObject>`
   * `fn __round__(&'p self, ndigits: Option<impl FromPyObject>) -> PyResult<impl ToPyObject>`
+
+### Emulating sequential containers (such as lists or tuples)
+
+The [`PySequenceProtocol`] trait can be implemented to emulate
+[sequential container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
+
+For a sequence, the keys are the integers _k_ for which _0 <= k < N_,
+where _N_ is the length of the sequence.
+
+  * `fn __len__(&self) -> PyResult<usize>`
+
+    Implements the built-in function `len()` for the sequence.
+
+  * `fn __getitem__(&self, idx: isize) -> PyResult<impl ToPyObject>`
+
+    Implements evaluation of the `self[idx]` element.
+    If the `idx` value is outside the set of indexes for the sequence, `IndexError` should be raised.
+
+    *Note:* Negative integer indexes are handled as follows: if `__len__()` is defined,
+    it is called and the sequence length is used to compute a positive index,
+    which is passed to `__getitem__()`.
+    If `__len__()` is not defined, the index is passed as is to the function.
+
+  * `fn __setitem__(&mut self, idx: isize, value: impl FromPyObject) -> PyResult<()>`
+
+    Implements assignment to the `self[idx]` element. Same note as for `__getitem__()`.
+    Should only be implemented if sequence elements can be replaced.
+
+  * `fn __delitem__(&mut self, idx: isize) -> PyResult<()>`
+
+    Implements deletion of the `self[idx]` element. Same note as for `__getitem__()`.
+    Should only be implemented if sequence elements can be deleted.
+
+  * `fn __contains__(&self, item: impl FromPyObject) -> PyResult<bool>`
+
+    Implements membership test operators.
+    Should return true if `item` is in `self`, false otherwise.
+    For objects that don’t define `__contains__()`, the membership test simply
+    traverses the sequence until it finds a match.
+
+  * `fn __concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+
+    Concatenates two sequences.
+    Used by the `+` operator, after trying the numeric addition via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __repeat__(&self, count: isize) -> PyResult<impl ToPyObject>`
+
+    Repeats the sequence `count` times.
+    Used by the `*` operator, after trying the numeric multiplication via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __inplace_concat__(&mut self, other: impl FromPyObject) -> PyResult<Self>`
+
+    Concatenates two sequences in place. Returns the modified first operand.
+    Used by the `+=` operator, after trying the numeric in place addition via
+    the `PyNumberProtocol` trait method.
+
+  * `fn __inplace_repeat__(&mut self, count: isize) -> PyResult<Self>`
+
+    Repeats the sequence `count` times in place. Returns the modified first operand.
+    Used by the `*=` operator, after trying the numeric in place multiplication via
+    the `PyNumberProtocol` trait method.
+
+### Emulating mapping containers (such as dictionaries)
+
+The [`PyMappingProtocol`] trait allows to emulate
+[mapping container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
+
+For a mapping, the keys may be Python objects of arbitrary type.
+
+  * `fn __len__(&self) -> PyResult<usize>`
+
+    Implements the built-in function `len()` for the mapping.
+
+  * `fn __getitem__(&self, key: impl FromPyObject) -> PyResult<impl ToPyObject>`
+
+    Implements evaluation of the `self[key]` element.
+    If `key` is of an inappropriate type, `TypeError` may be raised;
+    if `key` is missing (not in the container), `KeyError` should be raised.
+
+  * `fn __setitem__(&mut self, key: impl FromPyObject, value: impl FromPyObject) -> PyResult<()>`
+
+    Implements assignment to the `self[key]` element or insertion of a new `key`
+    mapping to `value`.
+    Should only be implemented if the mapping support changes to the values for keys,
+    or if new keys can be added.
+    The same exceptions should be raised for improper key values as
+    for the `__getitem__()` method.
+
+  * `fn __delitem__(&mut self, key: impl FromPyObject) -> PyResult<()>`
+
+    Implements deletion of the `self[key]` element.
+    Should only be implemented if the mapping supports removal of keys.
+    The same exceptions should be raised for improper key values as
+    for the `__getitem__()` method.
+
+  * `fn __reversed__(&self) -> PyResult<impl ToPyObject>`
+
+    Called (if present) by the `reversed()` built-in to implement reverse iteration.
+    It should return a new iterator object that iterates over all the objects in
+    the container in reverse order.
 
 ### Garbage Collector Integration
 
@@ -294,5 +390,7 @@ In Python a generator can also return a value. To express this in Rust, PyO3 pro
 both `Yield` values and `Return` a final value - see its docs for further details and an example.
 
 [`PyGCProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html
+[`PyMappingProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/mapping/trait.PyMappingProtocol.html
 [`PyNumberProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/number/trait.PyNumberProtocol.html
 [`PyObjectProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/basic/trait.PyObjectProtocol.html
+[`PySequenceProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/sequence/trait.PySequenceProtocol.html
