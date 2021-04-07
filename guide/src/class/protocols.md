@@ -61,7 +61,7 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
 
 ### Emulating numeric types
 
-The [`PyNumberProtocol`] trait allows to emulate [numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
+The [`PyNumberProtocol`] trait can be implemented to emulate [numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
 
   * `fn __add__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
   * `fn __sub__(lhs: impl FromPyObject, rhs: impl FromPyObject) -> PyResult<impl ToPyObject>`
@@ -143,10 +143,10 @@ Other:
 
 ### Emulating sequential containers (such as lists or tuples)
 
-The [`PySequenceProtocol`] trait allows to emulate
+The [`PySequenceProtocol`] trait can be implemented to emulate
 [sequential container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
 
-For a sequence, the allowable keys should be the integers _k_ for which _0 <= k < N_,
+For a sequence, the keys are the integers _k_ for which _0 <= k < N_,
 where _N_ is the length of the sequence.
 
   * `fn __len__(&self) -> PyResult<usize>`
