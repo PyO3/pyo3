@@ -8,7 +8,10 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
-use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
+use crate::{
+    callback::{HashCallbackOutput, IntoPyCallbackOutput},
+    derive_utils::TryFromPyCell,
+};
 use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
@@ -26,69 +29,69 @@ pub enum CompareOp {
 /// Basic Python class customization
 #[allow(unused_variables)]
 pub trait PyObjectProtocol<'p>: PyClass {
-    fn __getattr__(&'p self, name: Self::Name) -> Self::Result
+    fn __getattr__(slf: Self::Receiver, name: Self::Name) -> Self::Result
     where
         Self: PyObjectGetAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __setattr__(&'p mut self, name: Self::Name, value: Self::Value) -> Self::Result
+    fn __setattr__(slf: Self::Receiver, name: Self::Name, value: Self::Value) -> Self::Result
     where
         Self: PyObjectSetAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __delattr__(&'p mut self, name: Self::Name) -> Self::Result
+    fn __delattr__(slf: Self::Receiver, name: Self::Name) -> Self::Result
     where
         Self: PyObjectDelAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __str__(&'p self) -> Self::Result
+    fn __str__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyObjectStrProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __repr__(&'p self) -> Self::Result
+    fn __repr__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyObjectReprProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __format__(&'p self, format_spec: Self::Format) -> Self::Result
+    fn __format__(slf: Self::Receiver, format_spec: Self::Format) -> Self::Result
     where
         Self: PyObjectFormatProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __hash__(&'p self) -> Self::Result
+    fn __hash__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyObjectHashProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __bytes__(&'p self) -> Self::Result
+    fn __bytes__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyObjectBytesProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __richcmp__(&'p self, other: Self::Other, op: CompareOp) -> Self::Result
+    fn __richcmp__(slf: Self::Receiver, other: Self::Other, op: CompareOp) -> Self::Result
     where
         Self: PyObjectRichcmpProtocol<'p>,
     {
         unimplemented!()
     }
-    fn __bool__(&'p self) -> Self::Result
+    fn __bool__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyObjectBoolProtocol<'p>,
     {
@@ -97,38 +100,48 @@ pub trait PyObjectProtocol<'p>: PyClass {
 }
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Name: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Format: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<HashCallbackOutput>;
 }
 pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<bool>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
@@ -158,7 +171,9 @@ where
 
         let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
         let arg = py.from_borrowed_ptr::<PyAny>(arg);
-        call_ref!(slf, __getattr__, arg).convert(py)
+        let borrow =
+            <T::Receiver as TryFromPyCell<_>>::try_from_pycell(slf).map_err(|e| e.into())?;
+        T::__getattr__(borrow, arg.extract()?).convert(py)
     })
 }
 
@@ -188,7 +203,10 @@ where
             }
         };
 
-        slf.try_borrow()?.__richcmp__(arg, op).convert(py)
+        let borrow =
+            <T::Receiver as TryFromPyCell<_>>::try_from_pycell(slf).map_err(|e| e.into())?;
+
+        T::__richcmp__(borrow, arg, op).convert(py)
     })
 }
 

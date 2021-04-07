@@ -1,16 +1,19 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, Token};
+use syn::spanned::Spanned;
 
 // TODO:
 //   Add lifetime support for args with Rptr
 #[derive(Debug)]
 pub struct MethodProto {
     pub name: &'static str,
+    /// args which need types emitted by #[pyproto]
     pub args: &'static [&'static str],
+    /// args which have types fixed by the trait
+    pub fixed_args: &'static [&'static str],
     pub proto: &'static str,
-    pub with_self: bool,
+    pub no_receiver: bool,
     pub with_result: bool,
 }
 
@@ -22,7 +25,8 @@ impl MethodProto {
             name,
             proto,
             args: MethodProto::EMPTY_ARGS,
-            with_self: false,
+            fixed_args: MethodProto::EMPTY_ARGS,
+            no_receiver: false,
             with_result: true,
         }
     }
@@ -30,8 +34,12 @@ impl MethodProto {
         self.args = args;
         self
     }
-    pub const fn has_self(mut self) -> MethodProto {
-        self.with_self = true;
+    pub const fn fixed_args(mut self, fixed_args: &'static [&'static str]) -> MethodProto {
+        self.fixed_args = fixed_args;
+        self
+    }
+    pub const fn no_receiver(mut self) -> MethodProto {
+        self.no_receiver = true;
         self
     }
     pub const fn no_result(mut self) -> MethodProto {
@@ -48,14 +56,42 @@ pub(crate) fn impl_method_proto(
 ) -> syn::Result<TokenStream> {
     let proto: syn::Path = syn::parse_str(meth.proto).unwrap();
 
+    let expected_input_count =
+        (if meth.no_receiver { 0 } else { 1 }) + meth.args.len() + meth.fixed_args.len();
+
+    ensure_spanned!(
+        sig.inputs.len() == expected_input_count,
+        sig.inputs.span() => format!(
+            "expected {n} input{s} for {name}",
+            n = expected_input_count,
+            s = if expected_input_count > 1 { "s" } else { "" },
+            name = meth.name
+        )
+    );
+
+    let mut args_iter = std::iter::once(&"Receiver").chain(meth.args);
+
+    if meth.no_receiver {
+        // consume "Receiver" if not needed;
+        args_iter.next();
+    }
+
     let mut impl_types = Vec::new();
-    for (i, arg) in meth.args.iter().enumerate() {
-        let idx = if meth.with_self { i + 1 } else { i };
-        let arg_name = syn::Ident::new(arg, Span::call_site());
-        let input = match &mut sig.inputs[idx] {
+    for (arg_name, input) in args_iter.zip(&mut sig.inputs) {
+        let arg_name = syn::Ident::new(arg_name, Span::call_site());
+        let input = match input {
             syn::FnArg::Typed(input) => input,
-            receiver @ syn::FnArg::Receiver(_) => {
-                bail_spanned!(receiver.span() => "unexpected receiver in #[pyproto]")
+            syn::FnArg::Receiver(receiver) => {
+                bail_spanned!(
+                    receiver.span() =>
+                    if receiver.mutability.is_some() {
+                        "since PyO3 0.14 receivers cannot be used in `#[pyproto]`. Replace \
+                            `&mut self` with `mut slf: PyRefMut<Self>`."
+                    } else {
+                        "since PyO3 0.14 receivers cannot be used in `#[pyproto]`. Replace \
+                            `&self` with `slf: PyRef<Self>`."
+                    }
+                );
             }
         };
         // replace signature in trait with the parametrised one, which is identical to the declared
@@ -72,10 +108,6 @@ pub(crate) fn impl_method_proto(
         // ensure the type has all lifetimes so it can be used in the protocol trait associated type
         insert_lifetime(&mut arg_ty);
         impl_types.push(quote! {type #arg_name = #arg_ty;});
-    }
-
-    if meth.with_self {
-        modify_self_ty(sig);
     }
 
     let res_type_def = if meth.with_result {
@@ -131,14 +163,5 @@ fn insert_lifetime(ty: &mut syn::Type) {
         }
         syn::Type::Path(ref mut path) => insert_lifetime_for_path(path),
         _ => {}
-    }
-}
-
-fn modify_self_ty(sig: &mut syn::Signature) {
-    match sig.inputs[0] {
-        syn::FnArg::Receiver(ref mut slf) => {
-            slf.reference = Some((Token![&](Span::call_site()), syn::parse_quote! {'p}));
-        }
-        syn::FnArg::Typed(_) => {}
     }
 }

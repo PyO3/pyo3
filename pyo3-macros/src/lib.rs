@@ -46,13 +46,21 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_proto(&mut ast).unwrap_or_else(|e| e.to_compile_error());
 
-    quote!(
-        #ast
-        #expanded
-    )
-    .into()
+    // Because #[pyproto] does so much magic on the trait implementations, if an error is emitted
+    // during #[pyproto] expansion the compiler will spit out a lot of garbage errors at the same
+    // time unless the original `ast` is not emitted with the compile error.
+    match build_py_proto(&mut ast) {
+        Ok(expanded) => quote!(
+            #ast
+            #expanded
+        )
+        .into(),
+        Err(e) => {
+            let expanded_err = e.to_compile_error();
+            quote!(#expanded_err).into()
+        }
+    }
 }
 
 #[proc_macro_attribute]

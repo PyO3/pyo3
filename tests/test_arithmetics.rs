@@ -19,27 +19,27 @@ impl UnaryArithmetic {
 
 #[pyproto]
 impl PyObjectProtocol for UnaryArithmetic {
-    fn __repr__(&self) -> String {
-        format!("UA({})", self.inner)
+    fn __repr__(slf: PyRef<Self>) -> String {
+        format!("UA({})", slf.inner)
     }
 }
 
 #[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
-    fn __neg__(&self) -> Self {
-        Self::new(-self.inner)
+    fn __neg__(slf: PyRef<Self>) -> Self {
+        Self::new(-slf.inner)
     }
 
-    fn __pos__(&self) -> Self {
-        Self::new(self.inner)
+    fn __pos__(slf: PyRef<Self>) -> Self {
+        Self::new(slf.inner)
     }
 
-    fn __abs__(&self) -> Self {
-        Self::new(self.inner.abs())
+    fn __abs__(slf: PyRef<Self>) -> Self {
+        Self::new(slf.inner.abs())
     }
 
-    fn __round__(&self, _ndigits: Option<u32>) -> Self {
-        Self::new(self.inner.round())
+    fn __round__(slf: PyRef<Self>, _ndigits: Option<u32>) -> Self {
+        Self::new(slf.inner.round())
     }
 }
 
@@ -61,7 +61,7 @@ struct BinaryArithmetic {}
 
 #[pyproto]
 impl PyObjectProtocol for BinaryArithmetic {
-    fn __repr__(&self) -> &'static str {
+    fn __repr__(_slf: PyRef<Self>) -> &'static str {
         "BA"
     }
 }
@@ -73,47 +73,47 @@ struct InPlaceOperations {
 
 #[pyproto]
 impl PyObjectProtocol for InPlaceOperations {
-    fn __repr__(&self) -> String {
-        format!("IPO({:?})", self.value)
+    fn __repr__(slf: PyRef<Self>) -> String {
+        format!("IPO({:?})", slf.value)
     }
 }
 
 #[pyproto]
 impl PyNumberProtocol for InPlaceOperations {
-    fn __iadd__(&mut self, other: u32) {
-        self.value += other;
+    fn __iadd__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value += other;
     }
 
-    fn __isub__(&mut self, other: u32) {
-        self.value -= other;
+    fn __isub__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value -= other;
     }
 
-    fn __imul__(&mut self, other: u32) {
-        self.value *= other;
+    fn __imul__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value *= other;
     }
 
-    fn __ilshift__(&mut self, other: u32) {
-        self.value <<= other;
+    fn __ilshift__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value <<= other;
     }
 
-    fn __irshift__(&mut self, other: u32) {
-        self.value >>= other;
+    fn __irshift__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value >>= other;
     }
 
-    fn __iand__(&mut self, other: u32) {
-        self.value &= other;
+    fn __iand__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value &= other;
     }
 
-    fn __ixor__(&mut self, other: u32) {
-        self.value ^= other;
+    fn __ixor__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value ^= other;
     }
 
-    fn __ior__(&mut self, other: u32) {
-        self.value |= other;
+    fn __ior__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value |= other;
     }
 
-    fn __ipow__(&mut self, other: u32) {
-        self.value = self.value.pow(other);
+    fn __ipow__(mut slf: PyRefMut<Self>, other: u32) {
+        slf.value = slf.value.pow(other);
     }
 }
 
@@ -216,39 +216,39 @@ struct RhsArithmetic {}
 
 #[pyproto]
 impl PyNumberProtocol for RhsArithmetic {
-    fn __radd__(&self, other: &PyAny) -> String {
+    fn __radd__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} + RA", other)
     }
 
-    fn __rsub__(&self, other: &PyAny) -> String {
+    fn __rsub__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} - RA", other)
     }
 
-    fn __rmul__(&self, other: &PyAny) -> String {
+    fn __rmul__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} * RA", other)
     }
 
-    fn __rlshift__(&self, other: &PyAny) -> String {
+    fn __rlshift__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} << RA", other)
     }
 
-    fn __rrshift__(&self, other: &PyAny) -> String {
+    fn __rrshift__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} >> RA", other)
     }
 
-    fn __rand__(&self, other: &PyAny) -> String {
+    fn __rand__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} & RA", other)
     }
 
-    fn __rxor__(&self, other: &PyAny) -> String {
+    fn __rxor__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} ^ RA", other)
     }
 
-    fn __ror__(&self, other: &PyAny) -> String {
+    fn __ror__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
+    fn __rpow__(_slf: PyRef<Self>, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
         format!("{:?} ** RA", other)
     }
 }
@@ -330,50 +330,50 @@ impl PyNumberProtocol for LhsAndRhs {
         format!("{:?} @ {:?}", lhs, rhs)
     }
 
-    fn __radd__(&self, other: &PyAny) -> String {
+    fn __radd__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} + RA", other)
     }
 
-    fn __rsub__(&self, other: &PyAny) -> String {
+    fn __rsub__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} - RA", other)
     }
 
-    fn __rmul__(&self, other: &PyAny) -> String {
+    fn __rmul__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} * RA", other)
     }
 
-    fn __rlshift__(&self, other: &PyAny) -> String {
+    fn __rlshift__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} << RA", other)
     }
 
-    fn __rrshift__(&self, other: &PyAny) -> String {
+    fn __rrshift__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} >> RA", other)
     }
 
-    fn __rand__(&self, other: &PyAny) -> String {
+    fn __rand__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} & RA", other)
     }
 
-    fn __rxor__(&self, other: &PyAny) -> String {
+    fn __rxor__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} ^ RA", other)
     }
 
-    fn __ror__(&self, other: &PyAny) -> String {
+    fn __ror__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
+    fn __rpow__(_slf: PyRef<Self>, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
         format!("{:?} ** RA", other)
     }
 
-    fn __rmatmul__(&self, other: &PyAny) -> String {
+    fn __rmatmul__(_slf: PyRef<Self>, other: &PyAny) -> String {
         format!("{:?} @ RA", other)
     }
 }
 
 #[pyproto]
 impl PyObjectProtocol for LhsAndRhs {
-    fn __repr__(&self) -> &'static str {
+    fn __repr__(_slf: PyRef<Self>) -> &'static str {
         "BA"
     }
 }
@@ -413,18 +413,18 @@ struct RichComparisons {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons {
-    fn __repr__(&self) -> &'static str {
+    fn __repr__(_slf: PyRef<Self>) -> &'static str {
         "RC"
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> String {
+    fn __richcmp__(slf: PyRef<Self>, other: &PyAny, op: CompareOp) -> String {
         match op {
-            CompareOp::Lt => format!("{} < {:?}", self.__repr__(), other),
-            CompareOp::Le => format!("{} <= {:?}", self.__repr__(), other),
-            CompareOp::Eq => format!("{} == {:?}", self.__repr__(), other),
-            CompareOp::Ne => format!("{} != {:?}", self.__repr__(), other),
-            CompareOp::Gt => format!("{} > {:?}", self.__repr__(), other),
-            CompareOp::Ge => format!("{} >= {:?}", self.__repr__(), other),
+            CompareOp::Lt => format!("{} < {:?}", RichComparisons::__repr__(slf), other),
+            CompareOp::Le => format!("{} <= {:?}", RichComparisons::__repr__(slf), other),
+            CompareOp::Eq => format!("{} == {:?}", RichComparisons::__repr__(slf), other),
+            CompareOp::Ne => format!("{} != {:?}", RichComparisons::__repr__(slf), other),
+            CompareOp::Gt => format!("{} > {:?}", RichComparisons::__repr__(slf), other),
+            CompareOp::Ge => format!("{} >= {:?}", RichComparisons::__repr__(slf), other),
         }
     }
 }
@@ -434,11 +434,11 @@ struct RichComparisons2 {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons2 {
-    fn __repr__(&self) -> &'static str {
+    fn __repr__(_slf: PyRef<Self>) -> &'static str {
         "RC2"
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyObject {
+    fn __richcmp__(_slf: PyRef<Self>, other: &PyAny, op: CompareOp) -> PyObject {
         match op {
             CompareOp::Eq => true.into_py(other.py()),
             CompareOp::Ne => false.into_py(other.py()),
@@ -509,11 +509,11 @@ mod return_not_implemented {
 
     #[pyproto]
     impl<'p> PyObjectProtocol<'p> for RichComparisonToSelf {
-        fn __repr__(&self) -> &'static str {
+        fn __repr__(_slf: PyRef<Self>) -> &'static str {
             "RC_Self"
         }
 
-        fn __richcmp__(&self, other: PyRef<'p, Self>, _op: CompareOp) -> PyObject {
+        fn __richcmp__(_slf: PyRef<Self>, other: PyRef<'p, Self>, _op: CompareOp) -> PyObject {
             other.py().None()
         }
     }
@@ -564,19 +564,19 @@ mod return_not_implemented {
         }
 
         // Inplace assignments
-        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __iand__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ior__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ixor__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __iadd__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __isub__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __imul__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __imatmul__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __itruediv__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __ifloordiv__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __imod__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __ipow__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __ilshift__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __irshift__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __iand__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __ior__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
+        fn __ixor__(mut _slf: PyRefMut<Self>, _other: PyRef<'p, Self>) {}
     }
 
     fn _test_binary_dunder(dunder: &str) {

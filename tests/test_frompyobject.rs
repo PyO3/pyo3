@@ -26,7 +26,7 @@ pub struct PyA {
 
 #[pyproto]
 impl PyMappingProtocol for PyA {
-    fn __getitem__(&self, key: String) -> pyo3::PyResult<String> {
+    fn __getitem__(_slf: PyRef<Self>, key: String) -> pyo3::PyResult<String> {
         if key == "t" {
             Ok("bar".into())
         } else {

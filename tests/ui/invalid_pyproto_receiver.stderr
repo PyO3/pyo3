@@ -1,0 +1,25 @@
+error: since PyO3 0.14 receivers cannot be used in `#[pyproto]`. Replace `&self` with `slf: PyRef<Self>`.
+  --> $DIR/invalid_pyproto_receiver.rs:13:16
+   |
+13 |     fn __str__(&self) -> &'static str {  "hello, world" }
+   |                ^
+
+error: since PyO3 0.14 receivers cannot be used in `#[pyproto]`. Replace `&mut self` with `mut slf: PyRefMut<Self>`.
+  --> $DIR/invalid_pyproto_receiver.rs:18:20
+   |
+18 |     fn __delitem__(&mut self, item: &PyAny) { }
+   |                    ^
+
+warning: unused import: `pyo3::class::basic::PyObjectProtocol`
+ --> $DIR/invalid_pyproto_receiver.rs:2:5
+  |
+2 | use pyo3::class::basic::PyObjectProtocol;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `pyo3::class::mapping::PyMappingProtocol`
+ --> $DIR/invalid_pyproto_receiver.rs:3:5
+  |
+3 | use pyo3::class::mapping::PyMappingProtocol;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

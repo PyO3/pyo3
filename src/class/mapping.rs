@@ -3,41 +3,41 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
-use crate::callback::IntoPyCallbackOutput;
+use crate::{callback::IntoPyCallbackOutput, derive_utils::TryFromPyCell};
 use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
 pub trait PyMappingProtocol<'p>: PyClass {
-    fn __len__(&'p self) -> Self::Result
+    fn __len__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyMappingLenProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __getitem__(&'p self, key: Self::Key) -> Self::Result
+    fn __getitem__(slf: Self::Receiver, key: Self::Key) -> Self::Result
     where
         Self: PyMappingGetItemProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __setitem__(&'p mut self, key: Self::Key, value: Self::Value) -> Self::Result
+    fn __setitem__(slf: Self::Receiver, key: Self::Key, value: Self::Value) -> Self::Result
     where
         Self: PyMappingSetItemProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __delitem__(&'p mut self, key: Self::Key) -> Self::Result
+    fn __delitem__(slf: Self::Receiver, key: Self::Key) -> Self::Result
     where
         Self: PyMappingDelItemProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __reversed__(&'p self) -> Self::Result
+    fn __reversed__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyMappingReversedProtocol<'p>,
     {
@@ -49,26 +49,31 @@ pub trait PyMappingProtocol<'p>: PyClass {
 // the existance of a slotted method.
 
 pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<usize>;
 }
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Key: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 

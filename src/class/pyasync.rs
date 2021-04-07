@@ -39,7 +39,7 @@ pub trait PyAsyncProtocol<'p>: PyClass {
         unimplemented!()
     }
 
-    fn __aenter__(&'p mut self) -> Self::Result
+    fn __aenter__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyAsyncAenterProtocol<'p>,
     {
@@ -47,7 +47,7 @@ pub trait PyAsyncProtocol<'p>: PyClass {
     }
 
     fn __aexit__(
-        &'p mut self,
+        slf: Self::Receiver,
         exc_type: Option<Self::ExcType>,
         exc_value: Option<Self::ExcValue>,
         traceback: Option<Self::Traceback>,
@@ -75,19 +75,21 @@ pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-py_unarys_func!(await_, PyAsyncAwaitProtocol, Self::__await__);
-py_unarys_func!(aiter, PyAsyncAiterProtocol, Self::__aiter__);
-py_unarys_func!(anext, PyAsyncAnextProtocol, Self::__anext__);
+py_unary_func!(await_, PyAsyncAwaitProtocol, Self::__await__);
+py_unary_func!(aiter, PyAsyncAiterProtocol, Self::__aiter__);
+py_unary_func!(anext, PyAsyncAnextProtocol, Self::__anext__);
 
 /// Output of `__anext__`.
 pub enum IterANextOutput<T, U> {

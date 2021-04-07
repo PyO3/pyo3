@@ -33,48 +33,48 @@ impl ByteSequence {
 
 #[pyproto]
 impl PySequenceProtocol for ByteSequence {
-    fn __len__(&self) -> usize {
-        self.elements.len()
+    fn __len__(slf: PyRef<Self>) -> usize {
+        slf.elements.len()
     }
 
-    fn __getitem__(&self, idx: isize) -> PyResult<u8> {
-        self.elements
+    fn __getitem__(slf: PyRef<Self>, idx: isize) -> PyResult<u8> {
+        slf.elements
             .get(idx as usize)
             .copied()
             .ok_or_else(|| PyIndexError::new_err("list index out of range"))
     }
 
-    fn __setitem__(&mut self, idx: isize, value: u8) {
-        self.elements[idx as usize] = value;
+    fn __setitem__(mut slf: PyRefMut<Self>, idx: isize, value: u8) {
+        slf.elements[idx as usize] = value;
     }
 
-    fn __delitem__(&mut self, idx: isize) -> PyResult<()> {
-        if (idx < self.elements.len() as isize) && (idx >= 0) {
-            self.elements.remove(idx as usize);
+    fn __delitem__(mut slf: PyRefMut<Self>, idx: isize) -> PyResult<()> {
+        if (idx < slf.elements.len() as isize) && (idx >= 0) {
+            slf.elements.remove(idx as usize);
             Ok(())
         } else {
             Err(PyIndexError::new_err("list index out of range"))
         }
     }
 
-    fn __contains__(&self, other: &PyAny) -> bool {
+    fn __contains__(slf: PyRef<Self>, other: &PyAny) -> bool {
         match u8::extract(other) {
-            Ok(x) => self.elements.contains(&x),
+            Ok(x) => slf.elements.contains(&x),
             Err(_) => false,
         }
     }
 
-    fn __concat__(&self, other: PyRef<'p, Self>) -> Self {
-        let mut elements = self.elements.clone();
+    fn __concat__(slf: PyRef<Self>, other: PyRef<'p, Self>) -> Self {
+        let mut elements = slf.elements.clone();
         elements.extend_from_slice(&other.elements);
         Self { elements }
     }
 
-    fn __repeat__(&self, count: isize) -> PyResult<Self> {
+    fn __repeat__(slf: PyRef<Self>, count: isize) -> PyResult<Self> {
         if count >= 0 {
-            let mut elements = Vec::with_capacity(self.elements.len() * count as usize);
+            let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
             for _ in 0..count {
-                elements.extend(&self.elements);
+                elements.extend(&slf.elements);
             }
             Ok(Self { elements })
         } else {
@@ -273,8 +273,8 @@ struct OptionList {
 
 #[pyproto]
 impl PySequenceProtocol for OptionList {
-    fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
-        match self.items.get(idx as usize) {
+    fn __getitem__(slf: PyRef<Self>, idx: isize) -> PyResult<Option<i64>> {
+        match slf.items.get(idx as usize) {
             Some(x) => Ok(*x),
             None => Err(PyIndexError::new_err("Index out of bounds")),
         }
