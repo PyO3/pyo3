@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==19.10b0
+      - run: pip install black==20.8b1
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -141,15 +141,13 @@ jobs:
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
 
       - name: Install python test dependencies
-        run: |
-          python -m pip install -U pip setuptools
-          pip install setuptools-rust pytest pytest-benchmark tox
+        run: python -m pip install -U pip tox
 
       - name: Test example extension modules
         shell: bash
         run: |
           for example_dir in examples/*; do
-              tox --discover $(which python) -c $example_dir -e py
+              tox -c $example_dir -e py
           done
         env:
           TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"

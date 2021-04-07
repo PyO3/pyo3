@@ -1,0 +1,3 @@
+include Cargo.toml
+recursive-include src *
+recursive-include tests

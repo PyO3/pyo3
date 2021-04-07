@@ -73,7 +73,9 @@ nightly = []
 members = [
     "pyo3-macros",
     "pyo3-macros-backend",
-    "examples/pyo3_benchmarks",
-    "examples/rustapi_module",
+    "examples/pyo3-benchmarks",
+    "examples/pyo3-pytests",
+    "examples/maturin-starter",
+    "examples/setuptools-rust-starter",
     "examples/word-count"
 ]
