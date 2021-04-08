@@ -159,10 +159,12 @@ PyO3's [`build.rs`](https://github.com/PyO3/pyo3/tree/master/build.rs) is relati
 Below is a non-exhaustive list of its functionality:
 - Cross-compiling support.
   - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
-  from environment variables (`PYO3_CROSS_INCLUDE_DIR` and `PYO3_CROSS_PYTHON`) or system files.
+  from environment variables (`PYO3_CROSS_LIB_DIR` and `PYO3_CROSS_PYTHON_VERSION`) or system files.
 - Find the interpreter for build and detect the Python version.
   - We have to set some version flags like `Py_37`.
   - If the interpreter is PyPy, we set `PyPy`.
+  - If `PYO3_NO_PYTHON` environment variable is set then the interpreter detection is bypassed
+  entirely and only abi3 extensions can be built.
 - Check if we are building a Python extension.
   - If we are building an extension (e.g., Python library installable by `pip`),
   we don't link `libpython`.
