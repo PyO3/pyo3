@@ -902,6 +902,7 @@ fn main_impl() -> Result<()> {
         "LIB",
         "LD_LIBRARY_PATH",
         "PYO3_PYTHON",
+        "PYO3_CROSS",
         "PYO3_CROSS_LIB_DIR",
         "PYO3_CROSS_PYTHON_VERSION",
     ] {
