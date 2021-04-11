@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     convert::AsRef,
     env,
+    ffi::OsString,
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
@@ -33,6 +34,20 @@ macro_rules! warn {
     ($msg: literal) => {
         println!(concat!("cargo:warning=", $msg));
     };
+}
+
+/// Gets an environment variable owned by cargo.
+///
+/// Environment variables set by cargo are expected to be valid UTF8.
+fn cargo_env_var(var: &str) -> Option<String> {
+    env::var_os(var).map(|os_string| os_string.to_str().unwrap().into())
+}
+
+/// Gets an external environment variable, and registers the build script to rerun if
+/// the variable changes.
+fn env_var(var: &str) -> Option<OsString> {
+    println!("cargo:rerun-if-env-changed={}", var);
+    env::var_os(var)
 }
 
 /// Information returned from python interpreter
@@ -83,7 +98,7 @@ impl FromStr for PythonInterpreterKind {
 }
 
 fn is_abi3() -> bool {
-    env::var_os("CARGO_FEATURE_ABI3").is_some()
+    cargo_env_var("CARGO_FEATURE_ABI3").is_some()
 }
 
 trait GetPrimitive {
@@ -119,40 +134,21 @@ struct CrossCompileConfig {
     arch: String,
 }
 
-impl CrossCompileConfig {
-    fn new() -> Result<Self> {
-        Ok(CrossCompileConfig {
-            lib_dir: CrossCompileConfig::validate_variable("PYO3_CROSS_LIB_DIR")?,
-            os: env::var("CARGO_CFG_TARGET_OS").unwrap(),
-            arch: env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
-            version: env::var_os("PYO3_CROSS_PYTHON_VERSION").map(|s| s.into_string().unwrap()),
-        })
-    }
-
-    fn validate_variable(var: &str) -> Result<PathBuf> {
-        let path = match env::var_os(var) {
-            Some(v) => v,
-            None => bail!(
-                "Must provide {} environment variable when cross-compiling",
-                var
-            ),
-        };
-
-        if fs::metadata(&path).is_err() {
-            bail!("{} value of {:?} does not exist", var, path)
-        }
-
-        Ok(path.into())
-    }
-}
-
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
-    if env::var_os("PYO3_CROSS").is_none()
-        && env::var_os("PYO3_CROSS_LIB_DIR").is_none()
-        && env::var_os("PYO3_CROSS_PYTHON_VERSION").is_none()
-    {
-        let target = env::var("TARGET")?;
-        let host = env::var("HOST")?;
+    let cross = env_var("PYO3_CROSS");
+    let cross_lib_dir = env_var("PYO3_CROSS_LIB_DIR");
+    let cross_python_version = env_var("PYO3_CROSS_PYTHON_VERSION");
+
+    let target_arch = cargo_env_var("CARGO_CFG_TARGET_ARCH");
+    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR");
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS");
+
+    if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
+        // No cross-compiling environment variables set; try to determine if this is a known case
+        // which is not cross-compilation.
+
+        let target = cargo_env_var("TARGET").unwrap();
+        let host = cargo_env_var("HOST").unwrap();
         if target == host {
             // Not cross-compiling
             return Ok(None);
@@ -173,20 +169,32 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
             return Ok(None);
         }
 
-        if host.starts_with(&format!(
-            "{}-{}-{}",
-            env::var("CARGO_CFG_TARGET_ARCH")?,
-            env::var("CARGO_CFG_TARGET_VENDOR")?,
-            env::var("CARGO_CFG_TARGET_OS")?
-        )) {
-            // Not cross-compiling if arch-vendor-os is all the same
-            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
-            return Ok(None);
+        if let (Some(arch), Some(vendor), Some(os)) = (&target_arch, &target_vendor, &target_os) {
+            if host.starts_with(&format!("{}-{}-{}", arch, vendor, os)) {
+                // Not cross-compiling if arch-vendor-os is all the same
+                // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
+                return Ok(None);
+            }
         }
     }
 
-    // Cross-compiling on any other platform
-    Ok(Some(CrossCompileConfig::new()?))
+    // At this point we assume that we are cross compiling.
+
+    Ok(Some(CrossCompileConfig {
+        lib_dir: cross_lib_dir
+            .ok_or("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")?
+            .into(),
+        os: target_os.unwrap(),
+        arch: target_arch.unwrap(),
+        version: cross_python_version
+            .map(|os_string| {
+                os_string
+                    .to_str()
+                    .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid utf-8.")
+                    .map(str::to_owned)
+            })
+            .transpose()?,
+    }))
 }
 
 /// A list of python interpreter compile-time preprocessor defines that
@@ -226,7 +234,7 @@ impl BuildFlags {
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
     fn from_interpreter(python_path: &Path) -> Result<Self> {
-        if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+        if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
             return Ok(Self::windows_hardcoded());
         }
 
@@ -377,7 +385,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
-    let sysconfig_name = env::var_os("_PYTHON_SYSCONFIGDATA_NAME");
+    let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
         .iter()
         .filter_map(|p| {
@@ -525,7 +533,7 @@ fn windows_hardcoded_cross_compile(
 fn load_cross_compile_info(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<(InterpreterConfig, BuildFlags)> {
-    match env::var_os("CARGO_CFG_TARGET_FAMILY") {
+    match cargo_env_var("CARGO_CFG_TARGET_FAMILY") {
         // Configure for unix platforms using the sysconfigdata file
         Some(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
         // Use hardcoded interpreter config when targeting Windows
@@ -580,14 +588,14 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
 }
 
 fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
-    let link_name = if env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() == "windows" {
+    let link_name = if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
         if is_abi3() {
             // Link against python3.lib for the stable ABI on Windows.
             // See https://www.python.org/dev/peps/pep-0384/#linkage
             //
             // This contains only the limited ABI symbols.
             "pythonXY:python3".to_owned()
-        } else if env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() == "gnu" {
+        } else if cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap() == "gnu" {
             // https://packages.msys2.org/base/mingw-w64-python
             format!(
                 "pythonXY:python{}.{}",
@@ -613,13 +621,31 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> String {
     )
 }
 
+fn get_venv_path() -> Option<PathBuf> {
+    match (env_var("VIRTUAL_ENV"), env_var("CONDA_PREFIX")) {
+        (Some(dir), None) => Some(PathBuf::from(dir)),
+        (None, Some(dir)) => Some(PathBuf::from(dir)),
+        (Some(_), Some(_)) => {
+            warn!(
+                "Both VIRTUAL_ENV and CONDA_PREFIX are set. PyO3 will ignore both of these for \
+                 locating the Python interpreter until you unset one of them."
+            );
+            None
+        }
+        (None, None) => None,
+    }
+}
+
 fn find_interpreter() -> Result<PathBuf> {
-    if let Some(exe) = env::var_os("PYO3_PYTHON") {
+    if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
-    } else if let Some(exe) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        // Backwards-compatible name for PYO3_PYTHON; this may be removed at some point in the future.
-        Ok(exe.into())
+    } else if let Some(venv_path) = get_venv_path() {
+        match cargo_env_var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+            "windows" => Ok(venv_path.join("Scripts\\python")),
+            _ => Ok(venv_path.join("bin/python")),
+        }
     } else {
+        println!("cargo:rerun-if-env-changed=PATH");
         ["python", "python3"]
             .iter()
             .find(|bin| {
@@ -692,7 +718,7 @@ print("calcsize_pointer", struct.calcsize("P"))
     let output = run_python_script(interpreter, script)?;
     let map: HashMap<String, String> = parse_script_output(&output);
     let shared = match (
-        env::var("CARGO_CFG_TARGET_OS").unwrap().as_str(),
+        cargo_env_var("CARGO_CFG_TARGET_OS").unwrap().as_str(),
         map["framework"].as_str(),
         map["shared"].as_str(),
     ) {
@@ -735,8 +761,8 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
 
     check_target_architecture(interpreter_config)?;
 
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     match (is_extension_module, target_os.as_str()) {
         (_, "windows") => {
             // always link on windows, even with extension module
@@ -833,7 +859,10 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
 
 fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
     // Try to check whether the target architecture matches the python library
-    let rust_target = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH")?.as_str() {
+    let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
+        .unwrap()
+        .as_str()
+    {
         "64" => "64-bit",
         "32" => "32-bit",
         x => bail!("unexpected Rust target pointer width: {}", x),
@@ -868,10 +897,10 @@ fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<(
 
 fn get_abi3_minor_version() -> Option<u8> {
     (PY3_MIN_MINOR..=ABI3_MAX_MINOR)
-        .find(|i| env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
+        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
 }
 
-fn abi3_without_interpreter() -> Result<()> {
+fn configure_abi3_without_interpreter() {
     println!("cargo:rustc-cfg=Py_LIMITED_API");
     let mut flags = "FLAG_WITH_THREAD=1".to_string();
     let abi_version = get_abi3_minor_version().unwrap_or(ABI3_MAX_MINOR);
@@ -882,7 +911,7 @@ fn abi3_without_interpreter() -> Result<()> {
     println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
     println!("cargo:python_flags={}", flags);
 
-    if env::var("CARGO_CFG_TARGET_FAMILY")? == "windows" {
+    if cargo_env_var("CARGO_CFG_TARGET_FAMILY").unwrap() == "windows" {
         // Unfortunately, on windows we can't build without at least providing
         // python.lib to the linker. While maturin tells the linker the location
         // of python.lib, we need to do the renaming here, otherwise cargo
@@ -890,18 +919,17 @@ fn abi3_without_interpreter() -> Result<()> {
         // attribute with pythonXY.
         println!("cargo:rustc-link-lib=pythonXY:python3");
     }
-
-    Ok(())
 }
 
 fn main_impl() -> Result<()> {
     // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
     // We only check for the abi3-py3{ABI3_MAX_MINOR} because lower versions depend on it.
-    if env::var_os("PYO3_NO_PYTHON").is_some()
-        && env::var_os(format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()
+    if cargo_env_var("PYO3_NO_PYTHON").is_some()
+        && cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", ABI3_MAX_MINOR)).is_some()
     {
         println!("cargo:rerun-if-env-changed=PYO3_NO_PYTHON");
-        return abi3_without_interpreter();
+        configure_abi3_without_interpreter();
+        return Ok(());
     }
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
     // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
@@ -927,28 +955,6 @@ fn main_impl() -> Result<()> {
 
     for flag in &build_flags.0 {
         println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, flag)
-    }
-
-    for var in &[
-        "LIB",
-        "LD_LIBRARY_PATH",
-        "PYO3_PYTHON",
-        "PYO3_CROSS",
-        "PYO3_CROSS_LIB_DIR",
-        "PYO3_CROSS_PYTHON_VERSION",
-    ] {
-        println!("cargo:rerun-if-env-changed={}", var);
-    }
-
-    if env::var_os("PYO3_PYTHON").is_none() {
-        // When PYO3_PYTHON is not used, PYTHON_SYS_EXECUTABLE has the highest priority.
-        // Let's watch it.
-        println!("cargo:rerun-if-env-changed=PYTHON_SYS_EXECUTABLE");
-        if env::var_os("PYTHON_SYS_EXECUTABLE").is_none() {
-            // When PYTHON_SYS_EXECUTABLE is also not used, then we use PATH.
-            // Let's watch this, too.
-            println!("cargo:rerun-if-env-changed=PATH");
-        }
     }
 
     Ok(())
