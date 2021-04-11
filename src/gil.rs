@@ -46,9 +46,6 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// this function has no effect.
 ///
 /// # Availability
-/// This function is only available when linking against Python distributions that contain a
-/// shared library.
-///
 /// This function is not available on PyPy.
 ///
 /// # Panics
@@ -70,7 +67,7 @@ pub(crate) fn gil_is_acquired() -> bool {
 ///     });
 /// }
 /// ```
-#[cfg(all(Py_SHARED, not(PyPy)))]
+#[cfg(not(PyPy))]
 #[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
@@ -110,9 +107,6 @@ pub fn prepare_freethreaded_python() {
 /// initialize correctly on the second run.)
 ///
 /// # Availability
-/// This function is only available when linking against Python distributions that contain a shared
-/// library.
-///
 /// This function is not available on PyPy.
 ///
 /// # Panics
@@ -137,7 +131,7 @@ pub fn prepare_freethreaded_python() {
 ///     }
 /// }
 /// ```
-#[cfg(all(Py_SHARED, not(PyPy)))]
+#[cfg(not(PyPy))]
 #[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
@@ -219,32 +213,9 @@ impl GILGuard {
         //    auto-initialize so this avoids breaking existing builds.
         //  - Otherwise, just check the GIL is initialized.
         cfg_if::cfg_if! {
-            if #[cfg(all(feature = "auto-initialize", Py_SHARED, not(PyPy)))] {
+            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
                 prepare_freethreaded_python();
-            } else if #[cfg(all(feature = "auto-initialize", not(Py_SHARED), not(__pyo3_ci)))] {
-                compile_error!(concat!(
-                    "The `auto-initialize` feature is not supported when linking Python ",
-                    "statically instead of with a shared library.\n\n",
-                    "Please disable the `auto-initialize` feature, for example by entering the following ",
-                    "in your cargo.toml:\n\n",
-                    "    pyo3 = { version = \"",
-                    env!("CARGO_PKG_VERSION"),
-                    "\", default-features = false }\n\n",
-                    "Alternatively, compile PyO3 using a Python distribution which contains a shared ",
-                    "libary."
-                ));
-            } else if #[cfg(all(feature = "auto-initialize", PyPy, not(__pyo3_ci)))] {
-                compile_error!(concat!(
-                    "The `auto-initialize` feature is not supported by PyPy.\n\n",
-                    "Please disable the `auto-initialize` feature, for example by entering the following ",
-                    "in your cargo.toml:\n\n",
-                    "    pyo3 = { version = \"",
-                    env!("CARGO_PKG_VERSION"),
-                    "\", default-features = false }\n\n",
-                ));
             } else {
-                // extension module feature enabled and PyPy or static linking
-                // OR auto-initialize feature not enabled
                 START.call_once_force(|_| unsafe {
                     // Use call_once_force because if there is a panic because the interpreter is
                     // not initialized, it's fine for the user to initialize the interpreter and
@@ -252,12 +223,18 @@ impl GILGuard {
                     assert_ne!(
                         ffi::Py_IsInitialized(),
                         0,
-                        "The Python interpreter is not initalized and the `auto-initialize` feature is not enabled."
+                        "The Python interpreter is not initalized and the `auto-initialize` \
+                         feature is not enabled.\n\n\
+                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+                         to use Python APIs."
                     );
                     assert_ne!(
                         ffi::PyEval_ThreadsInitialized(),
                         0,
-                        "Python threading is not initalized and the `auto-initialize` feature is not enabled."
+                        "Python threading is not initalized and the `auto-initialize` feature is \
+                         not enabled.\n\n\
+                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+                         to use Python APIs."
                     );
                 });
             }

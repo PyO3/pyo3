@@ -30,7 +30,7 @@ See the [building and distribution](building_and_distribution.md#minimum-python-
 
 ## Features for embedding Python in Rust
 
-### `auto-initalize`
+### `auto-initialize`
 
 This feature changes [`Python::with_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.with_gil) and [`Python::acquire_gil`]({{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.acquire_gil) to automatically initialize a Python interpreter (by calling [`prepare_freethreaded_python`]({{#PYO3_DOCS_URL}}/pyo3/fn.prepare_freethreaded_python.html)) if needed.
 
