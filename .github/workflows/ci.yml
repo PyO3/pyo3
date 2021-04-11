@@ -47,7 +47,7 @@ jobs:
         rust: [stable]
         python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6, pypy-3.7]
         platform: [
-          { os: "macOS-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
+          { os: "macos-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
           { os: "windows-latest", python-architecture: "x64", rust-target: "x86_64-pc-windows-msvc" },
           { os: "windows-latest", python-architecture: "x86", rust-target: "i686-pc-windows-msvc" },
@@ -69,10 +69,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # macOS: install gnu-tar because BSD tar is buggy for github actions
+      # macos: install gnu-tar because BSD tar is buggy for github actions
       # https://github.com/actions/cache/issues/403
-      - name: Install GNU tar (Macos)
-        if: matrix.os == 'macOS-latest'
+      - name: Install GNU tar (macOS only)
+        if: matrix.platform.os == 'macos-latest'
         run: |
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
@@ -83,7 +83,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: cargo-${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
