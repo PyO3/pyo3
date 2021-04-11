@@ -69,10 +69,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      # macOS: install gnu-tar because BSD tar is buggy for github actions
+      # https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (Macos)
+        if: matrix.os == 'macOS-latest'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
       - uses: actions/cache@v2
-        # macOS seems to have a problem when the proc_macro_hack crates are cached.
-        # We can cache macOS in CI once we drop support for Rust older than 1.45
-        if: matrix.platform.os != 'macOS-latest'
         with:
           path: |
             ~/.cargo/registry
