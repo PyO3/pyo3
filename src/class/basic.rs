@@ -61,6 +61,10 @@ pub trait PyObjectProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__format__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __format__(&'p self, format_spec: Self::Format) -> Self::Result
     where
         Self: PyObjectFormatProtocol<'p>,
@@ -75,6 +79,10 @@ pub trait PyObjectProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__bytes__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __bytes__(&'p self) -> Self::Result
     where
         Self: PyObjectBytesProtocol<'p>,

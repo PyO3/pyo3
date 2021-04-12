@@ -1,3 +1,5 @@
+#![allow(deprecated)] // for deprecated protocol methods
+
 use pyo3::class::{
     PyAsyncProtocol, PyContextProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol,
     PyObjectProtocol, PySequenceProtocol,

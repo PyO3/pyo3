@@ -39,6 +39,10 @@ pub trait PyAsyncProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__aenter__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __aenter__(&'p mut self) -> Self::Result
     where
         Self: PyAsyncAenterProtocol<'p>,
@@ -46,6 +50,10 @@ pub trait PyAsyncProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__aexit__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __aexit__(
         &'p mut self,
         exc_type: Option<Self::ExcType>,

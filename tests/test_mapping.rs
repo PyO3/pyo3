@@ -1,3 +1,5 @@
+#![allow(deprecated)] // for deprecated protocol methods
+
 use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;

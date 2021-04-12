@@ -15,6 +15,47 @@ For projects embedding Python in Rust, PyO3 no longer automatically initalizes a
 
 The limitation of the new default implementation is that it cannot support multiple `#[pymethods]` blocks for the same `#[pyclass]`. If you need this functionality, you must enable the `multiple-pymethods` feature which will switch `#[pymethods]` to the inventory-based implementation.
 
+### Deprecated `#[pyproto]` methods
+
+Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyBasicProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`. This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
+
+In the interest of having onle one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
+
+To migrate just move the affected methods from a `#[pyproto]` to a `#[pymethods]` block.
+
+Before:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::class::basic::PyBasicProtocol;
+
+#[pyclass]
+struct MyClass { }
+
+#[pyproto]
+impl PyBasicProtocol for MyClass {
+    fn __bytes__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+}
+```
+
+After:
+
+```rust
+use pyo3::prelude::*;
+
+#[pyclass]
+struct MyClass { }
+
+#[pymethods]
+impl MyClass {
+    fn __bytes__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+}
+```
+
 ## from 0.12.* to 0.13
 
 ### Minimum Rust version increased to Rust 1.45
