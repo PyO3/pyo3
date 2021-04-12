@@ -1,6 +1,11 @@
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
-#![cfg_attr(Py_LIMITED_API, allow(unused_imports))]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::inline_always))]
+//! Raw ffi declarations for the C interface of Python.
+#![allow(
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    clippy::upper_case_acronyms,
+    clippy::missing_safety_doc
+)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
@@ -50,7 +55,6 @@ pub use self::objimpl::*;
 pub use self::osmodule::*;
 pub use self::pyarena::*;
 pub use self::pycapsule::*;
-pub use self::pydebug::*;
 pub use self::pyerrors::*;
 pub use self::pyframe::*;
 pub use self::pyhash::*;
@@ -163,7 +167,6 @@ mod pyport;
 // mod pytime; contains nothing of interest
 
 mod objimpl;
-mod pydebug;
 mod pyhash;
 mod pymem;
 mod typeslots;

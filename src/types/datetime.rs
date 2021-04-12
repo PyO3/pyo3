@@ -3,8 +3,6 @@
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
-#![allow(clippy::too_many_arguments)]
-
 use crate::err::PyResult;
 use crate::ffi;
 #[cfg(PyPy)]
@@ -130,6 +128,7 @@ pyobject_native_type!(
 );
 
 impl PyDateTime {
+    #[allow(clippy::clippy::too_many_arguments)]
     pub fn new<'p>(
         py: Python<'p>,
         year: i32,
@@ -157,9 +156,10 @@ impl PyDateTime {
         }
     }
 
-    #[cfg(not(PyPy))]
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
     /// signifies a leap second
+    #[cfg(not(PyPy))]
+    #[allow(clippy::clippy::too_many_arguments)]
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         year: i32,

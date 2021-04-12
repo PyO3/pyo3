@@ -1,9 +1,9 @@
 use crate::ffi::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::pyarena::PyArena;
+#[cfg(not(Py_LIMITED_API))]
 use libc::FILE;
 use std::os::raw::{c_char, c_int};
-use std::ptr;
 
 // TODO: PyCF_MASK etc. constants
 
@@ -162,10 +162,10 @@ extern "C" {
 #[cfg(any(not(Py_LIMITED_API), PyPy))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
     #[cfg(not(PyPy))]
-    return Py_CompileStringExFlags(string, p, s, ptr::null_mut(), -1);
+    return Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1);
 
     #[cfg(PyPy)]
-    Py_CompileStringFlags(string, p, s, ptr::null_mut())
+    Py_CompileStringFlags(string, p, s, std::ptr::null_mut())
 }
 
 extern "C" {
