@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - The `auto-initialize` feature is no longer enabled by default. [#1443](https://github.com/PyO3/pyo3/pull/1443)
 - Change `PyCFunction::new()` and `PyCFunction::new_with_keywords()` to take `&'static str` arguments rather than implicitly copying (and leaking) them. [#1450](https://github.com/PyO3/pyo3/pull/1450)
 - Deprecate `PyModule` methods `call`, `call0`, `call1` and `get`. [#1492](https://github.com/PyO3/pyo3/pull/1492)
+- Add length information to `PyBufferError`s raised from `PyBuffer::copy_to_slice` and `PyBuffer::copy_from_slice`. [#1534](https://github.com/PyO3/pyo3/pull/1534)
 - Automatically provide `-undefined` and `dynamic_lookup` linker arguments on macOS with `extension-module` feature. [#1539](https://github.com/PyO3/pyo3/pull/1539)
 
 ### Removed
