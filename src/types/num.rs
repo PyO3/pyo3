@@ -60,13 +60,11 @@ pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
         impl ToPyObject for $rust_type {
-            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn to_object(&self, py: Python) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
-            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn into_py(self, py: Python) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }

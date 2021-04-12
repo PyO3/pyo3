@@ -742,7 +742,6 @@ where
     crate::callback_body!(py, {
         let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
         let other = py.from_borrowed_ptr::<crate::PyAny>(other);
-        #[allow(clippy::needless_question_mark)]
         call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
         ffi::Py_INCREF(slf);
         Ok::<_, PyErr>(slf)

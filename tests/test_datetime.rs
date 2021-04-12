@@ -3,7 +3,6 @@
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
-#[allow(clippy::trivially_copy_pass_by_ref)]
 fn _get_subclasses<'p>(
     py: &'p Python,
     py_type: &str,
