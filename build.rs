@@ -17,10 +17,15 @@ const CFG_KEY: &str = "py_sys_config";
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-// A simple macro for returning an error. Resembles failure::bail and anyhow::bail.
+// A simple macro for returning an error. Resembles anyhow::bail.
 macro_rules! bail {
     ($msg: expr) => { return Err($msg.into()); };
-    ($fmt: literal $(, $args: expr)+) => { return Err(format!($fmt $(,$args)+).into()); };
+    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
+}
+
+// A simple macro for checking a condition. Resembles anyhow::ensure.
+macro_rules! ensure {
+    ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
 }
 
 // Show warning. If needed, please extend this macro to support arguments.
@@ -757,8 +762,30 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
         _ => {}
     }
 
-    if interpreter_config.shared {
-        println!("cargo:rustc-cfg=Py_SHARED");
+    if env::var_os("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
+        ensure!(
+            interpreter_config.shared,
+            "The `auto-initialize` feature is enabled, but your python installation only supports \
+            embedding the Python interpreter statically. If you are attempting to run tests, or a \
+            binary which is okay to link dynamically, install a Python distribution which ships \
+            with the Python shared library.\n\
+            \n\
+            Embedding the Python interpreter statically does not yet have first-class support in \
+            PyO3. If you are sure you intend to do this, disable the `auto-initialize` feature.\n\
+            \n\
+            For more information, see \
+            https://pyo3.rs/v{pyo3_version}/\
+                building_and_distribution.html#embedding-python-in-rust",
+            pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
+        );
+
+        // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
+        // currently cause `auto-initialize` to be enabled in CI.
+        // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
+        ensure!(
+            !interpreter_config.is_pypy() || env::var_os("PYO3_CI").is_some(),
+            "The `auto-initialize` feature is not supported with PyPy."
+        );
     }
 
     let is_abi3 = is_abi3();
@@ -854,10 +881,6 @@ fn abi3_without_interpreter() -> Result<()> {
         // complains that the crate using pyo3 does not contains a `#[link(...)]`
         // attribute with pythonXY.
         println!("cargo:rustc-link-lib=pythonXY:python3");
-
-        // Match `get_config_from_interpreter()` and `windows_hardcoded_cross_compile()`:
-        // assume "Py_ENABLE_SHARED" to be set on Windows.
-        println!("cargo:rustc-cfg=Py_SHARED");
     }
 
     Ok(())
@@ -918,12 +941,6 @@ fn main_impl() -> Result<()> {
             // Let's watch this, too.
             println!("cargo:rerun-if-env-changed=PATH");
         }
-    }
-
-    // TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
-    // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
-    if env::var_os("PYO3_CI").is_some() {
-        println!("cargo:rustc-cfg=__pyo3_ci");
     }
 
     Ok(())

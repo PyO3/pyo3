@@ -119,6 +119,50 @@ cargo build --target x86_64-pc-windows-gnu
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
+## Embedding Python in Rust
+
+If you want to embed the Python interpreter inside a Rust program, there are two modes in which this can be done: dynamically and statically. We'll cover each of these modes in the following sections. Each of them affect how you must distribute your program. Instead of learning how to do this yourself, you might want to consider using a project like [PyOxidizer] to ship your application and all of its dependencies in a single file.
+
+PyO3 automatically switches between the two linking modes depending on whether the Python distribution you have configured PyO3 to use ([see above](#python-version)) contains a shared library or a static library. The static library is most often seen in Python distributions compiled from source without the `--enable-shared` configuration option. For example, this is the default for `pyenv` on macOS.
+
+### Dynamically embedding the Python interpreter
+
+Embedding the Python interpreter dynamically is much easier than doing so statically. This is done by linking your program against a Python shared library (such as `libpython.3.9.so` on UNIX, or `python39.dll` on Windows). The implementation of the Python interpreter resides inside the shared library. This means that when the OS runs your Rust program it also needs to be able to find the Python shared library.
+
+This mode of embedding works well for Rust tests which need access to the Python interpreter. It is also great for Rust software which is installed inside a Python virtualenv, because the virtualenv sets up appropriate environment variables to locate the correct Python shared library.
+
+For distributing your program to non-technical users, you will have to consider including the Python shared library in your distribution as well as setting up wrapper scripts to set the right environment variables (such as `LD_LIBRARY_PATH` on UNIX, or `PATH` on Windows).
+
+### Statically embedding the Python interpreter
+
+Embedding the Python interpreter statically means including the contents of a Python static library directly inside your Rust binary. This means that to distribute your program you only need to ship your binary file: it contains the Python interpreter inside the binary!
+
+On Windows static linking is almost never done, so Python distributions don't usually include a static library. The information below applies only to UNIX.
+
+The Python static library is usually called `libpython.a`.
+
+Static linking has a lot of complications, listed below. For these reasons PyO3 does not yet have first-class support for this embedding mode. See [issue 416 on PyO3's Github](https://github.com/PyO3/pyo3/issues/416) for more information and to discuss any issues you encounter.
+
+The [`auto-initialize`](features.md#auto-initialize) feature is deliberately disabled when embedding the interpreter statically because this is often unintentionally done by new users to PyO3 running test programs. Trying out PyO3 is much easier using dynamic embedding.
+
+The known complications are:
+  - To import compiled extension modules (such as other Rust extension modules, or those written in C), your binary must have the correct linker flags set during compilation to export the original contents of `libpython.a` so that extensions can use them (e.g. `-Wl,--export-dynamic`).
+  - The C compiler and flags which were used to create `libpython.a` must be compatible with your Rust compiler and flags, else you will experience compilation failures.
+
+    Significantly different compiler versions may see errors like this:
+
+    ```ignore
+    lto1: fatal error: bytecode stream in file 'rust-numpy/target/release/deps/libpyo3-6a7fb2ed970dbf26.rlib' generated with LTO version 6.0 instead of the expected 6.2
+    ```
+
+    Mismatching flags may lead to errors like this:
+
+    ```ignore
+    /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libpython3.9.a(zlibmodule.o): relocation R_X86_64_32 against `.data' can not be used when making a PIE object; recompile with -fPIE
+    ```
+
+If you encounter these or other complications when linking the interpreter statically, discuss them on [issue 416 on PyO3's Github](https://github.com/PyO3/pyo3/issues/416). It is hoped that eventually that discussion will contain enough information and solutions that PyO3 can offer first-class support for static embedding.
+
 ## Bazel
 
 For an example of how to build python extensions using Bazel, see https://github.com/TheButlah/rules_pyo3
@@ -126,3 +170,4 @@ For an example of how to build python extensions using Bazel, see https://github
 
 [maturin]: https://github.com/PyO3/maturin
 [setuptools-rust]: https://github.com/PyO3/setuptools-rust
+[PyOxidizer]: https://github.com/indygreg/PyOxidizer
