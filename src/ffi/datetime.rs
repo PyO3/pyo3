@@ -435,26 +435,18 @@ pub struct PyDateTime_CAPI {
 
 // Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
-static PY_DATETIME_API: GILOnceCell<&'static PyDateTime_CAPI> = GILOnceCell::new();
 
-#[derive(Debug)]
-pub struct PyDateTimeAPI {
-    __private_field: (),
-}
-
-pub static PyDateTimeAPI: PyDateTimeAPI = PyDateTimeAPI {
-    __private_field: (),
+/// Safe wrapper around the Python datetime C-API global. Note that this object differs slightly
+/// from the equivalent C object: in C, this is implemented as a `static PyDateTime_CAPI *`. Here
+/// this is implemented as a wrapper which implements [`Deref`] to access a reference to a
+/// [`PyDateTime_CAPI`] object.
+///
+/// In the [`Deref`] implementation, if the underlying object has not yet been initialized, the GIL
+/// will automatically be acquired and [`PyDateTime_IMPORT()`] called.
+pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
+    inner: GILOnceCell::new(),
 };
 
-impl Deref for PyDateTimeAPI {
-    type Target = PyDateTime_CAPI;
-
-    fn deref(&self) -> &'static PyDateTime_CAPI {
-        unsafe { PyDateTime_IMPORT() }
-    }
-}
-
-#[inline]
 /// Populates the `PyDateTimeAPI` object
 ///
 /// Unlike in C, this does *not* need to be actively invoked in Rust, which
@@ -466,23 +458,29 @@ impl Deref for PyDateTimeAPI {
 /// # Safety
 /// The Python GIL must be held.
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
-    let py = Python::assume_gil_acquired();
-    PY_DATETIME_API.get_or_init(py, || {
-        // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
-        // `PyCapsule_Import` will behave unexpectedly in pypy.
-        #[cfg(PyPy)]
-        let py_datetime_c_api = PyDateTime_Import();
+    PyDateTimeAPI
+        .inner
+        .get_or_init(Python::assume_gil_acquired(), || {
+            // Because `get_or_init` is called with `assume_gil_acquired()`, it's necessary to acquire
+            // the GIL here to prevent segfault in usage of the safe `PyDateTimeAPI::deref` impl.
+            Python::with_gil(|_py| {
+                // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
+                // `PyCapsule_Import` will behave unexpectedly in pypy.
+                #[cfg(PyPy)]
+                let py_datetime_c_api = PyDateTime_Import();
 
-        #[cfg(not(PyPy))]
-        let py_datetime_c_api = {
-            // PyDateTime_CAPSULE_NAME is a macro in C
-            let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
+                #[cfg(not(PyPy))]
+                let py_datetime_c_api = {
+                    // PyDateTime_CAPSULE_NAME is a macro in C
+                    let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
 
-            &*(PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *const PyDateTime_CAPI)
-        };
+                    &*(PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1)
+                        as *const PyDateTime_CAPI)
+                };
 
-        py_datetime_c_api
-    })
+                py_datetime_c_api
+            })
+        })
 }
 
 // skipped non-limited PyDateTime_TimeZone_UTC
@@ -572,4 +570,20 @@ extern "C" {
 extern "C" {
     #[link_name = "_PyPyDateTime_Import"]
     pub fn PyDateTime_Import() -> &'static PyDateTime_CAPI;
+}
+
+// -- implementation details which are specific to Rust. --
+
+#[doc(hidden)]
+pub struct _PyDateTimeAPI_impl {
+    inner: GILOnceCell<&'static PyDateTime_CAPI>,
+}
+
+impl Deref for _PyDateTimeAPI_impl {
+    type Target = PyDateTime_CAPI;
+
+    #[inline]
+    fn deref(&self) -> &'static PyDateTime_CAPI {
+        unsafe { PyDateTime_IMPORT() }
+    }
 }
