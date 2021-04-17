@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definition `_Py_InitializeMain`. [#1473](https://github.com/PyO3/pyo3/pull/1473)
 - Add FFI definitions from `cpython/import.h`.[#1475](https://github.com/PyO3/pyo3/pull/1475)
 - Add tuple and unit struct support for `#[pyclass]` macro. [#1504](https://github.com/PyO3/pyo3/pull/1504)
+- Add `#[pyo3(name = "...")]` syntax for setting Python names. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 - Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
 - Add support for `#[pyclass(extends=Exception)]`. [#1591](https://github.com/PyO3/pyo3/pull/1591)
 
@@ -40,6 +41,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `PyMappingProtocol::__reversed__`
   - `PyNumberProtocol::__complex__` and `PyNumberProtocol::__round__`
   - `PyAsyncProtocol::__aenter__` and `PyAsyncProtocol::__aexit__`
+- Deprecate `#[name = "..."]` attributes in favor of `#[pyo3(name = "...")]`. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)

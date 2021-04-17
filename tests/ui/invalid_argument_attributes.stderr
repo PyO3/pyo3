@@ -1,22 +1,22 @@
-error: only `from_py_with` is supported
+error: expected `from_py_with`
  --> $DIR/invalid_argument_attributes.rs:4:29
   |
 4 | fn invalid_attribute(#[pyo3(get)] param: String) {}
   |                             ^^^
 
-error: expected a name-value: `pyo3(from_py_with = "func")`
- --> $DIR/invalid_argument_attributes.rs:7:33
+error: expected `=`
+ --> $DIR/invalid_argument_attributes.rs:7:32
   |
 7 | fn from_py_with_no_value(#[pyo3(from_py_with)] param: String) {}
-  |                                 ^^^^^^^^^^^^
+  |                                ^^^^^^^^^^^^^^
 
-error: expected `from_py_with`, got a literal
+error: expected `from_py_with`
   --> $DIR/invalid_argument_attributes.rs:10:31
    |
 10 | fn from_py_with_string(#[pyo3("from_py_with")] param: String) {}
    |                               ^^^^^^^^^^^^^^
 
-error: expected literal
+error: expected string literal
   --> $DIR/invalid_argument_attributes.rs:13:58
    |
 13 | fn from_py_with_value_not_a_string(#[pyo3(from_py_with = func)] param: String) {}

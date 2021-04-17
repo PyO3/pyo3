@@ -7,21 +7,21 @@ struct TestClass {
 
 #[pymethods]
 impl TestClass {
-    #[name = "num"]
+    #[pyo3(name = "num")]
     #[getter(number)]
     fn get_num(&self) -> u32 { self.num }
 }
 
 #[pymethods]
 impl TestClass {
-    #[name = "foo"]
-    #[name = "bar"]
+    #[pyo3(name = "foo")]
+    #[pyo3(name = "bar")]
     fn qux(&self) -> u32 { self.num }
 }
 
 #[pymethods]
 impl TestClass {
-    #[name = "makenew"]
+    #[pyo3(name = "makenew")]
     #[new]
     fn new(&self) -> Self { Self { num: 0 } }
 }

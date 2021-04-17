@@ -9,7 +9,7 @@ use proc_macro::TokenStream;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,
     build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
-    PyFunctionAttr,
+    PyFunctionOptions,
 };
 use quote::quote;
 use syn::parse_macro_input;
@@ -217,9 +217,9 @@ pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStre
 #[proc_macro_attribute]
 pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
-    let args = parse_macro_input!(attr as PyFunctionAttr);
+    let options = parse_macro_input!(attr as PyFunctionOptions);
 
-    let expanded = build_py_function(&mut ast, args).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_function(&mut ast, options).unwrap_or_else(|e| e.to_compile_error());
 
     quote!(
         #ast

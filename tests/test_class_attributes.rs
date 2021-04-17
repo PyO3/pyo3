@@ -20,12 +20,16 @@ impl Foo {
     const MY_CONST: &'static str = "foobar";
 
     #[classattr]
+    #[pyo3(name = "RENAMED_CONST")]
+    const MY_CONST_2: &'static str = "foobar_2";
+
+    #[classattr]
     fn a() -> i32 {
         5
     }
 
     #[classattr]
-    #[name = "B"]
+    #[pyo3(name = "B")]
     fn b() -> String {
         "bar".to_string()
     }
@@ -46,9 +50,11 @@ fn class_attributes() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let foo_obj = py.get_type::<Foo>();
+    py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
+    py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
     py_assert!(py, foo_obj, "foo_obj.a == 5");
     py_assert!(py, foo_obj, "foo_obj.B == 'bar'");
-    py_assert!(py, foo_obj, "foo_obj.MY_CONST == 'foobar'");
+    py_assert!(py, foo_obj, "foo_obj.foo.x == 1");
 }
 
 // Ignored because heap types are not immutable:

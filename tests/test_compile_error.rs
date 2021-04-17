@@ -34,6 +34,7 @@ fn test_compile_errors() {
 
     #[rustversion::since(1.49)]
     fn tests_rust_1_49(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/deprecations.rs");
         t.compile_fail("tests/ui/invalid_frompy_derive.rs");
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/pyclass_send.rs");

@@ -84,23 +84,23 @@ error: transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: expected `attribute`, `item` or `from_py_with`
+error: expected one of: `attribute`, `item`, `from_py_with`
   --> $DIR/invalid_frompy_derive.rs:76:12
    |
 76 |     #[pyo3(attr)]
    |            ^^^^
 
-error: expected a single string literal argument
-  --> $DIR/invalid_frompy_derive.rs:82:12
+error: expected string literal
+  --> $DIR/invalid_frompy_derive.rs:82:22
    |
 82 |     #[pyo3(attribute(1))]
-   |            ^^^^^^^^^
+   |                      ^
 
-error: expected a single string literal argument
-  --> $DIR/invalid_frompy_derive.rs:88:12
+error: expected at most one argument: `attribute` or `attribute("name")`
+  --> $DIR/invalid_frompy_derive.rs:88:25
    |
 88 |     #[pyo3(attribute("a", "b"))]
-   |            ^^^^^^^^^
+   |                         ^
 
 error: attribute name cannot be empty
   --> $DIR/invalid_frompy_derive.rs:94:22
@@ -108,43 +108,43 @@ error: attribute name cannot be empty
 94 |     #[pyo3(attribute(""))]
    |                      ^^
 
-error: expected a single string literal argument
-   --> $DIR/invalid_frompy_derive.rs:100:12
+error: unexpected end of input, expected string literal
+   --> $DIR/invalid_frompy_derive.rs:100:21
     |
 100 |     #[pyo3(attribute())]
-    |            ^^^^^^^^^
+    |                     ^^
 
-error: expected a single literal argument
-   --> $DIR/invalid_frompy_derive.rs:106:12
+error: expected at most one argument: `item` or `item(key)`
+   --> $DIR/invalid_frompy_derive.rs:106:20
     |
 106 |     #[pyo3(item("a", "b"))]
-    |            ^^^^
+    |                    ^
 
-error: expected a single literal argument
-   --> $DIR/invalid_frompy_derive.rs:112:12
+error: unexpected end of input, expected literal
+   --> $DIR/invalid_frompy_derive.rs:112:16
     |
 112 |     #[pyo3(item())]
-    |            ^^^^
+    |                ^^
 
 error: only one of `attribute` or `item` can be provided
-   --> $DIR/invalid_frompy_derive.rs:118:18
+   --> $DIR/invalid_frompy_derive.rs:118:5
     |
 118 |     #[pyo3(item, attribute)]
-    |                  ^^^^^^^^^
+    |     ^
 
-error: unknown `pyo3` container attribute
+error: expected `transparent` or `annotation`
    --> $DIR/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
     |        ^^^^^^^
 
-error: annotation is not supported for structs
+error: `annotation` is unsupported for structs
    --> $DIR/invalid_frompy_derive.rs:129:21
     |
 129 | #[pyo3(annotation = "should not work")]
     |                     ^^^^^^^^^^^^^^^^^
 
-error: expected string literal for annotation
+error: expected string literal
    --> $DIR/invalid_frompy_derive.rs:136:25
     |
 136 |     #[pyo3(annotation = 1)]
@@ -170,13 +170,13 @@ error: cannot derive FromPyObject for empty structs and variants
     |
     = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: expected a name-value: `pyo3(from_py_with = "func")`
-   --> $DIR/invalid_frompy_derive.rs:158:12
+error: expected `=`
+   --> $DIR/invalid_frompy_derive.rs:158:11
     |
 158 |     #[pyo3(from_py_with)]
-    |            ^^^^^^^^^^^^
+    |           ^^^^^^^^^^^^^^
 
-error: expected literal
+error: expected string literal
    --> $DIR/invalid_frompy_derive.rs:164:27
     |
 164 |     #[pyo3(from_py_with = func)]

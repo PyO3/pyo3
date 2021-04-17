@@ -4,80 +4,86 @@ error: class attribute methods cannot take arguments
 9 |     fn class_attr_with_args(foo: i32) {}
   |                             ^^^
 
-error: static method needs #[staticmethod] attribute
+error: `#[classattr]` does not take any arguments
   --> $DIR/invalid_pymethods.rs:14:5
    |
-14 |     fn staticmethod_without_attribute() {}
+14 |     #[classattr(foobar)]
+   |     ^
+
+error: static method needs #[staticmethod] attribute
+  --> $DIR/invalid_pymethods.rs:20:5
+   |
+20 |     fn staticmethod_without_attribute() {}
    |     ^^
 
 error: unexpected receiver
-  --> $DIR/invalid_pymethods.rs:20:35
+  --> $DIR/invalid_pymethods.rs:26:35
    |
-20 |     fn staticmethod_with_receiver(&self) {}
+26 |     fn staticmethod_with_receiver(&self) {}
    |                                   ^
 
 error: expected receiver for #[getter]
-  --> $DIR/invalid_pymethods.rs:33:5
+  --> $DIR/invalid_pymethods.rs:39:5
    |
-33 |     fn getter_without_receiver() {}
+39 |     fn getter_without_receiver() {}
    |     ^^
 
 error: expected receiver for #[setter]
-  --> $DIR/invalid_pymethods.rs:39:5
+  --> $DIR/invalid_pymethods.rs:45:5
    |
-39 |     fn setter_without_receiver() {}
+45 |     fn setter_without_receiver() {}
    |     ^^
 
 error: text_signature not allowed on __new__; if you want to add a signature on __new__, put it on the struct definition instead
-  --> $DIR/invalid_pymethods.rs:45:24
+  --> $DIR/invalid_pymethods.rs:51:24
    |
-45 |     #[text_signature = "()"]
+51 |     #[text_signature = "()"]
    |                        ^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:52:24
+  --> $DIR/invalid_pymethods.rs:58:24
    |
-52 |     #[text_signature = "()"]
+58 |     #[text_signature = "()"]
    |                        ^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:59:24
+  --> $DIR/invalid_pymethods.rs:65:24
    |
-59 |     #[text_signature = "()"]
+65 |     #[text_signature = "()"]
    |                        ^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:66:24
+  --> $DIR/invalid_pymethods.rs:72:24
    |
-66 |     #[text_signature = "()"]
+72 |     #[text_signature = "()"]
    |                        ^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:73:24
+  --> $DIR/invalid_pymethods.rs:79:24
    |
-73 |     #[text_signature = "()"]
+79 |     #[text_signature = "()"]
    |                        ^^^^
 
 error: cannot specify a second method type
-  --> $DIR/invalid_pymethods.rs:80:7
+  --> $DIR/invalid_pymethods.rs:86:7
    |
-80 |     #[staticmethod]
+86 |     #[staticmethod]
    |       ^^^^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
-  --> $DIR/invalid_pymethods.rs:86:23
+  --> $DIR/invalid_pymethods.rs:92:23
    |
-86 |     fn generic_method<T>(value: T) {}
+92 |     fn generic_method<T>(value: T) {}
    |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-  --> $DIR/invalid_pymethods.rs:92:48
+  --> $DIR/invalid_pymethods.rs:98:48
    |
-92 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+98 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
    |                                                ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-  --> $DIR/invalid_pymethods.rs:97:56
-   |
-97 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
-   |                                                        ^^^^
+   --> $DIR/invalid_pymethods.rs:103:56
+    |
+103 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+    |                                                        ^^^^

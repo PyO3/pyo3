@@ -1,13 +1,22 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attrs::FromPyWithAttribute;
-use crate::module::add_fn_to_module;
-use proc_macro2::TokenStream;
-use syn::ext::IdentExt;
-use syn::parse::ParseBuffer;
+use crate::{
+    attributes::{
+        self, get_deprecated_name_attribute, get_pyo3_attribute, take_attributes,
+        FromPyWithAttribute, NameAttribute,
+    },
+    method::{self, FnArg, FnSpec},
+    pymethod::{check_generic, get_arg_names, impl_arg_params},
+    utils,
+};
+use proc_macro2::{Span, TokenStream};
+use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::{NestedMeta, Path};
+use syn::{ext::IdentExt, spanned::Spanned, Ident, NestedMeta, Path, Result};
+use syn::{
+    parse::{Parse, ParseBuffer, ParseStream},
+    token::Comma,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
@@ -20,29 +29,69 @@ pub enum Argument {
 
 /// The attributes of the pyfunction macro
 #[derive(Default)]
-pub struct PyFunctionAttr {
+pub struct PyFunctionSignature {
     pub arguments: Vec<Argument>,
     has_kw: bool,
     has_varargs: bool,
     has_kwargs: bool,
-    pub pass_module: bool,
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct PyFunctionArgAttrs {
+pub struct PyFunctionArgPyO3Attributes {
     pub from_py_with: Option<FromPyWithAttribute>,
 }
 
-impl syn::parse::Parse for PyFunctionAttr {
+enum PyFunctionArgPyO3Attribute {
+    FromPyWith(FromPyWithAttribute),
+}
+
+impl Parse for PyFunctionArgPyO3Attribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::from_py_with) {
+            input.parse().map(PyFunctionArgPyO3Attribute::FromPyWith)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl PyFunctionArgPyO3Attributes {
+    /// Parses #[pyo3(from_python_with = "func")]
+    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
+        let mut attributes = PyFunctionArgPyO3Attributes { from_py_with: None };
+        take_attributes(attrs, |attr| {
+            if let Some(pyo3_attrs) = get_pyo3_attribute(attr)? {
+                for attr in pyo3_attrs {
+                    match attr {
+                        PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
+                            ensure_spanned!(
+                                attributes.from_py_with.is_none(),
+                                from_py_with.0.span() => "`from_py_with` may only be specified once per argument"
+                            );
+                            attributes.from_py_with = Some(from_py_with);
+                        }
+                    }
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        })?;
+        Ok(attributes)
+    }
+}
+
+impl syn::parse::Parse for PyFunctionSignature {
     fn parse(input: &ParseBuffer) -> syn::Result<Self> {
         let attr = Punctuated::<NestedMeta, syn::Token![,]>::parse_terminated(input)?;
         Self::from_meta(&attr)
     }
 }
 
-impl PyFunctionAttr {
+impl PyFunctionSignature {
     pub fn from_meta<'a>(iter: impl IntoIterator<Item = &'a NestedMeta>) -> syn::Result<Self> {
-        let mut slf = PyFunctionAttr::default();
+        let mut slf = PyFunctionSignature::default();
 
         for item in iter {
             slf.add_item(item)?
@@ -52,9 +101,6 @@ impl PyFunctionAttr {
 
     pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
         match item {
-            NestedMeta::Meta(syn::Meta::Path(ident)) if ident.is_ident("pass_module") => {
-                self.pass_module = true;
-            }
             NestedMeta::Meta(syn::Meta::Path(ident)) => self.add_work(item, ident)?,
             NestedMeta::Meta(syn::Meta::NameValue(nv)) => {
                 self.add_name_value(item, nv)?;
@@ -159,92 +205,286 @@ impl PyFunctionAttr {
     }
 }
 
-pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<syn::Ident>> {
-    let mut name_attrs = Vec::new();
-
-    // Using retain will extract all name attributes from the attribute list
-    attrs.retain(|attr| match attr.parse_meta() {
-        Ok(syn::Meta::NameValue(nv)) if nv.path.is_ident("name") => {
-            name_attrs.push((nv.lit, attr.span()));
-            false
-        }
-        _ => true,
-    });
-
-    match name_attrs.as_slice() {
-        [] => Ok(None),
-        [(syn::Lit::Str(s), span)] => {
-            let mut ident: syn::Ident = s.parse()?;
-            // This span is the whole attribute span, which is nicer for reporting errors.
-            ident.set_span(*span);
-            Ok(Some(ident))
-        }
-        [(_, span)] => bail_spanned!(*span => "expected string literal for #[name] argument"),
-        slice => bail_spanned!(
-            slice[1].1 => "#[name] can not be specified multiple times"
-        ),
-    }
+#[derive(Default)]
+pub struct PyFunctionOptions {
+    pub pass_module: bool,
+    pub name: Option<NameAttribute>,
+    pub name_is_deprecated: bool,
+    pub signature: Option<PyFunctionSignature>,
 }
 
-pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Result<TokenStream> {
-    let python_name =
-        parse_name_attribute(&mut ast.attrs)?.unwrap_or_else(|| ast.sig.ident.unraw());
-    add_fn_to_module(ast, python_name, args)
-}
+impl Parse for PyFunctionOptions {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut options = PyFunctionOptions {
+            pass_module: false,
+            name: None,
+            name_is_deprecated: false,
+            signature: None,
+        };
 
-fn extract_pyo3_metas(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Vec<syn::NestedMeta>> {
-    let mut new_attrs = Vec::new();
-    let mut metas = Vec::new();
-
-    for attr in attrs.drain(..) {
-        if let syn::Meta::List(meta_list) = attr.parse_meta()? {
-            if meta_list.path.is_ident("pyo3") {
-                for meta in meta_list.nested {
-                    metas.push(meta);
+        while !input.is_empty() {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(attributes::kw::name)
+                || lookahead.peek(attributes::kw::pass_module)
+                || lookahead.peek(attributes::kw::signature)
+            {
+                options.add_attributes(std::iter::once(input.parse()?))?;
+                if !input.is_empty() {
+                    let _: Comma = input.parse()?;
                 }
             } else {
-                new_attrs.push(attr)
+                // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
+                //
+                // TODO deprecate in favour of #[pyfunction(signature = (a, b), name = "foo")]
+                options.signature = Some(input.parse()?);
+                break;
             }
         }
-    }
-    *attrs = new_attrs;
 
-    Ok(metas)
+        Ok(options)
+    }
 }
 
-impl PyFunctionArgAttrs {
-    /// Parses #[pyo3(from_python_with = "func")]
+pub enum PyFunctionOption {
+    Name(NameAttribute),
+    PassModule(attributes::kw::pass_module),
+    Signature(PyFunctionSignature),
+}
+
+impl Parse for PyFunctionOption {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::name) {
+            input.parse().map(PyFunctionOption::Name)
+        } else if lookahead.peek(attributes::kw::pass_module) {
+            input.parse().map(PyFunctionOption::PassModule)
+        } else if lookahead.peek(attributes::kw::signature) {
+            input.parse().map(PyFunctionOption::Signature)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl PyFunctionOptions {
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
-        let mut from_py_with = None;
+        let mut options = PyFunctionOptions::default();
+        options.take_pyo3_attributes(attrs)?;
+        Ok(options)
+    }
 
-        for meta in extract_pyo3_metas(attrs)? {
-            let meta = match meta {
-                NestedMeta::Meta(meta) => meta,
-                NestedMeta::Lit(lit) => {
-                    bail_spanned!(lit.span() => "expected `from_py_with`, got a literal")
-                }
-            };
-
-            if meta.path().is_ident("from_py_with") {
-                from_py_with = Some(FromPyWithAttribute::from_meta(meta)?);
+    pub fn take_pyo3_attributes(&mut self, attrs: &mut Vec<syn::Attribute>) -> syn::Result<()> {
+        take_attributes(attrs, |attr| {
+            if let Some(pyo3_attributes) = get_pyo3_attribute(attr)? {
+                self.add_attributes(pyo3_attributes)?;
+                Ok(true)
+            } else if let Some(name) = get_deprecated_name_attribute(attr)? {
+                self.set_name(name)?;
+                self.name_is_deprecated = true;
+                Ok(true)
             } else {
-                bail_spanned!(meta.span() => "only `from_py_with` is supported")
+                Ok(false)
+            }
+        })?;
+
+        Ok(())
+    }
+
+    pub fn add_attributes(
+        &mut self,
+        attrs: impl IntoIterator<Item = PyFunctionOption>,
+    ) -> Result<()> {
+        for attr in attrs {
+            match attr {
+                PyFunctionOption::Name(name) => self.set_name(name)?,
+                PyFunctionOption::PassModule(kw) => {
+                    ensure_spanned!(
+                        !self.pass_module,
+                        kw.span() => "`pass_module` may only be specified once"
+                    );
+                    self.pass_module = true;
+                }
+                PyFunctionOption::Signature(signature) => {
+                    ensure_spanned!(
+                        self.signature.is_none(),
+                        // FIXME: improve the span of this error message
+                        Span::call_site() => "`signature` may only be specified once"
+                    );
+                    self.signature = Some(signature);
+                }
             }
         }
-
-        Ok(PyFunctionArgAttrs { from_py_with })
+        Ok(())
     }
+
+    pub fn set_name(&mut self, name: NameAttribute) -> Result<()> {
+        ensure_spanned!(
+            self.name.is_none(),
+            name.0.span() => "`name` may only be specified once"
+        );
+        self.name = Some(name);
+        Ok(())
+    }
+}
+
+pub fn build_py_function(
+    ast: &mut syn::ItemFn,
+    mut options: PyFunctionOptions,
+) -> syn::Result<TokenStream> {
+    options.take_pyo3_attributes(&mut ast.attrs)?;
+    Ok(impl_wrap_pyfunction(ast, options)?.1)
+}
+
+/// Coordinates the naming of a the add-function-to-python-module function
+fn function_wrapper_ident(name: &Ident) -> Ident {
+    // Make sure this ident matches the one of wrap_pyfunction
+    format_ident!("__pyo3_get_function_{}", name)
+}
+
+/// Generates python wrapper over a function that allows adding it to a python module as a python
+/// function
+pub fn impl_wrap_pyfunction(
+    func: &mut syn::ItemFn,
+    options: PyFunctionOptions,
+) -> syn::Result<(Ident, TokenStream)> {
+    check_generic(&func.sig)?;
+
+    let python_name = options
+        .name
+        .map_or_else(|| func.sig.ident.unraw(), |name| name.0);
+
+    let signature = options.signature.unwrap_or_default();
+
+    let mut arguments = func
+        .sig
+        .inputs
+        .iter_mut()
+        .map(FnArg::parse)
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    if options.pass_module {
+        const PASS_MODULE_ERR: &str = "expected &PyModule as first argument with `pass_module`";
+        ensure_spanned!(
+            !arguments.is_empty(),
+            func.span() => PASS_MODULE_ERR
+        );
+        let arg = arguments.remove(0);
+        ensure_spanned!(
+            type_is_pymodule(arg.ty),
+            arg.ty.span() => PASS_MODULE_ERR
+        );
+    }
+
+    let ty = method::get_return_info(&func.sig.output);
+
+    let text_signature = utils::parse_text_signature_attrs(&mut func.attrs, &python_name)?;
+    let doc = utils::get_doc(&func.attrs, text_signature, true)?;
+
+    let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
+
+    let spec = method::FnSpec {
+        tp: method::FnType::FnStatic,
+        name: &function_wrapper_ident,
+        python_name,
+        attrs: signature.arguments,
+        args: arguments,
+        output: ty,
+        doc,
+        name_is_deprecated: options.name_is_deprecated,
+    };
+
+    let doc = &spec.doc;
+    let python_name = spec.python_name_with_deprecation();
+
+    let name = &func.sig.ident;
+    let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
+    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, options.pass_module)?;
+    let wrapped_pyfunction = quote! {
+        #wrapper
+        pub(crate) fn #function_wrapper_ident<'a>(
+            args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
+        ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
+            pyo3::types::PyCFunction::internal_new(
+                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                    #python_name,
+                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper_ident),
+                    #doc,
+                ),
+                args.into(),
+            )
+        }
+    };
+    Ok((function_wrapper_ident, wrapped_pyfunction))
+}
+
+/// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
+fn function_c_wrapper(
+    name: &Ident,
+    wrapper_ident: &Ident,
+    spec: &FnSpec<'_>,
+    pass_module: bool,
+) -> Result<TokenStream> {
+    let names: Vec<Ident> = get_arg_names(&spec);
+    let cb;
+    let slf_module;
+    if pass_module {
+        cb = quote! {
+            pyo3::callback::convert(_py, #name(_slf, #(#names),*))
+        };
+        slf_module = Some(quote! {
+            let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
+        });
+    } else {
+        cb = quote! {
+            pyo3::callback::convert(_py, #name(#(#names),*))
+        };
+        slf_module = None;
+    };
+    let py = syn::Ident::new("_py", Span::call_site());
+    let body = impl_arg_params(spec, None, cb, &py)?;
+    Ok(quote! {
+        unsafe extern "C" fn #wrapper_ident(
+            _slf: *mut pyo3::ffi::PyObject,
+            _args: *mut pyo3::ffi::PyObject,
+            _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+        {
+            pyo3::callback::handle_panic(|#py| {
+                #slf_module
+                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+
+                #body
+            })
+        }
+    })
+}
+
+fn type_is_pymodule(ty: &syn::Type) -> bool {
+    if let syn::Type::Reference(tyref) = ty {
+        if let syn::Type::Path(typath) = tyref.elem.as_ref() {
+            if typath
+                .path
+                .segments
+                .last()
+                .map(|seg| seg.ident == "PyModule")
+                .unwrap_or(false)
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]
 mod test {
-    use super::{Argument, PyFunctionAttr};
+    use super::{Argument, PyFunctionSignature};
     use proc_macro2::TokenStream;
     use quote::quote;
     use syn::parse_quote;
 
     fn items(input: TokenStream) -> syn::Result<Vec<Argument>> {
-        let py_fn_attr: PyFunctionAttr = syn::parse2(input)?;
+        let py_fn_attr: PyFunctionSignature = syn::parse2(input)?;
         Ok(py_fn_attr.arguments)
     }
 

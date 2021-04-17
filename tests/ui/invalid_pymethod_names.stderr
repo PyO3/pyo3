@@ -1,17 +1,17 @@
-error: name cannot be specified twice
-  --> $DIR/invalid_pymethod_names.rs:10:5
+error: `name` may only be specified once
+  --> $DIR/invalid_pymethod_names.rs:10:19
    |
-10 |     #[name = "num"]
-   |     ^
+10 |     #[pyo3(name = "num")]
+   |                   ^^^^^
 
-error: #[name] can not be specified multiple times
-  --> $DIR/invalid_pymethod_names.rs:18:5
+error: `name` may only be specified once
+  --> $DIR/invalid_pymethod_names.rs:18:19
    |
-18 |     #[name = "bar"]
-   |     ^
+18 |     #[pyo3(name = "bar")]
+   |                   ^^^^^
 
-error: name not allowed with this method type
-  --> $DIR/invalid_pymethod_names.rs:24:5
+error: `name` not allowed with `#[new]`
+  --> $DIR/invalid_pymethod_names.rs:24:19
    |
-24 |     #[name = "makenew"]
-   |     ^
+24 |     #[pyo3(name = "makenew")]
+   |                   ^^^^^^^^^
