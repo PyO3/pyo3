@@ -84,6 +84,7 @@ jobs:
             ~/.cargo/git
             target
           key: cargo-${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-${{ hashFiles('**/Cargo.toml') }}
+        continue-on-error: true
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
