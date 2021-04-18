@@ -758,6 +758,14 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<()> {
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
             }
+            if interpreter_config.implementation == PythonInterpreterKind::PyPy {
+                // PyPy 3.7 changed LIBDIR to point to base_prefix/lib, so need to hard-code /bin
+                // search path too: https://foss.heptapod.net/pypy/pypy/-/issues/3442
+                println!(
+                    "cargo:rustc-link-search=native={}/bin",
+                    interpreter_config.base_prefix
+                );
+            }
         }
         _ => {}
     }
