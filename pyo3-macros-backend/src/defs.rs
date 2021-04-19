@@ -145,26 +145,18 @@ pub const OBJECT: Proto = Proto {
     name: "Object",
     module: "pyo3::class::basic",
     methods: &[
-        MethodProto::new("__getattr__", "PyObjectGetAttrProtocol")
-            .args(&["Name"])
-            .has_self(),
-        MethodProto::new("__setattr__", "PyObjectSetAttrProtocol")
-            .args(&["Name", "Value"])
-            .has_self(),
-        MethodProto::new("__delattr__", "PyObjectDelAttrProtocol")
-            .args(&["Name"])
-            .has_self(),
-        MethodProto::new("__str__", "PyObjectStrProtocol").has_self(),
-        MethodProto::new("__repr__", "PyObjectReprProtocol").has_self(),
-        MethodProto::new("__format__", "PyObjectFormatProtocol")
-            .args(&["Format"])
-            .has_self(),
-        MethodProto::new("__hash__", "PyObjectHashProtocol").has_self(),
-        MethodProto::new("__bytes__", "PyObjectBytesProtocol").has_self(),
+        MethodProto::new("__getattr__", "PyObjectGetAttrProtocol").args(&["Name"]),
+        MethodProto::new("__setattr__", "PyObjectSetAttrProtocol").args(&["Name", "Value"]),
+        MethodProto::new("__delattr__", "PyObjectDelAttrProtocol").args(&["Name"]),
+        MethodProto::new("__str__", "PyObjectStrProtocol"),
+        MethodProto::new("__repr__", "PyObjectReprProtocol"),
+        MethodProto::new("__format__", "PyObjectFormatProtocol").args(&["Format"]),
+        MethodProto::new("__hash__", "PyObjectHashProtocol"),
+        MethodProto::new("__bytes__", "PyObjectBytesProtocol"),
         MethodProto::new("__richcmp__", "PyObjectRichcmpProtocol")
             .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__bool__", "PyObjectBoolProtocol").has_self(),
+            .fixed_args(&["Op"]),
+        MethodProto::new("__bool__", "PyObjectBoolProtocol"),
     ],
     py_methods: &[
         PyMethod::new("__format__", "FormatProtocolImpl"),
@@ -191,13 +183,15 @@ pub const ASYNC: Proto = Proto {
     name: "Async",
     module: "pyo3::class::pyasync",
     methods: &[
-        MethodProto::new("__await__", "PyAsyncAwaitProtocol").args(&["Receiver"]),
-        MethodProto::new("__aiter__", "PyAsyncAiterProtocol").args(&["Receiver"]),
-        MethodProto::new("__anext__", "PyAsyncAnextProtocol").args(&["Receiver"]),
-        MethodProto::new("__aenter__", "PyAsyncAenterProtocol").has_self(),
-        MethodProto::new("__aexit__", "PyAsyncAexitProtocol")
-            .args(&["ExcType", "ExcValue", "Traceback"])
-            .has_self(),
+        MethodProto::new("__await__", "PyAsyncAwaitProtocol"),
+        MethodProto::new("__aiter__", "PyAsyncAiterProtocol"),
+        MethodProto::new("__anext__", "PyAsyncAnextProtocol"),
+        MethodProto::new("__aenter__", "PyAsyncAenterProtocol"),
+        MethodProto::new("__aexit__", "PyAsyncAexitProtocol").args(&[
+            "ExcType",
+            "ExcValue",
+            "Traceback",
+        ]),
     ],
     py_methods: &[
         PyMethod::new("__aenter__", "PyAsyncAenterProtocolImpl"),
@@ -214,8 +208,9 @@ pub const BUFFER: Proto = Proto {
     name: "Buffer",
     module: "pyo3::class::buffer",
     methods: &[
-        MethodProto::new("bf_getbuffer", "PyBufferGetBufferProtocol").has_self(),
-        MethodProto::new("bf_releasebuffer", "PyBufferReleaseBufferProtocol").has_self(),
+        MethodProto::new("bf_getbuffer", "PyBufferGetBufferProtocol")
+            .fixed_args(&["view", "flags"]),
+        MethodProto::new("bf_releasebuffer", "PyBufferReleaseBufferProtocol").fixed_args(&["view"]),
     ],
     py_methods: &[],
     slot_defs: &[
@@ -232,10 +227,12 @@ pub const CONTEXT: Proto = Proto {
     name: "Context",
     module: "pyo3::class::context",
     methods: &[
-        MethodProto::new("__enter__", "PyContextEnterProtocol").has_self(),
-        MethodProto::new("__exit__", "PyContextExitProtocol")
-            .args(&["ExcType", "ExcValue", "Traceback"])
-            .has_self(),
+        MethodProto::new("__enter__", "PyContextEnterProtocol"),
+        MethodProto::new("__exit__", "PyContextExitProtocol").args(&[
+            "ExcType",
+            "ExcValue",
+            "Traceback",
+        ]),
     ],
     py_methods: &[
         PyMethod::new("__enter__", "PyContextEnterProtocolImpl"),
@@ -249,11 +246,9 @@ pub const GC: Proto = Proto {
     module: "pyo3::class::gc",
     methods: &[
         MethodProto::new("__traverse__", "PyGCTraverseProtocol")
-            .has_self()
+            .fixed_args(&["visit"])
             .no_result(),
-        MethodProto::new("__clear__", "PyGCClearProtocol")
-            .has_self()
-            .no_result(),
+        MethodProto::new("__clear__", "PyGCClearProtocol").no_result(),
     ],
     py_methods: &[],
     slot_defs: &[
@@ -266,14 +261,10 @@ pub const DESCR: Proto = Proto {
     name: "Descr",
     module: "pyo3::class::descr",
     methods: &[
-        MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Receiver", "Inst", "Owner"]),
-        MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Receiver", "Inst", "Value"]),
-        MethodProto::new("__det__", "PyDescrDelProtocol")
-            .args(&["Inst"])
-            .has_self(),
-        MethodProto::new("__set_name__", "PyDescrSetNameProtocol")
-            .args(&["Inst"])
-            .has_self(),
+        MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Inst", "Owner"]),
+        MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Inst", "Value"]),
+        MethodProto::new("__det__", "PyDescrDelProtocol").args(&["Inst"]),
+        MethodProto::new("__set_name__", "PyDescrSetNameProtocol").args(&["Inst"]),
     ],
     py_methods: &[
         PyMethod::new("__del__", "PyDescrDelProtocolImpl"),
@@ -290,8 +281,8 @@ pub const ITER: Proto = Proto {
     module: "pyo3::class::iter",
     py_methods: &[],
     methods: &[
-        MethodProto::new("__iter__", "PyIterIterProtocol").args(&["Receiver"]),
-        MethodProto::new("__next__", "PyIterNextProtocol").args(&["Receiver"]),
+        MethodProto::new("__iter__", "PyIterIterProtocol"),
+        MethodProto::new("__next__", "PyIterNextProtocol"),
     ],
     slot_defs: &[
         SlotDef::new(&["__iter__"], "Py_tp_iter", "iter"),
@@ -303,17 +294,11 @@ pub const MAPPING: Proto = Proto {
     name: "Mapping",
     module: "pyo3::class::mapping",
     methods: &[
-        MethodProto::new("__len__", "PyMappingLenProtocol").has_self(),
-        MethodProto::new("__getitem__", "PyMappingGetItemProtocol")
-            .args(&["Key"])
-            .has_self(),
-        MethodProto::new("__setitem__", "PyMappingSetItemProtocol")
-            .args(&["Key", "Value"])
-            .has_self(),
-        MethodProto::new("__delitem__", "PyMappingDelItemProtocol")
-            .args(&["Key"])
-            .has_self(),
-        MethodProto::new("__reversed__", "PyMappingReversedProtocol").has_self(),
+        MethodProto::new("__len__", "PyMappingLenProtocol"),
+        MethodProto::new("__getitem__", "PyMappingGetItemProtocol").args(&["Key"]),
+        MethodProto::new("__setitem__", "PyMappingSetItemProtocol").args(&["Key", "Value"]),
+        MethodProto::new("__delitem__", "PyMappingDelItemProtocol").args(&["Key"]),
+        MethodProto::new("__reversed__", "PyMappingReversedProtocol"),
     ],
     py_methods: &[PyMethod::new(
         "__reversed__",
@@ -336,31 +321,15 @@ pub const SEQ: Proto = Proto {
     name: "Sequence",
     module: "pyo3::class::sequence",
     methods: &[
-        MethodProto::new("__len__", "PySequenceLenProtocol").has_self(),
-        MethodProto::new("__getitem__", "PySequenceGetItemProtocol")
-            .args(&["Index"])
-            .has_self(),
-        MethodProto::new("__setitem__", "PySequenceSetItemProtocol")
-            .args(&["Index", "Value"])
-            .has_self(),
-        MethodProto::new("__delitem__", "PySequenceDelItemProtocol")
-            .args(&["Index"])
-            .has_self(),
-        MethodProto::new("__contains__", "PySequenceContainsProtocol")
-            .args(&["Item"])
-            .has_self(),
-        MethodProto::new("__concat__", "PySequenceConcatProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__repeat__", "PySequenceRepeatProtocol")
-            .args(&["Index"])
-            .has_self(),
-        MethodProto::new("__inplace_concat__", "PySequenceInplaceConcatProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__inplace_repeat__", "PySequenceInplaceRepeatProtocol")
-            .args(&["Index"])
-            .has_self(),
+        MethodProto::new("__len__", "PySequenceLenProtocol"),
+        MethodProto::new("__getitem__", "PySequenceGetItemProtocol").args(&["Index"]),
+        MethodProto::new("__setitem__", "PySequenceSetItemProtocol").args(&["Index", "Value"]),
+        MethodProto::new("__delitem__", "PySequenceDelItemProtocol").args(&["Index"]),
+        MethodProto::new("__contains__", "PySequenceContainsProtocol").args(&["Item"]),
+        MethodProto::new("__concat__", "PySequenceConcatProtocol").args(&["Other"]),
+        MethodProto::new("__repeat__", "PySequenceRepeatProtocol").args(&["Index"]),
+        MethodProto::new("__inplace_concat__", "PySequenceInplaceConcatProtocol").args(&["Other"]),
+        MethodProto::new("__inplace_repeat__", "PySequenceInplaceRepeatProtocol").args(&["Index"]),
     ],
     py_methods: &[],
     slot_defs: &[
@@ -393,112 +362,84 @@ pub const NUM: Proto = Proto {
     name: "Number",
     module: "pyo3::class::number",
     methods: &[
-        MethodProto::new("__add__", "PyNumberAddProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__sub__", "PyNumberSubProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__mul__", "PyNumberMulProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__matmul__", "PyNumberMatmulProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__truediv__", "PyNumberTruedivProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__floordiv__", "PyNumberFloordivProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__mod__", "PyNumberModProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__divmod__", "PyNumberDivmodProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__pow__", "PyNumberPowProtocol").args(&["Left", "Right", "Modulo"]),
-        MethodProto::new("__lshift__", "PyNumberLShiftProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__rshift__", "PyNumberRShiftProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__and__", "PyNumberAndProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__xor__", "PyNumberXorProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__or__", "PyNumberOrProtocol").args(&["Left", "Right"]),
-        MethodProto::new("__radd__", "PyNumberRAddProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rsub__", "PyNumberRSubProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rmul__", "PyNumberRMulProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rmatmul__", "PyNumberRMatmulProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rtruediv__", "PyNumberRTruedivProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rfloordiv__", "PyNumberRFloordivProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rmod__", "PyNumberRModProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rdivmod__", "PyNumberRDivmodProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rpow__", "PyNumberRPowProtocol")
-            .args(&["Other", "Modulo"])
-            .has_self(),
-        MethodProto::new("__rlshift__", "PyNumberRLShiftProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rrshift__", "PyNumberRRShiftProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rand__", "PyNumberRAndProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__rxor__", "PyNumberRXorProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ror__", "PyNumberROrProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__iadd__", "PyNumberIAddProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__isub__", "PyNumberISubProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__imul__", "PyNumberIMulProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__imatmul__", "PyNumberIMatmulProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__itruediv__", "PyNumberITruedivProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ifloordiv__", "PyNumberIFloordivProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__imod__", "PyNumberIModProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ipow__", "PyNumberIPowProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ilshift__", "PyNumberILShiftProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__irshift__", "PyNumberIRShiftProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__iand__", "PyNumberIAndProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ixor__", "PyNumberIXorProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__ior__", "PyNumberIOrProtocol")
-            .args(&["Other"])
-            .has_self(),
-        MethodProto::new("__neg__", "PyNumberNegProtocol").has_self(),
-        MethodProto::new("__pos__", "PyNumberPosProtocol").has_self(),
-        MethodProto::new("__abs__", "PyNumberAbsProtocol").has_self(),
-        MethodProto::new("__invert__", "PyNumberInvertProtocol").has_self(),
-        MethodProto::new("__complex__", "PyNumberComplexProtocol").has_self(),
-        MethodProto::new("__int__", "PyNumberIntProtocol").has_self(),
-        MethodProto::new("__float__", "PyNumberFloatProtocol").has_self(),
-        MethodProto::new("__index__", "PyNumberIndexProtocol").has_self(),
-        MethodProto::new("__round__", "PyNumberRoundProtocol")
-            .args(&["NDigits"])
-            .has_self(),
+        MethodProto::new("__add__", "PyNumberAddProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__sub__", "PyNumberSubProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__mul__", "PyNumberMulProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__matmul__", "PyNumberMatmulProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__truediv__", "PyNumberTruedivProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__floordiv__", "PyNumberFloordivProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__mod__", "PyNumberModProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__divmod__", "PyNumberDivmodProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__pow__", "PyNumberPowProtocol")
+            .args(&["Left", "Right", "Modulo"])
+            .no_receiver(),
+        MethodProto::new("__lshift__", "PyNumberLShiftProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__rshift__", "PyNumberRShiftProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__and__", "PyNumberAndProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__xor__", "PyNumberXorProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__or__", "PyNumberOrProtocol")
+            .args(&["Left", "Right"])
+            .no_receiver(),
+        MethodProto::new("__radd__", "PyNumberRAddProtocol").args(&["Other"]),
+        MethodProto::new("__rsub__", "PyNumberRSubProtocol").args(&["Other"]),
+        MethodProto::new("__rmul__", "PyNumberRMulProtocol").args(&["Other"]),
+        MethodProto::new("__rmatmul__", "PyNumberRMatmulProtocol").args(&["Other"]),
+        MethodProto::new("__rtruediv__", "PyNumberRTruedivProtocol").args(&["Other"]),
+        MethodProto::new("__rfloordiv__", "PyNumberRFloordivProtocol").args(&["Other"]),
+        MethodProto::new("__rmod__", "PyNumberRModProtocol").args(&["Other"]),
+        MethodProto::new("__rdivmod__", "PyNumberRDivmodProtocol").args(&["Other"]),
+        MethodProto::new("__rpow__", "PyNumberRPowProtocol").args(&["Other", "Modulo"]),
+        MethodProto::new("__rlshift__", "PyNumberRLShiftProtocol").args(&["Other"]),
+        MethodProto::new("__rrshift__", "PyNumberRRShiftProtocol").args(&["Other"]),
+        MethodProto::new("__rand__", "PyNumberRAndProtocol").args(&["Other"]),
+        MethodProto::new("__rxor__", "PyNumberRXorProtocol").args(&["Other"]),
+        MethodProto::new("__ror__", "PyNumberROrProtocol").args(&["Other"]),
+        MethodProto::new("__iadd__", "PyNumberIAddProtocol").args(&["Other"]),
+        MethodProto::new("__isub__", "PyNumberISubProtocol").args(&["Other"]),
+        MethodProto::new("__imul__", "PyNumberIMulProtocol").args(&["Other"]),
+        MethodProto::new("__imatmul__", "PyNumberIMatmulProtocol").args(&["Other"]),
+        MethodProto::new("__itruediv__", "PyNumberITruedivProtocol").args(&["Other"]),
+        MethodProto::new("__ifloordiv__", "PyNumberIFloordivProtocol").args(&["Other"]),
+        MethodProto::new("__imod__", "PyNumberIModProtocol").args(&["Other"]),
+        MethodProto::new("__ipow__", "PyNumberIPowProtocol").args(&["Other"]),
+        MethodProto::new("__ilshift__", "PyNumberILShiftProtocol").args(&["Other"]),
+        MethodProto::new("__irshift__", "PyNumberIRShiftProtocol").args(&["Other"]),
+        MethodProto::new("__iand__", "PyNumberIAndProtocol").args(&["Other"]),
+        MethodProto::new("__ixor__", "PyNumberIXorProtocol").args(&["Other"]),
+        MethodProto::new("__ior__", "PyNumberIOrProtocol").args(&["Other"]),
+        MethodProto::new("__neg__", "PyNumberNegProtocol"),
+        MethodProto::new("__pos__", "PyNumberPosProtocol"),
+        MethodProto::new("__abs__", "PyNumberAbsProtocol"),
+        MethodProto::new("__invert__", "PyNumberInvertProtocol"),
+        MethodProto::new("__complex__", "PyNumberComplexProtocol"),
+        MethodProto::new("__int__", "PyNumberIntProtocol"),
+        MethodProto::new("__float__", "PyNumberFloatProtocol"),
+        MethodProto::new("__index__", "PyNumberIndexProtocol"),
+        MethodProto::new("__round__", "PyNumberRoundProtocol").args(&["NDigits"]),
     ],
     py_methods: &[
         PyMethod::coexist("__radd__", "PyNumberRAddProtocolImpl"),

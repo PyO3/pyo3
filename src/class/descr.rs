@@ -5,8 +5,8 @@
 //! [Python information](
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
-use crate::callback::IntoPyCallbackOutput;
 use crate::types::PyAny;
+use crate::{callback::IntoPyCallbackOutput, derive_utils::TryFromPyCell};
 use crate::{FromPyObject, PyClass, PyObject};
 use std::os::raw::c_int;
 
@@ -31,14 +31,14 @@ pub trait PyDescrProtocol<'p>: PyClass {
         unimplemented!()
     }
 
-    fn __delete__(&'p self, instance: &'p PyAny) -> Self::Result
+    fn __delete__(slf: Self::Receiver, instance: &'p PyAny) -> Self::Result
     where
         Self: PyDescrDeleteProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __set_name__(&'p self, instance: &'p PyAny) -> Self::Result
+    fn __set_name__(slf: Self::Receiver, instance: &'p PyAny) -> Self::Result
     where
         Self: PyDescrSetNameProtocol<'p>,
     {
@@ -61,11 +61,13 @@ pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
 }
 
 pub trait PyDescrDeleteProtocol<'p>: PyDescrProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
 pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

@@ -18,8 +18,8 @@ pub struct Len {
 
 #[pyproto]
 impl PyMappingProtocol for Len {
-    fn __len__(&self) -> usize {
-        self.l
+    fn __len__(slf: PyRef<Self>) -> usize {
+        slf.l
     }
 }
 
@@ -82,19 +82,19 @@ struct StringMethods {}
 
 #[pyproto]
 impl PyObjectProtocol for StringMethods {
-    fn __str__(&self) -> &'static str {
+    fn __str__(_slf: PyRef<Self>) -> &'static str {
         "str"
     }
 
-    fn __repr__(&self) -> &'static str {
+    fn __repr__(_slf: PyRef<Self>) -> &'static str {
         "repr"
     }
 
-    fn __format__(&self, format_spec: String) -> String {
+    fn __format__(_slf: PyRef<Self>, format_spec: String) -> String {
         format!("format({})", format_spec)
     }
 
-    fn __bytes__(&self) -> &'static [u8] {
+    fn __bytes__(_slf: PyRef<Self>) -> &'static [u8] {
         b"bytes"
     }
 }
@@ -122,11 +122,11 @@ struct Comparisons {
 
 #[pyproto]
 impl PyObjectProtocol for Comparisons {
-    fn __hash__(&self) -> isize {
-        self.val as isize
+    fn __hash__(slf: PyRef<Self>) -> isize {
+        slf.val as isize
     }
-    fn __bool__(&self) -> bool {
-        self.val != 0
+    fn __bool__(slf: PyRef<Self>) -> bool {
+        slf.val != 0
     }
 }
 
@@ -165,22 +165,22 @@ impl Default for Sequence {
 
 #[pyproto]
 impl PySequenceProtocol for Sequence {
-    fn __len__(&self) -> usize {
-        self.fields.len()
+    fn __len__(slf: PyRef<Self>) -> usize {
+        slf.fields.len()
     }
 
-    fn __getitem__(&self, key: isize) -> PyResult<String> {
+    fn __getitem__(slf: PyRef<Self>, key: isize) -> PyResult<String> {
         let idx = usize::try_from(key)?;
-        if let Some(s) = self.fields.get(idx) {
+        if let Some(s) = slf.fields.get(idx) {
             Ok(s.clone())
         } else {
             Err(PyIndexError::new_err(()))
         }
     }
 
-    fn __setitem__(&mut self, idx: isize, value: String) -> PyResult<()> {
+    fn __setitem__(mut slf: PyRefMut<Self>, idx: isize, value: String) -> PyResult<()> {
         let idx = usize::try_from(idx)?;
-        if let Some(elem) = self.fields.get_mut(idx) {
+        if let Some(elem) = slf.fields.get_mut(idx) {
             *elem = value;
             Ok(())
         } else {
@@ -241,9 +241,9 @@ struct SetItem {
 
 #[pyproto]
 impl PyMappingProtocol for SetItem {
-    fn __setitem__(&mut self, key: i32, val: i32) {
-        self.key = key;
-        self.val = val;
+    fn __setitem__(mut slf: PyRefMut<Self>, key: i32, val: i32) {
+        slf.key = key;
+        slf.val = val;
     }
 }
 
@@ -269,8 +269,8 @@ struct DelItem {
 
 #[pyproto]
 impl PyMappingProtocol<'a> for DelItem {
-    fn __delitem__(&mut self, key: i32) {
-        self.key = key;
+    fn __delitem__(mut slf: PyRefMut<Self>, key: i32) {
+        slf.key = key;
     }
 }
 
@@ -295,12 +295,12 @@ struct SetDelItem {
 
 #[pyproto]
 impl PyMappingProtocol for SetDelItem {
-    fn __setitem__(&mut self, _key: i32, val: i32) {
-        self.val = Some(val);
+    fn __setitem__(mut slf: PyRefMut<Self>, _key: i32, val: i32) {
+        slf.val = Some(val);
     }
 
-    fn __delitem__(&mut self, _key: i32) {
-        self.val = None;
+    fn __delitem__(mut slf: PyRefMut<Self>, _key: i32) {
+        slf.val = None;
     }
 }
 
@@ -325,7 +325,7 @@ struct Reversed {}
 
 #[pyproto]
 impl PyMappingProtocol for Reversed {
-    fn __reversed__(&self) -> &'static str {
+    fn __reversed__(_slf: PyRef<Self>) -> &'static str {
         "I am reversed"
     }
 }
@@ -344,7 +344,7 @@ struct Contains {}
 
 #[pyproto]
 impl PySequenceProtocol for Contains {
-    fn __contains__(&self, item: i32) -> bool {
+    fn __contains__(_slf: PyRef<Self>, item: i32) -> bool {
         item >= 0
     }
 }
@@ -367,19 +367,18 @@ struct ContextManager {
 
 #[pyproto]
 impl PyContextProtocol for ContextManager {
-    fn __enter__(&mut self) -> i32 {
+    fn __enter__(_slf: PyRefMut<Self>) -> i32 {
         42
     }
 
     fn __exit__(
-        &mut self,
+        mut slf: PyRefMut<Self>,
         ty: Option<&PyType>,
         _value: Option<&PyAny>,
         _traceback: Option<&PyAny>,
     ) -> bool {
-        let gil = Python::acquire_gil();
-        self.exit_called = true;
-        ty == Some(gil.python().get_type::<PyValueError>())
+        slf.exit_called = true;
+        ty == Some(slf.py().get_type::<PyValueError>())
     }
 }
 
@@ -429,7 +428,7 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
+    fn __getitem__(_slf: PyRef<Self>, idx: &PyAny) -> PyResult<&'static str> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
@@ -537,8 +536,8 @@ struct ClassWithGetAttr {
 
 #[pyproto]
 impl PyObjectProtocol for ClassWithGetAttr {
-    fn __getattr__(&self, _name: &str) -> u32 {
-        self.data * 2
+    fn __getattr__(slf: PyRef<Self>, _name: &str) -> u32 {
+        slf.data * 2
     }
 }
 
@@ -646,8 +645,8 @@ impl PyDescrProtocol for DescrCounter {
         slf.count += 1;
         slf
     }
-    fn __set__(_slf: PyRef<Self>, _instance: &PyAny, mut new_value: PyRefMut<Self>) {
-        new_value.count = _slf.count;
+    fn __set__(slf: PyRef<Self>, _instance: &PyAny, mut new_value: PyRefMut<Self>) {
+        new_value.count = slf.count;
     }
 }
 

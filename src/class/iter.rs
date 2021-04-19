@@ -70,8 +70,8 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyIterNextOutput>;
 }
 
-py_unarys_func!(iter, PyIterIterProtocol, Self::__iter__);
-py_unarys_func!(iternext, PyIterNextProtocol, Self::__next__);
+py_unary_func!(iter, PyIterIterProtocol, Self::__iter__);
+py_unary_func!(iternext, PyIterNextProtocol, Self::__next__);
 
 /// Output of `__next__` which can either `yield` the next value in the iteration, or
 /// `return` a value to raise `StopIteration` in Python.

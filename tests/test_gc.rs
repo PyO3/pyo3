@@ -89,13 +89,12 @@ struct GcIntegration {
 
 #[pyproto]
 impl PyGCProtocol for GcIntegration {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
-        visit.call(&self.self_ref)
+    fn __traverse__(slf: PyRef<Self>, visit: PyVisit) -> Result<(), PyTraverseError> {
+        visit.call(&slf.self_ref)
     }
 
-    fn __clear__(&mut self) {
-        let gil = Python::acquire_gil();
-        self.self_ref = gil.python().None();
+    fn __clear__(mut slf: PyRefMut<Self>) {
+        slf.self_ref = slf.py().None();
     }
 }
 
@@ -132,10 +131,10 @@ struct GcIntegration2 {}
 
 #[pyproto]
 impl PyGCProtocol for GcIntegration2 {
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(_slf: PyRef<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
-    fn __clear__(&mut self) {}
+    fn __clear__(_slf: PyRef<Self>) {}
 }
 
 #[test]
@@ -251,22 +250,20 @@ fn inheritance_with_new_methods_with_drop() {
 
 #[pyclass(gc)]
 struct TraversableClass {
-    traversed: AtomicBool,
+    traversed: bool,
 }
 
 impl TraversableClass {
     fn new() -> Self {
-        Self {
-            traversed: AtomicBool::new(false),
-        }
+        Self { traversed: false }
     }
 }
 
 #[pyproto]
 impl PyGCProtocol for TraversableClass {
-    fn __clear__(&mut self) {}
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
-        self.traversed.store(true, Ordering::Relaxed);
+    fn __clear__(_slf: PyRef<Self>) {}
+    fn __traverse__(mut slf: PyRefMut<Self>, _visit: PyVisit) -> Result<(), PyTraverseError> {
+        slf.traversed = true;
         Ok(())
     }
 }
@@ -297,18 +294,18 @@ fn gc_during_borrow() {
         // when it's not borrowed
         let cell = PyCell::new(py, TraversableClass::new()).unwrap();
         let obj = cell.to_object(py);
-        assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
+        assert!(!cell.borrow().traversed);
         traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
-        assert!(cell.borrow().traversed.load(Ordering::Relaxed));
+        assert!(cell.borrow().traversed);
 
         // create an object and check that it is not traversed if the GC
         // is invoked while it is already borrowed mutably
         let cell2 = PyCell::new(py, TraversableClass::new()).unwrap();
         let obj2 = cell2.to_object(py);
         let guard = cell2.borrow_mut();
-        assert!(!guard.traversed.load(Ordering::Relaxed));
+        assert!(!guard.traversed);
         traverse(obj2.as_ptr(), novisit, std::ptr::null_mut());
-        assert!(!guard.traversed.load(Ordering::Relaxed));
+        assert!(!guard.traversed);
         drop(guard);
     }
 }

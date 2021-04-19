@@ -35,23 +35,23 @@ impl Mapping {
 
 #[pyproto]
 impl PyMappingProtocol for Mapping {
-    fn __len__(&self) -> usize {
-        self.index.len()
+    fn __len__(slf: PyRef<Self>) -> usize {
+        slf.index.len()
     }
 
-    fn __getitem__(&self, query: String) -> PyResult<usize> {
-        self.index
+    fn __getitem__(slf: PyRef<Self>, query: String) -> PyResult<usize> {
+        slf.index
             .get(&query)
             .copied()
             .ok_or_else(|| PyKeyError::new_err("unknown key"))
     }
 
-    fn __setitem__(&mut self, key: String, value: usize) {
-        self.index.insert(key, value);
+    fn __setitem__(mut slf: PyRefMut<Self>, key: String, value: usize) {
+        slf.index.insert(key, value);
     }
 
-    fn __delitem__(&mut self, key: String) -> PyResult<()> {
-        if self.index.remove(&key).is_none() {
+    fn __delitem__(mut slf: PyRefMut<Self>, key: String) -> PyResult<()> {
+        if slf.index.remove(&key).is_none() {
             Err(PyKeyError::new_err("unknown key"))
         } else {
             Ok(())
@@ -59,9 +59,9 @@ impl PyMappingProtocol for Mapping {
     }
 
     /// not an actual reversed implementation, just to demonstrate that the method is callable.
-    fn __reversed__(&self) -> PyObject {
+    fn __reversed__(slf: PyRef<Self>) -> PyObject {
         let gil = Python::acquire_gil();
-        self.index
+        slf.index
             .keys()
             .cloned()
             .collect::<Vec<String>>()

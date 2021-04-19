@@ -3,7 +3,7 @@
 //! Python GC support
 //!
 
-use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
+use crate::{derive_utils::TryFromPyCell, ffi, AsPyPointer, PyCell, PyClass, Python};
 use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
@@ -12,15 +12,23 @@ pub struct PyTraverseError(c_int);
 /// GC support
 #[allow(clippy::upper_case_acronyms)]
 pub trait PyGCProtocol<'p>: PyClass {
-    fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
-    fn __clear__(&'p mut self);
+    fn __traverse__(slf: Self::Receiver, visit: PyVisit) -> Result<(), PyTraverseError>
+    where
+        Self: PyGCTraverseProtocol<'p>;
+    fn __clear__(slf: Self::Receiver)
+    where
+        Self: PyGCClearProtocol<'p>;
 }
 
 #[allow(clippy::upper_case_acronyms)]
-pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
+pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
+}
 
 #[allow(clippy::upper_case_acronyms)]
-pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
+pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
+}
 
 #[doc(hidden)]
 pub unsafe extern "C" fn traverse<T>(
@@ -40,9 +48,9 @@ where
         arg,
         _py: py,
     };
-    let borrow = slf.try_borrow();
+    let borrow = <T::Receiver as TryFromPyCell<_>>::try_from_pycell(slf);
     if let Ok(borrow) = borrow {
-        match borrow.__traverse__(visit) {
+        match T::__traverse__(borrow, visit) {
             Ok(()) => 0,
             Err(PyTraverseError(code)) => code,
         }
@@ -59,7 +67,11 @@ where
     let pool = crate::GILPool::new();
     let slf = pool.python().from_borrowed_ptr::<PyCell<T>>(slf);
 
-    slf.borrow_mut().__clear__();
+    let borrow = <T::Receiver as TryFromPyCell<_>>::try_from_pycell(slf);
+
+    if let Ok(borrow) = borrow {
+        T::__clear__(borrow);
+    }
     0
 }
 
