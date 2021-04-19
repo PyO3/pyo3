@@ -180,6 +180,7 @@ jobs:
             ~/.cargo/git
             target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
+        continue-on-error: true
       - name: install grcov
         run: |
           wget https://github.com/mozilla/grcov/releases/download/v${GRCOV_VERSION}/grcov-linux-x86_64.tar.bz2 -qO- | tar -xjvf -
