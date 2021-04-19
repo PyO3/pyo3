@@ -90,6 +90,7 @@ See [github.com/japaric/rust-cross](https://github.com/japaric/rust-cross) for a
 
 After you've obtained the above, you can build a cross compiled PyO3 module by setting a few extra environment variables:
 
+* `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
 * `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import libraries for the Windows target.
 * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 
