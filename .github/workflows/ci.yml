@@ -45,7 +45,12 @@ jobs:
       fail-fast: false  # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6, pypy-3.7]
+        # Github actions has a "bogus" 3.10-beta.1 release which interacts badly
+        # with pytest (use 3.10-dev again once pytest has released a fix):
+        #   https://github.com/actions/setup-python/issues/207
+        #   https://github.com/pytest-dev/pytest/issues/8539
+        # python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy-3.6, pypy-3.7]
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10.0-alpha.7, pypy-3.6, pypy-3.7]
         platform: [
           { os: "macos-latest",   python-architecture: "x64", rust-target: "x86_64-apple-darwin" },
           { os: "ubuntu-latest", python-architecture: "x64", rust-target: "x86_64-unknown-linux-gnu" },
