@@ -31,10 +31,6 @@ impl PyObjectProtocol for MyClass {
     fn __str__(&self) -> &'static str {
         "MyClass"
     }
-
-    fn __bytes__(&self) -> &'static [u8] {
-        b"MyClass"
-    }
 }
 
 #[bench]

@@ -268,7 +268,7 @@ pub const DESCR: Proto = Proto {
     methods: &[
         MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Receiver", "Inst", "Owner"]),
         MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Receiver", "Inst", "Value"]),
-        MethodProto::new("__det__", "PyDescrDelProtocol")
+        MethodProto::new("__delete__", "PyDescrDelProtocol")
             .args(&["Inst"])
             .has_self(),
         MethodProto::new("__set_name__", "PyDescrSetNameProtocol")
@@ -276,7 +276,7 @@ pub const DESCR: Proto = Proto {
             .has_self(),
     ],
     py_methods: &[
-        PyMethod::new("__del__", "PyDescrDelProtocolImpl"),
+        PyMethod::new("__delete__", "PyDescrDelProtocolImpl"),
         PyMethod::new("__set_name__", "PyDescrNameProtocolImpl"),
     ],
     slot_defs: &[

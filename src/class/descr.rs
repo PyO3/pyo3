@@ -31,6 +31,10 @@ pub trait PyDescrProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__delete__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __delete__(&'p self, instance: &'p PyAny) -> Self::Result
     where
         Self: PyDescrDeleteProtocol<'p>,
@@ -38,6 +42,10 @@ pub trait PyDescrProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__set_name__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __set_name__(&'p self, instance: &'p PyAny) -> Self::Result
     where
         Self: PyDescrSetNameProtocol<'p>,

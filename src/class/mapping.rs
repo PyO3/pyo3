@@ -37,6 +37,10 @@ pub trait PyMappingProtocol<'p>: PyClass {
         unimplemented!()
     }
 
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__reversed__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __reversed__(&'p self) -> Self::Result
     where
         Self: PyMappingReversedProtocol<'p>,

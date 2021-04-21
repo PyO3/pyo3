@@ -283,6 +283,10 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__complex__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __complex__(&'p self) -> Self::Result
     where
         Self: PyNumberComplexProtocol<'p>,
@@ -307,6 +311,10 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
+    #[deprecated(
+        since = "0.14.0",
+        note = "prefer implementing `__round__` in `#[pymethods]` instead of in a protocol"
+    )]
     fn __round__(&'p self, ndigits: Option<Self::NDigits>) -> Self::Result
     where
         Self: PyNumberRoundProtocol<'p>,

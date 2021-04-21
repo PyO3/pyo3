@@ -1,12 +1,14 @@
 ## Class customizations
 
-Python's object model defines several protocols for different object behavior, like sequence,
-mapping or number protocols. PyO3 defines separate traits for each of them. To provide specific
-Python object behavior, you need to implement the specific trait for your struct. Important note,
-each protocol implementation block has to be annotated with the `#[pyproto]` attribute.
+PyO3 uses the `#[pyproto]` attribute in combination with special traits to implement certain protocol (aka `__dunder__`) methods of Python classes. The special traits are listed in this chapter of the guide. See also the [documentation for the `pyo3::class` module]({{#PYO3_DOCS_URL}}/pyo3/class/index.html).
 
-All `#[pyproto]` methods which can be defined below can return `T` instead of `PyResult<T>` if the
-method implementation is infallible. In addition, if the return type is `()`, it can be omitted altogether.
+Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. You may be familiar with implementing these protocols in Python classes by "dunder" methods, such as `__str__` or `__repr__`.
+
+In the Python C-API which PyO3 is dependent upon, many of these protocol methods have to be provided into special "slots" on the class type object. To fill these slots PyO3 uses the `#[pyproto]` attribute in combination with special traits.
+
+All `#[pyproto]` methods can return `T` instead of `PyResult<T>` if the method implementation is infallible. In addition, if the return type is `()`, it can be omitted altogether.
+
+There are many "dunder" methods which are not included in any of PyO3's protocol traits, such as `__dir__`. These methods can be implemented in `#[pymethods]` as already covered in the previous section.
 
 ### Basic object customization
 
@@ -28,15 +30,6 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
   * `fn __str__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
 
     Possible return types for `__str__` and `__repr__` are `PyResult<String>` or `PyResult<PyString>`.
-
-  * `fn __bytes__(&self) -> PyResult<PyBytes>`
-
-    Provides the conversion to `bytes`.
-
-  * `fn __format__(&self, format_spec: &str) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
-
-    Special method that is used by the `format()` builtin and the `str.format()` method.
-    Possible return types are `PyResult<String>` or `PyResult<PyString>`.
 
 #### Comparison operators
 
@@ -132,14 +125,12 @@ The following methods implement the unary arithmetic operations (`-`, `+`, `abs(
 
 Support for coercions:
 
-  * `fn __complex__(&'p self) -> PyResult<impl ToPyObject>`
   * `fn __int__(&'p self) -> PyResult<impl ToPyObject>`
   * `fn __float__(&'p self) -> PyResult<impl ToPyObject>`
 
 Other:
 
   * `fn __index__(&'p self) -> PyResult<impl ToPyObject>`
-  * `fn __round__(&'p self, ndigits: Option<impl FromPyObject>) -> PyResult<impl ToPyObject>`
 
 ### Emulating sequential containers (such as lists or tuples)
 
@@ -236,12 +227,6 @@ For a mapping, the keys may be Python objects of arbitrary type.
     Should only be implemented if the mapping supports removal of keys.
     The same exceptions should be raised for improper key values as
     for the `__getitem__()` method.
-
-  * `fn __reversed__(&self) -> PyResult<impl ToPyObject>`
-
-    Called (if present) by the `reversed()` built-in to implement reverse iteration.
-    It should return a new iterator object that iterates over all the objects in
-    the container in reverse order.
 
 ### Garbage Collector Integration
 
