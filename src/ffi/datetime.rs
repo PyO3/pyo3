@@ -399,13 +399,11 @@ pub struct PyDateTime_CAPI {
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
-    // Defined for PyPy as `PyDateTime_FromTimestamp`
     pub DateTime_FromTimestamp: unsafe extern "C" fn(
         cls: *mut PyTypeObject,
         args: *mut PyObject,
         kwargs: *mut PyObject,
     ) -> *mut PyObject,
-    // Defined for PyPy as `PyDate_FromTimestamp`
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
     #[cfg(not(PyPy))]
@@ -445,6 +443,17 @@ unsafe impl Sync for PyDateTime_CAPI {}
 /// will automatically be acquired and [`PyDateTime_IMPORT()`] called.
 pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
     inner: GILOnceCell::new(),
+};
+
+/// Safe wrapper around the Python C-API global `PyDateTime_TimeZone_UTC`. This follows a similar
+/// strategy as [`PyDateTimeAPI`]: the Python datetime C-API will automatically be imported if this
+/// type is deferenced.
+///
+/// The type obtained by dereferencing this object is `&'static PyObject`. This may change in the
+/// future to be a more specific type representing that this is a `datetime.timezone` object.
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub static PyDateTime_TimeZone_UTC: _PyDateTime_TimeZone_UTC_impl = _PyDateTime_TimeZone_UTC_impl {
+    inner: &PyDateTimeAPI,
 };
 
 /// Populates the `PyDateTimeAPI` object
@@ -559,6 +568,16 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 // skipped non-limited PyTimeZone_FromOffset
 // skipped non-limited PyTimeZone_FromOffsetAndName
 
+#[cfg(not(PyPy))]
+pub unsafe fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject {
+    (PyDateTimeAPI.DateTime_FromTimestamp)(PyDateTimeAPI.DateTimeType, args, std::ptr::null_mut())
+}
+
+#[cfg(not(PyPy))]
+pub unsafe fn PyDate_FromTimestamp(args: *mut PyObject) -> *mut PyObject {
+    (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, args)
+}
+
 #[cfg(PyPy)]
 extern "C" {
     #[link_name = "PyPyDate_FromTimestamp"]
@@ -566,6 +585,7 @@ extern "C" {
     #[link_name = "PyPyDateTime_FromTimestamp"]
     pub fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
 }
+
 #[cfg(PyPy)]
 extern "C" {
     #[link_name = "_PyPyDateTime_Import"]
@@ -585,5 +605,72 @@ impl Deref for _PyDateTimeAPI_impl {
     #[inline]
     fn deref(&self) -> &'static PyDateTime_CAPI {
         unsafe { PyDateTime_IMPORT() }
+    }
+}
+
+#[doc(hidden)]
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub struct _PyDateTime_TimeZone_UTC_impl {
+    inner: &'static _PyDateTimeAPI_impl,
+}
+
+#[cfg(all(Py_3_7, not(PyPy)))]
+impl Deref for _PyDateTime_TimeZone_UTC_impl {
+    type Target = crate::PyObject;
+
+    #[inline]
+    fn deref(&self) -> &crate::PyObject {
+        unsafe {
+            &*((&self.inner.TimeZone_UTC) as *const *mut crate::ffi::PyObject
+                as *const crate::PyObject)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{py_run, AsPyPointer, IntoPy, Py, PyAny, Python};
+
+    #[test]
+    fn test_datetime_fromtimestamp() {
+        Python::with_gil(|py| {
+            let args: Py<PyAny> = (100,).into_py(py);
+            unsafe { PyDateTime_IMPORT() };
+            let dt: &PyAny = unsafe { py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr())) };
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
+            );
+        })
+    }
+
+    #[test]
+    fn test_date_fromtimestamp() {
+        Python::with_gil(|py| {
+            let args: Py<PyAny> = (100,).into_py(py);
+            dbg!(args.as_ref(py));
+            unsafe { PyDateTime_IMPORT() };
+            let dt: &PyAny = unsafe { py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr())) };
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.date.fromtimestamp(100)"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(Py_3_7, not(PyPy)))]
+    fn test_utc_timezone() {
+        Python::with_gil(|py| {
+            let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);
+            py_run!(
+                py,
+                utc_timezone,
+                "import datetime; assert utc_timezone is datetime.timezone.utc"
+            );
+        })
     }
 }
