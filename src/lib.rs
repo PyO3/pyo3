@@ -186,7 +186,6 @@ pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;
-mod utils;
 
 #[cfg(feature = "serde")]
 pub mod serde;
