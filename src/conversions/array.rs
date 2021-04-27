@@ -177,9 +177,9 @@ where
     T: FromPyObject<'s>,
 {
     let seq = <crate::types::PySequence as PyTryFrom>::try_from(obj)?;
-    let expected_len = seq.len()? as usize;
-    if expected_len != slice.len() {
-        return Err(invalid_sequence_length(expected_len, slice.len()));
+    let seq_len = seq.len()? as usize;
+    if seq_len != slice.len() {
+        return Err(invalid_sequence_length(slice.len(), seq_len));
     }
     for (value, item) in slice.iter_mut().zip(seq.iter()?) {
         *value = item?.extract::<T>()?;
