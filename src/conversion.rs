@@ -151,8 +151,8 @@ where
 ///
 /// #[pyclass]
 /// struct Number {
-///	  #[pyo3(get, set)]
-///   value: i32,
+///    #[pyo3(get, set)]
+///    value: i32,
 /// }
 /// ```
 /// Python code will see this as an instance of the `Number` class with a `value` attribute.
@@ -177,7 +177,7 @@ where
 /// ```
 /// Python code will see this as an `int` object.
 ///
-/// ## Dynamic conversion into Python objects. 
+/// ## Dynamic conversion into Python objects.
 /// It is also possible to return a different Python object depending on some condition.
 /// This is useful for types like enums that can carry different types.
 ///
@@ -189,7 +189,7 @@ where
 ///     String(String),
 ///     None
 /// }
-/// 
+///
 /// impl IntoPy<PyObject> for Value {
 ///     fn into_py(self, py: Python) -> PyObject {
 ///         match self {
