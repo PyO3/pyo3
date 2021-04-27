@@ -1,5 +1,4 @@
-//! This module contains conversions between non-String Rust object and their string representation
-//! in Python
+//! This module contains conversions between various Rust object and their representation in Python.
 
 mod array;
 mod osstr;
