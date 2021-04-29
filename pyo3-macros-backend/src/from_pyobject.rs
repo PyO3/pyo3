@@ -1,4 +1,4 @@
-use crate::attributes::{self, get_pyo3_attribute, FromPyWithAttribute};
+use crate::attributes::{self, get_pyo3_attributes, FromPyWithAttribute};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -252,7 +252,9 @@ impl<'a> Container<'a> {
 }
 
 struct ContainerOptions {
+    /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     transparent: bool,
+    /// Change the name of an enum variant in the generated error message.
     annotation: Option<syn::LitStr>,
 }
 
@@ -288,7 +290,7 @@ impl ContainerOptions {
             annotation: None,
         };
         for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_attribute(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
                 for pyo3_attr in pyo3_attrs {
                     match pyo3_attr {
                         ContainerPyO3Attribute::Transparent(kw) => {
@@ -386,7 +388,7 @@ impl FieldPyO3Attributes {
         let mut from_py_with = None;
 
         for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_attribute(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
                 for pyo3_attr in pyo3_attrs {
                     match pyo3_attr {
                         FieldPyO3Attribute::Getter(field_getter) => {

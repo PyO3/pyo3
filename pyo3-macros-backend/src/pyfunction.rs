@@ -2,7 +2,7 @@
 
 use crate::{
     attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_attribute, take_attributes,
+        self, get_deprecated_name_attribute, get_pyo3_attributes, take_attributes,
         FromPyWithAttribute, NameAttribute,
     },
     method::{self, FnArg, FnSpec},
@@ -61,7 +61,7 @@ impl PyFunctionArgPyO3Attributes {
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
         let mut attributes = PyFunctionArgPyO3Attributes { from_py_with: None };
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_attribute(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
                 for attr in pyo3_attrs {
                     match attr {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
@@ -275,7 +275,7 @@ impl PyFunctionOptions {
 
     pub fn take_pyo3_attributes(&mut self, attrs: &mut Vec<syn::Attribute>) -> syn::Result<()> {
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attributes) = get_pyo3_attribute(attr)? {
+            if let Some(pyo3_attributes) = get_pyo3_attributes(attr)? {
                 self.add_attributes(pyo3_attributes)?;
                 Ok(true)
             } else if let Some(name) = get_deprecated_name_attribute(attr)? {
@@ -425,20 +425,22 @@ fn function_c_wrapper(
     pass_module: bool,
 ) -> Result<TokenStream> {
     let names: Vec<Ident> = get_arg_names(&spec);
-    let cb;
-    let slf_module;
-    if pass_module {
-        cb = quote! {
-            pyo3::callback::convert(_py, #name(_slf, #(#names),*))
-        };
-        slf_module = Some(quote! {
-            let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
-        });
+    let (cb, slf_module) = if pass_module {
+        (
+            quote! {
+                pyo3::callback::convert(_py, #name(_slf, #(#names),*))
+            },
+            Some(quote! {
+                let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
+            }),
+        )
     } else {
-        cb = quote! {
-            pyo3::callback::convert(_py, #name(#(#names),*))
-        };
-        slf_module = None;
+        (
+            quote! {
+                pyo3::callback::convert(_py, #name(#(#names),*))
+            },
+            None,
+        )
     };
     let py = syn::Ident::new("_py", Span::call_site());
     let body = impl_arg_params(spec, None, cb, &py)?;

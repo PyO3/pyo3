@@ -41,15 +41,17 @@ impl Parse for NameAttribute {
     }
 }
 
-pub fn get_pyo3_attribute<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctuated<T, Comma>>> {
-    if attribute_ident_is(attr, "pyo3") {
+pub fn get_pyo3_attributes<T: Parse>(
+    attr: &syn::Attribute,
+) -> Result<Option<Punctuated<T, Comma>>> {
+    if is_attribute_ident(attr, "pyo3") {
         attr.parse_args_with(Punctuated::parse_terminated).map(Some)
     } else {
         Ok(None)
     }
 }
 
-pub fn attribute_ident_is(attr: &syn::Attribute, name: &str) -> bool {
+pub fn is_attribute_ident(attr: &syn::Attribute, name: &str) -> bool {
     if let Some(path_segment) = attr.path.segments.last() {
         attr.path.segments.len() == 1 && path_segment.ident == name
     } else {

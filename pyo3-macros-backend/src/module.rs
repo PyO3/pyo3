@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
-use crate::attributes::{attribute_ident_is, take_attributes, NameAttribute};
+use crate::attributes::{is_attribute_ident, take_attributes, NameAttribute};
 use crate::pyfunction::{impl_wrap_pyfunction, PyFunctionOptions};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -80,7 +80,7 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     let mut pyfn_args: Option<PyFnArgs> = None;
 
     take_attributes(attrs, |attr| {
-        if attribute_ident_is(attr, "pyfn") {
+        if is_attribute_ident(attr, "pyfn") {
             ensure_spanned!(
                 pyfn_args.is_none(),
                 attr.span() => "`#[pyfn] may only be specified once"

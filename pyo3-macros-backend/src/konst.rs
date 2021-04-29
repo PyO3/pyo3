@@ -1,5 +1,5 @@
 use crate::attributes::{
-    self, attribute_ident_is, get_deprecated_name_attribute, get_pyo3_attribute, take_attributes,
+    self, get_deprecated_name_attribute, get_pyo3_attributes, is_attribute_ident, take_attributes,
     NameAttribute,
 };
 use crate::utils;
@@ -62,14 +62,14 @@ impl ConstAttributes {
         };
 
         take_attributes(attrs, |attr| {
-            if attribute_ident_is(attr, "classattr") {
+            if is_attribute_ident(attr, "classattr") {
                 ensure_spanned!(
                     attr.tokens.is_empty(),
                     attr.span() => "`#[classattr]` does not take any arguments"
                 );
                 attributes.is_class_attr = true;
                 Ok(true)
-            } else if let Some(pyo3_attributes) = get_pyo3_attribute(attr)? {
+            } else if let Some(pyo3_attributes) = get_pyo3_attributes(attr)? {
                 for pyo3_attr in pyo3_attributes {
                     match pyo3_attr {
                         PyO3ConstAttribute::Name(name) => attributes.set_name(name)?,
