@@ -134,10 +134,73 @@ where
     }
 }
 
-/// Similar to [std::convert::Into], just that it requires a gil token.
+/// Defines a conversion from a Rust type to a Python object.
 ///
-/// `IntoPy<PyObject>` (aka `IntoPy<Py<PyAny>>`) should be implemented to define a conversion from
-/// Rust to Python which can be used by most of PyO3's methods.
+/// It functions similarly to std's [`Into`](std::convert::Into) trait,
+/// but requires a [GIL token](Python) as an argument.
+/// Many functions and traits internal to PyO3 require this trait as a bound,
+/// so a lack of this trait can manifest itself in different error messages.
+///
+/// # Examples
+/// ## With `#[pyclass]`
+/// The easiest way to implement `IntoPy` is by exposing a struct as a native Python object
+/// by annotating it with [`#[pyclass]`](crate::prelude::pyclass).
+///
+/// ```rust
+/// use pyo3::prelude::*;
+///
+/// #[pyclass]
+/// struct Number {
+///    #[pyo3(get, set)]
+///    value: i32,
+/// }
+/// ```
+/// Python code will see this as an instance of the `Number` class with a `value` attribute.
+///
+/// ## Conversion to a Python object
+///
+/// However, it may not be desirable to expose the existence of `Number` to Python code.
+/// `IntoPy` allows us to define a conversion to an appropriate Python object.
+/// ```rust
+/// use pyo3::prelude::*;
+///
+/// struct Number {
+///   value: i32,
+/// }
+///
+/// impl IntoPy<PyObject> for Number {
+///     fn into_py(self, py: Python) -> PyObject {
+///         // delegates to i32's IntoPy implementation.
+///         self.value.into_py(py)
+///    }
+/// }
+/// ```
+/// Python code will see this as an `int` object.
+///
+/// ## Dynamic conversion into Python objects.
+/// It is also possible to return a different Python object depending on some condition.
+/// This is useful for types like enums that can carry different types.
+///
+/// ```rust
+/// use pyo3::prelude::*;
+///
+/// enum Value {
+///     Integer(i32),
+///     String(String),
+///     None
+/// }
+///
+/// impl IntoPy<PyObject> for Value {
+///     fn into_py(self, py: Python) -> PyObject {
+///         match self {
+///             Self::Integer(val) => val.into_py(py),
+///             Self::String(val) => val.into_py(py),
+///             Self::None => py.None()
+///         }
+///    }
+/// }
+/// ```
+/// Python code will see this as any of the `int`, `string` or `None` objects.
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
