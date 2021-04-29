@@ -15,7 +15,7 @@ use syn::parse_macro_input;
 
 /// A proc macro used to implement Python modules.
 ///
-/// For more on information on creating Python modules 
+/// For more on creating Python modules 
 /// see the [module section of the guide](https://pyo3.rs/main/module.html).
 #[proc_macro_attribute]
 pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
