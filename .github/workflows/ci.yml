@@ -61,9 +61,9 @@ jobs:
           # There is no 64-bit pypy on windows for pypy-3.6
           - python-version: pypy-3.6
             platform: { os: "windows-latest", python-architecture: "x64" }
-          # pypy on windows for pypy-3.7 coming in next PyPy release
+          # PyPy 3.7 on Windows doesn't release 32-bit builds any more
           - python-version: pypy-3.7
-            platform: { os: "windows-latest", python-architecture: "x64" }
+            platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # Test minimal supported Rust version
           - rust: 1.41.1
