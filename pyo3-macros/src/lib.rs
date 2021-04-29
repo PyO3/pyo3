@@ -79,7 +79,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
 /// | `extends = BaseType`  | Use a custom baseclass. Defaults to [`PyAny`][4] |
 /// | `subclass` | Allows Python classes to inherit from this class.  |
-/// | `unsendable`<!-- hack to stop the column from wrapping -->&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, prefer implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
+/// | `unsendable`<!-- hack to stop the column from wrapping -->&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
 /// | `module = "module_name"` |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
 /// For more on creating Python classes,
@@ -112,7 +112,7 @@ pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStr
 /// |  Annotation  |  Description |
 /// | :-  | :- |
 /// | [`#[new]`][4]  | Defines the class constructor, like Python's `__new__` method. |
-/// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case prefer using [`#[pyo3(get, set)]`][11] on the struct's field(s).|
+/// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case consider using [`#[pyo3(get, set)]`][11] on the struct's field(s).|
 /// | [`#[staticmethod]`][6]| Defines the method as a staticmethod, like Python's `@staticmethod` decorator.|
 /// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
 /// | [`#[call]`][8]  | Allows Python code to call a class instance as a function, like Python's `__call__` method. |
