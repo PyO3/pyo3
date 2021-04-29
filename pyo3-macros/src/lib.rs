@@ -15,7 +15,7 @@ use syn::parse_macro_input;
 
 /// A proc macro used to implement Python modules.
 ///
-/// For more on creating Python modules 
+/// For more on creating Python modules
 /// see the [module section of the guide](https://pyo3.rs/main/module.html).
 #[proc_macro_attribute]
 pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -47,7 +47,7 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to implement Python's [dunder methods][1].
 ///
-/// This atribute is required on blocks implementing [`PyObjectProtocol`][2], 
+/// This atribute is required on blocks implementing [`PyObjectProtocol`][2],
 /// [`PyNumberProtocol`][3], [`PyGCProtocol`][4] and [`PyIterProtocol`][5].
 ///
 /// [1]: https://docs.python.org/3/reference/datamodel.html#special-method-names
@@ -70,7 +70,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// A proc macro used to expose Rust structs as Python objects.
 ///
 /// `#[pyclass]` accepts the following [parameters][2]:
-/// 
+///
 /// |  Parameter  |  Description |
 /// | :-  | :- |
 /// | `name = "python_name"` | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
@@ -108,7 +108,7 @@ pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStr
 /// A proc macro used to expose methods to Python.
 ///
 /// Methods within a `#[pymethods]` block can be annotated with the following:
-/// 
+///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
 /// | [`#[new]`][4]  | Defines the class constructor, like Python's `__new__` method. |
@@ -123,8 +123,8 @@ pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStr
 /// see the [class section of the guide][1].
 ///
 /// If the [`multiple-pymethods`][2] feature is enabled, it is possible to implement
-/// multiple `#[pymethods]` blocks for a single `#[pyclass]`. 
-/// This will add a transitive dependency on the [`inventory`][3] crate. 
+/// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
+/// This will add a transitive dependency on the [`inventory`][3] crate.
 ///
 /// [1]: https://pyo3.rs/main/class.html#instance-methods
 /// [2]: https://pyo3.rs/main/features.html#multiple-pymethods
