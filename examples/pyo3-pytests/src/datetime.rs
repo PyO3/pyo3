@@ -32,14 +32,7 @@ fn make_time<'p>(
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<&'p PyTime> {
-    PyTime::new(
-        py,
-        hour,
-        minute,
-        second,
-        microsecond,
-        tzinfo.map(|o| o.to_object(py)).as_ref(),
-    )
+    PyTime::new(py, hour, minute, second, microsecond, tzinfo)
 }
 
 #[cfg(not(PyPy))]
@@ -53,15 +46,7 @@ fn time_with_fold<'p>(
     tzinfo: Option<&PyTzInfo>,
     fold: bool,
 ) -> PyResult<&'p PyTime> {
-    PyTime::new_with_fold(
-        py,
-        hour,
-        minute,
-        second,
-        microsecond,
-        tzinfo.map(|o| o.to_object(py)).as_ref(),
-        fold,
-    )
+    PyTime::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
 }
 
 #[pyfunction]
@@ -131,7 +116,7 @@ fn make_datetime<'p>(
         minute,
         second,
         microsecond,
-        tzinfo.map(|o| (o.to_object(py))).as_ref(),
+        tzinfo,
     )
 }
 

@@ -7,6 +7,8 @@ pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
 pub use self::complex::PyComplex;
+#[cfg(all(Py_3_7, not(Py_LIMITED_API), not(PyPy)))]
+pub use self::datetime::{timezone_from_offset, timezone_from_offset_and_name, timezone_utc};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definitions from `cpython/import.h`.[#1475](https://github.com/PyO3/pyo3/pull/1475)
 - Add tuple and unit struct support for `#[pyclass]` macro. [#1504](https://github.com/PyO3/pyo3/pull/1504)
 - Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
+- Add support for constructing `datetime.timezone` objects: `timezone_utc()`, `timezone_from_offset()`, and `timezone_from_offset_and_name()`. [#1588](https://github.com/PyO3/pyo3/pull/1588)
 
 ### Changed
 - Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `PyMappingProtocol::__reversed__`
   - `PyNumberProtocol::__complex__` and `PyNumberProtocol::__round__`
   - `PyAsyncProtocol::__aenter__` and `PyAsyncProtocol::__aexit__`
+- Change datetime constructors taking a `tzinfo` to take `Option<&PyTzInfo>` instead of `Option<&PyObject>`: `PyDateTime::new()`, `PyDateTime::new_with_fold()`, `PyTime::new()`, and `PyTime::new_with_fold()`. [#1588](https://github.com/PyO3/pyo3/pull/1588)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)

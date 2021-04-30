@@ -5,7 +5,6 @@
 
 use crate::err::PyResult;
 use crate::ffi;
-#[cfg(PyPy)]
 use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
 use crate::ffi::PyDateTimeAPI;
 use crate::ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
@@ -24,10 +23,8 @@ use crate::ffi::{
     PyDateTime_TIME_GET_SECOND,
 };
 use crate::types::PyTuple;
-use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
+use crate::{AsPyPointer, IntoPy, Py, PyAny, Python};
 use std::os::raw::c_int;
-#[cfg(not(PyPy))]
-use std::ptr;
 
 /// Access traits
 
@@ -87,16 +84,10 @@ impl PyDate {
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
     pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
-        let time_tuple = PyTuple::new(py, &[timestamp]);
+        let time_tuple: Py<PyTuple> = (timestamp,).into_py(py);
 
         unsafe {
-            #[cfg(PyPy)]
             let ptr = PyDate_FromTimestamp(time_tuple.as_ptr());
-
-            #[cfg(not(PyPy))]
-            let ptr =
-                (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr());
-
             py.from_owned_ptr_or_err(ptr)
         }
     }
@@ -138,7 +129,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
@@ -169,7 +160,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
         fold: bool,
     ) -> PyResult<&'p PyDateTime> {
         unsafe {
@@ -191,34 +182,16 @@ impl PyDateTime {
 
     /// Construct a `datetime` object from a POSIX timestamp
     ///
-    /// This is equivalent to `datetime.datetime.from_timestamp`
+    /// This is equivalent to `datetime.datetime.fromtimestamp`
     pub fn from_timestamp<'p>(
         py: Python<'p>,
         timestamp: f64,
-        time_zone_info: Option<&PyTzInfo>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
-        let timestamp: PyObject = timestamp.to_object(py);
-
-        let time_zone_info: PyObject = match time_zone_info {
-            Some(time_zone_info) => time_zone_info.to_object(py),
-            None => py.None(),
-        };
-
-        let args = PyTuple::new(py, &[timestamp, time_zone_info]);
+        let args: Py<PyTuple> = (timestamp, tzinfo).into_py(py);
 
         unsafe {
-            #[cfg(PyPy)]
             let ptr = PyDateTime_FromTimestamp(args.as_ptr());
-
-            #[cfg(not(PyPy))]
-            let ptr = {
-                (PyDateTimeAPI.DateTime_FromTimestamp)(
-                    PyDateTimeAPI.DateTimeType,
-                    args.as_ptr(),
-                    ptr::null_mut(),
-                )
-            };
-
             py.from_owned_ptr_or_err(ptr)
         }
     }
@@ -279,7 +252,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
@@ -302,7 +275,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyTzInfo>,
         fold: bool,
     ) -> PyResult<&'p PyTime> {
         unsafe {
@@ -343,9 +316,12 @@ impl PyTimeAccess for PyTime {
     }
 }
 
-/// Bindings for `datetime.tzinfo`
+/// Bindings for `datetime.tzinfo`.
 ///
-/// This is an abstract base class and should not be constructed directly.
+/// While `tzinfo` is an abstract base class, the `datetime` module provides one concrete
+/// implementation: `datetime.timezone`. See [`timezone_utc`](fn.timezone_utc.html),
+/// [`timezone_from_offset`](fn.timezone_from_offset.html), and
+/// [`timezone_from_offset_and_name`](fn.timezone_from_offset_and_name.html).
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
@@ -355,6 +331,38 @@ pyobject_native_type!(
     Some("datetime"),
     PyTZInfo_Check
 );
+
+/// Equivalent to `datetime.timezone.utc`
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub fn timezone_utc(py: Python) -> &PyTzInfo {
+    unsafe {
+        &*(&*ffi::PyDateTime_TimeZone_UTC as *const *mut ffi::PyObject
+            as *const crate::Py<PyTzInfo>)
+    }
+    .as_ref(py)
+}
+
+/// Equivalent to `datetime.timezone(offset)`
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub fn timezone_from_offset<'py>(py: Python<'py>, offset: &PyDelta) -> PyResult<&'py PyTzInfo> {
+    unsafe { py.from_owned_ptr_or_err(ffi::PyTimeZone_FromOffset(offset.as_ptr())) }
+}
+
+/// Equivalent to `datetime.timezone(offset, name)`
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub fn timezone_from_offset_and_name<'py>(
+    py: Python<'py>,
+    offset: &PyDelta,
+    name: &str,
+) -> PyResult<&'py PyTzInfo> {
+    let name = name.into_py(py);
+    unsafe {
+        py.from_owned_ptr_or_err(ffi::PyTimeZone_FromOffsetAndName(
+            offset.as_ptr(),
+            name.as_ptr(),
+        ))
+    }
+}
 
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
@@ -403,7 +411,7 @@ impl PyDeltaAccess for PyDelta {
 }
 
 // Utility function
-fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
+fn opt_to_pyobj(py: Python, opt: Option<&PyTzInfo>) -> *mut ffi::PyObject {
     // Convenience function for unpacking Options to either an Object or None
     match opt {
         Some(tzi) => tzi.as_ptr(),
@@ -413,12 +421,78 @@ fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::py_run;
+
+    #[test]
+    fn test_datetime_fromtimestamp() {
+        Python::with_gil(|py| {
+            let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
+            );
+
+            #[cfg(all(Py_3_7, not(PyPy)))]
+            {
+                let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
+                py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100, datetime.timezone.utc)"
+            );
+            }
+        })
+    }
+
+    #[test]
+    fn test_date_fromtimestamp() {
+        Python::with_gil(|py| {
+            let dt = PyDate::from_timestamp(py, 100).unwrap();
+            py_run!(
+                py,
+                dt,
+                "import datetime; assert dt == datetime.date.fromtimestamp(100)"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(Py_3_7, not(PyPy)))]
+    fn test_timezone_from_offset() {
+        Python::with_gil(|py| {
+            let tz = timezone_from_offset(py, PyDelta::new(py, 0, 100, 0, false).unwrap()).unwrap();
+            py_run!(
+                py,
+                tz,
+                "import datetime; assert tz == datetime.timezone(datetime.timedelta(seconds=100))"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(Py_3_7, not(PyPy)))]
+    fn test_timezone_from_offset_and_name() {
+        Python::with_gil(|py| {
+            let tz = timezone_from_offset_and_name(
+                py,
+                PyDelta::new(py, 0, 100, 0, false).unwrap(),
+                "testtz",
+            )
+            .unwrap();
+            py_run!(
+                py,
+                tz,
+                "import datetime; assert tz == datetime.timezone(datetime.timedelta(seconds=100), 'testtz')"
+            );
+        })
+    }
+
     #[cfg(not(PyPy))]
     #[test]
     fn test_new_with_fold() {
-        pyo3::Python::with_gil(|py| {
-            use pyo3::types::{PyDateTime, PyTimeAccess};
-
+        Python::with_gil(|py| {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
