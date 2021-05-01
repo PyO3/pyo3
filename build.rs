@@ -746,6 +746,17 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
+fn rustc_minor_version() -> Option<u32> {
+    let rustc = env::var_os("RUSTC")?;
+    let output = Command::new(rustc).arg("--version").output().ok()?;
+    let version = core::str::from_utf8(&output.stdout).ok()?;
+    let mut pieces = version.split('.');
+    if pieces.next() != Some("rustc 1") {
+        return None;
+    }
+    pieces.next()?.parse().ok()
+}
+
 fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
     let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
@@ -848,6 +859,12 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 
     for flag in &interpreter_config.build_flags.0 {
         println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)
+    }
+
+    // Enable use of const generics on Rust 1.51 and greater
+
+    if rustc_minor_version().unwrap_or(0) >= 51 {
+        println!("cargo:rustc-cfg=min_const_generics");
     }
 
     Ok(())
