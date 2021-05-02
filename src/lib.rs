@@ -160,7 +160,9 @@ mod internal_tricks;
 
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub mod buffer;
+
 #[doc(hidden)]
 pub mod callback;
 pub mod class;
@@ -175,8 +177,11 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
+
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub mod marshal;
+
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;

@@ -357,6 +357,10 @@ mod test_128bit_intergers {
 }
 
 #[cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy)))))
+)]
 mod bigint_conversion {
     use super::*;
     use crate::{err, Py};
