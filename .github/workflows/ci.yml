@@ -173,6 +173,23 @@ jobs:
       # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
       PYO3_CI: 1
 
+
+  docs:
+    name: docs
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+         toolchain: nightly
+         override: true
+      - name: "Build docs with docsrs flag"
+        run: cargo doc --no-deps --features=default,multiple-pymethods,extension-module,num-bigint,num-complex,hashbrown,serde,nightly
+        env:
+          # docsrs gates doc_cfg and doc_alias functionality
+          RUSTDOCFLAGS: --cfg docsrs
+
   coverage:
     needs: [fmt]
     runs-on: ubuntu-latest
