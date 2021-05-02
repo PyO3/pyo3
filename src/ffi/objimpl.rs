@@ -1,14 +1,13 @@
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::size_t;
 use std::os::raw::{c_int, c_void};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
-    pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
-    pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
+    pub fn PyObject_Malloc(size: usize) -> *mut c_void;
+    pub fn PyObject_Calloc(nelem: usize, elsize: usize) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Realloc")]
-    pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
+    pub fn PyObject_Realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Free")]
     pub fn PyObject_Free(ptr: *mut c_void);
 
@@ -35,8 +34,8 @@ extern "C" {
 #[cfg(not(Py_LIMITED_API))]
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
-    pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
-    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
+    pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: usize) -> *mut c_void>,
+    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: usize)>,
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -74,9 +73,9 @@ extern "C" {
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 
     #[cfg(not(Py_LIMITED_API))]
-    pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
+    pub fn _PyObject_GC_Malloc(size: usize) -> *mut PyObject;
     #[cfg(not(Py_LIMITED_API))]
-    pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
+    pub fn _PyObject_GC_Calloc(size: usize) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]

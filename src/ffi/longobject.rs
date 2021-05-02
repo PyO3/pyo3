@@ -1,6 +1,5 @@
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::size_t;
 #[cfg(not(Py_LIMITED_API))]
 use std::os::raw::c_uchar;
 use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
@@ -29,7 +28,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLong")]
     pub fn PyLong_FromUnsignedLong(arg1: c_ulong) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromSize_t")]
-    pub fn PyLong_FromSize_t(arg1: size_t) -> *mut PyObject;
+    pub fn PyLong_FromSize_t(arg1: usize) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromSsize_t")]
     pub fn PyLong_FromSsize_t(arg1: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromDouble")]
@@ -41,7 +40,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsSsize_t")]
     pub fn PyLong_AsSsize_t(arg1: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsSize_t")]
-    pub fn PyLong_AsSize_t(arg1: *mut PyObject) -> size_t;
+    pub fn PyLong_AsSize_t(arg1: *mut PyObject) -> usize;
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLong")]
     pub fn PyLong_AsUnsignedLong(arg1: *mut PyObject) -> c_ulong;
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongMask")]
@@ -104,7 +103,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
-        n: size_t,
+        n: usize,
         little_endian: c_int,
         is_signed: c_int,
     ) -> *mut PyObject;
@@ -113,7 +112,7 @@ extern "C" {
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,
         bytes: *mut c_uchar,
-        n: size_t,
+        n: usize,
         little_endian: c_int,
         is_signed: c_int,
     ) -> c_int;

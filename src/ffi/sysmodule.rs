@@ -1,7 +1,19 @@
 use crate::ffi::object::PyObject;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
+
+#[cfg(feature = "uselibc")]
+use libc::wchar_t;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "unix")]
+type wchar_t = i32;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "windows")]
+type wchar_t = u16;
 
 extern "C" {
     pub fn Py_DecodeLocale(arg1: *const c_char, arg2: Py_ssize_t) -> *mut wchar_t;

@@ -97,7 +97,7 @@ pub use self::bufferinfo::*;
 pub type vectorcallfunc = unsafe extern "C" fn(
     callable: *mut PyObject,
     args: *const *mut PyObject,
-    nargsf: libc::size_t,
+    nargsf: usize,
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
@@ -188,8 +188,16 @@ mod typeobject {
         pub bf_releasebuffer: Option<super::releasebufferproc>,
     }
 
+    #[cfg(feature = "uselibc")]
     pub type printfunc =
         unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
+
+    #[cfg(not(feature = "uselibc"))]
+    #[derive(Clone)]
+    pub enum FILE {}
+    #[cfg(not(feature = "uselibc"))]
+    pub type printfunc =
+        unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut FILE, arg3: c_int) -> c_int;
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
@@ -316,7 +324,10 @@ pub use self::typeobject::*;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
+    #[cfg(feature = "uselibc")]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
+    #[cfg(not(feature = "uselibc"))]
+    pub fn PyObject_Print(o: *mut PyObject, fp: *mut FILE, flags: c_int) -> c_int;
 
     // skipped _Py_BreakPoint
     // skipped _PyObject_Dump

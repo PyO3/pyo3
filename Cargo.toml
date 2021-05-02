@@ -19,7 +19,7 @@ cfg-if = { version = "1.0" }
 # must stay at 0.3.x for Rust 1.41 compatibility
 indoc = { version = "0.3.6", optional = true }
 inventory = { version = "0.1.4", optional = true }
-libc = "0.2.62"
+libc = {version = "0.2.62", optional = true }
 parking_lot = "0.11.0"
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = "0.4", optional = true }
@@ -41,6 +41,8 @@ serde_json = "1.0.61"
 
 [features]
 default = ["macros"]
+
+uselibc = ["libc"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "paste", "unindent"]

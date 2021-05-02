@@ -1,7 +1,19 @@
 use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
-use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_void};
+
+#[cfg(feature = "uselibc")]
+use libc::wchar_t;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "unix")]
+type wchar_t = i32;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "windows")]
+type wchar_t = u16;
 
 #[cfg(not(Py_LIMITED_API))]
 pub type Py_UNICODE = wchar_t;

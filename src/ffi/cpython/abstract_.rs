@@ -7,7 +7,6 @@ use crate::ffi::{
     PyTuple_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 #[cfg(all(Py_3_8, not(PyPy)))]
-use libc::size_t;
 
 extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]
@@ -15,7 +14,7 @@ extern "C" {
 }
 
 #[cfg(all(Py_3_8, not(PyPy)))]
-const _PY_FASTCALL_SMALL_STACK: size_t = 5;
+const _PY_FASTCALL_SMALL_STACK: usize = 5;
 
 extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]
@@ -42,8 +41,8 @@ const PY_VECTORCALL_ARGUMENTS_OFFSET: Py_ssize_t =
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
-pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
-    assert!(n <= (PY_SSIZE_T_MAX as size_t));
+pub unsafe fn PyVectorcall_NARGS(n: usize) -> Py_ssize_t {
+    assert!(n <= (PY_SSIZE_T_MAX as usize));
     (n as Py_ssize_t) & !PY_VECTORCALL_ARGUMENTS_OFFSET
 }
 
@@ -68,7 +67,7 @@ pub unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
     callable: *mut PyObject,
     args: *const *mut PyObject,
-    nargsf: size_t,
+    nargsf: usize,
     kwnames: *mut PyObject,
 ) -> *mut PyObject {
     assert!(kwnames.is_null() || PyTuple_Check(kwnames) > 0);
@@ -91,7 +90,7 @@ pub unsafe fn _PyObject_VectorcallTstate(
 pub unsafe fn PyObject_Vectorcall(
     callable: *mut PyObject,
     args: *const *mut PyObject,
-    nargsf: size_t,
+    nargsf: usize,
     kwnames: *mut PyObject,
 ) -> *mut PyObject {
     _PyObject_VectorcallTstate(PyThreadState_GET(), callable, args, nargsf, kwnames)
@@ -103,7 +102,7 @@ extern "C" {
     pub fn PyObject_VectorcallDict(
         callable: *mut PyObject,
         args: *const *mut PyObject,
-        nargsf: size_t,
+        nargsf: usize,
         kwargs: *mut PyObject,
     ) -> *mut PyObject;
 
@@ -124,7 +123,7 @@ pub unsafe fn _PyObject_FastCallTstate(
     args: *const *mut PyObject,
     nargs: Py_ssize_t,
 ) -> *mut PyObject {
-    _PyObject_VectorcallTstate(tstate, func, args, nargs as size_t, std::ptr::null_mut())
+    _PyObject_VectorcallTstate(tstate, func, args, nargs as usize, std::ptr::null_mut())
 }
 
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -157,7 +156,7 @@ pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *m
     let args = _args.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
-    _PyObject_VectorcallTstate(tstate, func, args, nargsf as size_t, std::ptr::null_mut())
+    _PyObject_VectorcallTstate(tstate, func, args, nargsf as usize, std::ptr::null_mut())
 }
 
 extern "C" {
@@ -165,7 +164,7 @@ extern "C" {
     pub fn PyObject_VectorcallMethod(
         name: *mut PyObject,
         args: *const *mut PyObject,
-        nargsf: size_t,
+        nargsf: usize,
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
 }
@@ -179,7 +178,7 @@ pub unsafe fn PyObject_CallMethodNoArgs(
     PyObject_VectorcallMethod(
         name,
         &self_,
-        1 | PY_VECTORCALL_ARGUMENTS_OFFSET as size_t,
+        1 | PY_VECTORCALL_ARGUMENTS_OFFSET as usize,
         std::ptr::null_mut(),
     )
 }
@@ -196,7 +195,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
     PyObject_VectorcallMethod(
         name,
         args.as_ptr(),
-        2 | PY_VECTORCALL_ARGUMENTS_OFFSET as size_t,
+        2 | PY_VECTORCALL_ARGUMENTS_OFFSET as usize,
         std::ptr::null_mut(),
     )
 }

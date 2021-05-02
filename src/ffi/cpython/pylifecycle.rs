@@ -1,6 +1,17 @@
 use crate::ffi::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
+#[cfg(feature = "uselibc")]
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "unix")]
+type wchar_t = i32;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "windows")]
+type wchar_t = u16;
 
 // "private" functions in cpython/pylifecycle.h accepted in PEP 587
 extern "C" {

@@ -1,8 +1,20 @@
 /* --- PyStatus ----------------------------------------------- */
 
 use crate::ffi::Py_ssize_t;
-use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_ulong};
+
+#[cfg(feature = "uselibc")]
+use libc::wchar_t;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "unix")]
+type wchar_t = i32;
+
+#[cfg(not(feature = "uselibc"))]
+#[allow(non_camel_case_types)]
+#[cfg(target_family = "windows")]
+type wchar_t = u16;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum _PyStatus_TYPE {

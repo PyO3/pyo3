@@ -119,10 +119,10 @@ fn native_element_type_from_type_char(type_char: u8) -> ElementType {
             bytes: mem::size_of::<raw::c_ulonglong>(),
         },
         b'n' => SignedInteger {
-            bytes: mem::size_of::<libc::ssize_t>(),
+            bytes: mem::size_of::<isize>(),
         },
         b'N' => UnsignedInteger {
-            bytes: mem::size_of::<libc::size_t>(),
+            bytes: mem::size_of::<usize>(),
         },
         b'e' => Float { bytes: 2 },
         b'f' => Float { bytes: 4 },
