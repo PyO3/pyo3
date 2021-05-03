@@ -20,7 +20,7 @@ pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
     ffi::PyFloat_Type,
-    ffi::PyFloat_Check
+    #checkfunction=ffi::PyFloat_Check
 );
 
 impl PyFloat {

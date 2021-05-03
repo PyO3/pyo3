@@ -13,7 +13,7 @@ use crate::{
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
-pyobject_native_var_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
+pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_Check);
 
 impl PyList {
     /// Constructs a new list with the given elements.

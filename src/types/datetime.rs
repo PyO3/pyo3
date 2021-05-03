@@ -66,8 +66,8 @@ pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
     *PyDateTimeAPI.DateType,
-    Some("datetime"),
-    PyDate_Check
+    #module=Some("datetime"),
+    #checkfunction=PyDate_Check
 );
 
 impl PyDate {
@@ -123,8 +123,8 @@ pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
     *PyDateTimeAPI.DateTimeType,
-    Some("datetime"),
-    PyDateTime_Check
+    #module=Some("datetime"),
+    #checkfunction=PyDateTime_Check
 );
 
 impl PyDateTime {
@@ -268,8 +268,8 @@ pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
     *PyDateTimeAPI.TimeType,
-    Some("datetime"),
-    PyTime_Check
+    #module=Some("datetime"),
+    #checkfunction=PyTime_Check
 );
 
 impl PyTime {
@@ -352,8 +352,8 @@ pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
     *PyDateTimeAPI.TZInfoType,
-    Some("datetime"),
-    PyTZInfo_Check
+    #module=Some("datetime"),
+    #checkfunction=PyTZInfo_Check
 );
 
 /// Bindings for `datetime.timedelta`
@@ -363,8 +363,8 @@ pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
     *PyDateTimeAPI.DeltaType,
-    Some("datetime"),
-    PyDelta_Check
+    #module=Some("datetime"),
+    #checkfunction=PyDelta_Check
 );
 
 impl PyDelta {

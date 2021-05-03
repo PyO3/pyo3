@@ -13,7 +13,7 @@ pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
     ffi::PyComplex_Type,
-    ffi::PyComplex_Check
+    #checkfunction=ffi::PyComplex_Check
 );
 
 impl PyComplex {

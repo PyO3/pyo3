@@ -55,7 +55,7 @@ macro_rules! int_fits_larger_int {
 #[repr(transparent)]
 pub struct PyLong(PyAny);
 
-pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
+pyobject_native_type_core!(PyLong, ffi::PyLong_Type, #checkfunction=ffi::PyLong_Check);
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {

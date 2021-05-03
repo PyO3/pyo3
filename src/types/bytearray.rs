@@ -9,7 +9,7 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
-pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
+pyobject_native_type_core!(PyByteArray, ffi::PyByteArray_Type, #checkfunction=ffi::PyByteArray_Check);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.

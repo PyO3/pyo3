@@ -16,7 +16,7 @@ pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
     ffi::PySlice_Type,
-    ffi::PySlice_Check
+    #checkfunction=ffi::PySlice_Check
 );
 
 /// Represents Python `slice` indices.
