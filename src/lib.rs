@@ -190,11 +190,13 @@ pub mod types;
 #[cfg(feature = "serde")]
 pub mod serde;
 
-/// The proc macros, which are also part of the prelude.
+/// The proc macros, all of which are part of the prelude.
+///
+/// Import these with `use pyo3::prelude::*;`
 #[cfg(feature = "macros")]
 pub mod proc_macro {
     pub use pyo3_macros::pymodule;
-    /// The proc macro attributes
+
     pub use pyo3_macros::{pyfunction, pyproto};
 
     #[cfg(not(feature = "multiple-pymethods"))]
