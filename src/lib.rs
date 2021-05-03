@@ -133,6 +133,7 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(not(PyPy))]
+#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
