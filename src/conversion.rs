@@ -203,6 +203,7 @@ where
 /// }
 /// ```
 /// Python code will see this as any of the `int`, `string` or `None` objects.
+#[cfg_attr(docsrs, doc(alias = "IntoPyCallbackOutput"))]
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
