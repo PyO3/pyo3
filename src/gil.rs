@@ -45,9 +45,6 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// If both the Python interpreter and Python threading are already initialized,
 /// this function has no effect.
 ///
-/// # Availability
-/// This function is not available on PyPy.
-///
 /// # Panics
 /// - If the Python interpreter is initialized but Python threading is not,
 ///   a panic occurs.
@@ -68,6 +65,7 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// }
 /// ```
 #[cfg(not(PyPy))]
+#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 #[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
@@ -106,9 +104,6 @@ pub fn prepare_freethreaded_python() {
 /// single process, it is not safe to call this function more than once. (Many such modules will not
 /// initialize correctly on the second run.)
 ///
-/// # Availability
-/// This function is not available on PyPy.
-///
 /// # Panics
 /// - If the Python interpreter is already initalized before calling this function.
 ///
@@ -132,6 +127,7 @@ pub fn prepare_freethreaded_python() {
 /// }
 /// ```
 #[cfg(not(PyPy))]
+#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 #[allow(clippy::clippy::collapsible_if)] // for if cfg!
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
