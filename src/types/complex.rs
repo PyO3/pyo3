@@ -34,6 +34,7 @@ impl PyComplex {
     }
     /// Returns `|self|`.
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
     pub fn abs(&self) -> c_double {
         unsafe {
             let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
@@ -42,6 +43,7 @@ impl PyComplex {
     }
     /// Returns `self ** other`
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
     pub fn pow(&self, other: &PyComplex) -> &PyComplex {
         unsafe {
             self.py()
@@ -63,6 +65,7 @@ unsafe fn complex_operation(
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 impl<'py> Add for &'py PyComplex {
     type Output = &'py PyComplex;
     fn add(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -74,6 +77,7 @@ impl<'py> Add for &'py PyComplex {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 impl<'py> Sub for &'py PyComplex {
     type Output = &'py PyComplex;
     fn sub(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -85,6 +89,7 @@ impl<'py> Sub for &'py PyComplex {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 impl<'py> Mul for &'py PyComplex {
     type Output = &'py PyComplex;
     fn mul(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -96,6 +101,7 @@ impl<'py> Mul for &'py PyComplex {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 impl<'py> Div for &'py PyComplex {
     type Output = &'py PyComplex;
     fn div(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -107,6 +113,7 @@ impl<'py> Div for &'py PyComplex {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 impl<'py> Neg for &'py PyComplex {
     type Output = &'py PyComplex;
     fn neg(self) -> &'py PyComplex {
@@ -119,13 +126,14 @@ impl<'py> Neg for &'py PyComplex {
 }
 
 #[cfg(feature = "num-complex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
 mod complex_conversion {
     use super::*;
     use crate::{FromPyObject, PyErr, PyNativeType, PyObject, PyResult, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {
-        /// Creates a new Python `PyComplex` object from num_complex::Complex.
+        /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
         pub fn from_complex<F: Into<c_double>>(py: Python, complex: Complex<F>) -> &PyComplex {
             unsafe {
                 let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());

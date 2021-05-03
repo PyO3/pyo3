@@ -324,6 +324,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 }
 
 #[cfg(feature = "hashbrown")]
+#[cfg_attr(docsrs, doc(cfg(feature = "hashbrown")))]
 mod hashbrown_hashset_conversion {
     use super::*;
     use crate::{FromPyObject, PyObject, PyResult, ToPyObject};

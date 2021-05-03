@@ -8,6 +8,7 @@ pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub use self::datetime::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
 };
@@ -141,6 +142,7 @@ macro_rules! pyobject_native_type_sized {
     ($name: ty, $layout: path $(;$generics: ident)*) => {
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]
+        #[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl<'a, $($generics,)*> $crate::derive_utils::PyBaseTypeUtils for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
@@ -230,6 +232,7 @@ mod bytearray;
 mod bytes;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 mod datetime;
 mod dict;
 mod floatob;
