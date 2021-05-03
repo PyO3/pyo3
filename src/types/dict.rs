@@ -20,7 +20,7 @@ pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
     ffi::PyDict_Type,
-    ffi::PyDict_Check
+    #checkfunction=ffi::PyDict_Check
 );
 
 impl PyDict {

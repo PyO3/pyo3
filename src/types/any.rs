@@ -61,7 +61,7 @@ pyobject_native_type_info!(
     ffi::PyObject,
     ffi::PyBaseObject_Type,
     Some("builtins"),
-    PyObject_Check
+    #checkfunction=PyObject_Check
 );
 
 pyobject_native_type_extract!(PyAny);

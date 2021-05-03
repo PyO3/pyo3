@@ -10,7 +10,7 @@ use crate::{
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
-pyobject_native_var_type!(PyCFunction, ffi::PyCFunction_Type, ffi::PyCFunction_Check);
+pyobject_native_type_core!(PyCFunction, ffi::PyCFunction_Type, #checkfunction=ffi::PyCFunction_Check);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords.
@@ -73,4 +73,4 @@ impl PyCFunction {
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
-pyobject_native_var_type!(PyFunction, ffi::PyFunction_Type, ffi::PyFunction_Check);
+pyobject_native_type_core!(PyFunction, ffi::PyFunction_Type, #checkfunction=ffi::PyFunction_Check);
