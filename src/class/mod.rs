@@ -7,6 +7,7 @@ mod macros;
 
 pub mod basic;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub mod buffer;
 pub mod context;
 pub mod descr;
@@ -23,6 +24,7 @@ pub mod sequence;
 
 pub use self::basic::PyObjectProtocol;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub use self::buffer::PyBufferProtocol;
 pub use self::context::PyContextProtocol;
 pub use self::descr::PyDescrProtocol;
