@@ -185,7 +185,7 @@ jobs:
          toolchain: nightly
          override: true
       - name: "Build docs with docsrs flag"
-        run: cargo doc --no-deps --features=default,multiple-pymethods,extension-module,num-bigint,num-complex,hashbrown,serde,nightly
+        run: cargo doc --no-deps --no-default-features --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
         env:
           # docsrs gates doc_cfg and doc_alias functionality
           RUSTDOCFLAGS: --cfg docsrs
