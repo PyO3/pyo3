@@ -19,3 +19,4 @@ These are features currently supported by PyO3, but not yet implemented in cpyex
 - Conversion to rust's i128, u128 types.
 - `PySequence_Count` (which is used to count number of element in array)
 - `PyDict_MergeFromSeq2` (used in `PyDict::from_sequence`)
+- Support for `datetime.timezone` construction.

@@ -445,12 +445,11 @@ pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
     inner: GILOnceCell::new(),
 };
 
-/// Safe wrapper around the Python C-API global `PyDateTime_TimeZone_UTC`. This follows a similar
+/// Wrapper around the Python C-API global `PyDateTime_TimeZone_UTC`. This follows a similar
 /// strategy as [`PyDateTimeAPI`]: the Python datetime C-API will automatically be imported if this
 /// type is deferenced.
 ///
-/// The type obtained by dereferencing this object is `&'static PyObject`. This may change in the
-/// future to be a more specific type representing that this is a `datetime.timezone` object.
+/// The type obtained by dereferencing this object is `&'static *mut ffi::PyObject`.
 #[cfg(all(Py_3_7, not(PyPy)))]
 pub static PyDateTime_TimeZone_UTC: _PyDateTime_TimeZone_UTC_impl = _PyDateTime_TimeZone_UTC_impl {
     inner: &PyDateTimeAPI,
@@ -565,8 +564,19 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 // skipped non-limited PyTime_FromTime
 // skipped non-limited PyTime_FromTimeAndFold
 // skipped non-limited PyDelta_FromDSU
-// skipped non-limited PyTimeZone_FromOffset
-// skipped non-limited PyTimeZone_FromOffsetAndName
+
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub unsafe fn PyTimeZone_FromOffset(offset: *mut PyObject) -> *mut PyObject {
+    (PyDateTimeAPI.TimeZone_FromTimeZone)(offset, std::ptr::null_mut())
+}
+
+#[cfg(all(Py_3_7, not(PyPy)))]
+pub unsafe fn PyTimeZone_FromOffsetAndName(
+    offset: *mut PyObject,
+    name: *mut PyObject,
+) -> *mut PyObject {
+    (PyDateTimeAPI.TimeZone_FromTimeZone)(offset, name)
+}
 
 #[cfg(not(PyPy))]
 pub unsafe fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject {
@@ -616,14 +626,11 @@ pub struct _PyDateTime_TimeZone_UTC_impl {
 
 #[cfg(all(Py_3_7, not(PyPy)))]
 impl Deref for _PyDateTime_TimeZone_UTC_impl {
-    type Target = crate::PyObject;
+    type Target = *mut PyObject;
 
     #[inline]
-    fn deref(&self) -> &crate::PyObject {
-        unsafe {
-            &*((&self.inner.TimeZone_UTC) as *const *mut crate::ffi::PyObject
-                as *const crate::PyObject)
-        }
+    fn deref(&self) -> &'static *mut PyObject {
+        &self.inner.TimeZone_UTC
     }
 }
 
@@ -665,7 +672,7 @@ mod tests {
     #[cfg(all(Py_3_7, not(PyPy)))]
     fn test_utc_timezone() {
         Python::with_gil(|py| {
-            let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);
+            let utc_timezone: &PyAny = unsafe { py.from_borrowed_ptr(*PyDateTime_TimeZone_UTC) };
             py_run!(
                 py,
                 utc_timezone,

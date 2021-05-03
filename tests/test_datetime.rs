@@ -108,9 +108,9 @@ fn test_datetime_utc() {
     let py = gil.python();
     let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
     let timezone = datetime.getattr("timezone").unwrap();
-    let utc = timezone.getattr("utc").unwrap().to_object(py);
+    let utc = timezone.getattr("utc").unwrap().extract().unwrap();
 
-    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
     let locals = [("dt", dt)].into_py_dict(py);
 
