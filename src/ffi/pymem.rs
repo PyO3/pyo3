@@ -1,24 +1,29 @@
 use std::os::raw::c_void;
 
+#[cfg(feature = "libc")]
+use libc::size_t;
+#[cfg(not(feature = "libc"))]
+type size_t = usize;
+
 #[cfg(not(Py_LIMITED_API))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
-    pub fn PyMem_RawMalloc(size: usize) -> *mut c_void;
+    pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawCalloc")]
-    pub fn PyMem_RawCalloc(nelem: usize, elsize: usize) -> *mut c_void;
+    pub fn PyMem_RawCalloc(nelem: size_t, elsize: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawRealloc")]
-    pub fn PyMem_RawRealloc(ptr: *mut c_void, new_size: usize) -> *mut c_void;
+    pub fn PyMem_RawRealloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawFree")]
     pub fn PyMem_RawFree(ptr: *mut c_void);
 }
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_Malloc")]
-    pub fn PyMem_Malloc(size: usize) -> *mut c_void;
+    pub fn PyMem_Malloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_Calloc")]
-    pub fn PyMem_Calloc(nelem: usize, elsize: usize) -> *mut c_void;
+    pub fn PyMem_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_Realloc")]
-    pub fn PyMem_Realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void;
+    pub fn PyMem_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_Free")]
     pub fn PyMem_Free(ptr: *mut c_void);
 }
@@ -37,10 +42,11 @@ pub enum PyMemAllocatorDomain {
 #[cfg(not(Py_LIMITED_API))]
 pub struct PyMemAllocatorEx {
     pub ctx: *mut c_void,
-    pub malloc: Option<extern "C" fn(ctx: *mut c_void, size: usize) -> *mut c_void>,
-    pub calloc: Option<extern "C" fn(ctx: *mut c_void, nelem: usize, elsize: usize) -> *mut c_void>,
+    pub malloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
+    pub calloc:
+        Option<extern "C" fn(ctx: *mut c_void, nelem: size_t, elsize: size_t) -> *mut c_void>,
     pub realloc:
-        Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: usize) -> *mut c_void>,
+        Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, new_size: size_t) -> *mut c_void>,
     pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>,
 }
 

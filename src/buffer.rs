@@ -21,11 +21,21 @@ use crate::{
     err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyResult,
     Python,
 };
+#[cfg(feature = "libc")]
+use libc::size_t;
+#[cfg(feature = "libc")]
+use libc::ssize_t;
 use std::marker::PhantomData;
 use std::os::raw;
 use std::pin::Pin;
 use std::{cell, mem, ptr, slice};
 use std::{ffi::CStr, fmt::Debug};
+#[cfg(not(feature = "libc"))]
+#[allow(non_camel_case_types)]
+type size_t = usize;
+#[cfg(not(feature = "libc"))]
+#[allow(non_camel_case_types)]
+type ssize_t = isize;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 // use Pin<Box> because Python expects that the Py_buffer struct has a stable memory address
@@ -119,10 +129,10 @@ fn native_element_type_from_type_char(type_char: u8) -> ElementType {
             bytes: mem::size_of::<raw::c_ulonglong>(),
         },
         b'n' => SignedInteger {
-            bytes: mem::size_of::<isize>(),
+            bytes: mem::size_of::<ssize_t>(),
         },
         b'N' => UnsignedInteger {
-            bytes: mem::size_of::<usize>(),
+            bytes: mem::size_of::<size_t>(),
         },
         b'e' => Float { bytes: 2 },
         b'f' => Float { bytes: 4 },

@@ -3,15 +3,15 @@
 use crate::ffi::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_ulong};
 
-#[cfg(feature = "uselibc")]
+#[cfg(feature = "libc")]
 use libc::wchar_t;
 
-#[cfg(not(feature = "uselibc"))]
+#[cfg(not(feature = "libc"))]
 #[allow(non_camel_case_types)]
 #[cfg(target_family = "unix")]
 type wchar_t = i32;
 
-#[cfg(not(feature = "uselibc"))]
+#[cfg(not(feature = "libc"))]
 #[allow(non_camel_case_types)]
 #[cfg(target_family = "windows")]
 type wchar_t = u16;

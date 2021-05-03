@@ -42,8 +42,6 @@ serde_json = "1.0.61"
 [features]
 default = ["macros"]
 
-uselibc = ["libc"]
-
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "paste", "unindent"]
 

@@ -94,10 +94,18 @@ mod bufferinfo {
 pub use self::bufferinfo::*;
 
 #[cfg(Py_3_8)]
+#[cfg(feature = "libc")]
+use libc::size_t;
+#[cfg(Py_3_8)]
+#[cfg(not(feature = "libc"))]
+#[allow(non_camel_case_types)]
+type size_t = usize;
+
+#[cfg(Py_3_8)]
 pub type vectorcallfunc = unsafe extern "C" fn(
     callable: *mut PyObject,
     args: *const *mut PyObject,
-    nargsf: usize,
+    nargsf: size_t,
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
@@ -188,14 +196,14 @@ mod typeobject {
         pub bf_releasebuffer: Option<super::releasebufferproc>,
     }
 
-    #[cfg(feature = "uselibc")]
+    #[cfg(feature = "libc")]
     pub type printfunc =
         unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 
-    #[cfg(not(feature = "uselibc"))]
+    #[cfg(not(feature = "libc"))]
     #[derive(Clone)]
     pub enum FILE {}
-    #[cfg(not(feature = "uselibc"))]
+    #[cfg(not(feature = "libc"))]
     pub type printfunc =
         unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut FILE, arg3: c_int) -> c_int;
 
@@ -324,9 +332,9 @@ pub use self::typeobject::*;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Print")]
-    #[cfg(feature = "uselibc")]
+    #[cfg(feature = "libc")]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
-    #[cfg(not(feature = "uselibc"))]
+    #[cfg(not(feature = "libc"))]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut FILE, flags: c_int) -> c_int;
 
     // skipped _Py_BreakPoint

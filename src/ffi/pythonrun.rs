@@ -2,10 +2,10 @@ use crate::ffi::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::pyarena::PyArena;
 #[cfg(not(Py_LIMITED_API))]
-#[cfg(not(feature = "uselibc"))]
+#[cfg(not(feature = "libc"))]
 #[derive(Clone)]
 pub enum FILE {}
-#[cfg(feature = "uselibc")]
+#[cfg(feature = "libc")]
 use libc::FILE;
 use std::os::raw::{c_char, c_int};
 
