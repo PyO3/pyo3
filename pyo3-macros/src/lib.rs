@@ -73,14 +73,14 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// |  Parameter  |  Description |
 /// | :-  | :- |
-/// | `name = "python_name"` | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-/// | `freelist = N`  |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
+/// | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
+/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 /// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
-/// | `extends = BaseType`  | Use a custom baseclass. Defaults to [`PyAny`][4] |
+/// | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][4] |
 /// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
-/// | `unsendable`<!-- hack to stop the column from wrapping -->&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
-/// | `module = "module_name"` |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
+/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
+/// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
@@ -106,14 +106,14 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// |  Parameter  |  Description |
 /// | :-  | :- |
-/// | `name = "python_name"` | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-/// | `freelist = N`  |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
+/// | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
+/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 /// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
-/// | `extends = BaseType`  | Use a custom baseclass. Defaults to [`PyAny`][4] |
+/// | <span style="white-space: pre">`extends = BaseType`</span> | Use a custom baseclass. Defaults to [`PyAny`][4] |
 /// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
-/// | `unsendable`<!-- hack to stop the column from wrapping -->&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
-/// | `module = "module_name"` |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
+/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
+/// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
