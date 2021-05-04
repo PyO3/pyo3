@@ -20,12 +20,12 @@ pub struct PySet(PyAny);
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
-pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
+pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, #checkfunction=ffi::PySet_Check);
 pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,
     ffi::PyFrozenSet_Type,
-    ffi::PyFrozenSet_Check
+    #checkfunction=ffi::PyFrozenSet_Check
 );
 
 impl PySet {

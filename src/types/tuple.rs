@@ -12,7 +12,7 @@ use crate::{
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
-pyobject_native_var_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
+pyobject_native_type_core!(PyTuple, ffi::PyTuple_Type, #checkfunction=ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.

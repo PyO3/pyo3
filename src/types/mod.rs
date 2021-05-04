@@ -30,7 +30,7 @@ pub use self::typeobject::PyType;
 // Implementations core to all native types
 #[macro_export]
 macro_rules! pyobject_native_type_base(
-    ($name: ty $(;$generics: ident)* ) => {
+    ($name:ty $(;$generics:ident)* ) => {
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
 
         impl<$($generics,)*> std::fmt::Debug for $name {
@@ -75,7 +75,7 @@ macro_rules! pyobject_native_type_base(
 // make sense on PyAny / have different implementations).
 #[macro_export]
 macro_rules! pyobject_native_type_named (
-    ($name: ty $(;$generics: ident)*) => {
+    ($name:ty $(;$generics:ident)*) => {
         $crate::pyobject_native_type_base!($name $(;$generics)*);
 
         impl<$($generics,)*> std::convert::AsRef<$crate::PyAny> for $name {
@@ -128,75 +128,9 @@ macro_rules! pyobject_native_type_named (
 );
 
 #[macro_export]
-macro_rules! pyobject_native_type_core {
-    ($name: ty, $layout: path, $typeobject: expr, $module: expr $(, $checkfunction:path)? $(;$generics: ident)*) => {
-        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
-        $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $layout, $typeobject, $module $(, $checkfunction)? $(;$generics)*);
-        $crate::pyobject_native_type_extract!($name $(;$generics)*);
-    }
-}
-
-#[macro_export]
-macro_rules! pyobject_native_type_sized {
-    ($name: ty, $layout: path $(;$generics: ident)*) => {
-        // To prevent inheriting native types with ABI3
-        #[cfg(not(Py_LIMITED_API))]
-        #[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
-        impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<'a, $($generics,)*> $crate::derive_utils::PyBaseTypeUtils for $name {
-            type Dict = $crate::pyclass_slots::PyClassDummySlot;
-            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
-            type BaseNativeType = $name;
-            type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! pyobject_native_type {
-    ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction:path $(;$generics: ident)*) => {
-        $crate::pyobject_native_type_core!($name, $layout, $typeobject, $module, $checkfunction $(;$generics)*);
-        $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
-    };
-    ($name: ty, $layout: path, $typeobject: expr, $checkfunction:path $(;$generics: ident)*) => {
-        $crate::pyobject_native_type! {
-            $name, $layout, $typeobject, Some("builtins"), $checkfunction $(;$generics)*
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! pyobject_native_var_type {
-    ($name: ty, $typeobject: expr, $module: expr, $checkfunction:path $(;$generics: ident)*) => {
-        $crate::pyobject_native_type_core!(
-            $name, $crate::ffi::PyObject, $typeobject, Some("builtins"), $checkfunction $(;$generics)*);
-    };
-    ($name: ty, $typeobject: expr, $checkfunction: path $(;$generics: ident)*) => {
-        $crate::pyobject_native_var_type! {
-            $name, $typeobject, Some("builtins"), $checkfunction $(;$generics)*
-        }
-    };
-}
-
-// NOTE: This macro is not included in pyobject_native_type_base!
-// because rust-numpy has a special implementation.
-#[macro_export]
-macro_rules! pyobject_native_type_extract {
-    ($name: ty $(;$generics: ident)*) => {
-        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
-            fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
-            }
-        }
-    }
-}
-
-#[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name: ty, $layout: path, $typeobject: expr,
-     $module: expr $(, $checkfunction:path)? $(;$generics: ident)*) => {
+    ($name:ty, $layout:path, $typeobject:expr,
+     $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             type BaseType = $crate::PyAny;
             type Layout = $layout;
@@ -225,6 +159,66 @@ macro_rules! pyobject_native_type_info(
         }
     };
 );
+
+// NOTE: This macro is not included in pyobject_native_type_base!
+// because rust-numpy has a special implementation.
+#[macro_export]
+macro_rules! pyobject_native_type_extract {
+    ($name:ty $(;$generics:ident)*) => {
+        impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
+            fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
+                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
+            }
+        }
+    }
+}
+
+/// Declares all of the boilerplate for Python types.
+#[macro_export]
+macro_rules! pyobject_native_type_core {
+    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(@impl $name, $crate::PyAny, $typeobject, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(@impl $name, $crate::PyAny, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+
+    (@impl $name:ty, $layout:path, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
+        $crate::pyobject_native_type_named!($name $(;$generics)*);
+        $crate::pyobject_native_type_info!($name, $layout, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_extract!($name $(;$generics)*);
+    };
+    (@impl $name:ty, $layout:path, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(@impl $name, $layout, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+}
+
+#[macro_export]
+macro_rules! pyobject_native_type_sized {
+    ($name:ty, $layout:path $(;$generics:ident)*) => {
+        // To prevent inheriting native types with ABI3
+        #[cfg(not(Py_LIMITED_API))]
+        impl $crate::type_object::PySizedLayout<$name> for $layout {}
+        impl<'a, $($generics,)*> $crate::derive_utils::PyBaseTypeUtils for $name {
+            type Dict = $crate::pyclass_slots::PyClassDummySlot;
+            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
+            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
+            type BaseNativeType = $name;
+            type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
+        }
+    }
+}
+
+/// Declares all of the boilerplate for Python types which can be inherited from (because the exact
+/// Python layout is known).
+#[macro_export]
+macro_rules! pyobject_native_type {
+    ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!(@impl $name, $layout, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
+    };
+}
 
 mod any;
 mod boolobject;

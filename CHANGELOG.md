@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Support PyPy 3.7. [#1538](https://github.com/PyO3/pyo3/pull/1538)
 
 ### Added
+- Add conversions for `[T; N]` for all `N` on Rust 1.51 and up. [#1128](https://github.com/PyO3/pyo3/pull/1128)
 - Add conversions between `OsStr`/`OsString`/`Path`/`PathBuf` and Python strings. [#1379](https://github.com/PyO3/pyo3/pull/1379)
 - Add `#[pyo3(from_py_with = "...")]` attribute for function arguments and struct fields to override the default from-Python conversion. [#1411](https://github.com/PyO3/pyo3/pull/1411)
 - Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definition `_Py_InitializeMain`. [#1473](https://github.com/PyO3/pyo3/pull/1473)
 - Add FFI definitions from `cpython/import.h`.[#1475](https://github.com/PyO3/pyo3/pull/1475)
 - Add tuple and unit struct support for `#[pyclass]` macro. [#1504](https://github.com/PyO3/pyo3/pull/1504)
+- Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
 
 ### Changed
 - Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)

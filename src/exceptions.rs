@@ -2,7 +2,6 @@
 
 //! Exception types defined by Python.
 
-use crate::type_object::PySizedLayout;
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
 use std::ops;
@@ -78,9 +77,8 @@ macro_rules! import_exception {
 
         $crate::pyobject_native_type_core!(
             $name,
-            $crate::ffi::PyBaseExceptionObject,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            Some(stringify!($module))
+            #module=Some(stringify!($module))
         );
 
         impl $name {
@@ -164,9 +162,8 @@ macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         $crate::pyobject_native_type_core!(
             $name,
-            $crate::ffi::PyBaseExceptionObject,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            Some(stringify!($module))
+            #module=Some(stringify!($module))
         );
 
         impl $name {
@@ -201,14 +198,12 @@ macro_rules! impl_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type_core!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject), Some("builtins"));
+        $crate::pyobject_native_type!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject));
     );
     ($name:ident, $exc_name:ident) => (
         impl_native_exception!($name, $exc_name, ffi::PyBaseExceptionObject);
     )
 );
-
-impl PySizedLayout<PyBaseException> for ffi::PyBaseExceptionObject {}
 
 impl_native_exception!(PyBaseException, PyExc_BaseException);
 impl_native_exception!(PyException, PyExc_Exception);
