@@ -79,3 +79,8 @@ members = [
     "examples/setuptools-rust-starter",
     "examples/word-count"
 ]
+
+[package.metadata.docs.rs]
+no-default-features = true
+features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods"]
+rustdoc-args = ["--cfg", "docsrs"]
