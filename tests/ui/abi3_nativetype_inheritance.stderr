@@ -1,13 +1,22 @@
-error[E0277]: the trait bound `PyDictObject: PySizedLayout<PyDict>` is not satisfied
-  --> $DIR/abi3_nativetype_inheritance.rs:5:1
-   |
-5  | #[pyclass(extends=PyDict)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PySizedLayout<PyDict>` is not implemented for `PyDictObject`
-   |
-  ::: $WORKSPACE/src/type_object.rs
-   |
-   |     type BaseLayout: PySizedLayout<Self::BaseType>;
-   |                      ----------------------------- required by this bound in `pyo3::PyTypeInfo::BaseLayout`
-   |
-   = note: required because of the requirements on the impl of `PySizedLayout<PyDict>` for `PyCellBase<PyDict>`
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
+ --> $DIR/abi3_nativetype_inheritance.rs:5:1
+  |
+5 | #[pyclass(extends=PyDict)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
+  |
+  = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
+  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
+   --> $DIR/abi3_nativetype_inheritance.rs:5:1
+    |
+5   | #[pyclass(extends=PyDict)]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
+    |
+   ::: $WORKSPACE/src/class/impl_.rs
+    |
+    | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
+    |                                               --------------- required by this bound in `ThreadCheckerInherited`
+    |
+    = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
+    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

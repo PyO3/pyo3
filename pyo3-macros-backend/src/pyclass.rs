@@ -312,14 +312,14 @@ fn impl_class(
     let weakref = if attr.has_weaklist {
         quote! { pyo3::pyclass_slots::PyClassWeakRefSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::WeakRef }
+        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::WeakRef }
     } else {
         quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
     let dict = if attr.has_dict {
         quote! { pyo3::pyclass_slots::PyClassDictSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::Dict }
+        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::Dict }
     } else {
         quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
@@ -358,13 +358,8 @@ fn impl_class(
     };
 
     let base = &attr.base;
-    let base_layout = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
-    } else {
-        quote! { pyo3::pycell::PyCellBase<pyo3::PyAny> }
-    };
     let base_nativetype = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::BaseNativeType }
+        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::BaseNativeType }
     } else {
         quote! { pyo3::PyAny }
     };
@@ -386,7 +381,7 @@ fn impl_class(
         quote! { pyo3::class::impl_::ThreadCheckerImpl<#cls> }
     } else if attr.has_extends {
         quote! {
-            pyo3::class::impl_::ThreadCheckerInherited<#cls, <#cls as pyo3::type_object::PyTypeInfo>::BaseType>
+            pyo3::class::impl_::ThreadCheckerInherited<#cls, <#cls as pyo3::class::impl_::PyClassImpl>::BaseType>
         }
     } else {
         quote! { pyo3::class::impl_::ThreadCheckerStub<#cls> }
@@ -398,10 +393,6 @@ fn impl_class(
 
     Ok(quote! {
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
-            type BaseType = #base;
-            type Layout = pyo3::PyCell<Self>;
-            type BaseLayout = #base_layout;
-            type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
             type AsRefTarget = pyo3::PyCell<Self>;
 
             const NAME: &'static str = #cls_name;
@@ -441,6 +432,8 @@ fn impl_class(
             const IS_BASETYPE: bool = #is_basetype;
             const IS_SUBCLASS: bool = #is_subclass;
 
+            type Layout = PyCell<Self>;
+            type BaseType = #base;
             type ThreadChecker = #thread_checker;
 
             fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
