@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::missing_safety_doc)] // FIXME (#698)
 
 //! Rust bindings to the Python interpreter.
@@ -132,6 +133,7 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(not(PyPy))]
+#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
@@ -159,7 +161,9 @@ mod internal_tricks;
 
 // The CPython stable ABI does not include PyBuffer.
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub mod buffer;
+
 #[doc(hidden)]
 pub mod callback;
 pub mod class;
@@ -174,8 +178,11 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
+
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub mod marshal;
+
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;

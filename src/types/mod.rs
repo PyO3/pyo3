@@ -8,6 +8,7 @@ pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub use self::datetime::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
 };
@@ -225,6 +226,7 @@ mod bytearray;
 mod bytes;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 mod datetime;
 mod dict;
 mod floatob;

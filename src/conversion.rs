@@ -108,6 +108,7 @@ where
     T: ToPyObject,
 {
     #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
     default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
     where
         F: FnOnce(*mut ffi::PyObject) -> R,
@@ -122,6 +123,7 @@ where
 }
 
 #[cfg(feature = "nightly")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
 impl<T> ToBorrowedObject for T
 where
     T: ToPyObject + AsPyPointer,
@@ -201,6 +203,7 @@ where
 /// }
 /// ```
 /// Python code will see this as any of the `int`, `string` or `None` objects.
+#[cfg_attr(docsrs, doc(alias = "IntoPyCallbackOutput"))]
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python) -> T;

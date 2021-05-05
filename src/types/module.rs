@@ -112,6 +112,7 @@ impl PyModule {
     ///
     /// May fail if the module does not have a `__file__` attribute.
     #[cfg(not(all(windows, PyPy)))]
+    #[cfg_attr(docsrs, doc(cfg(not(all(windows, PyPy)))))]
     pub fn filename(&self) -> PyResult<&str> {
         use crate::types::PyString;
         unsafe {

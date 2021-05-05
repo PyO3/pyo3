@@ -78,9 +78,8 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    ///
-    /// Not available when compiled with Py_LIMITED_API.
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
     pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.

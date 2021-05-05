@@ -187,6 +187,7 @@ impl PySequence {
     /// number of keys for which `self[key] == value`.
     #[inline]
     #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn count<V>(&self, value: V) -> PyResult<usize>
     where
         V: ToBorrowedObject,
