@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   release:
     types: [published]
 
@@ -48,6 +49,7 @@ jobs:
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
 
       - name: Deploy
+        if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3.7.0-8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
