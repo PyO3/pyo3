@@ -183,6 +183,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
          toolchain: nightly
+         profile: minimal
          override: true
       - name: "Build docs with docsrs flag"
         run: cargo doc --no-deps --no-default-features --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
