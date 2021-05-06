@@ -459,6 +459,7 @@ impl PyAny {
     /// Returns the length of the sequence or mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
+    #[allow(clippy::clippy::len_without_is_empty)]
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
