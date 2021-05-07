@@ -1,4 +1,4 @@
-name: gh-pages
+name: guide
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
@@ -58,13 +58,13 @@ jobs:
           full_commit_message: 'Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}'
 
   release:
-    needs: deploy
+    needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
     steps:
       - name: Create latest tag redirect
         env:
-          TAG_NAME: ${{ needs.deploy.outputs.tag_name }}
+          TAG_NAME: ${{ needs.build.outputs.tag_name }}
         run: |
           mkdir public
           echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
@@ -74,5 +74,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public/
-          full_commit_message: 'Release ${{ needs.deploy.outputs.tag_name }}'
+          full_commit_message: 'Release ${{ needs.build.outputs.tag_name }}'
           keep_files: true
