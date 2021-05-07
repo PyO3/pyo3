@@ -3,7 +3,6 @@ use crate::conversion::{PyTryFrom, ToBorrowedObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
-use crate::type_object::PyBorrowFlagLayout;
 use crate::types::{PyDict, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
@@ -59,10 +58,7 @@ where
     T: PyClass,
 {
     /// Create a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
-    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
-    where
-        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
-    {
+    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
         let initializer = value.into();
         let obj = initializer.create_cell(py)?;
         let ob = unsafe { Py::from_owned_ptr(py, obj as _) };

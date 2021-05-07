@@ -1,5 +1,4 @@
-use crate::type_object::PyBorrowFlagLayout;
-use crate::{Py, PyClass, PyClassInitializer, PyTypeInfo, Python};
+use crate::{Py, PyAny, PyClass, Python};
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
 impl<T> Serialize for Py<T>
@@ -20,8 +19,7 @@ where
 
 impl<'de, T> Deserialize<'de> for Py<T>
 where
-    T: Into<PyClassInitializer<T>> + PyClass + Deserialize<'de>,
-    <T as PyTypeInfo>::BaseLayout: PyBorrowFlagLayout<<T as PyTypeInfo>::BaseType>,
+    T: PyClass<BaseType = PyAny> + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Py<T>, D::Error>
     where

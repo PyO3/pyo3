@@ -129,13 +129,8 @@ macro_rules! pyobject_native_type_named (
 
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $layout:path, $typeobject:expr,
-     $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            type BaseType = $crate::PyAny;
-            type Layout = $layout;
-            type BaseLayout = $crate::ffi::PyObject;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
             type AsRefTarget = Self;
 
             const NAME: &'static str = stringify!($name);
@@ -177,35 +172,27 @@ macro_rules! pyobject_native_type_extract {
 #[macro_export]
 macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!(@impl $name, $crate::PyAny, $typeobject, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
-    };
-    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!(@impl $name, $crate::PyAny, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
-    };
-
-    (@impl $name:ty, $layout:path, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $layout, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
         $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
-    (@impl $name:ty, $layout:path, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!(@impl $name, $layout, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 
 #[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
-        // To prevent inheriting native types with ABI3
-        #[cfg(not(Py_LIMITED_API))]
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<'a, $($generics,)*> $crate::derive_utils::PyBaseTypeUtils for $name {
+        impl<'a, $($generics,)*> $crate::class::impl_::PyClassBaseType for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
+            type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
             type BaseNativeType = $name;
             type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
+            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
         }
     }
 }
@@ -215,7 +202,9 @@ macro_rules! pyobject_native_type_sized {
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!(@impl $name, $layout, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        // To prevent inheriting native types with ABI3
+        #[cfg(not(Py_LIMITED_API))]
         $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
     };
 }

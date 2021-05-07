@@ -1,8 +1,8 @@
 //! `PyClass` and related traits.
-use crate::class::impl_::PyClassImpl;
 use crate::class::methods::PyMethodDefType;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::PyLayout;
+use crate::{class::impl_::PyClassBaseType, class::impl_::PyClassImpl};
 use crate::{ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -45,7 +45,7 @@ pub(crate) unsafe fn default_new<T: PyTypeInfo + PyClassImpl>(
     subtype: *mut ffi::PyTypeObject,
 ) -> *mut ffi::PyObject {
     // if the class derives native types(e.g., PyDict), call special new
-    if T::IS_SUBCLASS && T::BaseLayout::IS_NATIVE_TYPE {
+    if T::IS_SUBCLASS && <T::BaseType as PyClassBaseType>::LayoutAsBase::IS_NATIVE_TYPE {
         #[cfg(not(Py_LIMITED_API))]
         {
             let base_tp = T::BaseType::type_object_raw(py);
@@ -137,7 +137,7 @@ pub(crate) unsafe fn tp_free_fallback(ty: *mut ffi::PyTypeObject) -> ffi::freefu
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<Layout = PyCell<Self>, AsRefTarget = PyCell<Self>> + Sized + PyClassAlloc + PyClassImpl
+    PyTypeInfo<AsRefTarget = PyCell<Self>> + Sized + PyClassAlloc + PyClassImpl<Layout = PyCell<Self>>
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;

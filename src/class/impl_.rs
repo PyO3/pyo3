@@ -1,6 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::{derive_utils::PyBaseTypeUtils, ffi, PyMethodDefType, PyNativeType};
+use crate::{
+    ffi,
+    pycell::PyCellLayout,
+    pyclass_init::PyObjectInit,
+    type_object::{PyLayout, PyTypeObject},
+    PyClass, PyMethodDefType, PyNativeType, PyTypeInfo,
+};
 use std::{marker::PhantomData, thread};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
@@ -43,6 +49,12 @@ pub trait PyClassImpl: Sized {
 
     /// #[pyclass(extends=...)]
     const IS_SUBCLASS: bool = false;
+
+    /// Layout
+    type Layout: PyLayout<Self>;
+
+    /// Base class
+    type BaseType: PyTypeInfo + PyTypeObject + PyClassBaseType;
 
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
@@ -241,9 +253,9 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
 /// Thread checker for types that have `Send` and `extends=...`.
 /// Ensures that `T: Send` and the parent is not accessed by another thread.
 #[doc(hidden)]
-pub struct ThreadCheckerInherited<T: Send, U: PyBaseTypeUtils>(PhantomData<T>, U::ThreadChecker);
+pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
 
-impl<T: Send, U: PyBaseTypeUtils> PyClassThreadChecker<T> for ThreadCheckerInherited<T, U> {
+impl<T: Send, U: PyClassBaseType> PyClassThreadChecker<T> for ThreadCheckerInherited<T, U> {
     fn ensure(&self) {
         self.1.ensure();
     }
@@ -251,4 +263,24 @@ impl<T: Send, U: PyBaseTypeUtils> PyClassThreadChecker<T> for ThreadCheckerInher
         ThreadCheckerInherited(PhantomData, U::ThreadChecker::new())
     }
     private_impl! {}
+}
+
+/// Trait denoting that this class is suitable to be used as a base type for PyClass.
+pub trait PyClassBaseType: Sized {
+    type Dict;
+    type WeakRef;
+    type LayoutAsBase: PyCellLayout<Self>;
+    type BaseNativeType;
+    type ThreadChecker: PyClassThreadChecker<Self>;
+    type Initializer: PyObjectInit<Self>;
+}
+
+/// All PyClasses can be used as a base type.
+impl<T: PyClass> PyClassBaseType for T {
+    type Dict = T::Dict;
+    type WeakRef = T::WeakRef;
+    type LayoutAsBase = crate::pycell::PyCellInner<T>;
+    type BaseNativeType = T::BaseNativeType;
+    type ThreadChecker = T::ThreadChecker;
+    type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
 }

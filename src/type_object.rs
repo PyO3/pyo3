@@ -4,7 +4,6 @@
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::{create_type_object, PyClass};
-use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
@@ -16,11 +15,8 @@ use std::thread::{self, ThreadId};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyLayout<T: PyTypeInfo> {
+pub unsafe trait PyLayout<T> {
     const IS_NATIVE_TYPE: bool = true;
-    fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
-        None
-    }
     fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
@@ -28,23 +24,7 @@ pub unsafe trait PyLayout<T: PyTypeInfo> {
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
 /// , in addition that `T` is a concrete representaion of `U`.
-pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
-
-/// Marker type indicates that `Self` can be a base layout of `PyClass`.
-///
-/// # Safety
-///
-/// Self should be laid out as follows:
-/// ```ignore
-/// #[repr(C)]
-/// struct Self {
-///     obj: ffi::PyObject,
-///     borrow_flag: u64,
-///     ...
-/// }
-/// ```
-/// Otherwise, implementing this trait is undefined behavior.
-pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
+pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
 /// Python type information.
 /// All Python native types(e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
@@ -58,18 +38,6 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Module name, if any
     const MODULE: Option<&'static str>;
-
-    /// Base class
-    type BaseType: PyTypeInfo + PyTypeObject;
-
-    /// Layout
-    type Layout: PyLayout<Self>;
-
-    /// Layout of Basetype.
-    type BaseLayout: PySizedLayout<Self::BaseType>;
-
-    /// Initializer for layout
-    type Initializer: PyObjectInit<Self>;
 
     /// Utility type to make Py::as_ref work
     type AsRefTarget: crate::PyNativeType;
