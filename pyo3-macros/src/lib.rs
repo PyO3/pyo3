@@ -185,8 +185,10 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[classattr]`][9]  | Defines a class variable. |
 /// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
 ///
-/// For more on creating class methods,
-/// see the [class section of the guide][1].
+/// Methods within a `#[pymethods]` block can also be annotated with any of the attributes which can
+/// be used with [`#[pyfunction]`][attr.pyfunction.html].
+///
+/// For more on creating class methods see the [class section of the guide][1].
 ///
 /// If the [`multiple-pymethods`][2] feature is enabled, it is possible to implement
 /// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
@@ -210,8 +212,13 @@ pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStre
 
 /// A proc macro used to expose Rust functions to Python.
 ///
-/// For more on exposing functions,
-/// see the [function section of the guide][1].
+/// Functions annotated with `#[pyfunction]` can also be annotated with the following:
+///
+/// |  Annotation  |  Description |
+/// | :-  | :- |
+/// | `#[pyo3(name = "...")]` | Defines the name of the function in Python. |
+///
+/// For more on exposing functions see the [function section of the guide][1].
 ///
 /// [1]: https://pyo3.rs/main/function.html
 #[proc_macro_attribute]
