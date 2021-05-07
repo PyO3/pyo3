@@ -380,10 +380,7 @@ impl<T> Py<T> {
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
     #[inline]
     pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Some(Py(nonnull_ptr, PhantomData)),
-            None => None,
-        }
+        NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
