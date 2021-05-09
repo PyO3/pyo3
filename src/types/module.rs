@@ -38,7 +38,7 @@ impl PyModule {
     /// Python::with_gil(|py| {
     ///     let module = PyModule::new(py, "my_module").unwrap();
     ///
-    /// 	assert_eq!(module.name().unwrap(), "my_module");
+    ///     assert_eq!(module.name().unwrap(), "my_module");
     /// });
     /// # }
     ///  ```
@@ -94,11 +94,11 @@ impl PyModule {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///    PyModule::from_code(
-    /// 		py,
-    /// 		"print(__file__, __name__)",
-    /// 		"my_file",
-    /// 		"my_module"
-    /// 	).unwrap();
+    ///         py,
+    ///         "print(__file__, __name__)",
+    ///         "my_file",
+    ///         "my_module"
+    ///     ).unwrap();
     /// });
     /// # }
     /// ```

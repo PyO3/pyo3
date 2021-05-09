@@ -572,10 +572,10 @@ impl<'p> Python<'p> {
     /// #[pyfunction]
     /// fn loop_forever(py: Python) -> PyResult<()> {
     ///     loop {
-    ///     	// As we're looping for a long time,
-    ///     	// we should check for signals every once in a while.
-    /// 	    // If there is one, we bubble up the error.
-    ///     	py.check_signals()?;
+    ///         // As we're looping for a long time,
+    ///         // we should check for signals every once in a while.
+    ///         // If there is one, we bubble up the error.
+    ///         py.check_signals()?;
     ///         # break Ok(()) // don't actually loop forever
     ///     }
     /// }

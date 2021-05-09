@@ -204,9 +204,9 @@ impl PyAny {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    ///	    let builtins = PyModule::import(py, "builtins").unwrap();
-    ///	    let print = builtins.getattr("print").unwrap();
-    ///	    assert!(print.is_callable());
+    ///        let builtins = PyModule::import(py, "builtins").unwrap();
+    ///        let print = builtins.getattr("print").unwrap();
+    ///        assert!(print.is_callable());
     /// });
     /// # }
     /// ```
@@ -226,10 +226,10 @@ impl PyAny {
     ///     my_module.add_class::<Foo>();
     ///     let foo = my_module.getattr("Foo").unwrap();
     ///
-    ///	    // Foo appears callable
+    ///        // Foo appears callable
     ///     assert!(foo.is_callable());
     ///
-    ///		// However, calling Foo will always return an error.
+    ///        // However, calling Foo will always return an error.
     ///     assert!(foo.call0().is_err());
     /// });
     /// # }
@@ -285,8 +285,8 @@ impl PyAny {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let module = PyModule::import(py, "builtins").unwrap();
-    /// 	let help = module.getattr("help").unwrap();
-    /// 	help.call0().unwrap();
+    ///     let help = module.getattr("help").unwrap();
+    ///     help.call0().unwrap();
     /// });
     /// # }
     /// ```
@@ -316,10 +316,10 @@ impl PyAny {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let module = PyModule::import(py, "operator").unwrap();
-    /// 	let add = module.getattr("add").unwrap();
-    /// 	let args = (1,2);
-    /// 	let value = add.call1(args).unwrap();
-    /// 	assert_eq!(value.extract::<i32>().unwrap(), 3);
+    ///     let add = module.getattr("add").unwrap();
+    ///     let args = (1,2);
+    ///     let value = add.call1(args).unwrap();
+    ///     assert_eq!(value.extract::<i32>().unwrap(), 3);
     /// });
     /// # }
     /// ```
@@ -333,7 +333,6 @@ impl PyAny {
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
-
 
     /// Calls a method on the object.
     ///
@@ -395,11 +394,11 @@ impl PyAny {
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {
-    /// 	let pi = PyFloat::new(py, PI);
-    /// 	let ratio = pi.call_method0("as_integer_ratio").unwrap();
-    /// 	let (a, b) = ratio.extract::<(u64, u64)>().unwrap();
-    /// 	assert_eq!(a, 884_279_719_003_555);
-    /// 	assert_eq!(b, 281_474_976_710_656);
+    ///     let pi = PyFloat::new(py, PI);
+    ///     let ratio = pi.call_method0("as_integer_ratio").unwrap();
+    ///     let (a, b) = ratio.extract::<(u64, u64)>().unwrap();
+    ///     assert_eq!(a, 884_279_719_003_555);
+    ///     assert_eq!(b, 281_474_976_710_656);
     /// });
     /// # }
     /// ```
@@ -435,8 +434,8 @@ impl PyAny {
     /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let bytes = PyBytes::new(py, &[0x72, 0x75, 0x73, 0x74]);
-    /// 	let rust = bytes.call_method1("decode", ("utf-8", "strict")).unwrap();
-    /// 	assert_eq!(rust.extract::<&str>().unwrap(), "rust");
+    ///     let rust = bytes.call_method1("decode", ("utf-8", "strict")).unwrap();
+    ///     assert_eq!(rust.extract::<&str>().unwrap(), "rust");
     /// });
     /// # }
     /// ```
