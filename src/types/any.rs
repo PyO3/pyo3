@@ -244,7 +244,7 @@ impl PyAny {
     ///
     /// Instead, just attempt to call it and handle any errors:
     /// ```ignore
-    /// match some_object.call0(){
+    /// match some_object.call0() {
     ///    Ok(value) => ...,
     ///    Err(e) => ...,
     /// }
