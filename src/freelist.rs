@@ -1,6 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Free allocation list
+//! Support for [free allocation lists][1].
+//!
+//! This can improve performance for types that are often created and deleted in quick succession.
+//!
+//! Rather than implementing this manually,
+//! implement it by annotating a struct with `#[pyclass(freelist = N)]`,
+//! where `N` is the size of the freelist.
+//!
+//! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::class::impl_::PyClassImpl;
 use crate::pyclass::{get_type_free, tp_free_fallback, PyClassAlloc};
@@ -9,13 +17,12 @@ use crate::{ffi, AsPyPointer, FromPyPointer, PyAny, Python};
 use std::mem;
 use std::os::raw::c_void;
 
-/// Implementing this trait for custom class adds free allocation list to class.
-/// The performance improvement applies to types that are often created and deleted in a row,
-/// so that they can benefit from a freelist.
+/// Implements a freelist. Using `#[pyclass(freelist = N)]` on a Rust struct will implement this trait.
 pub trait PyClassWithFreeList {
     fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;
 }
 
+/// Represents a slot of a [`FreeList`].
 pub enum Slot<T> {
     Empty,
     Filled(T),
@@ -28,7 +35,7 @@ pub struct FreeList<T> {
 }
 
 impl<T> FreeList<T> {
-    /// Create new `FreeList` instance with specified capacity
+    /// Creates a new `FreeList` instance with specified capacity.
     pub fn with_capacity(capacity: usize) -> FreeList<T> {
         let entries = (0..capacity).map(|_| Slot::Empty).collect::<Vec<_>>();
 
@@ -39,7 +46,7 @@ impl<T> FreeList<T> {
         }
     }
 
-    /// Pop first non empty item
+    /// Pops the first non empty item.
     pub fn pop(&mut self) -> Option<T> {
         let idx = self.split;
         if idx == 0 {
@@ -55,7 +62,7 @@ impl<T> FreeList<T> {
         }
     }
 
-    /// Insert a value into the list
+    /// Inserts a value into the list. Returns `None` if the `FreeList` is full.
     pub fn insert(&mut self, val: T) -> Option<T> {
         let next = self.split + 1;
         if next < self.capacity {
