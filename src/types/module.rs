@@ -15,14 +15,33 @@ use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
-/// Represents a Python `module` object.
+/// Represents a Python [`module`][1] object.
+///
+/// As with all other Python objects, modules are first class citizens.
+/// This means they can be passed to or returned from functions,
+/// created dynamically, assigned to variables and so forth.
+///
+/// [1]: https://docs.python.org/3/tutorial/modules.html
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
 pyobject_native_type_core!(PyModule, ffi::PyModule_Type, #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
-    /// Creates a new module object with the `__name__` attribute set to name.
+    /// Creates a new module object with the `__name__` attribute set to `name`.
+    ///
+    /// # Examples
+    /// ``` rust
+    /// # fn main(){
+    /// use pyo3::prelude::*;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::new(py, "my_module").unwrap();
+    ///
+    /// 	assert_eq!(module.name().unwrap(), "my_module");
+    /// });
+    /// # }
+    ///  ```
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
         let name = CString::new(name)?;
@@ -30,17 +49,60 @@ impl PyModule {
     }
 
     /// Imports the Python module with the specified name.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # fn main(){
+    /// use pyo3::prelude::*;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::import(py, "antigravity").expect("No flying for you.");
+    /// });
+    /// # }
+    ///  ```
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// import antigravity
+    /// ```
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name: PyObject = name.into_py(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
     }
 
-    /// Loads the Python code specified into a new module.
+    /// Creates and loads a module named `module_name`,
+    /// containing the Python code passed to `code`
+    /// and pretending to live at `file_name`.
     ///
-    /// `code` is the raw Python you want to load into the module.
-    /// `file_name` is the file name to associate with the module
-    /// (this is used when Python reports errors, for example).
-    /// `module_name` is the name to give the module.
+    /// <div class="information">
+    ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
+    /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
+    //
+    ///  <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
+    ///
+    /// </pre></div>
+    ///
+    ///
+    /// # Errors
+    /// Returns `PyErr` if:
+    /// - `code` is not syntactically correct Python.
+    /// - Any Python exceptions are raised while initializing the module.
+    /// - Any of the arguments cannot be converted to [`CString`](std::ffi::CString)s.
+    /// # Examples
+    /// ```no_run
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///    PyModule::from_code(
+    /// 		py,
+    /// 		"print(__file__, __name__)",
+    /// 		"my_file",
+    /// 		"my_module"
+    /// 	).unwrap();
+    /// });
+    /// # }
+    /// ```
+
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,
@@ -66,8 +128,7 @@ impl PyModule {
         }
     }
 
-    /// Return the dictionary object that implements module's namespace;
-    /// this object is the same as the `__dict__` attribute of the module object.
+    /// Returns the module's `__dict__` attribute, which contains the module's symbol table.
     pub fn dict(&self) -> &PyDict {
         unsafe {
             // PyModule_GetDict returns borrowed ptr; must make owned for safety (see #890).
@@ -77,7 +138,9 @@ impl PyModule {
         }
     }
 
-    /// Return the index (`__all__`) of the module, creating one if needed.
+    /// Returns the module's `__all__` attribute, returning an empty list if not defined.
+    ///
+    /// `__all__` declares the items that will be imported with `from my_module import *`.
     pub fn index(&self) -> PyResult<&PyList> {
         match self.getattr("__all__") {
             Ok(idx) => idx.downcast().map_err(PyErr::from),
@@ -92,10 +155,7 @@ impl PyModule {
             }
         }
     }
-
-    /// Returns the module's name.
-    ///
-    /// May fail if the module does not have a `__name__` attribute.
+    /// Returns the module's `__name__` attribute, if present.
     pub fn name(&self) -> PyResult<&str> {
         let ptr = unsafe { ffi::PyModule_GetName(self.as_ptr()) };
         if ptr.is_null() {
@@ -122,9 +182,31 @@ impl PyModule {
         }
     }
 
-    /// Adds a member to the module.
+    /// Adds a `name`, `value` mapping to the module.
     ///
-    /// This is a convenience function which can be used from the module's initialization function.
+    /// For adding classes, functions or modules, prefer to use [`PyModule::add_class`],
+    /// [`PyModule::add_function`] or [`PyModule::add_submodule`] instead, respectively.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pymodule]
+    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add("c", 299_792_458)?;
+    ///     Ok(())
+    /// }
+    /// ```
+    /// Python code can then do the following:
+    /// ```python
+    /// from my_module import c
+    ///
+    /// print("c is", c)
+    /// ```
+    /// This will result in the following output:
+    /// ```text
+    /// c is 299792458
+    /// ```
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<()>
     where
         V: IntoPy<PyObject>,
@@ -135,11 +217,40 @@ impl PyModule {
         self.setattr(name, value.into_py(self.py()))
     }
 
-    /// Adds a new extension type to the module.
+    /// Adds a new class to the module.
     ///
-    /// This is a convenience function that initializes the `class`,
-    /// sets `new_type.__module__` to this module's name,
-    /// and adds the type to this module.
+    /// Notice that this method does not take an argument.
+    /// Instead, this method is *generic*, and requires us to use the
+    /// "turbofish" syntax to specify the class we want to add.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Foo{ /* fields omitted */ }
+    ///
+    /// #[pymodule]
+    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_class::<Foo>()?;
+    ///     Ok(())
+    /// }
+    ///  ```
+    /// Python code can see this class as such:
+    /// ```python
+    /// from my_module import Foo
+    ///
+    /// print("Foo is", Foo)
+    /// ```
+    /// This will result in the following output:
+    /// ```text
+    /// Foo is <class 'builtins.Foo'>
+    /// ```
+    /// Note that as we haven't defined a [constructor][1], Python code can't actually
+    /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
+    /// anything that can return instances of `Foo`).
+    ///
+    /// [1]: https://pyo3.rs/main/class.html#constructor
     pub fn add_class<T>(&self) -> PyResult<()>
     where
         T: PyClass,
@@ -147,37 +258,11 @@ impl PyModule {
         self.add(T::NAME, <T as PyTypeObject>::type_object(self.py()))
     }
 
-    /// Adds a function or a (sub)module to a module, using the functions __name__ as name.
-    ///
-    /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!] or `#[pymodule]` and
-    /// [wrap_pymodule!].
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// #[pymodule]
-    /// fn utils(_py: Python, _module: &PyModule) -> PyResult<()> {
-    ///     Ok(())
-    /// }
-    ///
-    /// #[pyfunction]
-    /// fn double(x: usize) -> usize {
-    ///     x * 2
-    /// }
-    /// #[pymodule]
-    /// fn top_level(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add_wrapped(pyo3::wrap_pymodule!(utils))?;
-    ///     module.add_wrapped(pyo3::wrap_pyfunction!(double))
-    /// }
-    /// ```
-    ///
-    /// You can also add a function with a custom name using [add](PyModule::add):
-    ///
-    /// ```rust,ignore
-    /// m.add("also_double", wrap_pyfunction!(double)(m)?)?;
-    /// ```
-    ///
-    /// **This function will be deprecated in the next release. Please use the specific
-    /// [PyModule::add_function] and [PyModule::add_submodule] functions instead.**
+    /// Adds a function or a (sub)module to a module, using the functions name as name.
+    #[deprecated(
+        since = "0.14.0",
+        note = "Please use PyModule::add_function and/or PyModule::add_submodule instead."
+    )]
     pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<PyObject>,
@@ -189,22 +274,31 @@ impl PyModule {
         self.add(name, function)
     }
 
-    /// Add a submodule to a module.
+    /// Adds a submodule to a module.
     ///
-    /// Use this together with `#[pymodule]` and [wrap_pymodule!].
+    /// This is especially useful for creating module hierarchies.
     ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
-    /// fn init_utils(module: &PyModule) -> PyResult<()> {
-    ///     module.add("super_useful_constant", "important")
-    /// }
     /// #[pymodule]
-    /// fn top_level(py: Python, module: &PyModule) -> PyResult<()> {
-    ///     let utils = PyModule::new(py, "utils")?;
-    ///     init_utils(utils)?;
-    ///     module.add_submodule(utils)
+    /// fn my_module(py: Python, module: &PyModule) -> PyResult<()> {
+    ///     let submodule = PyModule::new(py, "submodule")?;
+    ///     submodule.add("super_useful_constant", "important")?;
+    ///
+    ///     module.add_submodule(submodule)?;
+    ///     Ok(())
     /// }
+    /// ```
+    /// Python code can then do the following:
+    /// ```python
+    /// import my_module
+    ///
+    /// print("super_useful_constant is", my_module.submodule.super_useful_constant)
+    /// ```
+    /// This will result in the following output:
+    /// ```text
+    /// super_useful_constant is important
     /// ```
     pub fn add_submodule(&self, module: &PyModule) -> PyResult<()> {
         let name = module.name()?;
@@ -213,33 +307,36 @@ impl PyModule {
 
     /// Add a function to a module.
     ///
-    /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!].
+    /// Note that this also requires the [wrap_pyfunction!][2] macro
+    /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
     /// ```rust
     /// use pyo3::prelude::*;
+    /// use pyo3::wrap_pyfunction;
+    ///
     /// #[pyfunction]
-    /// fn double(x: usize) -> usize {
-    ///     x * 2
+    /// fn say_hello() {
+    ///     println!("Hello world!")
     /// }
     /// #[pymodule]
-    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add_function(pyo3::wrap_pyfunction!(double, module)?)
+    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
     /// ```
     ///
-    /// You can also add a function with a custom name using [add](PyModule::add):
+    /// Python code can then do the following:
+    /// ```python
+    /// from my_module import say_hello
     ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// #[pyfunction]
-    /// fn double(x: usize) -> usize {
-    ///     x * 2
-    /// }
-    /// #[pymodule]
-    /// fn double_mod(_py: Python, module: &PyModule) -> PyResult<()> {
-    ///     module.add("also_double", pyo3::wrap_pyfunction!(double, module)?)
-    /// }
+    /// say_hello()
     /// ```
+    /// This will result in the following output:
+    /// ```text
+    /// Hello world!
+    /// ```
+    ///
+    /// [1]: crate::prelude::pyfunction
+    /// [2]: crate::wrap_pyfunction
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
         let name = fun.getattr("__name__")?.extract()?;
         self.add(name, fun)
