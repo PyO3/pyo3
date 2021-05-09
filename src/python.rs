@@ -584,7 +584,7 @@ impl<'p> Python<'p> {
     /// # Note
     /// This function calls [`PyErr_CheckSignals()`][1] which in turn may call signal handlers.
     /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
-    /// function may allow arbitary Python code inside signal handlers to run.
+    /// function allows arbitary Python code inside signal handlers to run.
     ///
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
