@@ -561,7 +561,7 @@ impl<'p> Python<'p> {
     ///
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
-    /// `KeyboardInterruption`. For this reason it is good practice to call this function regularly
+    /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
     /// if you have a long-running Rust function so that your users can cancel it.
     ///
     /// # Example
