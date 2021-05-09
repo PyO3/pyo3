@@ -556,17 +556,38 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
-    /// Lets the Python interpreter check for pending signals and invoke the
-    /// corresponding signal handlers. This can run arbitrary Python code.
+    /// Checks whether any signals have been sent to the Python interpreter,
+    /// returning `Err(PyErr)` if any signal handler raises an exception.
     ///
-    /// If an exception is raised by the signal handler, or the default signal
-    /// handler raises an exception (such as `KeyboardInterrupt` for `SIGINT`),
-    /// an `Err` is returned.
     ///
-    /// This is a wrapper of the C function `PyErr_CheckSignals()`. It is good
-    /// practice to call this regularly in a long-running calculation since
-    /// SIGINT and other signals handled by Python code are left pending for its
-    /// entire duration.
+    /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
+    /// `KeyboardInterruption`. For this reason it is good practice to call this function regularly
+    /// if you have a long-running Rust function so that your users can cancel it.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// # fn main(){
+    /// #[pyfunction]
+    /// fn loop_forever(py: Python) -> PyResult<()> {
+    ///     loop {
+    ///     	// As we're looping for a long time,
+    ///     	// we should check for signals every once in a while.
+    /// 	    // If there is one, we bubble up the error.
+    ///     	py.check_signals()?;
+    ///         # break Ok(()) // don't actually loop forever
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    /// # Note
+    /// This function calls [`PyErr_CheckSignals()`][1] which in turn may call signal handlers.
+    /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
+    /// function may allow arbitary Python code inside signal handlers to run.
+    ///
+    /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
+    /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
         let v = unsafe { ffi::PyErr_CheckSignals() };
         if v == -1 {
