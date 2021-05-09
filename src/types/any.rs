@@ -237,7 +237,7 @@ impl PyAny {
     ///
     /// For this reason, avoid calling potentially callable objects like this:
     /// ```ignore
-    /// if some_object.is_callable(){
+    /// if some_object.is_callable() {
     ///     let value = some_object.call0().unwrap();
     /// };
     /// ```
