@@ -194,7 +194,62 @@ impl PyAny {
         }
     }
 
-    /// Determines whether this object is callable.
+    /// Determines whether this object appears callable.
+    ///
+    /// This is equivalent to Python's [`callable()`][1] function.
+    ///
+    /// # Examples
+    /// ```
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///	    let builtins = PyModule::import(py, "builtins").unwrap();
+    ///	    let print = builtins.getattr("print").unwrap();
+    ///	    assert!(print.is_callable());
+    /// });
+    /// # }
+    /// ```
+    /// This is equivalent to the Python expression `assert callable(print)`.
+    /// # False positives
+    /// Note that it is possible for this function to return `true`
+    /// for an object that is not actually callable:
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Foo {/* fields omitted */}
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let my_module = PyModule::new(py, "my_module").unwrap();
+    ///     my_module.add_class::<Foo>();
+    ///     let foo = my_module.getattr("Foo").unwrap();
+    ///
+    ///	    // Foo appears callable
+    ///     assert!(foo.is_callable());
+    ///
+    ///		// However, calling Foo will always return an error.
+    ///     assert!(foo.call0().is_err());
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// For this reason, avoid calling potentially callable objects like this:
+    /// ```ignore
+    /// if some_object.is_callable(){
+    ///     let value = some_object.call0().unwrap();
+    /// };
+    /// ```
+    ///
+    /// Instead, just attempt to call it and handle any errors:
+    /// ```ignore
+    /// match some_object.call0(){
+    ///    Ok(value) => ...,
+    ///    Err(e) => ...,
+    /// };
+    /// ```
+    /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
@@ -223,6 +278,19 @@ impl PyAny {
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
+    /// # Examples
+    /// ```no_run
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::import(py, "builtins").unwrap();
+    /// 	let help = module.getattr("help").unwrap();
+    /// 	help.call0().unwrap();
+    /// });
+    /// # }
+    /// ```
+    /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
             // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
@@ -241,9 +309,31 @@ impl PyAny {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::import(py, "operator").unwrap();
+    /// 	let add = module.getattr("add").unwrap();
+    /// 	let args = (1,2);
+    /// 	let value = add.call1(args).unwrap();
+    /// 	assert_eq!(value.extract::<i32>().unwrap(), 3);
+    /// });
+    /// # }
+    /// ```
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// from operator import add
+    ///
+    /// value = add(1,2)
+    /// assert value == 3
+    /// ```   
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
+
 
     /// Calls a method on the object.
     ///
@@ -251,19 +341,25 @@ impl PyAny {
     ///
     /// # Examples
     /// ```rust
-    /// # use pyo3::prelude::*;
-    /// use pyo3::types::IntoPyDict;
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
     ///
+    /// # fn main(){
     /// Python::with_gil(|py| {
-    ///     let list = vec![3, 6, 5, 4, 7].to_object(py);
-    ///     let dict = vec![("reverse", true)].into_py_dict(py);
-    ///     list.call_method(py, "sort", (), Some(dict)).unwrap();
-    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+    ///     let list = PyList::new(py, vec![3, 6, 5, 4, 7]);
+    ///     let kwargs = PyDict::from_sequence(py, [("reverse", true)].into_py(py)).unwrap();
     ///
-    ///     let new_element = 1.to_object(py);
-    ///     list.call_method(py, "append", (new_element,), None).unwrap();
-    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3, 1]);
+    ///     list.call_method("sort", (), Some(kwargs)).unwrap();
+    ///     assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
     /// });
+    /// # }
+    /// ```
+    ///
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// my_list = [3, 6, 5, 4, 7]
+    /// my_list.sort(reverse = True)
+    /// assert my_list == [7, 6, 5, 4, 3]
     /// ```
     pub fn call_method(
         &self,
@@ -291,6 +387,28 @@ impl PyAny {
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyFloat;
+    /// use std::f64::consts::PI;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    /// 	let pi = PyFloat::new(py, PI);
+    /// 	let ratio = pi.call_method0("as_integer_ratio").unwrap();
+    /// 	let (a, b) = ratio.extract::<(u64, u64)>().unwrap();
+    /// 	assert_eq!(a, 884_279_719_003_555);
+    /// 	assert_eq!(b, 281_474_976_710_656);
+    /// });
+    /// # }
+    /// ```
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// import math
+    ///
+    /// a, b = math.pi.as_integer_ratio()
+    /// ```.
     pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
@@ -308,6 +426,26 @@ impl PyAny {
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyBytes;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let bytes = PyBytes::new(py, &[0x72, 0x75, 0x73, 0x74]);
+    /// 	let rust = bytes.call_method1("decode", ("utf-8", "strict")).unwrap();
+    /// 	assert_eq!(rust.extract::<&str>().unwrap(), "rust");
+    /// });
+    /// # }
+    /// ```
+    /// This is equivalent to the following Python expression:
+    /// ```python
+    /// bytes_ = bytes([0x72,0x75,0x73,0x74])
+    /// rust = bytes_.decode("utf-8", "strict")
+    /// assert rust == "rust"
+    /// ```
     pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call_method(name, args, None)
     }
