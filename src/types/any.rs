@@ -199,6 +199,7 @@ impl PyAny {
     /// This is equivalent to Python's [`callable()`][1] function.
     ///
     /// # Examples
+    ///
     /// ```
     /// use pyo3::prelude::*;
     ///
@@ -210,10 +211,14 @@ impl PyAny {
     /// });
     /// # }
     /// ```
+    ///
     /// This is equivalent to the Python expression `assert callable(print)`.
+    ///
     /// # False positives
+    ///
     /// Note that it is possible for this function to return `true`
-    /// for an object that is not actually callable:
+    /// for an object that can't be successfully called:
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
@@ -226,29 +231,32 @@ impl PyAny {
     ///     my_module.add_class::<Foo>();
     ///     let foo = my_module.getattr("Foo").unwrap();
     ///
-    ///        // Foo appears callable
+    ///     // Foo appears callable
     ///     assert!(foo.is_callable());
     ///
-    ///        // However, calling Foo will always return an error.
+    ///     // However, calling Foo will always return an error.
     ///     assert!(foo.call0().is_err());
     /// });
     /// # }
     /// ```
     ///
     /// For this reason, avoid calling potentially callable objects like this:
+    ///
     /// ```ignore
     /// if some_object.is_callable() {
     ///     let value = some_object.call0().unwrap();
     /// };
     /// ```
     ///
-    /// Instead, just attempt to call it and handle any errors:
+    /// Instead, just attempt to call it and handle a possible error
+    /// alongside any other exceptions that might be raised:
     /// ```ignore
     /// match some_object.call0() {
     ///    Ok(value) => ...,
     ///    Err(e) => ...,
     /// }
     /// ```
+    ///
     /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
@@ -278,7 +286,9 @@ impl PyAny {
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
+    ///
     /// # Examples
+    ///
     /// ```no_run
     /// use pyo3::prelude::*;
     ///
@@ -290,6 +300,7 @@ impl PyAny {
     /// });
     /// # }
     /// ```
+    ///
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
@@ -309,7 +320,9 @@ impl PyAny {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
+    ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
@@ -323,7 +336,9 @@ impl PyAny {
     /// });
     /// # }
     /// ```
-    /// This is equivalent to the following Python expression:
+    ///
+    /// This is equivalent to the following Python code:
+    ///
     /// ```python
     /// from operator import add
     ///
@@ -339,6 +354,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
@@ -346,7 +362,7 @@ impl PyAny {
     /// # fn main(){
     /// Python::with_gil(|py| {
     ///     let list = PyList::new(py, vec![3, 6, 5, 4, 7]);
-    ///     let kwargs = PyDict::from_sequence(py, [("reverse", true)].into_py(py)).unwrap();
+    ///     let kwargs = vec![("reverse", true)].into_py_dict(py);
     ///
     ///     list.call_method("sort", (), Some(kwargs)).unwrap();
     ///     assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
@@ -354,7 +370,8 @@ impl PyAny {
     /// # }
     /// ```
     ///
-    /// This is equivalent to the following Python expression:
+    /// This is equivalent to the following Python code:
+    ///
     /// ```python
     /// my_list = [3, 6, 5, 4, 7]
     /// my_list.sort(reverse = True)
@@ -386,7 +403,9 @@ impl PyAny {
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
+    ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyFloat;
@@ -402,7 +421,9 @@ impl PyAny {
     /// });
     /// # }
     /// ```
-    /// This is equivalent to the following Python expression:
+    ///
+    /// This is equivalent to the following Python code:
+    ///
     /// ```python
     /// import math
     ///
@@ -427,6 +448,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyBytes;
@@ -439,9 +461,11 @@ impl PyAny {
     /// });
     /// # }
     /// ```
-    /// This is equivalent to the following Python expression:
+    ///
+    /// This is equivalent to the following Python code:
+    ///
     /// ```python
-    /// bytes_ = bytes([0x72,0x75,0x73,0x74])
+    /// bytes_ = bytes([0x72, 0x75, 0x73, 0x74])
     /// rust = bytes_.decode("utf-8", "strict")
     /// assert rust == "rust"
     /// ```

@@ -556,9 +556,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
-    /// Checks whether any signals have been sent to the Python interpreter,
-    /// returning `Err(PyErr)` if any signal handler raises an exception.
+    /// Lets the Python interpreter check and handle any pending signals and invoke the
+    /// corresponding signal handlers.
     ///
+    /// Returns `Err(PyErr)` if any signal handler raises an exception.
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
     /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
@@ -576,11 +577,14 @@ impl<'p> Python<'p> {
     ///         // we should check for signals every once in a while.
     ///         // If there is one, we bubble up the error.
     ///         py.check_signals()?;
+    //
+    ///         // do work here
     ///         # break Ok(()) // don't actually loop forever
     ///     }
     /// }
     /// # }
     /// ```
+    ///
     /// # Note
     /// This function calls [`PyErr_CheckSignals()`][1] which in turn may call signal handlers.
     /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
@@ -626,6 +630,7 @@ impl<'p> Python<'p> {
     /// released.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// # use pyo3::prelude::*;
     /// Python::with_gil(|py| {
@@ -645,6 +650,7 @@ impl<'p> Python<'p> {
     /// ```
     ///
     /// # Safety
+    ///
     /// Extreme care must be taken when using this API, as misuse can lead to accessing invalid
     /// memory. In addition, the caller is responsible for guaranteeing that the GIL remains held
     /// for the entire lifetime of the returned `GILPool`.

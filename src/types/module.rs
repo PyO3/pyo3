@@ -31,6 +31,7 @@ impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.
     ///
     /// # Examples
+    ///
     /// ``` rust
     /// # fn main(){
     /// use pyo3::prelude::*;
@@ -51,6 +52,7 @@ impl PyModule {
     /// Imports the Python module with the specified name.
     ///
     /// # Examples
+    ///
     /// ```no_run
     /// # fn main(){
     /// use pyo3::prelude::*;
@@ -60,7 +62,9 @@ impl PyModule {
     /// });
     /// # }
     ///  ```
+    ///
     /// This is equivalent to the following Python expression:
+    ///
     /// ```python
     /// import antigravity
     /// ```
@@ -81,13 +85,15 @@ impl PyModule {
     ///
     /// </pre></div>
     ///
-    ///
     /// # Errors
+    ///
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
     /// - Any of the arguments cannot be converted to [`CString`](std::ffi::CString)s.
+    ///
     /// # Examples
+    ///
     /// ```no_run
     /// use pyo3::prelude::*;
     ///
@@ -102,7 +108,6 @@ impl PyModule {
     /// });
     /// # }
     /// ```
-
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,
@@ -138,7 +143,8 @@ impl PyModule {
         }
     }
 
-    /// Returns the module's `__all__` attribute, returning an empty list if not defined.
+    /// Returns the index (the `__all__` attribute) of the module,
+    /// creating one if needed.
     ///
     /// `__all__` declares the items that will be imported with `from my_module import *`.
     pub fn index(&self) -> PyResult<&PyList> {
@@ -155,7 +161,10 @@ impl PyModule {
             }
         }
     }
-    /// Returns the module's `__name__` attribute, if present.
+
+    /// Returns the name (the `__name__` attribute) of the module.
+    ///
+    /// May fail if the module does not have a `__name__` attribute.
     pub fn name(&self) -> PyResult<&str> {
         let ptr = unsafe { ffi::PyModule_GetName(self.as_ptr()) };
         if ptr.is_null() {
@@ -168,7 +177,7 @@ impl PyModule {
         }
     }
 
-    /// Returns the module's filename.
+    /// Returns the filename (the `__file__` attribute) of the module.
     ///
     /// May fail if the module does not have a `__file__` attribute.
     #[cfg(not(all(windows, PyPy)))]
@@ -182,12 +191,13 @@ impl PyModule {
         }
     }
 
-    /// Adds a `name`, `value` mapping to the module.
+    /// Adds an attribute to the module.
     ///
     /// For adding classes, functions or modules, prefer to use [`PyModule::add_class`],
     /// [`PyModule::add_function`] or [`PyModule::add_submodule`] instead, respectively.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
@@ -197,13 +207,17 @@ impl PyModule {
     ///     Ok(())
     /// }
     /// ```
+    ///
     /// Python code can then do the following:
+    ///
     /// ```python
     /// from my_module import c
     ///
     /// print("c is", c)
     /// ```
+    ///
     /// This will result in the following output:
+    ///
     /// ```text
     /// c is 299792458
     /// ```
@@ -224,6 +238,7 @@ impl PyModule {
     /// "turbofish" syntax to specify the class we want to add.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
@@ -236,16 +251,21 @@ impl PyModule {
     ///     Ok(())
     /// }
     ///  ```
+    ///
     /// Python code can see this class as such:
+    ///
     /// ```python
     /// from my_module import Foo
     ///
     /// print("Foo is", Foo)
     /// ```
+    ///
     /// This will result in the following output:
+    ///
     /// ```text
     /// Foo is <class 'builtins.Foo'>
     /// ```
+    ///
     /// Note that as we haven't defined a [constructor][1], Python code can't actually
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).
@@ -259,10 +279,8 @@ impl PyModule {
     }
 
     /// Adds a function or a (sub)module to a module, using the functions name as name.
-    #[deprecated(
-        since = "0.14.0",
-        note = "Please use PyModule::add_function and/or PyModule::add_submodule instead."
-    )]
+    ///
+    /// Prefer to use [`PyModule::add_function`] and/or [`PyModule::add_submodule`] instead.
     pub fn add_wrapped<'a, T>(&'a self, wrapper: &impl Fn(Python<'a>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<PyObject>,
@@ -278,6 +296,13 @@ impl PyModule {
     ///
     /// This is especially useful for creating module hierarchies.
     ///
+    /// Note that this doesn't define a *package*, so this won't allow Python code
+    /// to directly import submodules by using
+    /// <span style="white-space: pre">`from my_module import submodule`</span>.
+    /// For more information, see [#759][1] and [#1517][2].
+    ///
+    /// # Examples
+    ///
     /// ```rust
     /// use pyo3::prelude::*;
     ///
@@ -290,16 +315,23 @@ impl PyModule {
     ///     Ok(())
     /// }
     /// ```
+    ///
     /// Python code can then do the following:
+    ///
     /// ```python
     /// import my_module
     ///
     /// print("super_useful_constant is", my_module.submodule.super_useful_constant)
     /// ```
+    ///
     /// This will result in the following output:
+    ///
     /// ```text
     /// super_useful_constant is important
     /// ```
+    ///
+    /// [1]: https://github.com/PyO3/pyo3/issues/759
+    /// [2]: https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021
     pub fn add_submodule(&self, module: &PyModule) -> PyResult<()> {
         let name = module.name()?;
         self.add(name, module)
@@ -307,7 +339,7 @@ impl PyModule {
 
     /// Add a function to a module.
     ///
-    /// Note that this also requires the [wrap_pyfunction!][2] macro
+    /// Note that this also requires the [`wrap_pyfunction!`][2] macro
     /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
     /// ```rust
@@ -325,12 +357,15 @@ impl PyModule {
     /// ```
     ///
     /// Python code can then do the following:
+    ///
     /// ```python
     /// from my_module import say_hello
     ///
     /// say_hello()
     /// ```
+    ///
     /// This will result in the following output:
+    ///
     /// ```text
     /// Hello world!
     /// ```
