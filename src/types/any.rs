@@ -358,6 +358,7 @@ impl PyAny {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::{PyDict, PyList};
+    /// use crate::pyo3::types::IntoPyDict;
     ///
     /// # fn main(){
     /// Python::with_gil(|py| {
