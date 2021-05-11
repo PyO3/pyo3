@@ -577,7 +577,7 @@ impl<'p> Python<'p> {
     ///         // we should check for signals every once in a while.
     ///         // If there is one, we bubble up the error.
     ///         py.check_signals()?;
-    //
+    ///
     ///         // do work here
     ///         # break Ok(()) // don't actually loop forever
     ///     }
