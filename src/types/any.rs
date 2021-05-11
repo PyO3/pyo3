@@ -327,13 +327,14 @@ impl PyAny {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::import(py, "operator").unwrap();
-    ///     let add = module.getattr("add").unwrap();
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let module = PyModule::import(py, "operator")?;
+    ///     let add = module.getattr("add")?;
     ///     let args = (1,2);
-    ///     let value = add.call1(args).unwrap();
-    ///     assert_eq!(value.extract::<i32>().unwrap(), 3);
-    /// });
+    ///     let value = add.call1(args)?;
+    ///     assert_eq!(value.extract::<i32>()?, 3);
+    ///     Ok(())
+    /// }).unwrap();
     /// # }
     /// ```
     ///
