@@ -556,14 +556,14 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
-    /// Lets the Python interpreter check and handle any pending signals and invoke the
-    /// corresponding signal handlers.
+    /// Lets the Python interpreter check and handle any pending signals. This will invoke the
+    /// corresponding signal handlers registered in Python (if any).
     ///
     /// Returns `Err(PyErr)` if any signal handler raises an exception.
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
     /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
-    /// if you have a long-running Rust function so that your users can cancel it.
+    /// as part of long-running Rust functions so that users can cancel it.
     ///
     /// # Example
     ///
@@ -573,9 +573,8 @@ impl<'p> Python<'p> {
     /// #[pyfunction]
     /// fn loop_forever(py: Python) -> PyResult<()> {
     ///     loop {
-    ///         // As we're looping for a long time,
-    ///         // we should check for signals every once in a while.
-    ///         // If there is one, we bubble up the error.
+    ///         // As this loop is infinite it should check for signals every once in a while.
+    ///         // Using `?` causes any `PyErr` (potentially containing `KeyboardInterrupt`) to break out of the loop.
     ///         py.check_signals()?;
     ///
     ///         // do work here
