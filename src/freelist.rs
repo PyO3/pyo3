@@ -19,7 +19,7 @@ use std::os::raw::c_void;
 
 /// Implements a freelist.
 ///
-/// Do not implement this trait directly; instead use `#[pyclass(freelist = N)]`
+/// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList {
     fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;

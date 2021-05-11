@@ -198,48 +198,7 @@ impl PyAny {
     ///
     /// This is equivalent to Python's [`callable()`][1] function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use pyo3::prelude::*;
-    ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///        let builtins = PyModule::import(py, "builtins").unwrap();
-    ///        let print = builtins.getattr("print").unwrap();
-    ///        assert!(print.is_callable());
-    /// });
-    /// # }
-    /// ```
-    ///
-    /// This is equivalent to the Python expression `assert callable(print)`.
-    ///
-    /// # False positives
-    ///
-    /// Note that it is possible for this function to return `true`
-    /// for an object that can't be successfully called:
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Foo {/* fields omitted */}
-    ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///     let my_module = PyModule::new(py, "my_module").unwrap();
-    ///     my_module.add_class::<Foo>();
-    ///     let foo = my_module.getattr("Foo").unwrap();
-    ///
-    ///     // Foo appears callable
-    ///     assert!(foo.is_callable());
-    ///
-    ///     // However, calling Foo will always return an error.
-    ///     assert!(foo.call0().is_err());
-    /// });
-    /// # }
-    /// ```
-    ///
+    /// This function returning `true` does not guarantee that a call will succeed.
     /// For this reason, avoid calling potentially callable objects like this:
     ///
     /// ```ignore
@@ -248,14 +207,31 @@ impl PyAny {
     /// };
     /// ```
     ///
-    /// Instead, just attempt to call it and handle a possible error
-    /// alongside any other exceptions that might be raised:
+    /// Instead, just attempt to call it and handle any errors:
+    ///
     /// ```ignore
     /// match some_object.call0() {
     ///    Ok(value) => ...,
     ///    Err(e) => ...,
     /// }
     /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///        let builtins = PyModule::import(py, "builtins")?;
+    ///        let print = builtins.getattr("print")?;
+    ///        assert!(print.is_callable());
+    ///        Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the Python expression `assert callable(print)`.
     ///
     /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
@@ -292,13 +268,14 @@ impl PyAny {
     /// ```no_run
     /// use pyo3::prelude::*;
     ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::import(py, "builtins").unwrap();
-    ///     let help = module.getattr("help").unwrap();
-    ///     help.call0().unwrap();
-    /// });
-    /// # }
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let module = PyModule::import(py, "builtins")?;
+    ///     let help = module.getattr("help")?;
+    ///     help.call0()?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     /// ```
     ///
     /// This is equivalent to the Python expression `help()`.
@@ -326,7 +303,7 @@ impl PyAny {
     /// ```rust
     /// use pyo3::prelude::*;
     ///
-    /// # fn main() {
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::import(py, "operator")?;
     ///     let add = module.getattr("add")?;
@@ -334,8 +311,8 @@ impl PyAny {
     ///     let value = add.call1(args)?;
     ///     assert_eq!(value.extract::<i32>()?, 3);
     ///     Ok(())
-    /// }).unwrap();
-    /// # }
+    /// })?;
+    /// # Ok(())}
     /// ```
     ///
     /// This is equivalent to the following Python code:
@@ -361,15 +338,16 @@ impl PyAny {
     /// use pyo3::types::{PyDict, PyList};
     /// use crate::pyo3::types::IntoPyDict;
     ///
-    /// # fn main(){
-    /// Python::with_gil(|py| {
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let list = PyList::new(py, vec![3, 6, 5, 4, 7]);
     ///     let kwargs = vec![("reverse", true)].into_py_dict(py);
     ///
-    ///     list.call_method("sort", (), Some(kwargs)).unwrap();
-    ///     assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
-    /// });
-    /// # }
+    ///     list.call_method("sort", (), Some(kwargs))?;
+    ///     assert_eq!(list.extract::<Vec<i32>>()?, vec![7, 6, 5, 4, 3]);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     /// ```
     ///
     /// This is equivalent to the following Python code:
@@ -413,15 +391,16 @@ impl PyAny {
     /// use pyo3::types::PyFloat;
     /// use std::f64::consts::PI;
     ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let pi = PyFloat::new(py, PI);
-    ///     let ratio = pi.call_method0("as_integer_ratio").unwrap();
-    ///     let (a, b) = ratio.extract::<(u64, u64)>().unwrap();
+    ///     let ratio = pi.call_method0("as_integer_ratio")?;
+    ///     let (a, b) = ratio.extract::<(u64, u64)>()?;
     ///     assert_eq!(a, 884_279_719_003_555);
     ///     assert_eq!(b, 281_474_976_710_656);
-    /// });
-    /// # }
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     /// ```
     ///
     /// This is equivalent to the following Python code:
@@ -430,7 +409,7 @@ impl PyAny {
     /// import math
     ///
     /// a, b = math.pi.as_integer_ratio()
-    /// ```.
+    /// ```
     pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
@@ -453,23 +432,24 @@ impl PyAny {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyBytes;
+    /// use pyo3::types::PyList;
     ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///     let bytes = PyBytes::new(py, &[0x72, 0x75, 0x73, 0x74]);
-    ///     let rust = bytes.call_method1("decode", ("utf-8", "strict")).unwrap();
-    ///     assert_eq!(rust.extract::<&str>().unwrap(), "rust");
-    /// });
-    /// # }
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let list = PyList::new(py, vec![1, 3, 4]);
+    ///     list.call_method1("insert", (1, 2))?;
+    ///     assert_eq!(list.extract::<Vec<u8>>()?, [1, 2, 3, 4]);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(()) }
     /// ```
     ///
     /// This is equivalent to the following Python code:
     ///
     /// ```python
-    /// bytes_ = bytes([0x72, 0x75, 0x73, 0x74])
-    /// rust = bytes_.decode("utf-8", "strict")
-    /// assert rust == "rust"
+    /// list_ = [1,3,4]
+    /// list_.insert(1,2)
+    /// assert list_ == [1,2,3,4]
     /// ```
     pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call_method(name, args, None)

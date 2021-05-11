@@ -33,15 +33,16 @@ impl PyModule {
     /// # Examples
     ///
     /// ``` rust
-    /// # fn main(){
     /// use pyo3::prelude::*;
     ///
-    /// Python::with_gil(|py| {
-    ///     let module = PyModule::new(py, "my_module").unwrap();
+    /// # fn main() -> PyResult<()>{
+    /// Python::with_gil(|py| -> PyResult<()>{
+    ///     let module = PyModule::new(py, "my_module")?;
     ///
-    ///     assert_eq!(module.name().unwrap(), "my_module");
-    /// });
-    /// # }
+    ///     assert_eq!(module.name()?, "my_module");
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     ///  ```
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         // Could use PyModule_NewObject, but it doesn't exist on PyPy.
@@ -97,16 +98,17 @@ impl PyModule {
     /// ```no_run
     /// use pyo3::prelude::*;
     ///
-    /// # fn main() {
-    /// Python::with_gil(|py| {
-    ///    PyModule::from_code(
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///    let module = PyModule::from_code(
     ///         py,
     ///         "print(__file__, __name__)",
     ///         "my_file",
     ///         "my_module"
-    ///     ).unwrap();
-    /// });
-    /// # }
+    ///     )?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     /// ```
     pub fn from_code<'p>(
         py: Python<'p>,
