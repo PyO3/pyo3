@@ -1,7 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::pyfunction::Argument;
-use crate::pyfunction::{parse_name_attribute, PyFunctionArgAttrs, PyFunctionAttr};
+use crate::pyfunction::PyFunctionOptions;
+use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
 use crate::utils;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
@@ -17,7 +18,7 @@ pub struct FnArg<'a> {
     pub ty: &'a syn::Type,
     pub optional: Option<&'a syn::Type>,
     pub py: bool,
-    pub attrs: PyFunctionArgAttrs,
+    pub attrs: PyFunctionArgPyO3Attributes,
 }
 
 impl<'a> FnArg<'a> {
@@ -32,7 +33,7 @@ impl<'a> FnArg<'a> {
                     bail_spanned!(cap.ty.span() => IMPL_TRAIT_ERR);
                 }
 
-                let arg_attrs = PyFunctionArgAttrs::from_attrs(&mut cap.attrs)?;
+                let arg_attrs = PyFunctionArgPyO3Attributes::from_attrs(&mut cap.attrs)?;
                 let (ident, by_ref, mutability) = match *cap.pat {
                     syn::Pat::Ident(syn::PatIdent {
                         ref ident,
@@ -133,6 +134,7 @@ pub struct FnSpec<'a> {
     pub args: Vec<FnArg<'a>>,
     pub output: syn::Type,
     pub doc: syn::LitStr,
+    pub name_is_deprecated: bool,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -161,13 +163,29 @@ impl<'a> FnSpec<'a> {
     pub fn parse(
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
-        allow_custom_name: bool,
+        options: PyFunctionOptions,
     ) -> syn::Result<FnSpec<'a>> {
         let MethodAttributes {
             ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, allow_custom_name)?;
+        } = parse_method_attributes(meth_attrs, options.name.map(|name| name.0))?;
+
+        match fn_type_attr {
+            Some(MethodTypeAttribute::New) => {
+                if let Some(name) = &python_name {
+                    bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
+                }
+                python_name = Some(syn::Ident::new("__new__", proc_macro2::Span::call_site()))
+            }
+            Some(MethodTypeAttribute::Call) => {
+                if let Some(name) = &python_name {
+                    bail_spanned!(name.span() => "`name` not allowed with `#[call]`");
+                }
+                python_name = Some(syn::Ident::new("__call__", proc_macro2::Span::call_site()))
+            }
+            _ => {}
+        }
 
         let (fn_type, skip_first_arg) = Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
 
@@ -199,7 +217,15 @@ impl<'a> FnSpec<'a> {
             args: arguments,
             output: ty,
             doc,
+            name_is_deprecated: options.name_is_deprecated,
         })
+    }
+
+    pub fn python_name_with_deprecation(&self) -> TokenStream {
+        let deprecation =
+            utils::name_deprecation_token(self.python_name.span(), self.name_is_deprecated);
+        let name = format!("{}\0", self.python_name);
+        quote!({#deprecation #name})
     }
 
     fn parse_text_signature(
@@ -362,12 +388,11 @@ struct MethodAttributes {
 
 fn parse_method_attributes(
     attrs: &mut Vec<syn::Attribute>,
-    allow_custom_name: bool,
+    mut python_name: Option<syn::Ident>,
 ) -> syn::Result<MethodAttributes> {
     let mut new_attrs = Vec::new();
     let mut args = Vec::new();
     let mut ty: Option<MethodTypeAttribute> = None;
-    let mut property_name = None;
 
     macro_rules! set_ty {
         ($new_ty:expr, $ident:expr) => {
@@ -434,7 +459,12 @@ fn parse_method_attributes(
                         set_ty!(MethodTypeAttribute::Getter, path);
                     };
 
-                    property_name = match nested.pop().unwrap().into_value() {
+                    ensure_spanned!(
+                        python_name.is_none(),
+                        python_name.span() => "`name` may only be specified once"
+                    );
+
+                    python_name = match nested.pop().unwrap().into_value() {
                         syn::NestedMeta::Meta(syn::Meta::Path(w)) if w.segments.len() == 1 => {
                             Some(w.segments[0].ident.clone())
                         }
@@ -455,7 +485,7 @@ fn parse_method_attributes(
                         }
                     };
                 } else if path.is_ident("args") {
-                    let attrs = PyFunctionAttr::from_meta(&nested)?;
+                    let attrs = PyFunctionSignature::from_meta(&nested)?;
                     args.extend(attrs.arguments)
                 } else {
                     new_attrs.push(attr)
@@ -467,47 +497,10 @@ fn parse_method_attributes(
 
     *attrs = new_attrs;
 
-    let python_name = if allow_custom_name {
-        match parse_method_name_attribute(ty.as_ref(), attrs)? {
-            Some(python_name) if property_name.is_some() => {
-                return Err(syn::Error::new_spanned(
-                    python_name,
-                    "name cannot be specified twice",
-                ));
-            }
-            Some(python_name) => Some(python_name),
-            None => property_name,
-        }
-    } else {
-        property_name
-    };
-
     Ok(MethodAttributes {
         ty,
         args,
         python_name,
-    })
-}
-
-fn parse_method_name_attribute(
-    ty: Option<&MethodTypeAttribute>,
-    attrs: &mut Vec<syn::Attribute>,
-) -> syn::Result<Option<syn::Ident>> {
-    use MethodTypeAttribute::*;
-    let name = parse_name_attribute(attrs)?;
-
-    // Reject some invalid combinations
-    if let (Some(name), Some(ty)) = (&name, ty) {
-        if let New | Call = ty {
-            bail_spanned!(name.span() => "name not allowed with this method type");
-        }
-    }
-
-    // Thanks to check above we can be sure that this generates the right python name
-    Ok(match ty {
-        Some(New) => Some(syn::Ident::new("__new__", proc_macro2::Span::call_site())),
-        Some(Call) => Some(syn::Ident::new("__call__", proc_macro2::Span::call_site())),
-        _ => name,
     })
 }
 

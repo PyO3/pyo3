@@ -16,7 +16,7 @@ error: setter function can have at most two arguments ([pyo3::Python,] and value
 24 |     fn setter_with_too_many_args(&mut self, py: Python, foo: u32, bar: u32) {}
    |                                                                        ^^^
 
-error: get/set are not supported on tuple struct field
+error: `#[pyo3(get, set)]` is not supported on tuple struct fields
   --> $DIR/invalid_property_args.rs:28:44
    |
 28 | struct TupleGetterSetter(#[pyo3(get, set)] i32);

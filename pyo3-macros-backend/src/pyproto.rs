@@ -3,6 +3,7 @@
 use crate::defs;
 use crate::method::{FnSpec, FnType};
 use crate::proto_method::impl_method_proto;
+use crate::pyfunction::PyFunctionOptions;
 use crate::pymethod;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -62,7 +63,8 @@ fn impl_proto_impl(
             }
             // Add non-slot methods to inventory like `#[pymethods]`
             if let Some(m) = proto.get_method(&met.sig.ident) {
-                let fn_spec = FnSpec::parse(&mut met.sig, &mut met.attrs, false)?;
+                let fn_spec =
+                    FnSpec::parse(&mut met.sig, &mut met.attrs, PyFunctionOptions::default())?;
 
                 let flags = if m.can_coexist {
                     // We need METH_COEXIST here to prevent __add__  from overriding __radd__

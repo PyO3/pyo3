@@ -192,7 +192,7 @@ fn test_raw_idents() {
 }
 
 #[pyfunction]
-#[name = "foobar"]
+#[pyo3(name = "foobar")]
 fn custom_named_fn() -> usize {
     42
 }

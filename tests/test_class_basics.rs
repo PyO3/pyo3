@@ -86,15 +86,15 @@ struct EmptyClass2 {}
 
 #[pymethods]
 impl EmptyClass2 {
-    #[name = "custom_fn"]
+    #[pyo3(name = "custom_fn")]
     fn bar(&self) {}
 
     #[staticmethod]
-    #[name = "custom_static"]
+    #[pyo3(name = "custom_static")]
     fn bar_static() {}
 
     #[getter]
-    #[name = "custom_getter"]
+    #[pyo3(name = "custom_getter")]
     fn foo(&self) -> i32 {
         5
     }

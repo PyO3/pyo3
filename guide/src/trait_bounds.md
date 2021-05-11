@@ -475,7 +475,7 @@ pub fn solve<T: Model>(model: &mut T) {
 }
 
 #[pyfunction]
-#[name = "solve"]
+#[pyo3(name = "solve")]
 pub fn solve_wrapper(model: &mut UserModel) {
     solve(model);
 }

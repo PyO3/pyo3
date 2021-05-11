@@ -1,14 +1,17 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::attrs::FromPyWithAttribute;
-use crate::konst::ConstSpec;
-use crate::method::{FnArg, FnSpec, FnType, SelfType};
 use crate::utils;
+use crate::{attributes::FromPyWithAttribute, konst::ConstSpec};
+use crate::{
+    method::{FnArg, FnSpec, FnType, SelfType},
+    pyfunction::PyFunctionOptions,
+};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::{ext::IdentExt, spanned::Spanned, Result};
 
+#[derive(Clone, Copy)]
 pub enum PropertyType<'a> {
-    Descriptor(&'a syn::Field),
+    Descriptor(&'a syn::Ident),
     Function(&'a FnSpec<'a>),
 }
 
@@ -22,9 +25,10 @@ pub fn gen_py_method(
     cls: &syn::Type,
     sig: &mut syn::Signature,
     meth_attrs: &mut Vec<syn::Attribute>,
+    options: PyFunctionOptions,
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
-    let spec = FnSpec::parse(sig, &mut *meth_attrs, true)?;
+    let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
     Ok(match &spec.tp {
         FnType::Fn(self_ty) => {
@@ -43,14 +47,12 @@ pub fn gen_py_method(
             cls,
             PropertyType::Function(&spec),
             self_ty,
-            &spec.python_name,
             &spec.doc,
         )?),
         FnType::Setter(self_ty) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
             PropertyType::Function(&spec),
             self_ty,
-            &spec.python_name,
             &spec.doc,
         )?),
     })
@@ -68,22 +70,15 @@ pub(crate) fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
     Ok(())
 }
 
-pub fn gen_py_const(
-    cls: &syn::Type,
-    name: &syn::Ident,
-    attrs: &mut Vec<syn::Attribute>,
-) -> syn::Result<Option<TokenStream>> {
-    let spec = ConstSpec::parse(name, attrs)?;
-    if spec.is_class_attr {
-        let wrapper = quote! {{
-            fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
-                pyo3::IntoPy::into_py(#cls::#name, py)
-            }
-            __wrap
-        }};
-        return Ok(Some(impl_py_const_class_attribute(&spec, &wrapper)));
-    }
-    Ok(None)
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
+    let member = &spec.rust_ident;
+    let wrapper = quote! {{
+        fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+            pyo3::IntoPy::into_py(#cls::#member, py)
+        }
+        __wrap
+    }};
+    impl_py_const_class_attribute(&spec, &wrapper)
 }
 
 /// Generate function wrapper for PyCFunctionWithKeywords
@@ -255,12 +250,9 @@ pub(crate) fn impl_wrap_getter(
     property_type: PropertyType,
     self_ty: &SelfType,
 ) -> syn::Result<TokenStream> {
-    let getter_impl = match property_type {
-        PropertyType::Descriptor(field) => {
-            let name = field.ident.as_ref().unwrap();
-            quote!({
-                _slf.#name.clone()
-            })
+    let getter_impl = match &property_type {
+        PropertyType::Descriptor(ident) => {
+            quote!(_slf.#ident.clone())
         }
         PropertyType::Function(spec) => impl_call_getter(cls, spec)?,
     };
@@ -307,10 +299,9 @@ pub(crate) fn impl_wrap_setter(
     property_type: PropertyType,
     self_ty: &SelfType,
 ) -> syn::Result<TokenStream> {
-    let setter_impl = match property_type {
-        PropertyType::Descriptor(field) => {
-            let name = field.ident.as_ref().unwrap();
-            quote!({ _slf.#name = _val; })
+    let setter_impl = match &property_type {
+        PropertyType::Descriptor(ident) => {
+            quote!({ _slf.#ident = _val; })
         }
         PropertyType::Function(spec) => impl_call_setter(cls, spec)?,
     };
@@ -584,14 +575,14 @@ pub fn impl_py_method_def(
     flags: Option<TokenStream>,
 ) -> Result<TokenStream> {
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let python_name = &spec.python_name;
+    let python_name = spec.python_name_with_deprecation();
     let doc = &spec.doc;
     if spec.args.is_empty() {
         let wrapper = impl_wrap_noargs(cls, spec, self_ty);
         Ok(quote! {
             pyo3::class::PyMethodDefType::Method({
                 pyo3::class::PyMethodDef::noargs(
-                    concat!(stringify!(#python_name), "\0"),
+                    #python_name,
                     pyo3::class::methods::PyCFunction(#wrapper),
                     #doc
                 )
@@ -604,7 +595,7 @@ pub fn impl_py_method_def(
         Ok(quote! {
             pyo3::class::PyMethodDefType::Method({
                 pyo3::class::PyMethodDef::cfunction_with_keywords(
-                    concat!(stringify!(#python_name), "\0"),
+                    #python_name,
                     pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
                     #doc
                 )
@@ -627,12 +618,12 @@ pub fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStr
 
 pub fn impl_py_method_def_class(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
     let wrapper = impl_wrap_class(cls, &spec)?;
-    let python_name = &spec.python_name;
+    let python_name = spec.python_name_with_deprecation();
     let doc = &spec.doc;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Class({
             pyo3::class::PyMethodDef::cfunction_with_keywords(
-                concat!(stringify!(#python_name), "\0"),
+                #python_name,
                 pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
                 #doc
             ).flags(pyo3::ffi::METH_CLASS)
@@ -642,12 +633,12 @@ pub fn impl_py_method_def_class(cls: &syn::Type, spec: &FnSpec) -> Result<TokenS
 
 pub fn impl_py_method_def_static(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
     let wrapper = impl_wrap_static(cls, &spec)?;
-    let python_name = &spec.python_name;
+    let python_name = spec.python_name_with_deprecation();
     let doc = &spec.doc;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Static({
             pyo3::class::PyMethodDef::cfunction_with_keywords(
-                concat!(stringify!(#python_name), "\0"),
+                #python_name,
                 pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
                 #doc
             ).flags(pyo3::ffi::METH_STATIC)
@@ -657,11 +648,11 @@ pub fn impl_py_method_def_static(cls: &syn::Type, spec: &FnSpec) -> Result<Token
 
 pub fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     let wrapper = impl_wrap_class_attribute(cls, &spec);
-    let python_name = &spec.python_name;
+    let python_name = spec.python_name_with_deprecation();
     quote! {
         pyo3::class::PyMethodDefType::ClassAttribute({
             pyo3::class::PyClassAttributeDef::new(
-                concat!(stringify!(#python_name), "\0"),
+                #python_name,
                 pyo3::class::methods::PyClassAttributeFactory(#wrapper)
             )
         })
@@ -669,14 +660,16 @@ pub fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenSt
 }
 
 pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) -> TokenStream {
-    let python_name = &spec.python_name;
+    let python_name = &spec.python_name_with_deprecation();
     quote! {
-        pyo3::class::PyMethodDefType::ClassAttribute({
-            pyo3::class::PyClassAttributeDef::new(
-                concat!(stringify!(#python_name), "\0"),
-                pyo3::class::methods::PyClassAttributeFactory(#wrapper)
-            )
-        })
+        {
+            pyo3::class::PyMethodDefType::ClassAttribute({
+                pyo3::class::PyClassAttributeDef::new(
+                    #python_name,
+                    pyo3::class::methods::PyClassAttributeFactory(#wrapper)
+                )
+            })
+        }
     }
 }
 
@@ -699,14 +692,20 @@ pub(crate) fn impl_py_setter_def(
     cls: &syn::Type,
     property_type: PropertyType,
     self_ty: &SelfType,
-    python_name: &syn::Ident,
     doc: &syn::LitStr,
 ) -> Result<TokenStream> {
+    let python_name = match property_type {
+        PropertyType::Descriptor(ident) => {
+            let formatted_name = format!("{}\0", ident.unraw());
+            quote!(#formatted_name)
+        }
+        PropertyType::Function(spec) => spec.python_name_with_deprecation(),
+    };
     let wrapper = impl_wrap_setter(cls, property_type, self_ty)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Setter({
             pyo3::class::PySetterDef::new(
-                concat!(stringify!(#python_name), "\0"),
+                #python_name,
                 pyo3::class::methods::PySetter(#wrapper),
                 #doc
             )
@@ -718,14 +717,20 @@ pub(crate) fn impl_py_getter_def(
     cls: &syn::Type,
     property_type: PropertyType,
     self_ty: &SelfType,
-    python_name: &syn::Ident,
     doc: &syn::LitStr,
 ) -> Result<TokenStream> {
+    let python_name = match property_type {
+        PropertyType::Descriptor(ident) => {
+            let formatted_name = format!("{}\0", ident.unraw());
+            quote!(#formatted_name)
+        }
+        PropertyType::Function(spec) => spec.python_name_with_deprecation(),
+    };
     let wrapper = impl_wrap_getter(cls, property_type, self_ty)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Getter({
             pyo3::class::PyGetterDef::new(
-                concat!(stringify!(#python_name), "\0"),
+                #python_name,
                 pyo3::class::methods::PyGetter(#wrapper),
                 #doc
             )

@@ -11,6 +11,12 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
+    #[classattr(foobar)]
+    const CLASS_ATTR_WITH_ATTRIBUTE_ARG: i32 = 3;
+}
+
+#[pymethods]
+impl MyClass {
     fn staticmethod_without_attribute() {}
 }
 

@@ -177,6 +177,7 @@ pub mod exceptions;
 pub mod ffi;
 pub mod freelist;
 mod gil;
+pub mod impl_;
 mod instance;
 
 #[cfg(not(Py_LIMITED_API))]

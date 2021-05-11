@@ -1,6 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::pymethod;
+use crate::{
+    konst::{ConstAttributes, ConstSpec},
+    pyfunction::PyFunctionOptions,
+    pymethod,
+};
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
 use quote::quote;
@@ -39,7 +43,8 @@ pub fn impl_methods(
     for iimpl in impls.iter_mut() {
         match iimpl {
             syn::ImplItem::Method(meth) => {
-                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs)? {
+                let options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
+                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, options)? {
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
@@ -55,8 +60,14 @@ pub fn impl_methods(
                 }
             }
             syn::ImplItem::Const(konst) => {
-                if let Some(meth) = pymethod::gen_py_const(ty, &konst.ident, &mut konst.attrs)? {
+                let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
+                if attributes.is_class_attr {
+                    let spec = ConstSpec {
+                        rust_ident: konst.ident.clone(),
+                        attributes,
+                    };
                     let attrs = get_cfg_attributes(&konst.attrs);
+                    let meth = pymethod::gen_py_const(ty, &spec);
                     methods.push(quote!(#(#attrs)* #meth));
                 }
             }
