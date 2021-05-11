@@ -243,7 +243,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
-    /// struct Foo{ /* fields omitted */ }
+    /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
     /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
