@@ -17,7 +17,10 @@ use crate::{ffi, AsPyPointer, FromPyPointer, PyAny, Python};
 use std::mem;
 use std::os::raw::c_void;
 
-/// Implements a freelist. Using `#[pyclass(freelist = N)]` on a Rust struct will implement this trait.
+/// Implements a freelist.
+///
+/// Do not implement this trait directly; instead use `#[pyclass(freelist = N)]`
+/// on a Rust struct to implement it.
 pub trait PyClassWithFreeList {
     fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;
 }
