@@ -194,7 +194,46 @@ impl PyAny {
         }
     }
 
-    /// Determines whether this object is callable.
+    /// Determines whether this object appears callable.
+    ///
+    /// This is equivalent to Python's [`callable()`][1] function.
+    ///
+    /// This function returning `true` does not guarantee that a call will succeed.
+    /// For this reason, avoid calling potentially callable objects like this:
+    ///
+    /// ```ignore
+    /// if some_object.is_callable() {
+    ///     let value = some_object.call0().unwrap();
+    /// };
+    /// ```
+    ///
+    /// Instead, just attempt to call it and handle any errors:
+    ///
+    /// ```ignore
+    /// match some_object.call0() {
+    ///    Ok(value) => ...,
+    ///    Err(e) => ...,
+    /// }
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///        let builtins = PyModule::import(py, "builtins")?;
+    ///        let print = builtins.getattr("print")?;
+    ///        assert!(print.is_callable());
+    ///        Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the Python expression `assert callable(print)`.
+    ///
+    /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
@@ -223,6 +262,23 @@ impl PyAny {
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let module = PyModule::import(py, "builtins")?;
+    ///     let help = module.getattr("help")?;
+    ///     help.call0()?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
             // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
@@ -241,6 +297,32 @@ impl PyAny {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let module = PyModule::import(py, "operator")?;
+    ///     let add = module.getattr("add")?;
+    ///     let args = (1,2);
+    ///     let value = add.call1(args)?;
+    ///     assert_eq!(value.extract::<i32>()?, 3);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the following Python code:
+    ///
+    /// ```python
+    /// from operator import add
+    ///
+    /// value = add(1,2)
+    /// assert value == 3
+    /// ```   
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
@@ -250,20 +332,30 @@ impl PyAny {
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
     /// # Examples
+    ///
     /// ```rust
-    /// # use pyo3::prelude::*;
-    /// use pyo3::types::IntoPyDict;
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    /// use crate::pyo3::types::IntoPyDict;
     ///
-    /// Python::with_gil(|py| {
-    ///     let list = vec![3, 6, 5, 4, 7].to_object(py);
-    ///     let dict = vec![("reverse", true)].into_py_dict(py);
-    ///     list.call_method(py, "sort", (), Some(dict)).unwrap();
-    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let list = PyList::new(py, vec![3, 6, 5, 4, 7]);
+    ///     let kwargs = vec![("reverse", true)].into_py_dict(py);
     ///
-    ///     let new_element = 1.to_object(py);
-    ///     list.call_method(py, "append", (new_element,), None).unwrap();
-    ///     assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3, 1]);
-    /// });
+    ///     list.call_method("sort", (), Some(kwargs))?;
+    ///     assert_eq!(list.extract::<Vec<i32>>()?, vec![7, 6, 5, 4, 3]);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the following Python code:
+    ///
+    /// ```python
+    /// my_list = [3, 6, 5, 4, 7]
+    /// my_list.sort(reverse = True)
+    /// assert my_list == [7, 6, 5, 4, 3]
     /// ```
     pub fn call_method(
         &self,
@@ -291,6 +383,33 @@ impl PyAny {
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyFloat;
+    /// use std::f64::consts::PI;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let pi = PyFloat::new(py, PI);
+    ///     let ratio = pi.call_method0("as_integer_ratio")?;
+    ///     let (a, b) = ratio.extract::<(u64, u64)>()?;
+    ///     assert_eq!(a, 884_279_719_003_555);
+    ///     assert_eq!(b, 281_474_976_710_656);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// This is equivalent to the following Python code:
+    ///
+    /// ```python
+    /// import math
+    ///
+    /// a, b = math.pi.as_integer_ratio()
+    /// ```
     pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
@@ -308,6 +427,30 @@ impl PyAny {
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyList;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let list = PyList::new(py, vec![1, 3, 4]);
+    ///     list.call_method1("insert", (1, 2))?;
+    ///     assert_eq!(list.extract::<Vec<u8>>()?, [1, 2, 3, 4]);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// This is equivalent to the following Python code:
+    ///
+    /// ```python
+    /// list_ = [1,3,4]
+    /// list_.insert(1,2)
+    /// assert list_ == [1,2,3,4]
+    /// ```
     pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call_method(name, args, None)
     }
