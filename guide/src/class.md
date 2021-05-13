@@ -757,7 +757,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
-    fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
+    fn for_each_method_def(visitor: &mut dyn FnMut(&pyo3::class::PyMethodDefType)) {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
         collector.py_methods().iter()
