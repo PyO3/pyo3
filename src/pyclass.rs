@@ -219,7 +219,7 @@ where
 
     // protocol methods
     let mut has_gc_methods = false;
-    T::for_each_proto_slot(|slot| {
+    T::for_each_proto_slot(&mut |slot| {
         has_gc_methods |= slot.slot == ffi::Py_tp_clear;
         has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
         slots.0.push(*slot);

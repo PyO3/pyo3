@@ -72,7 +72,7 @@ pub trait PyClassImpl: Sized {
     fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
-    fn for_each_proto_slot(_visitor: impl FnMut(&ffi::PyType_Slot)) {}
+    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&ffi::PyType_Slot)) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
     }
