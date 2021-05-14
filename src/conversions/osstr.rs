@@ -22,6 +22,9 @@ impl ToPyObject for OsStr {
         // https://doc.rust-lang.org/src/std/sys_common/mod.rs.html#59
         #[cfg(not(windows))]
         {
+            #[cfg(target_os = "wasi")]
+            let bytes = std::os::wasi::ffi::OsStrExt::as_bytes(self);
+            #[cfg(not(target_os = "wasi"))]
             let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
 
             let ptr = bytes.as_ptr() as *const c_char;
@@ -68,6 +71,11 @@ impl FromPyObject<'_> for OsString {
             };
 
             // Create an OsStr view into the raw bytes from Python
+            #[cfg(target_os = "wasi")]
+            let os_str: &OsStr = std::os::wasi::ffi::OsStrExt::from_bytes(
+                fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
+            );
+            #[cfg(not(target_os = "wasi"))]
             let os_str: &OsStr = std::os::unix::ffi::OsStrExt::from_bytes(
                 fs_encoded_bytes.as_ref(ob.py()).as_bytes(),
             );

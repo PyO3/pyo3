@@ -536,6 +536,8 @@ fn load_cross_compile_info(cross_compile_config: CrossCompileConfig) -> Result<I
         Some(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
         // Use hardcoded interpreter config when targeting Windows
         Some(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
+        // sysconfigdata works fine on wasm/wasi
+        Some(os) if os == "wasm" => load_cross_compile_from_sysconfigdata(cross_compile_config),
         // Waiting for users to tell us what they expect on their target platform
         Some(os) => bail!(
             "Unsupported target OS family for cross-compilation: {:?}",
