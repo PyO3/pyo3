@@ -175,15 +175,6 @@ where
     value.convert(py)
 }
 
-#[doc(hidden)]
-#[inline]
-pub fn callback_error<T>() -> T
-where
-    T: PyCallbackOutput,
-{
-    T::ERR_VALUE
-}
-
 /// Use this macro for all internal callback functions which Python will call.
 ///
 /// It sets up the GILPool and converts the output into a Python object. It also restores
@@ -258,7 +249,7 @@ where
 {
     let py_result = match panic_result {
         Ok(py_result) => py_result,
-        Err(panic_err) => Err(PanicException::from_panic(panic_err)),
+        Err(payload) => Err(PanicException::from_panic_payload(payload)),
     };
 
     py_result.unwrap_or_else(|py_err| {

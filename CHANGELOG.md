@@ -44,7 +44,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate `#[name = "..."]` attributes in favor of `#[pyo3(name = "...")]`. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 - Improve compilation times for projects using PyO3 [#1604](https://github.com/PyO3/pyo3/pull/1604)
 
-
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)
 - Remove deprecated redundant methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
