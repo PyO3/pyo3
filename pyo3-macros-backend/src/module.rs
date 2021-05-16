@@ -1,8 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
-use crate::attributes::{is_attribute_ident, take_attributes, NameAttribute};
 use crate::pyfunction::{impl_wrap_pyfunction, PyFunctionOptions};
+use crate::{
+    attributes::{is_attribute_ident, take_attributes, NameAttribute},
+    deprecations::Deprecation,
+};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{parse::Parse, spanned::Spanned, token::Comma, Ident, Path};
@@ -59,18 +62,35 @@ pub struct PyFnArgs {
 
 impl Parse for PyFnArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let modname = input.parse()?;
-        let _: Comma = input.parse()?;
-        let fnname_literal: syn::LitStr = input.parse()?;
-        let fnname = fnname_literal.parse()?;
+        let modname = input.parse().map_err(
+            |e| err_spanned!(e.span() => "expected module as first argument to #[pyfn()]"),
+        )?;
+
         if input.is_empty() {
-            let mut options = PyFunctionOptions::default();
-            options.set_name(NameAttribute(fnname))?;
-            return Ok(Self { modname, options });
+            return Ok(Self {
+                modname,
+                options: Default::default(),
+            });
         }
+
         let _: Comma = input.parse()?;
+
+        let mut deprecated_name_argument = None;
+        if let Ok(lit_str) = input.parse::<syn::LitStr>() {
+            deprecated_name_argument = Some(lit_str);
+            if !input.is_empty() {
+                let _: Comma = input.parse()?;
+            }
+        }
+
         let mut options: PyFunctionOptions = input.parse()?;
-        options.set_name(NameAttribute(fnname))?;
+        if let Some(lit_str) = deprecated_name_argument {
+            options.set_name(NameAttribute(lit_str.parse()?))?;
+            options
+                .deprecations
+                .push(Deprecation::PyfnNameArgument, lit_str.span());
+        }
+
         Ok(Self { modname, options })
     }
 }

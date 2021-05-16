@@ -25,6 +25,14 @@ impl TestClass {
 #[name = "foo"]
 fn deprecated_name_pyfunction() { }
 
+#[pymodule]
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    #[pyfn(m, "some_name")]
+    fn deprecated_name_pyfn() { }
+
+    Ok(())
+}
+
 fn main() {
 
 }

@@ -5,6 +5,7 @@ use crate::{
         self, get_deprecated_name_attribute, get_pyo3_attributes, take_attributes,
         FromPyWithAttribute, NameAttribute,
     },
+    deprecations::Deprecations,
     method::{self, FnArg, FnSpec},
     pymethod::{check_generic, get_arg_names, impl_arg_params},
     utils,
@@ -209,8 +210,8 @@ impl PyFunctionSignature {
 pub struct PyFunctionOptions {
     pub pass_module: bool,
     pub name: Option<NameAttribute>,
-    pub name_is_deprecated: bool,
     pub signature: Option<PyFunctionSignature>,
+    pub deprecations: Deprecations,
 }
 
 impl Parse for PyFunctionOptions {
@@ -218,8 +219,8 @@ impl Parse for PyFunctionOptions {
         let mut options = PyFunctionOptions {
             pass_module: false,
             name: None,
-            name_is_deprecated: false,
             signature: None,
+            deprecations: Deprecations::new(),
         };
 
         while !input.is_empty() {
@@ -278,9 +279,9 @@ impl PyFunctionOptions {
             if let Some(pyo3_attributes) = get_pyo3_attributes(attr)? {
                 self.add_attributes(pyo3_attributes)?;
                 Ok(true)
-            } else if let Some(name) = get_deprecated_name_attribute(attr)? {
+            } else if let Some(name) = get_deprecated_name_attribute(attr, &mut self.deprecations)?
+            {
                 self.set_name(name)?;
-                self.name_is_deprecated = true;
                 Ok(true)
             } else {
                 Ok(false)
@@ -390,11 +391,11 @@ pub fn impl_wrap_pyfunction(
         args: arguments,
         output: ty,
         doc,
-        name_is_deprecated: options.name_is_deprecated,
+        deprecations: options.deprecations,
     };
 
     let doc = &spec.doc;
-    let python_name = spec.python_name_with_deprecation();
+    let python_name = spec.null_terminated_python_name();
 
     let name = &func.sig.ident;
     let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
@@ -453,12 +454,14 @@ fn function_c_wrapper(
         )
     };
     let py = syn::Ident::new("_py", Span::call_site());
+    let deprecations = &spec.deprecations;
     if spec.args.is_empty() {
         Ok(quote! {
             unsafe extern "C" fn #wrapper_ident(
                 _slf: *mut pyo3::ffi::PyObject,
                 _unused: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
             {
+                #deprecations
                 pyo3::callback::handle_panic(|#py| {
                     #slf_module
                     #cb
@@ -473,6 +476,7 @@ fn function_c_wrapper(
                 _args: *mut pyo3::ffi::PyObject,
                 _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
             {
+                #deprecations
                 pyo3::callback::handle_panic(|#py| {
                     #slf_module
                     let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);

@@ -1,29 +1,8 @@
 # Python Functions
 
-PyO3 supports two ways to define a free function in Python. Both require registering
-the function to a [module](./module.md).
+PyO3 supports two ways to define a free function in Python. Both require registering the function to a [module](./module.md).
 
-One way is defining the function in the module definition, annotated with `#[pyfn]`.
-
-```rust
-use pyo3::prelude::*;
-
-#[pymodule]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-
-    #[pyfn(m, "sum_as_string")]
-    fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
-        Ok(format!("{}", a + b))
-    }
-
-    Ok(())
-}
-
-# fn main() {}
-```
-
-The other is annotating a function with `#[pyfunction]` and then adding it
-to the module using the `wrap_pyfunction!` macro.
+One way is annotating a function with `#[pyfunction]` and then adding it to the module using the `wrap_pyfunction!` macro.
 
 ```rust
 use pyo3::prelude::*;
@@ -36,7 +15,25 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?).unwrap();
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+
+# fn main() {}
+```
+
+Alternatively there is a shorthand; the function can be placed inside the module definition and annotated with `#[pyfn]`, as below:
+
+```rust
+use pyo3::prelude::*;
+
+#[pymodule]
+fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
+
+    #[pyfn(m)]
+    fn sum_as_string(_py: Python, a:i64, b:i64) -> PyResult<String> {
+        Ok(format!("{}", a + b))
+    }
 
     Ok(())
 }
@@ -44,16 +41,61 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
-## Argument parsing
-
-Both the `#[pyfunction]` and `#[pyfn]` attributes support specifying details of
-argument parsing.  The details are given in the section "Method arguments" in
-the [Classes](class.md) chapter.  Here is an example for a function that accepts
-arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number
-that was passed:
+`#[pyfn(m)]` is just syntax sugar for `#[pyfunction]`, and takes all the same options documented in the rest of this chapter. The code above is expanded to the following:
 
 ```rust
-# extern crate pyo3;
+use pyo3::prelude::*;
+
+#[pymodule]
+fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
+
+    #[pyfunction]
+    fn sum_as_string(_py: Python, a:i64, b:i64) -> PyResult<String> {
+        Ok(format!("{}", a + b))
+    }
+
+    m.add_function(pyo3::wrap_pyfunction!(sum_as_string, m)?)?;
+
+    Ok(())
+}
+
+# fn main() {}
+```
+
+## Function options
+
+The `#[pyo3]` attribute can be used to modify properties of the generated Python function. It can take any combination of the following options:
+
+  - `#[pyo3(name = "...")]`
+
+    Overrides the name generated in Python:
+
+    ```rust
+    use pyo3::prelude::*;
+    use pyo3::wrap_pyfunction;
+
+    #[pyfunction]
+    #[pyo3(name = "no_args")]
+    fn no_args_py() -> usize { 42 }
+
+    #[pymodule]
+    fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(no_args_py, m)?)?;
+        Ok(())
+    }
+
+    # Python::with_gil(|py| {
+    #     let m = pyo3::wrap_pymodule!(module_with_functions)(py);
+    #     assert!(m.getattr(py, "no_args").is_ok());
+    #     assert!(m.getattr(py, "no_args_py").is_err());
+    # });
+    ```
+
+## Argument parsing
+
+The `#[pyfunction]` attribute supports specifying details of argument parsing. The details are given in the section ["Method arguments" of the Classes chapter](class.md#method-arguments).  Here is an example for a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
+
+```rust
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::types::PyDict;
@@ -213,8 +255,7 @@ in Python code.
 
 ### Accessing the module of a function
 
-It is possible to access the module of a `#[pyfunction]` and `#[pyfn]` in the
-function body by passing the `pass_module` argument to the attribute:
+It is possible to access the module of a `#[pyfunction]` in the function body by passing the `pass_module` argument to the attribute:
 
 ```rust
 use pyo3::wrap_pyfunction;
@@ -235,25 +276,6 @@ fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
 
 If `pass_module` is set, the first argument **must** be the `&PyModule`. It is then possible to use the module
 in the function body.
-
-The same works for `#[pyfn]`:
-
-```rust
-use pyo3::wrap_pyfunction;
-use pyo3::prelude::*;
-
-#[pymodule]
-fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
-
-    #[pyfn(m, "module_name", pass_module)]
-    fn module_name(module: &PyModule) -> PyResult<&str> {
-        module.name()
-    }
-    Ok(())
-}
-
-# fn main() {}
-```
 
 ## Accessing the FFI functions
 

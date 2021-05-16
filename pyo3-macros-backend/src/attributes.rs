@@ -6,6 +6,8 @@ use syn::{
     Attribute, ExprPath, Ident, LitStr, Result, Token,
 };
 
+use crate::deprecations::{Deprecation, Deprecations};
+
 pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
@@ -81,17 +83,18 @@ pub fn take_attributes(
     Ok(())
 }
 
-pub fn get_deprecated_name_attribute(attr: &syn::Attribute) -> syn::Result<Option<NameAttribute>> {
+pub fn get_deprecated_name_attribute(
+    attr: &syn::Attribute,
+    deprecations: &mut Deprecations,
+) -> syn::Result<Option<NameAttribute>> {
     match attr.parse_meta() {
         Ok(syn::Meta::NameValue(syn::MetaNameValue {
             path,
             lit: syn::Lit::Str(s),
             ..
         })) if path.is_ident("name") => {
-            let mut ident: syn::Ident = s.parse()?;
-            // This span is the whole attribute span, which is nicer for reporting errors.
-            ident.set_span(attr.span());
-            Ok(Some(NameAttribute(ident)))
+            deprecations.push(Deprecation::NameAttribute, attr.span());
+            Ok(Some(NameAttribute(s.parse()?)))
         }
         _ => Ok(None),
     }

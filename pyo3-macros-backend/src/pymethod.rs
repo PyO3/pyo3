@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::utils;
 use crate::{attributes::FromPyWithAttribute, konst::ConstSpec};
+use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
@@ -48,12 +48,14 @@ pub fn gen_py_method(
             PropertyType::Function(&spec),
             self_ty,
             &spec.doc,
+            &spec.deprecations,
         )?),
         FnType::Setter(self_ty) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
             PropertyType::Function(&spec),
             self_ty,
             &spec.doc,
+            &spec.deprecations,
         )?),
     })
 }
@@ -72,8 +74,10 @@ pub(crate) fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
 
 pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let member = &spec.rust_ident;
+    let deprecations = &spec.attributes.deprecations;
     let wrapper = quote! {{
         fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+            #deprecations
             pyo3::IntoPy::into_py(#cls::#member, py)
         }
         __wrap
@@ -91,12 +95,14 @@ pub fn impl_wrap_cfunction_with_keywords(
     let slf = self_ty.receiver(cls);
     let py = syn::Ident::new("_py", Span::call_site());
     let body = impl_arg_params(&spec, Some(cls), body, &py)?;
+    let deprecations = &spec.deprecations;
     Ok(quote! {{
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
+            #deprecations
             pyo3::callback::handle_panic(|#py| {
                 #slf
                 let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -113,6 +119,7 @@ pub fn impl_wrap_cfunction_with_keywords(
 pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) -> TokenStream {
     let body = impl_call(cls, &spec);
     let slf = self_ty.receiver(cls);
+    let deprecations = &spec.deprecations;
     assert!(spec.args.is_empty());
     quote! {{
         unsafe extern "C" fn __wrap(
@@ -120,6 +127,7 @@ pub fn impl_wrap_noargs(cls: &syn::Type, spec: &FnSpec<'_>, self_ty: &SelfType) 
             _args: *mut pyo3::ffi::PyObject,
         ) -> *mut pyo3::ffi::PyObject
         {
+            #deprecations
             pyo3::callback::handle_panic(|_py| {
                 #slf
                 #body
@@ -136,7 +144,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
     let cb = quote! { #cls::#name(#(#names),*) };
     let py = syn::Ident::new("_py", Span::call_site());
     let body = impl_arg_params(spec, Some(cls), cb, &py)?;
-
+    let deprecations = &spec.deprecations;
     Ok(quote! {{
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -144,8 +152,8 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> 
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
+            #deprecations
             use pyo3::callback::IntoPyCallbackOutput;
-
             pyo3::callback::handle_panic(|#py| {
                 let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
@@ -166,7 +174,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(&_cls, #(#names),*)) };
     let py = syn::Ident::new("_py", Span::call_site());
     let body = impl_arg_params(spec, Some(cls), cb, &py)?;
-
+    let deprecations = &spec.deprecations;
     Ok(quote! {{
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -174,6 +182,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
+            #deprecations
             pyo3::callback::handle_panic(|#py| {
                 let _cls = pyo3::types::PyType::from_type_ptr(#py, _cls as *mut pyo3::ffi::PyTypeObject);
                 let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -193,7 +202,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
     let cb = quote! { pyo3::callback::convert(_py, #cls::#name(#(#names),*)) };
     let py = syn::Ident::new("_py", Span::call_site());
     let body = impl_arg_params(spec, Some(cls), cb, &py)?;
-
+    let deprecations = &spec.deprecations;
     Ok(quote! {{
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -201,6 +210,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
+            #deprecations
             pyo3::callback::handle_panic(|#py| {
                 let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
@@ -218,9 +228,10 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStrea
 pub fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let cb = quote! { #cls::#name() };
-
+    let deprecations = &spec.deprecations;
     quote! {{
         fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+            #deprecations
             pyo3::IntoPy::into_py(#cb, py)
         }
         __wrap
@@ -578,7 +589,7 @@ pub fn impl_py_method_def(
     flags: Option<TokenStream>,
 ) -> Result<TokenStream> {
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let python_name = spec.python_name_with_deprecation();
+    let python_name = spec.null_terminated_python_name();
     let doc = &spec.doc;
     if spec.args.is_empty() {
         let wrapper = impl_wrap_noargs(cls, spec, self_ty);
@@ -621,7 +632,7 @@ pub fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStr
 
 pub fn impl_py_method_def_class(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
     let wrapper = impl_wrap_class(cls, &spec)?;
-    let python_name = spec.python_name_with_deprecation();
+    let python_name = spec.null_terminated_python_name();
     let doc = &spec.doc;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Class({
@@ -636,7 +647,7 @@ pub fn impl_py_method_def_class(cls: &syn::Type, spec: &FnSpec) -> Result<TokenS
 
 pub fn impl_py_method_def_static(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
     let wrapper = impl_wrap_static(cls, &spec)?;
-    let python_name = spec.python_name_with_deprecation();
+    let python_name = spec.null_terminated_python_name();
     let doc = &spec.doc;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Static({
@@ -651,7 +662,7 @@ pub fn impl_py_method_def_static(cls: &syn::Type, spec: &FnSpec) -> Result<Token
 
 pub fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     let wrapper = impl_wrap_class_attribute(cls, &spec);
-    let python_name = spec.python_name_with_deprecation();
+    let python_name = spec.null_terminated_python_name();
     quote! {
         pyo3::class::PyMethodDefType::ClassAttribute({
             pyo3::class::PyClassAttributeDef::new(
@@ -663,7 +674,7 @@ pub fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenSt
 }
 
 pub fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) -> TokenStream {
-    let python_name = &spec.python_name_with_deprecation();
+    let python_name = &spec.null_terminated_python_name();
     quote! {
         {
             pyo3::class::PyMethodDefType::ClassAttribute({
@@ -696,17 +707,19 @@ pub(crate) fn impl_py_setter_def(
     property_type: PropertyType,
     self_ty: &SelfType,
     doc: &syn::LitStr,
+    deprecations: &Deprecations,
 ) -> Result<TokenStream> {
     let python_name = match property_type {
         PropertyType::Descriptor(ident) => {
             let formatted_name = format!("{}\0", ident.unraw());
             quote!(#formatted_name)
         }
-        PropertyType::Function(spec) => spec.python_name_with_deprecation(),
+        PropertyType::Function(spec) => spec.null_terminated_python_name(),
     };
     let wrapper = impl_wrap_setter(cls, property_type, self_ty)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Setter({
+            #deprecations
             pyo3::class::PySetterDef::new(
                 #python_name,
                 pyo3::class::methods::PySetter(#wrapper),
@@ -721,17 +734,19 @@ pub(crate) fn impl_py_getter_def(
     property_type: PropertyType,
     self_ty: &SelfType,
     doc: &syn::LitStr,
+    deprecations: &Deprecations,
 ) -> Result<TokenStream> {
     let python_name = match property_type {
         PropertyType::Descriptor(ident) => {
             let formatted_name = format!("{}\0", ident.unraw());
             quote!(#formatted_name)
         }
-        PropertyType::Function(spec) => spec.python_name_with_deprecation(),
+        PropertyType::Function(spec) => spec.null_terminated_python_name(),
     };
     let wrapper = impl_wrap_getter(cls, property_type, self_ty)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Getter({
+            #deprecations
             pyo3::class::PyGetterDef::new(
                 #python_name,
                 pyo3::class::methods::PyGetter(#wrapper),

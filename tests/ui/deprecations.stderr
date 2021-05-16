@@ -27,3 +27,9 @@ error: use of deprecated constant `pyo3::impl_::deprecations::NAME_ATTRIBUTE`: u
    |
 25 | #[name = "foo"]
    | ^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYFN_NAME_ARGUMENT`: use `#[pyfn(m)] #[pyo3(name = "...")]` instead of `#[pyfn(m, "...")]`
+  --> $DIR/deprecations.rs:30:15
+   |
+30 |     #[pyfn(m, "some_name")]
+   |               ^^^^^^^^^^^
