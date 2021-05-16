@@ -757,7 +757,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
-    fn for_each_method_def(visitor: impl FnMut(&pyo3::class::PyMethodDefType)) {
+    fn for_each_method_def(visitor: &mut dyn FnMut(&pyo3::class::PyMethodDefType)) {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
         collector.py_methods().iter()
@@ -780,7 +780,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         let collector = PyClassImplCollector::<Self>::new();
         collector.call_impl()
     }
-    fn for_each_proto_slot(visitor: impl FnMut(&pyo3::ffi::PyType_Slot)) {
+    fn for_each_proto_slot(visitor: &mut dyn FnMut(&pyo3::ffi::PyType_Slot)) {
         // Implementation which uses dtolnay specialization to load all slots.
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();

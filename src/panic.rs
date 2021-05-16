@@ -1,4 +1,6 @@
 use crate::exceptions::PyBaseException;
+use crate::PyErr;
+use std::any::Any;
 
 pyo3_exception!(
     "
@@ -11,3 +13,16 @@ pyo3_exception!(
     PanicException,
     PyBaseException
 );
+
+impl PanicException {
+    // Try to format the error in the same way panic does
+    pub(crate) fn from_panic_payload(payload: Box<dyn Any + Send + 'static>) -> PyErr {
+        if let Some(string) = payload.downcast_ref::<String>() {
+            Self::new_err((string.clone(),))
+        } else if let Some(s) = payload.downcast_ref::<&str>() {
+            Self::new_err((s.to_string(),))
+        } else {
+            Self::new_err(("panic from Rust code",))
+        }
+    }
+}
