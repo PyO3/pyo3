@@ -720,8 +720,6 @@ struct MyClass {
     debug: bool,
 }
 
-impl pyo3::pyclass::PyClassAlloc for MyClass {}
-
 unsafe impl pyo3::PyTypeInfo for MyClass {
     type AsRefTarget = PyCell<Self>;
 
@@ -773,6 +771,16 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
+    }
+    fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
+        use pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<Self>::new();
+        collector.alloc_impl()
+    }
+    fn get_free() -> Option<pyo3::ffi::freefunc> {
+        use pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<Self>::new();
+        collector.free_impl()
     }
     fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
         use pyo3::class::impl_::*;

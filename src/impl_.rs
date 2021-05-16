@@ -3,3 +3,4 @@
 //! any time without documentation in the CHANGELOG and without breaking semver guarantees.
 
 pub mod deprecations;
+pub mod freelist;
