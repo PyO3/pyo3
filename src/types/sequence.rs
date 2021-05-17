@@ -18,7 +18,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
-    #[allow(clippy::clippy::len_without_is_empty)]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
         if v == -1 {

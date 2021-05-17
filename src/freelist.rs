@@ -95,7 +95,7 @@ where
         crate::pyclass::default_new::<Self>(py, subtype) as _
     }
 
-    #[allow(clippy::clippy::collapsible_if)] // for if cfg!
+    #[allow(clippy::collapsible_if)] // for if cfg!
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = PyAny::from_borrowed_ptr_or_panic(py, self_ as _);

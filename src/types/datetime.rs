@@ -128,7 +128,7 @@ pyobject_native_type!(
 );
 
 impl PyDateTime {
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new<'p>(
         py: Python<'p>,
         year: i32,
@@ -159,7 +159,7 @@ impl PyDateTime {
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
     /// signifies a leap second
     #[cfg(not(PyPy))]
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         year: i32,
