@@ -32,6 +32,7 @@ serde = {version = "1.0", optional = true}
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
+criterion = "0.3"
 trybuild = "1.0.23"
 rustversion = "1.0"
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
@@ -68,6 +69,10 @@ auto-initialize = []
 
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
+
+[[bench]]
+name = "bench_gil"
+harness = false
 
 [workspace]
 members = [
