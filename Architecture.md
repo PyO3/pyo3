@@ -36,7 +36,7 @@ To summarize, there are six main parts to the PyO3 codebase.
 We aim to provide straight-forward Rust wrappers resembling the file structure of
 [`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
 
-However, we still lack some APIs and are continuously updating the the module to match
+However, we still lack some APIs and are continuously updating the module to match
 the file contents upstream in CPython.
 The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
