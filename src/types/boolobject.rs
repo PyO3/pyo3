@@ -69,7 +69,7 @@ mod test {
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
         let t: &PyAny = PyBool::new(py, true).into();
-        assert_eq!(true, t.extract().unwrap());
+        assert!(t.extract::<bool>().unwrap());
         assert_eq!(true.to_object(py), PyBool::new(py, true).into());
     }
 
@@ -79,7 +79,7 @@ mod test {
         let py = gil.python();
         assert!(!PyBool::new(py, false).is_true());
         let t: &PyAny = PyBool::new(py, false).into();
-        assert_eq!(false, t.extract().unwrap());
+        assert!(!t.extract::<bool>().unwrap());
         assert_eq!(false.to_object(py), PyBool::new(py, false).into());
     }
 }

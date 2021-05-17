@@ -422,8 +422,8 @@ mod tests {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
-            assert_eq!(a.unwrap().get_fold(), false);
-            assert_eq!(b.unwrap().get_fold(), true);
+            assert!(!a.unwrap().get_fold());
+            assert!(b.unwrap().get_fold());
         });
     }
 }
