@@ -399,15 +399,25 @@ pub fn impl_wrap_pyfunction(
     let name = &func.sig.ident;
     let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
     let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, options.pass_module)?;
+    let methoddef = if spec.args.is_empty() {
+        quote!(noargs)
+    } else {
+        quote!(cfunction_with_keywords)
+    };
+    let cfunc = if spec.args.is_empty() {
+        quote!(PyCFunction)
+    } else {
+        quote!(PyCFunctionWithKeywords)
+    };
     let wrapped_pyfunction = quote! {
         #wrapper
         pub(crate) fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
             pyo3::types::PyCFunction::internal_new(
-                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                pyo3::class::methods::PyMethodDef:: #methoddef (
                     #python_name,
-                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper_ident),
+                    pyo3::class::methods:: #cfunc (#wrapper_ident),
                     #doc,
                 ),
                 args.into(),
@@ -443,22 +453,36 @@ fn function_c_wrapper(
         )
     };
     let py = syn::Ident::new("_py", Span::call_site());
-    let body = impl_arg_params(spec, None, cb, &py)?;
-    Ok(quote! {
-        unsafe extern "C" fn #wrapper_ident(
-            _slf: *mut pyo3::ffi::PyObject,
-            _args: *mut pyo3::ffi::PyObject,
-            _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
-        {
-            pyo3::callback::handle_panic(|#py| {
-                #slf_module
-                let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+    if spec.args.is_empty() {
+        Ok(quote! {
+            unsafe extern "C" fn #wrapper_ident(
+                _slf: *mut pyo3::ffi::PyObject,
+                _unused: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+            {
+                pyo3::callback::handle_panic(|#py| {
+                    #slf_module
+                    #cb
+                })
+            }
+        })
+    } else {
+        let body = impl_arg_params(spec, None, cb, &py)?;
+        Ok(quote! {
+            unsafe extern "C" fn #wrapper_ident(
+                _slf: *mut pyo3::ffi::PyObject,
+                _args: *mut pyo3::ffi::PyObject,
+                _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+            {
+                pyo3::callback::handle_panic(|#py| {
+                    #slf_module
+                    let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                    let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
-                #body
-            })
-        }
-    })
+                    #body
+                })
+            }
+        })
+    }
 }
 
 fn type_is_pymodule(ty: &syn::Type) -> bool {

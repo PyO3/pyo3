@@ -239,7 +239,7 @@ macro_rules! wrap_pyfunction {
 /// use pyo3::raw_pycfunction;
 ///
 /// #[pyfunction]
-/// fn some_fun() -> PyResult<()> {
+/// fn some_fun(arg: i32) -> PyResult<()> {
 ///     Ok(())
 /// }
 ///
