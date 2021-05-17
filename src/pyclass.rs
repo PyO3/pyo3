@@ -83,7 +83,7 @@ pub trait PyClassAlloc: PyTypeInfo + PyClassImpl {
     ///
     /// # Safety
     /// `self_` must be a valid pointer to the Python heap.
-    #[allow(clippy::clippy::collapsible_if)] // for if cfg!
+    #[allow(clippy::collapsible_if)] // for if cfg!
     unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = self_ as *mut ffi::PyObject;
@@ -382,7 +382,7 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
-#[allow(clippy::clippy::collapsible_if)] // for if cfg!
+#[allow(clippy::collapsible_if)] // for if cfg!
 fn py_class_properties(
     is_dummy: bool,
     for_each_method_def: &dyn Fn(&mut dyn FnMut(&PyMethodDefType)),
