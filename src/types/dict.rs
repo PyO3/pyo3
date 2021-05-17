@@ -528,8 +528,8 @@ mod test {
         v.insert(7, 32);
         let ob = v.to_object(py);
         let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(true, dict.contains(7i32).unwrap());
-        assert_eq!(false, dict.contains(8i32).unwrap());
+        assert!(dict.contains(7i32).unwrap());
+        assert!(!dict.contains(8i32).unwrap());
     }
 
     #[test]

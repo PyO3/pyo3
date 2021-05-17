@@ -370,7 +370,7 @@ mod test {
         assert_eq!(0, seq.len().unwrap());
 
         let needle = 7i32.to_object(py);
-        assert_eq!(false, seq.contains(&needle).unwrap());
+        assert!(!seq.contains(&needle).unwrap());
     }
 
     #[test]
@@ -383,13 +383,13 @@ mod test {
         assert_eq!(6, seq.len().unwrap());
 
         let bad_needle = 7i32.to_object(py);
-        assert_eq!(false, seq.contains(&bad_needle).unwrap());
+        assert!(!seq.contains(&bad_needle).unwrap());
 
         let good_needle = 8i32.to_object(py);
-        assert_eq!(true, seq.contains(&good_needle).unwrap());
+        assert!(seq.contains(&good_needle).unwrap());
 
         let type_coerced_needle = 8f32.to_object(py);
-        assert_eq!(true, seq.contains(&type_coerced_needle).unwrap());
+        assert!(seq.contains(&type_coerced_needle).unwrap());
     }
 
     #[test]
@@ -527,10 +527,10 @@ mod test {
         let seq = ob.cast_as::<PySequence>(py).unwrap();
 
         let bad_needle = "blurst".to_object(py);
-        assert_eq!(false, seq.contains(bad_needle).unwrap());
+        assert!(!seq.contains(bad_needle).unwrap());
 
         let good_needle = "worst".to_object(py);
-        assert_eq!(true, seq.contains(good_needle).unwrap());
+        assert!(seq.contains(good_needle).unwrap());
     }
 
     #[test]
@@ -668,10 +668,10 @@ mod test {
         let py = gil.python();
         let list = vec![1].to_object(py);
         let seq = list.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(seq.is_empty().unwrap(), false);
+        assert!(!seq.is_empty().unwrap());
         let vec: Vec<u32> = Vec::new();
         let empty_list = vec.to_object(py);
         let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(empty_seq.is_empty().unwrap(), true);
+        assert!(empty_seq.is_empty().unwrap());
     }
 }

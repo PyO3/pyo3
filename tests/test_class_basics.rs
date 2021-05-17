@@ -240,7 +240,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
                 }))
                 .is_err();
 
-            assert_eq!(caught_panic, false);
+            assert!(!caught_panic);
             Ok(obj)
         })
     })
