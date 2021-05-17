@@ -66,7 +66,7 @@ Below are guidelines on what compatibility all PRs are expected to deliver for e
 
 ### Python
 
-PyO3 supports all oficially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
+PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
 
 ### Rust
 
