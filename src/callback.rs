@@ -45,6 +45,7 @@ where
     T: IntoPyCallbackOutput<U>,
     E: Into<PyErr>,
 {
+    #[inline]
     fn convert(self, py: Python) -> PyResult<U> {
         self.map_err(Into::into).and_then(|t| t.convert(py))
     }
@@ -54,30 +55,35 @@ impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for T
 where
     T: IntoPy<PyObject>,
 {
+    #[inline]
     fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
         Ok(self.into_py(py).into_ptr())
     }
 }
 
 impl IntoPyCallbackOutput<Self> for *mut ffi::PyObject {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<Self> {
         Ok(self)
     }
 }
 
 impl IntoPyCallbackOutput<std::os::raw::c_int> for () {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<std::os::raw::c_int> {
         Ok(0)
     }
 }
 
 impl IntoPyCallbackOutput<std::os::raw::c_int> for bool {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<std::os::raw::c_int> {
         Ok(self as c_int)
     }
 }
 
 impl IntoPyCallbackOutput<()> for () {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<()> {
         Ok(())
     }
@@ -97,12 +103,14 @@ impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
 // Converters needed for `#[pyproto]` implementations
 
 impl IntoPyCallbackOutput<bool> for bool {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<bool> {
         Ok(self)
     }
 }
 
 impl IntoPyCallbackOutput<usize> for usize {
+    #[inline]
     fn convert(self, _: Python) -> PyResult<usize> {
         Ok(self)
     }
@@ -112,6 +120,7 @@ impl<T> IntoPyCallbackOutput<PyObject> for T
 where
     T: IntoPy<PyObject>,
 {
+    #[inline]
     fn convert(self, py: Python) -> PyResult<PyObject> {
         Ok(self.into_py(py))
     }
@@ -225,6 +234,7 @@ macro_rules! callback_body {
 /// Then this will fail to compile, because the result of #foo borrows _slf, but _slf drops when
 /// the block passed to the macro ends.
 #[doc(hidden)]
+#[inline]
 pub unsafe fn handle_panic<F, R>(body: F) -> R
 where
     F: FnOnce(Python) -> PyResult<R> + UnwindSafe,
