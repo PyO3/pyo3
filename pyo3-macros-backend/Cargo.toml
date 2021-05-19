@@ -21,3 +21,6 @@ proc-macro2 = { version = "1", default-features = false }
 version = "1"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
+
+[build-dependencies]
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.14.0-alpha.0" }
