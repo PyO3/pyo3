@@ -11,31 +11,30 @@ use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
-/// A Python object with GIL lifetime
+/// Represents any Python object.  
 ///
-/// Represents any Python object.  All Python objects can be cast to `PyAny`.
-/// In addition, if the inner object is an instance of type `T`, we can downcast
-/// `PyAny` into `T`.
+/// It currently only appears as a *reference*, `&PyAny`,
+/// with a lifetime that represents the scope during which the GIL is held.
 ///
-/// `PyAny` is used as a reference with a lifetime that represents that the GIL
-/// is held, therefore its API does not require a `Python<'py>` token.
+/// `PyAny` has some interesting properties, which it shares
+/// with the other [native Python types](crate::types):
+///
+/// - It can only be obtained and used while the GIL is held,
+/// therefore its API does not require a [`Python<'py>`](crate::Python) token.
+/// - It can't be used in situations where the GIL is temporarily released,
+/// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
+/// - It can be mutated through any reference.
+/// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
+/// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
+/// *does* require a [`Python<'py>`](crate::Python) token.
+///
+/// While basic functionality for interacting with Python objects is available on `PyAny`,
+/// doing useful things with it often requires downcasting `PyAny` to a concrete type.
+/// This can be done with [`PyAny::downcast`] (for native Python types only) and [`FromPyObject::extract`]. See their
+/// documentation for more information.
 ///
 /// See [the guide](https://pyo3.rs/main/types.html) for an explanation
 /// of the different Python object types.
-///
-/// # Examples
-///
-/// ```
-/// use pyo3::prelude::*;
-/// use pyo3::types::{PyAny, PyDict, PyList};
-/// Python::with_gil(|py| {
-///     let dict = PyDict::new(py);
-///     assert!(dict.is_instance::<PyAny>().unwrap());
-///     let any: &PyAny = dict.as_ref();
-///     assert!(any.downcast::<PyDict>().is_ok());
-///     assert!(any.downcast::<PyList>().is_err());
-/// });
-/// ```
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
 
@@ -67,7 +66,22 @@ pyobject_native_type_extract!(PyAny);
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 
 impl PyAny {
-    /// Convert this PyAny to a concrete Python type.
+    /// Converts this `PyAny` to a concrete Python type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyAny, PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let dict = PyDict::new(py);
+    ///     assert!(dict.is_instance::<PyAny>().unwrap());
+    ///     let any: &PyAny = dict.as_ref();
+    ///     assert!(any.downcast::<PyDict>().is_ok());
+    ///     assert!(any.downcast::<PyList>().is_err());
+    /// });
+    /// ```
     pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
     where
         for<'py> T: PyTryFrom<'py>,
@@ -130,9 +144,9 @@ impl PyAny {
         })
     }
 
-    /// Compares two Python objects.
+    /// Returns an [`Ordering`] between `self` and `other`.
     ///
-    /// This is equivalent to:
+    /// This is equivalent to the following Python code:
     /// ```python
     /// if self == other:
     ///     return Equal
@@ -142,6 +156,39 @@ impl PyAny {
     ///     return Greater
     /// else:
     ///     raise TypeError("PyAny::compare(): All comparisons returned false")
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyFloat;
+    /// use std::cmp::Ordering;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let a = PyFloat::new(py, 0_f64);
+    ///     let b = PyFloat::new(py, 42_f64);
+    ///     assert_eq!(a.compare(b)?, Ordering::Less);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
+    /// ```
+    ///
+    /// It will return `PyErr` for values that cannot be compared:
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyFloat;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let a = PyFloat::new(py, std::f64::NAN);
+    ///     let b = PyFloat::new(py, 100_f64);
+    ///     assert!(a.compare(b).is_err());
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())}
     /// ```
     pub fn compare<O>(&self, other: O) -> PyResult<Ordering>
     where
@@ -169,16 +216,40 @@ impl PyAny {
         })
     }
 
-    /// Compares two Python objects.
+    /// Tests whether two Python objects obey a given [`CompareOp`].
     ///
     /// Depending on the value of `compare_op`, this is equivalent to one of the
     /// following Python expressions:
-    ///   * CompareOp::Eq: `self == other`
-    ///   * CompareOp::Ne: `self != other`
-    ///   * CompareOp::Lt: `self < other`
-    ///   * CompareOp::Le: `self <= other`
-    ///   * CompareOp::Gt: `self > other`
-    ///   * CompareOp::Ge: `self >= other`
+    ///
+    /// <div style="width:1px">
+    ///
+    /// | `compare_op` | <span style="white-space: pre">Python expression</span> |
+    /// | :---: | :----: |
+    /// | [`CompareOp::Eq`] | <span style="white-space: pre">`self == other`</span> |
+    /// | [`CompareOp::Ne`] | <span style="white-space: pre">`self != other`</span> |
+    /// | [`CompareOp::Lt`] | <span style="white-space: pre">`self < other`</span> |
+    /// | [`CompareOp::Le`] | <span style="white-space: pre">`self <= other`</span> |
+    /// | [`CompareOp::Gt`] | <span style="white-space: pre">`self > other`</span> |
+    /// | [`CompareOp::Ge`] | <span style="white-space: pre">`self >= other`</span> |
+    ///
+    /// </div>
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyInt;
+    /// use pyo3::class::basic::CompareOp;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let a: &PyInt = 0_u8.into_py(py).into_ref(py).downcast()?;
+    ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
+    ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_true()?);
+    ///     Ok(())
+    ///   })?;
+    /// # Ok(())}
+    /// ```
     pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<&PyAny>
     where
         O: ToPyObject,
