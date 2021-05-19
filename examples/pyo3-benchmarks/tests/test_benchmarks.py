@@ -44,3 +44,18 @@ def test_no_args_py(benchmark):
     py = no_args_py()
     assert rust == py
     benchmark(no_args_py)
+
+
+def test_simple_args(benchmark):
+    benchmark(pyo3_benchmarks.simple_args, 1, 3, c=5)
+
+
+def simple_args_py(a, b=2, *, c=4):
+    return a, b, c
+
+
+def test_simple_args_py(benchmark):
+    rust = pyo3_benchmarks.simple_args(1, 3, c=5)
+    py = simple_args_py(1, 3, c=5)
+    assert rust == py
+    benchmark(simple_args_py, 1, 3, c=5)
