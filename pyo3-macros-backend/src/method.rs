@@ -158,6 +158,28 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> syn::Result<SelfType> {
 }
 
 impl<'a> FnSpec<'a> {
+    /// Determine if the function gets passed a *args tuple or **kwargs dict.
+    pub fn accept_args_kwargs(&self) -> (bool, bool) {
+        let (mut accept_args, mut accept_kwargs) = (false, false);
+
+        for s in &self.attrs {
+            match s {
+                Argument::VarArgs(_) => accept_args = true,
+                Argument::KeywordArgs(_) => accept_kwargs = true,
+                _ => continue,
+            }
+        }
+
+        (accept_args, accept_kwargs)
+    }
+
+    /// Return true if the function can use METH_FASTCALL.
+    ///
+    /// This is true on Py3.7+, except with the stable ABI (abi3).
+    pub fn can_use_fastcall(&self) -> bool {
+        cfg!(all(Py_3_7, not(Py_LIMITED_API)))
+    }
+
     /// Parser function signature and function attributes
     pub fn parse(
         sig: &'a mut syn::Signature,

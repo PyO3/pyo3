@@ -14,8 +14,6 @@ pyobject_native_type_core!(PyCFunction, ffi::PyCFunction_Type, #checkfunction=ff
 
 impl PyCFunction {
     /// Create a new built-in function with keywords.
-    ///
-    /// See [raw_pycfunction] for documentation on how to get the `fun` argument.
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
         name: &'static str,

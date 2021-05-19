@@ -122,6 +122,12 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     }
 }
 
+impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
+    fn len(&self) -> usize {
+        self.length - self.index
+    }
+}
+
 impl<'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyAny;
     type IntoIter = PyTupleIterator<'a>;
