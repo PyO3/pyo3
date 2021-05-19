@@ -24,10 +24,16 @@ fn mixed_args<'a>(
 #[pyfunction]
 fn no_args() {}
 
+#[pyfunction(b = 2, "*", c = 4)]
+fn simple_args(a: i32, b: i32, c: i32) -> (i32, i32, i32) {
+    (a, b, c)
+}
+
 #[pymodule]
 fn _pyo3_benchmarks(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(args_and_kwargs, m)?)?;
     m.add_function(wrap_pyfunction!(mixed_args, m)?)?;
     m.add_function(wrap_pyfunction!(no_args, m)?)?;
+    m.add_function(wrap_pyfunction!(simple_args, m)?)?;
     Ok(())
 }
