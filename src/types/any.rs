@@ -23,15 +23,13 @@ use std::os::raw::c_int;
 /// therefore its API does not require a [`Python<'py>`](crate::Python) token.
 /// - It can't be used in situations where the GIL is temporarily released,
 /// such as [`Python::allow_threads`](crate::Python::allow_threads)'s closure.
-/// - It can be mutated through any reference.
+/// - The underlying Python object, if mutable, can be mutated through any reference.
 /// - It can be converted to the GIL-independent [`Py`]`<`[`PyAny`]`>`,
 /// allowing it to outlive the GIL scope. However, using [`Py`]`<`[`PyAny`]`>`'s API
 /// *does* require a [`Python<'py>`](crate::Python) token.
 ///
-/// While basic functionality for interacting with Python objects is available on `PyAny`,
-/// doing useful things with it often requires downcasting `PyAny` to a concrete type.
-/// This can be done with [`PyAny::downcast`] (for native Python types only) and [`FromPyObject::extract`]. See their
-/// documentation for more information.
+/// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
+/// and FromPyObject::extract. See their documentation for more information.
 ///
 /// See [the guide](https://pyo3.rs/main/types.html) for an explanation
 /// of the different Python object types.
@@ -179,12 +177,12 @@ impl PyAny {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyFloat;
+    /// use pyo3::types::{PyFloat, PyString};
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let a = PyFloat::new(py, std::f64::NAN);
-    ///     let b = PyFloat::new(py, 100_f64);
+    ///     let a = PyFloat::new(py, 0_f64);
+    ///     let b = PyString::new(py, "zero");
     ///     assert!(a.compare(b).is_err());
     ///     Ok(())
     /// })?;
