@@ -1,8 +1,67 @@
 use std::{env, process::Command};
 
-use pyo3_build_config::{InterpreterConfig, PythonImplementation};
+use pyo3_build_config::{InterpreterConfig, PythonImplementation, PythonVersion};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+/// Minimum Python version PyO3 supports.
+const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 6 };
+
+// A simple macro for returning an error. Resembles anyhow::bail.
+macro_rules! bail {
+    ($msg: expr) => { return Err($msg.into()); };
+    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
+}
+
+// A simple macro for checking a condition. Resembles anyhow::ensure.
+macro_rules! ensure {
+    ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
+}
+
+fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
+    ensure!(
+        interpreter_config.version >= MINIMUM_SUPPORTED_VERSION,
+        "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
+        interpreter_config.version,
+        MINIMUM_SUPPORTED_VERSION,
+    );
+
+    Ok(())
+}
+
+fn ensure_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
+    // Try to check whether the target architecture matches the python library
+    let rust_target = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap().as_str() {
+        "64" => "64-bit",
+        "32" => "32-bit",
+        x => bail!("unexpected Rust target pointer width: {}", x),
+    };
+
+    // The reason we don't use platform.architecture() here is that it's not
+    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
+    // Similarly, sys.maxsize is not reliable on Windows. See
+    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
+    // and https://stackoverflow.com/a/3411134/823869.
+    let python_target = match interpreter_config.calcsize_pointer {
+        Some(8) => "64-bit",
+        Some(4) => "32-bit",
+        None => {
+            // Unset, e.g. because we're cross-compiling. Don't check anything
+            // in this case.
+            return Ok(());
+        }
+        Some(n) => bail!("unexpected Python calcsize_pointer value: {}", n),
+    };
+
+    ensure!(
+        rust_target == python_target,
+        "Your Rust target architecture ({}) does not match your python interpreter ({})",
+        rust_target,
+        python_target
+    );
+
+    Ok(())
+}
 
 fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
     let link_name = if env::var_os("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
@@ -127,9 +186,11 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 }
 
 fn configure_pyo3() -> Result<()> {
-    let cfg = pyo3_build_config::get();
-    emit_cargo_configuration(&cfg)?;
-    cfg.emit_pyo3_cfgs();
+    let interpreter_config = pyo3_build_config::get();
+    ensure_python_version(&interpreter_config)?;
+    ensure_target_architecture(&interpreter_config)?;
+    emit_cargo_configuration(&interpreter_config)?;
+    interpreter_config.emit_pyo3_cfgs();
 
     // Enable use of const generics on Rust 1.51 and greater
     if rustc_minor_version().unwrap_or(0) >= 51 {

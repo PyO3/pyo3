@@ -730,54 +730,6 @@ print("calcsize_pointer", struct.calcsize("P"))
     })
 }
 
-fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
-    ensure!(
-        interpreter_config.version >= MINIMUM_SUPPORTED_VERSION,
-        "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-        interpreter_config.version,
-        MINIMUM_SUPPORTED_VERSION,
-    );
-
-    Ok(())
-}
-
-fn ensure_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
-    // Try to check whether the target architecture matches the python library
-    let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
-        .unwrap()
-        .as_str()
-    {
-        "64" => "64-bit",
-        "32" => "32-bit",
-        x => bail!("unexpected Rust target pointer width: {}", x),
-    };
-
-    // The reason we don't use platform.architecture() here is that it's not
-    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
-    // Similarly, sys.maxsize is not reliable on Windows. See
-    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
-    // and https://stackoverflow.com/a/3411134/823869.
-    let python_target = match interpreter_config.calcsize_pointer {
-        Some(8) => "64-bit",
-        Some(4) => "32-bit",
-        None => {
-            // Unset, e.g. because we're cross-compiling. Don't check anything
-            // in this case.
-            return Ok(());
-        }
-        Some(n) => bail!("unexpected Python calcsize_pointer value: {}", n),
-    };
-
-    ensure!(
-        rust_target == python_target,
-        "Your Rust target architecture ({}) does not match your python interpreter ({})",
-        rust_target,
-        python_target
-    );
-
-    Ok(())
-}
-
 fn get_abi3_minor_version() -> Option<u8> {
     (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
@@ -830,8 +782,6 @@ fn get_interpreter_config() -> Result<InterpreterConfig> {
 
 pub fn configure() -> Result<()> {
     let interpreter_config = get_interpreter_config()?;
-    ensure_python_version(&interpreter_config)?;
-    ensure_target_architecture(&interpreter_config)?;
     write_interpreter_config(&interpreter_config)
 }
 

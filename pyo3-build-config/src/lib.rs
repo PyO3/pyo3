@@ -9,7 +9,7 @@
 mod impl_;
 
 #[doc(hidden)]
-pub use crate::impl_::{InterpreterConfig, PythonImplementation};
+pub use crate::impl_::{InterpreterConfig, PythonImplementation, PythonVersion};
 
 #[doc(hidden)]
 pub fn get() -> InterpreterConfig {
