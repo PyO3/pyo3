@@ -132,7 +132,7 @@ impl PyAny {
 
     /// Deletes an attribute.
     ///
-    /// This is equivalent to the Python expression `del self.attr_name`.
+    /// This is equivalent to the Python statement `del self.attr_name`.
     pub fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
         N: ToPyObject,
@@ -267,24 +267,6 @@ impl PyAny {
     ///
     /// This is equivalent to Python's [`callable()`][1] function.
     ///
-    /// This function returning `true` does not guarantee that a call will succeed.
-    /// For this reason, avoid calling potentially callable objects like this:
-    ///
-    /// ```ignore
-    /// if some_object.is_callable() {
-    ///     let value = some_object.call0().unwrap();
-    /// };
-    /// ```
-    ///
-    /// Instead, just attempt to call it and handle any errors:
-    ///
-    /// ```ignore
-    /// match some_object.call0() {
-    ///    Ok(value) => ...,
-    ///    Err(e) => ...,
-    /// }
-    /// ```
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -300,7 +282,12 @@ impl PyAny {
     /// # Ok(())}
     /// ```
     ///
-    /// This is equivalent to the Python expression `assert callable(print)`.
+    /// This is equivalent to the Python statement `assert callable(print)`.
+    ///
+    /// Note that unless an API needs to distinguish between callable and
+    /// non-callable objects, there is no point in checking for callability.
+    /// Instead, it is better to just do the call and handle potential
+    /// exceptions.
     ///
     /// [1]: https://docs.python.org/3/library/functions.html#callable
     pub fn is_callable(&self) -> bool {
