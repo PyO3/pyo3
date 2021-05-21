@@ -133,8 +133,7 @@ fn impl_proto_methods(
 
     let mut maybe_buffer_methods = None;
 
-    #[cfg(not(Py_3_9))]
-    if proto.name == "Buffer" {
+    if cfg!(not(Py_3_9)) && proto.name == "Buffer" {
         maybe_buffer_methods = Some(quote! {
             impl pyo3::class::impl_::PyBufferProtocolProcs<#ty>
                 for pyo3::class::impl_::PyClassImplCollector<#ty>
