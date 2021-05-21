@@ -2,6 +2,8 @@
 //!
 //! The only public API currently exposed is [`use_pyo3_cfgs`], which is intended to be used in
 //! build scripts to add a standard set of `#[cfg]` flags for handling multiple Python versions.
+//!
+//! TODO: tabulate all the flags here
 
 #[allow(dead_code)] // TODO cover this using tests
 mod impl_;

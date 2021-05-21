@@ -43,8 +43,7 @@ There are two ways to distribute your module as a Python package: [setuptools-ru
 
 By default, Python extension modules can only be used with the same Python version they were compiled against -- if you build an extension module with Python 3.5, you can't import it using Python 3.8. [PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. This is also known as `abi3`.
 
-Note that [maturin] >= 0.9.0 or [setuptools-rust] >= 0.11.4 support `abi3` wheels.
-See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) for more.
+The advantage of building extension module using the limited Python API is that you only need to build and distribute a single copy (for each OS / architecture), and your users can install it on all Python versions from your [minimum version](#minimum-python-version-for-abi3) and up. The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version. It's up to you to decide whether this matters for your extension module. It's also possible to design your extension module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building_and_distribution/multiple_python_versions.html) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
 
 There are three steps involved in making use of `abi3` when building Python packages as wheels:
 
@@ -55,7 +54,8 @@ There are three steps involved in making use of `abi3` when building Python pack
 pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3"] }
 ```
 
-2. Ensure that the built shared objects are correctly marked as `abi3`. This is accomplished by telling your build system that you're using the limited API.
+2. Ensure that the built shared objects are correctly marked as `abi3`. This is accomplished by telling your build system that you're using the limited API. [maturin] >= 0.9.0 and [setuptools-rust] >= 0.11.4 support `abi3` wheels.
+See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) for more.
 
 3. Ensure that the `.whl` is correctly marked as `abi3`. For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
 
@@ -76,6 +76,7 @@ not work when compiling for `abi3`. These are:
 - `#[text_signature]` does not work on classes until Python 3.10 or greater.
 - The `dict` and `weakref` options on classes are not supported until Python 3.9 or greater.
 - The buffer API is not supported.
+- Optimizations which rely on knowledge of the exact Python version compiled against.
 
 ## Cross Compiling
 
