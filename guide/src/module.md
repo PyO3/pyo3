@@ -15,7 +15,8 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values, and the Rust return value back into a Python object.
     // The `_py` argument represents that we're holding the GIL.
-    #[pyfn(m, "sum_as_string")]
+    #[pyfn(m)]
+    #[pyo3(name = "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
         let out = sum_as_string(a, b);
         Ok(out)
@@ -32,7 +33,7 @@ fn sum_as_string(a: i64, b: i64) -> String {
 # fn main() {}
 ```
 
-The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your 
+The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your
 module to Python. It can take as an argument the name of your module, which must be the name of the `.so`
 or `.pyd` file; the default is the Rust function's name.
 
@@ -41,7 +42,7 @@ If the name of the module (the default being the function name) does not match t
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
 To import the module, either copy the shared library as described in [the README](https://github.com/PyO3/pyo3)
-or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or 
+or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
 `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation

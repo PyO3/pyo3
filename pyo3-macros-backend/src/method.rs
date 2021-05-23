@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::pyfunction::Argument;
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
 use crate::utils;
+use crate::{deprecations::Deprecations, pyfunction::Argument};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
@@ -122,7 +122,6 @@ impl SelfType {
     }
 }
 
-#[derive(Clone, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
@@ -134,7 +133,7 @@ pub struct FnSpec<'a> {
     pub args: Vec<FnArg<'a>>,
     pub output: syn::Type,
     pub doc: syn::LitStr,
-    pub name_is_deprecated: bool,
+    pub deprecations: Deprecations,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -217,15 +216,13 @@ impl<'a> FnSpec<'a> {
             args: arguments,
             output: ty,
             doc,
-            name_is_deprecated: options.name_is_deprecated,
+            deprecations: options.deprecations,
         })
     }
 
-    pub fn python_name_with_deprecation(&self) -> TokenStream {
-        let deprecation =
-            utils::name_deprecation_token(self.python_name.span(), self.name_is_deprecated);
+    pub fn null_terminated_python_name(&self) -> TokenStream {
         let name = format!("{}\0", self.python_name);
-        quote!({#deprecation #name})
+        quote!({#name})
     }
 
     fn parse_text_signature(

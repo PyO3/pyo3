@@ -508,10 +508,10 @@ fn impl_descriptors(
                     );
                     match desc {
                         FnType::Getter(self_ty) => {
-                            impl_py_getter_def(cls, property_type, self_ty, &doc)
+                            impl_py_getter_def(cls, property_type, self_ty, &doc, &Default::default())
                         }
                         FnType::Setter(self_ty) => {
-                            impl_py_setter_def(cls, property_type, self_ty, &doc)
+                            impl_py_setter_def(cls, property_type, self_ty, &doc, &Default::default())
                         }
                         _ => unreachable!(),
                     }

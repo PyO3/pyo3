@@ -1,8 +1,10 @@
-use crate::attributes::{
-    self, get_deprecated_name_attribute, get_pyo3_attributes, is_attribute_ident, take_attributes,
-    NameAttribute,
+use crate::{
+    attributes::{
+        self, get_deprecated_name_attribute, get_pyo3_attributes, is_attribute_ident,
+        take_attributes, NameAttribute,
+    },
+    deprecations::Deprecations,
 };
-use crate::utils;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -19,12 +21,10 @@ pub struct ConstSpec {
 
 impl ConstSpec {
     /// Null-terminated Python name
-    pub fn python_name_with_deprecation(&self) -> TokenStream {
+    pub fn null_terminated_python_name(&self) -> TokenStream {
         if let Some(name) = &self.attributes.name {
-            let deprecation =
-                utils::name_deprecation_token(name.0.span(), self.attributes.name_is_deprecated);
             let name = format!("{}\0", name.0);
-            quote!({#deprecation #name})
+            quote!({#name})
         } else {
             let name = format!("{}\0", self.rust_ident.unraw().to_string());
             quote!(#name)
@@ -35,7 +35,7 @@ impl ConstSpec {
 pub struct ConstAttributes {
     pub is_class_attr: bool,
     pub name: Option<NameAttribute>,
-    pub name_is_deprecated: bool,
+    pub deprecations: Deprecations,
 }
 
 pub enum PyO3ConstAttribute {
@@ -58,7 +58,7 @@ impl ConstAttributes {
         let mut attributes = ConstAttributes {
             is_class_attr: false,
             name: None,
-            name_is_deprecated: false,
+            deprecations: Deprecations::new(),
         };
 
         take_attributes(attrs, |attr| {
@@ -76,9 +76,10 @@ impl ConstAttributes {
                     }
                 }
                 Ok(true)
-            } else if let Some(name) = get_deprecated_name_attribute(attr)? {
+            } else if let Some(name) =
+                get_deprecated_name_attribute(attr, &mut attributes.deprecations)?
+            {
                 attributes.set_name(name)?;
-                attributes.name_is_deprecated = true;
                 Ok(true)
             } else {
                 Ok(false)

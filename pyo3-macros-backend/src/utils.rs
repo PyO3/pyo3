@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use proc_macro2::{Span, TokenStream};
-use quote::quote_spanned;
+use proc_macro2::Span;
 use syn::spanned::Spanned;
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
@@ -164,15 +163,4 @@ pub fn get_doc(
     }
 
     Ok(syn::LitStr::new(&doc, span))
-}
-
-pub fn name_deprecation_token(span: Span, name_is_deprecated: bool) -> Option<TokenStream> {
-    if name_is_deprecated {
-        Some(quote_spanned!(
-            span =>
-            let _ = pyo3::impl_::deprecations::NAME_ATTRIBUTE;
-        ))
-    } else {
-        None
-    }
 }
