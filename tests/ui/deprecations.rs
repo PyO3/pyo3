@@ -29,7 +29,7 @@ impl TestClass {
 #[text_signature = "()"]
 fn deprecated_name_pyfunction() { }
 
-#[pymodule]
+#[pymodule(deprecated_module_name)]
 fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "some_name")]
     #[text_signature = "()"]

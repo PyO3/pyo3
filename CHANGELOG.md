@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Reduce LLVM line counts to improve compilation times. [#1604](https://github.com/PyO3/pyo3/pull/1604)
 - Deprecate string-literal second argument to `#[pyfn(m, "name")]`. [#1610](https://github.com/PyO3/pyo3/pull/1610)
 - No longer call `PyEval_InitThreads()` in `#[pymodule]` init code. [#1630](https://github.com/PyO3/pyo3/pull/1630)
+- Deprecate `#[pymodule(name)]` option in favor of `#[pyo3(name = "...")]`. [#1650](https://github.com/PyO3/pyo3/pull/1650)
 - Deprecate `#[text_signature = "..."]` attributes in favor of `#[pyo3(text_signature = "...")]`. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 - Use `METH_FASTCALL` argument passing convention, when possible, to improve `#[pyfunction]` and method performance.
   [#1619](https://github.com/PyO3/pyo3/pull/1619), [#1660](https://github.com/PyO3/pyo3/pull/1660)

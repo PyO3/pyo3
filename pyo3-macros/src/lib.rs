@@ -9,23 +9,43 @@ use proc_macro::TokenStream;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,
     build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions,
+    PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::parse_macro_input;
 
 /// A proc macro used to implement Python modules.
 ///
-/// For more on creating Python modules
-/// see the [module section of the guide](https://pyo3.rs/main/module.html).
+/// The name of the module will be taken from the function name, unless `#[pyo3(name = "my_name")]`
+/// is also annotated on the function to override the name. **Important**: the module name should
+/// match the `lib.name` setting in `Cargo.toml`, so that Python is able to import the module
+/// without needing a custom import loader.
+///
+/// Functions annotated with `#[pymodule]` can also be annotated with the following:
+///
+/// |  Annotation  |  Description |
+/// | :-  | :- |
+/// | `#[pyo3(name = "...")]` | Defines the name of the module in Python. |
+///
+/// For more on creating Python modules see the [module section of the guide][1].
+///
+/// [1]: https://pyo3.rs/main/module.html
 #[proc_macro_attribute]
 pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
 
-    let modname = if attr.is_empty() {
-        ast.sig.ident.clone()
+    let deprecated_pymodule_name_arg = if attr.is_empty() {
+        None
     } else {
-        parse_macro_input!(attr as syn::Ident)
+        Some(parse_macro_input!(attr as syn::Ident))
+    };
+
+    let options = match PyModuleOptions::from_pymodule_arg_and_attrs(
+        deprecated_pymodule_name_arg,
+        &mut ast.attrs,
+    ) {
+        Ok(options) => options,
+        Err(e) => return e.to_compile_error().into(),
     };
 
     if let Err(err) = process_functions_in_module(&mut ast) {
@@ -37,7 +57,7 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
-    let expanded = py_init(&ast.sig.ident, &modname, doc);
+    let expanded = py_init(&ast.sig.ident, options, doc);
 
     quote!(
         #ast
