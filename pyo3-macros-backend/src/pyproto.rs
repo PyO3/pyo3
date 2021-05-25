@@ -132,10 +132,8 @@ fn impl_proto_methods(
     let slots_trait_slots = proto.slots_trait_slots();
 
     let mut maybe_buffer_methods = None;
-    if proto.name == "Buffer" {
-        // On Python 3.9 we have to use PyBufferProcs to set buffer slots.
-        // For now we emit this always for buffer methods, even on 3.9+.
-        // Maybe in the future we can access Py_3_9 here and define it.
+
+    if cfg!(not(Py_3_9)) && proto.name == "Buffer" {
         maybe_buffer_methods = Some(quote! {
             impl pyo3::class::impl_::PyBufferProtocolProcs<#ty>
                 for pyo3::class::impl_::PyClassImplCollector<#ty>

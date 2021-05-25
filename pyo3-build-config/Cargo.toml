@@ -1,0 +1,22 @@
+[package]
+name = "pyo3-build-config"
+version = "0.14.0-alpha.0"
+description = "Build configuration for the PyO3 ecosystem"
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+keywords = ["pyo3", "python", "cpython", "ffi"]
+homepage = "https://github.com/pyo3/pyo3"
+repository = "https://github.com/pyo3/pyo3"
+categories = ["api-bindings", "development-tools::ffi"]
+license = "Apache-2.0"
+edition = "2018"
+
+[dependencies]
+
+[features]
+default = []
+
+abi3 = []
+abi3-py36 = ["abi3-py37"]
+abi3-py37 = ["abi3-py38"]
+abi3-py38 = ["abi3-py39"]
+abi3-py39 = ["abi3"]
