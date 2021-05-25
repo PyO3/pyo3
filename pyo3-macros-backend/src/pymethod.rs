@@ -1,3 +1,4 @@
+use crate::utils::ensure_not_async_fn;
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{attributes::FromPyWithAttribute, konst::ConstSpec};
 use crate::{deprecations::Deprecations, utils};
@@ -28,6 +29,7 @@ pub fn gen_py_method(
     options: PyFunctionOptions,
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
+    ensure_not_async_fn(sig)?;
     let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
     Ok(match &spec.tp {

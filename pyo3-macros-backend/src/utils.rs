@@ -164,3 +164,14 @@ pub fn get_doc(
 
     Ok(syn::LitStr::new(&doc, span))
 }
+
+pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
+    if let Some(asyncness) = &sig.asyncness {
+        bail_spanned!(
+            asyncness.span() => "`async fn` is not yet supported for Python functions.\n\n\
+            Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and \
+            Python. For more information, see https://github.com/PyO3/pyo3/issues/1632"
+        );
+    };
+    Ok(())
+}
