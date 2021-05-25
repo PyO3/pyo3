@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove pyclass implementation details from `PyTypeInfo`:
   - `Type`, `DESCRIPTION`, and `FLAGS` [#1456](https://github.com/PyO3/pyo3/pull/1456)
   - `BaseType`, `BaseLayout`, `Layout`, `Initializer` [#1596](https://github.com/PyO3/pyo3/pull/1596)
+  - `PyModuleDef_INIT` [#1630](https://github.com/PyO3/pyo3/pull/1630)
 - Remove `__doc__` from module's `__all__`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
 - Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality. [#1521](https://github.com/PyO3/pyo3/pull/1521)
 

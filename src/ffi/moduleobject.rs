@@ -90,19 +90,3 @@ pub struct PyModuleDef {
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
 }
-
-/// Helper initial value of [`PyModuleDef`] for a Python class.
-///
-/// Not present in the Python C API.
-#[deprecated(note = "not present in Python headers; to be removed")]
-pub const PyModuleDef_INIT: PyModuleDef = PyModuleDef {
-    m_base: PyModuleDef_HEAD_INIT,
-    m_name: std::ptr::null(),
-    m_doc: std::ptr::null(),
-    m_size: 0,
-    m_methods: std::ptr::null_mut(),
-    m_slots: std::ptr::null_mut(),
-    m_traverse: None,
-    m_clear: None,
-    m_free: None,
-};
