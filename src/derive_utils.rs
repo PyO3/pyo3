@@ -315,12 +315,6 @@ impl ModuleDef {
         py: Python,
         initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
     ) -> PyResult<*mut ffi::PyObject> {
-        #[cfg(py_sys_config = "WITH_THREAD")]
-        // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
-        // > to call it yourself anymore.
-        #[cfg(not(Py_3_7))]
-        ffi::PyEval_InitThreads();
-
         let module =
             unsafe { py.from_owned_ptr_or_err::<PyModule>(ffi::PyModule_Create(self.0.get()))? };
         initializer(py, module)?;

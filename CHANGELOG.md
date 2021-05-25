@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate `#[name = "..."]` attributes in favor of `#[pyo3(name = "...")]`. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 - Reduce LLVM line counts to improve compilation times. [#1604](https://github.com/PyO3/pyo3/pull/1604)
 - Deprecate string-literal second argument to `#[pyfn(m, "name")]`. [#1610](https://github.com/PyO3/pyo3/pull/1610)
+- No longer call `PyEval_InitThreads()` in `#[pymodule]` init code. [#1630](https://github.com/PyO3/pyo3/pull/1630)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)
