@@ -22,10 +22,11 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
         /// the module.
         pub unsafe extern "C" fn #cb_name() -> *mut pyo3::ffi::PyObject {
             use pyo3::derive_utils::ModuleDef;
-            const NAME: &'static str = concat!(stringify!(#name), "\0");
-            static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME) };
+            static NAME: &str = concat!(stringify!(#name), "\0");
+            static DOC: &str = concat!(#doc, "\0");
+            static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME, DOC) };
 
-            pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(#doc, #fnname) })
+            pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(_py, #fnname) })
         }
     }
 }

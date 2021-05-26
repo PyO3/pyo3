@@ -9,7 +9,7 @@ use crate::exceptions::PyTypeError;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
-use crate::{ffi, GILPool, PyCell, Python};
+use crate::{ffi, PyCell, Python};
 use std::cell::UnsafeCell;
 
 #[derive(Debug)]
@@ -281,7 +281,6 @@ pub fn argument_extraction_error(py: Python, arg_name: &str, error: PyErr) -> Py
 }
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
-#[doc(hidden)]
 pub struct ModuleDef(UnsafeCell<ffi::PyModuleDef>);
 
 unsafe impl Sync for ModuleDef {}
@@ -291,35 +290,33 @@ impl ModuleDef {
     ///
     /// # Safety
     /// `name` must be a null-terminated string.
-    pub const unsafe fn new(name: &'static str) -> Self {
-        #[allow(deprecated)]
-        let mut init = ffi::PyModuleDef_INIT;
-        init.m_name = name.as_ptr() as *const _;
-        ModuleDef(UnsafeCell::new(init))
+    pub const unsafe fn new(name: &'static str, doc: &'static str) -> Self {
+        const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
+            m_base: ffi::PyModuleDef_HEAD_INIT,
+            m_name: std::ptr::null(),
+            m_doc: std::ptr::null(),
+            m_size: 0,
+            m_methods: std::ptr::null_mut(),
+            m_slots: std::ptr::null_mut(),
+            m_traverse: None,
+            m_clear: None,
+            m_free: None,
+        };
+
+        ModuleDef(UnsafeCell::new(ffi::PyModuleDef {
+            m_name: name.as_ptr() as *const _,
+            m_doc: doc.as_ptr() as *const _,
+            ..INIT
+        }))
     }
     /// Builds a module using user given initializer. Used for `#[pymodule]`.
-    ///
-    /// # Safety
-    /// The caller must have GIL.
-    pub unsafe fn make_module(
+    pub fn make_module(
         &'static self,
-        doc: &str,
+        py: Python,
         initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
     ) -> PyResult<*mut ffi::PyObject> {
-        #[cfg(py_sys_config = "WITH_THREAD")]
-        // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
-        // > to call it yourself anymore.
-        #[cfg(not(Py_3_7))]
-        ffi::PyEval_InitThreads();
-
-        let module = ffi::PyModule_Create(self.0.get());
-        let pool = GILPool::new();
-        let py = pool.python();
-        if module.is_null() {
-            return Err(crate::PyErr::fetch(py));
-        }
-        let module = py.from_owned_ptr_or_err::<PyModule>(module)?;
-        module.setattr("__doc__", doc)?;
+        let module =
+            unsafe { py.from_owned_ptr_or_err::<PyModule>(ffi::PyModule_Create(self.0.get()))? };
         initializer(py, module)?;
         Ok(crate::IntoPyPointer::into_ptr(module))
     }
