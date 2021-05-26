@@ -1,12 +1,9 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::collections::{BTreeMap, HashMap};
-use test::Bencher;
 
-#[bench]
 fn iter_dict(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -21,7 +18,6 @@ fn iter_dict(b: &mut Bencher) {
     });
 }
 
-#[bench]
 fn dict_get_item(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -35,7 +31,6 @@ fn dict_get_item(b: &mut Bencher) {
     });
 }
 
-#[bench]
 fn extract_hashmap(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -44,7 +39,6 @@ fn extract_hashmap(b: &mut Bencher) {
     b.iter(|| HashMap::<u64, u64>::extract(dict));
 }
 
-#[bench]
 fn extract_btreemap(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -53,7 +47,6 @@ fn extract_btreemap(b: &mut Bencher) {
     b.iter(|| BTreeMap::<u64, u64>::extract(dict));
 }
 
-#[bench]
 #[cfg(feature = "hashbrown")]
 fn extract_hashbrown_map(b: &mut Bencher) {
     let gil = Python::acquire_gil();
@@ -62,3 +55,16 @@ fn extract_hashbrown_map(b: &mut Bencher) {
     let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
     b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict));
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("iter_dict", iter_dict);
+    c.bench_function("dict_get_item", dict_get_item);
+    c.bench_function("extract_hashmap", extract_hashmap);
+    c.bench_function("extract_btreemap", extract_btreemap);
+
+    #[cfg(feature = "hashbrown")]
+    c.bench_function("extract_hashbrown_map", extract_hashbrown_map);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);

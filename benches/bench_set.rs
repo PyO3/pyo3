@@ -1,12 +1,9 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::prelude::*;
 use pyo3::types::PySet;
 use std::collections::{BTreeSet, HashSet};
-use test::Bencher;
 
-#[bench]
 fn iter_set(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -21,7 +18,6 @@ fn iter_set(b: &mut Bencher) {
     });
 }
 
-#[bench]
 fn extract_hashset(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -30,7 +26,6 @@ fn extract_hashset(b: &mut Bencher) {
     b.iter(|| HashSet::<u64>::extract(set));
 }
 
-#[bench]
 fn extract_btreeset(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -39,7 +34,6 @@ fn extract_btreeset(b: &mut Bencher) {
     b.iter(|| BTreeSet::<u64>::extract(set));
 }
 
-#[bench]
 #[cfg(feature = "hashbrown")]
 fn extract_hashbrown_set(b: &mut Bencher) {
     let gil = Python::acquire_gil();
@@ -48,3 +42,15 @@ fn extract_hashbrown_set(b: &mut Bencher) {
     let set = PySet::new(py, &(0..LEN).collect::<Vec<_>>()).unwrap();
     b.iter(|| hashbrown::HashSet::<u64>::extract(set));
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("iter_set", iter_set);
+    c.bench_function("extract_hashset", extract_hashset);
+    c.bench_function("extract_btreeset", extract_btreeset);
+
+    #[cfg(feature = "hashbrown")]
+    c.bench_function("extract_hashbrown_set", extract_hashbrown_set);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);

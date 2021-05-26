@@ -1,8 +1,6 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::{class::PyObjectProtocol, prelude::*, type_object::LazyStaticType};
-use test::Bencher;
 
 /// This is a feature-rich class instance used to benchmark various parts of the pyclass lifecycle.
 #[pyclass]
@@ -33,7 +31,6 @@ impl PyObjectProtocol for MyClass {
     }
 }
 
-#[bench]
 fn first_time_init(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -44,3 +41,10 @@ fn first_time_init(b: &mut Bencher) {
         ty.get_or_init::<MyClass>(py);
     });
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("first_time_init", first_time_init);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);

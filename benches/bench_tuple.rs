@@ -1,11 +1,8 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
-use test::Bencher;
 
-#[bench]
 fn iter_tuple(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -20,7 +17,6 @@ fn iter_tuple(b: &mut Bencher) {
     });
 }
 
-#[bench]
 fn tuple_get_item(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -33,3 +29,11 @@ fn tuple_get_item(b: &mut Bencher) {
         }
     });
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("iter_tuple", iter_tuple);
+    c.bench_function("tuple_get_item", tuple_get_item);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);
