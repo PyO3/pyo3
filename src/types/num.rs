@@ -199,6 +199,7 @@ mod fast_128bit_int_conversion {
                             1,
                             $is_signed,
                         );
+                        ffi::Py_DECREF(num);
                         if ok == -1 {
                             Err(PyErr::fetch(ob.py()))
                         } else {
