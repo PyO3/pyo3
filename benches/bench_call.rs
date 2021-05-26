@@ -1,8 +1,6 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::prelude::*;
-use test::Bencher;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
@@ -11,7 +9,6 @@ macro_rules! test_module {
     };
 }
 
-#[bench]
 fn bench_call_0(b: &mut Bencher) {
     Python::with_gil(|py| {
         let module = test_module!(
@@ -31,7 +28,6 @@ fn bench_call_0(b: &mut Bencher) {
     })
 }
 
-#[bench]
 fn bench_call_method_0(b: &mut Bencher) {
     Python::with_gil(|py| {
         let module = test_module!(
@@ -51,3 +47,11 @@ fn bench_call_method_0(b: &mut Bencher) {
         });
     })
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("call_0", bench_call_0);
+    c.bench_function("call_method_0", bench_call_method_0);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);

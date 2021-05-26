@@ -1,10 +1,7 @@
-#![feature(test)]
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-extern crate test;
 use pyo3::prelude::*;
-use test::Bencher;
 
-#[bench]
 fn drop_many_objects(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -14,3 +11,10 @@ fn drop_many_objects(b: &mut Bencher) {
         }
     });
 }
+
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("drop_many_objects", drop_many_objects);
+}
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);
