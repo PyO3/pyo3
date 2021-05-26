@@ -103,4 +103,9 @@ impl MyClass {
     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
 }
 
+#[pymethods]
+impl MyClass {
+    async fn async_method(&self) {}
+}
+
 fn main() {}

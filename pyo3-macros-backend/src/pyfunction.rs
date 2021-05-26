@@ -8,7 +8,7 @@ use crate::{
     deprecations::Deprecations,
     method::{self, FnArg, FnSpec},
     pymethod::{check_generic, get_arg_names, impl_arg_params},
-    utils,
+    utils::{self, ensure_not_async_fn},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -349,6 +349,7 @@ pub fn impl_wrap_pyfunction(
     options: PyFunctionOptions,
 ) -> syn::Result<(Ident, TokenStream)> {
     check_generic(&func.sig)?;
+    ensure_not_async_fn(&func.sig)?;
 
     let python_name = options
         .name
