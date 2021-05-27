@@ -245,17 +245,17 @@ impl<'a> Container<'a> {
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
                 None => quote!(#get_field.extract().map_err(|inner| {
-                    let err_msg = format!("Failed to extract field {} of {}:\n{} ",
-                        stringify!(#ident),
+                    let err_msg = format!("failed to extract field {}.{}\n\nCaused by:\n    {}\n",
                         stringify!(#self_ty),
+                        stringify!(#ident),
                         inner);
                     pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?),
                 Some(FromPyWithAttribute(expr_path)) => quote! (#expr_path(#get_field).
                     map_err(|inner| {
-                        let err_msg = format!("Failed to extract field {} of {}:\n{} ",
-                            stringify!(#ident),
+                        let err_msg = format!("failed to extract field {}.{}\n\nCaused by:\n    {}\n",
                             stringify!(#self_ty),
+                            stringify!(#ident),
                             inner);
                         pyo3::exceptions::PyTypeError::new_err(err_msg)
                     })?),
