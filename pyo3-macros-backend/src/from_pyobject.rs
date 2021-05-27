@@ -200,10 +200,21 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
             quote!(
-                Ok(#self_ty{#ident: obj.extract()?})
+                Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
+                   let err_msg = format!("failed to extract field {}.{}\n\nCaused by:\n    {}\n",
+                            stringify!(#self_ty),
+                            stringify!(#ident),
+                            inner);
+                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                })?})
             )
         } else {
-            quote!(Ok(#self_ty(obj.extract()?)))
+            quote!(Ok(#self_ty(obj.extract().map_err(|inner| {
+                let err_msg = format!("failed to extract inner field of {}\n\nCaused by:\n    {}\n",
+                            stringify!(#self_ty),
+                            inner);
+                pyo3::exceptions::PyTypeError::new_err(err_msg)
+            })?)))
         }
     }
 
@@ -211,7 +222,13 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for i in 0..len {
-            fields.push(quote!(s.get_item(#i).extract()?));
+            fields.push(quote!(s.get_item(#i).extract().map_err(|inner| {
+                let err_msg = format!("failed to extract field {}.{}\n\nCaused by:\n    {}\n",
+                            stringify!(#self_ty),
+                            #i,
+                            inner);
+                pyo3::exceptions::PyTypeError::new_err(err_msg)
+            })?));
         }
         let msg = if self.is_enum_variant {
             quote!(format!(
