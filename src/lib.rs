@@ -4,41 +4,132 @@
 
 //! Rust bindings to the Python interpreter.
 //!
-//! Look at [the guide](https://pyo3.rs/) for a detailed introduction.
+//! PyO3 can be used to write native Python modules and run Python code and modules from Rust.
 //!
-//! # Ownership and Lifetimes
+//! See [the guide](https://pyo3.rs/) for a detailed introduction.
 //!
-//! Because all Python objects potentially have multiple owners, the concept of
-//! Rust mutability does not apply to Python objects.  As a result, PyO3 allows
-//! mutating Python objects even if they are not stored in a mutable Rust
-//! variable.
+//! # PyO3's object types
 //!
-//! In Python, all objects are implicitly reference counted.  The Python
-//! interpreter uses a global interpreter lock (GIL) to ensure thread-safety.
-//! Thus, we use `struct Python<'py>` as a token to indicate that
-//! a function can assume that the GIL is held.  In Rust, we use different types
-//! to represent a reference to a Python object, depending on whether we know
-//! the GIL is held, and depending on whether we know the underlying type.  See
-//! [the guide](https://pyo3.rs/main/types.html) for an explanation of
-//! the different Python object types.
+//! PyO3 has several core types that you should familiarize yourself with:
 //!
-//! A `Python` instance is either obtained explicitly by acquiring the GIL,
-//! or implicitly by PyO3 when it generates the wrapper code for Rust functions
-//! and structs wrapped as Python functions and objects.
+//! ## The Python<'py> object
 //!
-//! # Error Handling
+//! Holding the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock)
+//! (GIL) is modeled with the [`Python<'py>`](crate::Python) token.
+//! All APIs that require that the GIL is held require this token as proof
+//! that you really are holding the GIL. It can be explicitly acquired and 
+//! is also implicitly acquired by PyO3 as it wraps Rust functions and structs
+//! into Python functions and objects. 
 //!
-//! The vast majority of operations in this library will return `PyResult<...>`.
+//! ## The GIL-dependent types
+//!
+//! For example `&`[`PyAny`](crate::types::PyAny). 
+//! These are only ever seen as references, with a lifetime that is only valid for as long
+//! as the GIL is held, which is why using them doesn't require a  [`Python<'py>`](crate::Python) token.
+//!  The underlying Python object, if mutable, can be mutated through any reference.
+//!
+//! See the [guide](https://pyo3.rs/main/types.html) for an explanation of the different Python object types.
+//!
+//! ## The GIL-independent types
+//!
+//! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`](crate::types::PyAny)`>` or [`Py`]`<SomePyClass>`, Python objects
+//! no longer have a limited lifetime which makes them easier to store in structs and pass between functions.
+//! However, you cannot do much with them without a 
+//! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
+//!
+//! ## PyErr
+//!
+//! The vast majority of operations in this library will return [`PyResult<...>`](PyResult).
 //! This is an alias for the type `Result<..., PyErr>`.
 //!
-//! A `PyErr` represents a Python exception. Errors within the `PyO3` library are
-//! also exposed as Python exceptions.
+//! A `PyErr` represents a Python exception. A `PyErr` returned to Python code will be raised as a Python exception.
+//! Errors from `PyO3` itself are also exposed as Python exceptions.
 //!
-//! # Examples
+//! # Feature flags
+//! 
+//! PyO3 uses [feature flags](https://doc.rust-lang.org/cargo/reference/features.html)
+//! to enable you to opt-in to additional functionality. For a detailed description, see
+//! the [Features Reference chapter of the guide](https://pyo3.rs/main/features.html#features-reference).
 //!
-//! ## Using Rust from Python
+//! ## Default feature flags
 //!
-//! PyO3 can be used to generate a native Python module.
+//! The following features are turned on by default:
+//! - `macros`: Enables various macros, including all the attribute macros.
+//! 
+//! ## Optional feature flags
+//!
+//! The following features are optional:
+//! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed 
+//! by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
+//
+//! - `auto-initialize`: Changes [`Python::with_gil`](crate::Python::with_gil) and
+//! [`Python::acquire_gil`](crate::Python::acquire_gil) to automatically initialize the
+//! Python interpreter if needed.
+//
+//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved,
+//! so that your module can also be used with statically linked Python interpreters. 
+//!Use this feature when building an extension module.
+//
+//! - `hashbrown`: Enables conversions between Python objects and 
+//! [hashbrown](https://docs.rs/hashbrown)'s 
+//! [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and 
+//! [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html) types.
+//
+//! - `multiple-pymethods`: Enables the use of multiple 
+//! [`#[pymethods]`](crate::proc_macro::pymethods) blocks per 
+//! [`#[pyclass]`](crate::proc_macro::pyclass).
+//
+//! - `num-bigint`: Enables conversions between Python objects and 
+//! [num-bigint](https://docs.rs/num-bigint)'s
+//! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and 
+//! [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
+//
+//! - `num-complex`: Enables conversions between Python objects and 
+//! [num-complex](https://docs.rs/num-complex)'s
+//! [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
+//
+//! - `serde`: Allows implementing [serde](https://docs.rs/serde)'s 
+//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and 
+//! [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) traits for 
+//! [`Py`]`<T>` for all `T` that implement 
+//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and 
+//! [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html).
+//!
+//! ## Unstable features
+//!
+//! - `nightly`: Gates some optimizations that rely on
+//!  [`#![feature(specialization)]`](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md),
+//! for which you'd also need nightly Rust. You should not use this feature.
+//
+//! ## `rustc` environment flags.
+//!
+//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions. 
+//! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`](https://docs.rs/pyo3-build-config) crate.
+//!
+//! - `Py_3_6`, `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when compiling for a given minimum Python version.
+//
+//! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
+//
+//! - `PyPy` - Marks code enabled when compiling for PyPy.
+//!
+//! # Minimum supported Rust and Python versions
+//!
+//!  PyO3 supports Python 3.6+ and Rust 1.14+.
+//!
+//! Building with PyPy is also possible (via cpyext) for Python 3.6, 
+//! targeted PyPy version is 7.3+. Please refer to the 
+//! [pypy section](https://pyo3.rs/main/building_and_distribution/pypy.html)
+//! in the guide for more information.
+//!
+//! # Example: Building a native Python module
+//!
+//! To build, test and publish your crate as a Python module, it is recommended that you use
+//! [maturin](https://github.com/PyO3/maturin) or
+//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the 
+//! [Building and Distribution chapter of the guide](https://pyo3.rs/main/building_and_distribution.html) 
+//! for more information.
+//!
+//! Add these files to your crate's root:
 //!
 //! **`Cargo.toml`**
 //!
@@ -68,14 +159,14 @@
 //! use pyo3::prelude::*;
 //! use pyo3::wrap_pyfunction;
 //!
-//! #[pyfunction]
 //! /// Formats the sum of two numbers as string.
+//! #[pyfunction]
 //! fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 //!     Ok((a + b).to_string())
 //! }
 //!
-//! #[pymodule]
 //! /// A Python module implemented in Rust.
+//! #[pymodule]
 //! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
@@ -83,25 +174,35 @@
 //! }
 //! ```
 //!
-//! While developing, you symlink (or copy) and rename the shared library from
-//! the target folder: On macOS, rename `libstring_sum.dylib` to
-//! `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on
-//! Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the
-//! same folder and you'll be able to `import string_sum`.
+//!**`.cargo/config.toml`**
+//! ```toml
+//! # These flags must be passed to rustc when compiling for macOS
+//! # It can be omitted if you pass these flags yourself
+//! # or don't care about macOS
 //!
-//! To build, test and publish your crate as a Python module, you can use
-//! [maturin](https://github.com/PyO3/maturin) or
-//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an
-//! example for setuptools-rust in [examples/word-count](examples/word-count),
-//! while maturin should work on your crate without any configuration.
+//! [target.x86_64-apple-darwin]
+//! rustflags = [
+//!   "-C", "link-arg=-undefined",
+//!   "-C", "link-arg=dynamic_lookup",
+//! ]
 //!
-//! ## Using Python from Rust
+//! [target.aarch64-apple-darwin]
+//! rustflags = [
+//!   "-C", "link-arg=-undefined",
+//!   "-C", "link-arg=dynamic_lookup",
+//! ]
+//! ```
+//!
+//! # Example: Using Python from Rust
+//!
+//! You can use PyO3 to call Python functions from Rust.
 //!
 //! Add `pyo3` to your `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies.pyo3]
 //! version = "0.13.2"
+//! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
 //!
@@ -192,15 +293,20 @@ pub mod pyclass;
 pub mod pyclass_init;
 pub mod pyclass_slots;
 mod python;
+
+
+
 pub mod type_object;
 pub mod types;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 #[cfg(feature = "serde")]
 pub mod serde;
 
 /// The proc macros, all of which are part of the prelude.
 ///
 /// Import these with `use pyo3::prelude::*;`
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]
 pub mod proc_macro {
     pub use pyo3_macros::pymodule;
