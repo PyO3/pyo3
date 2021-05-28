@@ -17,13 +17,13 @@
 //! Holding the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock)
 //! (GIL) is modeled with the [`Python<'py>`](crate::Python) token.
 //! All APIs that require that the GIL is held require this token as proof
-//! that you really are holding the GIL. It can be explicitly acquired and 
+//! that you really are holding the GIL. It can be explicitly acquired and
 //! is also implicitly acquired by PyO3 as it wraps Rust functions and structs
-//! into Python functions and objects. 
+//! into Python functions and objects.
 //!
 //! ## The GIL-dependent types
 //!
-//! For example `&`[`PyAny`](crate::types::PyAny). 
+//! For example `&`[`PyAny`](crate::types::PyAny).
 //! These are only ever seen as references, with a lifetime that is only valid for as long
 //! as the GIL is held, which is why using them doesn't require a  [`Python<'py>`](crate::Python) token.
 //!  The underlying Python object, if mutable, can be mutated through any reference.
@@ -34,7 +34,7 @@
 //!
 //! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`](crate::types::PyAny)`>` or [`Py`]`<SomePyClass>`, Python objects
 //! no longer have a limited lifetime which makes them easier to store in structs and pass between functions.
-//! However, you cannot do much with them without a 
+//! However, you cannot do much with them without a
 //! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
 //!
 //! ## PyErr
@@ -46,7 +46,7 @@
 //! Errors from `PyO3` itself are also exposed as Python exceptions.
 //!
 //! # Feature flags
-//! 
+//!
 //! PyO3 uses [feature flags](https://doc.rust-lang.org/cargo/reference/features.html)
 //! to enable you to opt-in to additional functionality. For a detailed description, see
 //! the [Features Reference chapter of the guide](https://pyo3.rs/main/features.html#features-reference).
@@ -55,11 +55,11 @@
 //!
 //! The following features are turned on by default:
 //! - `macros`: Enables various macros, including all the attribute macros.
-//! 
+//!
 //! ## Optional feature flags
 //!
 //! The following features are optional:
-//! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed 
+//! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed
 //! by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
 //
 //! - `auto-initialize`: Changes [`Python::with_gil`](crate::Python::with_gil) and
@@ -67,32 +67,32 @@
 //! Python interpreter if needed.
 //
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved,
-//! so that your module can also be used with statically linked Python interpreters. 
+//! so that your module can also be used with statically linked Python interpreters.
 //!Use this feature when building an extension module.
 //
-//! - `hashbrown`: Enables conversions between Python objects and 
-//! [hashbrown](https://docs.rs/hashbrown)'s 
-//! [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and 
+//! - `hashbrown`: Enables conversions between Python objects and
+//! [hashbrown](https://docs.rs/hashbrown)'s
+//! [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and
 //! [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html) types.
 //
-//! - `multiple-pymethods`: Enables the use of multiple 
-//! [`#[pymethods]`](crate::proc_macro::pymethods) blocks per 
+//! - `multiple-pymethods`: Enables the use of multiple
+//! [`#[pymethods]`](crate::proc_macro::pymethods) blocks per
 //! [`#[pyclass]`](crate::proc_macro::pyclass).
 //
-//! - `num-bigint`: Enables conversions between Python objects and 
+//! - `num-bigint`: Enables conversions between Python objects and
 //! [num-bigint](https://docs.rs/num-bigint)'s
-//! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and 
+//! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and
 //! [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
 //
-//! - `num-complex`: Enables conversions between Python objects and 
+//! - `num-complex`: Enables conversions between Python objects and
 //! [num-complex](https://docs.rs/num-complex)'s
 //! [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 //
-//! - `serde`: Allows implementing [serde](https://docs.rs/serde)'s 
-//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and 
-//! [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) traits for 
-//! [`Py`]`<T>` for all `T` that implement 
-//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and 
+//! - `serde`: Allows implementing [serde](https://docs.rs/serde)'s
+//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and
+//! [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) traits for
+//! [`Py`]`<T>` for all `T` that implement
+//! [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and
 //! [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html).
 //!
 //! ## Unstable features
@@ -103,7 +103,7 @@
 //
 //! ## `rustc` environment flags.
 //!
-//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions. 
+//! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`](https://docs.rs/pyo3-build-config) crate.
 //!
 //! - `Py_3_6`, `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when compiling for a given minimum Python version.
@@ -116,8 +116,8 @@
 //!
 //!  PyO3 supports Python 3.6+ and Rust 1.14+.
 //!
-//! Building with PyPy is also possible (via cpyext) for Python 3.6, 
-//! targeted PyPy version is 7.3+. Please refer to the 
+//! Building with PyPy is also possible (via cpyext) for Python 3.6,
+//! targeted PyPy version is 7.3+. Please refer to the
 //! [pypy section](https://pyo3.rs/main/building_and_distribution/pypy.html)
 //! in the guide for more information.
 //!
@@ -125,8 +125,8 @@
 //!
 //! To build, test and publish your crate as a Python module, it is recommended that you use
 //! [maturin](https://github.com/PyO3/maturin) or
-//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the 
-//! [Building and Distribution chapter of the guide](https://pyo3.rs/main/building_and_distribution.html) 
+//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the
+//! [Building and Distribution chapter of the guide](https://pyo3.rs/main/building_and_distribution.html)
 //! for more information.
 //!
 //! Add these files to your crate's root:
@@ -293,8 +293,6 @@ pub mod pyclass;
 pub mod pyclass_init;
 pub mod pyclass_slots;
 mod python;
-
-
 
 pub mod type_object;
 pub mod types;
