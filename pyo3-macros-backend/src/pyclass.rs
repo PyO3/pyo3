@@ -345,16 +345,24 @@ fn impl_class(
         quote! {}
     };
 
-    let (impl_inventory, iter_py_methods) = match methods_type {
-        PyClassMethodsType::Specialization => (None, quote! { collector.py_methods().iter() }),
-        PyClassMethodsType::Inventory => (
-            Some(impl_methods_inventory(&cls)),
-            quote! {
-                pyo3::inventory::iter::<<Self as pyo3::class::impl_::HasMethodsInventory>::Methods>
-                    .into_iter()
-                    .flat_map(pyo3::class::impl_::PyMethodsInventory::get)
-            },
-        ),
+    let impl_inventory = match methods_type {
+        PyClassMethodsType::Specialization => None,
+        PyClassMethodsType::Inventory => Some(impl_methods_inventory(&cls)),
+    };
+
+    let for_each_py_method = match methods_type {
+        PyClassMethodsType::Specialization => quote! {
+            for method_def in collector.py_methods().iter() {
+                visitor(method_def);
+            }
+        },
+        PyClassMethodsType::Inventory => quote! {
+            for inventory in pyo3::inventory::iter::<<Self as pyo3::class::impl_::HasMethodsInventory>::Methods> {
+                for method_def in pyo3::class::impl_::PyMethodsInventory::get(inventory) {
+                    visitor(method_def);
+                }
+            }
+        },
     };
 
     let base = &attr.base;
@@ -439,15 +447,35 @@ fn impl_class(
             fn for_each_method_def(visitor: &mut dyn FnMut(&pyo3::class::PyMethodDefType)) {
                 use pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
-                #iter_py_methods
-                    .chain(collector.py_class_descriptors())
-                    .chain(collector.object_protocol_methods())
-                    .chain(collector.async_protocol_methods())
-                    .chain(collector.context_protocol_methods())
-                    .chain(collector.descr_protocol_methods())
-                    .chain(collector.mapping_protocol_methods())
-                    .chain(collector.number_protocol_methods())
-                    .for_each(visitor)
+                #for_each_py_method;
+
+                for method_def in collector.py_class_descriptors() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.object_protocol_methods() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.async_protocol_methods() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.context_protocol_methods() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.descr_protocol_methods() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.mapping_protocol_methods() {
+                    visitor(method_def);
+                }
+
+                for method_def in collector.number_protocol_methods() {
+                    visitor(method_def);
+                }
             }
             fn get_new() -> Option<pyo3::ffi::newfunc> {
                 use pyo3::class::impl_::*;
@@ -464,17 +492,41 @@ fn impl_class(
                 // Implementation which uses dtolnay specialization to load all slots.
                 use pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
-                collector.object_protocol_slots()
-                    .iter()
-                    .chain(collector.number_protocol_slots())
-                    .chain(collector.iter_protocol_slots())
-                    .chain(collector.gc_protocol_slots())
-                    .chain(collector.descr_protocol_slots())
-                    .chain(collector.mapping_protocol_slots())
-                    .chain(collector.sequence_protocol_slots())
-                    .chain(collector.async_protocol_slots())
-                    .chain(collector.buffer_protocol_slots())
-                    .for_each(visitor);
+                for slot in collector.object_protocol_slots().iter() {
+                    visitor(slot);
+                }
+
+                for slot in collector.number_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.iter_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.gc_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.descr_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.mapping_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.sequence_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.async_protocol_slots() {
+                    visitor(slot);
+                }
+
+                for slot in collector.buffer_protocol_slots() {
+                    visitor(slot);
+                }
             }
 
             fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
