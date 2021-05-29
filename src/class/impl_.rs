@@ -65,14 +65,14 @@ pub trait PyClassImpl: Sized {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
-    fn for_each_method_def(_visitor: &mut dyn FnMut(&PyMethodDefType)) {}
+    fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
     fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
-    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&ffi::PyType_Slot)) {}
+    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
     }

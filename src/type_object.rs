@@ -113,7 +113,7 @@ impl LazyStaticType {
         py: Python,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
-        for_each_method_def: &dyn Fn(&mut dyn FnMut(&PyMethodDefType)),
+        for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
     ) {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
@@ -147,17 +147,21 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for_each_method_def(&mut |def| {
-            if let PyMethodDefType::ClassAttribute(attr) = def {
-                items.push((
-                    extract_cstr_or_leak_cstring(
+        for_each_method_def(&mut |method_defs| {
+            items.extend(method_defs.iter().filter_map(|def| {
+                if let PyMethodDefType::ClassAttribute(attr) = def {
+                    let key = extract_cstr_or_leak_cstring(
                         attr.name,
                         "class attribute name cannot contain nul bytes",
                     )
-                    .unwrap(),
-                    (attr.meth.0)(py),
-                ));
-            }
+                    .unwrap();
+
+                    let val = (attr.meth.0)(py);
+                    Some((key, val))
+                } else {
+                    None
+                }
+            }));
         });
 
         // Now we hold the GIL and we can assume it won't be released until we

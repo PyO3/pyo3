@@ -219,10 +219,11 @@ where
 
     // protocol methods
     let mut has_gc_methods = false;
-    T::for_each_proto_slot(&mut |slot| {
-        has_gc_methods |= slot.slot == ffi::Py_tp_clear;
-        has_gc_methods |= slot.slot == ffi::Py_tp_traverse;
-        slots.0.push(*slot);
+    T::for_each_proto_slot(&mut |proto_slots| {
+        has_gc_methods |= proto_slots
+            .iter()
+            .any(|slot| slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse);
+        slots.0.extend_from_slice(proto_slots);
     });
 
     slots.push(0, ptr::null_mut());
@@ -312,17 +313,17 @@ fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uin
 }
 
 fn py_class_method_defs(
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&PyMethodDefType)),
+    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
 ) -> Vec<ffi::PyMethodDef> {
     let mut defs = Vec::new();
 
-    for_each_method_def(&mut |def| match def {
-        PyMethodDefType::Method(def)
-        | PyMethodDefType::Class(def)
-        | PyMethodDefType::Static(def) => {
-            defs.push(def.as_method_def().unwrap());
-        }
-        _ => (),
+    for_each_method_def(&mut |method_defs| {
+        defs.extend(method_defs.iter().filter_map(|def| match def {
+            PyMethodDefType::Method(def)
+            | PyMethodDefType::Class(def)
+            | PyMethodDefType::Static(def) => Some(def.as_method_def().unwrap()),
+            _ => None,
+        }));
     });
 
     if !defs.is_empty() {
@@ -385,18 +386,22 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
 #[allow(clippy::collapsible_if)] // for if cfg!
 fn py_class_properties(
     is_dummy: bool,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&PyMethodDefType)),
+    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
 ) -> Vec<ffi::PyGetSetDef> {
     let mut defs = std::collections::HashMap::new();
 
-    for_each_method_def(&mut |def| match def {
-        PyMethodDefType::Getter(getter) => {
-            getter.copy_to(defs.entry(getter.name).or_insert(PY_GET_SET_DEF_INIT));
+    for_each_method_def(&mut |method_defs| {
+        for def in method_defs {
+            match def {
+                PyMethodDefType::Getter(getter) => {
+                    getter.copy_to(defs.entry(getter.name).or_insert(PY_GET_SET_DEF_INIT));
+                }
+                PyMethodDefType::Setter(setter) => {
+                    setter.copy_to(defs.entry(setter.name).or_insert(PY_GET_SET_DEF_INIT));
+                }
+                _ => (),
+            }
         }
-        PyMethodDefType::Setter(setter) => {
-            setter.copy_to(defs.entry(setter.name).or_insert(PY_GET_SET_DEF_INIT));
-        }
-        _ => (),
     });
 
     let mut props: Vec<_> = defs.values().cloned().collect();
