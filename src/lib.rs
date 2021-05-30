@@ -177,7 +177,7 @@
 //!**`.cargo/config.toml`**
 //! ```toml
 //! # These flags must be passed to rustc when compiling for macOS
-//! # It can be omitted if you pass these flags yourself
+//! # They can be omitted if you pass the flags yourself
 //! # or don't care about macOS
 //!
 //! [target.x86_64-apple-darwin]
