@@ -174,7 +174,7 @@
 //! }
 //! ```
 //!
-//!**`.cargo/config.toml`**
+//! **`.cargo/config.toml`**
 //! ```toml
 //! # These flags must be passed to rustc when compiling for macOS
 //! # They can be omitted if you pass the flags yourself
