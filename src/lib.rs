@@ -60,7 +60,7 @@
 //!
 //! The following features are optional:
 //! - `abi3`: Restricts PyO3's API to a subset of the full Python API which is guaranteed
-//! by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
+//! by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forward-compatible with future Python versions.
 //
 //! - `auto-initialize`: Changes [`Python::with_gil`](crate::Python::with_gil) and
 //! [`Python::acquire_gil`](crate::Python::acquire_gil) to automatically initialize the
