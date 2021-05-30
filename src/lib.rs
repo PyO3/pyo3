@@ -68,7 +68,7 @@
 //
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved,
 //! so that your module can also be used with statically linked Python interpreters.
-//!Use this feature when building an extension module.
+//! Use this feature when building an extension module.
 //
 //! - `hashbrown`: Enables conversions between Python objects and
 //! [hashbrown](https://docs.rs/hashbrown)'s
