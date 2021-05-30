@@ -58,8 +58,12 @@ impl<'a> Enum<'a> {
                 let maybe_ret = || -> pyo3::PyResult<Self> {
                     #struct_derive
                 }();
+
                 if maybe_ret.is_ok() {
                     return maybe_ret
+                }
+                if let Err(inner) = maybe_ret {
+                    err_reasons.push(format!("{}", inner))
                 }
             );
 
@@ -74,13 +78,16 @@ impl<'a> Enum<'a> {
         } else {
             error_names
         };
+        let ty_name: String = self.enum_ident.to_string();
         quote!(
+            let mut err_reasons: Vec<String> = Vec::new();
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
-            let err_msg = format!("In {} : '{}' object cannot be converted to '{}'",
-                self.enum_ident,
+            let err_msg = format!("Failed to extract type {}\n\nCaused by:\nTypeError: '{}' object cannot be converted to '{}'",
+                #ty_name,
                 type_name,
                 #error_names);
+            println!("{:?}", err_reasons);
             Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }

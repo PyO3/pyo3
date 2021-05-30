@@ -296,7 +296,7 @@ fn test_err_rename() {
     assert!(f.is_err());
     assert_eq!(
         f.unwrap_err().to_string(),
-        "TypeError: 'dict' object cannot be converted to 'Union[str, uint, int]'"
+        "TypeError: Failed to extract type Bar\n\nCaused by:\nTypeError: 'dict' object cannot be converted to 'Union[str, uint, int]'"
     );
 }
 

@@ -84,7 +84,7 @@ error: transparent structs and variants can only have 1 field
 70 | |     },
    | |_____^
 
-error: expected one of: `attribute`, `item`, `from_py_with`
+error: expected one of: `attribute`, `item`, `from_py_with`, `conversion_error`
   --> $DIR/invalid_frompy_derive.rs:76:12
    |
 76 |     #[pyo3(attr)]
