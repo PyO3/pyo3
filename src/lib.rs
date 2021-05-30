@@ -77,7 +77,7 @@
 //
 //! - `multiple-pymethods`: Enables the use of multiple
 //! [`#[pymethods]`](crate::proc_macro::pymethods) blocks per
-//! [`#[pyclass]`](crate::proc_macro::pyclass). This adds a dependency on the 
+//! [`#[pyclass]`](crate::proc_macro::pyclass). This adds a dependency on the
 //! [`inventory`](https://docs.rs/inventory) crate, which is not supported on all platforms.
 //
 //! - `num-bigint`: Enables conversions between Python objects and
