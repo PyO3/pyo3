@@ -4,7 +4,7 @@
 
 //! Rust bindings to the Python interpreter.
 //!
-//! PyO3 can be used to write native Python modules and run Python code and modules from Rust.
+//! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
 //!
 //! See [the guide](https://pyo3.rs/) for a detailed introduction.
 //!
