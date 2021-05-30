@@ -101,7 +101,7 @@
 //!  [`#![feature(specialization)]`](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md),
 //! for which you'd also need nightly Rust. You should not use this feature.
 //
-//! ## `rustc` environment flags.
+//! ## `rustc` environment flags
 //!
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`](https://docs.rs/pyo3-build-config) crate.
