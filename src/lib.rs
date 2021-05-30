@@ -114,7 +114,7 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//!  PyO3 supports Python 3.6+ and Rust 1.14+.
+//! PyO3 supports Python 3.6+ and Rust 1.41+.
 //!
 //! Building with PyPy is also possible (via cpyext) for Python 3.6,
 //! targeted PyPy version is 7.3+. Please refer to the
