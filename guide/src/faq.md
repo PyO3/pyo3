@@ -35,7 +35,7 @@ The Rust book suggests to [put integration tests inside a `tests/` directory](ht
 For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`,
 the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
 
-```
+```text
 error[E0432]: unresolved import `my_crate`
  --> tests/test_my_crate.rs:1:5
   |
@@ -45,7 +45,7 @@ error[E0432]: unresolved import `my_crate`
 
 The best solution is to make your crate types include both `rlib` and `cdylib`:
 
-```
+```text
 # Cargo.toml
 [lib]
 crate-type = ["cdylib", "rlib"]
