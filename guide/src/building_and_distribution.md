@@ -39,7 +39,9 @@ On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, 
 
 There are two main ways to test, build and distribute your module as a Python package: [setuptools-rust] and [maturin]. setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). It allows (and sometimes requires) writing custom workflows in python. maturin has only few options and works without any additional configuration, instead it requires a rigid project structure and does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)), multiple extensions or running python scripts at build time.
 
-While developing, you can also symlink (or copy) and rename the shared library from the `target` folder: 
+### Manual builds
+
+You can also symlink (or copy) and rename the shared library from the `target` folder: 
 - on macOS, rename `libyour_module.dylib` to `your_module.so`.
 - on Windows, rename  `libyour_module.dll` to `your_module.pyd`.
 - on Linux, rename `libyour_module.so` to `your_module.so`. 
