@@ -296,7 +296,7 @@ fn test_err_rename() {
     assert!(f.is_err());
     assert_eq!(
         f.unwrap_err().to_string(),
-        "TypeError: Failed to extract type Bar\n\nCaused by:\nTypeError: 'dict' object cannot be converted to 'Union[str, uint, int]'"
+        "TypeError: Failed to extract type Bar\n\nCaused by:\n  TypeError: \'dict\' object cannot be converted to \'Union[str,uint,int]\'\n\nTypeError: failed to extract inner field of Bar :: A\n\nCaused by:\n    TypeError: \'dict\' object cannot be converted to \'PyString\'\n\nTypeError: failed to extract inner field of Bar :: B\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\nTypeError: failed to extract inner field of Bar :: C\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\n"
     );
 }
 

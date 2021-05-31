@@ -51,43 +51,39 @@ impl<'a> Enum<'a> {
     /// Build derivation body for enums.
     fn build(&self) -> TokenStream {
         let mut var_extracts = Vec::new();
-        let mut error_names = String::new();
-        for (i, var) in self.variants.iter().enumerate() {
+        let mut error_names: Vec<String> = Vec::new();
+        for var in &self.variants {
             let struct_derive = var.build();
             let ext = quote!(
                 let maybe_ret = || -> pyo3::PyResult<Self> {
                     #struct_derive
                 }();
-
                 if maybe_ret.is_ok() {
                     return maybe_ret
                 }
                 if let Err(inner) = maybe_ret {
-                    err_reasons.push(format!("{}", inner))
+                    err_reasons.push_str(&format!("{}\n", inner))
                 }
             );
 
             var_extracts.push(ext);
-            error_names.push_str(&var.err_name);
-            if i < self.variants.len() - 1 {
-                error_names.push_str(", ");
-            }
+            error_names.push(var.err_name.clone());
         }
         let error_names = if self.variants.len() > 1 {
-            format!("Union[{}]", error_names)
+            format!("Union[{}]", error_names.join(","))
         } else {
-            error_names
+            error_names[0].clone()
         };
-        let ty_name: String = self.enum_ident.to_string();
+        let ty_name = self.enum_ident.to_string();
         quote!(
-            let mut err_reasons: Vec<String> = Vec::new();
+            let mut err_reasons = String::new();
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
-            let err_msg = format!("Failed to extract type {}\n\nCaused by:\nTypeError: '{}' object cannot be converted to '{}'",
+            let mut err_msg = format!("Failed to extract type {}\n\nCaused by:\n  TypeError: '{}' object cannot be converted to '{}'\n\n",
                 #ty_name,
-                type_name,
+                &type_name,
                 #error_names);
-            println!("{:?}", err_reasons);
+            err_msg.push_str(&err_reasons);
             Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
@@ -265,12 +261,10 @@ impl<'a> Container<'a> {
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
-            let conversion_error_msg = attrs.conversion_error
-                .as_ref()
-                .map_or(format!("failed to extract field {}.{}",
-                                quote!(#self_ty),
-                                ident),
-                |msg| msg.value());
+            let conversion_error_msg = attrs.conversion_error.as_ref().map_or(
+                format!("failed to extract field {}.{}", quote!(#self_ty), ident),
+                |msg| msg.value(),
+            );
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
                 None => quote!(#get_field.extract().map_err(|inner| {
