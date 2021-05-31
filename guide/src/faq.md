@@ -45,7 +45,7 @@ error[E0432]: unresolved import `my_crate`
 
 The best solution is to make your crate types include both `rlib` and `cdylib`:
 
-```text
+```toml
 # Cargo.toml
 [lib]
 crate-type = ["cdylib", "rlib"]
