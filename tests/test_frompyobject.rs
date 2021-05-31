@@ -94,6 +94,7 @@ pub struct E<T, T2> {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct PyE {
     #[pyo3(get)]
     test: String,
@@ -138,7 +139,7 @@ fn test_named_field_with_ext_fn() {
     assert_eq!(c.test, "foo");
 }
 
-#[derive(FromPyObject)]
+#[derive(Debug, FromPyObject)]
 pub struct Tuple(String, usize);
 
 #[test]
@@ -168,6 +169,64 @@ fn test_transparent_tuple_struct() {
     let tup = TransparentTuple::extract(test.as_ref(py))
         .expect("Failed to extract TransparentTuple from PyTuple");
     assert_eq!(tup.0, "test");
+}
+
+#[pyclass]
+struct PyBaz {
+    #[pyo3(get)]
+    tup: (String, String),
+    #[pyo3(get)]
+    e: PyE,
+}
+
+#[derive(Debug, FromPyObject)]
+struct Baz<U, T> {
+    e: E<U, T>,
+    tup: Tuple,
+}
+
+#[test]
+fn test_struct_nested_type_errors() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pybaz = PyBaz {
+        tup: ("test".into(), "test".into()),
+        e: PyE {
+            test: "foo".into(),
+            test2: 0,
+        },
+    }
+    .into_py(py);
+
+    let baz: PyResult<Baz<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(baz.is_err());
+    assert_eq!(
+        "TypeError: failed to extract field Baz.tup\n\nCaused by:\n    TypeError: failed to extract field Tuple.1\n\nCaused by:\n    TypeError: 'str' object cannot be interpreted as an integer\n\n",
+        baz.unwrap_err().to_string()
+    );
+}
+
+#[test]
+fn test_struct_nested_type_errors_with_generics() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pybaz = PyBaz {
+        tup: ("test".into(), "test".into()),
+        e: PyE {
+            test: "foo".into(),
+            test2: 0,
+        },
+    }
+    .into_py(py);
+
+    let baz: PyResult<Baz<usize, String>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(baz.is_err());
+    assert_eq!(
+        "TypeError: failed to extract field Baz.e\n\nCaused by:\n    TypeError: failed to extract field E.test\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n\n",
+        baz.unwrap_err().to_string()
+    );
 }
 
 #[derive(Debug, FromPyObject)]
