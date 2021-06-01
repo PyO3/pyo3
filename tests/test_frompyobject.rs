@@ -199,11 +199,11 @@ fn test_struct_nested_type_errors() {
     }
     .into_py(py);
 
-    let baz: PyResult<Baz<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
-    assert!(baz.is_err());
+    let test: PyResult<Baz<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(test.is_err());
     assert_eq!(
         "TypeError: failed to extract field Baz.tup\n\nCaused by:\n    TypeError: failed to extract field Tuple.1\n\nCaused by:\n    TypeError: 'str' object cannot be interpreted as an integer\n\n",
-        baz.unwrap_err().to_string()
+        test.unwrap_err().to_string()
     );
 }
 
@@ -221,11 +221,122 @@ fn test_struct_nested_type_errors_with_generics() {
     }
     .into_py(py);
 
-    let baz: PyResult<Baz<usize, String>> = FromPyObject::extract(pybaz.as_ref(py));
-    assert!(baz.is_err());
+    let test: PyResult<Baz<usize, String>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(test.is_err());
     assert_eq!(
         "TypeError: failed to extract field Baz.e\n\nCaused by:\n    TypeError: failed to extract field E.test\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n\n",
-        baz.unwrap_err().to_string()
+        test.unwrap_err().to_string()
+    );
+}
+
+#[derive(Debug, FromPyObject)]
+struct Custom<U, T> {
+    e: E<U, T>,
+    #[pyo3(error_message = "Type 'Tuple' should be of the form (str, integer)")]
+    tup: Tuple,
+}
+
+#[test]
+fn test_custom_error_message_struct() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pybaz = PyBaz {
+        tup: ("test".into(), "test".into()),
+        e: PyE {
+            test: "foo".into(),
+            test2: 0,
+        },
+    }
+    .into_py(py);
+
+    let test: PyResult<Custom<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(test.is_err());
+    assert_eq!(
+        "TypeError: Type \'Tuple\' should be of the form (str, integer)\n\nCaused by:\n    TypeError: failed to extract field Tuple.1\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n\n",
+        test.unwrap_err().to_string()
+    );
+}
+
+#[derive(Debug, FromPyObject)]
+#[pyo3(error_message = "Conversion failed: Tuple expects 'str', 'usize'")]
+pub struct Tuple2(String, usize);
+
+#[test]
+fn test_custom_error_message_tuple_struct() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let pytup = PyTuple::new(py, &["test".into_py(py), "test".into_py(py)]);
+    let test: PyResult<Tuple2> = FromPyObject::extract(pytup);
+    assert!(test.is_err());
+    assert_eq!(
+        "TypeError: Conversion failed: Tuple expects \'str\', \'usize\'\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n",
+        test.unwrap_err().to_string()
+    );
+}
+
+#[derive(Debug, FromPyObject)]
+#[pyo3(error_message = "Expected type str")]
+pub struct TransparentTuple2(String);
+
+#[test]
+fn test_transparent_tuple_struct_error_message() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let tup: PyObject = 1.into_py(py);
+    let tup = TransparentTuple2::extract(tup.as_ref(py));
+    assert!(tup.is_err());
+    assert_eq!(
+        "TypeError: Expected type str\n\nCaused by:\n    TypeError: \'int\' object cannot be converted to \'PyString\'\n",
+        tup.unwrap_err().to_string()
+    );
+}
+
+#[derive(Debug, FromPyObject)]
+#[pyo3(transparent, error_message = "Expected type str")]
+pub struct TransparentStruct {
+    a: String,
+}
+
+#[test]
+fn test_transparent_struct_error_message() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let tup: PyObject = 1.into_py(py);
+    let tup = TransparentStruct::extract(tup.as_ref(py));
+    assert!(tup.is_err());
+    assert_eq!(
+        "TypeError: Expected type str\n\nCaused by:\n    TypeError: \'int\' object cannot be converted to \'PyString\'\n",
+        tup.unwrap_err().to_string()
+    );
+}
+
+#[derive(Debug, FromPyObject)]
+struct Custom2<U, T> {
+    e: E<U, T>,
+    #[pyo3(error_message = "Type 'Tuple' should be of the form (str, integer)")]
+    tup: Tuple2,
+}
+
+#[test]
+fn test_nested_custom_errors() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pybaz = PyBaz {
+        tup: ("test".into(), "test".into()),
+        e: PyE {
+            test: "foo".into(),
+            test2: 0,
+        },
+    }
+    .into_py(py);
+
+    let test: PyResult<Custom2<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
+    assert!(test.is_err());
+    assert_eq!(
+        "TypeError: Type \'Tuple\' should be of the form (str, integer)\n\nCaused by:\n    TypeError: Conversion failed: Tuple expects \'str\', \'usize\'\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n\n",
+        test.unwrap_err().to_string()
     );
 }
 
@@ -342,7 +453,11 @@ pub enum Bar {
     A(String),
     #[pyo3(annotation = "uint")]
     B(usize),
-    #[pyo3(annotation = "int", transparent)]
+    #[pyo3(
+        annotation = "int",
+        transparent,
+        error_message = "Bar::C expects an integer type"
+    )]
     C(isize),
 }
 
@@ -355,7 +470,7 @@ fn test_err_rename() {
     assert!(f.is_err());
     assert_eq!(
         f.unwrap_err().to_string(),
-        "TypeError: Failed to extract type Bar\n\nCaused by:\n  TypeError: \'dict\' object cannot be converted to \'Union[str,uint,int]\'\n\nTypeError: failed to extract inner field of Bar :: A\n\nCaused by:\n    TypeError: \'dict\' object cannot be converted to \'PyString\'\n\nTypeError: failed to extract inner field of Bar :: B\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\nTypeError: failed to extract inner field of Bar :: C\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\n"
+        "TypeError: Failed to extract type Bar\n\nCaused by:\n  TypeError: \'dict\' object cannot be converted to \'Union[str, uint, int]\'\n\nTypeError: failed to extract inner field of Bar :: A\n\nCaused by:\n    TypeError: \'dict\' object cannot be converted to \'PyString\'\n\nTypeError: failed to extract inner field of Bar :: B\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\nTypeError: Bar::C expects an integer type\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\n"
     );
 }
 
