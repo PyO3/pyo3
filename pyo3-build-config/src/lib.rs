@@ -14,16 +14,31 @@
 //!
 //! For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/main/building_and_distribution/multiple_python_versions.html).
 
-#[allow(dead_code)] // TODO cover this using tests
 mod impl_;
 
-#[doc(hidden)]
-pub use crate::impl_::{InterpreterConfig, PythonImplementation, PythonVersion};
+use once_cell::sync::OnceCell;
 
 #[doc(hidden)]
-pub fn get() -> InterpreterConfig {
-    include!(concat!(env!("OUT_DIR"), "/pyo3-build-config.rs"))
+pub use crate::impl_::{
+    make_interpreter_config, InterpreterConfig, PythonImplementation, PythonVersion,
+};
+
+/// Reads the configuration written by PyO3's build.rs
+///
+/// Because this will never change in a given compilation run, this is cached in a `once_cell`.
+#[doc(hidden)]
+pub fn get() -> &'static InterpreterConfig {
+    static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
+    CONFIG.get_or_init(|| {
+        let config_file = std::fs::File::open(PATH).expect("config file missing");
+        let reader = std::io::BufReader::new(config_file);
+        InterpreterConfig::from_reader(reader).expect("failed to parse config file")
+    })
 }
+
+/// Path where PyO3's build.rs will write configuration.
+#[doc(hidden)]
+pub const PATH: &str = concat!(env!("OUT_DIR"), "/pyo3-build-config.txt");
 
 pub fn use_pyo3_cfgs() {
     get().emit_pyo3_cfgs();

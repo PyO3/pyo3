@@ -4,8 +4,8 @@ use std::{
     env,
     ffi::OsString,
     fmt::Display,
-    fs::{self, DirEntry, File},
-    io::Write,
+    fs::{self, DirEntry},
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     str::FromStr,
@@ -55,7 +55,7 @@ fn env_var(var: &str) -> Option<OsString> {
 /// Usually this is queried directly from the Python interpreter. When the `PYO3_NO_PYTHON` variable
 /// is set, or during cross compile situations, then alternative strategies are used to populate
 /// this type.
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct InterpreterConfig {
     pub version: PythonVersion,
     pub libdir: Option<String>,
@@ -98,6 +98,70 @@ impl InterpreterConfig {
 
     pub fn is_pypy(&self) -> bool {
         self.implementation == PythonImplementation::PyPy
+    }
+
+    #[doc(hidden)]
+    pub fn from_reader(reader: impl Read) -> Result<Self> {
+        let reader = BufReader::new(reader);
+        let mut lines = reader.lines();
+        let major = lines.next().ok_or("expected major version")??.parse()?;
+        let minor = lines.next().ok_or("expected minor version")??.parse()?;
+        let libdir = parse_option_string(lines.next().ok_or("expected libdir")??)?;
+        let shared = lines.next().ok_or("expected shared")??.parse()?;
+        let abi3 = lines.next().ok_or("expected abi3")??.parse()?;
+        let ld_version = parse_option_string(lines.next().ok_or("expected ld_version")??)?;
+        let base_prefix = parse_option_string(lines.next().ok_or("expected base_prefix")??)?;
+        let executable = parse_option_string(lines.next().ok_or("expected executable")??)?;
+        let calcsize_pointer =
+            parse_option_string(lines.next().ok_or("expected calcsize_pointer")??)?;
+        let implementation = lines.next().ok_or("expected implementation")??.parse()?;
+        let mut build_flags = BuildFlags(HashSet::new());
+        for line in lines {
+            build_flags.0.insert(line?.parse()?);
+        }
+        Ok(InterpreterConfig {
+            version: PythonVersion { major, minor },
+            libdir,
+            shared,
+            abi3,
+            ld_version,
+            base_prefix,
+            executable,
+            calcsize_pointer,
+            implementation,
+            build_flags,
+        })
+    }
+
+    #[doc(hidden)]
+    pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
+        writeln!(writer, "{}", self.version.major)?;
+        writeln!(writer, "{}", self.version.minor)?;
+        writeln!(writer, "{:?}", self.libdir)?;
+        writeln!(writer, "{}", self.shared)?;
+        writeln!(writer, "{}", self.abi3)?;
+        writeln!(writer, "{:?}", self.ld_version)?;
+        writeln!(writer, "{:?}", self.base_prefix)?;
+        writeln!(writer, "{:?}", self.executable)?;
+        writeln!(writer, "{:?}", self.calcsize_pointer)?;
+        writeln!(writer, "{:?}", self.implementation)?;
+        for flag in &self.build_flags.0 {
+            writeln!(writer, "{}", flag)?;
+        }
+        Ok(())
+    }
+}
+
+fn parse_option_string<T: FromStr>(string: String) -> Result<Option<T>>
+where
+    <T as FromStr>::Err: std::error::Error + 'static,
+{
+    if string == "None" {
+        Ok(None)
+    } else if string.starts_with("Some(") && string.ends_with(')') {
+        Ok(string[5..(string.len() - 1)].parse().map(Some)?)
+    } else {
+        Err("expected None or Some(value)".into())
     }
 }
 
@@ -234,6 +298,37 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
     }))
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum BuildFlag {
+    WITH_THREAD,
+    Py_DEBUG,
+    Py_REF_DEBUG,
+    Py_TRACE_REFS,
+    COUNT_ALLOCS,
+    Other(String),
+}
+
+impl Display for BuildFlag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl FromStr for BuildFlag {
+    type Err = Box<dyn std::error::Error>;
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "WITH_THREAD" => Ok(BuildFlag::WITH_THREAD),
+            "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
+            "Py_REF_DEBUG" => Ok(BuildFlag::Py_REF_DEBUG),
+            "Py_TRACE_REFS" => Ok(BuildFlag::Py_TRACE_REFS),
+            "COUNT_ALLOCS" => Ok(BuildFlag::COUNT_ALLOCS),
+            other => Ok(BuildFlag::Other(other.to_owned())),
+        }
+    }
+}
+
 /// A list of python interpreter compile-time preprocessor defines that
 /// we will pick up and pass to rustc via `--cfg=py_sys_config={varname}`;
 /// this allows using them conditional cfg attributes in the .rs files, so
@@ -243,25 +338,29 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
 /// is the equivalent of `#ifdef {varname}` in C.
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
-#[derive(Debug)]
-pub struct BuildFlags(pub HashSet<&'static str>);
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [&'static str; 5] = [
+    const ALL: [BuildFlag; 5] = [
         // TODO: Remove WITH_THREAD once Python 3.6 support dropped (as it's always on).
-        "WITH_THREAD",
-        "Py_DEBUG",
-        "Py_REF_DEBUG",
-        "Py_TRACE_REFS",
-        "COUNT_ALLOCS",
+        BuildFlag::WITH_THREAD,
+        BuildFlag::Py_DEBUG,
+        BuildFlag::Py_REF_DEBUG,
+        BuildFlag::Py_TRACE_REFS,
+        BuildFlag::COUNT_ALLOCS,
     ];
 
     fn from_config_map(config_map: &HashMap<String, String>) -> Self {
         Self(
             BuildFlags::ALL
                 .iter()
-                .copied()
-                .filter(|flag| config_map.get(*flag).map_or(false, |value| value == "1"))
+                .cloned()
+                .filter(|flag| {
+                    config_map
+                        .get(&flag.to_string())
+                        .map_or(false, |value| value == "1")
+                })
                 .collect(),
         )
     }
@@ -292,7 +391,7 @@ impl BuildFlags {
             .iter()
             .zip(split_stdout)
             .filter(|(_, flag_value)| *flag_value == "1")
-            .map(|(&flag, _)| flag)
+            .map(|(flag, _)| flag.clone())
             .collect();
 
         Ok(Self(flags))
@@ -302,36 +401,36 @@ impl BuildFlags {
         // sysconfig is missing all the flags on windows, so we can't actually
         // query the interpreter directly for its build flags.
         let mut flags = HashSet::new();
-        flags.insert("WITH_THREAD");
+        flags.insert(BuildFlag::WITH_THREAD);
 
         // Uncomment these manually if your python was built with these and you want
         // the cfg flags to be set in rust.
         //
-        // map.insert("Py_DEBUG", "1");
-        // map.insert("Py_REF_DEBUG", "1");
-        // map.insert("Py_TRACE_REFS", "1");
-        // map.insert("COUNT_ALLOCS", 1");
+        // flags.insert(BuildFlag::Py_DEBUG);
+        // flags.insert(BuildFlag::Py_REF_DEBUG);
+        // flags.insert(BuildFlag::Py_TRACE_REFS);
+        // flags.insert(BuildFlag::COUNT_ALLOCS;
         Self(flags)
     }
 
     fn abi3() -> Self {
         let mut flags = HashSet::new();
-        flags.insert("WITH_THREAD");
+        flags.insert(BuildFlag::WITH_THREAD);
         Self(flags)
     }
 
     fn fixup(mut self, version: PythonVersion, implementation: PythonImplementation) -> Self {
-        if self.0.contains("Py_DEBUG") {
-            self.0.insert("Py_REF_DEBUG");
+        if self.0.contains(&BuildFlag::Py_DEBUG) {
+            self.0.insert(BuildFlag::Py_REF_DEBUG);
             if version <= PythonVersion::PY37 {
                 // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
-                self.0.insert("Py_TRACE_REFS");
+                self.0.insert(BuildFlag::Py_TRACE_REFS);
             }
         }
 
         // WITH_THREAD is always on for Python 3.7, and for PyPy.
         if implementation == PythonImplementation::PyPy || version >= PythonVersion::PY37 {
-            self.0.insert("WITH_THREAD");
+            self.0.insert(BuildFlag::WITH_THREAD);
         }
 
         self
@@ -764,7 +863,7 @@ fn get_abi3_minor_version() -> Option<u8> {
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
 }
 
-fn get_interpreter_config() -> Result<InterpreterConfig> {
+pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_minor_version();
 
     // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
@@ -809,53 +908,32 @@ fn get_interpreter_config() -> Result<InterpreterConfig> {
     Ok(interpreter_config)
 }
 
-pub fn configure() -> Result<()> {
-    let interpreter_config = get_interpreter_config()?;
-    write_interpreter_config(&interpreter_config)
-}
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
 
-fn write_interpreter_config(interpreter_config: &InterpreterConfig) -> Result<()> {
-    let out_dir = env::var_os("OUT_DIR").unwrap();
-    let mut out = File::create(Path::new(&out_dir).join("pyo3-build-config.rs"))?;
+    use super::*;
 
-    writeln!(out, "{{")?;
-    writeln!(
-        out,
-        "let mut build_flags = std::collections::HashSet::new();"
-    )?;
-    for flag in &interpreter_config.build_flags.0 {
-        writeln!(out, "build_flags.insert({:?});", flag)?;
+    #[test]
+    pub fn test_read_write_roundtrip() {
+        let config = InterpreterConfig {
+            abi3: true,
+            base_prefix: Some("base_prefix".into()),
+            build_flags: BuildFlags::abi3(),
+            calcsize_pointer: Some(32),
+            executable: Some("executable".into()),
+            implementation: PythonImplementation::CPython,
+            ld_version: Some("ld_version".into()),
+            libdir: Some("libdir".into()),
+            shared: true,
+            version: MINIMUM_SUPPORTED_VERSION,
+        };
+        let mut buf: Vec<u8> = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+
+        assert_eq!(
+            config,
+            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
+        );
     }
-
-    writeln!(
-        out,
-        r#"crate::impl_::InterpreterConfig {{
-            version: crate::impl_::PythonVersion {{
-                major: {major},
-                minor: {minor},
-            }},
-            implementation: crate::impl_::PythonImplementation::{implementation:?},
-            libdir: {libdir:?}.map(|str: &str| str.to_string()),
-            abi3: {abi3},
-            build_flags: crate::impl_::BuildFlags(build_flags),
-            base_prefix: {base_prefix:?}.map(|str: &str| str.to_string()),
-            calcsize_pointer: {calcsize_pointer:?},
-            executable: {executable:?}.map(|str: &str| str.to_string()),
-            ld_version: {ld_version:?}.map(|str: &str| str.to_string()),
-            shared: {shared:?}
-        }}"#,
-        major = interpreter_config.version.major,
-        minor = interpreter_config.version.minor,
-        implementation = interpreter_config.implementation,
-        base_prefix = interpreter_config.base_prefix,
-        calcsize_pointer = interpreter_config.calcsize_pointer,
-        executable = interpreter_config.executable,
-        ld_version = interpreter_config.ld_version,
-        libdir = interpreter_config.libdir,
-        shared = interpreter_config.shared,
-        abi3 = interpreter_config.abi3,
-    )?;
-    writeln!(out, "}}")?;
-
-    Ok(())
 }
