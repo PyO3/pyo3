@@ -35,7 +35,7 @@ The Rust book suggests to [put integration tests inside a `tests/` directory](ht
 For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`,
 the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
 
-```
+```text
 error[E0432]: unresolved import `my_crate`
  --> tests/test_my_crate.rs:1:5
   |
@@ -45,7 +45,7 @@ error[E0432]: unresolved import `my_crate`
 
 The best solution is to make your crate types include both `rlib` and `cdylib`:
 
-```
+```toml
 # Cargo.toml
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -56,3 +56,87 @@ crate-type = ["cdylib", "rlib"]
 This is because Ctrl-C raises a SIGINT signal, which is handled by the calling Python process by simply setting a flag to action upon later. This flag isn't checked while Rust code called from Python is executing, only once control returns to the Python interpreter.
 
 You can give the Python interpreter a chance to process the signal properly by calling `Python::check_signals`. It's good practice to call this function regularly if you have a long-running Rust function so that your users can cancel it.
+
+## `#[pyo3(get)]` clones my field!
+
+You may have a nested struct similar to this:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct Inner { /* fields omitted */ }
+
+#[pyclass]
+struct Outer {
+    #[pyo3(get)]
+    inner: Inner,
+}
+
+#[pymethods]
+impl Outer {
+    #[new]
+    fn __new__() -> Self {
+        Self { inner: Inner {} }
+    }
+}
+```
+
+When Python code accesses `Outer`'s field, PyO3 will return a new object on every access (note that their addresses are different):
+
+```python
+outer = Outer()
+
+a = outer.inner
+b = outer.inner
+
+assert a is b, f"a: {a}\nb: {b}"
+```
+
+```text
+AssertionError: a: <builtins.Inner object at 0x00000238FFB9C7B0>
+b: <builtins.Inner object at 0x00000238FFB9C830>
+```
+
+This can be especially confusing if the field is mutable, as getting the field and then mutating it won't persist - you'll just get a fresh clone of the original on the next access. Unfortunately Python and Rust don't agree about ownership - if PyO3 gave out references to (possibly) temporary Rust objects to Python code, Python code could then keep that reference alive indefinitely. Therefore returning Rust objects requires cloning.
+
+If you don't want that cloning to happen, a workaround is to allocate the field on the Python heap and store a reference to that, by using [`Py<...>`]({{#PYO3_DOCS_URL}}/pyo3/struct.Py.html):
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct Inner { /* fields omitted */ }
+
+#[pyclass]
+struct Outer {
+    #[pyo3(get)]
+    inner: Py<Inner>,
+}
+
+#[pymethods]
+impl Outer {
+    #[new]
+    fn __new__(py: Python) -> PyResult<Self> {
+        Ok(Self {
+            inner: Py::new(py, Inner {})?,
+        })
+    }
+}
+```
+This time `a` and `b` *are* the same object:
+```python
+outer = Outer()
+
+a = outer.inner
+b = outer.inner
+
+assert a is b, f"a: {a}\nb: {b}"
+print(f"a: {a}\nb: {b}")
+```
+
+```text
+a: <builtins.Inner object at 0x0000020044FCC670>
+b: <builtins.Inner object at 0x0000020044FCC670>
+```
+The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field. 
+
