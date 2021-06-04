@@ -1,7 +1,7 @@
 use crate::{
     attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_attributes, is_attribute_ident,
-        take_attributes, NameAttribute,
+        self, get_deprecated_name_attribute, get_pyo3_options, is_attribute_ident, take_attributes,
+        NameAttribute,
     },
     deprecations::Deprecations,
 };
@@ -69,7 +69,7 @@ impl ConstAttributes {
                 );
                 attributes.is_class_attr = true;
                 Ok(true)
-            } else if let Some(pyo3_attributes) = get_pyo3_attributes(attr)? {
+            } else if let Some(pyo3_attributes) = get_pyo3_options(attr)? {
                 for pyo3_attr in pyo3_attributes {
                     match pyo3_attr {
                         PyO3ConstAttribute::Name(name) => attributes.set_name(name)?,

@@ -1,3 +1,6 @@
+use std::borrow::Cow;
+
+use crate::attributes::NameAttribute;
 use crate::utils::ensure_not_async_fn;
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{attributes::FromPyWithAttribute, konst::ConstSpec};
@@ -9,12 +12,6 @@ use crate::{
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::{ext::IdentExt, spanned::Spanned, Result};
-
-#[derive(Clone, Copy)]
-pub enum PropertyType<'a> {
-    Descriptor(&'a syn::Ident),
-    Function(&'a FnSpec<'a>),
-}
 
 pub enum GeneratedPyMethod {
     Method(TokenStream),
@@ -45,19 +42,19 @@ pub fn gen_py_method(
         FnType::ClassAttribute => {
             GeneratedPyMethod::Method(impl_py_method_class_attribute(cls, &spec))
         }
-        FnType::Getter(self_ty) => GeneratedPyMethod::Method(impl_py_getter_def(
+        FnType::Getter(self_type) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
-            PropertyType::Function(&spec),
-            self_ty,
-            &spec.doc,
-            &spec.deprecations,
+            PropertyType::Function {
+                self_type,
+                spec: &spec,
+            },
         )?),
-        FnType::Setter(self_ty) => GeneratedPyMethod::Method(impl_py_setter_def(
+        FnType::Setter(self_type) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
-            PropertyType::Function(&spec),
-            self_ty,
-            &spec.doc,
-            &spec.deprecations,
+            PropertyType::Function {
+                self_type,
+                spec: &spec,
+            },
         )?),
     })
 }
@@ -260,17 +257,30 @@ fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 /// Generate a function wrapper called `__wrap` for a property getter
 pub(crate) fn impl_wrap_getter(
     cls: &syn::Type,
-    property_type: PropertyType,
-    self_ty: &SelfType,
+    property_type: &PropertyType,
 ) -> syn::Result<TokenStream> {
-    let getter_impl = match &property_type {
-        PropertyType::Descriptor(ident) => {
+    let getter_impl = match property_type {
+        PropertyType::Descriptor {
+            field: syn::Field {
+                ident: Some(ident), ..
+            },
+            ..
+        } => {
+            // named struct field
             quote!(_slf.#ident.clone())
         }
-        PropertyType::Function(spec) => impl_call_getter(cls, spec)?,
+        PropertyType::Descriptor { field_index, .. } => {
+            // tuple struct field
+            let index = syn::Index::from(*field_index);
+            quote!(_slf.#index.clone())
+        }
+        PropertyType::Function { spec, .. } => impl_call_getter(cls, spec)?,
     };
 
-    let slf = self_ty.receiver(cls);
+    let slf = match property_type {
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+    };
     Ok(quote! {{
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
@@ -309,17 +319,30 @@ fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 /// Generate a function wrapper called `__wrap` for a property setter
 pub(crate) fn impl_wrap_setter(
     cls: &syn::Type,
-    property_type: PropertyType,
-    self_ty: &SelfType,
+    property_type: &PropertyType,
 ) -> syn::Result<TokenStream> {
-    let setter_impl = match &property_type {
-        PropertyType::Descriptor(ident) => {
+    let setter_impl = match property_type {
+        PropertyType::Descriptor {
+            field: syn::Field {
+                ident: Some(ident), ..
+            },
+            ..
+        } => {
+            // named struct field
             quote!({ _slf.#ident = _val; })
         }
-        PropertyType::Function(spec) => impl_call_setter(cls, spec)?,
+        PropertyType::Descriptor { field_index, .. } => {
+            // tuple struct field
+            let index = syn::Index::from(*field_index);
+            quote!({ _slf.#index = _val; })
+        }
+        PropertyType::Function { spec, .. } => impl_call_setter(cls, spec)?,
     };
 
-    let slf = self_ty.receiver(cls);
+    let slf = match property_type {
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+    };
     Ok(quote! {{
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -707,18 +730,11 @@ pub fn impl_py_method_def_call(
 pub(crate) fn impl_py_setter_def(
     cls: &syn::Type,
     property_type: PropertyType,
-    self_ty: &SelfType,
-    doc: &syn::LitStr,
-    deprecations: &Deprecations,
 ) -> Result<TokenStream> {
-    let python_name = match property_type {
-        PropertyType::Descriptor(ident) => {
-            let formatted_name = format!("{}\0", ident.unraw());
-            quote!(#formatted_name)
-        }
-        PropertyType::Function(spec) => spec.null_terminated_python_name(),
-    };
-    let wrapper = impl_wrap_setter(cls, property_type, self_ty)?;
+    let python_name = property_type.null_terminated_python_name()?;
+    let deprecations = property_type.deprecations();
+    let doc = property_type.doc();
+    let wrapper = impl_wrap_setter(cls, &property_type)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Setter({
             #deprecations
@@ -734,18 +750,11 @@ pub(crate) fn impl_py_setter_def(
 pub(crate) fn impl_py_getter_def(
     cls: &syn::Type,
     property_type: PropertyType,
-    self_ty: &SelfType,
-    doc: &syn::LitStr,
-    deprecations: &Deprecations,
 ) -> Result<TokenStream> {
-    let python_name = match property_type {
-        PropertyType::Descriptor(ident) => {
-            let formatted_name = format!("{}\0", ident.unraw());
-            quote!(#formatted_name)
-        }
-        PropertyType::Function(spec) => spec.null_terminated_python_name(),
-    };
-    let wrapper = impl_wrap_getter(cls, property_type, self_ty)?;
+    let python_name = property_type.null_terminated_python_name()?;
+    let deprecations = property_type.deprecations();
+    let doc = property_type.doc();
+    let wrapper = impl_wrap_getter(cls, &property_type)?;
     Ok(quote! {
         pyo3::class::PyMethodDefType::Getter({
             #deprecations
@@ -768,5 +777,55 @@ fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg])
         (Some(&args[0]), &args[1..])
     } else {
         (None, args)
+    }
+}
+
+pub enum PropertyType<'a> {
+    Descriptor {
+        field_index: usize,
+        field: &'a syn::Field,
+        python_name: Option<&'a NameAttribute>,
+    },
+    Function {
+        self_type: &'a SelfType,
+        spec: &'a FnSpec<'a>,
+    },
+}
+
+impl PropertyType<'_> {
+    fn null_terminated_python_name(&self) -> Result<syn::LitStr> {
+        match self {
+            PropertyType::Descriptor {
+                field, python_name, ..
+            } => {
+                let name = match (python_name, &field.ident) {
+                    (Some(name), _) => name.0.to_string(),
+                    (None, Some(field_name)) => format!("{}\0", field_name.unraw()),
+                    (None, None) => {
+                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`")
+                    }
+                };
+                Ok(syn::LitStr::new(&name, field.span()))
+            }
+            PropertyType::Function { spec, .. } => Ok(spec.null_terminated_python_name()),
+        }
+    }
+
+    fn deprecations(&self) -> Option<&Deprecations> {
+        match self {
+            PropertyType::Descriptor { .. } => None,
+            PropertyType::Function { spec, .. } => Some(&spec.deprecations),
+        }
+    }
+
+    fn doc(&self) -> Cow<syn::LitStr> {
+        match self {
+            PropertyType::Descriptor { field, .. } => {
+                let doc = utils::get_doc(&field.attrs, None, true)
+                    .unwrap_or_else(|_| syn::LitStr::new("", Span::call_site()));
+                Cow::Owned(doc)
+            }
+            PropertyType::Function { spec, .. } => Cow::Borrowed(&spec.doc),
+        }
     }
 }
