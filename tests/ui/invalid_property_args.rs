@@ -25,6 +25,18 @@ impl ClassWithSetter {
 }
 
 #[pyclass]
-struct TupleGetterSetter(#[pyo3(get, set)] i32);
+struct TupleGetterSetterNoName(#[pyo3(get, set)] i32);
+
+#[pyclass]
+struct MultipleGet(#[pyo3(get, get)] i32);
+
+#[pyclass]
+struct MultipleSet(#[pyo3(set, set)] i32);
+
+#[pyclass]
+struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
+
+#[pyclass]
+struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
 
 fn main() {}

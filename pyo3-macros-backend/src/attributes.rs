@@ -12,9 +12,11 @@ pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
     syn::custom_keyword!(from_py_with);
+    syn::custom_keyword!(get);
     syn::custom_keyword!(item);
     syn::custom_keyword!(pass_module);
     syn::custom_keyword!(name);
+    syn::custom_keyword!(set);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(transparent);
 }
@@ -43,9 +45,7 @@ impl Parse for NameAttribute {
     }
 }
 
-pub fn get_pyo3_attributes<T: Parse>(
-    attr: &syn::Attribute,
-) -> Result<Option<Punctuated<T, Comma>>> {
+pub fn get_pyo3_options<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctuated<T, Comma>>> {
     if is_attribute_ident(attr, "pyo3") {
         attr.parse_args_with(Punctuated::parse_terminated).map(Some)
     } else {
@@ -81,6 +81,19 @@ pub fn take_attributes(
         })
         .collect::<Result<_>>()?;
     Ok(())
+}
+
+pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
+    let mut out = Vec::new();
+    take_attributes(attrs, |attr| {
+        if let Some(options) = get_pyo3_options(attr)? {
+            out.extend(options.into_iter());
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    })?;
+    Ok(out)
 }
 
 pub fn get_deprecated_name_attribute(

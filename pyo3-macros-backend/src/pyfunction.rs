@@ -2,7 +2,7 @@
 
 use crate::{
     attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_attributes, take_attributes,
+        self, get_deprecated_name_attribute, get_pyo3_options, take_attributes,
         FromPyWithAttribute, NameAttribute,
     },
     deprecations::Deprecations,
@@ -62,7 +62,7 @@ impl PyFunctionArgPyO3Attributes {
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
         let mut attributes = PyFunctionArgPyO3Attributes { from_py_with: None };
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for attr in pyo3_attrs {
                     match attr {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
@@ -270,13 +270,13 @@ impl Parse for PyFunctionOption {
 impl PyFunctionOptions {
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
         let mut options = PyFunctionOptions::default();
-        options.take_pyo3_attributes(attrs)?;
+        options.take_pyo3_options(attrs)?;
         Ok(options)
     }
 
-    pub fn take_pyo3_attributes(&mut self, attrs: &mut Vec<syn::Attribute>) -> syn::Result<()> {
+    pub fn take_pyo3_options(&mut self, attrs: &mut Vec<syn::Attribute>) -> syn::Result<()> {
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attributes) = get_pyo3_attributes(attr)? {
+            if let Some(pyo3_attributes) = get_pyo3_options(attr)? {
                 self.add_attributes(pyo3_attributes)?;
                 Ok(true)
             } else if let Some(name) = get_deprecated_name_attribute(attr, &mut self.deprecations)?
@@ -332,7 +332,7 @@ pub fn build_py_function(
     ast: &mut syn::ItemFn,
     mut options: PyFunctionOptions,
 ) -> syn::Result<TokenStream> {
-    options.take_pyo3_attributes(&mut ast.attrs)?;
+    options.take_pyo3_options(&mut ast.attrs)?;
     Ok(impl_wrap_pyfunction(ast, options)?.1)
 }
 

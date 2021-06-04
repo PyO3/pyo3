@@ -220,9 +220,8 @@ impl<'a> FnSpec<'a> {
         })
     }
 
-    pub fn null_terminated_python_name(&self) -> TokenStream {
-        let name = format!("{}\0", self.python_name);
-        quote!({#name})
+    pub fn null_terminated_python_name(&self) -> syn::LitStr {
+        syn::LitStr::new(&format!("{}\0", self.python_name), self.python_name.span())
     }
 
     fn parse_text_signature(
