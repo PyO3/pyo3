@@ -1,4 +1,5 @@
-use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::types::PyType;
+use crate::{FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,21 @@ impl ToPyObject for Path {
 
 impl FromPyObject<'_> for PathBuf {
     fn extract(ob: &PyAny) -> PyResult<Self> {
-        Ok(PathBuf::from(OsString::extract(ob)?))
+        let os_str = match OsString::extract(ob) {
+            Ok(s) => s,
+            Err(err) => {
+                let py = ob.py();
+                let pathlib = py.import("pathlib")?;
+                let pathlib_path: &PyType = pathlib.getattr("Path")?.downcast()?;
+                if pathlib_path.is_instance(ob)? {
+                    let path_str = ob.call_method0("__str__")?;
+                    OsString::extract(path_str)?
+                } else {
+                    return Err(err);
+                }
+            }
+        };
+        Ok(PathBuf::from(os_str))
     }
 }
 

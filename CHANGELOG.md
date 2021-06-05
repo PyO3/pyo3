@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `#[pyo3(name = "...")]` syntax for setting Python names. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 - Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
 - Add support for `#[pyclass(extends=Exception)]`. [#1591](https://github.com/PyO3/pyo3/pull/1591)
+- Add support for extracting `PathBuf` from `pathlib.Path`. [#1654](https://github.com/PyO3/pyo3/pull/1654)
 
 ### Changed
 - Allow only one `#[pymethods]` block per `#[pyclass]` by default, to simplify the proc macro implementations. Add `multiple-pymethods` feature to opt-in to the more complex full behavior. [#1457](https://github.com/PyO3/pyo3/pull/1457)

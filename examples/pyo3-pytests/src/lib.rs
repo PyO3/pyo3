@@ -8,6 +8,7 @@ pub mod dict_iter;
 pub mod misc;
 pub mod objstore;
 pub mod othermod;
+pub mod path;
 pub mod pyclass_iter;
 pub mod subclassing;
 
@@ -17,6 +18,7 @@ use dict_iter::*;
 use misc::*;
 use objstore::*;
 use othermod::*;
+use path::*;
 use pyclass_iter::*;
 use subclassing::*;
 
@@ -28,6 +30,7 @@ fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(misc))?;
     m.add_wrapped(wrap_pymodule!(objstore))?;
     m.add_wrapped(wrap_pymodule!(othermod))?;
+    m.add_wrapped(wrap_pymodule!(path))?;
     m.add_wrapped(wrap_pymodule!(pyclass_iter))?;
     m.add_wrapped(wrap_pymodule!(subclassing))?;
 
@@ -42,6 +45,7 @@ fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
     sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
     sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
+    sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
     sys_modules.set_item("pyo3_pytests.pyclass_iter", m.getattr("pyclass_iter")?)?;
     sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
 
