@@ -15,6 +15,7 @@ mod from_pyobject;
 mod konst;
 mod method;
 mod module;
+mod params;
 mod proto_method;
 mod pyclass;
 mod pyfunction;
