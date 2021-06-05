@@ -32,7 +32,7 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
         return err.to_compile_error().into();
     }
 
-    let doc = match get_doc(&ast.attrs, None, false) {
+    let doc = match get_doc(&ast.attrs, None) {
         Ok(doc) => doc,
         Err(err) => return err.to_compile_error().into(),
     };
@@ -185,7 +185,7 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[classattr]`][9]  | Defines a class variable. |
 /// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
 ///
-/// Methods within a `#[pymethods]` block can also be annotated with any of the attributes which can
+/// Methods within a `#[pymethods]` block can also be annotated with any of the `#[pyo3]` options which can
 /// be used with [`#[pyfunction]`][attr.pyfunction.html].
 ///
 /// For more on creating class methods see the [class section of the guide][1].
@@ -212,11 +212,12 @@ pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStre
 
 /// A proc macro used to expose Rust functions to Python.
 ///
-/// Functions annotated with `#[pyfunction]` can also be annotated with the following:
+/// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]` options:
 ///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
 /// | `#[pyo3(name = "...")]` | Defines the name of the function in Python. |
+/// | `#[pyo3(text_signature = "...")]` | Defines the `__text_signature__` attribute of the function in Python. |
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///

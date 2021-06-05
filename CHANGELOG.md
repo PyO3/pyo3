@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
 - Add support for `#[pyclass(extends=Exception)]`. [#1591](https://github.com/PyO3/pyo3/pull/1591)
 - Add support for extracting `PathBuf` from `pathlib.Path`. [#1654](https://github.com/PyO3/pyo3/pull/1654)
+- Add `#[pyo3(text_signature = "...")]` syntax for setting text signature. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 
 ### Changed
 - Allow only one `#[pymethods]` block per `#[pyclass]` by default, to simplify the proc macro implementations. Add `multiple-pymethods` feature to opt-in to the more complex full behavior. [#1457](https://github.com/PyO3/pyo3/pull/1457)
@@ -49,6 +50,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate string-literal second argument to `#[pyfn(m, "name")]`. [#1610](https://github.com/PyO3/pyo3/pull/1610)
 - No longer call `PyEval_InitThreads()` in `#[pymodule]` init code. [#1630](https://github.com/PyO3/pyo3/pull/1630)
 - Use `METH_FASTCALL` argument passing convention, when possible, to improve `#[pyfunction]` performance. [#1619](https://github.com/PyO3/pyo3/pull/1619)
+- Deprecate `#[text_signature = "..."]` attributes in favor of `#[pyo3(text_signature = "...")]`. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 
 ### Removed
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)

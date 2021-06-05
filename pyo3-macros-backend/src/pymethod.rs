@@ -876,7 +876,7 @@ impl PropertyType<'_> {
     fn doc(&self) -> Cow<syn::LitStr> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                let doc = utils::get_doc(&field.attrs, None, true)
+                let doc = utils::get_doc(&field.attrs, None)
                     .unwrap_or_else(|_| syn::LitStr::new("", Span::call_site()));
                 Cow::Owned(doc)
             }

@@ -14,6 +14,7 @@ use syn::{parse::Parse, spanned::Spanned, token::Comma, Ident, Path};
 /// module
 pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
     let cb_name = Ident::new(&format!("PyInit_{}", name), Span::call_site());
+    assert!(doc.value().ends_with('\0'));
 
     quote! {
         #[no_mangle]
@@ -23,7 +24,7 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
         pub unsafe extern "C" fn #cb_name() -> *mut pyo3::ffi::PyObject {
             use pyo3::derive_utils::ModuleDef;
             static NAME: &str = concat!(stringify!(#name), "\0");
-            static DOC: &str = concat!(#doc, "\0");
+            static DOC: &str = #doc;
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME, DOC) };
 
             pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(_py, #fnname) })

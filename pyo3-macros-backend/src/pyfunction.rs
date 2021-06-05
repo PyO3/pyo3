@@ -2,8 +2,9 @@
 
 use crate::{
     attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_options, take_attributes,
-        FromPyWithAttribute, NameAttribute,
+        self, get_deprecated_name_attribute, get_deprecated_text_signature_attribute,
+        get_pyo3_options, take_attributes, FromPyWithAttribute, NameAttribute,
+        TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, FnArg, FnSpec},
@@ -211,6 +212,7 @@ pub struct PyFunctionOptions {
     pub pass_module: bool,
     pub name: Option<NameAttribute>,
     pub signature: Option<PyFunctionSignature>,
+    pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
 }
 
@@ -220,6 +222,7 @@ impl Parse for PyFunctionOptions {
             pass_module: false,
             name: None,
             signature: None,
+            text_signature: None,
             deprecations: Deprecations::new(),
         };
 
@@ -228,6 +231,7 @@ impl Parse for PyFunctionOptions {
             if lookahead.peek(attributes::kw::name)
                 || lookahead.peek(attributes::kw::pass_module)
                 || lookahead.peek(attributes::kw::signature)
+                || lookahead.peek(attributes::kw::text_signature)
             {
                 options.add_attributes(std::iter::once(input.parse()?))?;
                 if !input.is_empty() {
@@ -250,6 +254,7 @@ pub enum PyFunctionOption {
     Name(NameAttribute),
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
+    TextSignature(TextSignatureAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -261,6 +266,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::PassModule)
         } else if lookahead.peek(attributes::kw::signature) {
             input.parse().map(PyFunctionOption::Signature)
+        } else if lookahead.peek(attributes::kw::text_signature) {
+            input.parse().map(PyFunctionOption::TextSignature)
         } else {
             Err(lookahead.error())
         }
@@ -282,6 +289,13 @@ impl PyFunctionOptions {
             } else if let Some(name) = get_deprecated_name_attribute(attr, &mut self.deprecations)?
             {
                 self.set_name(name)?;
+                Ok(true)
+            } else if let Some(text_signature) =
+                get_deprecated_text_signature_attribute(attr, &mut self.deprecations)?
+            {
+                self.add_attributes(std::iter::once(PyFunctionOption::TextSignature(
+                    text_signature,
+                )))?;
                 Ok(true)
             } else {
                 Ok(false)
@@ -312,6 +326,13 @@ impl PyFunctionOptions {
                         Span::call_site() => "`signature` may only be specified once"
                     );
                     self.signature = Some(signature);
+                }
+                PyFunctionOption::TextSignature(text_signature) => {
+                    ensure_spanned!(
+                        self.text_signature.is_none(),
+                        text_signature.kw.span() => "`text_signature` may only be specified once"
+                    );
+                    self.text_signature = Some(text_signature);
                 }
             }
         }
@@ -379,8 +400,13 @@ pub fn impl_wrap_pyfunction(
 
     let ty = method::get_return_info(&func.sig.output);
 
-    let text_signature = utils::parse_text_signature_attrs(&mut func.attrs, &python_name)?;
-    let doc = utils::get_doc(&func.attrs, text_signature, true)?;
+    let doc = utils::get_doc(
+        &func.attrs,
+        options
+            .text_signature
+            .as_ref()
+            .map(|attr| (&python_name, attr)),
+    )?;
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 

@@ -117,7 +117,7 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 ## Making the function signature available to Python
 
 In order to make the function signature available to Python to be retrieved via
-`inspect.signature`, use the `#[text_signature]` annotation as in the example
+`inspect.signature`, use the `#[pyo3(text_signature)]` annotation as in the example
 below. The `/` signifies the end of positional-only arguments. (This
 is not a feature of this library in particular, but the general format used by
 CPython for annotating signatures of built-in functions.)
@@ -127,7 +127,7 @@ use pyo3::prelude::*;
 
 /// This function adds two unsigned 64-bit integers.
 #[pyfunction]
-#[text_signature = "(a, b, /)"]
+#[pyo3(text_signature = "(a, b, /)")]
 fn add(a: u64, b: u64) -> u64 {
     a + b
 }
@@ -142,7 +142,7 @@ use pyo3::types::PyType;
 // it works even if the item is not documented:
 
 #[pyclass]
-#[text_signature = "(c, d, /)"]
+#[pyo3(text_signature = "(c, d, /)")]
 struct MyClass {}
 
 #[pymethods]
@@ -154,17 +154,17 @@ impl MyClass {
         Self {}
     }
     // the self argument should be written $self
-    #[text_signature = "($self, e, f)"]
+    #[pyo3(text_signature = "($self, e, f)")]
     fn my_method(&self, e: i32, f: i32) -> i32 {
         e + f
     }
     #[classmethod]
-    #[text_signature = "(cls, e, f)"]
+    #[pyo3(text_signature = "(cls, e, f)")]
     fn my_class_method(cls: &PyType, e: i32, f: i32) -> i32 {
         e + f
     }
     #[staticmethod]
-    #[text_signature = "(e, f)"]
+    #[pyo3(text_signature = "(e, f)")]
     fn my_static_method(e: i32, f: i32) -> i32 {
         e + f
     }
@@ -180,7 +180,7 @@ Alternatively, simply make sure the first line of your docstring is
 formatted like in the following example. Please note that the newline after the
 `--` is mandatory. The `/` signifies the end of positional-only arguments.
 
-`#[text_signature]` should be preferred, since it will override automatically
+`#[pyo3(text_signature)]` should be preferred, since it will override automatically
 generated signatures when those are added in a future version of PyO3.
 
 ```rust
