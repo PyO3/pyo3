@@ -159,7 +159,7 @@ mod inheriting_native_type {
     #[pyclass(extends=PySet)]
     #[derive(Debug)]
     struct SetWithName {
-        #[pyo3(get(name))]
+        #[pyo3(get, name = "name")]
         _name: &'static str,
     }
 
@@ -179,14 +179,14 @@ mod inheriting_native_type {
         py_run!(
             py,
             set_sub,
-            r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub._name == "Hello :)""#
+            r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub.name == "Hello :)""#
         );
     }
 
     #[pyclass(extends=PyDict)]
     #[derive(Debug)]
     struct DictWithName {
-        #[pyo3(get(name))]
+        #[pyo3(get, name = "name")]
         _name: &'static str,
     }
 
@@ -206,7 +206,7 @@ mod inheriting_native_type {
         py_run!(
             py,
             dict_sub,
-            r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub._name == "Hello :)""#
+            r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub.name == "Hello :)""#
         );
     }
 

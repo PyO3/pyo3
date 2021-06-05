@@ -28,6 +28,8 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(PyCFunction),
     PyCFunctionWithKeywords(PyCFunctionWithKeywords),
+    #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+    PyCFunctionFastWithKeywords(PyCFunctionFastWithKeywords),
 }
 
 // These newtype structs serve no purpose other than wrapping which are function pointers - because
@@ -36,6 +38,9 @@ pub enum PyMethodType {
 pub struct PyCFunction(pub ffi::PyCFunction);
 #[derive(Clone, Copy, Debug)]
 pub struct PyCFunctionWithKeywords(pub ffi::PyCFunctionWithKeywords);
+#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+#[derive(Clone, Copy, Debug)]
+pub struct PyCFunctionFastWithKeywords(pub ffi::_PyCFunctionFastWithKeywords);
 #[derive(Clone, Copy, Debug)]
 pub struct PyGetter(pub ffi::getter);
 #[derive(Clone, Copy, Debug)]
@@ -105,6 +110,21 @@ impl PyMethodDef {
         }
     }
 
+    /// Define a function that can take `*args` and `**kwargs`.
+    #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+    pub const fn fastcall_cfunction_with_keywords(
+        name: &'static str,
+        cfunction: PyCFunctionFastWithKeywords,
+        doc: &'static str,
+    ) -> Self {
+        Self {
+            ml_name: name,
+            ml_meth: PyMethodType::PyCFunctionFastWithKeywords(cfunction),
+            ml_flags: ffi::METH_FASTCALL | ffi::METH_KEYWORDS,
+            ml_doc: doc,
+        }
+    }
+
     pub const fn flags(mut self, flags: c_int) -> Self {
         self.ml_flags |= flags;
         self
@@ -115,6 +135,10 @@ impl PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth.0,
             PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth.0) },
+            #[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+            PyMethodType::PyCFunctionFastWithKeywords(meth) => unsafe {
+                std::mem::transmute(meth.0)
+            },
         };
 
         Ok(ffi::PyMethodDef {

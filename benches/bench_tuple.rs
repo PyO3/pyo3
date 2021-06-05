@@ -17,6 +17,13 @@ fn iter_tuple(b: &mut Bencher) {
     });
 }
 
+fn tuple_new(b: &mut Bencher) {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    const LEN: usize = 50_000;
+    b.iter(|| PyTuple::new(py, 0..LEN));
+}
+
 fn tuple_get_item(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -32,6 +39,7 @@ fn tuple_get_item(b: &mut Bencher) {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
+    c.bench_function("tuple_new", tuple_new);
     c.bench_function("tuple_get_item", tuple_get_item);
 }
 

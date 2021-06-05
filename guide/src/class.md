@@ -349,7 +349,7 @@ struct MyClass {
 }
 ```
 
-The above would make the `num` property available for reading and writing from Python code as `self.num`.
+The above would make the `num` field available for reading and writing as a `self.num` Python property. To expose the property with a different name to the field, specify this alongside the rest of the options, e.g. `#[pyo3(get, set, name = "custom_name")]`.
 
 Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
 

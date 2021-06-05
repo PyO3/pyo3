@@ -26,6 +26,9 @@ impl PyTuple {
         unsafe {
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
             for (i, e) in elements_iter.enumerate() {
+                #[cfg(not(Py_LIMITED_API))]
+                ffi::PyTuple_SET_ITEM(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
+                #[cfg(Py_LIMITED_API)]
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
             py.from_owned_ptr(ptr)
@@ -40,8 +43,12 @@ impl PyTuple {
     /// Gets the length of the tuple.
     pub fn len(&self) -> usize {
         unsafe {
+            #[cfg(not(Py_LIMITED_API))]
+            let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
+            #[cfg(Py_LIMITED_API)]
+            let size = ffi::PyTuple_Size(self.as_ptr());
             // non-negative Py_ssize_t should always fit into Rust uint
-            ffi::PyTuple_Size(self.as_ptr()) as usize
+            size as usize
         }
     }
 
@@ -72,8 +79,12 @@ impl PyTuple {
     pub fn get_item(&self, index: usize) -> &PyAny {
         assert!(index < self.len());
         unsafe {
-            self.py()
-                .from_borrowed_ptr(ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+            #[cfg(not(Py_LIMITED_API))]
+            let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+            #[cfg(Py_LIMITED_API)]
+            let item = ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t);
+
+            self.py().from_borrowed_ptr(item)
         }
     }
 
@@ -119,6 +130,12 @@ impl<'a> Iterator for PyTupleIterator<'a> {
         } else {
             None
         }
+    }
+}
+
+impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
+    fn len(&self) -> usize {
+        self.length - self.index
     }
 }
 

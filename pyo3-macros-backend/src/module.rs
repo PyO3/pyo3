@@ -114,7 +114,7 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     })?;
 
     if let Some(pyfn_args) = &mut pyfn_args {
-        pyfn_args.options.take_pyo3_attributes(attrs)?;
+        pyfn_args.options.take_pyo3_options(attrs)?;
     }
 
     Ok(pyfn_args)

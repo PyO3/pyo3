@@ -337,35 +337,6 @@ macro_rules! wrap_pyfunction {
     };
 }
 
-/// Returns the function that is called in the C-FFI.
-///
-/// Use this together with `#[pyfunction]` and [types::PyCFunction].
-/// ```
-/// use pyo3::prelude::*;
-/// use pyo3::types::PyCFunction;
-/// use pyo3::raw_pycfunction;
-///
-/// #[pyfunction]
-/// fn some_fun(arg: i32) -> PyResult<()> {
-///     Ok(())
-/// }
-///
-/// #[pymodule]
-/// fn module(_py: Python, module: &PyModule) -> PyResult<()> {
-///     let ffi_wrapper_fun = raw_pycfunction!(some_fun);
-///     let docs = "Some documentation string with null-termination\0";
-///     let py_cfunction =
-///         PyCFunction::new_with_keywords(ffi_wrapper_fun, "function_name", docs, module.into())?;
-///     module.add_function(py_cfunction)
-/// }
-/// ```
-#[macro_export]
-macro_rules! raw_pycfunction {
-    ($function_name: ident) => {{
-        pyo3::paste::expr! { [<__pyo3_raw_ $function_name>] }
-    }};
-}
-
 /// Returns a function that takes a [Python] instance and returns a Python module.
 ///
 /// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
@@ -538,4 +509,5 @@ pub mod doc_test {
     doctest!("guide/src/rust_cpython.md", guide_rust_cpython_md);
     doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
     doctest!("guide/src/types.md", guide_types_md);
+    doctest!("guide/src/faq.md", faq);
 }
