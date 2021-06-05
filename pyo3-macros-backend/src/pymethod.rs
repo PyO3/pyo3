@@ -27,6 +27,7 @@ pub fn gen_py_method(
 ) -> Result<GeneratedPyMethod> {
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
+    ensure_function_options_valid(&options)?;
     let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
     Ok(match &spec.tp {
@@ -67,6 +68,13 @@ pub(crate) fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
             syn::GenericParam::Type(_) => bail_spanned!(param.span() => err_msg("type")),
             syn::GenericParam::Const(_) => bail_spanned!(param.span() => err_msg("const")),
         }
+    }
+    Ok(())
+}
+
+fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()> {
+    if let Some(pass_module) = &options.pass_module {
+        bail_spanned!(pass_module.span() => "`pass_module` cannot be used on Python methods")
     }
     Ok(())
 }

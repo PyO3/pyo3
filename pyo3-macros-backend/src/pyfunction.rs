@@ -209,7 +209,7 @@ impl PyFunctionSignature {
 
 #[derive(Default)]
 pub struct PyFunctionOptions {
-    pub pass_module: bool,
+    pub pass_module: Option<attributes::kw::pass_module>,
     pub name: Option<NameAttribute>,
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
@@ -219,7 +219,7 @@ pub struct PyFunctionOptions {
 impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut options = PyFunctionOptions {
-            pass_module: false,
+            pass_module: None,
             name: None,
             signature: None,
             text_signature: None,
@@ -314,10 +314,10 @@ impl PyFunctionOptions {
                 PyFunctionOption::Name(name) => self.set_name(name)?,
                 PyFunctionOption::PassModule(kw) => {
                     ensure_spanned!(
-                        !self.pass_module,
+                        self.pass_module.is_none(),
                         kw.span() => "`pass_module` may only be specified once"
                     );
-                    self.pass_module = true;
+                    self.pass_module = Some(kw);
                 }
                 PyFunctionOption::Signature(signature) => {
                     ensure_spanned!(
@@ -385,7 +385,7 @@ pub fn impl_wrap_pyfunction(
         .map(FnArg::parse)
         .collect::<syn::Result<Vec<_>>>()?;
 
-    if options.pass_module {
+    if options.pass_module.is_some() {
         const PASS_MODULE_ERR: &str = "expected &PyModule as first argument with `pass_module`";
         ensure_spanned!(
             !arguments.is_empty(),
@@ -426,7 +426,7 @@ pub fn impl_wrap_pyfunction(
 
     let name = &func.sig.ident;
     let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
-    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, options.pass_module)?;
+    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, options.pass_module.is_some())?;
     let (methoddef_meth, cfunc_variant) = if spec.args.is_empty() {
         (quote!(noargs), quote!(PyCFunction))
     } else if spec.can_use_fastcall() {

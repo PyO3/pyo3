@@ -108,4 +108,10 @@ impl MyClass {
     async fn async_method(&self) {}
 }
 
+#[pymethods]
+impl MyClass {
+    #[pyo3(pass_module)]
+    fn method_cannot_pass_module(&self, m: &PyModule) {}
+}
+
 fn main() {}
