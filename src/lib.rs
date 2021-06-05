@@ -298,11 +298,6 @@ mod python;
 pub mod type_object;
 pub mod types;
 
-#[cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy)))))
-)]
 pub mod num_bigint;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]

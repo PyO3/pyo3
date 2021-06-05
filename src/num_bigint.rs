@@ -1,7 +1,56 @@
 #![cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
-
-
-
+#![cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy)))))
+)]
+//!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
+//!
+//! This is useful for converting Python integers, which have arbitrary precision,
+//! when they may not fit in Rust's built-in integer types.
+//!
+//! # Setup
+//!
+//! To use this feature, add this to your **`Cargo.toml`**:
+//!
+//! ```toml
+//! [dependencies]
+//! num-bigint = "0.4"
+//! pyo3 = { version = "0.14.0", features = ["num-bigint"] }
+//! ```
+//!
+//! Note that you must use compatible versions of num-bigint and PyO3.
+//! The required num-bigint version may vary with older versions of PyO3.
+//!
+//! ## Examples
+//!
+//! [`BigInt`] and [`BigUint`] can be used represent arbitrary precision integers:
+//!
+//! ```rust
+//! use num_bigint::BigInt;
+//! use pyo3::prelude::*;
+//! use pyo3::wrap_pyfunction;
+//! 
+//! #[pyfunction]
+//! fn add_one(n: BigInt) -> BigInt {
+//!     n + 1
+//! }
+//! 
+//! #[pymodule]
+//! fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+//!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Python code:
+//! ```python
+//! from my_module import add_one
+//! 
+//! n = 1 << 1337
+//! value = add_one(n)
+//! 
+//! assert n + 1 == value
+//! ```
 
 
 use crate::{
