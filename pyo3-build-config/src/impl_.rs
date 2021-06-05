@@ -484,6 +484,24 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
         };
         sysconfig_paths.extend(sysc);
     }
+    // If we got more than one file, only take those that contain the arch name.
+    // For ubuntu 20.04 with host architecture x86_64 and a foreign architecture of armhf
+    // this reduces the number of candidates to 1:
+    //
+    // $ find /usr/lib/python3.8/ -name '_sysconfigdata*.py' -not -lname '*'
+    //  /usr/lib/python3.8/_sysconfigdata__x86_64-linux-gnu.py
+    //  /usr/lib/python3.8/_sysconfigdata__arm-linux-gnueabihf.py
+    if sysconfig_paths.len() > 1 {
+        let temp = sysconfig_paths
+            .iter()
+            .filter(|p| p.to_string_lossy().contains(&cross.arch))
+            .cloned()
+            .collect::<Vec<PathBuf>>();
+        if !temp.is_empty() {
+            sysconfig_paths = temp;
+        }
+    }
+
     sysconfig_paths
 }
 

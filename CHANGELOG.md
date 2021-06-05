@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `num-complex` optional dependency to 0.4. [#1482](https://github.com/PyO3/pyo3/pull/1482)
 - Extend `hashbrown` optional dependency supported versions to include 0.11. [#1496](https://github.com/PyO3/pyo3/pull/1496)
 - Support PyPy 3.7. [#1538](https://github.com/PyO3/pyo3/pull/1538)
+- Try harder to filter sysconfigdata candidates on arch.config
 
 ### Added
 - Add conversions for `[T; N]` for all `N` on Rust 1.51 and up. [#1128](https://github.com/PyO3/pyo3/pull/1128)
