@@ -279,12 +279,11 @@ in the function body.
 
 ## Accessing the FFI functions
 
-In order to make Rust functions callable from Python, PyO3 generates a
-`extern "C" Fn(slf: *mut PyObject, args: *mut PyObject, kwargs: *mut PyObject) -> *mut Pyobject`
-function and embeds the call to the Rust function inside this FFI-wrapper function. This
-wrapper handles extraction of the regular arguments and the keyword arguments from the input
-`PyObjects`. Since this function is not user-defined but required to build a `PyCFunction`, PyO3
-offers the `raw_pycfunction!()` macro to get the identifier of this generated wrapper.
+In order to make Rust functions callable from Python, PyO3 generates an `extern "C"`
+function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal
+Python argument passing convention.) It then embeds the call to the Rust function inside this
+FFI-wrapper function. This wrapper handles extraction of the regular arguments and the keyword
+arguments from the input `PyObject`s.
 
 The `wrap_pyfunction` macro can be used to directly get a `PyCFunction` given a
 `#[pyfunction]` and a `PyModule`: `wrap_pyfunction!(rust_fun, module)`.
