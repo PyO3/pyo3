@@ -1,6 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attributes::{self, take_pyo3_options, NameAttribute};
+use crate::attributes::{
+    self, take_deprecated_text_signature_attribute, take_pyo3_options, NameAttribute,
+    TextSignatureAttribute,
+};
+use crate::deprecations::Deprecations;
 use crate::pyimpl::PyClassMethodsType;
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
 use crate::utils;
@@ -162,16 +166,71 @@ impl PyClassArgs {
     }
 }
 
+#[derive(Default)]
+pub struct PyClassPyO3Options {
+    pub text_signature: Option<TextSignatureAttribute>,
+    pub deprecations: Deprecations,
+}
+
+enum PyClassPyO3Option {
+    TextSignature(TextSignatureAttribute),
+}
+
+impl Parse for PyClassPyO3Option {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::text_signature) {
+            input.parse().map(PyClassPyO3Option::TextSignature)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl PyClassPyO3Options {
+    pub fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
+        let mut options: PyClassPyO3Options = Default::default();
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                PyClassPyO3Option::TextSignature(text_signature) => {
+                    options.set_text_signature(text_signature)?;
+                }
+            }
+        }
+        Ok(options)
+    }
+
+    pub fn set_text_signature(
+        &mut self,
+        text_signature: TextSignatureAttribute,
+    ) -> syn::Result<()> {
+        ensure_spanned!(
+            self.text_signature.is_none(),
+            text_signature.kw.span() => "`text_signature` may only be specified once"
+        );
+        self.text_signature = Some(text_signature);
+        Ok(())
+    }
+}
+
 pub fn build_py_class(
     class: &mut syn::ItemStruct,
-    attr: &PyClassArgs,
+    args: &PyClassArgs,
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
-    let text_signature = utils::parse_text_signature_attrs(
-        &mut class.attrs,
-        &get_class_python_name(&class.ident, attr),
+    let mut options = PyClassPyO3Options::take_pyo3_options(&mut class.attrs)?;
+    if let Some(text_signature) =
+        take_deprecated_text_signature_attribute(&mut class.attrs, &mut options.deprecations)?
+    {
+        options.set_text_signature(text_signature)?;
+    }
+    let doc = utils::get_doc(
+        &class.attrs,
+        options
+            .text_signature
+            .as_ref()
+            .map(|attr| (get_class_python_name(&class.ident, args), attr)),
     )?;
-    let doc = utils::get_doc(&class.attrs, text_signature, true)?;
 
     ensure_spanned!(
         class.generics.params.is_empty(),
@@ -201,7 +260,14 @@ pub fn build_py_class(
         }
     };
 
-    impl_class(&class.ident, &attr, doc, field_options, methods_type)
+    impl_class(
+        &class.ident,
+        &args,
+        doc,
+        field_options,
+        methods_type,
+        options.deprecations,
+    )
 }
 
 /// `#[pyo3()]` options for pyclass fields
@@ -308,6 +374,7 @@ fn impl_class(
     doc: syn::LitStr,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
     methods_type: PyClassMethodsType,
+    deprecations: Deprecations,
 ) -> syn::Result<TokenStream> {
     let cls_name = get_class_python_name(cls, attr).to_string();
 
@@ -429,6 +496,8 @@ fn impl_class(
 
             #[inline]
             fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
+                #deprecations
+
                 use pyo3::type_object::LazyStaticType;
                 static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
                 TYPE_OBJECT.get_or_init::<Self>(py)

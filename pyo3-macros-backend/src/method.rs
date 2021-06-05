@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::attributes::TextSignatureAttribute;
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
 use crate::utils;
@@ -209,13 +210,19 @@ impl<'a> FnSpec<'a> {
         }
 
         let (fn_type, skip_first_arg) = Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
+        Self::ensure_text_signature_on_valid_method(&fn_type, options.text_signature.as_ref())?;
 
         let name = &sig.ident;
         let ty = get_return_info(&sig.output);
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
-        let text_signature = Self::parse_text_signature(meth_attrs, &fn_type, &python_name)?;
-        let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
+        let doc = utils::get_doc(
+            &meth_attrs,
+            options
+                .text_signature
+                .as_ref()
+                .map(|attr| (&python_name, attr)),
+        )?;
 
         let arguments = if skip_first_arg {
             sig.inputs
@@ -246,36 +253,27 @@ impl<'a> FnSpec<'a> {
         syn::LitStr::new(&format!("{}\0", self.python_name), self.python_name.span())
     }
 
-    fn parse_text_signature(
-        meth_attrs: &mut Vec<syn::Attribute>,
+    fn ensure_text_signature_on_valid_method(
         fn_type: &FnType,
-        python_name: &syn::Ident,
-    ) -> syn::Result<Option<syn::LitStr>> {
-        let mut parse_erroneous_text_signature = |error_msg: &str| {
-            // try to parse anyway to give better error messages
-            if let Some(text_signature) =
-                utils::parse_text_signature_attrs(meth_attrs, &python_name)?
-            {
-                bail_spanned!(text_signature.span() => error_msg)
-            } else {
-                Ok(None)
+        text_signature: Option<&TextSignatureAttribute>,
+    ) -> syn::Result<()> {
+        if let Some(text_signature) = text_signature {
+            match &fn_type {
+                FnType::FnNew => bail_spanned!(
+                    text_signature.kw.span() =>
+                    "text_signature not allowed on __new__; if you want to add a signature on \
+                     __new__, put it on the struct definition instead"
+                ),
+                FnType::FnCall(_)
+                | FnType::Getter(_)
+                | FnType::Setter(_)
+                | FnType::ClassAttribute => bail_spanned!(
+                    text_signature.kw.span() => "text_signature not allowed with this method type"
+                ),
+                _ => {}
             }
-        };
-
-        let text_signature = match &fn_type {
-            FnType::Fn(_) | FnType::FnClass | FnType::FnStatic => {
-                utils::parse_text_signature_attrs(&mut *meth_attrs, &python_name)?
-            }
-            FnType::FnNew => parse_erroneous_text_signature(
-                "text_signature not allowed on __new__; if you want to add a signature on \
-                 __new__, put it on the struct definition instead",
-            )?,
-            FnType::FnCall(_) | FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => {
-                parse_erroneous_text_signature("text_signature not allowed with this method type")?
-            }
-        };
-
-        Ok(text_signature)
+        }
+        Ok(())
     }
 
     fn parse_fn_type(
