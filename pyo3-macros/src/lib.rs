@@ -186,7 +186,7 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
 ///
 /// Methods within a `#[pymethods]` block can also be annotated with any of the `#[pyo3]` options which can
-/// be used with [`#[pyfunction]`][attr.pyfunction.html].
+/// be used with [`#[pyfunction]`][attr.pyfunction.html], except for `pass_module`.
 ///
 /// For more on creating class methods see the [class section of the guide][1].
 ///
@@ -218,6 +218,7 @@ pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStre
 /// | :-  | :- |
 /// | `#[pyo3(name = "...")]` | Defines the name of the function in Python. |
 /// | `#[pyo3(text_signature = "...")]` | Defines the `__text_signature__` attribute of the function in Python. |
+/// | `#[pyo3(pass_module)]` | Passes the module containing the function as a `&PyModule` first argument to the function. |
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///

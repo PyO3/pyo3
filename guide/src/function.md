@@ -255,13 +255,14 @@ in Python code.
 
 ### Accessing the module of a function
 
-It is possible to access the module of a `#[pyfunction]` in the function body by passing the `pass_module` argument to the attribute:
+It is possible to access the module of a `#[pyfunction]` in the function body by using `#[pyo3(pass_module)]` option:
 
 ```rust
 use pyo3::wrap_pyfunction;
 use pyo3::prelude::*;
 
-#[pyfunction(pass_module)]
+#[pyfunction]
+#[pyo3(pass_module)]
 fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
     module.name()
 }

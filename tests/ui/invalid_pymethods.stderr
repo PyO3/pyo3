@@ -95,3 +95,9 @@ Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and
     |
 108 |     async fn async_method(&self) {}
     |     ^^^^^
+
+error: `pass_module` cannot be used on Python methods
+   --> $DIR/invalid_pymethods.rs:113:12
+    |
+113 |     #[pyo3(pass_module)]
+    |            ^^^^^^^^^^^
