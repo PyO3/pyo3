@@ -544,7 +544,7 @@ impl<'a> FnSpec<'a> {
                 let rust_call = quote! { #rust_name(#(#arg_names),*) };
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
-                    unsafe extern "C" fn __wrap(
+                    unsafe extern "C" fn #ident (
                         subtype: *mut pyo3::ffi::PyTypeObject,
                         _args: *mut pyo3::ffi::PyObject,
                         _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
@@ -564,6 +564,37 @@ impl<'a> FnSpec<'a> {
                 }
             }
         })
+    }
+
+    /// Return a `PyMethodDef` constructor for this function, matching the selected
+    /// calling convention.
+    pub fn get_methoddef(&self, wrapper: impl ToTokens) -> TokenStream {
+        let python_name = self.null_terminated_python_name();
+        let doc = &self.doc;
+        match self.convention {
+            CallingConvention::Noargs => quote! {
+                pyo3::class::methods::PyMethodDef::noargs(
+                    #python_name,
+                    pyo3::class::methods::PyCFunction(#wrapper),
+                    #doc,
+                )
+            },
+            CallingConvention::Fastcall => quote! {
+                pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
+                    #python_name,
+                    pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
+                    #doc,
+                )
+            },
+            CallingConvention::Varargs => quote! {
+                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                    #python_name,
+                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
+                    #doc,
+                )
+            },
+            CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
+        }
     }
 }
 

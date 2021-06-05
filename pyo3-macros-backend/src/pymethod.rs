@@ -4,7 +4,6 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::konst::ConstSpec;
-use crate::method::CallingConvention;
 use crate::utils::ensure_not_async_fn;
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -250,36 +249,14 @@ pub fn impl_py_method_def(
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper_def = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let doc = &spec.doc;
-    let python_name = spec.null_terminated_python_name();
     let methoddef_type = match spec.tp {
         FnType::FnStatic => quote!(Static),
         FnType::FnClass => quote!(Class),
         _ => quote!(Method),
     };
-    let (methoddef_meth, cfunc_variant) = match spec.convention {
-        CallingConvention::Noargs => (quote!(noargs), quote!(PyCFunction)),
-        CallingConvention::Fastcall => (
-            quote!(fastcall_cfunction_with_keywords),
-            quote!(PyCFunctionFastWithKeywords),
-        ),
-        _ => (
-            quote!(cfunction_with_keywords),
-            quote!(PyCFunctionWithKeywords),
-        ),
-    };
+    let methoddef = spec.get_methoddef(quote! {{ #wrapper_def #wrapper_ident }});
     Ok(quote! {
-        pyo3::class::PyMethodDefType:: #methoddef_type ({
-            pyo3::class::PyMethodDef:: #methoddef_meth (
-                #python_name,
-                pyo3::class::methods:: #cfunc_variant ({
-                    #wrapper_def
-                    #wrapper_ident
-                }),
-                #doc
-            )
-            #add_flags
-        })
+        pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
     })
 }
 

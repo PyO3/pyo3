@@ -426,37 +426,16 @@ pub fn impl_wrap_pyfunction(
         deprecations: options.deprecations,
     };
 
-    let doc = &spec.doc;
-    let python_name = spec.null_terminated_python_name();
-
-    let name = &func.sig.ident;
-    let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
+    let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
-    let (methoddef_meth, cfunc_variant) = match spec.convention {
-        CallingConvention::Noargs => (quote!(noargs), quote!(PyCFunction)),
-        CallingConvention::Fastcall => (
-            quote!(fastcall_cfunction_with_keywords),
-            quote!(PyCFunctionFastWithKeywords),
-        ),
-        _ => (
-            quote!(cfunction_with_keywords),
-            quote!(PyCFunctionWithKeywords),
-        ),
-    };
+    let methoddef = spec.get_methoddef(wrapper_ident);
 
     let wrapped_pyfunction = quote! {
         #wrapper
         pub(crate) fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
-            pyo3::types::PyCFunction::internal_new(
-                pyo3::class::methods::PyMethodDef:: #methoddef_meth (
-                    #python_name,
-                    pyo3::class::methods:: #cfunc_variant (#wrapper_ident),
-                    #doc,
-                ),
-                args.into(),
-            )
+            pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };
     Ok((function_wrapper_ident, wrapped_pyfunction))
