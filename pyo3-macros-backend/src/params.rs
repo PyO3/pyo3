@@ -3,12 +3,36 @@
 use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec},
+    pyfunction::Argument,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::Result;
+
+/// Return true if the argument list is simply (*args, **kwds).
+pub fn is_forwarded_args(args: &[FnArg<'_>], attrs: &[Argument]) -> bool {
+    args.len() == 2 && is_args(attrs, &args[0].name) && is_kwargs(attrs, &args[1].name)
+}
+
+fn is_args(attrs: &[Argument], name: &syn::Ident) -> bool {
+    for s in attrs.iter() {
+        if let Argument::VarArgs(path) = s {
+            return path.is_ident(name);
+        }
+    }
+    false
+}
+
+fn is_kwargs(attrs: &[Argument], name: &syn::Ident) -> bool {
+    for s in attrs.iter() {
+        if let Argument::KeywordArgs(path) = s {
+            return path.is_ident(name);
+        }
+    }
+    false
+}
 
 pub fn impl_arg_params(
     spec: &FnSpec<'_>,
@@ -21,12 +45,36 @@ pub fn impl_arg_params(
         return Ok(body);
     }
 
+    let args_array = syn::Ident::new("output", Span::call_site());
+
+    if !fastcall && is_forwarded_args(&spec.args, &spec.attrs) {
+        // In the varargs convention, we can just pass though if the signature
+        // is (*args, **kwds).
+        let mut arg_convert = vec![];
+        for (i, arg) in spec.args.iter().enumerate() {
+            arg_convert.push(impl_arg_param(
+                arg,
+                &spec,
+                i,
+                None,
+                &mut 0,
+                py,
+                &args_array,
+            )?);
+        }
+        return Ok(quote! {{
+            let _args = Some(_args);
+            #(#arg_convert)*
+            #body
+        }});
+    };
+
     let mut positional_parameter_names = Vec::new();
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
 
     for arg in spec.args.iter() {
-        if arg.py || spec.is_args(&arg.name) || spec.is_kwargs(&arg.name) {
+        if arg.py || is_args(&spec.attrs, &arg.name) || is_kwargs(&spec.attrs, &arg.name) {
             continue;
         }
         let name = arg.name.unraw().to_string();
@@ -49,7 +97,6 @@ pub fn impl_arg_params(
     }
 
     let num_params = positional_parameter_names.len() + keyword_only_parameters.len();
-    let args_array = syn::Ident::new("output", Span::call_site());
 
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
@@ -149,7 +196,7 @@ fn impl_arg_param(
         |e| pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
     };
 
-    if spec.is_args(&name) {
+    if is_args(&spec.attrs, &name) {
         ensure_spanned!(
             arg.optional.is_none(),
             arg.name.span() => "args cannot be optional"
@@ -157,7 +204,7 @@ fn impl_arg_param(
         return Ok(quote_arg_span! {
             let #arg_name = _args.unwrap().extract().map_err(#transform_error)?;
         });
-    } else if spec.is_kwargs(&name) {
+    } else if is_kwargs(&spec.attrs, &name) {
         ensure_spanned!(
             arg.optional.is_some(),
             arg.name.span() => "kwargs must be Option<_>"
