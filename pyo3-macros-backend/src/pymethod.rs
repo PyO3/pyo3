@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
-use crate::konst::ConstSpec;
 use crate::utils::ensure_not_async_fn;
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -47,9 +46,7 @@ pub fn gen_py_method(
         // special prototypes
         FnType::FnNew => GeneratedPyMethod::New(impl_py_method_def_new(cls, &spec)?),
         FnType::FnCall(_) => GeneratedPyMethod::Call(impl_py_method_def_call(cls, &spec)?),
-        FnType::ClassAttribute => {
-            GeneratedPyMethod::Method(impl_py_method_class_attribute(cls, &spec))
-        }
+        FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_class_attribute(cls, &spec)),
         FnType::Getter(self_type) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
             PropertyType::Function {
@@ -89,158 +86,7 @@ fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()>
     Ok(())
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
-    let member = &spec.rust_ident;
-    let deprecations = &spec.attributes.deprecations;
-    let wrapper = quote! {{
-        fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
-            #deprecations
-            pyo3::IntoPy::into_py(#cls::#member, py)
-        }
-        __wrap
-    }};
-    impl_py_const_class_attribute(&spec, &wrapper)
-}
-
-/// Generate a wrapper for initialization of a class attribute from a method
-/// annotated with `#[classattr]`.
-/// To be called in `pyo3::pyclass::initialize_type_object`.
-fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
-    let name = &spec.name;
-    let cb = quote! { #cls::#name() };
-    let deprecations = &spec.deprecations;
-    quote! {{
-        fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
-            #deprecations
-            pyo3::IntoPy::into_py(#cb, py)
-        }
-        __wrap
-    }}
-}
-
-fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
-    let (py_arg, args) = split_off_python_arg(&spec.args);
-    ensure_spanned!(
-        args.is_empty(),
-        args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
-    );
-
-    let name = &spec.name;
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(_slf, _py))
-    } else {
-        quote!(#cls::#name(_slf))
-    };
-
-    Ok(fncall)
-}
-
-/// Generate a function wrapper called `__wrap` for a property getter
-pub(crate) fn impl_wrap_getter(
-    cls: &syn::Type,
-    property_type: &PropertyType,
-) -> syn::Result<TokenStream> {
-    let getter_impl = match property_type {
-        PropertyType::Descriptor {
-            field: syn::Field {
-                ident: Some(ident), ..
-            },
-            ..
-        } => {
-            // named struct field
-            quote!(_slf.#ident.clone())
-        }
-        PropertyType::Descriptor { field_index, .. } => {
-            // tuple struct field
-            let index = syn::Index::from(*field_index);
-            quote!(_slf.#index.clone())
-        }
-        PropertyType::Function { spec, .. } => impl_call_getter(cls, spec)?,
-    };
-
-    let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
-    };
-    Ok(quote! {{
-        unsafe extern "C" fn __wrap(
-            _slf: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
-        {
-            pyo3::callback::handle_panic(|_py| {
-                #slf
-                pyo3::callback::convert(_py, #getter_impl)
-            })
-        }
-        __wrap
-    }})
-}
-
-fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
-    let (py_arg, args) = split_off_python_arg(&spec.args);
-
-    if args.is_empty() {
-        bail_spanned!(spec.name.span() => "setter function expected to have one argument");
-    } else if args.len() > 1 {
-        bail_spanned!(
-            args[1].ty.span() =>
-            "setter function can have at most two arguments ([pyo3::Python,] and value)"
-        );
-    }
-
-    let name = &spec.name;
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(_slf, _py, _val))
-    } else {
-        quote!(#cls::#name(_slf, _val))
-    };
-
-    Ok(fncall)
-}
-
-/// Generate a function wrapper called `__wrap` for a property setter
-pub(crate) fn impl_wrap_setter(
-    cls: &syn::Type,
-    property_type: &PropertyType,
-) -> syn::Result<TokenStream> {
-    let setter_impl = match property_type {
-        PropertyType::Descriptor {
-            field: syn::Field {
-                ident: Some(ident), ..
-            },
-            ..
-        } => {
-            // named struct field
-            quote!({ _slf.#ident = _val; })
-        }
-        PropertyType::Descriptor { field_index, .. } => {
-            // tuple struct field
-            let index = syn::Index::from(*field_index);
-            quote!({ _slf.#index = _val; })
-        }
-        PropertyType::Function { spec, .. } => impl_call_setter(cls, spec)?,
-    };
-
-    let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
-    };
-    Ok(quote! {{
-        unsafe extern "C" fn __wrap(
-            _slf: *mut pyo3::ffi::PyObject,
-            _value: *mut pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> std::os::raw::c_int
-        {
-            pyo3::callback::handle_panic(|_py| {
-                #slf
-                let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
-                let _val = pyo3::FromPyObject::extract(_value)?;
-
-                pyo3::callback::convert(_py, #setter_impl)
-            })
-        }
-        __wrap
-    }})
-}
-
+/// Also used by pyfunction.
 pub fn impl_py_method_def(
     cls: &syn::Type,
     spec: &FnSpec,
@@ -275,33 +121,6 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     })
 }
 
-fn impl_py_method_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
-    let wrapper = impl_wrap_class_attribute(cls, &spec);
-    let python_name = spec.null_terminated_python_name();
-    quote! {
-        pyo3::class::PyMethodDefType::ClassAttribute({
-            pyo3::class::PyClassAttributeDef::new(
-                #python_name,
-                pyo3::class::methods::PyClassAttributeFactory(#wrapper)
-            )
-        })
-    }
-}
-
-fn impl_py_const_class_attribute(spec: &ConstSpec, wrapper: &TokenStream) -> TokenStream {
-    let python_name = &spec.null_terminated_python_name();
-    quote! {
-        {
-            pyo3::class::PyMethodDefType::ClassAttribute({
-                pyo3::class::PyClassAttributeDef::new(
-                    #python_name,
-                    pyo3::class::methods::PyClassAttributeFactory(#wrapper)
-                )
-            })
-        }
-    }
-}
-
 fn impl_py_method_def_call(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
@@ -317,40 +136,163 @@ fn impl_py_method_def_call(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream
     })
 }
 
-pub(crate) fn impl_py_setter_def(
-    cls: &syn::Type,
-    property_type: PropertyType,
-) -> Result<TokenStream> {
+fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
+    let name = &spec.name;
+    let deprecations = &spec.deprecations;
+    let python_name = spec.null_terminated_python_name();
+    quote! {
+        pyo3::class::PyMethodDefType::ClassAttribute({
+            pyo3::class::PyClassAttributeDef::new(
+                #python_name,
+                pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                        #deprecations
+                        pyo3::IntoPy::into_py(#cls::#name(), py)
+                    }
+                    __wrap
+                })
+            )
+        })
+    }
+}
+
+fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+    let (py_arg, args) = split_off_python_arg(&spec.args);
+
+    if args.is_empty() {
+        bail_spanned!(spec.name.span() => "setter function expected to have one argument");
+    } else if args.len() > 1 {
+        bail_spanned!(
+            args[1].ty.span() =>
+            "setter function can have at most two arguments ([pyo3::Python,] and value)"
+        );
+    }
+
+    let name = &spec.name;
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(_slf, _py, _val))
+    } else {
+        quote!(#cls::#name(_slf, _val))
+    };
+
+    Ok(fncall)
+}
+
+// Used here for PropertyType::Function, used in pyclass for descriptors.
+pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
-    let wrapper = impl_wrap_setter(cls, &property_type)?;
+    let setter_impl = match property_type {
+        PropertyType::Descriptor {
+            field: syn::Field {
+                ident: Some(ident), ..
+            },
+            ..
+        } => {
+            // named struct field
+            quote!({ _slf.#ident = _val; })
+        }
+        PropertyType::Descriptor { field_index, .. } => {
+            // tuple struct field
+            let index = syn::Index::from(field_index);
+            quote!({ _slf.#index = _val; })
+        }
+        PropertyType::Function { spec, .. } => impl_call_setter(cls, spec)?,
+    };
+
+    let slf = match property_type {
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+    };
     Ok(quote! {
         pyo3::class::PyMethodDefType::Setter({
             #deprecations
             pyo3::class::PySetterDef::new(
                 #python_name,
-                pyo3::class::methods::PySetter(#wrapper),
+                pyo3::class::methods::PySetter({
+                    unsafe extern "C" fn __wrap(
+                        _slf: *mut pyo3::ffi::PyObject,
+                        _value: *mut pyo3::ffi::PyObject,
+                        _: *mut std::os::raw::c_void
+                    ) -> std::os::raw::c_int {
+                        pyo3::callback::handle_panic(|_py| {
+                            #slf
+                            let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
+                            let _val = pyo3::FromPyObject::extract(_value)?;
+
+                            pyo3::callback::convert(_py, #setter_impl)
+                        })
+                    }
+                    __wrap
+                }),
                 #doc
             )
         })
     })
 }
 
-pub(crate) fn impl_py_getter_def(
-    cls: &syn::Type,
-    property_type: PropertyType,
-) -> Result<TokenStream> {
+fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+    let (py_arg, args) = split_off_python_arg(&spec.args);
+    ensure_spanned!(
+        args.is_empty(),
+        args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
+    );
+
+    let name = &spec.name;
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(_slf, _py))
+    } else {
+        quote!(#cls::#name(_slf))
+    };
+
+    Ok(fncall)
+}
+
+// Used here for PropertyType::Function, used in pyclass for descriptors.
+pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
-    let wrapper = impl_wrap_getter(cls, &property_type)?;
+    let getter_impl = match property_type {
+        PropertyType::Descriptor {
+            field: syn::Field {
+                ident: Some(ident), ..
+            },
+            ..
+        } => {
+            // named struct field
+            quote!(_slf.#ident.clone())
+        }
+        PropertyType::Descriptor { field_index, .. } => {
+            // tuple struct field
+            let index = syn::Index::from(field_index);
+            quote!(_slf.#index.clone())
+        }
+        PropertyType::Function { spec, .. } => impl_call_getter(cls, spec)?,
+    };
+
+    let slf = match property_type {
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+    };
     Ok(quote! {
         pyo3::class::PyMethodDefType::Getter({
             #deprecations
             pyo3::class::PyGetterDef::new(
                 #python_name,
-                pyo3::class::methods::PyGetter(#wrapper),
+                pyo3::class::methods::PyGetter({
+                    unsafe extern "C" fn __wrap(
+                        _slf: *mut pyo3::ffi::PyObject,
+                        _: *mut std::os::raw::c_void
+                    ) -> *mut pyo3::ffi::PyObject {
+                        pyo3::callback::handle_panic(|_py| {
+                            #slf
+                            pyo3::callback::convert(_py, #getter_impl)
+                        })
+                    }
+                    __wrap
+                }),
                 #doc
             )
         })
