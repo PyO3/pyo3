@@ -58,6 +58,12 @@ error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATT
 35 |     #[text_signature = "()"]
    |     ^
 
+error: use of deprecated constant `pyo3::impl_::deprecations::PYMODULE_NAME_ARGUMENT`: use `#[pymodule] #[pyo3(name = "...")]` instead of `#[pymodule(...)]`
+  --> $DIR/deprecations.rs:32:12
+   |
+32 | #[pymodule(deprecated_module_name)]
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
 error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
  --> $DIR/deprecations.rs:6:1
   |

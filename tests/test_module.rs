@@ -123,7 +123,8 @@ fn test_module_with_functions() {
     );
 }
 
-#[pymodule(other_name)]
+#[pymodule]
+#[pyo3(name = "other_name")]
 fn some_name(_: Python, m: &PyModule) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
@@ -435,4 +436,18 @@ fn test_module_functions_with_module() {
         m,
         "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
     );
+}
+
+#[test]
+#[allow(deprecated)]
+fn test_module_with_deprecated_name() {
+    #[pymodule(custom_name)]
+    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(custom_name)(py);
+        py_assert!(py, m, "m.__name__ == 'custom_name'");
+    })
 }

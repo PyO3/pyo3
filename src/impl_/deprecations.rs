@@ -14,6 +14,12 @@ pub const PYFN_NAME_ARGUMENT: () = ();
 
 #[deprecated(
     since = "0.14.0",
+    note = "use `#[pymodule] #[pyo3(name = \"...\")]` instead of `#[pymodule(...)]`"
+)]
+pub const PYMODULE_NAME_ARGUMENT: () = ();
+
+#[deprecated(
+    since = "0.14.0",
     note = "use `#[pyo3(text_signature = \"...\")]` instead of `#[text_signature = \"...\"]`"
 )]
 pub const TEXT_SIGNATURE_ATTRIBUTE: () = ();
