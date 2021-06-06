@@ -70,7 +70,7 @@ impl PyList {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyAny {
-        assert!((index.abs() as usize) < self.len());
+        assert!(index >= 0 && index < self.len() as isize);
         unsafe {
             #[cfg(not(Py_LIMITED_API))]
             let ptr = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
@@ -235,6 +235,15 @@ mod test {
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
         assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_item_invalid() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = PyList::new(py, [2, 3, 5, 7]);
+        list.get_item(-1);
     }
 
     #[test]
