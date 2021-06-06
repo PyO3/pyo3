@@ -417,7 +417,7 @@ pub fn impl_wrap_pyfunction(
             method::FnType::FnStatic
         },
         name: &func.sig.ident,
-        convention: CallingConvention::from_args(&arguments),
+        convention: CallingConvention::from_args(&arguments, &signature.arguments),
         python_name,
         attrs: signature.arguments,
         args: arguments,

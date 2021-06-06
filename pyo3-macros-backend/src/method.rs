@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::attributes::TextSignatureAttribute;
-use crate::params::impl_arg_params;
+use crate::params::{impl_arg_params, is_forwarded_args};
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
 use crate::utils;
@@ -170,9 +170,12 @@ impl CallingConvention {
     ///
     /// Different other slots (tp_call, tp_new) can have other requirements
     /// and are set manually (see `parse_fn_type` below).
-    pub fn from_args(args: &[FnArg<'_>]) -> Self {
+    pub fn from_args(args: &[FnArg<'_>], attrs: &[Argument]) -> Self {
         if args.is_empty() {
             Self::Noargs
+        } else if is_forwarded_args(args, attrs) {
+            // for f(*args, **kwds), always prefer varargs
+            Self::Varargs
         } else if cfg!(all(Py_3_7, not(Py_LIMITED_API))) {
             Self::Fastcall
         } else {
@@ -291,7 +294,7 @@ impl<'a> FnSpec<'a> {
         };
 
         let convention =
-            fixed_convention.unwrap_or_else(|| CallingConvention::from_args(&arguments));
+            fixed_convention.unwrap_or_else(|| CallingConvention::from_args(&arguments, &fn_attrs));
 
         Ok(FnSpec {
             tp: fn_type,
@@ -409,24 +412,6 @@ impl<'a> FnSpec<'a> {
             ),
         };
         Ok((fn_type, skip_first_arg, fixed_convention))
-    }
-
-    pub fn is_args(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
-            if let Argument::VarArgs(path) = s {
-                return path.is_ident(name);
-            }
-        }
-        false
-    }
-
-    pub fn is_kwargs(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
-            if let Argument::KeywordArgs(path) = s {
-                return path.is_ident(name);
-            }
-        }
-        false
     }
 
     pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
