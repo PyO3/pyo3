@@ -70,7 +70,7 @@ impl PyList {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyAny {
-        assert!((index.abs() as usize) < self.len());
+        assert!(index >= 0 && index < self.len() as isize);
         unsafe {
             #[cfg(not(Py_LIMITED_API))]
             let ptr = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
@@ -206,8 +206,7 @@ mod test {
     fn test_new() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -218,9 +217,7 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1, 2, 3, 4];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[1, 2, 3, 4]);
         assert_eq!(4, list.len());
     }
 
@@ -228,9 +225,7 @@ mod test {
     fn test_get_item() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -238,12 +233,19 @@ mod test {
     }
 
     #[test]
+    #[should_panic]
+    fn test_get_item_invalid() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
+        list.get_item(-1);
+    }
+
+    #[test]
     fn test_set_item() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.set_item(0, val).unwrap();
@@ -273,9 +275,7 @@ mod test {
     fn test_insert() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
@@ -306,9 +306,7 @@ mod test {
     fn test_append() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2]);
         list.append(3).unwrap();
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
@@ -335,8 +333,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &v);
         let mut idx = 0;
         for el in list.iter() {
             assert_eq!(v[idx], el.extract::<i32>().unwrap());
@@ -349,9 +346,7 @@ mod test {
     fn test_into_iter() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1, 2, 3, 4];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[1, 2, 3, 4]);
         for (i, item) in list.iter().enumerate() {
             assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
         }
@@ -362,8 +357,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &v);
         let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
     }
