@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `__doc__` from module's `__all__`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
 - Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality. [#1521](https://github.com/PyO3/pyo3/pull/1521)
 - Remove `raw_pycfunction!` macro. [#1619](https://github.com/PyO3/pyo3/pull/1619)
+- Remove `PyList::get_parked_item`. [#1664](https://github.com/PyO3/pyo3/pull/1664)
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
