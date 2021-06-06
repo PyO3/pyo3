@@ -7,8 +7,8 @@ use crate::{
         TextSignatureAttribute,
     },
     deprecations::Deprecations,
-    method::{self, FnArg, FnSpec},
-    pymethod::{check_generic, get_arg_names, impl_arg_params},
+    method::{self, CallingConvention, FnArg},
+    pymethod::check_generic,
     utils::{self, ensure_not_async_fn},
 };
 use proc_macro2::{Span, TokenStream};
@@ -411,8 +411,13 @@ pub fn impl_wrap_pyfunction(
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
     let spec = method::FnSpec {
-        tp: method::FnType::FnStatic,
-        name: &function_wrapper_ident,
+        tp: if options.pass_module.is_some() {
+            method::FnType::FnModule
+        } else {
+            method::FnType::FnStatic
+        },
+        name: &func.sig.ident,
+        convention: CallingConvention::from_args(&arguments),
         python_name,
         attrs: signature.arguments,
         args: arguments,
@@ -421,130 +426,19 @@ pub fn impl_wrap_pyfunction(
         deprecations: options.deprecations,
     };
 
-    let doc = &spec.doc;
-    let python_name = spec.null_terminated_python_name();
-
-    let name = &func.sig.ident;
-    let wrapper_ident = format_ident!("__pyo3_raw_{}", name);
-    let wrapper = function_c_wrapper(name, &wrapper_ident, &spec, options.pass_module.is_some())?;
-    let (methoddef_meth, cfunc_variant) = if spec.args.is_empty() {
-        (quote!(noargs), quote!(PyCFunction))
-    } else if spec.can_use_fastcall() {
-        (
-            quote!(fastcall_cfunction_with_keywords),
-            quote!(PyCFunctionFastWithKeywords),
-        )
-    } else {
-        (
-            quote!(cfunction_with_keywords),
-            quote!(PyCFunctionWithKeywords),
-        )
-    };
+    let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
+    let methoddef = spec.get_methoddef(wrapper_ident);
 
     let wrapped_pyfunction = quote! {
         #wrapper
         pub(crate) fn #function_wrapper_ident<'a>(
             args: impl Into<pyo3::derive_utils::PyFunctionArguments<'a>>
         ) -> pyo3::PyResult<&'a pyo3::types::PyCFunction> {
-            pyo3::types::PyCFunction::internal_new(
-                pyo3::class::methods::PyMethodDef:: #methoddef_meth (
-                    #python_name,
-                    pyo3::class::methods:: #cfunc_variant (#wrapper_ident),
-                    #doc,
-                ),
-                args.into(),
-            )
+            pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };
     Ok((function_wrapper_ident, wrapped_pyfunction))
-}
-
-/// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(
-    name: &Ident,
-    wrapper_ident: &Ident,
-    spec: &FnSpec<'_>,
-    pass_module: bool,
-) -> Result<TokenStream> {
-    let names: Vec<Ident> = get_arg_names(&spec);
-    let (cb, slf_module) = if pass_module {
-        (
-            quote! {
-                pyo3::callback::convert(_py, #name(_slf, #(#names),*))
-            },
-            Some(quote! {
-                let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
-            }),
-        )
-    } else {
-        (
-            quote! {
-                pyo3::callback::convert(_py, #name(#(#names),*))
-            },
-            None,
-        )
-    };
-    let py = syn::Ident::new("_py", Span::call_site());
-    let deprecations = &spec.deprecations;
-    if spec.args.is_empty() {
-        Ok(quote! {
-            unsafe extern "C" fn #wrapper_ident(
-                _slf: *mut pyo3::ffi::PyObject,
-                _unused: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
-            {
-                #deprecations
-                pyo3::callback::handle_panic(|#py| {
-                    #slf_module
-                    #cb
-                })
-            }
-        })
-    } else if spec.can_use_fastcall() {
-        let body = impl_arg_params(spec, None, cb, &py, true)?;
-        Ok(quote! {
-            unsafe extern "C" fn #wrapper_ident(
-                _slf: *mut pyo3::ffi::PyObject,
-                _args: *const *mut pyo3::ffi::PyObject,
-                _nargs: pyo3::ffi::Py_ssize_t,
-                _kwnames: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
-            {
-                pyo3::callback::handle_panic(|#py| {
-                    #slf_module
-                    // _nargs is the number of positional arguments in the _args array,
-                    // the number of KW args is given by the length of _kwnames
-                    let _kwnames: Option<&pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
-                    // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
-                    let _args = _args as *const &pyo3::PyAny;
-                    let _kwargs = if let Some(kwnames) = _kwnames {
-                        std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
-                    } else {
-                        &[]
-                    };
-                    let _args = std::slice::from_raw_parts(_args, _nargs as usize);
-
-                    #body
-                })
-            }
-
-        })
-    } else {
-        let body = impl_arg_params(spec, None, cb, &py, false)?;
-        Ok(quote! {
-            unsafe extern "C" fn #wrapper_ident(
-                _slf: *mut pyo3::ffi::PyObject,
-                _args: *mut pyo3::ffi::PyObject,
-                _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
-            {
-                #deprecations
-                pyo3::callback::handle_panic(|#py| {
-                    #slf_module
-                    let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                    let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
-                    #body
-                })
-            }
-        })
-    }
 }
 
 fn type_is_pymodule(ty: &syn::Type) -> bool {
