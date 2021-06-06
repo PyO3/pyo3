@@ -17,6 +17,13 @@ fn iter_list(b: &mut Bencher) {
     });
 }
 
+fn list_new(b: &mut Bencher) {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    const LEN: usize = 50_000;
+    b.iter(|| PyList::new(py, 0..LEN));
+}
+
 fn list_get_item(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -32,6 +39,7 @@ fn list_get_item(b: &mut Bencher) {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_list", iter_list);
+    c.bench_function("list_new", list_new);
     c.bench_function("list_get_item", list_get_item);
 }
 

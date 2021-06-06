@@ -18,6 +18,13 @@ fn iter_dict(b: &mut Bencher) {
     });
 }
 
+fn dict_new(b: &mut Bencher) {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    const LEN: usize = 50_000;
+    b.iter(|| (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py));
+}
+
 fn dict_get_item(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -58,6 +65,7 @@ fn extract_hashbrown_map(b: &mut Bencher) {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_dict", iter_dict);
+    c.bench_function("dict_new", dict_new);
     c.bench_function("dict_get_item", dict_get_item);
     c.bench_function("extract_hashmap", extract_hashmap);
     c.bench_function("extract_btreemap", extract_btreemap);
