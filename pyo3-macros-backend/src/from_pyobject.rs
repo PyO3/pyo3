@@ -124,7 +124,6 @@ struct Container<'a> {
     ty: ContainerType<'a>,
     err_name: String,
     is_enum_variant: bool,
-    error_msg: Option<String>,
 }
 
 impl<'a> Container<'a> {
@@ -184,14 +183,11 @@ impl<'a> Container<'a> {
             |lit_str| lit_str.value(),
         );
 
-        let error_msg = options.error_msg.map(|inner| inner.value());
-
         let v = Container {
             path,
             ty: style,
             err_name,
             is_enum_variant,
-            error_msg,
         };
         Ok(v)
     }
@@ -209,14 +205,11 @@ impl<'a> Container<'a> {
     fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
-            let error_msg = self.error_msg.as_ref().map_or(
-                format!(
+            let error_msg = format!(
                     "failed to extract field {}.{}",
                     quote!(#self_ty),
                     quote!(#ident)
-                ),
-                |msg| msg.clone(),
-            );
+                );
             quote!(
                 Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
                    let err_msg = format!("{}\n\nCaused by:\n    {}\n",
@@ -226,10 +219,7 @@ impl<'a> Container<'a> {
                 })?})
             )
         } else {
-            let error_msg = self.error_msg.as_ref().map_or(
-                format!("failed to extract inner field of {}", quote!(#self_ty)),
-                |msg| msg.clone(),
-            );
+            let error_msg =  format!("failed to extract inner field of {}", quote!(#self_ty));
             quote!(Ok(#self_ty(obj.extract().map_err(|inner| {
                 let err_msg = format!("{}\n\nCaused by:\n    {}\n",
                             #error_msg,
@@ -242,12 +232,8 @@ impl<'a> Container<'a> {
     fn build_tuple_struct(&self, len: usize) -> TokenStream {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-
         for i in 0..len {
-            let error_msg = self.error_msg.as_ref().map_or(
-                format!("failed to extract field {}.{}", quote!(#self_ty), i),
-                |msg| msg.clone(),
-            );
+            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
             fields.push(quote!(s.get_item(#i).extract().map_err(|inner| {
                 let err_msg = format!("{}\n\nCaused by:\n    {}\n",
                             #error_msg,
@@ -283,10 +269,7 @@ impl<'a> Container<'a> {
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
-            let conversion_error_msg = attrs.error_msg.as_ref().map_or(
-                format!("failed to extract field {}.{}", quote!(#self_ty), ident),
-                |msg| msg.value(),
-            );
+            let conversion_error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), ident);
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
                 None => quote!(#get_field.extract().map_err(|inner| {
@@ -315,8 +298,6 @@ struct ContainerOptions {
     transparent: bool,
     /// Change the name of an enum variant in the generated error message.
     annotation: Option<syn::LitStr>,
-    /// Change the error message displayed when extract fails
-    error_msg: Option<syn::LitStr>,
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
@@ -326,8 +307,6 @@ enum ContainerPyO3Attribute {
     Transparent(attributes::kw::transparent),
     /// Change the name of an enum variant in the generated error message.
     ErrorAnnotation(LitStr),
-    /// Change the error message displayed when extract fails
-    ErrorMsg(LitStr),
 }
 
 impl Parse for ContainerPyO3Attribute {
@@ -340,10 +319,6 @@ impl Parse for ContainerPyO3Attribute {
             let _: attributes::kw::annotation = input.parse()?;
             let _: Token![=] = input.parse()?;
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
-        } else if lookahead.peek(attributes::kw::error_message) {
-            let _: attributes::kw::error_message = input.parse()?;
-            let _: Token![=] = input.parse()?;
-            input.parse().map(ContainerPyO3Attribute::ErrorMsg)
         } else {
             Err(lookahead.error())
         }
@@ -355,7 +330,6 @@ impl ContainerOptions {
         let mut options = ContainerOptions {
             transparent: false,
             annotation: None,
-            error_msg: None,
         };
         for attr in attrs {
             if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
@@ -375,13 +349,6 @@ impl ContainerOptions {
                             );
                             options.annotation = Some(lit_str);
                         }
-                        ContainerPyO3Attribute::ErrorMsg(lit_str) => {
-                            ensure_spanned!(
-                                options.error_msg.is_none(),
-                                lit_str.span() => "`error_message` may only be provided once"
-                            );
-                            options.error_msg = Some(lit_str);
-                        }
                     }
                 }
             }
@@ -395,7 +362,6 @@ impl ContainerOptions {
 struct FieldPyO3Attributes {
     getter: FieldGetter,
     from_py_with: Option<FromPyWithAttribute>,
-    error_msg: Option<LitStr>,
 }
 
 #[derive(Clone, Debug)]
@@ -407,7 +373,6 @@ enum FieldGetter {
 enum FieldPyO3Attribute {
     Getter(FieldGetter),
     FromPyWith(FromPyWithAttribute),
-    ErrorMsg(LitStr),
 }
 
 impl Parse for FieldPyO3Attribute {
@@ -451,10 +416,6 @@ impl Parse for FieldPyO3Attribute {
             }
         } else if lookahead.peek(attributes::kw::from_py_with) {
             input.parse().map(FieldPyO3Attribute::FromPyWith)
-        } else if lookahead.peek(attributes::kw::error_message) {
-            let _: attributes::kw::error_message = input.parse()?;
-            let _: Token![=] = input.parse()?;
-            input.parse().map(FieldPyO3Attribute::ErrorMsg)
         } else {
             Err(lookahead.error())
         }
@@ -467,7 +428,6 @@ impl FieldPyO3Attributes {
     fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
         let mut getter = None;
         let mut from_py_with = None;
-        let mut error_msg = None;
 
         for attr in attrs {
             if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
@@ -487,13 +447,6 @@ impl FieldPyO3Attributes {
                             );
                             from_py_with = Some(from_py_with_attr);
                         }
-                        FieldPyO3Attribute::ErrorMsg(err_msg) => {
-                            ensure_spanned!(
-                                error_msg.is_none(),
-                                attr.span() => "`conversion_error` may only be provided once"
-                            );
-                            error_msg = Some(err_msg)
-                        }
                     }
                 }
             }
@@ -502,7 +455,6 @@ impl FieldPyO3Attributes {
         Ok(FieldPyO3Attributes {
             getter: getter.unwrap_or(FieldGetter::GetAttr(None)),
             from_py_with,
-            error_msg,
         })
     }
 }
