@@ -69,6 +69,14 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 - `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
 - `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
 
+### `num-bigint`
+
+This feature adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html) types.
+
+### `num-complex`
+
+This feature adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conversions into its [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
+
 ### `serde`
 
 The `serde` feature enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
