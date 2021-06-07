@@ -15,6 +15,7 @@ mod from_pyobject;
 mod konst;
 mod method;
 mod module;
+mod params;
 mod proto_method;
 mod pyclass;
 mod pyfunction;
@@ -23,7 +24,7 @@ mod pymethod;
 mod pyproto;
 
 pub use from_pyobject::build_derive_from_pyobject;
-pub use module::{process_functions_in_module, py_init};
+pub use module::{process_functions_in_module, py_init, PyModuleOptions};
 pub use pyclass::{build_py_class, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
 pub use pyimpl::{build_py_methods, PyClassMethodsType};

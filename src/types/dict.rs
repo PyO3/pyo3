@@ -51,7 +51,7 @@ impl PyDict {
 
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
-    /// This is equivalent to the Python expression `dict(self)`.
+    /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
             self.py()

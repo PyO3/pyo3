@@ -41,10 +41,10 @@ There are two main ways to test, build and distribute your module as a Python pa
 
 ### Manual builds
 
-You can also symlink (or copy) and rename the shared library from the `target` folder: 
+You can also symlink (or copy) and rename the shared library from the `target` folder:
 - on macOS, rename `libyour_module.dylib` to `your_module.so`.
 - on Windows, rename  `libyour_module.dll` to `your_module.pyd`.
-- on Linux, rename `libyour_module.so` to `your_module.so`. 
+- on Linux, rename `libyour_module.so` to `your_module.so`.
 
 You can then open a Python shell in the same folder and you'll be able to use `import your_module`.
 
@@ -86,7 +86,7 @@ As an advanced feature, you can build PyO3 wheel without calling Python interpre
 Due to limitations in the Python API, there are a few `pyo3` features that do
 not work when compiling for `abi3`. These are:
 
-- `#[text_signature]` does not work on classes until Python 3.10 or greater.
+- `#[pyo3(text_signature = "...")]` does not work on classes until Python 3.10 or greater.
 - The `dict` and `weakref` options on classes are not supported until Python 3.9 or greater.
 - The buffer API is not supported.
 - Optimizations which rely on knowledge of the exact Python version compiled against.

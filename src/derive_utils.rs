@@ -294,7 +294,7 @@ impl ModuleDef {
     /// Make new module defenition with given module name.
     ///
     /// # Safety
-    /// `name` must be a null-terminated string.
+    /// `name` and `doc` must be null-terminated strings.
     pub const unsafe fn new(name: &'static str, doc: &'static str) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,

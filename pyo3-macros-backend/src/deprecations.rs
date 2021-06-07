@@ -4,6 +4,8 @@ use quote::{quote_spanned, ToTokens};
 pub enum Deprecation {
     NameAttribute,
     PyfnNameArgument,
+    PyModuleNameArgument,
+    TextSignatureAttribute,
 }
 
 impl Deprecation {
@@ -11,6 +13,8 @@ impl Deprecation {
         let string = match self {
             Deprecation::NameAttribute => "NAME_ATTRIBUTE",
             Deprecation::PyfnNameArgument => "PYFN_NAME_ARGUMENT",
+            Deprecation::PyModuleNameArgument => "PYMODULE_NAME_ARGUMENT",
+            Deprecation::TextSignatureAttribute => "TEXT_SIGNATURE_ATTRIBUTE",
         };
         syn::Ident::new(string, span)
     }

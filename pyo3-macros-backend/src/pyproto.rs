@@ -73,8 +73,8 @@ fn impl_proto_impl(
                     None
                 };
 
-                let method = if let FnType::Fn(self_ty) = &fn_spec.tp {
-                    pymethod::impl_py_method_def(ty, &fn_spec, &self_ty, flags)?
+                let method = if let FnType::Fn(_) = &fn_spec.tp {
+                    pymethod::impl_py_method_def(ty, &fn_spec, flags)?
                 } else {
                     bail_spanned!(
                         met.sig.span() => "expected method with receiver for #[pyproto] method"
