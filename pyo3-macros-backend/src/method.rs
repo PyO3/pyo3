@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::attributes::TextSignatureAttribute;
-use crate::params::{impl_arg_params, is_forwarded_args};
+use crate::params::{accept_args_kwargs, impl_arg_params};
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
 use crate::utils;
@@ -171,10 +171,11 @@ impl CallingConvention {
     /// Different other slots (tp_call, tp_new) can have other requirements
     /// and are set manually (see `parse_fn_type` below).
     pub fn from_args(args: &[FnArg<'_>], attrs: &[Argument]) -> Self {
+        let (_, accept_kwargs) = accept_args_kwargs(attrs);
         if args.is_empty() {
             Self::Noargs
-        } else if is_forwarded_args(args, attrs) {
-            // for f(*args, **kwds), always prefer varargs
+        } else if accept_kwargs {
+            // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
         } else if cfg!(all(Py_3_7, not(Py_LIMITED_API))) {
             Self::Fastcall
@@ -221,21 +222,6 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
 }
 
 impl<'a> FnSpec<'a> {
-    /// Determine if the function gets passed a *args tuple or **kwargs dict.
-    pub fn accept_args_kwargs(&self) -> (bool, bool) {
-        let (mut accept_args, mut accept_kwargs) = (false, false);
-
-        for s in &self.attrs {
-            match s {
-                Argument::VarArgs(_) => accept_args = true,
-                Argument::KeywordArgs(_) => accept_kwargs = true,
-                _ => continue,
-            }
-        }
-
-        (accept_args, accept_kwargs)
-    }
-
     /// Parser function signature and function attributes
     pub fn parse(
         sig: &'a mut syn::Signature,

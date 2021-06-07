@@ -11,6 +11,21 @@ use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::Result;
 
+/// Determine if the function gets passed a *args tuple or **kwargs dict.
+pub fn accept_args_kwargs(attrs: &[Argument]) -> (bool, bool) {
+    let (mut accept_args, mut accept_kwargs) = (false, false);
+
+    for s in attrs {
+        match s {
+            Argument::VarArgs(_) => accept_args = true,
+            Argument::KeywordArgs(_) => accept_kwargs = true,
+            _ => continue,
+        }
+    }
+
+    (accept_args, accept_kwargs)
+}
+
 /// Return true if the argument list is simply (*args, **kwds).
 pub fn is_forwarded_args(args: &[FnArg<'_>], attrs: &[Argument]) -> bool {
     args.len() == 2 && is_args(attrs, &args[0].name) && is_kwargs(attrs, &args[1].name)
@@ -112,7 +127,7 @@ pub fn impl_arg_params(
         )?);
     }
 
-    let (accept_args, accept_kwargs) = spec.accept_args_kwargs();
+    let (accept_args, accept_kwargs) = accept_args_kwargs(&spec.attrs);
 
     let cls_name = if let Some(cls) = self_ {
         quote! { Some(<#cls as pyo3::type_object::PyTypeInfo>::NAME) }
