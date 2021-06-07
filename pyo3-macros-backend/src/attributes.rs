@@ -12,7 +12,6 @@ pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
     syn::custom_keyword!(from_py_with);
-    syn::custom_keyword!(error_message);
     syn::custom_keyword!(item);
     syn::custom_keyword!(pass_module);
     syn::custom_keyword!(name);
