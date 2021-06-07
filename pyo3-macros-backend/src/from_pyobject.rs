@@ -206,10 +206,10 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
             let error_msg = format!(
-                    "failed to extract field {}.{}",
-                    quote!(#self_ty),
-                    quote!(#ident)
-                );
+                "failed to extract field {}.{}",
+                quote!(#self_ty),
+                quote!(#ident)
+            );
             quote!(
                 Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
                    let err_msg = format!("{}\n\nCaused by:\n    {}\n",
@@ -219,7 +219,7 @@ impl<'a> Container<'a> {
                 })?})
             )
         } else {
-            let error_msg =  format!("failed to extract inner field of {}", quote!(#self_ty));
+            let error_msg = format!("failed to extract inner field of {}", quote!(#self_ty));
             quote!(Ok(#self_ty(obj.extract().map_err(|inner| {
                 let err_msg = format!("{}\n\nCaused by:\n    {}\n",
                             #error_msg,
@@ -269,7 +269,8 @@ impl<'a> Container<'a> {
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
-            let conversion_error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), ident);
+            let conversion_error_msg =
+                format!("failed to extract field {}.{}", quote!(#self_ty), ident);
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
                 None => quote!(#get_field.extract().map_err(|inner| {

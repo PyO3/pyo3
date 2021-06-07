@@ -248,7 +248,6 @@ fn test_transparent_struct_error_message() {
     );
 }
 
-
 #[derive(Debug, FromPyObject)]
 pub enum Foo<'a> {
     TupleVar(usize, String),
