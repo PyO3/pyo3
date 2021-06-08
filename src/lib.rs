@@ -80,7 +80,7 @@
 //! [`#[pyclass]`](crate::proc_macro::pyclass). This adds a dependency on the
 //! [`inventory`](https://docs.rs/inventory) crate, which is not supported on all platforms.
 //
-//! - [`num-bigint`](crate::num_bigint): Enables conversions between Python objects and
+//! - [`num-bigint`](./num_bigint/index.html): Enables conversions between Python objects and
 //! [num-bigint](https://docs.rs/num-bigint)'s
 //! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and
 //! [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
