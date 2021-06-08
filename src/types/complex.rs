@@ -27,12 +27,10 @@ impl PyComplex {
         }
     }
     /// Returns the real part of the complex number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     pub fn real(&self) -> c_double {
         unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
     }
     /// Returns the imaginary part of the complex number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     pub fn imag(&self) -> c_double {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
     }
@@ -47,7 +45,6 @@ mod not_limited_impls {
 
     impl PyComplex {
         /// Returns `|self|`.
-        #[must_use = "method returns a new number and does not mutate the original value"]
         pub fn abs(&self) -> c_double {
             unsafe {
                 let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
@@ -55,7 +52,6 @@ mod not_limited_impls {
             }
         }
         /// Returns `self` raised to the power of `other`.
-        #[must_use = "method returns a new PyComplex and does not mutate the original value"]
         pub fn pow(&self, other: &PyComplex) -> &PyComplex {
             unsafe {
                 self.py()
