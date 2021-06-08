@@ -17,12 +17,12 @@
 //!
 //! ```toml
 //! [dependencies]
-//! num-bigint = "0.4"
-//! pyo3 = { version = "0.14", features = ["num-bigint"] }
+//! num-bigint = "*"
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION", "unable to get current pyo3 version"),  "\", features = [\"num-bigint\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of num-bigint and PyO3.
-//! The required num-bigint version may vary with older versions of PyO3.
+//! The required num-bigint version may vary based on the version of PyO3.
 //!
 //! ## Examples
 //!

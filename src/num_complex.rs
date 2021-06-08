@@ -12,19 +12,21 @@
 //!
 //! ```toml
 //! [dependencies]
-//! num-complex = "0.4"
-//! pyo3 = { version = "0.14", features = ["num-complex"] }
+//! num-complex = "*"
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION", "unable to get current pyo3 version"),  "\", features = [\"num-complex\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of num-complex and PyO3.
-//! The required num-complex version may vary with older versions of PyO3.
+//! The required num-complex version may vary based on the version of PyO3.
 //!
 //! # Examples
 //!
 //! Using [num-complex](https://docs.rs/num-complex) and [nalgebra](https://docs.rs/nalgebra)
 //! to create a pyfunction that calculates the eigenvalues of a 2x2 matrix.
 //!
-//! ```rust
+//! ```ignore
+//! # // not tested because nalgebra isn't supported on msrv
+//! # // please file an issue if it breaks!
 //! use nalgebra::base::{dimension::Const, storage::Storage, Matrix};
 //! use num_complex::Complex;
 //! use pyo3::prelude::*;
