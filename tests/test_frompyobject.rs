@@ -250,7 +250,7 @@ fn test_tuple_struct_error_message() {
     let tup = Tuple::extract(tup.as_ref(py));
     assert!(tup.is_err());
     assert_eq!(
-        "TypeError: failed to extract field Tuple.0: \'int\' object cannot be converted to \'PyString\'\n",
+        "TypeError: failed to extract field Tuple.0: \'int\' object cannot be converted to \'PyString\'",
         tup.unwrap_err().to_string()
     )
 }
