@@ -155,7 +155,7 @@ fn test_tuple_struct() {
     assert_eq!(tup.1, 1);
 }
 
-#[derive(FromPyObject)]
+#[derive(Debug, FromPyObject)]
 pub struct TransparentTuple(String);
 
 #[test]
@@ -202,8 +202,8 @@ fn test_struct_nested_type_errors() {
     let test: PyResult<Baz<String, usize>> = FromPyObject::extract(pybaz.as_ref(py));
     assert!(test.is_err());
     assert_eq!(
-        "TypeError: failed to extract field Baz.tup\n\nCaused by:\n    TypeError: failed to extract field Tuple.1\n\nCaused by:\n    TypeError: 'str' object cannot be interpreted as an integer\n\n",
-        test.unwrap_err().to_string()
+        test.unwrap_err().to_string(),
+        "TypeError: failed to extract field Baz.tup: failed to extract field Tuple.1: \'str\' object cannot be interpreted as an integer\n"
     );
 }
 
@@ -224,15 +224,9 @@ fn test_struct_nested_type_errors_with_generics() {
     let test: PyResult<Baz<usize, String>> = FromPyObject::extract(pybaz.as_ref(py));
     assert!(test.is_err());
     assert_eq!(
-        "TypeError: failed to extract field Baz.e\n\nCaused by:\n    TypeError: failed to extract field E.test\n\nCaused by:\n    TypeError: \'str\' object cannot be interpreted as an integer\n\n",
-        test.unwrap_err().to_string()
+        test.unwrap_err().to_string(),
+        "TypeError: failed to extract field Baz.e: failed to extract field E.test: \'str\' object cannot be interpreted as an integer",
     );
-}
-
-#[derive(Debug, FromPyObject)]
-#[pyo3(transparent)]
-pub struct TransparentStruct {
-    a: String,
 }
 
 #[test]
@@ -240,12 +234,38 @@ fn test_transparent_struct_error_message() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let tup: PyObject = 1.into_py(py);
-    let tup = TransparentStruct::extract(tup.as_ref(py));
+    let tup = B::extract(tup.as_ref(py));
     assert!(tup.is_err());
     assert_eq!(
-        "TypeError: failed to extract field TransparentStruct.a\n\nCaused by:\n    TypeError: \'int\' object cannot be converted to \'PyString\'\n",
+        "TypeError: failed to extract field B.test: \'int\' object cannot be converted to \'PyString\'",
         tup.unwrap_err().to_string()
     );
+}
+
+#[test]
+fn test_tuple_struct_error_message() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let tup: PyObject = (1, "test").into_py(py);
+    let tup = Tuple::extract(tup.as_ref(py));
+    assert!(tup.is_err());
+    assert_eq!(
+        "TypeError: failed to extract field Tuple.0: \'int\' object cannot be converted to \'PyString\'\n",
+        tup.unwrap_err().to_string()
+    )
+}
+
+#[test]
+fn test_transparent_tuple_error_message() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let tup: PyObject = 1.into_py(py);
+    let tup = TransparentTuple::extract(tup.as_ref(py));
+    assert!(tup.is_err());
+    assert_eq!(
+        "TypeError: failed to extract inner field of TransparentTuple: 'int' object cannot be converted to 'PyString'",
+        tup.unwrap_err().to_string()
+    )
 }
 
 #[derive(Debug, FromPyObject)]
@@ -374,7 +394,7 @@ fn test_err_rename() {
     assert!(f.is_err());
     assert_eq!(
         f.unwrap_err().to_string(),
-        "TypeError: Failed to extract type Bar\n\nCaused by:\n  TypeError: \'dict\' object cannot be converted to \'Union[str, uint, int]\'\n\nTypeError: failed to extract inner field of Bar :: A\n\nCaused by:\n    TypeError: \'dict\' object cannot be converted to \'PyString\'\n\nTypeError: failed to extract inner field of Bar :: B\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\nTypeError: failed to extract inner field of Bar :: C\n\nCaused by:\n    TypeError: \'dict\' object cannot be interpreted as an integer\n\n"
+        "TypeError: failed to extract enum Bar (\'Union[str, uint, int]\')\n- variant A (str): \'dict\' object cannot be converted to \'PyString\'\n- variant B (uint): \'dict\' object cannot be interpreted as an integer\n- variant C (int): \'dict\' object cannot be interpreted as an integer\n"
     );
 }
 
