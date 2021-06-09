@@ -12,8 +12,9 @@
 //!
 //! ```toml
 //! [dependencies]
+//! # change * to the latest versions
 //! num-complex = "*"
-#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION", "unable to get current pyo3 version"),  "\", features = [\"num-complex\"] }")]
+//! pyo3 = { version = "*", features = ["num-complex"] }
 //! ```
 //!
 //! Note that you must use compatible versions of num-complex and PyO3.
