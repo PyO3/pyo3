@@ -203,7 +203,7 @@ fn test_struct_nested_type_errors() {
     assert!(test.is_err());
     assert_eq!(
         test.unwrap_err().to_string(),
-        "TypeError: failed to extract field Baz.tup: failed to extract field Tuple.1: \'str\' object cannot be interpreted as an integer\n"
+        "TypeError: failed to extract field Baz.tup: failed to extract field Tuple.1: \'str\' object cannot be interpreted as an integer"
     );
 }
 

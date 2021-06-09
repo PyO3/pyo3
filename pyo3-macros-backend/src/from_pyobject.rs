@@ -250,7 +250,7 @@ impl<'a> Container<'a> {
                 s.get_item(#i).extract().map_err(|inner| {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
-                let err_msg = format!("{}: {}\n",
+                let err_msg = format!("{}: {}",
                             #error_msg,
                             inner.instance(py).str().unwrap());
                 pyo3::exceptions::PyTypeError::new_err(err_msg)
