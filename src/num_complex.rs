@@ -170,26 +170,26 @@ mod test {
     #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn from_complex() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let complex = Complex::new(3.0, 1.2);
-        let py_c = PyComplex::from_complex(py, complex);
-        assert_eq!(py_c.real(), 3.0);
-        assert_eq!(py_c.imag(), 1.2);
+        Python::with_gil(|py| {
+            let complex = Complex::new(3.0, 1.2);
+            let py_c = PyComplex::from_complex(py, complex);
+            assert_eq!(py_c.real(), 3.0);
+            assert_eq!(py_c.imag(), 1.2);
+        });
     }
     #[test]
     fn to_from_complex() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let val = Complex::new(3.0, 1.2);
-        let obj = val.to_object(py);
-        assert_eq!(obj.extract::<Complex<f64>>(py).unwrap(), val);
+        Python::with_gil(|py| {
+            let val = Complex::new(3.0, 1.2);
+            let obj = val.to_object(py);
+            assert_eq!(obj.extract::<Complex<f64>>(py).unwrap(), val);
+        });
     }
     #[test]
     fn from_complex_err() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj = vec![1].to_object(py);
-        assert!(obj.extract::<Complex<f64>>(py).is_err());
+        Python::with_gil(|py| {
+            let obj = vec![1].to_object(py);
+            assert!(obj.extract::<Complex<f64>>(py).is_err());
+        });
     }
 }

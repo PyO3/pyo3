@@ -178,48 +178,50 @@ mod test {
 
     #[test]
     fn convert_biguint() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let rs_result: BigUint = rust_fib(400);
-        let fib = python_fib(py);
-        let locals = PyDict::new(py);
-        locals.set_item("rs_result", &rs_result).unwrap();
-        locals.set_item("fib", fib).unwrap();
-        // Checks if Rust BigUint -> Python Long conversion is correct
-        py.run("assert fib.fib(400) == rs_result", None, Some(locals))
-            .unwrap();
-        // Checks if Python Long -> Rust BigUint conversion is correct if N is small
-        let py_result: BigUint =
-            FromPyObject::extract(fib.getattr("fib").unwrap().call1((400,)).unwrap()).unwrap();
-        assert_eq!(rs_result, py_result);
-        // Checks if Python Long -> Rust BigUint conversion is correct if N is large
-        let rs_result: BigUint = rust_fib(2000);
-        let py_result: BigUint =
-            FromPyObject::extract(fib.getattr("fib").unwrap().call1((2000,)).unwrap()).unwrap();
-        assert_eq!(rs_result, py_result);
+        Python::with_gil(|py| {
+            let rs_result: BigUint = rust_fib(400);
+            let fib = python_fib(py);
+            let locals = PyDict::new(py);
+            locals.set_item("rs_result", &rs_result).unwrap();
+            locals.set_item("fib", fib).unwrap();
+            // Checks if Rust BigUint -> Python Long conversion is correct
+            py.run("assert fib.fib(400) == rs_result", None, Some(locals))
+                .unwrap();
+            // Checks if Python Long -> Rust BigUint conversion is correct if N is small
+            let py_result: BigUint =
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((400,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
+            // Checks if Python Long -> Rust BigUint conversion is correct if N is large
+            let rs_result: BigUint = rust_fib(2000);
+            let py_result: BigUint =
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((2000,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
+        });
     }
 
     #[test]
     fn convert_bigint() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let rs_result = rust_fib::<BigInt>(400) * -1;
-        let fib = python_fib(py);
-        let locals = PyDict::new(py);
-        locals.set_item("rs_result", &rs_result).unwrap();
-        locals.set_item("fib", fib).unwrap();
-        // Checks if Rust BigInt -> Python Long conversion is correct
-        py.run("assert fib.fib_neg(400) == rs_result", None, Some(locals))
-            .unwrap();
-        // Checks if Python Long -> Rust BigInt conversion is correct if N is small
-        let py_result: BigInt =
-            FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((400,)).unwrap()).unwrap();
-        assert_eq!(rs_result, py_result);
-        // Checks if Python Long -> Rust BigInt conversion is correct if N is large
-        let rs_result = rust_fib::<BigInt>(2000) * -1;
-        let py_result: BigInt =
-            FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((2000,)).unwrap()).unwrap();
-        assert_eq!(rs_result, py_result);
+        Python::with_gil(|py| {
+            let rs_result = rust_fib::<BigInt>(400) * -1;
+            let fib = python_fib(py);
+            let locals = PyDict::new(py);
+            locals.set_item("rs_result", &rs_result).unwrap();
+            locals.set_item("fib", fib).unwrap();
+            // Checks if Rust BigInt -> Python Long conversion is correct
+            py.run("assert fib.fib_neg(400) == rs_result", None, Some(locals))
+                .unwrap();
+            // Checks if Python Long -> Rust BigInt conversion is correct if N is small
+            let py_result: BigInt =
+                FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((400,)).unwrap())
+                    .unwrap();
+            assert_eq!(rs_result, py_result);
+            // Checks if Python Long -> Rust BigInt conversion is correct if N is large
+            let rs_result = rust_fib::<BigInt>(2000) * -1;
+            let py_result: BigInt =
+                FromPyObject::extract(fib.getattr("fib_neg").unwrap().call1((2000,)).unwrap())
+                    .unwrap();
+            assert_eq!(rs_result, py_result);
+        })
     }
 
     fn python_index_class(py: Python) -> &PyModule {
@@ -237,53 +239,54 @@ mod test {
 
     #[test]
     fn convert_index_class() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let index = python_index_class(py);
-        let locals = PyDict::new(py);
-        locals.set_item("index", index).unwrap();
-        let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
-        let _: BigInt = FromPyObject::extract(ob).unwrap();
+        Python::with_gil(|py| {
+            let index = python_index_class(py);
+            let locals = PyDict::new(py);
+            locals.set_item("index", index).unwrap();
+            let ob = py.eval("index.C(10)", None, Some(locals)).unwrap();
+            let _: BigInt = FromPyObject::extract(ob).unwrap();
+        });
     }
 
     #[test]
     fn handle_zero() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let fib = python_fib(py);
-        let zero: BigInt =
-            FromPyObject::extract(fib.getattr("fib").unwrap().call1((0,)).unwrap()).unwrap();
-        assert_eq!(zero, BigInt::from(0));
+        Python::with_gil(|py| {
+            let fib = python_fib(py);
+            let zero: BigInt =
+                FromPyObject::extract(fib.getattr("fib").unwrap().call1((0,)).unwrap()).unwrap();
+            assert_eq!(zero, BigInt::from(0));
+        })
     }
 
     /// `OverflowError` on converting Python int to BigInt, see issue #629
     #[test]
     fn check_overflow() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        macro_rules! test {
-            ($T:ty, $value:expr, $py:expr) => {
-                let value = $value;
-                println!("{}: {}", stringify!($T), value);
-                let python_value = value.clone().to_object(py);
-                let roundtrip_value = python_value.extract::<$T>(py).unwrap();
-                assert_eq!(value, roundtrip_value);
-            };
-        }
-        for i in 0..=256usize {
-            // test a lot of values to help catch other bugs too
-            test!(BigInt, BigInt::from(i), py);
-            test!(BigUint, BigUint::from(i), py);
-            test!(BigInt, -BigInt::from(i), py);
-            test!(BigInt, BigInt::from(1) << i, py);
-            test!(BigUint, BigUint::from(1u32) << i, py);
-            test!(BigInt, -BigInt::from(1) << i, py);
-            test!(BigInt, (BigInt::from(1) << i) + 1u32, py);
-            test!(BigUint, (BigUint::from(1u32) << i) + 1u32, py);
-            test!(BigInt, (-BigInt::from(1) << i) + 1u32, py);
-            test!(BigInt, (BigInt::from(1) << i) - 1u32, py);
-            test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
-            test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
-        }
+        Python::with_gil(|py| {
+            macro_rules! test {
+                ($T:ty, $value:expr, $py:expr) => {
+                    let value = $value;
+                    println!("{}: {}", stringify!($T), value);
+                    let python_value = value.clone().to_object(py);
+                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    assert_eq!(value, roundtrip_value);
+                };
+            }
+
+            for i in 0..=256usize {
+                // test a lot of values to help catch other bugs too
+                test!(BigInt, BigInt::from(i), py);
+                test!(BigUint, BigUint::from(i), py);
+                test!(BigInt, -BigInt::from(i), py);
+                test!(BigInt, BigInt::from(1) << i, py);
+                test!(BigUint, BigUint::from(1u32) << i, py);
+                test!(BigInt, -BigInt::from(1) << i, py);
+                test!(BigInt, (BigInt::from(1) << i) + 1u32, py);
+                test!(BigUint, (BigUint::from(1u32) << i) + 1u32, py);
+                test!(BigInt, (-BigInt::from(1) << i) + 1u32, py);
+                test!(BigInt, (BigInt::from(1) << i) - 1u32, py);
+                test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
+                test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
+            }
+        });
     }
 }
