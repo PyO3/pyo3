@@ -80,12 +80,12 @@
 //! [`#[pyclass]`](crate::proc_macro::pyclass). This adds a dependency on the
 //! [`inventory`](https://docs.rs/inventory) crate, which is not supported on all platforms.
 //
-//! - `num-bigint`: Enables conversions between Python objects and
+//! - [`num-bigint`](./num_bigint/index.html): Enables conversions between Python objects and
 //! [num-bigint](https://docs.rs/num-bigint)'s
 //! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and
 //! [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
 //
-//! - `num-complex`: Enables conversions between Python objects and
+//! - [`num-complex`](crate::num_complex): Enables conversions between Python objects and
 //! [num-complex](https://docs.rs/num-complex)'s
 //! [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 //
@@ -297,6 +297,10 @@ mod python;
 
 pub mod type_object;
 pub mod types;
+
+pub mod num_bigint;
+
+pub mod num_complex;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 #[cfg(feature = "serde")]
