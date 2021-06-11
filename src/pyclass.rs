@@ -309,6 +309,10 @@ fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uin
     if is_basetype {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
+
+    // `c_ulong` and `c_uint` have the same size
+    // on some platforms (like windows)
+    #[allow(clippy::useless_conversion)]
     flags.try_into().unwrap()
 }
 
