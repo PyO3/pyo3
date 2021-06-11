@@ -358,6 +358,7 @@ fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, 
     script += r#"
 print("version_major", build_time_vars["VERSION"][0])  # 3
 print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
+print("SOABI", build_time_vars.get("SOABI", ""))
 KEYS = [
     "WITH_THREAD",
     "Py_DEBUG",
@@ -524,9 +525,19 @@ fn load_cross_compile_from_sysconfigdata(
         None => format!("{}.{}", major, minor),
     };
     let calcsize_pointer = sysconfig_data.get_numeric("SIZEOF_VOID_P").ok();
+    let soabi = match sysconfig_data.get("SOABI") {
+        Some(s) => s,
+        None => bail!("sysconfigdata did not define SOABI"),
+    };
 
     let version = PythonVersion { major, minor };
-    let implementation = PythonImplementation::CPython;
+    let implementation = if soabi.starts_with("pypy") {
+        PythonImplementation::PyPy
+    } else if soabi.starts_with("cpython") {
+        PythonImplementation::CPython
+    } else {
+        bail!("unsupported Python interpreter");
+    };
 
     Ok(InterpreterConfig {
         version,
