@@ -197,8 +197,10 @@ Normally in Python, that something special is the `await` keyword, but in order 
 coroutine in Rust, we first need to convert it into Rust's version of a `coroutine`: a `Future`.
 That's where `pyo3-asyncio` comes in.
 [`pyo3_asyncio::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html)
-performs this conversion for us:
+performs this conversion for us.
 
+The following example uses `into_future` to call the `py_sleep` function shown above and then await the
+coroutine object returned from the call:
 
 ```rust
 use pyo3::prelude::*;
@@ -223,6 +225,61 @@ async fn main() -> PyResult<()> {
 
     Ok(())
 }
+```
+
+Alternatively, the below example shows how to write a `#[pyfunction]` which uses `into_future` to receive and await
+a coroutine argument:
+
+```rust
+#[pyfunction]
+fn await_coro(coro: &PyAny) -> PyResult<()> {
+    // convert the coroutine into a Rust future using the
+    // async_std runtime
+    let f = pyo3_asyncio::async_std::into_future(coro)?;
+
+    pyo3_asyncio::async_std::run_until_complete(coro.py(), async move {
+        // await the future
+        f.await?;
+        Ok(())
+    })
+}
+```
+
+This could be called from Python as:
+
+```python
+import asyncio
+
+async def py_sleep():
+    asyncio.sleep(1)
+
+await_coro(py_sleep())
+```
+
+If for you wanted to pass a callable function to the `#[pyfunction]` instead, (i.e. the last line becomes `await_coro(py_sleep))`, then the above example needs to be tweaked to first call the callable to get the coroutine:
+
+```rust
+#[pyfunction]
+fn await_coro(callable: &PyAny) -> PyResult<()> {
+    // get the coroutine by calling the callable
+    let coro = callable.call0()?;
+
+    // convert the coroutine into a Rust future using the
+    // async_std runtime
+    let f = pyo3_asyncio::async_std::into_future(coro)?;
+
+    pyo3_asyncio::async_std::run_until_complete(coro.py(), async move {
+        // await the future
+        f.await?;
+        Ok(())
+    })
+}
+```
+
+This can be particularly helpful where you need to repeatedly create and await a coroutine. Trying to await the same coroutine multiple times will raise an error:
+
+```python
+RuntimeError: cannot reuse already awaited coroutine
 ```
 
 > If you're interested in learning more about `coroutines` and `awaitables` in general, check out the
