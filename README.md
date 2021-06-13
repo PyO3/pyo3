@@ -149,6 +149,7 @@ about this topic.
  * [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust_
  * [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust_
  * [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust_
+ * [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library_
 
 ## Contributing
 
