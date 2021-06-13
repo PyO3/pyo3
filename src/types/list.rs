@@ -31,6 +31,31 @@ unsafe fn new_from_iter<T>(
     ptr
 }
 
+#[inline]
+unsafe fn try_new_from_iter<T>(
+    elements: impl ExactSizeIterator<Item = PyResult<T>>,
+    convert: impl Fn(T) -> PyObject,
+) -> PyResult<*mut ffi::PyObject> {
+    let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
+    for (i, e) in elements.enumerate() {
+        match e {
+            Ok(e) => {
+                let obj = convert(e).into_ptr();
+                #[cfg(not(Py_LIMITED_API))]
+                ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, obj);
+                #[cfg(Py_LIMITED_API)]
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
+            }
+            Err(err) => {
+                // release the newly created PyList on error
+                ffi::Py_DECREF(ptr);
+                return Err(err);
+            }
+        }
+    }
+    Ok(ptr)
+}
+
 impl PyList {
     /// Constructs a new list with the given elements.
     pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
@@ -40,6 +65,24 @@ impl PyList {
     {
         unsafe {
             py.from_owned_ptr::<PyList>(new_from_iter(elements.into_iter(), |e| e.to_object(py)))
+        }
+    }
+
+    /// Try to constructs a new list with the given fallible elements.
+    pub fn try_new<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = PyResult<T>, IntoIter = U>,
+    ) -> PyResult<&PyList>
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = PyResult<T>>,
+    {
+        unsafe {
+            Ok(
+                py.from_owned_ptr::<PyList>(try_new_from_iter(elements.into_iter(), |e| {
+                    e.to_object(py)
+                })?),
+            )
         }
     }
 
@@ -211,6 +254,21 @@ mod test {
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
         assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_try_new() {
+        use crate::exceptions::PyValueError;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = PyList::try_new(py, vec![Ok(2), Ok(3), Ok(5), Ok(7)]).unwrap();
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+
+        assert!(PyList::try_new(py, vec![Ok(2), Err(PyValueError::new_err("test"))]).is_err());
     }
 
     #[test]
