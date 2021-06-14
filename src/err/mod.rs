@@ -390,6 +390,28 @@ impl PyErr {
         PyErr::from_state(PyErrState::Normalized(self.normalized(py).clone()))
     }
 
+    /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
+    /// associated with the exception, as accessible from Python through `__cause__`.
+    pub fn cause(&self, py: Python) -> Option<PyErr> {
+        let ptr = unsafe { ffi::PyException_GetCause(self.pvalue(py).as_ptr()) };
+        let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
+        obj.map(|x| Self::from_instance(x))
+    }
+
+    /// Set the cause associated with the exception, pass `None` to clear it.
+    pub fn set_cause(&self, py: Python, cause: Option<Self>) {
+        if let Some(cause) = cause {
+            let cause = cause.into_instance(py);
+            unsafe {
+                ffi::PyException_SetCause(self.pvalue(py).as_ptr(), cause.as_ptr());
+            }
+        } else {
+            unsafe {
+                ffi::PyException_SetCause(self.pvalue(py).as_ptr(), std::ptr::null_mut());
+            }
+        }
+    }
+
     fn from_state(state: PyErrState) -> PyErr {
         PyErr {
             state: UnsafeCell::new(Some(state)),
@@ -626,5 +648,37 @@ mod tests {
 
         is_send::<PyErrState>();
         is_sync::<PyErrState>();
+    }
+
+    #[test]
+    fn test_pyerr_cause() {
+        Python::with_gil(|py| {
+            let err = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error");
+            assert!(err.cause(py).is_none());
+
+            let err = py
+                .run(
+                    "raise Exception('banana') from Exception('apple')",
+                    None,
+                    None,
+                )
+                .expect_err("raising should have given us an error");
+            let cause = err
+                .cause(py)
+                .expect("raising from should have given us a cause");
+            assert_eq!(cause.to_string(), "Exception: apple");
+
+            err.set_cause(py, None);
+            assert!(err.cause(py).is_none());
+
+            let new_cause = exceptions::PyValueError::new_err("orange");
+            err.set_cause(py, Some(new_cause));
+            let cause = err
+                .cause(py)
+                .expect("set_cause should have given us a cause");
+            assert_eq!(cause.to_string(), "ValueError: orange");
+        });
     }
 }
