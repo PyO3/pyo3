@@ -641,7 +641,7 @@ mod test {
     }
 
     #[test]
-    fn test_as_ref() {
+    fn test_as_empty() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = vec![1].to_object(py);
@@ -654,7 +654,7 @@ mod test {
     }
 
     #[test]
-    fn test_is_empty() {
+    fn test_is_ref() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = vec!["foo"].to_object(py);
