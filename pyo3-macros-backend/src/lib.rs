@@ -11,6 +11,7 @@ mod utils;
 mod attributes;
 mod defs;
 mod deprecations;
+mod diagnostics;
 mod from_pyobject;
 mod konst;
 mod method;
