@@ -63,7 +63,7 @@ See https://pyo3.rs/main/doc/pyo3/struct.Py.html for more information.",
                     lifetime = lifetime,
                     type_name = type_name,
                 );
-                let e = syn::Error::new(field.span(), message);
+                let e = syn::Error::new(field.ty.span(), message);
                 return Err(e);
             };
         }
