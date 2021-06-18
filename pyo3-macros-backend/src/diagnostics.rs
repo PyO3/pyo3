@@ -6,8 +6,8 @@ use syn::spanned::Spanned;
 pub fn check_pyclass_generics_error(class: &syn::ItemStruct) -> Result<(), syn::Error> {
     if !class.generics.params.is_empty() {
         let mut base_error = syn::Error::new(
-            class.generics.params.span(),
-            "#[pyclass] cannot have generic parameters.",
+            class.generics.span(),
+            "#[pyclass] cannot have generic parameters",
         );
         if let Err(another) = check_pyclass_field_lifetimes(class) {
             base_error.combine(another);
@@ -31,16 +31,16 @@ fn check_pyclass_field_lifetimes(class: &syn::ItemStruct) -> Result<(), syn::Err
             None
         };
 
-        let (type_name, span) = if let syn::Type::Reference(typeref) = &(field.ty) {
+        let type_name = if let syn::Type::Reference(typeref) = &(field.ty) {
             if let syn::Type::Path(typepath) = &*(typeref.elem) {
                 let mut s = typepath.path.segments.to_token_stream().to_string();
                 s.retain(|c| !c.is_whitespace());
-                (Some(s), Some(typepath.span()))
+                Some(s)
             } else {
-                (None, None)
+                None
             }
         } else {
-            (None, None)
+            None
         };
 
         if let (Some(lifetime), Some(type_name)) = (lifetime, type_name) {
@@ -63,7 +63,7 @@ See https://pyo3.rs/main/doc/pyo3/struct.Py.html for more information.",
                     lifetime = lifetime,
                     type_name = type_name,
                 );
-                let e = syn::Error::new(span.unwrap(), message);
+                let e = syn::Error::new(field.span(), message);
                 return Err(e);
             };
         }
