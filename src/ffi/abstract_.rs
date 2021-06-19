@@ -3,12 +3,6 @@ use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Type")]
-    pub static mut PySequence_Type: PyTypeObject;
-}
-
 extern "C" {
     #[cfg(PyPy)]
     #[link_name = "PyPyObject_DelAttrString"]

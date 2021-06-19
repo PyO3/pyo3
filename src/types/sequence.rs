@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::err::{self, PyErr, PyResult};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::types::{PyAny, PyList, PyTuple};
@@ -11,7 +11,6 @@ use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 #[repr(transparent)]
 pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);
-pyobject_native_type_info!(PySequence, ffi::PySequence_Type, Some("builtins"), #checkfunction=ffi::PySequence_Check);
 pyobject_native_type_extract!(PySequence);
 
 impl PySequence {
@@ -294,6 +293,29 @@ where
     }
 }
 
+impl<'v> PyTryFrom<'v> for PySequence {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
+        let value = value.into();
+        unsafe {
+            if ffi::PySequence_Check(value.as_ptr()) != 0 {
+                Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
+            } else {
+                Err(PyDowncastError::new(value, "Sequence"))
+            }
+        }
+    }
+
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
+        <PySequence as PyTryFrom>::try_from(value)
+    }
+
+    #[inline]
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
+        let ptr = value.into() as *const _ as *const PySequence;
+        &*ptr
+    }
+}
+
 fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
 where
     T: FromPyObject<'s>,
@@ -312,6 +334,7 @@ mod test {
     use crate::AsPyPointer;
     use crate::Python;
     use crate::{Py, PyObject, PyTryFrom, ToPyObject};
+    use crate::types::PyList;
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -641,7 +664,7 @@ mod test {
     }
 
     #[test]
-    fn test_as_empty() {
+    fn test_is_empty() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = vec![1].to_object(py);
@@ -654,11 +677,11 @@ mod test {
     }
 
     #[test]
-    fn test_is_ref() {
+    fn test_as_ref() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let list = vec!["foo"].to_object(py);
-        let seq: Py<PySequence> = list.cast_as::<PySequence>(py).unwrap().into();
-        assert!(seq.as_ref(py).extract::<Vec<&str>>().unwrap() == ["foo"]);
+        let seq: Py<PySequence> = PyList::empty(py).cast_as::<PySequence>().unwrap().into();
+        let seq_ref: &PySequence = seq.as_ref(py);
+        assert_eq!(seq_ref.len().unwrap(), 0);
     }
 }
