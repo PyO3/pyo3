@@ -3,7 +3,7 @@ use crate::conversion::{PyTryFrom, ToBorrowedObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
-use crate::types::{PyDict, PyTuple, PySequence};
+use crate::types::{PyDict, PySequence, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,

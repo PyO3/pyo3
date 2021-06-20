@@ -330,11 +330,11 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::types::PyList;
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
     use crate::{Py, PyObject, PyTryFrom, ToPyObject};
-    use crate::types::PyList;
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
