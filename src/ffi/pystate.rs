@@ -1,15 +1,25 @@
-use crate::ffi::ceval::_PyFrameEvalFunction;
+use crate::ffi::cpython::pystate::_PyFrameEvalFunction;
+use crate::ffi::frameobject::PyFrameObject;
 use crate::ffi::moduleobject::PyModuleDef;
 use crate::ffi::object::PyObject;
-use crate::ffi::PyFrameObject;
 use std::os::raw::{c_int, c_long};
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyInterpreterState {
+    /// Not actually a public field
     pub ob_base: PyObject,
+
+    /// Not actually a public field
+    /// Also, it has an additional argument in 3.9
+    #[cfg(not(Py_3_9))]
+    pub eval_frame: extern "C" fn(*mut crate::ffi::PyFrameObject, c_int) -> *mut PyObject,
+
+    /// Not actually a public field
+    /// Also, it has an additional argument in 3.9
+    #[cfg(Py_3_9)]
     pub eval_frame: _PyFrameEvalFunction,
 }
 
