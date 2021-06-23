@@ -6,6 +6,7 @@ use crate::{ffi, Python};
 pub trait PyClassDict {
     const IS_DUMMY: bool = true;
     fn new() -> Self;
+    #[inline]
     fn clear_dict(&mut self, _py: Python) {}
     private_decl! {}
 }
@@ -14,6 +15,7 @@ pub trait PyClassDict {
 pub trait PyClassWeakRef {
     const IS_DUMMY: bool = true;
     fn new() -> Self;
+    #[inline]
     unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
     private_decl! {}
 }
@@ -23,6 +25,7 @@ pub struct PyClassDummySlot;
 
 impl PyClassDict for PyClassDummySlot {
     private_impl! {}
+    #[inline]
     fn new() -> Self {
         PyClassDummySlot
     }
@@ -30,6 +33,7 @@ impl PyClassDict for PyClassDummySlot {
 
 impl PyClassWeakRef for PyClassDummySlot {
     private_impl! {}
+    #[inline]
     fn new() -> Self {
         PyClassDummySlot
     }
@@ -44,9 +48,11 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 impl PyClassDict for PyClassDictSlot {
     private_impl! {}
     const IS_DUMMY: bool = false;
+    #[inline]
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
+    #[inline]
     fn clear_dict(&mut self, _py: Python) {
         if !self.0.is_null() {
             unsafe { ffi::PyDict_Clear(self.0) }
@@ -63,9 +69,11 @@ pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 impl PyClassWeakRef for PyClassWeakRefSlot {
     private_impl! {}
     const IS_DUMMY: bool = false;
+    #[inline]
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
+    #[inline]
     unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python) {
         if !self.0.is_null() {
             ffi::PyObject_ClearWeakRefs(obj)

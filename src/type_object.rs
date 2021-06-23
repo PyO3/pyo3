@@ -3,7 +3,8 @@
 
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
-use crate::pyclass::{create_type_object, PyClass};
+use crate::pyclass::create_type_object;
+use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyType};
 use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
@@ -15,11 +16,7 @@ use std::thread::{self, ThreadId};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyLayout<T> {
-    const IS_NATIVE_TYPE: bool = true;
-    fn py_init(&mut self, _value: T) {}
-    unsafe fn py_drop(&mut self, _py: Python) {}
-}
+pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
@@ -200,3 +197,32 @@ fn initialize_tp_dict(
 
 // This is necessary for making static `LazyStaticType`s
 unsafe impl Sync for LazyStaticType {}
+
+#[inline]
+pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*tp).tp_alloc
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc);
+        std::mem::transmute(ptr)
+    }
+}
+
+#[inline]
+pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*tp).tp_free.unwrap()
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
+        debug_assert_ne!(ptr, std::ptr::null_mut());
+        std::mem::transmute(ptr)
+    }
+}

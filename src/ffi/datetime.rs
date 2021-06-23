@@ -650,7 +650,6 @@ mod tests {
     fn test_date_fromtimestamp() {
         Python::with_gil(|py| {
             let args: Py<PyAny> = (100,).into_py(py);
-            dbg!(args.as_ref(py));
             unsafe { PyDateTime_IMPORT() };
             let dt: &PyAny = unsafe { py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr())) };
             py_run!(
