@@ -8,6 +8,6 @@ extern "C" {
         exc: c_int,
     ) -> *mut PyObject;
     pub fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> c_int;
-    pub fn PyEval_SetProfile(trace_func: Py_tracefunc, arg1: *mut PyObject);
-    pub fn PyEval_SetTrace(trace_func: Py_tracefunc, arg1: *mut PyObject);
+    pub fn PyEval_SetProfile(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
+    pub fn PyEval_SetTrace(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
 }
