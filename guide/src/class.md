@@ -169,7 +169,7 @@ impl MyClass {
 }
 ```
 
-Alternatively, if your `new` method might throw errors you can return `PyResult<Self>`.
+Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
 ```rust
 # use pyo3::prelude::*;
 #[pyclass]
