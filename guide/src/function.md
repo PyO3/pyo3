@@ -14,52 +14,48 @@ fn double(x: usize) -> usize {
 }
 
 #[pymodule]
-fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
-
-# fn main() {}
 ```
 
-Alternatively there is a shorthand; the function can be placed inside the module definition and annotated with `#[pyfn]`, as below:
+Alternatively there is a shorthand; the function can be placed inside the module definition and
+annotated with `#[pyfn]`, as below:
 
 ```rust
 use pyo3::prelude::*;
 
 #[pymodule]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m)]
-    fn sum_as_string(_py: Python, a:i64, b:i64) -> PyResult<String> {
-        Ok(format!("{}", a + b))
+    fn double(x: usize) -> usize {
+        x * 2
     }
 
     Ok(())
 }
-
-# fn main() {}
 ```
 
-`#[pyfn(m)]` is just syntax sugar for `#[pyfunction]`, and takes all the same options documented in the rest of this chapter. The code above is expanded to the following:
+`#[pyfn(m)]` is just syntactic sugar for `#[pyfunction]`, and takes all the same options
+documented in the rest of this chapter. The code above is expanded to the following:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 #[pymodule]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfunction]
-    fn sum_as_string(_py: Python, a:i64, b:i64) -> PyResult<String> {
-        Ok(format!("{}", a + b))
+    fn double(x: usize) -> usize {
+        x * 2
     }
 
-    m.add_function(pyo3::wrap_pyfunction!(sum_as_string, m)?)?;
-
+    m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
-
-# fn main() {}
 ```
 
 ## Function options
