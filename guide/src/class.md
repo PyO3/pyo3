@@ -169,6 +169,23 @@ impl MyClass {
 }
 ```
 
+Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    num: i32,
+}
+
+#[pymethods]
+impl MyClass {
+    #[new]
+    fn new(num: i32) -> PyResult<Self> {
+        Ok(MyClass { num })
+    }
+}
+```
+
 If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
 
