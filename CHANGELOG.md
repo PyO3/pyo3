@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate `#[text_signature = "..."]` attributes in favor of `#[pyo3(text_signature = "...")]`. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 - Use `METH_FASTCALL` argument passing convention, when possible, to improve `#[pyfunction]` and method performance.
   [#1619](https://github.com/PyO3/pyo3/pull/1619), [#1660](https://github.com/PyO3/pyo3/pull/1660)
+- Make the `Py_tracefunc` parameter of the `PyEval_SetProfile`/`PyEval_SetTrace` functions optional. [#1692](https://github.com/PyO3/pyo3/pull/1692)
 
 ### Removed
 
