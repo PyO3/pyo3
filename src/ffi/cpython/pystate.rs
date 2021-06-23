@@ -1,4 +1,3 @@
-use crate::ffi::object::PyObject;
 use crate::ffi::pystate::{PyInterpreterState, PyThreadState};
 use std::os::raw::c_int;
 
@@ -28,7 +27,7 @@ pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::ffi::PyThreadState,
     *mut crate::ffi::PyFrameObject,
     c_int,
-) -> *mut PyObject;
+) -> *mut crate::ffi::object::PyObject;
 
 #[cfg(Py_3_9)]
 extern "C" {
