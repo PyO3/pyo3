@@ -675,8 +675,11 @@ impl From<PyBorrowMutError> for PyErr {
 pub trait PyCellLayout<T>: PyLayout<T> {
     fn get_borrow_flag(&self) -> BorrowFlag;
     fn set_borrow_flag(&self, flag: BorrowFlag);
-    /// Implementation of tp_dealloc. Do not attempt to use &self after calling this!
-    unsafe fn tp_dealloc(&mut self, py: Python);
+    /// Implementation of tp_dealloc.
+    /// # Safety
+    /// - slf must be a valid pointer to an instance of a T or a subclass.
+    /// - slf must not be used after this call (as it will be freed).
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python);
 }
 
 impl<T, U> PyCellLayout<T> for PyCellBase<U>
@@ -690,21 +693,19 @@ where
     fn set_borrow_flag(&self, flag: BorrowFlag) {
         self.borrow_flag.set(flag)
     }
-    unsafe fn tp_dealloc(&mut self, py: Python) {
-        let obj: *mut ffi::PyObject = self as *mut _ as *mut _;
-
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         if T::type_object_raw(py) == &mut PyBaseObject_Type {
-            return get_tp_free(ffi::Py_TYPE(obj))(obj as _);
+            return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         #[cfg(not(Py_LIMITED_API))]
         {
             if let Some(dealloc) = (*T::type_object_raw(py)).tp_dealloc {
-                dealloc(obj as _);
+                dealloc(slf as _);
             } else {
-                get_tp_free(ffi::Py_TYPE(obj))(obj as _);
+                get_tp_free(ffi::Py_TYPE(slf))(slf as _);
             }
         }
 
@@ -724,10 +725,12 @@ where
     fn set_borrow_flag(&self, flag: BorrowFlag) {
         self.ob_base.set_borrow_flag(flag)
     }
-    unsafe fn tp_dealloc(&mut self, py: Python) {
-        ManuallyDrop::drop(&mut self.contents.value);
-        self.contents.dict.clear_dict(py);
-        self.contents.weakref.clear_weakrefs(self.as_ptr(), py);
-        self.ob_base.tp_dealloc(py);
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
+        // Safety: Python only calls tp_dealloc when no references to the object remain.
+        let cell = &mut *(slf as *mut PyCell<T>);
+        ManuallyDrop::drop(&mut cell.contents.value);
+        cell.contents.dict.clear_dict(py);
+        cell.contents.weakref.clear_weakrefs(slf, py);
+        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(slf, py)
     }
 }

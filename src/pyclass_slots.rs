@@ -15,6 +15,9 @@ pub trait PyClassDict {
 pub trait PyClassWeakRef {
     const IS_DUMMY: bool = true;
     fn new() -> Self;
+    /// # Safety
+    /// - `_obj` must be a pointer to the pyclass instance which contains `self`.
+    /// - The GIL must be held.
     #[inline]
     unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
     private_decl! {}
