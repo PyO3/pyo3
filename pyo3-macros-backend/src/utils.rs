@@ -29,12 +29,8 @@ macro_rules! ensure_spanned {
 }
 
 /// Check if the given type `ty` is `pyo3::Python`.
-pub fn is_python(mut ty: &syn::Type) -> bool {
-    while let syn::Type::Group(group) = ty {
-        // Macros can create invisible delimiters around types.
-        ty = &*group.elem;
-    }
-    match ty {
+pub fn is_python(ty: &syn::Type) -> bool {
+    match unwrap_ty_group(ty) {
         syn::Type::Path(typath) => typath
             .path
             .segments
@@ -123,4 +119,11 @@ pub fn unwrap_group(mut expr: &syn::Expr) -> &syn::Expr {
         expr = &*g.expr;
     }
     expr
+}
+
+pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
+    while let syn::Type::Group(g) = ty {
+        ty = &*g.elem;
+    }
+    ty
 }
