@@ -3,7 +3,6 @@
 //! The code below just tries to use the most important code generation paths
 
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 #[pyclass]
 pub struct ModClass {

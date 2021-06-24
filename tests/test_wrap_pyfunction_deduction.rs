@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, types::PyCFunction, wrap_pyfunction};
+use pyo3::{prelude::*, types::PyCFunction};
 
 #[pyfunction]
 fn f() {}

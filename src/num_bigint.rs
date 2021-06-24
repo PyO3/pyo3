@@ -34,7 +34,6 @@
 //! ```rust
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
-//! use pyo3::wrap_pyfunction;
 //!
 //! #[pyfunction]
 //! fn add_one(n: BigInt) -> BigInt {

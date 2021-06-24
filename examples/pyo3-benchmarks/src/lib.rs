@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 fn none() {}
