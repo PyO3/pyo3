@@ -1,7 +1,6 @@
 //! Ensure that pyo3 macros can be used inside macro_rules!
 
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 #[macro_use]
 mod common;

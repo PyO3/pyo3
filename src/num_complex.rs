@@ -31,7 +31,6 @@
 //! use nalgebra::base::{dimension::Const, storage::Storage, Matrix};
 //! use num_complex::Complex;
 //! use pyo3::prelude::*;
-//! use pyo3::wrap_pyfunction;
 //!
 //! type T = Complex<f64>;
 //!

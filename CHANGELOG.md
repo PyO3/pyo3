@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `#[pyo3(text_signature = "...")]` syntax for setting text signature. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 - Add support for setting and retrieving exception cause. [#1679](https://github.com/PyO3/pyo3/pull/1679)
 - Add FFI definitions from `cpython/pystate.h`.[#1687](https://github.com/PyO3/pyo3/pull/1687/)
+- Add `wrap_pyfunction` macro to prelude. [#1695](https://github.com/PyO3/pyo3/pull/1695)
 
 ### Changed
 

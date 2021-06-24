@@ -461,7 +461,6 @@ It is also required to make the struct public.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 use pyo3::types::PyAny;
 
 pub trait Model {
