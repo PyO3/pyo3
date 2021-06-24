@@ -7,7 +7,7 @@ use crate::attributes::{
 use crate::deprecations::Deprecations;
 use crate::pyimpl::PyClassMethodsType;
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
-use crate::utils;
+use crate::utils::{self, unwrap_group};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -93,7 +93,7 @@ impl PyClassArgs {
                 // We allow arbitrary expressions here so you can e.g. use `8*64`
                 self.freelist = Some(syn::Expr::clone(right));
             }
-            "name" => match &**right {
+            "name" => match unwrap_group(&**right) {
                 syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(lit),
                     ..
@@ -114,7 +114,7 @@ impl PyClassArgs {
                 }
                 _ => expected!("type name (e.g. \"Name\")"),
             },
-            "extends" => match &**right {
+            "extends" => match unwrap_group(&**right) {
                 syn::Expr::Path(exp) => {
                     self.base = syn::TypePath {
                         path: exp.path.clone(),
@@ -124,7 +124,7 @@ impl PyClassArgs {
                 }
                 _ => expected!("type path (e.g., my_mod::BaseClass)"),
             },
-            "module" => match &**right {
+            "module" => match unwrap_group(&**right) {
                 syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(lit),
                     ..

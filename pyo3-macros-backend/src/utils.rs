@@ -117,3 +117,10 @@ pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
     };
     Ok(())
 }
+
+pub fn unwrap_group(mut expr: &syn::Expr) -> &syn::Expr {
+    while let syn::Expr::Group(g) = expr {
+        expr = &*g.expr;
+    }
+    expr
+}
