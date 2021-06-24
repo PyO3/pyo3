@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add support for `#[pyclass(extends=Exception)]`. [#1591](https://github.com/PyO3/pyo3/pull/1591)
 - Add support for extracting `PathBuf` from `pathlib.Path`. [#1654](https://github.com/PyO3/pyo3/pull/1654)
 - Add `#[pyo3(text_signature = "...")]` syntax for setting text signature. [#1658](https://github.com/PyO3/pyo3/pull/1658)
+- Add FFI definitions from `cpython/pystate.h`.[#1687](https://github.com/PyO3/pyo3/pull/1687/)
 
 ### Changed
 - Allow only one `#[pymethods]` block per `#[pyclass]` by default, to simplify the proc macro implementations. Add `multiple-pymethods` feature to opt-in to the more complex full behavior. [#1457](https://github.com/PyO3/pyo3/pull/1457)
@@ -70,6 +71,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality. [#1521](https://github.com/PyO3/pyo3/pull/1521)
 - Remove `raw_pycfunction!` macro. [#1619](https://github.com/PyO3/pyo3/pull/1619)
 - Remove `PyList::get_parked_item`. [#1664](https://github.com/PyO3/pyo3/pull/1664)
+- Remove the layout of the ffi/ffi::cpython module from the public api [#1687](https://github.com/PyO3/pyo3/pull/1687/). If you were importing things with `pyo3::ffi::<module>::<item>;`, please use `pyo3::ffi::<item>;` instead
+
+
 
 ### Fixed
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
