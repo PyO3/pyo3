@@ -55,6 +55,17 @@ fn args_kwargs<'a>(
     (args, kwargs)
 }
 
+#[pyclass]
+struct EmptyClass {}
+
+#[pymethods]
+impl EmptyClass {
+    #[new]
+    fn new() -> Self {
+        EmptyClass {}
+    }
+}
+
 #[pymodule]
 fn _pyo3_benchmarks(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
@@ -63,5 +74,6 @@ fn _pyo3_benchmarks(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(simple_kwargs, m)?)?;
     m.add_function(wrap_pyfunction!(simple_args_kwargs, m)?)?;
     m.add_function(wrap_pyfunction!(args_kwargs, m)?)?;
+    m.add_class::<EmptyClass>()?;
     Ok(())
 }

@@ -1,6 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![allow(clippy::missing_safety_doc)] // FIXME (#698)
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -277,7 +276,6 @@ pub mod derive_utils;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-pub mod freelist;
 mod gil;
 pub mod impl_;
 mod instance;

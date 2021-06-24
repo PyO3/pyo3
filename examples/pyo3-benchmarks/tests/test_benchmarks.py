@@ -89,3 +89,15 @@ def test_args_kwargs_rs(benchmark):
     py = args_kwargs_py(1, "foo", {1: 2}, bar=4, foo=10)
     assert rust == py
     benchmark(pyo3_benchmarks.args_kwargs, 1, "foo", {1: 2}, a=4, foo=10)
+
+
+def test_empty_class_init(benchmark):
+    benchmark(pyo3_benchmarks.EmptyClass)
+
+
+class EmptyClassPy:
+    pass
+
+
+def test_empty_class_init_py(benchmark):
+    benchmark(EmptyClassPy)
