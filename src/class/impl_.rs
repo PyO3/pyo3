@@ -6,7 +6,7 @@ use crate::{
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
-    PyCell, PyClass, PyMethodDefType, PyNativeType, PyTypeInfo, Python,
+    PyClass, PyMethodDefType, PyNativeType, PyTypeInfo, Python,
 };
 use std::{marker::PhantomData, os::raw::c_void, thread};
 
@@ -136,6 +136,10 @@ pub trait PyClassWithFreeList: PyClass {
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
+///
+/// # Safety
+/// - `subtype` must be a valid pointer to the type object of T or a subclass.
+/// - The GIL must be held.
 pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     subtype: *mut ffi::PyTypeObject,
     nitems: ffi::Py_ssize_t,
@@ -159,6 +163,10 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 }
 
 /// Implementation of tp_free for `freelist` classes.
+///
+/// # Safety
+/// - `obj` must be a valid pointer to an instance of T (not a subclass).
+/// - The GIL must be held.
 #[allow(clippy::collapsible_if)] // for if cfg!
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
@@ -392,8 +400,7 @@ impl<T: PyClass> PyClassBaseType for T {
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
 }
 
-// Default new implementation
-
+/// Default new implementation
 pub(crate) unsafe extern "C" fn fallback_new(
     _subtype: *mut ffi::PyTypeObject,
     _args: *mut ffi::PyObject,
@@ -406,10 +413,7 @@ pub(crate) unsafe extern "C" fn fallback_new(
     })
 }
 
+/// Implementation of tp_dealloc for all pyclasses
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::callback_body!(py, {
-        // Safety: Python will only call tp_dealloc when no references to the object remain.
-        let cell: &mut PyCell<T> = &mut *(obj as *mut _);
-        cell.tp_dealloc(py);
-    })
+    crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
 }
