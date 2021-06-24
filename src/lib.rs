@@ -150,7 +150,9 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-//! version = "0.13.2"
+// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
+#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
+#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! features = ["extension-module"]
 //! ```
 //!
@@ -202,7 +204,9 @@
 //!
 //! ```toml
 //! [dependencies.pyo3]
-//! version = "0.13.2"
+// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
+#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
+#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
