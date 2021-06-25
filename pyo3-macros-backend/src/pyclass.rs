@@ -382,7 +382,7 @@ fn impl_class(
             quote! {
                 impl pyo3::class::impl_::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(_py: pyo3::Python) -> &mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> {
+                    fn get_free_list(_py: pyo3::Python<'_>) -> &mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
@@ -503,7 +503,7 @@ fn impl_class(
             const MODULE: Option<&'static str> = #module;
 
             #[inline]
-            fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
+            fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
                 #deprecations
 
                 use pyo3::type_object::LazyStaticType;

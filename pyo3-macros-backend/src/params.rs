@@ -263,7 +263,7 @@ fn impl_arg_param(
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
             (
-                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
+                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt<'_>>::Target> },
                 if mut_.is_some() {
                     quote_arg_span! { _tmp.as_deref_mut() }
                 } else {
@@ -273,7 +273,7 @@ fn impl_arg_param(
         } else {
             // Get &T from PyRef<T>
             (
-                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt>::Target },
+                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt<'_>>::Target },
                 quote_arg_span! { &#mut_ *_tmp },
             )
         };
