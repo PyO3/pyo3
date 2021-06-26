@@ -133,7 +133,11 @@ fn impl_proto_methods(
 
     let mut maybe_buffer_methods = None;
 
-    if cfg!(not(Py_3_9)) && proto.name == "Buffer" {
+    let build_config = pyo3_build_config::get();
+    const PY39: pyo3_build_config::PythonVersion =
+        pyo3_build_config::PythonVersion { major: 3, minor: 9 };
+
+    if build_config.version <= PY39 && proto.name == "Buffer" {
         maybe_buffer_methods = Some(quote! {
             impl pyo3::class::impl_::PyBufferProtocolProcs<#ty>
                 for pyo3::class::impl_::PyClassImplCollector<#ty>

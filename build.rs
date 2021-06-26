@@ -185,11 +185,16 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
     Ok(())
 }
 
+/// Generates the interpreter config suitable for the host / target / cross-compilation at hand.
+///
+/// The result is written to pyo3_build_config::PATH, which downstream scripts can read from
+/// (including `pyo3-macros-backend` during macro expansion).
 fn configure_pyo3() -> Result<()> {
-    let interpreter_config = pyo3_build_config::get();
+    let interpreter_config = pyo3_build_config::make_interpreter_config()?;
     ensure_python_version(&interpreter_config)?;
     ensure_target_architecture(&interpreter_config)?;
     emit_cargo_configuration(&interpreter_config)?;
+    interpreter_config.to_writer(&mut std::fs::File::create(pyo3_build_config::PATH)?)?;
     interpreter_config.emit_pyo3_cfgs();
 
     // Enable use of const generics on Rust 1.51 and greater
