@@ -135,16 +135,24 @@ impl InterpreterConfig {
 
     #[doc(hidden)]
     pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
+        macro_rules! writeln_option {
+            ($writer:expr, $opt:expr) => {
+                match &$opt {
+                    Some(value) => writeln!($writer, "{}", value),
+                    None => writeln!($writer, "null"),
+                }
+            };
+        }
         writeln!(writer, "{}", self.version.major)?;
         writeln!(writer, "{}", self.version.minor)?;
-        writeln!(writer, "{:?}", self.libdir)?;
+        writeln_option!(writer, self.libdir)?;
         writeln!(writer, "{}", self.shared)?;
         writeln!(writer, "{}", self.abi3)?;
-        writeln!(writer, "{:?}", self.ld_version)?;
-        writeln!(writer, "{:?}", self.base_prefix)?;
-        writeln!(writer, "{:?}", self.executable)?;
-        writeln!(writer, "{:?}", self.calcsize_pointer)?;
-        writeln!(writer, "{:?}", self.implementation)?;
+        writeln_option!(writer, self.ld_version)?;
+        writeln_option!(writer, self.base_prefix)?;
+        writeln_option!(writer, self.executable)?;
+        writeln_option!(writer, self.calcsize_pointer)?;
+        writeln!(writer, "{}", self.implementation)?;
         for flag in &self.build_flags.0 {
             writeln!(writer, "{}", flag)?;
         }
@@ -156,12 +164,10 @@ fn parse_option_string<T: FromStr>(string: String) -> Result<Option<T>>
 where
     <T as FromStr>::Err: std::error::Error + 'static,
 {
-    if string == "None" {
+    if string == "null" {
         Ok(None)
-    } else if string.starts_with("Some(") && string.ends_with(')') {
-        Ok(string[5..(string.len() - 1)].parse().map(Some)?)
     } else {
-        Err("expected None or Some(value)".into())
+        Ok(string.parse().map(Some)?)
     }
 }
 
@@ -185,6 +191,15 @@ impl Display for PythonVersion {
 pub enum PythonImplementation {
     CPython,
     PyPy,
+}
+
+impl Display for PythonImplementation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PythonImplementation::CPython => write!(f, "CPython"),
+            PythonImplementation::PyPy => write!(f, "PyPy"),
+        }
+    }
 }
 
 impl FromStr for PythonImplementation {
@@ -311,7 +326,10 @@ pub enum BuildFlag {
 
 impl Display for BuildFlag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            BuildFlag::Other(flag) => write!(f, "{}", flag),
+            _ => write!(f, "{:?}", self),
+        }
     }
 }
 
@@ -333,7 +351,10 @@ impl FromStr for BuildFlag {
 /// we will pick up and pass to rustc via `--cfg=py_sys_config={varname}`;
 /// this allows using them conditional cfg attributes in the .rs files, so
 ///
-///     #[cfg(py_sys_config="{varname}"]
+/// ```rust
+/// #[cfg(py_sys_config="{varname}")]
+/// # struct Foo;
+/// ```
 ///
 /// is the equivalent of `#ifdef {varname}` in C.
 ///
@@ -915,7 +936,7 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_read_write_roundtrip() {
+    fn test_read_write_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
             base_prefix: Some("base_prefix".into()),
@@ -935,5 +956,98 @@ mod tests {
             config,
             InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
         );
+
+        // And some different options, for variety
+
+        let config = InterpreterConfig {
+            abi3: false,
+            base_prefix: None,
+            build_flags: {
+                let mut flags = HashSet::new();
+                flags.insert(BuildFlag::Py_DEBUG);
+                flags.insert(BuildFlag::Other(String::from("Py_SOME_FLAG")));
+                BuildFlags(flags)
+            },
+            calcsize_pointer: None,
+            executable: None,
+            implementation: PythonImplementation::PyPy,
+            ld_version: None,
+            libdir: None,
+            shared: true,
+            version: PythonVersion {
+                major: 3,
+                minor: 10,
+            },
+        };
+        let mut buf: Vec<u8> = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+
+        assert_eq!(
+            config,
+            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
+        );
+    }
+
+    #[test]
+    fn build_flags_from_config_map() {
+        let mut config_map = HashMap::new();
+
+        assert_eq!(BuildFlags::from_config_map(&config_map).0, HashSet::new());
+
+        for flag in &BuildFlags::ALL {
+            config_map.insert(flag.to_string(), "0".into());
+        }
+
+        assert_eq!(BuildFlags::from_config_map(&config_map).0, HashSet::new());
+
+        let mut expected_flags = HashSet::new();
+        for flag in &BuildFlags::ALL {
+            config_map.insert(flag.to_string(), "1".into());
+            expected_flags.insert(flag.clone());
+        }
+
+        assert_eq!(BuildFlags::from_config_map(&config_map).0, expected_flags);
+    }
+
+    #[test]
+    fn build_flags_fixup_py36_debug() {
+        let mut build_flags = BuildFlags(HashSet::new());
+        build_flags.0.insert(BuildFlag::Py_DEBUG);
+
+        build_flags = build_flags.fixup(
+            PythonVersion { major: 3, minor: 6 },
+            PythonImplementation::CPython,
+        );
+
+        // On 3.6, Py_DEBUG implies Py_REF_DEBUG and Py_TRACE_REFS
+        assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
+        assert!(build_flags.0.contains(&BuildFlag::Py_TRACE_REFS));
+    }
+
+    #[test]
+    fn build_flags_fixup_py37_debug() {
+        let mut build_flags = BuildFlags(HashSet::new());
+        build_flags.0.insert(BuildFlag::Py_DEBUG);
+
+        build_flags = build_flags.fixup(PythonVersion::PY37, PythonImplementation::CPython);
+
+        // On 3.7, Py_DEBUG implies Py_REF_DEBUG
+        assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
+
+        // 3.7 always has WITH_THREAD
+        assert!(build_flags.0.contains(&BuildFlag::WITH_THREAD));
+    }
+
+    #[test]
+    fn build_flags_fixup_pypy() {
+        let mut build_flags = BuildFlags(HashSet::new());
+
+        build_flags = build_flags.fixup(
+            PythonVersion { major: 3, minor: 6 },
+            PythonImplementation::PyPy,
+        );
+
+        // PyPy always has WITH_THREAD
+        assert!(build_flags.0.contains(&BuildFlag::WITH_THREAD));
     }
 }
