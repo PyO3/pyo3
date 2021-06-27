@@ -131,6 +131,14 @@ impl<'a> Iterator for PyTupleIterator<'a> {
             None
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (
+            self.length.saturating_sub(self.index as usize),
+            Some(self.length.saturating_sub(self.index as usize)),
+        )
+    }
 }
 
 impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
@@ -346,9 +354,17 @@ mod test {
         let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
+
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+
         assert_eq!(2, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+
         assert_eq!(3, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
     #[test]
