@@ -1,3 +1,22 @@
+macro_rules! py_object_vec {
+    ($py:ident, [$($items:expr),+]) => {{
+        let mut items_vec: Vec<$crate::instance::PyObject> = py_object_vec!(impl ($py, [$($items),+]));
+        items_vec.reverse();
+        items_vec
+    }};
+
+    (impl ($py:ident, [$item:expr])) => {
+        vec![$crate::conversion::IntoPy::into_py($item, $py)]
+    };
+
+    (impl ($py:ident, [$head:expr, $($rest:expr),+])) => {{
+        let mut items_vec = py_object_vec!(impl ($py, [$($rest),+]));
+        items_vec.push($crate::conversion::IntoPy::into_py($head, $py));
+        items_vec
+    }};
+
+}
+
 macro_rules! py_dict {
     ($py:ident, {$key:literal : $value:expr}) => {
         $crate::types::dict::IntoPyDict::into_py_dict(&[($key, $value)], $py)
@@ -12,37 +31,22 @@ macro_rules! py_dict {
 
 macro_rules! py_list {
     ($py:ident, [$($items:expr),+]) => {{
-        let list = py_list!(impl ($py, [$($items),+]));
-        list.reverse().expect("failed to reverse list");
-        list
-    }};
-
-    (impl ($py:ident, [$item:expr])) => {
-        $crate::types::list::PyList::new($py, &[$item])
-    };
-
-    (impl ($py:ident, [$head:expr, $($rest:expr),+])) => {{
-        let list = py_list!(impl ($py, [$($rest),+]));
-        list.append($head).expect("failed to append item");
-        list
+        let items_vec = py_object_vec!($py, [$($items),+]);
+        $crate::types::list::PyList::new($py, items_vec)
     }};
 }
 
 macro_rules! py_tuple {
     ($py:ident, ($($items:expr),+)) => {{
-        let items_vec = py_tuple!(impl ($py, ($($items),+)));
-
-        $crate::types::tuple::PyTuple::new($py, items_vec.iter().rev())
+        let items_vec = py_object_vec!($py, [$($items),+]);
+        $crate::types::tuple::PyTuple::new($py, items_vec)
     }};
+}
 
-    (impl ($py:ident, ($item:expr))) => {
-        vec![$crate::conversion::IntoPy::into_py($item, $py)]
-    };
-
-    (impl ($py:ident, ($head:expr, $($rest:expr),+))) => {{
-        let mut items_vec = py_tuple!(impl ($py, ($($rest),+)));
-        items_vec.push($crate::conversion::IntoPy::into_py($head, $py));
-        items_vec
+macro_rules! py_set {
+    ($py:ident, {$($items:expr),+}) => {{
+        let items_vec = py_object_vec!($py, [$($items),+]);
+        $crate::types::set::PySet::new($py, items_vec.as_slice())
     }};
 }
 
@@ -122,5 +126,28 @@ mod test {
             "('elem1', 'elem2', 3, 4, {'type': 'user'})",
             multi_item_tuple.str().unwrap().extract::<&str>().unwrap()
         );
+    }
+
+    #[test]
+    fn test_set_macro() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let set = py_set!(py, { "set_elem" }).expect("failed to create set");
+
+        assert!(set.contains("set_elem").unwrap());
+
+        set.call_method1(
+            "update",
+            py_tuple!(
+                py,
+                (py_set!(py, {"new_elem1", "new_elem2", "set_elem"}).unwrap())
+            ),
+        )
+        .expect("failed to update set");
+
+        for expected_elem in vec!["set_elem", "new_elem1", "new_elem2"] {
+            assert!(set.contains(expected_elem).unwrap());
+        }
     }
 }
