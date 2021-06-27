@@ -158,6 +158,16 @@ impl<'a> Iterator for PyListIterator<'a> {
             None
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.list.len();
+
+        (
+            len.saturating_sub(self.index as usize),
+            Some(len.saturating_sub(self.index as usize)),
+        )
+    }
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyList {
@@ -340,6 +350,25 @@ mod test {
             idx += 1;
         }
         assert_eq!(idx, v.len());
+    }
+
+    #[test]
+    fn test_iter_size_hint() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let ob = v.to_object(py);
+        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        let mut iter = list.iter();
+        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+        iter.next();
+        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+
+        // Exhust iterator.
+        while let Some(_) = iter.next() {}
+
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
     #[test]
