@@ -18,14 +18,10 @@ macro_rules! py_object_vec {
 }
 
 macro_rules! py_dict {
-    ($py:ident, {$key:literal : $value:expr}) => {
-        $crate::types::dict::IntoPyDict::into_py_dict(&[($key, $value)], $py)
-    };
+    ($py:ident, {$($keys:literal : $values:expr),+}) => {{
+        let items: $crate::instance::PyObject = py_list!($py, [$(($keys, $values)),+]).into();
 
-    ($py:ident, {$key:literal : $value:expr, $($keys:literal : $values:expr),+}) => {{
-        let dict = py_dict!($py, {$($keys : $values),+});
-        dict.set_item($key, $value).expect("failed to set item on dict");
-        dict
+        $crate::types::dict::PyDict::from_sequence($py, items)
     }};
 }
 
@@ -67,7 +63,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let single_elem_dict = py_dict!(py, { "a": 2 });
+        let single_elem_dict = py_dict!(py, { "a": 2 }).expect("failed to create dict");
         assert_eq!(
             2,
             single_elem_dict
@@ -78,7 +74,8 @@ mod test {
         );
 
         let value = "value";
-        let multi_elem_dict = py_dict!(py, {"key1": value, 143: "abcde", "name": "Даня"});
+        let multi_elem_dict = py_dict!(py, {"key1": value, 143: "abcde", "name": "Даня"})
+            .expect("failed to create dict");
         assert_eq!(
             "value",
             multi_elem_dict
@@ -108,8 +105,16 @@ mod test {
             single_item_list.get_item(0).extract::<&str>().unwrap()
         );
 
-        let multi_item_list =
-            py_list!(py, ["elem1", "elem2", 3, 4, py_dict!(py, {"type": "user"})]);
+        let multi_item_list = py_list!(
+            py,
+            [
+                "elem1",
+                "elem2",
+                3,
+                4,
+                py_dict!(py, {"type": "user"}).unwrap()
+            ]
+        );
 
         assert_eq!(
             "['elem1', 'elem2', 3, 4, {'type': 'user'}]",
@@ -128,8 +133,16 @@ mod test {
             single_item_tuple.get_item(0).extract::<&str>().unwrap()
         );
 
-        let multi_item_tuple =
-            py_tuple!(py, ("elem1", "elem2", 3, 4, py_dict!(py, {"type": "user"})));
+        let multi_item_tuple = py_tuple!(
+            py,
+            (
+                "elem1",
+                "elem2",
+                3,
+                4,
+                py_dict!(py, {"type": "user"}).unwrap()
+            )
+        );
 
         assert_eq!(
             "('elem1', 'elem2', 3, 4, {'type': 'user'})",
