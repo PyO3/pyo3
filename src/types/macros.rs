@@ -1,22 +1,13 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! py_object_vec {
-    ($py:ident, [$($items:expr),+]) => {{
-        let mut items_vec: Vec<$crate::instance::PyObject> = py_object_vec!(impl ($py, [$($items),+]));
-        items_vec.reverse();
+    ($py:ident, [$($item:expr),+]) => {{
+        let mut items_vec: Vec<$crate::instance::PyObject> = vec![];
+        $(
+            items_vec.push($crate::conversion::IntoPy::into_py($item, $py));
+        )+
         items_vec
     }};
-
-    (impl ($py:ident, [$item:expr])) => {
-        vec![$crate::conversion::IntoPy::into_py($item, $py)]
-    };
-
-    (impl ($py:ident, [$head:expr, $($rest:expr),+])) => {{
-        let mut items_vec = py_object_vec!(impl ($py, [$($rest),+]));
-        items_vec.push($crate::conversion::IntoPy::into_py($head, $py));
-        items_vec
-    }};
-
 }
 
 #[macro_export]
