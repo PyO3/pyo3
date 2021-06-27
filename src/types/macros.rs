@@ -1,3 +1,5 @@
+#[doc(hidden)]
+#[macro_export]
 macro_rules! py_object_vec {
     ($py:ident, [$($items:expr),+]) => {{
         let mut items_vec: Vec<$crate::instance::PyObject> = py_object_vec!(impl ($py, [$($items),+]));
@@ -17,6 +19,7 @@ macro_rules! py_object_vec {
 
 }
 
+#[macro_export]
 macro_rules! py_dict {
     ($py:ident, {$($keys:literal : $values:expr),+}) => {{
         let items: $crate::instance::PyObject = py_list!($py, [$(($keys, $values)),+]).into();
@@ -25,6 +28,7 @@ macro_rules! py_dict {
     }};
 }
 
+#[macro_export]
 macro_rules! py_list {
     ($py:ident, [$($items:expr),+]) => {{
         let items_vec = py_object_vec!($py, [$($items),+]);
@@ -32,6 +36,7 @@ macro_rules! py_list {
     }};
 }
 
+#[macro_export]
 macro_rules! py_tuple {
     ($py:ident, ($($items:expr),+)) => {{
         let items_vec = py_object_vec!($py, [$($items),+]);
@@ -39,6 +44,7 @@ macro_rules! py_tuple {
     }};
 }
 
+#[macro_export]
 macro_rules! py_set {
     ($py:ident, {$($items:expr),+}) => {{
         let items_vec = py_object_vec!($py, [$($items),+]);
@@ -46,6 +52,7 @@ macro_rules! py_set {
     }};
 }
 
+#[macro_export]
 macro_rules! py_frozenset {
     ($py:ident, {$($items:expr),+}) => {{
         let items_vec = py_object_vec!($py, [$($items),+]);
