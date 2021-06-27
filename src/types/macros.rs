@@ -50,9 +50,18 @@ macro_rules! py_set {
     }};
 }
 
+macro_rules! py_frozenset {
+    ($py:ident, {$($items:expr),+}) => {{
+        let items_vec = py_object_vec!($py, [$($items),+]);
+        $crate::types::set::PyFrozenSet::new($py, items_vec.as_slice())
+    }};
+}
+
 #[cfg(test)]
 mod test {
+    use crate::types::PyFrozenSet;
     use crate::Python;
+
     #[test]
     fn test_dict_macro() {
         let gil = Python::acquire_gil();
@@ -149,5 +158,30 @@ mod test {
         for expected_elem in vec!["set_elem", "new_elem1", "new_elem2"] {
             assert!(set.contains(expected_elem).unwrap());
         }
+    }
+
+    #[test]
+    fn test_frozenset_macro() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let frozenset = py_frozenset!(py, { "set_elem" }).expect("failed to create frozenset");
+
+        assert!(frozenset.contains("set_elem").unwrap());
+
+        let intersection = frozenset
+            .call_method1(
+                "intersection",
+                py_tuple!(
+                    py,
+                    (py_set!(py, {"new_elem1", "new_elem2", "set_elem"}).unwrap())
+                ),
+            )
+            .expect("failed to call intersection()")
+            .downcast::<PyFrozenSet>()
+            .expect("failed to downcast to FrozenSet");
+
+        assert_eq!(1, intersection.len());
+        assert!(intersection.contains("set_elem").unwrap());
     }
 }
