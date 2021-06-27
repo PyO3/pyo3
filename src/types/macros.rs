@@ -175,7 +175,7 @@ mod test {
         )
         .expect("failed to update set");
 
-        for expected_elem in vec!["set_elem", "new_elem1", "new_elem2"] {
+        for &expected_elem in &["set_elem", "new_elem1", "new_elem2"] {
             assert!(set.contains(expected_elem).unwrap());
         }
     }
