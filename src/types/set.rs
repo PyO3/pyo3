@@ -192,9 +192,10 @@ impl<'a> std::iter::IntoIterator for &'a PySet {
     }
 }
 
-impl<T> ToPyObject for collections::HashSet<T>
+impl<T, S> ToPyObject for collections::HashSet<T, S>
 where
     T: hash::Hash + Eq + ToPyObject,
+    S: hash::BuildHasher + Default,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");

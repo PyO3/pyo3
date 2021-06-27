@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Use `METH_FASTCALL` argument passing convention, when possible, to improve `#[pyfunction]` and method performance.
   [#1619](https://github.com/PyO3/pyo3/pull/1619), [#1660](https://github.com/PyO3/pyo3/pull/1660)
 - Make the `Py_tracefunc` parameter of the `PyEval_SetProfile`/`PyEval_SetTrace` functions optional. [#1692](https://github.com/PyO3/pyo3/pull/1692)
+- Make `ToPyObject` impl for `HashSet` accept non-default hashers. [#1702](https://github.com/PyO3/pyo3/pull/1702)
 
 ### Removed
 
