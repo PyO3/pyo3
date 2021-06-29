@@ -4,6 +4,7 @@ use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec},
     pyfunction::Argument,
+    utils::unwrap_ty_group,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
@@ -258,7 +259,7 @@ fn impl_arg_param(
         }
     };
 
-    return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
+    return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(&ty)) {
         let (tref, mut_) = preprocess_tref(tref, self_);
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>

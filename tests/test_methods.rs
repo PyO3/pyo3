@@ -733,7 +733,7 @@ fn test_raw_idents() {
 #[pyclass]
 struct Issue1505 {}
 
-macro_rules! issue_1505 {
+macro_rules! pymethods {
     (
         #[pymethods]
         impl $ty: ty {
@@ -747,7 +747,7 @@ macro_rules! issue_1505 {
     };
 }
 
-issue_1505!(
+pymethods!(
     #[pymethods]
     impl Issue1505 {
         fn issue_1505(&self, _py: Python<'_>) {}
@@ -817,5 +817,15 @@ issue_1506!(
             _kwargs: Option<&PyDict>,
         ) {
         }
+    }
+);
+
+#[pyclass]
+struct Issue1696 {}
+
+pymethods!(
+    #[pymethods]
+    impl Issue1696 {
+        fn issue_1696(&self, _x: &InstanceMethod) {}
     }
 );
