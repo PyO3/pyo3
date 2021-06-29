@@ -14,10 +14,15 @@ use std::mem;
 
 /// Represents a slot of a [`FreeList`].
 pub enum Slot<T> {
+    /// A free slot.
     Empty,
+    /// An allocated slot.
     Filled(T),
 }
 
+/// A free allocation list.
+///
+/// See [the parent module](crate::impl_::freelist) for more details.
 pub struct FreeList<T> {
     entries: Vec<Slot<T>>,
     split: usize,

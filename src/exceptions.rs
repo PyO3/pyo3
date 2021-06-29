@@ -275,6 +275,7 @@ impl_native_exception!(PyIOError, PyExc_IOError);
 impl_native_exception!(PyWindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {
+    /// Create a Python `UnicodeDecodeError`.
     pub fn new<'p>(
         py: Python<'p>,
         encoding: &CStr,
@@ -294,6 +295,7 @@ impl PyUnicodeDecodeError {
         }
     }
 
+    /// Create a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
     pub fn new_utf8<'p>(
         py: Python<'p>,
         input: &[u8],

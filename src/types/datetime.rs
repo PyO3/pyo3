@@ -71,6 +71,7 @@ pyobject_native_type!(
 );
 
 impl PyDate {
+    /// Create a new `datetime.date`.
     pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
@@ -273,6 +274,7 @@ pyobject_native_type!(
 );
 
 impl PyTime {
+    /// Create a new `datetime.time` object.
     pub fn new<'p>(
         py: Python<'p>,
         hour: u8,
@@ -368,6 +370,7 @@ pyobject_native_type!(
 );
 
 impl PyDelta {
+    /// Create a new `timedelta`.
     pub fn new(
         py: Python,
         days: i32,

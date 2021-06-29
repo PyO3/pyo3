@@ -55,16 +55,23 @@ impl<T> Debug for PyBuffer<T> {
     }
 }
 
+/// Represents the type of a Python buffer element.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ElementType {
+    /// A signed integer type and its width in bytes.
     SignedInteger { bytes: usize },
+    /// An unsigned integer type and its width in bytes.
     UnsignedInteger { bytes: usize },
+    /// A boolean type.
     Bool,
+    /// A float type and its width in bytes.
     Float { bytes: usize },
+    /// An unknown type. This may occur when parsing has failed.
     Unknown,
 }
 
 impl ElementType {
+    /// Determine the `ElementType` from a Python `struct` module format string.
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
             [char] | [b'@', char] => native_element_type_from_type_char(*char),
