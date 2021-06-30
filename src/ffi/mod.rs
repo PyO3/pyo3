@@ -4,6 +4,10 @@
 //! It is meant for advanced users only - regular PyO3 users shouldn't
 //! need to interact with this module at all.
 //!
+//! The contents of this module are not documented here, as it would entail
+//! keeping the documentation up to date. Consult the [Python/C API Reference
+//! Manual][capi] for up-to-date documentation.
+//!
 //! # Safety
 //!
 //! The functions in this module lack individual safety documentation, but
@@ -12,9 +16,12 @@
 //! although null pointers are sometimes valid input.
 //! - The vast majority can only be used safely while the GIL is held.
 //! - Some functions have additional safety requirements, consult the
-//! [Python/C API Reference Manual](https://docs.python.org/3/c-api/index.html)
+//! [Python/C API Reference Manual][capi]
 //! for more information.
+//!
+//! [capi]: https://docs.python.org/3/c-api/index.html
 #![allow(
+    missing_docs,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
