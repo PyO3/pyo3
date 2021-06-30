@@ -1,3 +1,4 @@
+//! A write-once cell mediated by the Python GIL.
 use crate::Python;
 use std::cell::UnsafeCell;
 
