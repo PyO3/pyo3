@@ -6,7 +6,7 @@ use crate::{ffi, Python};
 pub trait PyClassDict {
     /// Whether this `__dict__` field is capable of holding a dictionary.
     const IS_DUMMY: bool = true;
-    /// Initialise a [PyObject] `__dict__` reference.
+    /// Initialise a [PyObject](crate::ffi::PyObject) `__dict__` reference.
     fn new() -> Self;
     /// Empty the dictionary of its key-value pairs.
     #[inline]

@@ -597,7 +597,7 @@ impl<T> Drop for PyBuffer<T> {
     }
 }
 
-/// Like `std::mem::cell`, but only provides read-only access to the data.
+/// Like [std::cell::Cell], but only provides read-only access to the data.
 ///
 /// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
 ///  The data cannot be modified through the reference, but other references may
@@ -606,11 +606,13 @@ impl<T> Drop for PyBuffer<T> {
 pub struct ReadOnlyCell<T: Element>(cell::UnsafeCell<T>);
 
 impl<T: Element> ReadOnlyCell<T> {
+    /// Obtain a copy of the current content.
     #[inline]
     pub fn get(&self) -> T {
         unsafe { *self.0.get() }
     }
 
+    /// Get a pointer to the current content.
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.0.get()
