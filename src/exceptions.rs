@@ -18,6 +18,7 @@ macro_rules! impl_exception_boilerplate {
         }
 
         impl $name {
+            /// Create a new [PyErr](crate::PyErr) of this type.
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + Send + Sync + 'static,
