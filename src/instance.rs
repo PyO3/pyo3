@@ -303,7 +303,7 @@ where
     /// Multiple immutable borrows can be taken out at the same time.
     ///
     /// Equivalent to `self.as_ref(py).borrow()` -
-    /// see [`PyCell::borrow`](crate::pycell::PyCell::borrow)
+    /// see [`PyCell::borrow`](crate::pycell::PyCell::borrow).
     ///
     /// # Examples
     ///
