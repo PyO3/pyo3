@@ -538,7 +538,7 @@ fn impl_class(
             const IS_BASETYPE: bool = #is_basetype;
             const IS_SUBCLASS: bool = #is_subclass;
 
-            type Layout = PyCell<Self>;
+            type Layout = pyo3::PyCell<Self>;
             type BaseType = #base;
             type ThreadChecker = #thread_checker;
 
