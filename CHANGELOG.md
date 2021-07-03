@@ -6,7 +6,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/main/migration.h
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.14.0] - 2021-07-03
 
 ### Packaging
 
@@ -14,38 +14,38 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `num-complex` optional dependency to 0.4. [#1482](https://github.com/PyO3/pyo3/pull/1482)
 - Extend `hashbrown` optional dependency supported versions to include 0.11. [#1496](https://github.com/PyO3/pyo3/pull/1496)
 - Support PyPy 3.7. [#1538](https://github.com/PyO3/pyo3/pull/1538)
-- Try harder to filter sysconfigdata candidates on arch.config
 
 ### Added
 
-- Add conversions for `[T; N]` for all `N` on Rust 1.51 and up. [#1128](https://github.com/PyO3/pyo3/pull/1128)
-- Add conversions between `OsStr`/`OsString`/`Path`/`PathBuf` and Python strings. [#1379](https://github.com/PyO3/pyo3/pull/1379)
-- Add `#[pyo3(from_py_with = "...")]` attribute for function arguments and struct fields to override the default from-Python conversion. [#1411](https://github.com/PyO3/pyo3/pull/1411)
+- Extend conversions for `[T; N]` to all `N` using const generics (on Rust 1.51 and up). [#1128](https://github.com/PyO3/pyo3/pull/1128)
+- Add conversions between `OsStr`/ `OsString` and Python strings. [#1379](https://github.com/PyO3/pyo3/pull/1379)
+- Add conversions between `Path`/ `PathBuf` and Python strings (and `pathlib.Path` objects). [#1379](https://github.com/PyO3/pyo3/pull/1379) [#1654](https://github.com/PyO3/pyo3/pull/1654)
+- Add a new set of `#[pyo3(...)]` attributes to control various PyO3 macro functionality:
+  - `#[pyo3(from_py_with = "...")]` function arguments and struct fields to override the default from-Python conversion. [#1411](https://github.com/PyO3/pyo3/pull/1411)
+  - `#[pyo3(name = "...")]` for setting Python names. [#1567](https://github.com/PyO3/pyo3/pull/1567)
+  - `#[pyo3(text_signature = "...")]` for setting text signature. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 - Add FFI definition `PyCFunction_CheckExact` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - Add FFI definition `Py_IS_TYPE`. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 - Add FFI definition `_Py_InitializeMain`. [#1473](https://github.com/PyO3/pyo3/pull/1473)
 - Add FFI definitions from `cpython/import.h`.[#1475](https://github.com/PyO3/pyo3/pull/1475)
 - Add tuple and unit struct support for `#[pyclass]` macro. [#1504](https://github.com/PyO3/pyo3/pull/1504)
-- Add `#[pyo3(name = "...")]` syntax for setting Python names. [#1567](https://github.com/PyO3/pyo3/pull/1567)
 - Add FFI definition `PyDateTime_TimeZone_UTC`. [#1572](https://github.com/PyO3/pyo3/pull/1572)
 - Add support for `#[pyclass(extends=Exception)]`. [#1591](https://github.com/PyO3/pyo3/pull/1591)
-- Add support for extracting `PathBuf` from `pathlib.Path`. [#1654](https://github.com/PyO3/pyo3/pull/1654)
-- Add `#[pyo3(text_signature = "...")]` syntax for setting text signature. [#1658](https://github.com/PyO3/pyo3/pull/1658)
-- Add support for setting and retrieving exception cause. [#1679](https://github.com/PyO3/pyo3/pull/1679)
-- Add FFI definitions from `cpython/pystate.h`.[#1687](https://github.com/PyO3/pyo3/pull/1687/)
-- Add `wrap_pyfunction` macro to prelude. [#1695](https://github.com/PyO3/pyo3/pull/1695)
+- Add `PyErr::cause` and `PyErr::set_cause`. [#1679](https://github.com/PyO3/pyo3/pull/1679)
+- Add FFI definitions from `cpython/pystate.h`. [#1687](https://github.com/PyO3/pyo3/pull/1687/)
+- Add `wrap_pyfunction!` macro to `pyo3::prelude`. [#1695](https://github.com/PyO3/pyo3/pull/1695)
 
 ### Changed
 
-- Allow only one `#[pymethods]` block per `#[pyclass]` by default, to simplify the proc macro implementations. Add `multiple-pymethods` feature to opt-in to the more complex full behavior. [#1457](https://github.com/PyO3/pyo3/pull/1457)
-- Change `PyTimeAcces::get_fold()` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
-- Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
-- Deprecate FFI definitions `PyModule_GetFilename`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Allow only one `#[pymethods]` block per `#[pyclass]` by default, to remove the dependency on `inventory`. Add a `multiple-pymethods` feature to opt-in the original behavior and dependency on `inventory`. [#1457](https://github.com/PyO3/pyo3/pull/1457)
+- Change `PyTimeAccess::get_fold` to return a `bool` instead of a `u8`. [#1397](https://github.com/PyO3/pyo3/pull/1397)
+- Deprecate FFI definition `PyCFunction_Call` for Python 3.9 and up. [#1425](https://github.com/PyO3/pyo3/pull/1425)
+- Deprecate FFI definition `PyModule_GetFilename`. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - The `auto-initialize` feature is no longer enabled by default. [#1443](https://github.com/PyO3/pyo3/pull/1443)
 - Change `PyCFunction::new()` and `PyCFunction::new_with_keywords()` to take `&'static str` arguments rather than implicitly copying (and leaking) them. [#1450](https://github.com/PyO3/pyo3/pull/1450)
-- Deprecate `PyModule` methods `call`, `call0`, `call1` and `get`. [#1492](https://github.com/PyO3/pyo3/pull/1492)
+- Deprecate `PyModule::call`, `PyModule::call0`, `PyModule::call1` and `PyModule::get`. [#1492](https://github.com/PyO3/pyo3/pull/1492)
 - Add length information to `PyBufferError`s raised from `PyBuffer::copy_to_slice` and `PyBuffer::copy_from_slice`. [#1534](https://github.com/PyO3/pyo3/pull/1534)
-- Automatically provide `-undefined` and `dynamic_lookup` linker arguments on macOS with `extension-module` feature. [#1539](https://github.com/PyO3/pyo3/pull/1539)
+- Automatically set `-undefined` and `dynamic_lookup` linker arguments on macOS with the `extension-module` feature. [#1539](https://github.com/PyO3/pyo3/pull/1539)
 - Deprecate `#[pyproto]` methods which are easier to implement as `#[pymethods]`: [#1560](https://github.com/PyO3/pyo3/pull/1560)
   - `PyBasicProtocol::__bytes__` and `PyBasicProtocol::__format__`
   - `PyContextProtocol::__enter__` and `PyContextProtocol::__exit__`
@@ -53,56 +53,54 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - `PyMappingProtocol::__reversed__`
   - `PyNumberProtocol::__complex__` and `PyNumberProtocol::__round__`
   - `PyAsyncProtocol::__aenter__` and `PyAsyncProtocol::__aexit__`
-- Deprecate `#[name = "..."]` attributes in favor of `#[pyo3(name = "...")]`. [#1567](https://github.com/PyO3/pyo3/pull/1567)
+- Deprecate several attributes in favor of the new `#[pyo3(...)]` options:
+  - `#[name = "..."]`, replaced by `#[pyo3(name = "...")]` [#1567](https://github.com/PyO3/pyo3/pull/1567)
+  - `#[pyfn(m, "name")]`, replaced by `#[pyfn(m)] #[pyo3(name = "...")]`. [#1610](https://github.com/PyO3/pyo3/pull/1610)
+  - `#[pymodule(name)]`, replaced by `#[pymodule] #[pyo3(name = "...")]` [#1650](https://github.com/PyO3/pyo3/pull/1650)
+  - `#[text_signature = "..."]`, replaced by `#[pyo3(text_signature = "...")]`. [#1658](https://github.com/PyO3/pyo3/pull/1658)
 - Reduce LLVM line counts to improve compilation times. [#1604](https://github.com/PyO3/pyo3/pull/1604)
-- Deprecate string-literal second argument to `#[pyfn(m, "name")]`. [#1610](https://github.com/PyO3/pyo3/pull/1610)
-- No longer call `PyEval_InitThreads()` in `#[pymodule]` init code. [#1630](https://github.com/PyO3/pyo3/pull/1630)
-- Deprecate `#[pymodule(name)]` option in favor of `#[pyo3(name = "...")]`. [#1650](https://github.com/PyO3/pyo3/pull/1650)
-- Deprecate `#[text_signature = "..."]` attributes in favor of `#[pyo3(text_signature = "...")]`. [#1658](https://github.com/PyO3/pyo3/pull/1658)
+- No longer call `PyEval_InitThreads` in `#[pymodule]` init code. [#1630](https://github.com/PyO3/pyo3/pull/1630)
 - Use `METH_FASTCALL` argument passing convention, when possible, to improve `#[pyfunction]` and method performance.
   [#1619](https://github.com/PyO3/pyo3/pull/1619), [#1660](https://github.com/PyO3/pyo3/pull/1660)
-- Make the `Py_tracefunc` parameter of the `PyEval_SetProfile`/`PyEval_SetTrace` functions optional. [#1692](https://github.com/PyO3/pyo3/pull/1692)
-- Make `ToPyObject` impl for `HashSet` accept non-default hashers. [#1702](https://github.com/PyO3/pyo3/pull/1702)
+- Filter sysconfigdata candidates by architecture when cross-compiling. [#1626](https://github.com/PyO3/pyo3/pull/1626)
 
 ### Removed
 
 - Remove deprecated exception names `BaseException` etc. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove deprecated redundant methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
-- Remove many ffi definitions which never existed in the Python C-API:
+- Remove deprecated methods `Python::is_instance`, `Python::is_subclass`, `Python::release`, `Python::xdecref`, and `Py::from_owned_ptr_or_panic`. [#1426](https://github.com/PyO3/pyo3/pull/1426)
+- Remove many FFI definitions which never existed in the Python C-API:
   - (previously deprecated) `PyGetSetDef_INIT`, `PyGetSetDef_DICT`, `PyCoro_Check`, `PyCoroWrapper_Check`, and `PyAsyncGen_Check` [#1426](https://github.com/PyO3/pyo3/pull/1426)
   - `PyMethodDef_INIT` [#1426](https://github.com/PyO3/pyo3/pull/1426)
   - `PyTypeObject_INIT` [#1429](https://github.com/PyO3/pyo3/pull/1429)
   - `PyObject_Check`, `PySuper_Check`, and `FreeFunc` [#1438](https://github.com/PyO3/pyo3/pull/1438)
+  - `PyModuleDef_INIT` [#1630](https://github.com/PyO3/pyo3/pull/1630)
 - Remove pyclass implementation details from `PyTypeInfo`:
   - `Type`, `DESCRIPTION`, and `FLAGS` [#1456](https://github.com/PyO3/pyo3/pull/1456)
   - `BaseType`, `BaseLayout`, `Layout`, `Initializer` [#1596](https://github.com/PyO3/pyo3/pull/1596)
-  - `PyModuleDef_INIT` [#1630](https://github.com/PyO3/pyo3/pull/1630)
-- Remove `__doc__` from module's `__all__`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
 - Remove `PYO3_CROSS_INCLUDE_DIR` environment variable and the associated C header parsing functionality. [#1521](https://github.com/PyO3/pyo3/pull/1521)
 - Remove `raw_pycfunction!` macro. [#1619](https://github.com/PyO3/pyo3/pull/1619)
 - Remove `PyClassAlloc` trait. [#1657](https://github.com/PyO3/pyo3/pull/1657)
 - Remove `PyList::get_parked_item`. [#1664](https://github.com/PyO3/pyo3/pull/1664)
-- Remove the layout of the ffi/ffi::cpython module from the public api [#1687](https://github.com/PyO3/pyo3/pull/1687/). If you were importing things with `pyo3::ffi::<module>::<item>;`, please use `pyo3::ffi::<item>;` instead
-
-
 
 ### Fixed
 
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
 - `PYO3_CROSS_LIB_DIR` enviroment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
-- Fix FFI definition `_PyEval_RequestCodeExtraIndex` which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
+- Fix FFI definition `_PyEval_RequestCodeExtraIndex`, which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 - Fix FFI definition `PyIndex_Check` missing with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
 - Fix incorrect `TypeError` raised when keyword-only argument passed along with a positional argument in `*args`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
 - Fix inability to use a named lifetime for `&PyTuple` of `*args` in `#[pyfunction]`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
-- Fix inability to add `#[text_signature]` to some `#[pyproto]` methods. [#1483](https://github.com/PyO3/pyo3/pull/1483)
-- Fix use of Python argument for #[pymethods] inside macro expansions. [#1505](https://github.com/PyO3/pyo3/pull/1505)
-- Always use cross-compiling configuration if any of the environment variables are set. [#1514](https://github.com/PyO3/pyo3/pull/1514)
+- Fix use of Python argument for `#[pymethods]` inside macro expansions. [#1505](https://github.com/PyO3/pyo3/pull/1505)
+- No longer include `__doc__` in `__all__` generated for `#[pymodule]`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
+- Always use cross-compiling configuration if any of the `PYO3_CROSS` family of environment variables are set. [#1514](https://github.com/PyO3/pyo3/pull/1514)
 - Support `EnvironmentError`, `IOError`, and `WindowsError` on PyPy. [#1533](https://github.com/PyO3/pyo3/pull/1533)
 - Fix unneccessary rebuilds when cycling between `cargo check` and `cargo clippy` in a Python virtualenv. [#1557](https://github.com/PyO3/pyo3/pull/1557)
 - Fix segfault when dereferencing `ffi::PyDateTimeAPI` without the GIL. [#1563](https://github.com/PyO3/pyo3/pull/1563)
-- Fix memory leak when converting to u128 and i128. [#1638](https://github.com/PyO3/pyo3/pull/1638)
+- Fix memory leak in `FromPyObject` implementations for `u128` and `i128`. [#1638](https://github.com/PyO3/pyo3/pull/1638)
 - Fix `#[pyclass(extends=PyDict)]` leaking the dict contents on drop. [#1657](https://github.com/PyO3/pyo3/pull/1657)
 - Fix segfault when calling `PyList::get_item` with negative indices. [#1668](https://github.com/PyO3/pyo3/pull/1668)
+- Fix FFI definitions of `PyEval_SetProfile`/`PyEval_SetTrace` to take `Option<Py_tracefunc>` parameters. [#1692](https://github.com/PyO3/pyo3/pull/1692)
+- Fix `ToPyObject` impl for `HashSet` to accept non-default hashers. [#1702](https://github.com/PyO3/pyo3/pull/1702)
 
 ## [0.13.2] - 2021-02-12
 
@@ -849,7 +847,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.13.2...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/pyo3/pyo3/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/pyo3/pyo3/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/pyo3/pyo3/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/pyo3/pyo3/compare/v0.12.4...v0.13.0
