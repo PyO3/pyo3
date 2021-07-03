@@ -272,7 +272,7 @@ where
     ///     obj.as_ref(py)
     /// }
     /// ```
-    ///This can be solved by using [`Py::into_ref`] instead, which does not suffer from this issue.
+    /// This can be solved by using [`Py::into_ref`] instead, which does not suffer from this issue.
     /// Note that the lifetime of the [`Python<'py>`](crate::Python) token is transferred to
     /// the returned reference.
     ///
