@@ -9,6 +9,7 @@ use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
+use std::mem;
 use std::os::raw::c_int;
 
 /// Represents any Python object.  
@@ -40,6 +41,15 @@ impl crate::AsPyPointer for PyAny {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.get()
+    }
+}
+
+impl crate::IntoPyPointer for PyAny {
+    #[inline]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let pointer = self.as_ptr();
+        mem::forget(self);
+        pointer
     }
 }
 

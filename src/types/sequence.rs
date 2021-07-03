@@ -4,7 +4,7 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::types::{PyAny, PyList, PyTuple};
-use crate::AsPyPointer;
+use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
@@ -328,12 +328,37 @@ impl<'v> PyTryFrom<'v> for PySequence {
     }
 }
 
+impl Py<PySequence> {
+    /// Borrows a GIL-bound reference to the PySequence. By binding to the GIL lifetime, this
+    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyList;
+    /// # Python::with_gil(|py| {
+    /// let list: Py<PyList> = PyList::empty(py).cast_as::<PySequence>().unwrap().into();
+    /// let seq: &PySequence = list.as_ref(py);
+    /// assert_eq!(seq.len().unwrap(), 0);
+    /// # });
+    /// ```
+    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PySequence {
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
+    }
+
+    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    pub fn into_ref(self, py: Python) -> &PySequence {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::types::PyList;
     use crate::types::PySequence;
-    use crate::AsPyPointer;
-    use crate::Python;
-    use crate::{PyObject, PyTryFrom, ToPyObject};
+    use crate::{AsPyPointer, Py, PyObject, PyTryFrom, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -673,5 +698,30 @@ mod test {
         let empty_list = vec.to_object(py);
         let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
         assert!(empty_seq.is_empty().unwrap());
+    }
+
+    #[test]
+    fn test_as_ref() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let seq: Py<PySequence> = PyList::empty(py).cast_as::<PySequence>().unwrap().into();
+        let seq_ref: &PySequence = seq.as_ref(py);
+        assert_eq!(seq_ref.len().unwrap(), 0);
+    }
+
+    #[test]
+    fn test_into_ref() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let bare_ref = PyList::empty(py).cast_as::<PySequence>().unwrap();
+        assert_eq!(bare_ref.get_refcnt(), 1);
+        let seq: Py<PySequence> = bare_ref.into();
+        assert_eq!(bare_ref.get_refcnt(), 2);
+        Python::with_gil(|py| {
+            let seq_ref = seq.into_ref(py);
+            assert_eq!(seq_ref.len().unwrap(), 0);
+            assert_eq!(seq_ref.get_refcnt(), 2);
+        });
+        assert_eq!(bare_ref.get_refcnt(), 2);
     }
 }

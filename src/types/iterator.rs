@@ -2,9 +2,9 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, IntoPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-use crate::{PyDowncastError, PyTryFrom};
+use crate::{Py, PyDowncastError, PyTryFrom};
 
 /// A Python iterator object.
 ///
@@ -93,6 +93,22 @@ impl<'v> PyTryFrom<'v> for PyIterator {
     }
 }
 
+impl Py<PyIterator> {
+    /// Borrows a GIL-bound reference to the PyIterator. By binding to the GIL lifetime, this
+    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PyIterator {
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
+    }
+
+    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    pub fn into_ref(self, py: Python) -> &PyIterator {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
@@ -101,7 +117,7 @@ mod tests {
     use crate::types::{PyDict, PyList};
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     use crate::{Py, PyAny, PyTryFrom};
-    use crate::{Python, ToPyObject};
+    use crate::{PyResult, Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
@@ -212,5 +228,31 @@ mod tests {
         let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
         let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
         assert_eq!(obj, iter.into());
+    }
+
+    #[test]
+    fn test_as_ref() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let iter: Py<PyIterator> = PyList::empty(py).to_object(py).as_ref(py).iter().unwrap().into();
+        let mut iter_ref: &PyIterator = iter.as_ref(py);
+        assert!(matches!(iter_ref.next(), Option::<PyResult::<&PyAny>>::None));
+    }
+
+    #[test]
+    fn test_into_ref() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let l = PyList::empty(py).to_object(py);
+        let bare_ref = l.as_ref(py).iter().unwrap();
+        assert_eq!(bare_ref.get_refcnt(), 1);
+        let iter: Py<PyIterator> = bare_ref.into();
+        assert_eq!(bare_ref.get_refcnt(), 2);
+        Python::with_gil(|py| {
+            let mut iter_ref = iter.into_ref(py);
+            assert!(matches!(iter_ref.next(), Option::<PyResult::<&PyAny>>::None));
+            assert_eq!(iter_ref.get_refcnt(), 2);
+        });
+        assert_eq!(bare_ref.get_refcnt(), 2);
     }
 }
