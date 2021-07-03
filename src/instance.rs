@@ -383,7 +383,7 @@ where
         self.as_ref(py).try_borrow()
     }
 
-    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently borrowed.
+    /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
     ///
     /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
