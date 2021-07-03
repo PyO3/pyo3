@@ -340,7 +340,7 @@ where
     /// This borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
-    /// see [`PyCell::borrow_mut`](crate::pycell::PyCell::borrow_mut)
+    /// see [`PyCell::borrow_mut`](crate::pycell::PyCell::borrow_mut).
     ///
     /// # Examples
     ///
