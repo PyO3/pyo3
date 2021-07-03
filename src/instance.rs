@@ -90,7 +90,6 @@ pub unsafe trait PyNativeType: Sized {
 ///     inner: Py<PyDict>,
 /// }
 ///
-/// #[pyclass]
 /// impl Foo {
 ///     fn new() -> Foo {
 ///         Python::with_gil(|py| {
