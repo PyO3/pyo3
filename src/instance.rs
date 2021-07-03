@@ -48,12 +48,13 @@ pub unsafe trait PyNativeType: Sized {
 /// # Example: Storing Python objects in structs
 ///
 /// As all the native Python objects only appear as references, storing them in structs doesn't work well.
-/// For example, there is no way to make something like this compile!
+/// For example, this won't compile:
 ///
 /// ```compile_fail
 /// # use pyo3::prelude::*;
 /// # use pyo3::types::PyDict;
 /// #
+/// #[pyclass]
 /// struct Foo<'py> {
 ///     inner: &'py PyDict,
 /// }
@@ -84,10 +85,12 @@ pub unsafe trait PyNativeType: Sized {
 /// # use pyo3::prelude::*;
 /// # use pyo3::types::PyDict;
 /// #
+/// #[pyclass]
 /// struct Foo {
 ///     inner: Py<PyDict>,
 /// }
 ///
+/// #[pyclass]
 /// impl Foo {
 ///     fn new() -> Foo {
 ///         Python::with_gil(|py| {
@@ -105,6 +108,7 @@ pub unsafe trait PyNativeType: Sized {
 /// #[pyclass]
 /// struct Bar {/* fields omitted */}
 ///
+/// #[pyclass]
 /// struct Foo {
 ///     inner: Py<Bar>,
 /// }
@@ -158,13 +162,13 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
-/// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If you permit your pyclass
-/// to create reference cycles you should implement this protocol to avoid leaking memory.
+/// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If your pyclass
+/// contains other Python objects you should implement this protocol to avoid leaking memory.
 ///
 /// # A note on `Send` and `Sync`
 ///
 /// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
-/// As you can only get this by acquiring the GIL, `Py<...>` is safe against concurrent access.
+/// As you can only get this by acquiring the GIL, `Py<...>` "implements [`Send`] and [`Sync`].
 ///
 /// [`Rc`]: std::rc::Rc
 /// [`RefCell`]: std::cell::RefCell
@@ -208,9 +212,11 @@ impl<T> Py<T>
 where
     T: PyTypeInfo,
 {
-    /// Borrows a GIL-bound reference to the contained `T`. By binding to the GIL lifetime, this
-    /// allows the GIL-bound reference to not require [`Python<'py>`](crate::Python) for any of its methods,
-    /// which makes calling methods on it more ergonomic.
+    /// Borrows a GIL-bound reference to the contained `T`.
+    ///
+    /// By binding to the GIL lifetime, this allows the GIL-bound reference to not require
+    /// [`Python<'py>`](crate::Python) for any of its methods, which makes calling methods
+    /// on it more ergonomic.
     ///
     /// For native types, this reference is `&T`. For pyclasses, this is `&PyCell<T>`.
     ///
@@ -252,13 +258,18 @@ where
         unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
 
-    /// Similar to [`as_ref`](#method.as_ref) but consumes `self` and registers the
+    /// Borrows a GIL-bound reference to the contained `T` independently of the lifetime of `T`.
+    ///
+    /// This method is similar to [`as_ref`](#method.as_ref) but consumes `self` and registers the
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
     ///
+    /// You should prefer using [`as_ref`](#method.as_ref) if you can as it'll have less overhead.
+    ///
     /// # Examples
     ///
-    /// [`Py::as_ref`]'s lifetime limitation forbids creating a function that references a .
+    /// [`Py::as_ref`]'s lifetime limitation forbids creating a function that references a
+    /// variable created inside the function.
     ///
     /// ```rust,compile_fail
     /// # use pyo3::prelude::*;
@@ -272,6 +283,7 @@ where
     ///     obj.as_ref(py)
     /// }
     /// ```
+    ///
     /// This can be solved by using [`Py::into_ref`] instead, which does not suffer from this issue.
     /// Note that the lifetime of the [`Python<'py>`](crate::Python) token is transferred to
     /// the returned reference.
