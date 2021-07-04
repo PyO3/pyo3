@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Implement `IntoPy<PyObject>` for `&PathBuf` and `&OsString`. [#1721](https://github.com/PyO3/pyo3/pull/1712)
 
+### Fixed
+
+- Fix crashes on PyPy due to incorrect definitions of `PyList_SET_ITEM`. [#1713](https://github.com/PyO3/pyo3/pull/1713)
+
 ## [0.14.0] - 2021-07-03
 
 ### Packaging
