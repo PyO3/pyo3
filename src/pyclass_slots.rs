@@ -6,9 +6,9 @@ use crate::{ffi, Python};
 pub trait PyClassDict {
     /// Whether this `__dict__` field is capable of holding a dictionary.
     const IS_DUMMY: bool = true;
-    /// Initialise a [PyObject](crate::ffi::PyObject) `__dict__` reference.
+    /// Initializes a [PyObject](crate::ffi::PyObject) `__dict__` reference.
     fn new() -> Self;
-    /// Empty the dictionary of its key-value pairs.
+    /// Empties the dictionary of its key-value pairs.
     #[inline]
     fn clear_dict(&mut self, _py: Python) {}
     private_decl! {}
@@ -18,9 +18,9 @@ pub trait PyClassDict {
 pub trait PyClassWeakRef {
     /// Whether this `weakref` type is capable of holding weak references.
     const IS_DUMMY: bool = true;
-    /// Initialize a `weakref` instance.
+    /// Initializes a `weakref` instance.
     fn new() -> Self;
-    /// Clear the weak references to the given object.
+    /// Clears the weak references to the given object.
     ///
     /// # Safety
     /// - `_obj` must be a pointer to the pyclass instance which contains `self`.

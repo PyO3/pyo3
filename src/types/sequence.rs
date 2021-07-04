@@ -28,7 +28,7 @@ impl PySequence {
         }
     }
 
-    /// Whether the sequence is empty.
+    /// Returns whether the sequence is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
         self.len().map(|l| l == 0)

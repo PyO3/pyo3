@@ -71,7 +71,7 @@ pub enum ElementType {
 }
 
 impl ElementType {
-    /// Determine the `ElementType` from a Python `struct` module format string.
+    /// Determines the `ElementType` from a Python `struct` module format string.
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
             [char] | [b'@', char] => native_element_type_from_type_char(*char),
@@ -606,13 +606,13 @@ impl<T> Drop for PyBuffer<T> {
 pub struct ReadOnlyCell<T: Element>(cell::UnsafeCell<T>);
 
 impl<T: Element> ReadOnlyCell<T> {
-    /// Obtain a copy of the current content.
+    /// Returns a copy of the current value.
     #[inline]
     pub fn get(&self) -> T {
         unsafe { *self.0.get() }
     }
 
-    /// Get a pointer to the current content.
+    /// Returns a pointer to the current value.
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.0.get()

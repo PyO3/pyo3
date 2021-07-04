@@ -27,7 +27,9 @@ impl PyString {
         unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    /// Attempt to create a Python string from a Python bytes-like object.
+    /// Attempts to create a Python string from a Python [bytes-like object].
+    ///
+    /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
     pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
         unsafe {
             src.py()

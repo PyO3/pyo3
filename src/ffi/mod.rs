@@ -5,7 +5,7 @@
 //! need to interact with this module at all.
 //!
 //! The contents of this module are not documented here, as it would entail
-//! keeping the documentation up to date. Consult the [Python/C API Reference
+//! basically copying the documentation from CPython. Consult the [Python/C API Reference
 //! Manual][capi] for up-to-date documentation.
 //!
 //! # Safety
