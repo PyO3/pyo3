@@ -227,7 +227,7 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
-[`python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
+[`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 
 ## Need to use a context manager from Rust?
