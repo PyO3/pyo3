@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Implement `IntoPy<PyObject>` for `&PathBuf` and `&OsString`. [#1721](https://github.com/PyO3/pyo3/pull/1712)
+- Add `PyErr::take`. [#1715](https://github.com/PyO3/pyo3/pull/1715)
 
 ## [0.14.0] - 2021-07-03
 
