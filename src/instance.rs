@@ -18,6 +18,7 @@ use std::ptr::NonNull;
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
 pub unsafe trait PyNativeType: Sized {
+    /// Returns a GIL marker constrained to the lifetime of this type.
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }

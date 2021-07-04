@@ -98,11 +98,16 @@ py_unarys_func!(aiter, PyAsyncAiterProtocol, Self::__aiter__);
 py_unarys_func!(anext, PyAsyncAnextProtocol, Self::__anext__);
 
 /// Output of `__anext__`.
+///
+/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
 pub enum IterANextOutput<T, U> {
+    /// An expression which the generator yielded.
     Yield(T),
+    /// A `StopAsyncIteration` object.
     Return(U),
 }
 
+/// An [IterANextOutput] of Python objects.
 pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
