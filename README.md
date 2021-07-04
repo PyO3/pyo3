@@ -50,7 +50,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.14.0"
+version = "0.14.1"
 features = ["extension-module"]
 ```
 
@@ -85,7 +85,7 @@ use it to run Python code, add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies.pyo3]
-version = "0.14.0"
+version = "0.14.1"
 features = ["auto-initialize"]
 ```
 
