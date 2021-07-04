@@ -6,6 +6,12 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/main/migration.h
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Implement `IntoPy<PyObject>` for `&PathBuf` and `&OsString`. [#1721](https://github.com/PyO3/pyo3/pull/1712)
+
 ## [0.14.0] - 2021-07-03
 
 ### Packaging
