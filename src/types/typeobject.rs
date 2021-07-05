@@ -51,7 +51,7 @@ impl PyType {
         let result =
             unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr()) };
         if result == -1 {
-            Err(PyErr::fetch(self.py()))
+            Err(PyErr::api_call_failed(self.py()))
         } else if result == 1 {
             Ok(true)
         } else {
@@ -65,7 +65,7 @@ impl PyType {
     pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
         if result == -1 {
-            Err(PyErr::fetch(self.py()))
+            Err(PyErr::api_call_failed(self.py()))
         } else if result == 1 {
             Ok(true)
         } else {

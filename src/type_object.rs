@@ -191,7 +191,7 @@ fn initialize_tp_dict(
     for (key, val) in items {
         let ret = unsafe { ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr()) };
         if ret < 0 {
-            return Err(PyErr::fetch(py));
+            return Err(PyErr::api_call_failed(py));
         }
     }
     Ok(())

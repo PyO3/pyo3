@@ -488,7 +488,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     ///
     /// Relies on [`from_owned_ptr_or_opt`](#method.from_owned_ptr_or_opt).
     unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
-        Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
+        Self::from_owned_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::api_call_failed(py))
     }
     /// Convert from an arbitrary borrowed `PyObject`.
     ///
@@ -522,7 +522,7 @@ pub unsafe trait FromPyPointer<'p>: Sized {
         py: Python<'p>,
         ptr: *mut ffi::PyObject,
     ) -> PyResult<&'p Self> {
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::fetch(py))
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| err::PyErr::api_call_failed(py))
     }
 }
 

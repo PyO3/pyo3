@@ -16,7 +16,7 @@ fn err_if_invalid_value<T: PartialEq>(
     actual_value: T,
 ) -> PyResult<T> {
     if actual_value == invalid_value && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
+        Err(PyErr::api_call_failed(py))
     } else {
         Ok(actual_value)
     }
@@ -76,7 +76,7 @@ macro_rules! int_fits_c_long {
                 let val = unsafe {
                     let num = ffi::PyNumber_Index(ptr);
                     if num.is_null() {
-                        Err(PyErr::fetch(obj.py()))
+                        Err(PyErr::api_call_failed(obj.py()))
                     } else {
                         let val = err_if_invalid_value(obj.py(), -1, ffi::PyLong_AsLong(num));
                         ffi::Py_DECREF(num);
@@ -110,7 +110,7 @@ macro_rules! int_convert_u64_or_i64 {
                 unsafe {
                     let num = ffi::PyNumber_Index(ptr);
                     if num.is_null() {
-                        Err(PyErr::fetch(ob.py()))
+                        Err(PyErr::api_call_failed(ob.py()))
                     } else {
                         let result = err_if_invalid_value(ob.py(), !0, $pylong_as_ll_or_ull(num));
                         ffi::Py_DECREF(num);
@@ -189,7 +189,7 @@ mod fast_128bit_int_conversion {
                     unsafe {
                         let num = ffi::PyNumber_Index(ob.as_ptr());
                         if num.is_null() {
-                            return Err(PyErr::fetch(ob.py()));
+                            return Err(PyErr::api_call_failed(ob.py()));
                         }
                         let mut buffer = [0; std::mem::size_of::<$rust_type>()];
                         let ok = ffi::_PyLong_AsByteArray(
@@ -201,7 +201,7 @@ mod fast_128bit_int_conversion {
                         );
                         ffi::Py_DECREF(num);
                         if ok == -1 {
-                            Err(PyErr::fetch(ob.py()))
+                            Err(PyErr::api_call_failed(ob.py()))
                         } else {
                             Ok(<$rust_type>::from_le_bytes(buffer))
                         }

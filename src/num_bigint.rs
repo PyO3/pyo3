@@ -110,11 +110,11 @@ macro_rules! bigint_conversion {
                 unsafe {
                     let num = ffi::PyNumber_Index(ob.as_ptr());
                     if num.is_null() {
-                        return Err(PyErr::fetch(py));
+                        return Err(PyErr::api_call_failed(py));
                     }
                     let n_bits = ffi::_PyLong_NumBits(num);
                     let n_bytes = if n_bits < 0 {
-                        return Err(PyErr::fetch(py));
+                        return Err(PyErr::api_call_failed(py));
                     } else if n_bits == 0 {
                         0
                     } else {
