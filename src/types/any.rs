@@ -516,11 +516,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `bool(self)`.
     pub fn is_true(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::api_call_failed(self.py()))
-        } else {
-            Ok(v != 0)
-        }
+        err::error_on_minusone(self.py(), v)?;
+        Ok(v != 0)
     }
 
     /// Returns whether the object is considered to be None.

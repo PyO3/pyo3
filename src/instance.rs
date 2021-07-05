@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::{PyTryFrom, ToBorrowedObject};
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyTuple};
@@ -458,11 +458,8 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `bool(self)`.
     pub fn is_true(&self, py: Python) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::api_call_failed(py))
-        } else {
-            Ok(v != 0)
-        }
+        err::error_on_minusone(py, v)?;
+        Ok(v != 0)
     }
 
     /// Extracts some type from the Python object.

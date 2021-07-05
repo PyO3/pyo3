@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::err::{PyErr, PyResult};
+use crate::err::{self, PyResult};
 use crate::instance::PyNativeType;
 use crate::type_object::PyTypeObject;
 use crate::{ffi, AsPyPointer, PyAny, Python};
@@ -50,13 +50,8 @@ impl PyType {
     {
         let result =
             unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr()) };
-        if result == -1 {
-            Err(PyErr::api_call_failed(self.py()))
-        } else if result == 1 {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
     }
 
     /// Check whether `obj` is an instance of `self`.
@@ -64,12 +59,7 @@ impl PyType {
     /// Equivalent to Python's `isinstance` function.
     pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
-        if result == -1 {
-            Err(PyErr::api_call_failed(self.py()))
-        } else if result == 1 {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
     }
 }

@@ -200,11 +200,8 @@ mod fast_128bit_int_conversion {
                             $is_signed,
                         );
                         ffi::Py_DECREF(num);
-                        if ok == -1 {
-                            Err(PyErr::api_call_failed(ob.py()))
-                        } else {
-                            Ok(<$rust_type>::from_le_bytes(buffer))
-                        }
+                        crate::err::error_on_minusone(ob.py(), ok)?;
+                        Ok(<$rust_type>::from_le_bytes(buffer))
                     }
                 }
             }

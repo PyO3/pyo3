@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
@@ -622,11 +622,7 @@ impl<'p> Python<'p> {
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
         let v = unsafe { ffi::PyErr_CheckSignals() };
-        if v == -1 {
-            Err(PyErr::api_call_failed(self))
-        } else {
-            Ok(())
-        }
+        err::error_on_minusone(self, v)
     }
 
     /// Retrieves a Python instance under the assumption that the GIL is already
