@@ -254,9 +254,20 @@ impl PyErr {
     /// Retrieves the current error from the Python interpreter's global state.
     ///
     /// The error is cleared from the Python interpreter.
-    /// Panics if no error is set
+    /// If no error is set, returns a `SystemError` in release mode,
+    /// panics in debug mode.
     pub(crate) fn api_call_failed(py: Python) -> PyErr {
-        PyErr::fetch(py).expect("exception missing")
+        #[cfg(debug_assertions)]
+        {
+            PyErr::fetch(py).expect("error return without exception set")
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            use crate::exceptions::PySystemError;
+
+            PyErr::fetch(py)
+                .unwrap_or_else(|| PySystemError::new_err("error return without exception set"))
+        }
     }
 
     /// Creates a new exception type with the given name, which must be of the form

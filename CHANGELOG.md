@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- Change `PyErr::fetch()` to return `Option<PyErr>`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
+- Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
 
 ## [0.14.2] - 2021-08-09
 
