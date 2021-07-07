@@ -243,6 +243,21 @@ impl PyErr {
         }
     }
 
+    /// Retrieves the current error from the Python interpreter's global state.
+    ///
+    /// The error is cleared from the Python interpreter.
+    /// If no error is set, returns a `None`.
+    ///
+    /// If the error fetched is a `PanicException` (which would have originated from a panic in a
+    /// pyo3 callback) then this function will resume the panic.
+    pub fn take(py: Python) -> Option<Self> {
+        if Self::occurred(py) {
+            Some(Self::fetch(py))
+        } else {
+            None
+        }
+    }
+
     /// Creates a new exception type with the given name, which must be of the form
     /// `<module>.<ExceptionName>`, as required by `PyErr_NewException`.
     ///
@@ -568,12 +583,22 @@ mod tests {
 
     #[test]
     fn set_typeerror() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err: PyErr = exceptions::PyTypeError::new_err(());
-        err.restore(py);
-        assert!(PyErr::occurred(py));
-        drop(PyErr::fetch(py));
+        Python::with_gil(|py| {
+            let err: PyErr = exceptions::PyTypeError::new_err(());
+            err.restore(py);
+            assert!(PyErr::occurred(py));
+            drop(PyErr::fetch(py));
+        });
+    }
+
+    #[test]
+    fn take_error() {
+        Python::with_gil(|py| {
+            let err: PyErr = exceptions::PyTypeError::new_err(());
+            err.restore(py);
+            PyErr::take(py).expect("should have given us a error");
+            assert!(!PyErr::occurred(py));
+        });
     }
 
     #[test]
@@ -581,14 +606,14 @@ mod tests {
     fn fetching_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err: PyErr = PanicException::new_err("new panic");
-        err.restore(py);
-        assert!(PyErr::occurred(py));
+        Python::with_gil(|py| {
+            let err: PyErr = PanicException::new_err("new panic");
+            err.restore(py);
+            assert!(PyErr::occurred(py));
 
-        // should resume unwind
-        let _ = PyErr::fetch(py);
+            // should resume unwind
+            let _ = PyErr::fetch(py);
+        });
     }
 
     #[test]
@@ -600,42 +625,42 @@ mod tests {
         //     traceback: Some(<traceback object at 0x..)"
         // }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err = py
-            .run("raise Exception('banana')", None, None)
-            .expect_err("raising should have given us an error");
+        Python::with_gil(|py| {
+            let err = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error");
 
-        let debug_str = format!("{:?}", err);
-        assert!(debug_str.starts_with("PyErr { "));
-        assert!(debug_str.ends_with(" }"));
+            let debug_str = format!("{:?}", err);
+            assert!(debug_str.starts_with("PyErr { "));
+            assert!(debug_str.ends_with(" }"));
 
-        // strip "PyErr { " and " }"
-        let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
+            // strip "PyErr { " and " }"
+            let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
 
-        assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-        if py.version_info() >= (3, 7) {
-            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-        } else {
-            // Python 3.6 and below formats the repr differently
-            assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
-        }
+            assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
+            if py.version_info() >= (3, 7) {
+                assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
+            } else {
+                // Python 3.6 and below formats the repr differently
+                assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
+            }
 
-        let traceback = fields.next().unwrap();
-        assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));
-        assert!(traceback.ends_with(">)"));
+            let traceback = fields.next().unwrap();
+            assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));
+            assert!(traceback.ends_with(">)"));
 
-        assert!(fields.next().is_none());
+            assert!(fields.next().is_none());
+        });
     }
 
     #[test]
     fn err_display() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err = py
-            .run("raise Exception('banana')", None, None)
-            .expect_err("raising should have given us an error");
-        assert_eq!(err.to_string(), "Exception: banana");
+        Python::with_gil(|py| {
+            let err = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error");
+            assert_eq!(err.to_string(), "Exception: banana");
+        });
     }
 
     #[test]
