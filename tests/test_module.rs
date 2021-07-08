@@ -451,3 +451,17 @@ fn test_module_with_deprecated_name() {
         py_assert!(py, m, "m.__name__ == 'custom_name'");
     })
 }
+
+#[test]
+fn test_module_doc_hidden() {
+    #[doc(hidden)]
+    #[pymodule]
+    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(my_module)(py);
+        py_assert!(py, m, "m.__doc__ == ''");
+    })
+}

@@ -6,11 +6,17 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/main/migration.h
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Fix regression in 0.14.0 rejecting usage of `#[doc(hidden)]` on structs and functions annotated with PyO3 macros. [#1722](https://github.com/PyO3/pyo3/pull/1722)
+
 ## [0.14.1] - 2021-07-04
 
 ### Added
 
-- Implement `IntoPy<PyObject>` for `&PathBuf` and `&OsString`. [#1721](https://github.com/PyO3/pyo3/pull/1712)
+- Implement `IntoPy<PyObject>` for `&PathBuf` and `&OsString`. [#1712](https://github.com/PyO3/pyo3/pull/1712)
 
 ### Fixed
 

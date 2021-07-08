@@ -75,25 +75,19 @@ pub fn get_doc(
 
     for attr in attrs.iter() {
         if attr.path.is_ident("doc") {
-            match attr.parse_meta()? {
-                syn::Meta::NameValue(syn::MetaNameValue {
-                    lit: syn::Lit::Str(litstr),
-                    ..
-                }) => {
-                    if first {
-                        first = false;
-                        span = litstr.span();
-                    }
-                    let d = litstr.value();
-                    doc.push_str(separator);
-                    if d.starts_with(' ') {
-                        doc.push_str(&d[1..d.len()]);
-                    } else {
-                        doc.push_str(&d);
-                    };
-                    separator = "\n";
+            if let Ok(DocArgs { _eq_token, lit_str }) = syn::parse2(attr.tokens.clone()) {
+                if first {
+                    first = false;
+                    span = lit_str.span();
                 }
-                _ => bail_spanned!(attr.span() => "invalid doc comment"),
+                let d = lit_str.value();
+                doc.push_str(separator);
+                if d.starts_with(' ') {
+                    doc.push_str(&d[1..d.len()]);
+                } else {
+                    doc.push_str(&d);
+                };
+                separator = "\n";
             }
         }
     }
@@ -101,6 +95,22 @@ pub fn get_doc(
     doc.push('\0');
 
     Ok(syn::LitStr::new(&doc, span))
+}
+
+struct DocArgs {
+    _eq_token: syn::Token![=],
+    lit_str: syn::LitStr,
+}
+
+impl syn::parse::Parse for DocArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let this = Self {
+            _eq_token: input.parse()?,
+            lit_str: input.parse()?,
+        };
+        ensure_spanned!(input.is_empty(), input.span() => "expected end of doc attribute");
+        Ok(this)
+    }
 }
 
 pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
