@@ -81,7 +81,10 @@ impl PyErr {
         T: PyTypeObject,
         A: PyErrArguments + Send + Sync + 'static,
     {
-        Python::with_gil(|py| PyErr::from_type(T::type_object(py), args))
+        PyErr::from_state(PyErrState::LazyTypeAndValue {
+            ptype: T::type_object,
+            pvalue: boxed_args(args),
+        })
     }
 
     /// Constructs a new error, with the usual lazy initialization of Python exceptions.
@@ -97,7 +100,7 @@ impl PyErr {
             return exceptions_must_derive_from_base_exception(ty.py());
         }
 
-        PyErr::from_state(PyErrState::Lazy {
+        PyErr::from_state(PyErrState::LazyValue {
             ptype: ty.into(),
             pvalue: boxed_args(args),
         })
@@ -319,7 +322,7 @@ impl PyErr {
         T: ToBorrowedObject,
     {
         exc.with_borrowed_ptr(py, |exc| unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(), exc) != 0
+            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), exc) != 0
         })
     }
 
@@ -329,7 +332,7 @@ impl PyErr {
         T: PyTypeObject,
     {
         unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(), T::type_object(py).as_ptr()) != 0
+            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), T::type_object(py).as_ptr()) != 0
         }
     }
 
@@ -419,9 +422,12 @@ impl PyErr {
     }
 
     /// Returns borrowed reference to this Err's type
-    fn ptype_ptr(&self) -> *mut ffi::PyObject {
+    fn ptype_ptr(&self, py: Python) -> *mut ffi::PyObject {
         match unsafe { &*self.state.get() } {
-            Some(PyErrState::Lazy { ptype, .. }) => ptype.as_ptr(),
+            // In lazy type case, normalize before returning ptype in case the type is not a valid
+            // exception type.
+            Some(PyErrState::LazyTypeAndValue { .. }) => self.normalized(py).ptype.as_ptr(),
+            Some(PyErrState::LazyValue { ptype, .. }) => ptype.as_ptr(),
             Some(PyErrState::FfiTuple { ptype, .. }) => ptype.as_ptr(),
             Some(PyErrState::Normalized(n)) => n.ptype.as_ptr(),
             None => panic!("Cannot access exception type while normalizing"),
@@ -554,10 +560,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
 
 #[inline]
 fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
-    PyErr::from_state(PyErrState::Lazy {
-        ptype: exceptions::PyTypeError::type_object(py).into(),
-        pvalue: boxed_args("exceptions must derive from BaseException"),
-    })
+    PyErr::from_state(PyErrState::exceptions_must_derive_from_base_exception(py))
 }
 
 #[cfg(test)]
@@ -567,13 +570,31 @@ mod tests {
     use crate::{PyErr, Python};
 
     #[test]
-    fn set_typeerror() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err: PyErr = exceptions::PyTypeError::new_err(());
-        err.restore(py);
-        assert!(PyErr::occurred(py));
-        drop(PyErr::fetch(py));
+    fn set_valueerror() {
+        Python::with_gil(|py| {
+            let err: PyErr = exceptions::PyValueError::new_err("some exception message");
+            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            err.restore(py);
+            assert!(PyErr::occurred(py));
+            let err = PyErr::fetch(py);
+            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            assert_eq!(err.to_string(), "ValueError: some exception message");
+        })
+    }
+
+    #[test]
+    fn invalid_error_type() {
+        Python::with_gil(|py| {
+            let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
+            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            err.restore(py);
+            let err = PyErr::fetch(py);
+            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            assert_eq!(
+                err.to_string(),
+                "TypeError: exceptions must derive from BaseException"
+            );
+        })
     }
 
     #[test]
