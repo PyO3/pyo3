@@ -11,30 +11,16 @@ use std::{
     str::FromStr,
 };
 
+use crate::{
+    bail, ensure,
+    errors::{Context, Error, Result},
+    warn,
+};
+
 /// Minimum Python version PyO3 supports.
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 6 };
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 const ABI3_MAX_MINOR: u8 = 9;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-// A simple macro for returning an error. Resembles anyhow::bail.
-macro_rules! bail {
-    ($msg: expr) => { return Err($msg.into()); };
-    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
-}
-
-// A simple macro for checking a condition. Resembles anyhow::ensure.
-macro_rules! ensure {
-    ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
-}
-
-// Show warning. If needed, please extend this macro to support arguments.
-macro_rules! warn {
-    ($msg: literal) => {
-        println!(concat!("cargo:warning=", $msg));
-    };
-}
 
 /// Gets an environment variable owned by cargo.
 ///
@@ -104,20 +90,45 @@ impl InterpreterConfig {
     pub fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let mut lines = reader.lines();
-        let major = lines.next().ok_or("expected major version")??.parse()?;
-        let minor = lines.next().ok_or("expected minor version")??.parse()?;
-        let libdir = parse_option_string(lines.next().ok_or("expected libdir")??)?;
-        let shared = lines.next().ok_or("expected shared")??.parse()?;
-        let abi3 = lines.next().ok_or("expected abi3")??.parse()?;
-        let ld_version = parse_option_string(lines.next().ok_or("expected ld_version")??)?;
-        let base_prefix = parse_option_string(lines.next().ok_or("expected base_prefix")??)?;
-        let executable = parse_option_string(lines.next().ok_or("expected executable")??)?;
-        let calcsize_pointer =
-            parse_option_string(lines.next().ok_or("expected calcsize_pointer")??)?;
-        let implementation = lines.next().ok_or("expected implementation")??.parse()?;
+
+        macro_rules! parse_line {
+            ($value:literal) => {
+                lines
+                    .next()
+                    .ok_or(concat!("reached end of config when reading ", $value))?
+                    .context(concat!("failed to read ", $value, " from config"))?
+                    .parse()
+                    .context(concat!("failed to parse ", $value, " from config"))
+            };
+        }
+
+        macro_rules! parse_option_line {
+            ($value:literal) => {
+                parse_option_string(
+                    lines
+                        .next()
+                        .ok_or(concat!("reached end of config when reading ", $value))?
+                        .context(concat!("failed to read ", $value, " from config"))?,
+                )
+                .context(concat!("failed to parse ", $value, "from config"))
+            };
+        }
+
+        let major = parse_line!("major version")?;
+        let minor = parse_line!("minor version")?;
+        let libdir = parse_option_line!("libdir")?;
+        let shared = parse_line!("shared")?;
+        let abi3 = parse_line!("abi3")?;
+        let ld_version = parse_option_line!("ld_version")?;
+        let base_prefix = parse_option_line!("base_prefix")?;
+        let executable = parse_option_line!("executable")?;
+        let calcsize_pointer = parse_option_line!("calcsize_pointer")?;
+        let implementation = parse_line!("implementation")?;
         let mut build_flags = BuildFlags(HashSet::new());
         for line in lines {
-            build_flags.0.insert(line?.parse()?);
+            build_flags
+                .0
+                .insert(line.context("failed to read flag from config")?.parse()?);
         }
         Ok(InterpreterConfig {
             version: PythonVersion { major, minor },
@@ -135,39 +146,52 @@ impl InterpreterConfig {
 
     #[doc(hidden)]
     pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
-        macro_rules! writeln_option {
-            ($writer:expr, $opt:expr) => {
-                match &$opt {
-                    Some(value) => writeln!($writer, "{}", value),
-                    None => writeln!($writer, "null"),
-                }
+        macro_rules! write_line {
+            ($value:expr) => {
+                writeln!(writer, "{}", $value).context(concat!(
+                    "failed to write ",
+                    stringify!($value),
+                    " to config"
+                ))
             };
         }
-        writeln!(writer, "{}", self.version.major)?;
-        writeln!(writer, "{}", self.version.minor)?;
-        writeln_option!(writer, self.libdir)?;
-        writeln!(writer, "{}", self.shared)?;
-        writeln!(writer, "{}", self.abi3)?;
-        writeln_option!(writer, self.ld_version)?;
-        writeln_option!(writer, self.base_prefix)?;
-        writeln_option!(writer, self.executable)?;
-        writeln_option!(writer, self.calcsize_pointer)?;
-        writeln!(writer, "{}", self.implementation)?;
+
+        macro_rules! write_option_line {
+            ($opt:expr) => {
+                match &$opt {
+                    Some(value) => writeln!(writer, "{}", value),
+                    None => writeln!(writer, "null"),
+                }
+                .context(concat!(
+                    "failed to write ",
+                    stringify!($value),
+                    " to config"
+                ))
+            };
+        }
+
+        write_line!(self.version.major)?;
+        write_line!(self.version.minor)?;
+        write_option_line!(self.libdir)?;
+        write_line!(self.shared)?;
+        write_line!(self.abi3)?;
+        write_option_line!(self.ld_version)?;
+        write_option_line!(self.base_prefix)?;
+        write_option_line!(self.executable)?;
+        write_option_line!(self.calcsize_pointer)?;
+        write_line!(self.implementation)?;
         for flag in &self.build_flags.0 {
-            writeln!(writer, "{}", flag)?;
+            write_line!(flag)?;
         }
         Ok(())
     }
 }
 
-fn parse_option_string<T: FromStr>(string: String) -> Result<Option<T>>
-where
-    <T as FromStr>::Err: std::error::Error + 'static,
-{
+fn parse_option_string<T: FromStr>(string: String) -> Result<Option<T>, <T as FromStr>::Err> {
     if string == "null" {
         Ok(None)
     } else {
-        Ok(string.parse().map(Some)?)
+        string.parse().map(Some)
     }
 }
 
@@ -203,12 +227,12 @@ impl Display for PythonImplementation {
 }
 
 impl FromStr for PythonImplementation {
-    type Err = Box<dyn std::error::Error>;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "CPython" => Ok(PythonImplementation::CPython),
             "PyPy" => Ok(PythonImplementation::PyPy),
-            _ => bail!("Invalid interpreter: {}", s),
+            _ => bail!("unknown interpreter: {}", s),
         }
     }
 }
@@ -219,7 +243,9 @@ fn is_abi3() -> bool {
 
 trait GetPrimitive {
     fn get_bool(&self, key: &str) -> Result<bool>;
-    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>;
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>
+    where
+        T::Err: std::error::Error + 'static;
 }
 
 impl GetPrimitive for HashMap<String, String> {
@@ -235,11 +261,14 @@ impl GetPrimitive for HashMap<String, String> {
         }
     }
 
-    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T> {
+    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>
+    where
+        T::Err: std::error::Error + 'static,
+    {
         self.get(key)
             .ok_or(format!("{} is not defined", key))?
             .parse::<T>()
-            .map_err(|_| format!("Could not parse value of {}", key).into())
+            .with_context(|| format!("Could not parse value of {}", key))
     }
 }
 
@@ -334,8 +363,8 @@ impl Display for BuildFlag {
 }
 
 impl FromStr for BuildFlag {
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "WITH_THREAD" => Ok(BuildFlag::WITH_THREAD),
             "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
@@ -474,7 +503,12 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 /// python executable and library. Here it is read and added to a script to extract only what is
 /// necessary. This necessitates a python interpreter for the host machine to work.
 fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
-    let mut script = fs::read_to_string(config_path)?;
+    let mut script = fs::read_to_string(config_path.as_ref()).with_context(|| {
+        format!(
+            "failed to read config from {}",
+            config_path.as_ref().display()
+        )
+    })?;
     script += r#"
 print("version_major", build_time_vars["VERSION"][0])  # 3
 print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
@@ -751,7 +785,8 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
             err
         ),
         Ok(ok) if !ok.status.success() => bail!("Python script failed"),
-        Ok(ok) => Ok(String::from_utf8(ok.stdout)?),
+        Ok(ok) => Ok(String::from_utf8(ok.stdout)
+            .context("failed to parse Python script output as utf-8")?),
     }
 }
 
@@ -859,8 +894,12 @@ print("calcsize_pointer", struct.calcsize("P"))
     };
 
     let version = PythonVersion {
-        major: map["version_major"].parse()?,
-        minor: map["version_minor"].parse()?,
+        major: map["version_major"]
+            .parse()
+            .context("failed to parse major version")?,
+        minor: map["version_minor"]
+            .parse()
+            .context("failed to parse minor version")?,
     };
 
     let implementation = map["implementation"].parse()?;
@@ -874,7 +913,11 @@ print("calcsize_pointer", struct.calcsize("P"))
         ld_version: map.get("ld_version").cloned(),
         base_prefix: map.get("base_prefix").cloned(),
         executable: map.get("executable").cloned(),
-        calcsize_pointer: Some(map["calcsize_pointer"].parse()?),
+        calcsize_pointer: Some(
+            map["calcsize_pointer"]
+                .parse()
+                .context("failed to parse calcsize_pointer")?,
+        ),
         build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
     })
 }
