@@ -208,7 +208,7 @@ fn impl_arg_param(
 
     let ty = arg.ty;
     let name = arg.name;
-    let transform_error = quote_arg_span! {
+    let transform_error = quote! {
         |e| pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
     };
 
