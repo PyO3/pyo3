@@ -456,6 +456,7 @@ mod hashbrown_hashmap_conversion {
 }
 
 #[cfg(feature = "indexmap")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
 mod indexmap_indexmap_conversion {
     use super::*;
     use crate::{FromPyObject, PyErr, PyObject, ToPyObject};
