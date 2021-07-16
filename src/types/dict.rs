@@ -514,7 +514,10 @@ mod indexmap_indexmap_conversion {
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        assert_eq!(map, py_map.extract().unwrap());
+        assert_eq!(
+            map,
+            py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
+        );
     }
     #[test]
     fn test_indexmap_indexmap_into_python() {
