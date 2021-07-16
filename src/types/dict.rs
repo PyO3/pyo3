@@ -504,49 +504,47 @@ mod indexmap_indexmap_conversion {
 
     #[test]
     fn test_indexmap_indexmap_to_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = indexmap::IndexMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m = map.to_object(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        assert_eq!(
-            map,
-            py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
-        );
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert_eq!(
+                map,
+                py_map.extract::<indexmap::IndexMap::<i32, i32>>().unwrap()
+            );
+        });
     }
+
     #[test]
     fn test_indexmap_indexmap_into_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = indexmap::IndexMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m: PyObject = map.into_py(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        });
     }
 
     #[test]
     fn test_indexmap_indexmap_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = indexmap::IndexMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let py_map = map.into_py_dict(py);
 
-        let py_map = map.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 1);
-        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(py_map.len(), 1);
+            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+        });
     }
 }
 
