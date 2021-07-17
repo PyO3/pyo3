@@ -232,10 +232,8 @@ pub fn build_py_class(
             .map(|attr| (get_class_python_name(&class.ident, args), attr)),
     )?;
 
-    ensure_spanned!(
-        class.generics.params.is_empty(),
-        class.generics.span() => "#[pyclass] cannot have generic parameters"
-    );
+    // Reject the pyclass if it contains a generic parameter
+    crate::diagnostics::check_pyclass_generics_error(class)?;
 
     let field_options = match &mut class.fields {
         syn::Fields::Named(fields) => fields
