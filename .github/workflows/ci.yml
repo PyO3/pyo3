@@ -135,6 +135,7 @@ jobs:
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
         run: cargo update -p hashbrown --precise 0.9.1
+        run: cargo update -p indexmap --precise 1.6.2
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
