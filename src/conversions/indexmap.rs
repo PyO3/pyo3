@@ -99,4 +99,34 @@ mod test_indexmap {
             assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
         });
     }
+
+    #[test]
+    fn test_indexmap_indexmap_insertion_order_round_trip() {
+        Python::with_gil(|py| {
+            let n = 20;
+            let mut map = indexmap::IndexMap::<i32, i32>::new();
+
+            for i in 1..=n {
+                if i % 2 == 1 {
+                    map.insert(i, i);
+                } else {
+                    map.insert(n - i, i);
+                }
+            }
+
+            let py_map = map.clone().into_py_dict(py);
+
+            let trip_map = py_map.extract::<indexmap::IndexMap<i32, i32>>().unwrap();
+
+            for (((k1, v1), (k2, v2)), (k3, v3)) in
+                map.iter().zip(py_map.iter()).zip(trip_map.iter())
+            {
+                let k2 = k2.extract::<i32>().unwrap();
+                let v2 = v2.extract::<i32>().unwrap();
+                assert_eq!((k1, v1), (&k2, &v2));
+                assert_eq!((k1, v1), (k3, v3));
+                assert_eq!((&k2, &v2), (k3, v3));
+            }
+        });
+    }
 }
