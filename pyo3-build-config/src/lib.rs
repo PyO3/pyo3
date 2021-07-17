@@ -20,10 +20,14 @@ mod impl_;
 
 use once_cell::sync::OnceCell;
 
-#[doc(hidden)]
-pub use crate::impl_::{
-    make_interpreter_config, InterpreterConfig, PythonImplementation, PythonVersion,
+pub use impl_::{
+    find_interpreter, get_config_from_interpreter, InterpreterConfig, PythonImplementation,
+    PythonVersion,
 };
+
+// Used in PyO3's build.rs
+#[doc(hidden)]
+pub use impl_::make_interpreter_config;
 
 /// Reads the configuration written by PyO3's build.rs
 ///
