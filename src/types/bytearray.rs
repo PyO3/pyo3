@@ -158,7 +158,7 @@ impl PyByteArray {
             if result == 0 {
                 Ok(())
             } else {
-                Err(PyErr::fetch(self.py()))
+                Err(PyErr::api_call_failed(self.py()))
             }
         }
     }

@@ -126,7 +126,7 @@ where
 
     let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
     if type_object.is_null() {
-        Err(PyErr::fetch(py))
+        Err(PyErr::api_call_failed(py))
     } else {
         tp_init_additional::<T>(type_object as _);
         Ok(type_object as _)

@@ -95,7 +95,7 @@ impl FromPyObject<'_> for OsString {
             let size =
                 unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), std::ptr::null_mut(), 0) };
             if size == -1 {
-                return Err(PyErr::fetch(ob.py()));
+                return Err(PyErr::api_call_failed(ob.py()));
             }
 
             let mut buffer = vec![0; size as usize];

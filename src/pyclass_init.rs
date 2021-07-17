@@ -45,7 +45,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
             let obj = alloc(subtype, 0);
             return if obj.is_null() {
-                Err(PyErr::fetch(py))
+                Err(PyErr::api_call_failed(py))
             } else {
                 Ok(obj)
             };
@@ -61,7 +61,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                 Some(newfunc) => {
                     let obj = newfunc(subtype, std::ptr::null_mut(), std::ptr::null_mut());
                     if obj.is_null() {
-                        Err(PyErr::fetch(py))
+                        Err(PyErr::api_call_failed(py))
                     } else {
                         Ok(obj)
                     }

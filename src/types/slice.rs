@@ -78,7 +78,7 @@ impl PySlice {
                     slicelength,
                 })
             } else {
-                Err(PyErr::fetch(self.py()))
+                Err(PyErr::api_call_failed(self.py()))
             }
         }
     }
