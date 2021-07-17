@@ -14,6 +14,8 @@
 //!
 //! For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/main/building_and_distribution/multiple_python_versions.html).
 
+#[doc(hidden)]
+pub mod errors;
 mod impl_;
 
 use once_cell::sync::OnceCell;
