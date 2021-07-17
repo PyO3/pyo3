@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Add `indexmap` feature to convert `indexmap::IndexMap` into `&PyDict`, an alternative that preserves the insertion order of the elements.
+- Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
 
 ### Fixed
 
