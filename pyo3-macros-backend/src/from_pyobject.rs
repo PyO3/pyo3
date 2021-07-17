@@ -61,6 +61,11 @@ impl<'a> Enum<'a> {
                 if maybe_ret.is_ok() {
                     return maybe_ret
                 }
+                if let Err(inner) = maybe_ret {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    err_reasons.push_str(&format!("{}\n", inner.instance(py).str().unwrap()));
+                }
             );
 
             var_extracts.push(ext);
@@ -74,10 +79,15 @@ impl<'a> Enum<'a> {
         } else {
             error_names
         };
+        let ty_name = self.enum_ident.to_string();
         quote!(
+            let mut err_reasons = String::new();
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
-            let err_msg = format!("'{}' object cannot be converted to '{}'", type_name, #error_names);
+            let mut err_msg = format!("failed to extract enum {} ('{}')\n",
+                #ty_name,
+                #error_names);
+            err_msg.push_str(&err_reasons);
             Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
@@ -196,11 +206,38 @@ impl<'a> Container<'a> {
     fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
+            let err_msg = format!(
+                "failed to extract field {}.{}",
+                quote!(#self_ty),
+                quote!(#ident)
+            );
             quote!(
-                Ok(#self_ty{#ident: obj.extract()?})
+                Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    let err_msg = format!("{}: {}",
+                        #err_msg,
+                        inner.instance(py).str().unwrap());
+                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                })?})
             )
         } else {
-            quote!(Ok(#self_ty(obj.extract()?)))
+            let err_msg = if self.is_enum_variant {
+                let variant_name = &self.path.segments.last().unwrap();
+                format!("- variant {} ({})", quote!(#variant_name), &self.err_name)
+            } else {
+                format!("failed to extract inner field of {}", quote!(#self_ty))
+            };
+            quote!(
+                Ok(#self_ty(obj.extract().map_err(|inner| {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    let err_msg = format!("{}: {}",
+                        #err_msg,
+                        inner.instance(py).str().unwrap());
+                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                })?))
+            )
         }
     }
 
@@ -208,7 +245,16 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for i in 0..len {
-            fields.push(quote!(s.get_item(#i).extract()?));
+            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
+            fields.push(quote!(
+                s.get_item(#i).extract().map_err(|inner| {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                let err_msg = format!("{}: {}",
+                            #error_msg,
+                            inner.instance(py).str().unwrap());
+                pyo3::exceptions::PyTypeError::new_err(err_msg)
+                })?));
         }
         let msg = if self.is_enum_variant {
             quote!(format!(
@@ -238,11 +284,29 @@ impl<'a> Container<'a> {
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
-
+            let conversion_error_msg =
+                format!("failed to extract field {}.{}", quote!(#self_ty), ident);
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
-                None => quote!(#get_field.extract()?),
-                Some(FromPyWithAttribute(expr_path)) => quote! (#expr_path(#get_field)?),
+                None => quote!(
+                    #get_field.extract().map_err(|inner| {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    let err_msg = format!("{}: {}",
+                        #conversion_error_msg,
+                        inner.instance(py).str().unwrap());
+                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                })?),
+                Some(FromPyWithAttribute(expr_path)) => quote! (
+                    #expr_path(#get_field).map_err(|inner| {
+                        let gil = Python::acquire_gil();
+                        let py = gil.python();
+                        let err_msg = format!("{}: {}",
+                            #conversion_error_msg,
+                            inner.instance(py).str().unwrap());
+                        pyo3::exceptions::PyTypeError::new_err(err_msg)
+                    })?
+                ),
             };
 
             fields.push(quote!(#ident: #extractor));
