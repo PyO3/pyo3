@@ -25,3 +25,9 @@ classifier=[
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+
+# Don't optimize the release build (built by maturin / tox) for this module, as
+# it's a test module.
+[profile.release]
+debug = true
+opt-level = 0
