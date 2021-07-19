@@ -74,7 +74,6 @@ impl PyTuple {
     }
 
     /// Gets the tuple item at the specified index.
-    ///
     #[cfg(any(Py_LIMITED_API, PyPy))]
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
@@ -83,10 +82,13 @@ impl PyTuple {
         }
     }
 
+    /// Gets the tuple item at the specified index.
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         if index >= self.len() {
-            return Err(exceptions::PyIndexError::new_err("tuple index out of range"))
+            return Err(exceptions::PyIndexError::new_err(
+                "tuple index out of range",
+            ));
         }
         unsafe {
             let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
@@ -130,13 +132,12 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.length {
-            match self.tuple.get_item(self.index)
-            {
+            match self.tuple.get_item(self.index) {
                 Ok(item) => {
                     self.index += 1;
                     Some(item)
-                },
-                _ => None
+                }
+                _ => None,
             }
         } else {
             None

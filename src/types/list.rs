@@ -5,8 +5,8 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    exceptions, AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python,
+    ToBorrowedObject, ToPyObject,
 };
 
 /// Represents a Python `list`.
@@ -67,19 +67,28 @@ impl PyList {
     }
 
     /// Gets the item at the specified index.
-    ///
-    /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyAny {
-        assert!(index >= 0 && index < self.len() as isize);
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
+        if index < 0 || index >= self.len() as isize {
+            return Err(exceptions::PyIndexError::new_err("list index out of range"));
+        }
         unsafe {
-            #[cfg(not(Py_LIMITED_API))]
             let ptr = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
-            #[cfg(Py_LIMITED_API)]
+            // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
+            ffi::Py_INCREF(ptr);
+            Ok(self.py().from_owned_ptr(ptr))
+        }
+    }
+
+    /// Gets the item at the specified index.
+    #[cfg(Py_LIMITED_API)]
+    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
+        unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
 
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
             ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
+            self.py().from_owned_ptr_or_err(ptr)
         }
     }
 
@@ -151,9 +160,13 @@ impl<'a> Iterator for PyListIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.list.len() as isize {
-            let item = self.list.get_item(self.index);
-            self.index += 1;
-            Some(item)
+            match self.list.get_item(self.index) {
+                Ok(item) => {
+                    self.index += 1;
+                    Some(item)
+                }
+                _ => None,
+            }
         } else {
             None
         }
@@ -217,10 +230,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = PyList::new(py, &[2, 3, 5, 7]);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -236,19 +249,18 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = PyList::new(py, &[2, 3, 5, 7]);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
-    #[should_panic]
     fn test_get_item_invalid() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let list = PyList::new(py, &[2, 3, 5, 7]);
-        list.get_item(-1);
+        assert!(list.get_item(-1).is_err());
     }
 
     #[test]
@@ -257,9 +269,9 @@ mod test {
         let py = gil.python();
         let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
         list.set_item(0, val).unwrap();
-        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(42, list.get_item(0).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -288,11 +300,11 @@ mod test {
         let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
         list.insert(0, val).unwrap();
         assert_eq!(5, list.len());
-        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(42, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -318,8 +330,8 @@ mod test {
         let py = gil.python();
         let list = PyList::new(py, &[2]);
         list.append(3).unwrap();
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -397,15 +409,15 @@ mod test {
         let py = gil.python();
         let v = vec![7, 3, 2, 5];
         let list = PyList::new(py, &v);
-        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(3).unwrap().extract::<i32>().unwrap());
         list.sort().unwrap();
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -414,15 +426,15 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = PyList::new(py, &v);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
         list.reverse().unwrap();
-        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(3).unwrap().extract::<i32>().unwrap());
     }
 
     #[test]
@@ -431,7 +443,7 @@ mod test {
         let py = gil.python();
         let array: PyObject = [1, 2].into_py(py);
         let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
-        assert_eq!(1, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(1, list.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
     }
 }
