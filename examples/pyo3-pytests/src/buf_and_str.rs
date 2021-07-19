@@ -14,12 +14,12 @@ impl BytesExtractor {
     }
 
     pub fn from_bytes(&mut self, bytes: &PyBytes) -> PyResult<usize> {
-        let byte_vec: Vec<u8> = bytes.extract().unwrap();
+        let byte_vec: Vec<u8> = bytes.extract()?;
         Ok(byte_vec.len())
     }
 
     pub fn from_str(&mut self, string: &PyString) -> PyResult<usize> {
-        let rust_string: String = string.extract().unwrap();
+        let rust_string: String = string.extract()?;
         Ok(rust_string.len())
     }
 
