@@ -419,7 +419,8 @@ impl BuildFlags {
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
     fn from_interpreter(interpreter: &Path) -> Result<Self> {
-        if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+        // If we're on a Windows host, then Python won't have any useful config vars
+        if cfg!(windows) {
             return Ok(Self::windows_hardcoded());
         }
 
@@ -810,13 +811,16 @@ fn get_venv_path() -> Option<PathBuf> {
 /// 2. If in a virtualenv, that environment's interpreter is used.
 /// 3. `python`, if this is functional a Python 3.x interpreter
 /// 4. `python3`, as above
-fn find_interpreter() -> Result<PathBuf> {
+pub fn find_interpreter() -> Result<PathBuf> {
     if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
     } else if let Some(venv_path) = get_venv_path() {
-        match cargo_env_var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
-            "windows" => Ok(venv_path.join("Scripts\\python")),
-            _ => Ok(venv_path.join("bin/python")),
+        // Use cfg rather can CARGO_TARGET_OS because this affects how files are located on the
+        // host OS
+        if cfg!(windows) {
+            Ok(venv_path.join("Scripts\\python"))
+        } else {
+            Ok(venv_path.join("bin/python"))
         }
     } else {
         println!("cargo:rerun-if-env-changed=PATH");
@@ -836,7 +840,7 @@ fn find_interpreter() -> Result<PathBuf> {
 }
 
 /// Extract compilation vars from the specified interpreter.
-fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
+pub fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
     let script = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
 from __future__ import print_function
@@ -865,33 +869,28 @@ def print_if_set(varname, value):
     if value is not None:
         print(varname, value)
 
-libdir = get_config_var("LIBDIR")
+# Windows always uses shared linking
+WINDOWS = hasattr(platform, "win32_ver")
+
+# macOS framework packages use shared linking
+FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
+
+# unix-style shared library enabled
+SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print("implementation", platform.python_implementation())
-print_if_set("libdir", libdir)
+print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("base_prefix", base_prefix)
-print("framework", bool(get_config_var("PYTHONFRAMEWORK")))
-print("shared", PYPY or ANACONDA or bool(get_config_var("Py_ENABLE_SHARED")))
+print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
     let output = run_python_script(interpreter, script)?;
     let map: HashMap<String, String> = parse_script_output(&output);
-    let shared = match (
-        cargo_env_var("CARGO_CFG_TARGET_OS").unwrap().as_str(),
-        map["framework"].as_str(),
-        map["shared"].as_str(),
-    ) {
-        (_, _, "True")            // Py_ENABLE_SHARED is set
-        | ("windows", _, _)       // Windows always uses shared linking
-        | ("macos", "True", _)    // MacOS framework package uses shared linking
-          => true,
-        (_, _, "False") => false, // Any other platform, Py_ENABLE_SHARED not set
-        _ => bail!("Unrecognised link model combination")
-    };
+    let shared = map["shared"].as_str() == "True";
 
     let version = PythonVersion {
         major: map["version_major"]
