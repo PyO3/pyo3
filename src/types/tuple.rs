@@ -75,16 +75,22 @@ impl PyTuple {
 
     /// Gets the tuple item at the specified index.
     ///
-    /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyAny {
-        assert!(index < self.len());
+    #[cfg(any(Py_LIMITED_API, PyPy))]
+    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
-            #[cfg(any(Py_LIMITED_API, PyPy))]
             let item = ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t);
+            self.py().from_borrowed_ptr_or_err(item)
+        }
+    }
 
-            self.py().from_borrowed_ptr(item)
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
+        if index >= self.len() {
+            return Err(exceptions::PyIndexError::new_err("tuple index out of range"))
+        }
+        unsafe {
+            let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+            Ok(self.py().from_borrowed_ptr(item))
         }
     }
 
@@ -124,9 +130,14 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.length {
-            let item = self.tuple.get_item(self.index);
-            self.index += 1;
-            Some(item)
+            match self.tuple.get_item(self.index)
+            {
+                Ok(item) => {
+                    self.index += 1;
+                    Some(item)
+                },
+                _ => None
+            }
         } else {
             None
         }
@@ -201,7 +212,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             if t.len() == $length {
                 Ok((
-                    $(t.get_item($n).extract::<$T>()?,)+
+                    $(t.get_item($n)?.extract::<$T>()?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
@@ -457,5 +468,13 @@ mod test {
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,)
             );
         })
+    }
+
+    #[test]
+    fn test_invalid_get_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let ob = PyTuple::new(py, &[1, 2, 3]);
+        assert!(ob.get_item(100).is_err())
     }
 }
