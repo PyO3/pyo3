@@ -1,5 +1,3 @@
-#[cfg(feature = "indexmap")]
-#[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
 mod indexmap_indexmap_conversion {
 
     use crate::types::*;
@@ -48,7 +46,6 @@ mod indexmap_indexmap_conversion {
     }
 }
 
-#[cfg(feature = "indexmap")]
 #[cfg(test)]
 mod test_indexmap {
 
