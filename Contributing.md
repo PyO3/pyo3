@@ -40,7 +40,6 @@ We use lots of code blocks in our docs. Run `cargo test --doc` when making chang
 the doctests still work, or `cargo test` to run all the tests including doctests. See 
 https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
 
-
 #### Building the guide
 
 You can preview the user guide by building it locally with `mdbook`. 

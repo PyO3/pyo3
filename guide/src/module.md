@@ -67,10 +67,9 @@ print(my_extension.__doc__)
 For most projects, it's adequate to centralize all your FFI code into a single Rust module.
 
 However, for larger projects, it can be helpful to split your Rust code into several Rust modules to keep your code 
-readable. Unfortunately, though, some of the macros like `wrap_pyfunction!` 
-[do not yet work](https://github.com/PyO3/pyo3/issues/1709) when used on code defined in other 
-modules. One way to work around this is to pass references to the `PyModule` so that each module registers its own 
-FFI code. For example:
+readable. Unfortunately, though, some of the macros like `wrap_pyfunction!` do not yet work when used on code defined 
+in other modules ([#1709](https://github.com/PyO3/pyo3/issues/1709)). One way to work around this is to pass 
+references to the `PyModule` so that each module registers its own FFI code. For example:
 
 ```rust
 // src/lib.rs
@@ -114,7 +113,8 @@ fn determine_current_os() -> String {
 # }
 ```
 
-Another workaround for splitting FFI code across multiple modules is to add `use module::*`, like this: 
+Another workaround for splitting FFI code across multiple modules ([#1709](https://github.com/PyO3/pyo3/issues/1709))
+is to add `use module::*`, like this: 
 
 ```rust
 // src/lib.rs
@@ -141,7 +141,7 @@ pub(crate) fn determine_current_os() -> String {
 ## Python submodules
 
 You can create a module hierarchy within a single extension module by using 
-[`PyModule.add_submodule()`]({#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
+[`PyModule.add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
