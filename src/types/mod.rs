@@ -222,6 +222,7 @@ mod floatob;
 mod function;
 mod iterator;
 mod list;
+mod macros;
 mod module;
 mod num;
 mod sequence;
