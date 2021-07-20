@@ -4,7 +4,6 @@ You can create a module using `#[pymodule]`:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 fn double(x: usize) -> usize {
@@ -66,29 +65,26 @@ print(my_extension.__doc__)
 
 ## Organizing your module registration code
 
-As your Python module grows, it can be helpful to split your Rust code into several Rust modules to
-keep your code readable.
+For most projects, it's adequate to centralize all your FFI code into a single module and single `#[pymodule]` block.
 
-You can pass references to the `PyModule` so that each 
-module registers its own FFI code, which can give your project better 
-[encapsulation](https://en.wikipedia.org/wiki/Encapsulation_(computer_programming)). For example:
+For larger projects, it can be helpful to split your Rust code into several Rust modules to keep your code 
+readable. However, some of the macros like `wrap_pyfunction!` do not yet work when used on code defined in other 
+modules. One way to work around this is to pass references to the `PyModule` so that each module registers its own 
+FFI code. For example:
 
-```rust,ignore
+```rust
 // src/lib.rs
 use pyo3::prelude::*;
 
-mod dirutil;
-mod osutil;
-
 #[pymodule]
 fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
-    self::dirutil::register(py, m)?;
-    self::osutil::register(py, m)?;
+    dirutil::register(py, m)?;
+    osutil::register(py, m)?;
     Ok(())
 }
 
-
 // src/dirutil.rs
+# mod dirutil {
 use pyo3::prelude::*;
 
 pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
@@ -99,12 +95,12 @@ pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
 #[pyclass]
 struct SomeClass {
     x: usize,
-};
-
+}
+# }
 
 // src/osutil.rs
+# mod osutil {
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
@@ -115,20 +111,22 @@ pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
 fn determine_current_os() -> String {
     "linux".to_owned()
 }
+# }
 ```
 
 ## Python submodules
 
-You can create a module hierarchy within a single extension module by using `PyModule.add_submodule()`.
+You can create a module hierarchy within a single extension module by using 
+[`PyModule.add_submodule()`]({#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
-#[pyfunction]
-fn func() -> String {
-    "func".to_string()
+#[pymodule]
+fn parent_module(py: Python, m: &PyModule) -> PyResult<()> {
+    register_child_module(py, m)?;
+    Ok(())
 }
 
 fn register_child_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
@@ -138,10 +136,9 @@ fn register_child_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[pymodule]
-fn parent_module(py: Python, m: &PyModule) -> PyResult<()> {
-    register_child_module(py, m)?;
-    Ok(())
+#[pyfunction]
+fn func() -> String {
+    "func".to_string()
 }
 
 # Python::with_gil(|py| {

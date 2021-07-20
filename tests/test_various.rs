@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction, PyCell};
+use pyo3::{py_run, PyCell};
 
 use std::fmt;
 

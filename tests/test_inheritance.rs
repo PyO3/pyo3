@@ -210,6 +210,23 @@ mod inheriting_native_type {
         );
     }
 
+    #[test]
+    fn inherit_dict_drop() {
+        Python::with_gil(|py| {
+            let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
+            assert_eq!(dict_sub.get_refcnt(py), 1);
+
+            let item = py.eval("object()", None, None).unwrap();
+            assert_eq!(item.get_refcnt(), 1);
+
+            dict_sub.as_ref(py).set_item("foo", item).unwrap();
+            assert_eq!(item.get_refcnt(), 2);
+
+            drop(dict_sub);
+            assert_eq!(item.get_refcnt(), 1);
+        })
+    }
+
     #[pyclass(extends=PyException)]
     struct CustomException {
         #[pyo3(get)]

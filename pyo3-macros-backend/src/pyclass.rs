@@ -7,7 +7,7 @@ use crate::attributes::{
 use crate::deprecations::Deprecations;
 use crate::pyimpl::PyClassMethodsType;
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
-use crate::utils;
+use crate::utils::{self, unwrap_group};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -93,7 +93,7 @@ impl PyClassArgs {
                 // We allow arbitrary expressions here so you can e.g. use `8*64`
                 self.freelist = Some(syn::Expr::clone(right));
             }
-            "name" => match &**right {
+            "name" => match unwrap_group(&**right) {
                 syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(lit),
                     ..
@@ -114,7 +114,7 @@ impl PyClassArgs {
                 }
                 _ => expected!("type name (e.g. \"Name\")"),
             },
-            "extends" => match &**right {
+            "extends" => match unwrap_group(&**right) {
                 syn::Expr::Path(exp) => {
                     self.base = syn::TypePath {
                         path: exp.path.clone(),
@@ -124,7 +124,7 @@ impl PyClassArgs {
                 }
                 _ => expected!("type path (e.g., my_mod::BaseClass)"),
             },
-            "module" => match &**right {
+            "module" => match unwrap_group(&**right) {
                 syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(lit),
                     ..
@@ -378,29 +378,37 @@ fn impl_class(
 ) -> syn::Result<TokenStream> {
     let cls_name = get_class_python_name(cls, attr).to_string();
 
-    let alloc = {
-        if let Some(freelist) = &attr.freelist {
+    let alloc = attr.freelist.as_ref().map(|freelist| {
             quote! {
-                impl pyo3::freelist::PyClassWithFreeList for #cls {
+                impl pyo3::class::impl_::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(_py: pyo3::Python) -> &mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> {
-                        static mut FREELIST: *mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
+                    fn get_free_list(_py: pyo3::Python<'_>) -> &mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> {
+                        static mut FREELIST: *mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
                                 FREELIST = Box::into_raw(Box::new(
-                                    pyo3::freelist::FreeList::with_capacity(#freelist)));
+                                    pyo3::impl_::freelist::FreeList::with_capacity(#freelist)));
                             }
                             &mut *FREELIST
                         }
                     }
                 }
+
+                impl pyo3::class::impl_::PyClassAllocImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+                    #[inline]
+                    fn alloc_impl(self) -> Option<pyo3::ffi::allocfunc> {
+                        Some(pyo3::class::impl_::alloc_with_freelist::<#cls>)
+                    }
+                }
+
+                impl pyo3::class::impl_::PyClassFreeImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+                    #[inline]
+                    fn free_impl(self) -> Option<pyo3::ffi::freefunc> {
+                        Some(pyo3::class::impl_::free_with_freelist::<#cls>)
+                    }
+                }
             }
-        } else {
-            quote! {
-                impl pyo3::pyclass::PyClassAlloc for #cls {}
-            }
-        }
-    };
+        });
 
     let descriptors = impl_descriptors(cls, field_options)?;
 
@@ -495,7 +503,7 @@ fn impl_class(
             const MODULE: Option<&'static str> = #module;
 
             #[inline]
-            fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
+            fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
                 #deprecations
 
                 use pyo3::type_object::LazyStaticType;
@@ -530,7 +538,7 @@ fn impl_class(
             const IS_BASETYPE: bool = #is_basetype;
             const IS_SUBCLASS: bool = #is_subclass;
 
-            type Layout = PyCell<Self>;
+            type Layout = pyo3::PyCell<Self>;
             type BaseType = #base;
             type ThreadChecker = #thread_checker;
 
@@ -550,6 +558,16 @@ fn impl_class(
                 use pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.new_impl()
+            }
+            fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
+                use pyo3::class::impl_::*;
+                let collector = PyClassImplCollector::<Self>::new();
+                collector.alloc_impl()
+            }
+            fn get_free() -> Option<pyo3::ffi::freefunc> {
+                use pyo3::class::impl_::*;
+                let collector = PyClassImplCollector::<Self>::new();
+                collector.free_impl()
             }
             fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
                 use pyo3::class::impl_::*;

@@ -12,14 +12,20 @@ use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
 use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
-/// Operators for the __richcmp__ method
+/// Operators for the `__richcmp__` method
 #[derive(Debug)]
 pub enum CompareOp {
+    /// The *less than* operator.
     Lt = ffi::Py_LT as isize,
+    /// The *less than or equal to* operator.
     Le = ffi::Py_LE as isize,
+    /// The equality operator.
     Eq = ffi::Py_EQ as isize,
+    /// The *not equal to* operator.
     Ne = ffi::Py_NE as isize,
+    /// The *greater than* operator.
     Gt = ffi::Py_GT as isize,
+    /// The *greater than or equal to* operator.
     Ge = ffi::Py_GE as isize,
 }
 

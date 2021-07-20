@@ -1,5 +1,27 @@
-//! Raw ffi declarations for the C interface of Python.
+//! Raw FFI declarations for Python's C API.
+//!
+//! This module provides low level bindings to the Python interpreter.
+//! It is meant for advanced users only - regular PyO3 users shouldn't
+//! need to interact with this module at all.
+//!
+//! The contents of this module are not documented here, as it would entail
+//! basically copying the documentation from CPython. Consult the [Python/C API Reference
+//! Manual][capi] for up-to-date documentation.
+//!
+//! # Safety
+//!
+//! The functions in this module lack individual safety documentation, but
+//! generally the following apply:
+//! - Pointer arguments have to point to a valid Python object of the correct type,
+//! although null pointers are sometimes valid input.
+//! - The vast majority can only be used safely while the GIL is held.
+//! - Some functions have additional safety requirements, consult the
+//! [Python/C API Reference Manual][capi]
+//! for more information.
+//!
+//! [capi]: https://docs.python.org/3/c-api/index.html
 #![allow(
+    missing_docs,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
@@ -27,6 +49,7 @@ pub use self::code::*;
 pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
+#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 pub use self::context::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
@@ -78,6 +101,7 @@ pub use self::weakrefobject::*;
 
 #[cfg(not(Py_LIMITED_API))]
 pub use self::cpython::*;
+
 mod abstract_;
 // skipped asdl.h
 // skipped ast.h
@@ -95,8 +119,6 @@ mod compile; // TODO: incomplete
 mod complexobject; // TODO supports PEP-384 only
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 mod context; // It's actually 3.7.1, but no cfg for patches.
-#[cfg(not(all(Py_3_8, not(Py_LIMITED_API))))]
-mod context {}
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod descrobject; // TODO supports PEP-384 only

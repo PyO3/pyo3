@@ -177,12 +177,19 @@ impl CallingConvention {
         } else if accept_kwargs {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(all(Py_3_7, not(Py_LIMITED_API))) {
+        } else if can_use_fastcall() {
             Self::Fastcall
         } else {
             Self::Varargs
         }
     }
+}
+
+fn can_use_fastcall() -> bool {
+    const PY37: pyo3_build_config::PythonVersion =
+        pyo3_build_config::PythonVersion { major: 3, minor: 7 };
+    let config = pyo3_build_config::get();
+    config.version >= PY37 && !config.abi3
 }
 
 pub struct FnSpec<'a> {

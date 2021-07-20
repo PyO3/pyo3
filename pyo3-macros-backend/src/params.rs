@@ -4,6 +4,7 @@ use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec},
     pyfunction::Argument,
+    utils::unwrap_ty_group,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
@@ -207,7 +208,7 @@ fn impl_arg_param(
 
     let ty = arg.ty;
     let name = arg.name;
-    let transform_error = quote_arg_span! {
+    let transform_error = quote! {
         |e| pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
     };
 
@@ -258,12 +259,12 @@ fn impl_arg_param(
         }
     };
 
-    return if let syn::Type::Reference(tref) = arg.optional.as_ref().unwrap_or(&ty) {
+    return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(&ty)) {
         let (tref, mut_) = preprocess_tref(tref, self_);
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
             (
-                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt>::Target> },
+                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt<'_>>::Target> },
                 if mut_.is_some() {
                     quote_arg_span! { _tmp.as_deref_mut() }
                 } else {
@@ -273,7 +274,7 @@ fn impl_arg_param(
         } else {
             // Get &T from PyRef<T>
             (
-                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt>::Target },
+                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt<'_>>::Target },
                 quote_arg_span! { &#mut_ *_tmp },
             )
         };

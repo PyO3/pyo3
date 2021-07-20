@@ -1,6 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![allow(clippy::missing_safety_doc)] // FIXME (#698)
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -150,7 +149,9 @@
 //! crate-type = ["cdylib"]
 //!
 //! [dependencies.pyo3]
-//! version = "0.13.2"
+// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
+#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
+#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! features = ["extension-module"]
 //! ```
 //!
@@ -158,7 +159,6 @@
 //!
 //! ```rust
 //! use pyo3::prelude::*;
-//! use pyo3::wrap_pyfunction;
 //!
 //! /// Formats the sum of two numbers as string.
 //! #[pyfunction]
@@ -202,7 +202,9 @@
 //!
 //! ```toml
 //! [dependencies.pyo3]
-//! version = "0.13.2"
+// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
+#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
+#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
@@ -277,7 +279,6 @@ pub mod derive_utils;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-pub mod freelist;
 mod gil;
 pub mod impl_;
 mod instance;

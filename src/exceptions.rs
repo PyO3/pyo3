@@ -18,6 +18,7 @@ macro_rules! impl_exception_boilerplate {
         }
 
         impl $name {
+            /// Creates a new [PyErr](crate::PyErr) of this type.
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
                 A: $crate::PyErrArguments + Send + Sync + 'static,
@@ -275,6 +276,7 @@ impl_native_exception!(PyIOError, PyExc_IOError);
 impl_native_exception!(PyWindowsError, PyExc_WindowsError);
 
 impl PyUnicodeDecodeError {
+    /// Creates a Python `UnicodeDecodeError`.
     pub fn new<'p>(
         py: Python<'p>,
         encoding: &CStr,
@@ -294,6 +296,7 @@ impl PyUnicodeDecodeError {
         }
     }
 
+    /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.
     pub fn new_utf8<'p>(
         py: Python<'p>,
         input: &[u8],

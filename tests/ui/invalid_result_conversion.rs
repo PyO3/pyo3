@@ -2,7 +2,6 @@
 //! *doesn't* implement `From<MyError> for PyErr` won't be automatically
 //! converted when using `#[pyfunction]`.
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 use std::fmt;
 

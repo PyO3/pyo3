@@ -3,7 +3,6 @@ use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
     PyTzInfo,
 };
-use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 fn make_date(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {

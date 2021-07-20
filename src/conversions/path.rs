@@ -66,6 +66,12 @@ impl IntoPy<PyObject> for PathBuf {
     }
 }
 
+impl<'a> IntoPy<PyObject> for &'a PathBuf {
+    fn into_py(self, py: Python) -> PyObject {
+        self.as_os_str().to_object(py)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
@@ -120,11 +126,12 @@ mod test {
                 let pystring: &PyString = pyobject.extract(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pystring.extract().unwrap();
-                assert!(obj.as_ref() == roundtripped_obj.as_path());
+                assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
             }
             let path = Path::new("Hello\0\n🐍");
             test_roundtrip::<&Path>(py, path);
             test_roundtrip::<PathBuf>(py, path.to_path_buf());
+            test_roundtrip::<&PathBuf>(py, &path.to_path_buf());
         })
     }
 }

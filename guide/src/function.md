@@ -6,7 +6,6 @@ One way is annotating a function with `#[pyfunction]` and then adding it to the 
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 fn double(x: usize) -> usize {
@@ -43,7 +42,6 @@ documented in the rest of this chapter. The code above is expanded to the follow
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 
 #[pymodule]
 fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
@@ -68,7 +66,6 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     ```rust
     use pyo3::prelude::*;
-    use pyo3::wrap_pyfunction;
 
     #[pyfunction]
     #[pyo3(name = "no_args")]
@@ -93,7 +90,6 @@ The `#[pyfunction]` attribute supports specifying details of argument parsing. T
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 use pyo3::types::PyDict;
 
 #[pyfunction(kwds="**")]
@@ -254,7 +250,6 @@ in Python code.
 It is possible to access the module of a `#[pyfunction]` in the function body by using `#[pyo3(pass_module)]` option:
 
 ```rust
-use pyo3::wrap_pyfunction;
 use pyo3::prelude::*;
 
 #[pyfunction]

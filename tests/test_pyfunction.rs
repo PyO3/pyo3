@@ -4,7 +4,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyCFunction;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::{PyDateTime, PyFunction};
-use pyo3::wrap_pyfunction;
 
 mod common;
 

@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
+use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction};
 mod common;
 
 #[pyclass]
@@ -449,5 +449,19 @@ fn test_module_with_deprecated_name() {
     Python::with_gil(|py| {
         let m = pyo3::wrap_pymodule!(custom_name)(py);
         py_assert!(py, m, "m.__name__ == 'custom_name'");
+    })
+}
+
+#[test]
+fn test_module_doc_hidden() {
+    #[doc(hidden)]
+    #[pymodule]
+    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(my_module)(py);
+        py_assert!(py, m, "m.__doc__ == ''");
     })
 }

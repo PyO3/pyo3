@@ -204,6 +204,15 @@ impl<'py> Iterator for PyDictIterator<'py> {
             }
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.dict.len().unwrap_or_default();
+        (
+            len.saturating_sub(self.pos as usize),
+            Some(len.saturating_sub(self.pos as usize)),
+        )
+    }
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyDict {
@@ -696,6 +705,28 @@ mod test {
         }
         assert_eq!(7 + 8 + 9, key_sum);
         assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+    #[test]
+    fn test_iter_size_hint() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        let mut iter = dict.iter();
+        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+        iter.next();
+        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+
+        // Exhust iterator.
+        while let Some(_) = iter.next() {}
+
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
     #[test]

@@ -346,7 +346,6 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::wrap_pyfunction;
     ///
     /// #[pyfunction]
     /// fn say_hello() {

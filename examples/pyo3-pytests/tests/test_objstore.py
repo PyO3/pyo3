@@ -3,22 +3,23 @@ import platform
 import sys
 
 import pytest
-
 from pyo3_pytests.objstore import ObjStore
 
-PYPY = platform.python_implementation() == "PyPy"
 
-
-@pytest.mark.skipif(PYPY, reason="PyPy does not have sys.getrefcount")
 def test_objstore_doesnot_leak_memory():
     N = 10000
     message = b'\\(-"-;) Praying that memory leak would not happen..'
-    before = sys.getrefcount(message)
+
+    # PyPy does not have sys.getrefcount, provide a no-op lambda and don't
+    # check refcount on PyPy
+    getrefcount = getattr(sys, "getrefcount", lambda obj: 0)
+
+    before = getrefcount(message)
     store = ObjStore()
     for _ in range(N):
         store.push(message)
     del store
     gc.collect()
-    after = sys.getrefcount(message)
+    after = getrefcount(message)
 
     assert after - before == 0
