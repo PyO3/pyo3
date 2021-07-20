@@ -40,6 +40,14 @@ We use lots of code blocks in our docs. Run `cargo test --doc` when making chang
 the doctests still work, or `cargo test` to run all the tests including doctests. See 
 https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
 
+
+#### Building the guide
+
+You can preview the user guide by building it locally with `mdbook`. 
+
+First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run 
+`mdbook build -d ../gh-pages-build guide --open`.
+
 ### Help design the next PyO3
 
 Issues which don't yet have a clear solution use the [needs-design](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-design) label.

@@ -25,11 +25,10 @@ The module's name defaults to the name of the Rust function. You can override th
 using `#[pyo3(name = "custom_name")]`:
 
 ```rust
-# use pyo3::prelude::*;
-# use pyo3::wrap_pyfunction;
+use pyo3::prelude::*;
 
-# #[pyfunction]
-# fn double(x: usize) -> usize {
+#[pyfunction]
+fn double(x: usize) -> usize {
     x * 2
 }
 
@@ -65,10 +64,11 @@ print(my_extension.__doc__)
 
 ## Organizing your module registration code
 
-For most projects, it's adequate to centralize all your FFI code into a single module and single `#[pymodule]` block.
+For most projects, it's adequate to centralize all your FFI code into a single Rust module.
 
-For larger projects, it can be helpful to split your Rust code into several Rust modules to keep your code 
-readable. However, some of the macros like `wrap_pyfunction!` do not yet work when used on code defined in other 
+However, for larger projects, it can be helpful to split your Rust code into several Rust modules to keep your code 
+readable. Unfortunately, though, some of the macros like `wrap_pyfunction!` 
+[do not yet work](https://github.com/PyO3/pyo3/issues/1709) when used on code defined in other 
 modules. One way to work around this is to pass references to the `PyModule` so that each module registers its own 
 FFI code. For example:
 
@@ -109,6 +109,30 @@ pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyfunction]
 fn determine_current_os() -> String {
+    "linux".to_owned()
+}
+# }
+```
+
+Another workaround for splitting FFI code across multiple modules is to add `use module::*`, like this: 
+
+```rust
+// src/lib.rs
+use pyo3::prelude::*;
+use osutil::*;
+
+#[pymodule]
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
+    Ok(())
+}
+
+// src/osutil.rs
+# mod osutil {
+use pyo3::prelude::*;
+
+#[pyfunction]
+pub(crate) fn determine_current_os() -> String {
     "linux".to_owned()
 }
 # }

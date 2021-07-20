@@ -19,7 +19,7 @@ fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-Alternatively there is a shorthand; the function can be placed inside the module definition and
+Alternatively, there is a shorthand: the function can be placed inside the module definition and
 annotated with `#[pyfn]`, as below:
 
 ```rust
