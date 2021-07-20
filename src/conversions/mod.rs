@@ -3,6 +3,6 @@
 mod array;
 #[cfg(feature = "indexmap")]
 #[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
-mod indexmap;
+pub mod indexmap;
 mod osstr;
 mod path;
