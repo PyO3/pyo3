@@ -5,9 +5,8 @@
 //! with the difference that it preserves the insertion order when iterating over keys. It was inspired
 //! by Python's 3.6+ dict implementation.
 //!
-//! Dictionary order is guaranteed to be insertion order since Python 3.7, and the conversions with IndexMap will reflect
-//! that guarantee. In practice, the guarantee will also be mainted in Python 3.6 because of the implementation details
-//! of CPython and PyPy.
+//! Dictionary order is guaranteed to be insertion order in Python, hence IndexMap is a good candidate
+//! for maintaining an equivalent behaviour in Rust.
 //!
 //! # Setup
 //!
@@ -92,51 +91,48 @@
 //! # if another hash table was used, the order could be random
 //! ```
 
-mod indexmap_indexmap_conversion {
+use crate::types::*;
+use crate::{FromPyObject, IntoPy, PyErr, PyObject, PyTryFrom, Python, ToPyObject};
+use std::{cmp, hash};
 
-    use crate::types::*;
-    use crate::{FromPyObject, IntoPy, PyErr, PyObject, PyTryFrom, Python, ToPyObject};
-    use std::{cmp, hash};
-
-    impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
-    where
-        K: hash::Hash + cmp::Eq + ToPyObject,
-        V: ToPyObject,
-        H: hash::BuildHasher,
-    {
-        fn to_object(&self, py: Python) -> PyObject {
-            IntoPyDict::into_py_dict(self, py).into()
-        }
+impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + ToPyObject,
+    V: ToPyObject,
+    H: hash::BuildHasher,
+{
+    fn to_object(&self, py: Python) -> PyObject {
+        IntoPyDict::into_py_dict(self, py).into()
     }
+}
 
-    impl<K, V, H> IntoPy<PyObject> for indexmap::IndexMap<K, V, H>
-    where
-        K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-        V: IntoPy<PyObject>,
-        H: hash::BuildHasher,
-    {
-        fn into_py(self, py: Python) -> PyObject {
-            let iter = self
-                .into_iter()
-                .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-            IntoPyDict::into_py_dict(iter, py).into()
-        }
+impl<K, V, H> IntoPy<PyObject> for indexmap::IndexMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
+    V: IntoPy<PyObject>,
+    H: hash::BuildHasher,
+{
+    fn into_py(self, py: Python) -> PyObject {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
     }
+}
 
-    impl<'source, K, V, S> FromPyObject<'source> for indexmap::IndexMap<K, V, S>
-    where
-        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-        V: FromPyObject<'source>,
-        S: hash::BuildHasher + Default,
-    {
-        fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-            let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-            let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
-            for (k, v) in dict.iter() {
-                ret.insert(K::extract(k)?, V::extract(v)?);
-            }
-            Ok(ret)
+impl<'source, K, V, S> FromPyObject<'source> for indexmap::IndexMap<K, V, S>
+where
+    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    V: FromPyObject<'source>,
+    S: hash::BuildHasher + Default,
+{
+    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
+        for (k, v) in dict.iter() {
+            ret.insert(K::extract(k)?, V::extract(v)?);
         }
+        Ok(ret)
     }
 }
 
