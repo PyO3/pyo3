@@ -1,8 +1,9 @@
 # Calling Python in Rust code
 
 This chapter of the guide documents some ways to interact with Python code from Rust:
- - How to call Python functions
- - How to execute existing Python code
+
+- How to call Python functions
+- How to execute existing Python code
 
 ## Calling Python functions
 
@@ -10,13 +11,13 @@ Any Python-native object reference (such as `&PyAny`, `&PyList`, or `&PyCell<MyC
 
 PyO3 offers two APIs to make function calls:
 
-* [`call`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call) - call any callable Python object.
-* [`call_method`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method) - call a method on the Python object.
+- [`call`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call) - call any callable Python object.
+- [`call_method`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method) - call a method on the Python object.
 
 Both of these APIs take `args` and `kwargs` arguments (for positional and keyword arguments respectively). There are variants for less complex calls:
 
-* [`call1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call1) and [`call_method1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method1) to call only with positional `args`.
-* [`call0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call0) and [`call_method0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method0) to call with no arguments.
+- [`call1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call1) and [`call_method1`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method1) to call only with positional `args`.
+- [`call0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call0) and [`call_method0`](https://docs.rs/pyo3/0.12.3/pyo3/struct.PyAny.html#method.call_method0) to call with no arguments.
 
 For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
