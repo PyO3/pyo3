@@ -1,3 +1,97 @@
+//!  Conversions to and from [indexmap](https://docs.rs/indexmap/)’s
+//! `IndexMap`.
+//!
+//! [`indexmap::IndexMap`] is a hash table that is closely compatible with the standard [`std::collections::HashMap`],
+//! with the difference that it preserves the insertion order when iterating over keys. It was inspired
+//! by Python's 3.6+ dict implementation.
+//!
+//! Dictionary order is guaranteed to be insertion order since Python 3.7, and the conversions with IndexMap will reflect
+//! that guarantee. In practice, the guarantee will also be mainted in Python 3.6 because of the implementation details
+//! of CPython and PyPy.
+//!
+//! # Setup
+//!
+//! To use this feature, add this to your **`Cargo.toml`**:
+//!
+//! ```toml
+//! [dependencies]
+//! # change * to the latest versions
+//! indexmap = "*"
+// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
+#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"indexmap\"] }")))]
+#![cfg_attr(
+    not(docsrs),
+    doc = "pyo3 = { version = \"*\", features = [\"indexmap\"] }"
+)]
+//! ```
+//!
+//! Note that you must use compatible versions of indexmap and PyO3.
+//! The required indexmap version may vary based on the version of PyO3.
+//!
+//! # Examples
+//!
+//! Using [indexmap](https://docs.rs/indexmap) to return a dictionary with some statistics
+//! about a list of numbers. Because of the insertion order guarantees, the Python code will
+//! always print the same result, matching users' expectations about Python's dict.
+//!
+//! ```rust
+//! use indexmap::{indexmap, IndexMap};
+//! use pyo3::prelude::*;
+//!
+//! fn median(data: &Vec<i32>) -> f32 {
+//!     let sorted_data = data.clone().sort();
+//!     let mid = data.len() / 2;
+//!     if (data.len() % 2 == 0) {
+//!         data[mid] as f32
+//!     }
+//!     else {
+//!         (data[mid] + data[mid - 1]) as f32 / 2.0
+//!     }
+//! }
+//!
+//! fn mean(data: &Vec<i32>) -> f32 {
+//!     data.iter().sum::<i32>() as f32 / data.len() as f32
+//! }
+//! fn mode(data: &Vec<i32>) -> f32 {
+//!     let mut frequency = IndexMap::new(); // we can use IndexMap as any hash table
+//!
+//!     for &element in data {
+//!         *frequency.entry(element).or_insert(0) += 1;
+//!     }
+//!
+//!     frequency
+//!         .iter()
+//!         .max_by(|a, b| a.1.cmp(&b.1))
+//!         .map(|(k, _v)| *k)
+//!         .unwrap() as f32
+//!   }
+//!
+//! #[pyfunction]
+//! fn calculate_statistics(data: Vec<i32>) -> IndexMap<&'static str, f32> {
+//!     indexmap!{
+//!        "median" => median(&data),
+//!        "mean" => mean(&data),
+//!        "mode" => mode(&data),
+//!     }
+//! }
+//!
+//! #[pymodule]
+//! fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+//!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Python code:
+//! ```python
+//! from my_module import calculate_statistics
+//!
+//! data = [1, 1, 1, 3, 4, 5]
+//! print(calculate_statistics(data))
+//! # always prints {"median": 2.0, "mean": 2.5, "mode": 1.0} in the same order
+//! # if another hash table was used, the order could be random
+//! ```
+
 mod indexmap_indexmap_conversion {
 
     use crate::types::*;
