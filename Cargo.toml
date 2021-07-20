@@ -77,6 +77,10 @@ name = "bench_call"
 harness = false
 
 [[bench]]
+name = "bench_err"
+harness = false
+
+[[bench]]
 name = "bench_dict"
 harness = false
 
