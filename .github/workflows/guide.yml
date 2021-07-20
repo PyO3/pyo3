@@ -21,13 +21,13 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-         toolchain: nightly
-         profile: minimal
+          toolchain: nightly
+          profile: minimal
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: '0.4.7'
+          mdbook-version: "0.4.10"
 
       - name: Prepare tag
         id: prepare_tag
@@ -55,7 +55,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./gh-pages-build/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
-          full_commit_message: 'Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}'
+          full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
 
   release:
     needs: build
@@ -74,5 +74,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public/
-          full_commit_message: 'Release ${{ needs.build.outputs.tag_name }}'
+          full_commit_message: "Release ${{ needs.build.outputs.tag_name }}"
           keep_files: true
