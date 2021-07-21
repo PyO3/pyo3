@@ -6,7 +6,7 @@ It will replace:
     - {{#PYO3_CRATE_VERSION}} with a relevant toml snippet (e.g. version = "0.13.2")
 
 
-Tested against mdbook 0.4.9.
+Tested against mdbook 0.4.10.
 """
 
 import json
