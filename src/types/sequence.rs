@@ -99,9 +99,9 @@ impl PySequence {
 
     /// Returns the `index`th element of the Sequence.
     ///
-    /// This is equivalent to the Python expression `self[index]`.
+    /// This is equivalent to the Python expression `self[index]` without support of negative indices.
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
+    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -403,11 +403,6 @@ mod tests {
             assert_eq!(3, seq.get_item(3).unwrap().extract::<i32>().unwrap());
             assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
             assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
-            assert_eq!(8, seq.get_item(-1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, seq.get_item(-2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, seq.get_item(-3).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, seq.get_item(-4).unwrap().extract::<i32>().unwrap());
-            assert_eq!(1, seq.get_item(-5).unwrap().extract::<i32>().unwrap());
             assert!(seq.get_item(10).is_err());
         });
     }

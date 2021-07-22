@@ -10,11 +10,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- Add `PyList::get_item_unchecked()` and `PyTuple::get_item_unchecked()` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Add `PyAny::py()` as a convenience for `PyNativeType::py()`. [#1751](https://github.com/PyO3/pyo3/pull/1751)
 
 ### Changed
 
 - Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
+- `PyList`, `PyTuple` and `PySequence`'s `get_item` now accepts only `usize` indices instead of `isize`. [#1733](https://github.com/PyO3/pyo3/pull/1733)
+- `PyList` and `PyTuple`'s `get_item` now return `PyResult<&PyAny> instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
 
 ### Fixed

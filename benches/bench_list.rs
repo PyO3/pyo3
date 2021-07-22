@@ -32,7 +32,22 @@ fn list_get_item(b: &mut Bencher) {
     let mut sum = 0;
     b.iter(|| {
         for i in 0..LEN {
-            sum += list.get_item(i as isize).extract::<usize>().unwrap();
+            sum += list.get_item(i).unwrap().extract::<usize>().unwrap();
+        }
+    });
+}
+
+fn list_get_item_unchecked(b: &mut Bencher) {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    const LEN: usize = 50_000;
+    let list = PyList::new(py, 0..LEN);
+    let mut sum = 0;
+    b.iter(|| {
+        for i in 0..LEN {
+            unsafe {
+                sum += list.get_item_unchecked(i).extract::<usize>().unwrap();
+            }
         }
     });
 }
@@ -41,6 +56,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_list", iter_list);
     c.bench_function("list_new", list_new);
     c.bench_function("list_get_item", list_get_item);
+    c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
 }
 
 criterion_group!(benches, criterion_benchmark);
