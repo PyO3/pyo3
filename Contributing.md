@@ -34,6 +34,19 @@ There are some specific areas of focus where help is currently needed for the do
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
+#### Doctests
+
+We use lots of code blocks in our docs. Run `cargo test --doc` when making changes to check that
+the doctests still work, or `cargo test` to run all the tests including doctests. See 
+https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
+
+#### Building the guide
+
+You can preview the user guide by building it locally with `mdbook`. 
+
+First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run 
+`mdbook build -d ../gh-pages-build guide --open`.
+
 ### Help design the next PyO3
 
 Issues which don't yet have a clear solution use the [needs-design](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Aneeds-design) label.
