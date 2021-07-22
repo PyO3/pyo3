@@ -130,11 +130,13 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown serde multiple-pymethods"
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
-        run: cargo update -p hashbrown --precise 0.9.1
+        run: |
+          cargo update -p indexmap --precise 1.6.2
+          cargo update -p hashbrown:0.11.2 --precise 0.9.1
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
@@ -229,7 +231,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
       - run: cargo test --no-default-features --no-fail-fast
-      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown serde multiple-pymethods"
+      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
       - run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
       - run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
       # can't yet use actions-rs/grcov with source-based coverage: https://github.com/actions-rs/grcov/issues/105

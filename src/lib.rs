@@ -74,6 +74,10 @@
 //! [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and
 //! [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html) types.
 //
+//! - [`indexmap`](crate::indexmap): Enables conversions between Python dictionary and
+//! [indexmap](https://docs.rs/indexmap)'s
+//! [`IndexMap`](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html).
+//
 //! - `multiple-pymethods`: Enables the use of multiple
 //! [`#[pymethods]`](crate::proc_macro::pymethods) blocks per
 //! [`#[pyclass]`](crate::proc_macro::pyclass). This adds a dependency on the
@@ -302,6 +306,10 @@ pub mod types;
 pub mod num_bigint;
 
 pub mod num_complex;
+
+#[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
+#[cfg(feature = "indexmap")]
+pub use crate::conversions::indexmap;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 #[cfg(feature = "serde")]
