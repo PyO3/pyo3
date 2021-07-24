@@ -29,7 +29,7 @@ use syn::parse_macro_input;
 ///
 /// For more on creating Python modules see the [module section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/main/module.html
+/// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
 pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
@@ -106,11 +106,11 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/main/class.html
-/// [2]: https://pyo3.rs/main/class.html#customizing-the-class
+/// [1]: https://pyo3.rs/latest/class.html
+/// [2]: https://pyo3.rs/latest/class.html#customizing-the-class
 /// [3]: std::marker::Send
 /// [4]: ../prelude/struct.PyAny.html
-/// [5]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
+/// [5]: https://pyo3.rs/latest/class/protocols.html#garbage-collector-integration
 /// [6]: https://docs.python.org/3/library/weakref.html
 /// [7]: https://doc.rust-lang.org/nomicon/leaking.html
 /// [8]: std::rc::Rc
@@ -139,11 +139,11 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/main/class.html
-/// [2]: https://pyo3.rs/main/class.html#customizing-the-class
+/// [1]: https://pyo3.rs/latest/class.html
+/// [2]: https://pyo3.rs/latest/class.html#customizing-the-class
 /// [3]: std::marker::Send
 /// [4]: ../prelude/struct.PyAny.html
-/// [5]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
+/// [5]: https://pyo3.rs/latest/class/protocols.html#garbage-collector-integration
 /// [6]: https://docs.python.org/3/library/weakref.html
 /// [7]: https://doc.rust-lang.org/nomicon/leaking.html
 /// [8]: std::rc::Rc
@@ -175,17 +175,17 @@ pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStr
 /// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
 /// This will add a transitive dependency on the [`inventory`][3] crate.
 ///
-/// [1]: https://pyo3.rs/main/class.html#instance-methods
-/// [2]: https://pyo3.rs/main/features.html#multiple-pymethods
+/// [1]: https://pyo3.rs/latest/class.html#instance-methods
+/// [2]: https://pyo3.rs/latest/features.html#multiple-pymethods
 /// [3]: https://docs.rs/inventory/
-/// [4]: https://pyo3.rs/main/class.html#constructor
-/// [5]: https://pyo3.rs/main/class.html#object-properties-using-getter-and-setter
-/// [6]: https://pyo3.rs/main/class.html#static-methods
-/// [7]: https://pyo3.rs/main/class.html#class-methods
-/// [8]: https://pyo3.rs/main/class.html#callable-objects
-/// [9]: https://pyo3.rs/main/class.html#class-attributes
-/// [10]: https://pyo3.rs/main/class.html#method-arguments
-/// [11]: https://pyo3.rs/main/class.html#object-properties-using-pyo3get-set
+/// [4]: https://pyo3.rs/latest/class.html#constructor
+/// [5]: https://pyo3.rs/latest/class.html#object-properties-using-getter-and-setter
+/// [6]: https://pyo3.rs/latest/class.html#static-methods
+/// [7]: https://pyo3.rs/latest/class.html#class-methods
+/// [8]: https://pyo3.rs/latest/class.html#callable-objects
+/// [9]: https://pyo3.rs/latest/class.html#class-attributes
+/// [10]: https://pyo3.rs/latest/class.html#method-arguments
+/// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
 #[proc_macro_attribute]
 pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
     pymethods_impl(input, PyClassMethodsType::Specialization)
@@ -214,17 +214,17 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 /// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
 /// This will add a transitive dependency on the [`inventory`][3] crate.
 ///
-/// [1]: https://pyo3.rs/main/class.html#instance-methods
-/// [2]: https://pyo3.rs/main/features.html#multiple-pymethods
+/// [1]: https://pyo3.rs/latest/class.html#instance-methods
+/// [2]: https://pyo3.rs/latest/features.html#multiple-pymethods
 /// [3]: https://docs.rs/inventory/
-/// [4]: https://pyo3.rs/main/class.html#constructor
-/// [5]: https://pyo3.rs/main/class.html#object-properties-using-getter-and-setter
-/// [6]: https://pyo3.rs/main/class.html#static-methods
-/// [7]: https://pyo3.rs/main/class.html#class-methods
-/// [8]: https://pyo3.rs/main/class.html#callable-objects
-/// [9]: https://pyo3.rs/main/class.html#class-attributes
-/// [10]: https://pyo3.rs/main/class.html#method-arguments
-/// [11]: https://pyo3.rs/main/class.html#object-properties-using-pyo3get-set
+/// [4]: https://pyo3.rs/latest/class.html#constructor
+/// [5]: https://pyo3.rs/latest/class.html#object-properties-using-getter-and-setter
+/// [6]: https://pyo3.rs/latest/class.html#static-methods
+/// [7]: https://pyo3.rs/latest/class.html#class-methods
+/// [8]: https://pyo3.rs/latest/class.html#callable-objects
+/// [9]: https://pyo3.rs/latest/class.html#class-attributes
+/// [10]: https://pyo3.rs/latest/class.html#method-arguments
+/// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
 #[proc_macro_attribute]
 pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStream {
     pymethods_impl(input, PyClassMethodsType::Inventory)
@@ -242,7 +242,7 @@ pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStre
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///
-/// [1]: https://pyo3.rs/main/function.html
+/// [1]: https://pyo3.rs/latest/function.html
 #[proc_macro_attribute]
 pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);

@@ -272,7 +272,7 @@ impl PyModule {
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).
     ///
-    /// [1]: https://pyo3.rs/main/class.html#constructor
+    /// [1]: https://pyo3.rs/latest/class.html#constructor
     pub fn add_class<T>(&self) -> PyResult<()>
     where
         T: PyClass,

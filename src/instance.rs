@@ -40,7 +40,7 @@ pub unsafe trait PyNativeType: Sized {
 ///  - [`Py::as_ref`], to borrow a GIL-bound reference to the contained object.
 ///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
 /// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
-/// See the [`PyCell` guide entry](https://pyo3.rs/main/class.html#pycell-and-interior-mutability)
+/// See the [`PyCell` guide entry](https://pyo3.rs/latest/class.html#pycell-and-interior-mutability)
 /// for more information.
 ///  - You can call methods directly on `Py` with [`Py::call`], [`Py::call_method`] and friends.
 /// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
@@ -66,7 +66,7 @@ pub unsafe trait PyNativeType: Sized {
 ///             // `py` will only last for this scope.
 ///
 ///             // `&PyDict` derives its lifetime from `py` and
-///             // so won't be able to outlive this closure.           
+///             // so won't be able to outlive this closure.
 ///             let dict: &PyDict = PyDict::new(py);
 ///
 ///             // because `Foo` contains `dict` its lifetime

@@ -12,7 +12,7 @@
 //! | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
 //! | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 //!
-//! For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/main/building_and_distribution/multiple_python_versions.html).
+//! For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building_and_distribution/multiple_python_versions.html).
 
 #[doc(hidden)]
 pub mod errors;
