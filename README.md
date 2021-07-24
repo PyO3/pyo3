@@ -18,7 +18,7 @@
 
 PyO3 supports Python 3.6 and up. The minimum required Rust version is 1.41.
 
-PyPy is also supported. Some minor features are unavailable on PyPy - please refer to the [pypy section in the guide](https://pyo3.rs/main/building_and_distribution/pypy.html) for more information.
+PyPy is also supported. Some minor features are unavailable on PyPy - please refer to the [pypy section in the guide](https://pyo3.rs/latest/building_and_distribution/pypy.html) for more information.
 
 You can either write a native Python module in Rust, or use Python from a Rust binary.
 
@@ -116,7 +116,7 @@ fn main_(py: Python) -> PyResult<()> {
 }
 ```
 
-Our guide has [a section](https://pyo3.rs/main/python_from_rust.html) with lots of examples
+Our guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries

@@ -7,7 +7,7 @@ use std::cell::UnsafeCell;
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
 /// uses the Python GIL to mediate concurrent access. This helps in cases where `once_sync` or
 /// `lazy_static`'s synchronization strategy can lead to deadlocks when interacting with the Python
-/// GIL. For an example, see [the FAQ section](https://pyo3.rs/main/faq.html) of the guide.
+/// GIL. For an example, see [the FAQ section](https://pyo3.rs/latest/faq.html) of the guide.
 ///
 /// # Examples
 ///

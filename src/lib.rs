@@ -27,7 +27,7 @@
 //! as the GIL is held, which is why using them doesn't require a  [`Python<'py>`](crate::Python) token.
 //!  The underlying Python object, if mutable, can be mutated through any reference.
 //!
-//! See the [guide](https://pyo3.rs/main/types.html) for an explanation of the different Python object types.
+//! See the [guide](https://pyo3.rs/latest/types.html) for an explanation of the different Python object types.
 //!
 //! ## The GIL-independent types
 //!
@@ -48,7 +48,7 @@
 //!
 //! PyO3 uses [feature flags](https://doc.rust-lang.org/cargo/reference/features.html)
 //! to enable you to opt-in to additional functionality. For a detailed description, see
-//! the [Features Reference chapter of the guide](https://pyo3.rs/main/features.html#features-reference).
+//! the [Features Reference chapter of the guide](https://pyo3.rs/latest/features.html#features-reference).
 //!
 //! ## Default feature flags
 //!
@@ -122,7 +122,7 @@
 //!
 //! Building with PyPy is also possible (via cpyext) for Python 3.6,
 //! targeted PyPy version is 7.3+. Please refer to the
-//! [pypy section](https://pyo3.rs/main/building_and_distribution/pypy.html)
+//! [pypy section](https://pyo3.rs/latest/building_and_distribution/pypy.html)
 //! in the guide for more information.
 //!
 //! # Example: Building a native Python module
@@ -130,7 +130,7 @@
 //! To build, test and publish your crate as a Python module, it is recommended that you use
 //! [maturin](https://github.com/PyO3/maturin) or
 //! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the
-//! [Building and Distribution chapter of the guide](https://pyo3.rs/main/building_and_distribution.html)
+//! [Building and Distribution chapter of the guide](https://pyo3.rs/latest/building_and_distribution.html)
 //! for more information.
 //!
 //! Add these files to your crate's root:
