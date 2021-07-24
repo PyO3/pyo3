@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
 
+### Changed
+
+- `PyErr::new` no longer acquires the Python GIL internally. [#1724](https://github.com/PyO3/pyo3/pull/1724)
+
 ### Fixed
 
 - Fix regression in 0.14.0 rejecting usage of `#[doc(hidden)]` on structs and functions annotated with PyO3 macros. [#1722](https://github.com/PyO3/pyo3/pull/1722)
