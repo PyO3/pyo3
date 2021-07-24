@@ -16,6 +16,9 @@ mod bufferinfo {
     use std::os::raw::{c_char, c_int, c_void};
     use std::ptr;
 
+    #[cfg(PyPy)]
+    const Py_MAX_NDIMS: usize = 36;
+
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct Py_buffer {
@@ -31,6 +34,12 @@ mod bufferinfo {
         pub strides: *mut Py_ssize_t,
         pub suboffsets: *mut Py_ssize_t,
         pub internal: *mut c_void,
+        #[cfg(PyPy)]
+        pub flags: c_int,
+        #[cfg(PyPy)]
+        pub _strides: [Py_ssize_t; Py_MAX_NDIMS],
+        #[cfg(PyPy)]
+        pub _shape: [Py_ssize_t; Py_MAX_NDIMS],
     }
 
     impl Py_buffer {
@@ -47,6 +56,12 @@ mod bufferinfo {
                 strides: ptr::null_mut(),
                 suboffsets: ptr::null_mut(),
                 internal: ptr::null_mut(),
+                #[cfg(PyPy)]
+                flags: 0,
+                #[cfg(PyPy)]
+                _strides: [0; Py_MAX_NDIMS],
+                #[cfg(PyPy)]
+                _shape: [0; Py_MAX_NDIMS],
             }
         }
     }
