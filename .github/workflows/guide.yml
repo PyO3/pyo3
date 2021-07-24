@@ -62,12 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
     steps:
-      - name: Create latest tag redirect
+      - name: Create latest tag redirects
         env:
           TAG_NAME: ${{ needs.build.outputs.tag_name }}
         run: |
           mkdir public
           echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
+          ln -sfT $TAG_NAME public/latest
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3.7.0-8
