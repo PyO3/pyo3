@@ -862,7 +862,7 @@ impl PyObject {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Py, PyObject};
     use crate::types::PyDict;
     use crate::{ffi, AsPyPointer, Python};

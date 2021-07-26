@@ -459,7 +459,7 @@ fn type_is_pymodule(ty: &syn::Type) -> bool {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Argument, PyFunctionSignature};
     use proc_macro2::TokenStream;
     use quote::quote;

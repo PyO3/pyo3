@@ -495,7 +495,7 @@ impl EnsureGIL {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;

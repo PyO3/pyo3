@@ -144,7 +144,7 @@ bigint_conversion!(
 );
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;

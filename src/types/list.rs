@@ -207,7 +207,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::PyList;
     use crate::Python;
     use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};

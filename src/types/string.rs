@@ -191,7 +191,7 @@ impl FromPyObject<'_> for char {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::PyString;
     use crate::Python;
     use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};

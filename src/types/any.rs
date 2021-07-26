@@ -682,7 +682,7 @@ impl PyAny {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,

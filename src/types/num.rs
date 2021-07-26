@@ -358,7 +358,7 @@ mod test_128bit_intergers {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::Python;
     use crate::ToPyObject;
 

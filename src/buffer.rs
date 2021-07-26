@@ -647,7 +647,7 @@ impl_element!(f32, Float);
 impl_element!(f64, Float);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::PyBuffer;
     use crate::ffi;
     use crate::Python;

@@ -152,7 +152,7 @@ impl<'a> IntoPy<PyObject> for &'a OsString {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::fmt::Debug;
     use std::{

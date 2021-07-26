@@ -123,7 +123,7 @@ mod not_limited_impls {
     }
 
     #[cfg(test)]
-    mod test {
+    mod tests {
         use super::PyComplex;
         use crate::Python;
         use assert_approx_eq::assert_approx_eq;
@@ -204,7 +204,7 @@ mod not_limited_impls {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::PyComplex;
     use crate::Python;
     use assert_approx_eq::assert_approx_eq;

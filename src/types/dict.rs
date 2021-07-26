@@ -456,7 +456,7 @@ mod hashbrown_hashmap_conversion {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::conversion::IntoPy;
     use crate::types::dict::IntoPyDict;
     #[cfg(not(PyPy))]
