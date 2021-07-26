@@ -168,7 +168,7 @@ complex_conversion!(f32);
 complex_conversion!(f64);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip

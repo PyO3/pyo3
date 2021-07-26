@@ -73,7 +73,7 @@ impl<'a> IntoPy<PyObject> for &'a PathBuf {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::borrow::Cow;
     use std::fmt::Debug;

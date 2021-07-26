@@ -543,7 +543,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
     use crate::{Python, ToPyObject};
 

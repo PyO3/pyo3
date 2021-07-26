@@ -114,7 +114,7 @@ impl<'a> FromPyObject<'a> for &'a [u8] {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use super::PyBytes;
     use crate::FromPyObject;
     use crate::Python;

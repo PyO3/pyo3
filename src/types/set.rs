@@ -405,7 +405,7 @@ mod hashbrown_hashset_conversion {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{PyFrozenSet, PySet};
     use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};

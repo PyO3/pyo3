@@ -165,7 +165,7 @@ impl PyByteArray {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::exceptions;
     use crate::types::PyByteArray;
     use crate::{PyObject, Python};

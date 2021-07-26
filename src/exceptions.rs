@@ -332,7 +332,7 @@ pub mod socket {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{PyException, PyUnicodeDecodeError};
     use crate::types::{IntoPyDict, PyDict};
     use crate::{PyErr, Python};

@@ -678,7 +678,7 @@ impl<'p> Python<'p> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyList};
 
