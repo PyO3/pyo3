@@ -5,6 +5,7 @@ use crate::{
     attributes::{self, take_pyo3_options},
     deprecations::Deprecations,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+    utils::PythonDoc,
 };
 use crate::{
     attributes::{is_attribute_ident, take_attributes, NameAttribute},
@@ -62,11 +63,10 @@ impl PyModuleOptions {
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn py_init(fnname: &Ident, options: PyModuleOptions, doc: syn::LitStr) -> TokenStream {
+pub fn py_init(fnname: &Ident, options: PyModuleOptions, doc: PythonDoc) -> TokenStream {
     let name = options.name.unwrap_or_else(|| fnname.unraw());
     let deprecations = options.deprecations;
     let cb_name = Ident::new(&format!("PyInit_{}", name), Span::call_site());
-    assert!(doc.value().ends_with('\0'));
 
     quote! {
         #[no_mangle]

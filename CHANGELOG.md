@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Add `PyList::get_item_unchecked` and `PyTuple::get_item_unchecked` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
+- Support `#[doc = include_str!(...)]` attributes on Rust 1.54 and up. [#1746](https://github.com/PyO3/pyo3/issues/1746)
 - Add `PyAny::py` as a convenience for `PyNativeType::py`. [#1751](https://github.com/PyO3/pyo3/pull/1751)
 - Add implementation of `std::ops::Index<usize>` for `PyList`, `PyTuple` and `PySequence`. [#1825](https://github.com/PyO3/pyo3/pull/1825)
 - Add range indexing implementations of `std::ops::Index` for `PyList`, `PyTuple` and `PySequence`. [#1829](https://github.com/PyO3/pyo3/pull/1829)

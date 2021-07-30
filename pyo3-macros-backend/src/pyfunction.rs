@@ -406,7 +406,7 @@ pub fn impl_wrap_pyfunction(
             .text_signature
             .as_ref()
             .map(|attr| (&python_name, attr)),
-    )?;
+    );
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 

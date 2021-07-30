@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
-use crate::utils::ensure_not_async_fn;
+use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
@@ -355,12 +355,10 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self) -> Cow<syn::LitStr> {
+    fn doc(&self) -> Cow<PythonDoc> {
         match self {
             PropertyType::Descriptor { field, .. } => {
-                let doc = utils::get_doc(&field.attrs, None)
-                    .unwrap_or_else(|_| syn::LitStr::new("", Span::call_site()));
-                Cow::Owned(doc)
+                Cow::Owned(utils::get_doc(&field.attrs, None))
             }
             PropertyType::Function { spec, .. } => Cow::Borrowed(&spec.doc),
         }
