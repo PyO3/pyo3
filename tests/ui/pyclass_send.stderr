@@ -15,4 +15,4 @@ note: required because it appears within the type `NotThreadSafe`
     |
 5   | struct NotThreadSafe {
     |        ^^^^^^^^^^^^^
-    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

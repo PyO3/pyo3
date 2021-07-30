@@ -303,7 +303,7 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
 fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
     if args
         .get(0)
-        .map(|py| utils::is_python(&py.ty))
+        .map(|py| utils::is_python(py.ty))
         .unwrap_or(false)
     {
         (Some(&args[0]), &args[1..])

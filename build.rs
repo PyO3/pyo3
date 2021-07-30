@@ -108,7 +108,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
     match (is_extension_module, target_os.as_str()) {
         (_, "windows") => {
             // always link on windows, even with extension module
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             // Set during cross-compiling.
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
@@ -126,7 +126,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
         (false, _) | (_, "android") => {
             // other systems, only link libs if not extension module
             // android always link.
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
             }

@@ -724,7 +724,7 @@ mod tests {
         assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
 
         // Exhust iterator.
-        while let Some(_) = iter.next() {}
+        for _ in &mut iter {}
 
         assert_eq!(iter.size_hint(), (0, Some(0)));
     }

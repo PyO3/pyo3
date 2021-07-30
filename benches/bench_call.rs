@@ -18,11 +18,11 @@ fn bench_call_0(b: &mut Bencher) {
         "#
         );
 
-        let foo = module.getattr("foo").unwrap();
+        let foo_module = module.getattr("foo").unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                foo.call0().unwrap();
+                foo_module.call0().unwrap();
             }
         });
     })
@@ -38,11 +38,11 @@ fn bench_call_method_0(b: &mut Bencher) {
         "#
         );
 
-        let foo = module.getattr("Foo").unwrap().call0().unwrap();
+        let foo_module = module.getattr("Foo").unwrap().call0().unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                foo.call_method0("foo").unwrap();
+                foo_module.call_method0("foo").unwrap();
             }
         });
     })

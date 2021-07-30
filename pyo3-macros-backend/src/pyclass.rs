@@ -262,7 +262,7 @@ pub fn build_py_class(
 
     impl_class(
         &class.ident,
-        &args,
+        args,
         doc,
         field_options,
         methods_type,
@@ -452,7 +452,7 @@ fn impl_class(
     let (impl_inventory, for_each_py_method) = match methods_type {
         PyClassMethodsType::Specialization => (None, quote! { visitor(collector.py_methods()); }),
         PyClassMethodsType::Inventory => (
-            Some(impl_methods_inventory(&cls)),
+            Some(impl_methods_inventory(cls)),
             quote! {
                 for inventory in pyo3::inventory::iter::<<Self as pyo3::class::impl_::HasMethodsInventory>::Methods>() {
                     visitor(pyo3::class::impl_::PyMethodsInventory::get(inventory));

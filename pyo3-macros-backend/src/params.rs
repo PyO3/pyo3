@@ -29,7 +29,7 @@ pub fn accept_args_kwargs(attrs: &[Argument]) -> (bool, bool) {
 
 /// Return true if the argument list is simply (*args, **kwds).
 pub fn is_forwarded_args(args: &[FnArg<'_>], attrs: &[Argument]) -> bool {
-    args.len() == 2 && is_args(attrs, &args[0].name) && is_kwargs(attrs, &args[1].name)
+    args.len() == 2 && is_args(attrs, args[0].name) && is_kwargs(attrs, args[1].name)
 }
 
 fn is_args(attrs: &[Argument], name: &syn::Ident) -> bool {
@@ -68,15 +68,7 @@ pub fn impl_arg_params(
         // is (*args, **kwds).
         let mut arg_convert = vec![];
         for (i, arg) in spec.args.iter().enumerate() {
-            arg_convert.push(impl_arg_param(
-                arg,
-                &spec,
-                i,
-                None,
-                &mut 0,
-                py,
-                &args_array,
-            )?);
+            arg_convert.push(impl_arg_param(arg, spec, i, None, &mut 0, py, &args_array)?);
         }
         return Ok(quote! {{
             let _args = Some(_args);
@@ -90,12 +82,12 @@ pub fn impl_arg_params(
     let mut keyword_only_parameters = Vec::new();
 
     for arg in spec.args.iter() {
-        if arg.py || is_args(&spec.attrs, &arg.name) || is_kwargs(&spec.attrs, &arg.name) {
+        if arg.py || is_args(&spec.attrs, arg.name) || is_kwargs(&spec.attrs, arg.name) {
             continue;
         }
         let name = arg.name.unraw().to_string();
-        let kwonly = spec.is_kw_only(&arg.name);
-        let required = !(arg.optional.is_some() || spec.default_value(&arg.name).is_some());
+        let kwonly = spec.is_kw_only(arg.name);
+        let required = !(arg.optional.is_some() || spec.default_value(arg.name).is_some());
 
         if kwonly {
             keyword_only_parameters.push(quote! {
@@ -118,8 +110,8 @@ pub fn impl_arg_params(
     let mut option_pos = 0;
     for (idx, arg) in spec.args.iter().enumerate() {
         param_conversion.push(impl_arg_param(
-            &arg,
-            &spec,
+            arg,
+            spec,
             idx,
             self_,
             &mut option_pos,
@@ -212,7 +204,7 @@ fn impl_arg_param(
         |e| pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
     };
 
-    if is_args(&spec.attrs, &name) {
+    if is_args(&spec.attrs, name) {
         ensure_spanned!(
             arg.optional.is_none(),
             arg.name.span() => "args cannot be optional"
@@ -220,7 +212,7 @@ fn impl_arg_param(
         return Ok(quote_arg_span! {
             let #arg_name = _args.unwrap().extract().map_err(#transform_error)?;
         });
-    } else if is_kwargs(&spec.attrs, &name) {
+    } else if is_kwargs(&spec.attrs, name) {
         ensure_spanned!(
             arg.optional.is_some(),
             arg.name.span() => "kwargs must be Option<_>"
@@ -259,7 +251,7 @@ fn impl_arg_param(
         }
     };
 
-    return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(&ty)) {
+    return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(ty)) {
         let (tref, mut_) = preprocess_tref(tref, self_);
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
