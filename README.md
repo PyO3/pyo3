@@ -20,17 +20,13 @@ PyO3 supports Python 3.6 and up. The minimum required Rust version is 1.41.
 
 PyPy is also supported. Some minor features are unavailable on PyPy - please refer to the [pypy section in the guide](https://pyo3.rs/latest/building_and_distribution/pypy.html) for more information.
 
-You can either write a native Python module in Rust, or use Python from a Rust binary.
+You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
-However, on some OSs, you need some additional packages. E.g. if you are on _Ubuntu 18.04_, please run
+### Using Rust from Python
 
-```bash
-sudo apt install python3-dev python-dev
-```
+PyO3 can be used to generate a native Python module. The easiest way to try this out for the first time is to use [`maturin`](https://github.com/PyO3/maturin). `maturin` is a tool for building and publishing Rust-based Python packages with minimal configuration. The following steps set up some files for an example Python module, install `maturin`, and then show how build and import the Python module.
 
-## Using Rust from Python
-
-PyO3 can be used to generate a native Python module.
+First, create a new folder (let's call it `string_sum`) containing the following two files:
 
 **`Cargo.toml`**
 
@@ -65,23 +61,50 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
     Ok((a + b).to_string())
 }
 
-/// A Python module implemented in Rust.
+/// A Python module implemented in Rust. The name of this function must match
+/// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
+/// import the module.
 #[pymodule]
-fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
+fn string_sum(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 
     Ok(())
 }
 ```
 
-While developing, you can symlink (or copy) and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd`, and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
+With those two files in place, now `maturin` needs to be installed. This can be done using Python's package manager `pip`. First, load up a new Python `virtualenv`, and install `maturin` into it:
 
-To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](https://github.com/PyO3/pyo3/tree/main/examples/word-count), while maturin should work on your crate without any configuration.
+```bash
+$ cd string_sum
+$ python -m venv .env
+$ source .env/bin/activate
+$ pip install maturin
+```
 
-## Using Python from Rust
+Now build and execute the module:
 
-If you want your Rust application to create a Python interpreter internally and
-use it to run Python code, add `pyo3` to your `Cargo.toml` like this:
+```bash
+$ maturin develop
+# lots of progress output as maturin runs the compilation...
+$ python
+>>> import string_sum
+>>> string_sum.sum_as_string(5, 20)
+'25'
+```
+
+As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). Both offer more flexibility than `maturin` but require further configuration.
+
+### Using Python from Rust
+
+To embed Python into a Rust binary, you need to ensure that your Python installation contains a shared library. The following steps demonstrate how to ensure this (for Ubuntu), and then give some example code which runs an embedded Python interpreter.
+
+To install the Python shared library, if you are on Ubuntu, you can run:
+
+```bash
+sudo apt install python3-dev
+```
+
+Start a new project with `cargo new`. Next, add  `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies.pyo3]
@@ -116,7 +139,7 @@ fn main_(py: Python) -> PyResult<()> {
 }
 ```
 
-Our guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
+The guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
 about this topic.
 
 ## Tools and libraries
