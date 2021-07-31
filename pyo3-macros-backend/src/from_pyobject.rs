@@ -84,10 +84,10 @@ impl<'a> Enum<'a> {
             let mut err_reasons = String::new();
             #(#var_extracts)*
             let type_name = obj.get_type().name()?;
-            let mut err_msg = format!("failed to extract enum {} ('{}')\n",
+            let err_msg = format!("failed to extract enum {} ('{}')\n{}",
                 #ty_name,
-                #error_names);
-            err_msg.push_str(&err_reasons);
+                #error_names,
+                &err_reasons);
             Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
