@@ -46,7 +46,7 @@ You can also symlink (or copy) and rename the shared library from the `target` f
 - on Windows, rename  `libyour_module.dll` to `your_module.pyd`.
 - on Linux, rename `libyour_module.so` to `your_module.so`.
 
-You can then open a Python shell in the same folder and you'll be able to use `import your_module`.
+You can then open a Python shell in the same folder and you'll be able to run `import your_module`.
 
 ## `Py_LIMITED_API`/`abi3`
 
