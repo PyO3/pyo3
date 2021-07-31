@@ -58,13 +58,13 @@ impl<'a> Enum<'a> {
                 let maybe_ret = || -> pyo3::PyResult<Self> {
                     #struct_derive
                 }();
-                if maybe_ret.is_ok() {
-                    return maybe_ret
-                }
-                if let Err(inner) = maybe_ret {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
-                    err_reasons.push_str(&format!("{}\n", inner.instance(py).str().unwrap()));
+                match maybe_ret {
+                    ok @ Ok(_) => return ok,
+                    Err(inner) => {
+                        let gil = Python::acquire_gil();
+                        let py = gil.python();
+                        err_reasons.push_str(&format!("{}\n", inner.instance(py).str().unwrap()));
+                    }
                 }
             );
 
@@ -83,7 +83,6 @@ impl<'a> Enum<'a> {
         quote!(
             let mut err_reasons = String::new();
             #(#var_extracts)*
-            let type_name = obj.get_type().name()?;
             let err_msg = format!("failed to extract enum {} ('{}')\n{}",
                 #ty_name,
                 #error_names,
