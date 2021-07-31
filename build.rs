@@ -108,7 +108,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
     match (is_extension_module, target_os.as_str()) {
         (_, "windows") => {
             // always link on windows, even with extension module
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             // Set during cross-compiling.
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
@@ -126,7 +126,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
         (false, _) | (_, "android") => {
             // other systems, only link libs if not extension module
             // android always link.
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
             }
@@ -192,9 +192,16 @@ fn configure_pyo3() -> Result<()> {
     )?;
     interpreter_config.emit_pyo3_cfgs();
 
+    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+
     // Enable use of const generics on Rust 1.51 and greater
-    if rustc_minor_version().unwrap_or(0) >= 51 {
+    if rustc_minor_version >= 51 {
         println!("cargo:rustc-cfg=min_const_generics");
+    }
+
+    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=addr_of");
     }
 
     Ok(())

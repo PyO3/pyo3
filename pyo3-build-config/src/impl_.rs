@@ -431,7 +431,7 @@ impl BuildFlags {
             script.push_str(&format!("print(config.get('{}', '0'))\n", k));
         }
 
-        let stdout = run_python_script(&interpreter, &script)?;
+        let stdout = run_python_script(interpreter, &script)?;
         let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
         ensure!(
             split_stdout.len() == BuildFlags::ALL.len(),
@@ -573,7 +573,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
-    let sysconfig_paths = search_lib_dir(&cross.lib_dir, &cross);
+    let sysconfig_paths = search_lib_dir(&cross.lib_dir, cross);
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
         .iter()

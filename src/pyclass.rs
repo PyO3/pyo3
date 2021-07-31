@@ -174,13 +174,13 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
         // __dict__ support
         if let Some(dict_offset) = PyCell::<T>::dict_offset() {
             unsafe {
-                (*type_object).tp_dictoffset = dict_offset as ffi::Py_ssize_t;
+                (*type_object).tp_dictoffset = dict_offset;
             }
         }
         // weakref support
         if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
             unsafe {
-                (*type_object).tp_weaklistoffset = weakref_offset as ffi::Py_ssize_t;
+                (*type_object).tp_weaklistoffset = weakref_offset;
             }
         }
     }
@@ -233,11 +233,11 @@ fn py_class_method_defs(
 #[cfg(Py_3_9)]
 fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
     #[inline(always)]
-    fn offset_def(name: &'static str, offset: usize) -> ffi::structmember::PyMemberDef {
+    fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::structmember::PyMemberDef {
         ffi::structmember::PyMemberDef {
             name: name.as_ptr() as _,
             type_code: ffi::structmember::T_PYSSIZET,
-            offset: offset as _,
+            offset,
             flags: ffi::structmember::READONLY,
             doc: std::ptr::null_mut(),
         }

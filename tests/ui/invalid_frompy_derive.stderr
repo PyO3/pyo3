@@ -168,7 +168,7 @@ error: cannot derive FromPyObject for empty structs and variants
 151 | #[derive(FromPyObject)]
     |          ^^^^^^^^^^^^
     |
-    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+    = note: this error originates in the derive macro `FromPyObject` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `=`
    --> $DIR/invalid_frompy_derive.rs:158:11

@@ -666,7 +666,7 @@ mod tests {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let bytes = py.eval("b'abcde'", None, None).unwrap();
-        let buffer = PyBuffer::get(&bytes).unwrap();
+        let buffer = PyBuffer::get(bytes).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 5);
         assert_eq!(buffer.format().to_str().unwrap(), "B");

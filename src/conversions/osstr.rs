@@ -121,7 +121,7 @@ impl IntoPy<PyObject> for &'_ OsStr {
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        (&self as &OsStr).to_object(py)
+        (self as &OsStr).to_object(py)
     }
 }
 
@@ -135,7 +135,7 @@ impl IntoPy<PyObject> for Cow<'_, OsStr> {
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        (&self as &OsStr).to_object(py)
+        (self as &OsStr).to_object(py)
     }
 }
 

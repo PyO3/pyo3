@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix regression in 0.14.0 rejecting usage of `#[doc(hidden)]` on structs and functions annotated with PyO3 macros. [#1722](https://github.com/PyO3/pyo3/pull/1722)
 - Fix regression in 0.14.0 leading to incorrect code coverage being computed for `#[pyfunction]`s. [#1726](https://github.com/PyO3/pyo3/pull/1726)
 - Fix incorrect FFI definition of `Py_Buffer` on PyPy. [#1737](https://github.com/PyO3/pyo3/pull/1737)
+- Fix incorrect calculation of `dictoffset` on 32-bit Windows. [#1475](https://github.com/PyO3/pyo3/pull/1475)
 
 ## [0.14.1] - 2021-07-04
 

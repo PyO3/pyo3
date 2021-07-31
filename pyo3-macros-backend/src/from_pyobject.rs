@@ -186,7 +186,7 @@ impl<'a> Container<'a> {
     /// Build derivation body for a struct.
     fn build(&self) -> TokenStream {
         match &self.ty {
-            ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(&ident)),
+            ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(ident)),
             ContainerType::TupleNewtype => self.build_newtype_struct(None),
             ContainerType::Tuple(len) => self.build_tuple_struct(*len),
             ContainerType::Struct(tups) => self.build_struct(tups),

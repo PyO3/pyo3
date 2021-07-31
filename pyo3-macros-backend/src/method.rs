@@ -266,7 +266,7 @@ impl<'a> FnSpec<'a> {
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
 
         let doc = utils::get_doc(
-            &meth_attrs,
+            meth_attrs,
             options
                 .text_signature
                 .as_ref()
@@ -413,7 +413,7 @@ impl<'a> FnSpec<'a> {
                 Argument::Arg(path, opt) | Argument::Kwarg(path, opt) => {
                     if path.is_ident(name) {
                         if let Some(val) = opt {
-                            let i: syn::Expr = syn::parse_str(&val).unwrap();
+                            let i: syn::Expr = syn::parse_str(val).unwrap();
                             return Some(i.into_token_stream());
                         }
                     }

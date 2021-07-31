@@ -402,7 +402,7 @@ mod tests {
         let error_type = py.get_type::<CustomError>();
         let ctx = [("CustomError", error_type)].into_py_dict(py);
         let type_description: String = py
-            .eval("str(CustomError)", None, Some(&ctx))
+            .eval("str(CustomError)", None, Some(ctx))
             .unwrap()
             .extract()
             .unwrap();
@@ -410,7 +410,7 @@ mod tests {
         py.run(
             "assert CustomError('oops').args == ('oops',)",
             None,
-            Some(&ctx),
+            Some(ctx),
         )
         .unwrap();
     }
