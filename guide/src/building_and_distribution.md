@@ -35,9 +35,18 @@ pyo3 = { {{#PYO3_CRATE_VERSION}} }
 
 On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a Python installation.
 
-## Distribution
+## Testing, building and distribution
 
-There are two ways to distribute your module as a Python package: [setuptools-rust] and [maturin]. setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). It allows (and sometimes requires) writing custom workflows in python. maturin has only few options and works without any additional configuration, instead it requires a rigid project structure and does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)), multiple extensions or running python scripts at build time.
+There are two main ways to test, build and distribute your module as a Python package: [setuptools-rust] and [maturin]. setuptools-rust needs several configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.). It allows (and sometimes requires) writing custom workflows in python. maturin has only few options and works without any additional configuration, instead it requires a rigid project structure and does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)), multiple extensions or running python scripts at build time.
+
+### Manual builds
+
+You can also symlink (or copy) and rename the shared library from the `target` folder:
+- on macOS, rename `libyour_module.dylib` to `your_module.so`.
+- on Windows, rename  `libyour_module.dll` to `your_module.pyd`.
+- on Linux, rename `libyour_module.so` to `your_module.so`.
+
+You can then open a Python shell in the same folder and you'll be able to run `import your_module`.
 
 ## `Py_LIMITED_API`/`abi3`
 
@@ -77,7 +86,7 @@ As an advanced feature, you can build PyO3 wheel without calling Python interpre
 Due to limitations in the Python API, there are a few `pyo3` features that do
 not work when compiling for `abi3`. These are:
 
-- `#[text_signature]` does not work on classes until Python 3.10 or greater.
+- `#[pyo3(text_signature = "...")]` does not work on classes until Python 3.10 or greater.
 - The `dict` and `weakref` options on classes are not supported until Python 3.9 or greater.
 - The buffer API is not supported.
 - Optimizations which rely on knowledge of the exact Python version compiled against.

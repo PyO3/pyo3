@@ -169,6 +169,23 @@ impl MyClass {
 }
 ```
 
+Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    num: i32,
+}
+
+#[pymethods]
+impl MyClass {
+    #[new]
+    fn new(num: i32) -> PyResult<Self> {
+        Ok(MyClass { num })
+    }
+}
+```
+
 If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
 
@@ -349,7 +366,7 @@ struct MyClass {
 }
 ```
 
-The above would make the `num` property available for reading and writing from Python code as `self.num`.
+The above would make the `num` field available for reading and writing as a `self.num` Python property. To expose the property with a different name to the field, specify this alongside the rest of the options, e.g. `#[pyo3(get, set, name = "custom_name")]`.
 
 Properties can be readonly or writeonly by using just `#[pyo3(get)]` or `#[pyo3(set)]` respectively.
 
@@ -720,8 +737,6 @@ struct MyClass {
     debug: bool,
 }
 
-impl pyo3::pyclass::PyClassAlloc for MyClass {}
-
 unsafe impl pyo3::PyTypeInfo for MyClass {
     type AsRefTarget = PyCell<Self>;
 
@@ -757,44 +772,51 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
 
-    fn for_each_method_def(visitor: &mut dyn FnMut(&pyo3::class::PyMethodDefType)) {
+    fn for_each_method_def(visitor: &mut dyn FnMut(&[pyo3::class::PyMethodDefType])) {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<MyClass>::new();
-        collector.py_methods().iter()
-            .chain(collector.py_class_descriptors())
-            .chain(collector.object_protocol_methods())
-            .chain(collector.async_protocol_methods())
-            .chain(collector.context_protocol_methods())
-            .chain(collector.descr_protocol_methods())
-            .chain(collector.mapping_protocol_methods())
-            .chain(collector.number_protocol_methods())
-            .for_each(visitor)
+        visitor(collector.py_methods());
+        visitor(collector.py_class_descriptors());
+        visitor(collector.object_protocol_methods());
+        visitor(collector.async_protocol_methods());
+        visitor(collector.context_protocol_methods());
+        visitor(collector.descr_protocol_methods());
+        visitor(collector.mapping_protocol_methods());
+        visitor(collector.number_protocol_methods());
     }
     fn get_new() -> Option<pyo3::ffi::newfunc> {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
     }
+    fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
+        use pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<Self>::new();
+        collector.alloc_impl()
+    }
+    fn get_free() -> Option<pyo3::ffi::freefunc> {
+        use pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<Self>::new();
+        collector.free_impl()
+    }
     fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.call_impl()
     }
-    fn for_each_proto_slot(visitor: &mut dyn FnMut(&pyo3::ffi::PyType_Slot)) {
+    fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
         // Implementation which uses dtolnay specialization to load all slots.
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
-        collector.object_protocol_slots()
-            .iter()
-            .chain(collector.number_protocol_slots())
-            .chain(collector.iter_protocol_slots())
-            .chain(collector.gc_protocol_slots())
-            .chain(collector.descr_protocol_slots())
-            .chain(collector.mapping_protocol_slots())
-            .chain(collector.sequence_protocol_slots())
-            .chain(collector.async_protocol_slots())
-            .chain(collector.buffer_protocol_slots())
-            .for_each(visitor);
+        visitor(collector.object_protocol_slots());
+        visitor(collector.number_protocol_slots());
+        visitor(collector.iter_protocol_slots());
+        visitor(collector.gc_protocol_slots());
+        visitor(collector.descr_protocol_slots());
+        visitor(collector.mapping_protocol_slots());
+        visitor(collector.sequence_protocol_slots());
+        visitor(collector.async_protocol_slots());
+        visitor(collector.buffer_protocol_slots());
     }
 
     fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {

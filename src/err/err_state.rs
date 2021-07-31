@@ -1,5 +1,9 @@
 use crate::{
-    exceptions::PyBaseException, ffi, types::PyType, IntoPy, IntoPyPointer, Py, PyObject, Python,
+    exceptions::{PyBaseException, PyTypeError},
+    ffi,
+    type_object::PyTypeObject,
+    types::PyType,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
 };
 
 #[derive(Clone)]
@@ -10,7 +14,11 @@ pub(crate) struct PyErrStateNormalized {
 }
 
 pub(crate) enum PyErrState {
-    Lazy {
+    LazyTypeAndValue {
+        ptype: fn(Python) -> &PyType,
+        pvalue: Box<dyn FnOnce(Python) -> PyObject + Send + Sync>,
+    },
+    LazyValue {
         ptype: Py<PyType>,
         pvalue: Box<dyn FnOnce(Python) -> PyObject + Send + Sync>,
     },
@@ -49,7 +57,19 @@ impl PyErrState {
         py: Python,
     ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
         match self {
-            PyErrState::Lazy { ptype, pvalue } => (
+            PyErrState::LazyTypeAndValue { ptype, pvalue } => {
+                let ty = ptype(py);
+                if unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } == 0 {
+                    Self::exceptions_must_derive_from_base_exception(py).into_ffi_tuple(py)
+                } else {
+                    (
+                        ptype(py).into_ptr(),
+                        pvalue(py).into_ptr(),
+                        std::ptr::null_mut(),
+                    )
+                }
+            }
+            PyErrState::LazyValue { ptype, pvalue } => (
                 ptype.into_ptr(),
                 pvalue(py).into_ptr(),
                 std::ptr::null_mut(),
@@ -64,6 +84,14 @@ impl PyErrState {
                 pvalue,
                 ptraceback,
             }) => (ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr()),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn exceptions_must_derive_from_base_exception(py: Python) -> Self {
+        PyErrState::LazyValue {
+            ptype: PyTypeError::type_object(py).into(),
+            pvalue: boxed_args("exceptions must derive from BaseException"),
         }
     }
 }

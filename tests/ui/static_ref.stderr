@@ -22,4 +22,4 @@ note: ...so that reference does not outlive borrowed content
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
-  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

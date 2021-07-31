@@ -28,6 +28,7 @@ impl PySequence {
         }
     }
 
+    /// Returns whether the sequence is empty.
     #[inline]
     pub fn is_empty(&self) -> PyResult<bool> {
         self.len().map(|l| l == 0)
@@ -329,7 +330,7 @@ impl<'v> PyTryFrom<'v> for PySequence {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
@@ -540,7 +541,7 @@ mod test {
         let v: Vec<i32> = vec![1, 2, 3];
         let ob = v.to_object(py);
         let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(&seq).unwrap();
+        let concat_seq = seq.concat(seq).unwrap();
         assert_eq!(6, concat_seq.len().unwrap());
         let concat_v: Vec<i32> = vec![1, 2, 3, 1, 2, 3];
         for (el, cc) in concat_seq.iter().unwrap().zip(concat_v) {
@@ -555,7 +556,7 @@ mod test {
         let v = "string";
         let ob = v.to_object(py);
         let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(&seq).unwrap();
+        let concat_seq = seq.concat(seq).unwrap();
         assert_eq!(12, concat_seq.len().unwrap());
         /*let concat_v = "stringstring".to_owned();
         for (el, cc) in seq.iter(py).unwrap().zip(concat_v.chars()) {

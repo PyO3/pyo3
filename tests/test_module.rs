@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
+use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction};
 mod common;
 
 #[pyclass]
@@ -48,7 +48,8 @@ fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
         42
     }
 
-    #[pyfn(m, pass_module)]
+    #[pyfn(m)]
+    #[pyo3(pass_module)]
     fn with_module(module: &PyModule) -> PyResult<&str> {
         module.name()
     }
@@ -122,7 +123,8 @@ fn test_module_with_functions() {
     );
 }
 
-#[pymodule(other_name)]
+#[pymodule]
+#[pyo3(name = "other_name")]
 fn some_name(_: Python, m: &PyModule) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
@@ -340,12 +342,14 @@ fn test_module_with_constant() {
     });
 }
 
-#[pyfunction(pass_module)]
+#[pyfunction]
+#[pyo3(pass_module)]
 fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
     module.name()
 }
 
-#[pyfunction(pass_module)]
+#[pyfunction]
+#[pyo3(pass_module)]
 fn pyfunction_with_module_and_py<'a>(
     module: &'a PyModule,
     _python: Python<'a>,
@@ -353,12 +357,14 @@ fn pyfunction_with_module_and_py<'a>(
     module.name()
 }
 
-#[pyfunction(pass_module)]
+#[pyfunction]
+#[pyo3(pass_module)]
 fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult<(&str, String)> {
     module.name().map(|s| (s, string))
 }
 
-#[pyfunction(pass_module, string = "\"foo\"")]
+#[pyfunction(string = "\"foo\"")]
+#[pyo3(pass_module)]
 fn pyfunction_with_module_and_default_arg<'a>(
     module: &'a PyModule,
     string: &str,
@@ -366,7 +372,8 @@ fn pyfunction_with_module_and_default_arg<'a>(
     module.name().map(|s| (s, string.into()))
 }
 
-#[pyfunction(pass_module, args = "*", kwargs = "**")]
+#[pyfunction(args = "*", kwargs = "**")]
+#[pyo3(pass_module)]
 fn pyfunction_with_module_and_args_kwargs<'a>(
     module: &'a PyModule,
     args: &PyTuple,
@@ -377,13 +384,24 @@ fn pyfunction_with_module_and_args_kwargs<'a>(
         .map(|s| (s, args.len(), kwargs.map(|d| d.len())))
 }
 
+#[pyfunction]
+#[pyo3(pass_module)]
+fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str> {
+    module.name()
+}
+
 #[pymodule]
 fn module_with_functions_with_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_default_arg, m)?)?;
-    m.add_function(wrap_pyfunction!(pyfunction_with_module_and_args_kwargs, m)?)
+    m.add_function(wrap_pyfunction!(pyfunction_with_module_and_args_kwargs, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        pyfunction_with_pass_module_in_attribute,
+        m
+    )?)?;
+    Ok(())
 }
 
 #[test]
@@ -413,4 +431,37 @@ fn test_module_functions_with_module() {
         "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
                         == ('module_with_functions_with_module', 1, 2)"
     );
+    py_assert!(
+        py,
+        m,
+        "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
+    );
+}
+
+#[test]
+#[allow(deprecated)]
+fn test_module_with_deprecated_name() {
+    #[pymodule(custom_name)]
+    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(custom_name)(py);
+        py_assert!(py, m, "m.__name__ == 'custom_name'");
+    })
+}
+
+#[test]
+fn test_module_doc_hidden() {
+    #[doc(hidden)]
+    #[pymodule]
+    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(my_module)(py);
+        py_assert!(py, m, "m.__doc__ == ''");
+    })
 }

@@ -1,99 +1,183 @@
 # Python Modules
 
-You can create a module as follows:
+You can create a module using `#[pymodule]`:
 
 ```rust
 use pyo3::prelude::*;
 
-// add bindings to the generated Python module
-// N.B: "rust2py" must be the name of the `.so` or `.pyd` file.
+#[pyfunction]
+fn double(x: usize) -> usize {
+    x * 2
+}
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-    // PyO3 aware function. All of our Python interfaces could be declared in a separate module.
-    // Note that the `#[pyfn()]` annotation automatically converts the arguments from
-    // Python objects to Rust values, and the Rust return value back into a Python object.
-    // The `_py` argument represents that we're holding the GIL.
-    #[pyfn(m)]
-    #[pyo3(name = "sum_as_string")]
-    fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
-        let out = sum_as_string(a, b);
-        Ok(out)
-    }
-
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
-
-// logic implemented as a normal Rust function
-fn sum_as_string(a: i64, b: i64) -> String {
-    format!("{}", a + b)
-}
-
-# fn main() {}
 ```
 
-The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your
-module to Python. It can take as an argument the name of your module, which must be the name of the `.so`
-or `.pyd` file; the default is the Rust function's name.
+The `#[pymodule]` procedural macro takes care of exporting the initialization function of your
+module to Python.
 
-If the name of the module (the default being the function name) does not match the name of the `.so` or
-`.pyd` file, you will get an import error in Python with the following message:
+The module's name defaults to the name of the Rust function. You can override the module name by
+using `#[pyo3(name = "custom_name")]`:
+
+```rust
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn double(x: usize) -> usize {
+    x * 2
+}
+
+#[pymodule]
+#[pyo3(name = "custom_name")]
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(double, m)?)?;
+    Ok(())
+}
+```
+
+The name of the module must match the name of the `.so` or `.pyd`
+file. Otherwise, you will get an import error in Python with the following message:
 `ImportError: dynamic module does not define module export function (PyInit_name_of_your_module)`
 
-To import the module, either copy the shared library as described in [the README](https://github.com/PyO3/pyo3)
-or use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
+To import the module, either:
+ - copy the shared library as described in [Manual builds](building_and_distribution.html#manual-builds), or
+ - use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
 `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation
 
-The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module
+The [Rust doc comments](https://doc.rust-lang.org/stable/book/ch03-04-comments.html) of the module
 initialization function will be applied automatically as the Python docstring of your module.
 
-```python
-import rust2py
+For example, building off of the above code, this will print `This module is implemented in Rust.`:
 
-print(rust2py.__doc__)
+```python
+import my_extension
+
+print(my_extension.__doc__)
 ```
 
-Which means that the above Python code will print `This module is implemented in Rust.`.
+## Organizing your module registration code
 
-## Modules as objects
+For most projects, it's adequate to centralize all your FFI code into a single Rust module.
 
-In Python, modules are first class objects. This means that you can store them as values or add them to
-dicts or other modules:
+However, for larger projects, it can be helpful to split your Rust code into several Rust modules to keep your code 
+readable. Unfortunately, though, some of the macros like `wrap_pyfunction!` do not yet work when used on code defined 
+in other modules ([#1709](https://github.com/PyO3/pyo3/issues/1709)). One way to work around this is to pass 
+references to the `PyModule` so that each module registers its own FFI code. For example:
+
+```rust
+// src/lib.rs
+use pyo3::prelude::*;
+
+#[pymodule]
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+    dirutil::register(py, m)?;
+    osutil::register(py, m)?;
+    Ok(())
+}
+
+// src/dirutil.rs
+# mod dirutil {
+use pyo3::prelude::*;
+
+pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<SomeClass>()?;
+    Ok(())
+}
+
+#[pyclass]
+struct SomeClass {
+    x: usize,
+}
+# }
+
+// src/osutil.rs
+# mod osutil {
+use pyo3::prelude::*;
+
+pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn determine_current_os() -> String {
+    "linux".to_owned()
+}
+# }
+```
+
+Another workaround for splitting FFI code across multiple modules ([#1709](https://github.com/PyO3/pyo3/issues/1709))
+is to add `use module::*`, like this: 
+
+```rust
+// src/lib.rs
+use pyo3::prelude::*;
+use osutil::*;
+
+#[pymodule]
+fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
+    Ok(())
+}
+
+// src/osutil.rs
+# mod osutil {
+use pyo3::prelude::*;
+
+#[pyfunction]
+pub(crate) fn determine_current_os() -> String {
+    "linux".to_owned()
+}
+# }
+```
+
+## Python submodules
+
+You can create a module hierarchy within a single extension module by using 
+[`PyModule.add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
+For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{wrap_pyfunction, wrap_pymodule};
-use pyo3::types::IntoPyDict;
-
-#[pyfunction]
-fn subfunction() -> String {
-    "Subfunction".to_string()
-}
-
-fn init_submodule(module: &PyModule) -> PyResult<()> {
-    module.add_function(wrap_pyfunction!(subfunction, module)?)?;
-    Ok(())
-}
 
 #[pymodule]
-fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
-    let submod = PyModule::new(py, "submodule")?;
-    init_submodule(submod)?;
-    module.add_submodule(submod)?;
+fn parent_module(py: Python, m: &PyModule) -> PyResult<()> {
+    register_child_module(py, m)?;
     Ok(())
+}
+
+fn register_child_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
+    let child_module = PyModule::new(py, "child_module")?;
+    child_module.add_function(wrap_pyfunction!(func, child_module)?)?;
+    parent_module.add_submodule(child_module)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn func() -> String {
+    "func".to_string()
 }
 
 # Python::with_gil(|py| {
-#    let supermodule = wrap_pymodule!(supermodule)(py);
-#    let ctx = [("supermodule", supermodule)].into_py_dict(py);
+#    use pyo3::wrap_pymodule;
+#    use pyo3::types::IntoPyDict;
+#    let parent_module = wrap_pymodule!(parent_module)(py);
+#    let ctx = [("parent_module", parent_module)].into_py_dict(py);
 #
-#    py.run("assert supermodule.submodule.subfunction() == 'Subfunction'", None, Some(&ctx)).unwrap();
+#    py.run("assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 # })
 ```
 
-This way, you can create a module hierarchy within a single extension module.
+Note that this does not define a package, so this won’t allow Python code to directly import 
+submodules by using `from parent_module import child_module`. For more information, see 
+[#759](https://github.com/PyO3/pyo3/issues/759) and 
+[#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
 
-It is not necessary to add `#[pymodule]` on nested modules, this is only required on the top-level module.
+It is not necessary to add `#[pymodule]` on nested modules, which is only required on the top-level module.

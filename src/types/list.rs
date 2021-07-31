@@ -15,6 +15,22 @@ pub struct PyList(PyAny);
 
 pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_Check);
 
+#[inline]
+unsafe fn new_from_iter<T>(
+    elements: impl ExactSizeIterator<Item = T>,
+    convert: impl Fn(T) -> PyObject,
+) -> *mut ffi::PyObject {
+    let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
+    for (i, e) in elements.enumerate() {
+        let obj = convert(e).into_ptr();
+        #[cfg(not(Py_LIMITED_API))]
+        ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, obj);
+        #[cfg(Py_LIMITED_API)]
+        ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
+    }
+    ptr
+}
+
 impl PyList {
     /// Constructs a new list with the given elements.
     pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
@@ -22,15 +38,8 @@ impl PyList {
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
-        let elements_iter = elements.into_iter();
-        let len = elements_iter.len();
         unsafe {
-            let ptr = ffi::PyList_New(len as Py_ssize_t);
-            for (i, e) in elements_iter.enumerate() {
-                let obj = e.to_object(py).into_ptr();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
-            }
-            py.from_owned_ptr::<PyList>(ptr)
+            py.from_owned_ptr::<PyList>(new_from_iter(elements.into_iter(), |e| e.to_object(py)))
         }
     }
 
@@ -41,8 +50,15 @@ impl PyList {
 
     /// Returns the length of the list.
     pub fn len(&self) -> usize {
-        // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe { ffi::PyList_Size(self.as_ptr()) as usize }
+        unsafe {
+            #[cfg(not(Py_LIMITED_API))]
+            let size = ffi::PyList_GET_SIZE(self.as_ptr());
+            #[cfg(Py_LIMITED_API)]
+            let size = ffi::PyList_Size(self.as_ptr());
+
+            // non-negative Py_ssize_t should always fit into Rust usize
+            size as usize
+        }
     }
 
     /// Checks if the list is empty.
@@ -54,25 +70,16 @@ impl PyList {
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyAny {
-        assert!((index.abs() as usize) < self.len());
+        assert!(index >= 0 && index < self.len() as isize);
         unsafe {
+            #[cfg(not(Py_LIMITED_API))]
+            let ptr = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+            #[cfg(Py_LIMITED_API)]
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
 
             // PyList_GetItem return borrowed ptr; must make owned for safety (see #890).
             ffi::Py_INCREF(ptr);
             self.py().from_owned_ptr(ptr)
-        }
-    }
-
-    /// Gets the item at the specified index.
-    ///
-    /// Panics if the index is out of range.
-    pub fn get_parked_item(&self, index: isize) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                self.py(),
-                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t),
-            )
         }
     }
 
@@ -151,6 +158,16 @@ impl<'a> Iterator for PyListIterator<'a> {
             None
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.list.len();
+
+        (
+            len.saturating_sub(self.index as usize),
+            Some(len.saturating_sub(self.index as usize)),
+        )
+    }
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyList {
@@ -167,14 +184,7 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe {
-            let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
-            for (i, e) in self.iter().enumerate() {
-                let obj = e.to_object(py).into_ptr();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
-            }
-            PyObject::from_owned_ptr(py, ptr)
-        }
+        unsafe { PyObject::from_owned_ptr(py, new_from_iter(self.iter(), |e| e.to_object(py))) }
     }
 }
 
@@ -192,19 +202,12 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python) -> PyObject {
-        unsafe {
-            let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
-            for (i, e) in self.into_iter().enumerate() {
-                let obj = e.into_py(py).into_ptr();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
-            }
-            PyObject::from_owned_ptr(py, ptr)
-        }
+        unsafe { PyObject::from_owned_ptr(py, new_from_iter(self.into_iter(), |e| e.into_py(py))) }
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::PyList;
     use crate::Python;
     use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};
@@ -213,8 +216,7 @@ mod test {
     fn test_new() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -225,9 +227,7 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1, 2, 3, 4];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[1, 2, 3, 4]);
         assert_eq!(4, list.len());
     }
 
@@ -235,9 +235,7 @@ mod test {
     fn test_get_item() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -245,25 +243,19 @@ mod test {
     }
 
     #[test]
-    fn test_get_parked_item() {
+    #[should_panic]
+    fn test_get_item_invalid() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(2, list.get_parked_item(0).extract::<i32>(py).unwrap());
-        assert_eq!(3, list.get_parked_item(1).extract::<i32>(py).unwrap());
-        assert_eq!(5, list.get_parked_item(2).extract::<i32>(py).unwrap());
-        assert_eq!(7, list.get_parked_item(3).extract::<i32>(py).unwrap());
+        let list = PyList::new(py, &[2, 3, 5, 7]);
+        list.get_item(-1);
     }
 
     #[test]
     fn test_set_item() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.set_item(0, val).unwrap();
@@ -293,9 +285,7 @@ mod test {
     fn test_insert() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2, 3, 5, 7]);
         let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
@@ -326,9 +316,7 @@ mod test {
     fn test_append() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![2];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[2]);
         list.append(3).unwrap();
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
@@ -355,8 +343,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &v);
         let mut idx = 0;
         for el in list.iter() {
             assert_eq!(v[idx], el.extract::<i32>().unwrap());
@@ -366,12 +353,29 @@ mod test {
     }
 
     #[test]
+    fn test_iter_size_hint() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let ob = v.to_object(py);
+        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        let mut iter = list.iter();
+        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+        iter.next();
+        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+
+        // Exhust iterator.
+        for _ in &mut iter {}
+
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
     fn test_into_iter() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1, 2, 3, 4];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &[1, 2, 3, 4]);
         for (i, item) in list.iter().enumerate() {
             assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
         }
@@ -382,8 +386,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = PyList::new(py, &v);
         let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
     }

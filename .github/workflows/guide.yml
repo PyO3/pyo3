@@ -21,13 +21,13 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-         toolchain: nightly
-         profile: minimal
+          toolchain: nightly
+          profile: minimal
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: '0.4.7'
+          mdbook-version: "0.4.10"
 
       - name: Prepare tag
         id: prepare_tag
@@ -44,7 +44,7 @@ jobs:
         # This adds the docs to gh-pages-build/doc
       - name: Build the doc
         run: |
-          cargo +nightly rustdoc --lib --no-default-features --features="macros num-bigint num-complex hashbrown serde multiple-pymethods" -- --cfg docsrs
+          cargo +nightly rustdoc --lib --no-default-features --features="macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods" -- --cfg docsrs
           cp -r target/doc gh-pages-build/doc
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
 
@@ -55,24 +55,25 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./gh-pages-build/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
-          full_commit_message: 'Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}'
+          full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
     steps:
-      - name: Create latest tag redirect
+      - name: Create latest tag redirects
         env:
           TAG_NAME: ${{ needs.build.outputs.tag_name }}
         run: |
           mkdir public
           echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
+          ln -sfT $TAG_NAME public/latest
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3.7.0-8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public/
-          full_commit_message: 'Release ${{ needs.build.outputs.tag_name }}'
+          full_commit_message: "Release ${{ needs.build.outputs.tag_name }}"
           keep_files: true

@@ -80,7 +80,7 @@ impl<'source> FromPyObject<'source> for f32 {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #[cfg(not(Py_LIMITED_API))]
     use crate::ffi::PyFloat_AS_DOUBLE;
     #[cfg(not(Py_LIMITED_API))]

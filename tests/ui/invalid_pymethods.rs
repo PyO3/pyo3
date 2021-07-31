@@ -48,35 +48,35 @@ impl MyClass {
 #[pymethods]
 impl MyClass {
     #[new]
-    #[text_signature = "()"]
+    #[pyo3(text_signature = "()")]
     fn text_signature_on_new() {}
 }
 
 #[pymethods]
 impl MyClass {
     #[call]
-    #[text_signature = "()"]
+    #[pyo3(text_signature = "()")]
     fn text_signature_on_call(&self) {}
 }
 
 #[pymethods]
 impl MyClass {
     #[getter(x)]
-    #[text_signature = "()"]
+    #[pyo3(text_signature = "()")]
     fn text_signature_on_getter(&self) {}
 }
 
 #[pymethods]
 impl MyClass {
     #[setter(x)]
-    #[text_signature = "()"]
+    #[pyo3(text_signature = "()")]
     fn text_signature_on_setter(&self) {}
 }
 
 #[pymethods]
 impl MyClass {
     #[classattr]
-    #[text_signature = "()"]
+    #[pyo3(text_signature = "()")]
     fn text_signature_on_classattr() {}
 }
 
@@ -106,6 +106,12 @@ impl MyClass {
 #[pymethods]
 impl MyClass {
     async fn async_method(&self) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[pyo3(pass_module)]
+    fn method_cannot_pass_module(&self, m: &PyModule) {}
 }
 
 fn main() {}

@@ -16,8 +16,32 @@ error: setter function can have at most two arguments ([pyo3::Python,] and value
 24 |     fn setter_with_too_many_args(&mut self, py: Python, foo: u32, bar: u32) {}
    |                                                                        ^^^
 
-error: `#[pyo3(get, set)]` is not supported on tuple struct fields
-  --> $DIR/invalid_property_args.rs:28:44
+error: `get` and `set` with tuple struct fields require `name`
+  --> $DIR/invalid_property_args.rs:28:50
    |
-28 | struct TupleGetterSetter(#[pyo3(get, set)] i32);
-   |                                            ^^^
+28 | struct TupleGetterSetterNoName(#[pyo3(get, set)] i32);
+   |                                                  ^^^
+
+error: `get` may only be specified once
+  --> $DIR/invalid_property_args.rs:31:32
+   |
+31 | struct MultipleGet(#[pyo3(get, get)] i32);
+   |                                ^^^
+
+error: `set` may only be specified once
+  --> $DIR/invalid_property_args.rs:34:32
+   |
+34 | struct MultipleSet(#[pyo3(set, set)] i32);
+   |                                ^^^
+
+error: `name` may only be specified once
+  --> $DIR/invalid_property_args.rs:37:49
+   |
+37 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
+   |                                                 ^^^^^
+
+error: `name` is useless without `get` or `set`
+  --> $DIR/invalid_property_args.rs:40:40
+   |
+40 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
+   |                                        ^^^^^^^

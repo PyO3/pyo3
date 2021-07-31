@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{types::PyType, wrap_pyfunction, wrap_pymodule, PyCell};
+use pyo3::{types::PyType, wrap_pymodule, PyCell};
 
 mod common;
 
@@ -37,7 +37,7 @@ fn class_with_docs_and_signature() {
     /// docs line1
     #[pyclass]
     /// docs line2
-    #[text_signature = "(a, b=None, *, c=42)"]
+    #[pyo3(text_signature = "(a, b=None, *, c=42)")]
     /// docs line3
     struct MyClass {}
 
@@ -71,7 +71,7 @@ fn class_with_docs_and_signature() {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn class_with_signature() {
     #[pyclass]
-    #[text_signature = "(a, b=None, *, c=42)"]
+    #[pyo3(text_signature = "(a, b=None, *, c=42)")]
     struct MyClass {}
 
     #[pymethods]
@@ -103,7 +103,7 @@ fn class_with_signature() {
 #[test]
 fn test_function() {
     #[pyfunction(a, b = "None", "*", c = 42)]
-    #[text_signature = "(a, b=None, *, c=42)"]
+    #[pyo3(text_signature = "(a, b=None, *, c=42)")]
     fn my_function(a: i32, b: Option<i32>, c: i32) {
         let _ = (a, b, c);
     }
@@ -120,7 +120,7 @@ fn test_pyfn() {
     #[pymodule]
     fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
         #[pyfn(m, a, b = "None", "*", c = 42)]
-        #[text_signature = "(a, b=None, *, c=42)"]
+        #[pyo3(text_signature = "(a, b=None, *, c=42)")]
         fn my_function(a: i32, b: Option<i32>, c: i32) {
             let _ = (a, b, c);
         }
@@ -145,21 +145,21 @@ fn test_methods() {
 
     #[pymethods]
     impl MyClass {
-        #[text_signature = "($self, a)"]
+        #[pyo3(text_signature = "($self, a)")]
         fn method(&self, a: i32) {
             let _ = a;
         }
-        #[text_signature = "($self, b)"]
+        #[pyo3(text_signature = "($self, b)")]
         fn pyself_method(_this: &PyCell<Self>, b: i32) {
             let _ = b;
         }
         #[classmethod]
-        #[text_signature = "($cls, c)"]
+        #[pyo3(text_signature = "($cls, c)")]
         fn class_method(_cls: &PyType, c: i32) {
             let _ = c;
         }
         #[staticmethod]
-        #[text_signature = "(d)"]
+        #[pyo3(text_signature = "(d)")]
         fn static_method(d: i32) {
             let _ = d;
         }
@@ -195,7 +195,7 @@ fn test_methods() {
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_raw_identifiers() {
     #[pyclass]
-    #[text_signature = "($self)"]
+    #[pyo3(text_signature = "($self)")]
     struct r#MyClass {}
 
     #[pymethods]
@@ -204,7 +204,7 @@ fn test_raw_identifiers() {
         fn new() -> MyClass {
             MyClass {}
         }
-        #[text_signature = "($self)"]
+        #[pyo3(text_signature = "($self)")]
         fn r#method(&self) {}
     }
 

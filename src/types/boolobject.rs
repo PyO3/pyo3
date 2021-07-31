@@ -58,7 +58,7 @@ impl<'source> FromPyObject<'source> for bool {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::{PyAny, PyBool};
     use crate::Python;
     use crate::ToPyObject;

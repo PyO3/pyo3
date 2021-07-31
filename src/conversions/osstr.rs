@@ -121,7 +121,7 @@ impl IntoPy<PyObject> for &'_ OsStr {
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        (&self as &OsStr).to_object(py)
+        (self as &OsStr).to_object(py)
     }
 }
 
@@ -135,7 +135,7 @@ impl IntoPy<PyObject> for Cow<'_, OsStr> {
 impl ToPyObject for OsString {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        (&self as &OsStr).to_object(py)
+        (self as &OsStr).to_object(py)
     }
 }
 
@@ -145,8 +145,14 @@ impl IntoPy<PyObject> for OsString {
     }
 }
 
+impl<'a> IntoPy<PyObject> for &'a OsString {
+    fn into_py(self, py: Python) -> PyObject {
+        self.to_object(py)
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::fmt::Debug;
     use std::{
@@ -205,6 +211,7 @@ mod test {
             let os_str = OsStr::new("Hello\0\n🐍");
             test_roundtrip::<&OsStr>(py, os_str);
             test_roundtrip::<OsString>(py, os_str.to_os_string());
+            test_roundtrip::<&OsString>(py, &os_str.to_os_string());
         })
     }
 }

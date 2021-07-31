@@ -1,5 +1,4 @@
 //! Includes `PyCell` implementation.
-use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::exceptions::PyRuntimeError;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
@@ -7,6 +6,12 @@ use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
 use crate::{class::impl_::PyClassBaseType, class::impl_::PyClassThreadChecker};
+use crate::{
+    conversion::{AsPyPointer, FromPyPointer, ToPyObject},
+    ffi::PyBaseObject_Type,
+    type_object::get_tp_free,
+    PyTypeInfo,
+};
 use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
@@ -22,49 +27,7 @@ pub struct PyCellBase<T> {
     borrow_flag: Cell<BorrowFlag>,
 }
 
-unsafe impl<T, U> PyLayout<T> for PyCellBase<U>
-where
-    U: PySizedLayout<T>,
-{
-    const IS_NATIVE_TYPE: bool = true;
-}
-
-/// Inner type of `PyCell` without dict slots and reference counter.
-/// This struct has two usages:
-/// 1. As an inner type of `PyRef` and `PyRefMut`.
-/// 2. When `#[pyclass(extends=Base)]` is specified, `PyCellInner<Base>` is used as a base layout.
-#[doc(hidden)]
-#[repr(C)]
-pub struct PyCellInner<T: PyClass> {
-    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    value: ManuallyDrop<UnsafeCell<T>>,
-}
-
-impl<T: PyClass> AsPyPointer for PyCellInner<T> {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self as *const _) as *mut _
-    }
-}
-
-unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
-    const IS_NATIVE_TYPE: bool = false;
-    fn py_init(&mut self, value: T) {
-        self.value = ManuallyDrop::new(UnsafeCell::new(value));
-    }
-    unsafe fn py_drop(&mut self, py: Python) {
-        ManuallyDrop::drop(&mut self.value);
-        self.ob_base.py_drop(py);
-    }
-}
-
-// These impls ensures `PyCellInner` can be a base type.
-impl<T: PyClass> PySizedLayout<T> for PyCellInner<T> {}
-
-impl<T: PyClass> PyCellInner<T> {
-    fn get_ptr(&self) -> *mut T {
-        self.value.get()
-    }
-}
+unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 
 /// `PyCell` is the container type for [`PyClass`](../pyclass/trait.PyClass.html).
 ///
@@ -133,36 +96,92 @@ impl<T: PyClass> PyCellInner<T> {
 /// ```
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
-    inner: PyCellInner<T>,
-    thread_checker: T::ThreadChecker,
-    // DO NOT CHANGE THE ORDER OF THESE FIELDS WITHOUT CHANGING PyCell::dict_offset()
-    // AND PyCell::weakref_offset()
-    dict: T::Dict,
-    weakref: T::WeakRef,
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+    contents: PyCellContents<T>,
+}
+
+#[repr(C)]
+pub(crate) struct PyCellContents<T: PyClass> {
+    pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
+    pub(crate) thread_checker: T::ThreadChecker,
+    pub(crate) dict: T::Dict,
+    pub(crate) weakref: T::WeakRef,
 }
 
 impl<T: PyClass> PyCell<T> {
     /// Get the offset of the dictionary from the start of the struct in bytes.
     #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
-    pub(crate) fn dict_offset() -> Option<usize> {
+    pub(crate) fn dict_offset() -> Option<ffi::Py_ssize_t> {
+        use std::convert::TryInto;
         if T::Dict::IS_DUMMY {
             None
         } else {
-            Some(
-                std::mem::size_of::<Self>()
-                    - std::mem::size_of::<T::Dict>()
-                    - std::mem::size_of::<T::WeakRef>(),
-            )
+            #[cfg(addr_of)]
+            let offset = {
+                // With std::ptr::addr_of - can measure offset using uninit memory without UB.
+                let cell = std::mem::MaybeUninit::<Self>::uninit();
+                let base_ptr = cell.as_ptr();
+                let dict_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.dict) };
+                unsafe { (dict_ptr as *const u8).offset_from(base_ptr as *const u8) }
+            };
+            #[cfg(not(addr_of))]
+            let offset = {
+                // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
+                // make a zero-initialised "fake" one so that referencing it is not UB.
+                let mut cell = std::mem::MaybeUninit::<Self>::uninit();
+                unsafe {
+                    std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
+                }
+                let cell = unsafe { cell.assume_init() };
+                let dict_ptr = &cell.contents.dict;
+                // offset_from wasn't stabilised until 1.47, so we also have to work around
+                // that...
+                let offset = (dict_ptr as *const _ as usize) - (&cell as *const _ as usize);
+                // This isn't a valid cell, so ensure no Drop code runs etc.
+                std::mem::forget(cell);
+                offset
+            };
+            // Py_ssize_t may not be equal to isize on all platforms
+            #[allow(clippy::useless_conversion)]
+            Some(offset.try_into().expect("offset should fit in Py_ssize_t"))
         }
     }
 
     /// Get the offset of the weakref list from the start of the struct in bytes.
     #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
-    pub(crate) fn weakref_offset() -> Option<usize> {
+    pub(crate) fn weakref_offset() -> Option<ffi::Py_ssize_t> {
+        use std::convert::TryInto;
         if T::WeakRef::IS_DUMMY {
             None
         } else {
-            Some(std::mem::size_of::<Self>() - std::mem::size_of::<T::WeakRef>())
+            #[cfg(addr_of)]
+            let offset = {
+                // With std::ptr::addr_of - can measure offset using uninit memory without UB.
+                let cell = std::mem::MaybeUninit::<Self>::uninit();
+                let base_ptr = cell.as_ptr();
+                let weaklist_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.weakref) };
+                unsafe { (weaklist_ptr as *const u8).offset_from(base_ptr as *const u8) }
+            };
+            #[cfg(not(addr_of))]
+            let offset = {
+                // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
+                // make a zero-initialised "fake" one so that referencing it is not UB.
+                let mut cell = std::mem::MaybeUninit::<Self>::uninit();
+                unsafe {
+                    std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
+                }
+                let cell = unsafe { cell.assume_init() };
+                let weaklist_ptr = &cell.contents.weakref;
+                // offset_from wasn't stabilised until 1.47, so we also have to work around
+                // that...
+                let offset = (weaklist_ptr as *const _ as usize) - (&cell as *const _ as usize);
+                // This isn't a valid cell, so ensure no Drop code runs etc.
+                std::mem::forget(cell);
+                offset
+            };
+            // Py_ssize_t may not be equal to isize on all platforms
+            #[allow(clippy::useless_conversion)]
+            Some(offset.try_into().expect("offset should fit in Py_ssize_t"))
         }
     }
 }
@@ -228,13 +247,12 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
-        self.thread_checker.ensure();
-        let flag = self.inner.get_borrow_flag();
+        let flag = self.get_borrow_flag();
         if flag == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
         } else {
-            self.inner.set_borrow_flag(flag.increment());
-            Ok(PyRef { inner: &self.inner })
+            self.set_borrow_flag(flag.increment());
+            Ok(PyRef { inner: self })
         }
     }
 
@@ -260,12 +278,11 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
-        self.thread_checker.ensure();
-        if self.inner.get_borrow_flag() != BorrowFlag::UNUSED {
+        if self.get_borrow_flag() != BorrowFlag::UNUSED {
             Err(PyBorrowMutError { _private: () })
         } else {
-            self.inner.set_borrow_flag(BorrowFlag::HAS_MUTABLE_BORROW);
-            Ok(PyRefMut { inner: &self.inner })
+            self.set_borrow_flag(BorrowFlag::HAS_MUTABLE_BORROW);
+            Ok(PyRefMut { inner: self })
         }
     }
 
@@ -299,11 +316,10 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
-        self.thread_checker.ensure();
-        if self.inner.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
+        if self.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
         } else {
-            Ok(&*self.inner.value.get())
+            Ok(&*self.contents.value.get())
         }
     }
 
@@ -338,41 +354,17 @@ impl<T: PyClass> PyCell<T> {
         std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
-    /// Allocates a new PyCell given a type object `subtype`. Used by our `tp_new` implementation.
-    pub(crate) unsafe fn internal_new(
-        py: Python,
-        subtype: *mut ffi::PyTypeObject,
-    ) -> PyResult<*mut Self> {
-        let base = T::new(py, subtype);
-        if base.is_null() {
-            return Err(PyErr::fetch(py));
-        }
-        let base = base as *mut PyCellBase<T::BaseNativeType>;
-        (*base).borrow_flag = Cell::new(BorrowFlag::UNUSED);
-        let self_ = base as *mut Self;
-        (*self_).dict = T::Dict::new();
-        (*self_).weakref = T::WeakRef::new();
-        (*self_).thread_checker = T::ThreadChecker::new();
-        Ok(self_)
+    fn get_ptr(&self) -> *mut T {
+        self.contents.value.get()
     }
 }
 
-unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
-    const IS_NATIVE_TYPE: bool = false;
-    fn py_init(&mut self, value: T) {
-        self.inner.value = ManuallyDrop::new(UnsafeCell::new(value));
-    }
-    unsafe fn py_drop(&mut self, py: Python) {
-        ManuallyDrop::drop(&mut self.inner.value);
-        self.dict.clear_dict(py);
-        self.weakref.clear_weakrefs(self.as_ptr(), py);
-        self.inner.ob_base.py_drop(py);
-    }
-}
+unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {}
+impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
 
 impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner.as_ptr()
+        (self as *const _) as *mut _
     }
 }
 
@@ -453,7 +445,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// # });
 /// ```
 pub struct PyRef<'p, T: PyClass> {
-    inner: &'p PyCellInner<T>,
+    inner: &'p PyCell<T>,
 }
 
 impl<'p, T: PyClass> PyRef<'p, T> {
@@ -570,7 +562,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 ///
 /// See the [`PyCell`](struct.PyCell.html) and [`PyRef`](struct.PyRef.html) documentations for more.
 pub struct PyRefMut<'p, T: PyClass> {
-    inner: &'p PyCellInner<T>,
+    inner: &'p PyCell<T>,
 }
 
 impl<'p, T: PyClass> PyRefMut<'p, T> {
@@ -669,7 +661,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
 pub struct BorrowFlag(usize);
 
 impl BorrowFlag {
-    const UNUSED: BorrowFlag = BorrowFlag(0);
+    pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
     const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::max_value());
     const fn increment(self) -> Self {
         Self(self.0 + 1)
@@ -733,11 +725,17 @@ impl From<PyBorrowMutError> for PyErr {
 pub trait PyCellLayout<T>: PyLayout<T> {
     fn get_borrow_flag(&self) -> BorrowFlag;
     fn set_borrow_flag(&self, flag: BorrowFlag);
+    /// Implementation of tp_dealloc.
+    /// # Safety
+    /// - slf must be a valid pointer to an instance of a T or a subclass.
+    /// - slf must not be used after this call (as it will be freed).
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python);
 }
 
 impl<T, U> PyCellLayout<T> for PyCellBase<U>
 where
     U: PySizedLayout<T>,
+    T: PyTypeInfo,
 {
     fn get_borrow_flag(&self) -> BorrowFlag {
         self.borrow_flag.get()
@@ -745,16 +743,44 @@ where
     fn set_borrow_flag(&self, flag: BorrowFlag) {
         self.borrow_flag.set(flag)
     }
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
+        // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+        if T::type_object_raw(py) == &mut PyBaseObject_Type {
+            return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
+        }
+
+        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            if let Some(dealloc) = (*T::type_object_raw(py)).tp_dealloc {
+                dealloc(slf as _);
+            } else {
+                get_tp_free(ffi::Py_TYPE(slf))(slf as _);
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unreachable!("subclassing native types is not possible with the `abi3` feature");
+    }
 }
 
-impl<T: PyClass> PyCellLayout<T> for PyCellInner<T>
+impl<T: PyClass> PyCellLayout<T> for PyCell<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyCellLayout<T::BaseType>,
 {
     fn get_borrow_flag(&self) -> BorrowFlag {
+        self.contents.thread_checker.ensure();
         self.ob_base.get_borrow_flag()
     }
     fn set_borrow_flag(&self, flag: BorrowFlag) {
         self.ob_base.set_borrow_flag(flag)
+    }
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
+        // Safety: Python only calls tp_dealloc when no references to the object remain.
+        let cell = &mut *(slf as *mut PyCell<T>);
+        ManuallyDrop::drop(&mut cell.contents.value);
+        cell.contents.dict.clear_dict(py);
+        cell.contents.weakref.clear_weakrefs(slf, py);
+        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(slf, py)
     }
 }

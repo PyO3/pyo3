@@ -78,7 +78,9 @@ py_unarys_func!(iternext, PyIterNextProtocol, Self::__next__);
 ///
 /// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
 pub enum IterNextOutput<T, U> {
+    /// The value yielded by the iterator.
     Yield(T),
+    /// The `StopIteration` object.
     Return(U),
 }
 

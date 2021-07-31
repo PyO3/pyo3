@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.14.0-alpha.0"
+version = "0.14.1"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -11,6 +11,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
+once_cell = "1"
 
 [features]
 default = []

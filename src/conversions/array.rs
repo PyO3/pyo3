@@ -107,7 +107,7 @@ mod min_const_generics {
     }
 
     #[cfg(test)]
-    mod test {
+    mod tests {
         use super::*;
         use std::{
             panic,
@@ -257,7 +257,7 @@ fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{PyResult, Python};
 
     #[test]

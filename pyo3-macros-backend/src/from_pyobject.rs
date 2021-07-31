@@ -1,4 +1,4 @@
-use crate::attributes::{self, get_pyo3_attributes, FromPyWithAttribute};
+use crate::attributes::{self, get_pyo3_options, FromPyWithAttribute};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -195,7 +195,7 @@ impl<'a> Container<'a> {
     /// Build derivation body for a struct.
     fn build(&self) -> TokenStream {
         match &self.ty {
-            ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(&ident)),
+            ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(ident)),
             ContainerType::TupleNewtype => self.build_newtype_struct(None),
             ContainerType::Tuple(len) => self.build_tuple_struct(*len),
             ContainerType::Struct(tups) => self.build_struct(tups),
@@ -353,7 +353,7 @@ impl ContainerOptions {
             annotation: None,
         };
         for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for pyo3_attr in pyo3_attrs {
                     match pyo3_attr {
                         ContainerPyO3Attribute::Transparent(kw) => {
@@ -451,7 +451,7 @@ impl FieldPyO3Attributes {
         let mut from_py_with = None;
 
         for attr in attrs {
-            if let Some(pyo3_attrs) = get_pyo3_attributes(attr)? {
+            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for pyo3_attr in pyo3_attrs {
                     match pyo3_attr {
                         FieldPyO3Attribute::Getter(field_getter) => {

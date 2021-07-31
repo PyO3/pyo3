@@ -55,16 +55,23 @@ impl<T> Debug for PyBuffer<T> {
     }
 }
 
+/// Represents the type of a Python buffer element.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ElementType {
+    /// A signed integer type and its width in bytes.
     SignedInteger { bytes: usize },
+    /// An unsigned integer type and its width in bytes.
     UnsignedInteger { bytes: usize },
+    /// A boolean type.
     Bool,
+    /// A float type and its width in bytes.
     Float { bytes: usize },
+    /// An unknown type. This may occur when parsing has failed.
     Unknown,
 }
 
 impl ElementType {
+    /// Determines the `ElementType` from a Python `struct` module format string.
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
             [char] | [b'@', char] => native_element_type_from_type_char(*char),
@@ -590,7 +597,7 @@ impl<T> Drop for PyBuffer<T> {
     }
 }
 
-/// Like `std::mem::cell`, but only provides read-only access to the data.
+/// Like [std::cell::Cell], but only provides read-only access to the data.
 ///
 /// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
 ///  The data cannot be modified through the reference, but other references may
@@ -599,11 +606,13 @@ impl<T> Drop for PyBuffer<T> {
 pub struct ReadOnlyCell<T: Element>(cell::UnsafeCell<T>);
 
 impl<T: Element> ReadOnlyCell<T> {
+    /// Returns a copy of the current value.
     #[inline]
     pub fn get(&self) -> T {
         unsafe { *self.0.get() }
     }
 
+    /// Returns a pointer to the current value.
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.0.get()
@@ -638,7 +647,7 @@ impl_element!(f32, Float);
 impl_element!(f64, Float);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::PyBuffer;
     use crate::ffi;
     use crate::Python;
@@ -657,7 +666,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let bytes = py.eval("b'abcde'", None, None).unwrap();
-        let buffer = PyBuffer::get(&bytes).unwrap();
+        let buffer = PyBuffer::get(bytes).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 5);
         assert_eq!(buffer.format().to_str().unwrap(), "B");

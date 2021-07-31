@@ -29,12 +29,24 @@ use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr;
 
-/// Access traits
+// Access traits
 
 /// Trait for accessing the date components of a struct containing a date.
 pub trait PyDateAccess {
+    /// Returns the year, as a positive int.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_GET_YEAR>
     fn get_year(&self) -> i32;
+    /// Returns the month, as an int from 1 through 12.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_GET_MONTH>
     fn get_month(&self) -> u8;
+    /// Returns the day, as an int from 1 through 31.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_GET_DAY>
     fn get_day(&self) -> u8;
 }
 
@@ -44,17 +56,51 @@ pub trait PyDateAccess {
 /// microsecond) representation of the delta, they are *not* intended as
 /// aliases for calculating the total duration in each of these units.
 pub trait PyDeltaAccess {
+    /// Returns the number of days, as an int from -999999999 to 999999999.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
     fn get_days(&self) -> i32;
+    /// Returns the number of seconds, as an int from 0 through 86399.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
     fn get_seconds(&self) -> i32;
+    /// Returns the number of microseconds, as an int from 0 through 999999.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
     fn get_microseconds(&self) -> i32;
 }
 
 /// Trait for accessing the time components of a struct containing a time.
 pub trait PyTimeAccess {
+    /// Returns the hour, as an int from 0 through 23.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_HOUR>
     fn get_hour(&self) -> u8;
+    /// Returns the minute, as an int from 0 through 59.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_MINUTE>
     fn get_minute(&self) -> u8;
+    /// Returns the second, as an int from 0 through 59.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_SECOND>
     fn get_second(&self) -> u8;
+    /// Returns the microsecond, as an int from 0 through 999999.
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_MICROSECOND>
     fn get_microsecond(&self) -> u32;
+    /// Returns whether this date is the later of two moments with the
+    /// same representation, during a repeated interval.
+    ///
+    /// This typically occurs at the end of daylight savings time, or during
+    /// leap seconds. Only valid if the represented time is ambiguous. See
+    /// [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool;
 }
@@ -71,6 +117,7 @@ pyobject_native_type!(
 );
 
 impl PyDate {
+    /// Creates a new `datetime.date`.
     pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
@@ -273,6 +320,7 @@ pyobject_native_type!(
 );
 
 impl PyTime {
+    /// Creates a new `datetime.time` object.
     pub fn new<'p>(
         py: Python<'p>,
         hour: u8,
@@ -368,6 +416,7 @@ pyobject_native_type!(
 );
 
 impl PyDelta {
+    /// Creates a new `timedelta`.
     pub fn new(
         py: Python,
         days: i32,

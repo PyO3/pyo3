@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.13.2"
+version = "0.14.1"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -24,14 +24,16 @@ num-bigint = { version = "0.4", optional = true }
 num-complex = { version = "0.4", optional = true }
 # must stay at 0.1.x for Rust 1.41 compatibility
 paste = { version = "0.1.18", optional = true }
-pyo3-macros = { path = "pyo3-macros", version = "=0.13.2", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.14.1", optional = true }
 unindent = { version = "0.1.4", optional = true }
 hashbrown = { version = ">= 0.9, < 0.12", optional = true }
+indexmap = { version = ">= 1.6, < 1.8", optional = true }
 serde = {version = "1.0", optional = true}
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-criterion = "0.3"
+# O.3.5 uses the matches! macro, which isn't compatible with Rust 1.41
+criterion = "=0.3.4"
 trybuild = "1.0.23"
 rustversion = "1.0"
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
@@ -40,7 +42,7 @@ pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initi
 serde_json = "1.0.61"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "=0.14.0-alpha.0" }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.14.1" }
 
 [features]
 default = ["macros"]
@@ -74,6 +76,10 @@ nightly = []
 
 [[bench]]
 name = "bench_call"
+harness = false
+
+[[bench]]
+name = "bench_err"
 harness = false
 
 [[bench]]
@@ -117,5 +123,5 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods"]
+features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap"]
 rustdoc-args = ["--cfg", "docsrs"]

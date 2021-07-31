@@ -81,7 +81,10 @@ impl PyErr {
         T: PyTypeObject,
         A: PyErrArguments + Send + Sync + 'static,
     {
-        Python::with_gil(|py| PyErr::from_type(T::type_object(py), args))
+        PyErr::from_state(PyErrState::LazyTypeAndValue {
+            ptype: T::type_object,
+            pvalue: boxed_args(args),
+        })
     }
 
     /// Constructs a new error, with the usual lazy initialization of Python exceptions.
@@ -97,7 +100,7 @@ impl PyErr {
             return exceptions_must_derive_from_base_exception(ty.py());
         }
 
-        PyErr::from_state(PyErrState::Lazy {
+        PyErr::from_state(PyErrState::LazyValue {
             ptype: ty.into(),
             pvalue: boxed_args(args),
         })
@@ -319,7 +322,7 @@ impl PyErr {
         T: ToBorrowedObject,
     {
         exc.with_borrowed_ptr(py, |exc| unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(), exc) != 0
+            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), exc) != 0
         })
     }
 
@@ -329,7 +332,7 @@ impl PyErr {
         T: PyTypeObject,
     {
         unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(), T::type_object(py).as_ptr()) != 0
+            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), T::type_object(py).as_ptr()) != 0
         }
     }
 
@@ -390,6 +393,28 @@ impl PyErr {
         PyErr::from_state(PyErrState::Normalized(self.normalized(py).clone()))
     }
 
+    /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
+    /// associated with the exception, as accessible from Python through `__cause__`.
+    pub fn cause(&self, py: Python) -> Option<PyErr> {
+        let ptr = unsafe { ffi::PyException_GetCause(self.pvalue(py).as_ptr()) };
+        let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
+        obj.map(|x| Self::from_instance(x))
+    }
+
+    /// Set the cause associated with the exception, pass `None` to clear it.
+    pub fn set_cause(&self, py: Python, cause: Option<Self>) {
+        if let Some(cause) = cause {
+            let cause = cause.into_instance(py);
+            unsafe {
+                ffi::PyException_SetCause(self.pvalue(py).as_ptr(), cause.as_ptr());
+            }
+        } else {
+            unsafe {
+                ffi::PyException_SetCause(self.pvalue(py).as_ptr(), std::ptr::null_mut());
+            }
+        }
+    }
+
     fn from_state(state: PyErrState) -> PyErr {
         PyErr {
             state: UnsafeCell::new(Some(state)),
@@ -397,9 +422,12 @@ impl PyErr {
     }
 
     /// Returns borrowed reference to this Err's type
-    fn ptype_ptr(&self) -> *mut ffi::PyObject {
+    fn ptype_ptr(&self, py: Python) -> *mut ffi::PyObject {
         match unsafe { &*self.state.get() } {
-            Some(PyErrState::Lazy { ptype, .. }) => ptype.as_ptr(),
+            // In lazy type case, normalize before returning ptype in case the type is not a valid
+            // exception type.
+            Some(PyErrState::LazyTypeAndValue { .. }) => self.normalized(py).ptype.as_ptr(),
+            Some(PyErrState::LazyValue { ptype, .. }) => ptype.as_ptr(),
             Some(PyErrState::FfiTuple { ptype, .. }) => ptype.as_ptr(),
             Some(PyErrState::Normalized(n)) => n.ptype.as_ptr(),
             None => panic!("Cannot access exception type while normalizing"),
@@ -532,10 +560,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
 
 #[inline]
 fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
-    PyErr::from_state(PyErrState::Lazy {
-        ptype: exceptions::PyTypeError::type_object(py).into(),
-        pvalue: boxed_args("exceptions must derive from BaseException"),
-    })
+    PyErr::from_state(PyErrState::exceptions_must_derive_from_base_exception(py))
 }
 
 #[cfg(test)]
@@ -545,13 +570,31 @@ mod tests {
     use crate::{PyErr, Python};
 
     #[test]
-    fn set_typeerror() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err: PyErr = exceptions::PyTypeError::new_err(());
-        err.restore(py);
-        assert!(PyErr::occurred(py));
-        drop(PyErr::fetch(py));
+    fn set_valueerror() {
+        Python::with_gil(|py| {
+            let err: PyErr = exceptions::PyValueError::new_err("some exception message");
+            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            err.restore(py);
+            assert!(PyErr::occurred(py));
+            let err = PyErr::fetch(py);
+            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            assert_eq!(err.to_string(), "ValueError: some exception message");
+        })
+    }
+
+    #[test]
+    fn invalid_error_type() {
+        Python::with_gil(|py| {
+            let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
+            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            err.restore(py);
+            let err = PyErr::fetch(py);
+            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            assert_eq!(
+                err.to_string(),
+                "TypeError: exceptions must derive from BaseException"
+            );
+        })
     }
 
     #[test]
@@ -626,5 +669,37 @@ mod tests {
 
         is_send::<PyErrState>();
         is_sync::<PyErrState>();
+    }
+
+    #[test]
+    fn test_pyerr_cause() {
+        Python::with_gil(|py| {
+            let err = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error");
+            assert!(err.cause(py).is_none());
+
+            let err = py
+                .run(
+                    "raise Exception('banana') from Exception('apple')",
+                    None,
+                    None,
+                )
+                .expect_err("raising should have given us an error");
+            let cause = err
+                .cause(py)
+                .expect("raising from should have given us a cause");
+            assert_eq!(cause.to_string(), "Exception: apple");
+
+            err.set_cause(py, None);
+            assert!(err.cause(py).is_none());
+
+            let new_cause = exceptions::PyValueError::new_err("orange");
+            err.set_cause(py, Some(new_cause));
+            let cause = err
+                .cause(py)
+                .expect("set_cause should have given us a cause");
+            assert_eq!(cause.to_string(), "ValueError: orange");
+        });
     }
 }

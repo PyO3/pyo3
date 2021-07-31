@@ -1,23 +1,26 @@
-pub mod abstract_;
+pub(crate) mod abstract_;
 // skipped bytearrayobject.h
 #[cfg(not(PyPy))]
-pub mod bytesobject;
-pub mod ceval;
-pub mod code;
-pub mod compile;
+pub(crate) mod bytesobject;
+pub(crate) mod ceval;
+pub(crate) mod code;
+pub(crate) mod compile;
 #[cfg(not(PyPy))]
-pub mod dictobject;
+pub(crate) mod dictobject;
 // skipped fileobject.h
-pub mod frameobject;
-pub mod import;
+pub(crate) mod frameobject;
+pub(crate) mod import;
 #[cfg(all(Py_3_8, not(PyPy)))]
-pub mod initconfig;
+pub(crate) mod initconfig;
 // skipped interpreteridobject.h
-pub mod listobject;
-pub mod object;
-pub mod pydebug;
+pub(crate) mod listobject;
+pub(crate) mod object;
+pub(crate) mod pydebug;
 #[cfg(all(Py_3_8, not(PyPy)))]
-pub mod pylifecycle;
+pub(crate) mod pylifecycle;
+
+#[cfg(all(Py_3_8, not(PyPy)))]
+pub(crate) mod pystate;
 
 pub use self::abstract_::*;
 #[cfg(not(PyPy))]
@@ -36,3 +39,6 @@ pub use self::object::*;
 pub use self::pydebug::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
+
+#[cfg(all(Py_3_8, not(PyPy)))]
+pub use self::pystate::*;

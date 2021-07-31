@@ -35,34 +35,34 @@ error: expected receiver for #[setter]
    |     ^^
 
 error: text_signature not allowed on __new__; if you want to add a signature on __new__, put it on the struct definition instead
-  --> $DIR/invalid_pymethods.rs:51:24
+  --> $DIR/invalid_pymethods.rs:51:12
    |
-51 |     #[text_signature = "()"]
-   |                        ^^^^
+51 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:58:24
+  --> $DIR/invalid_pymethods.rs:58:12
    |
-58 |     #[text_signature = "()"]
-   |                        ^^^^
+58 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:65:24
+  --> $DIR/invalid_pymethods.rs:65:12
    |
-65 |     #[text_signature = "()"]
-   |                        ^^^^
+65 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:72:24
+  --> $DIR/invalid_pymethods.rs:72:12
    |
-72 |     #[text_signature = "()"]
-   |                        ^^^^
+72 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:79:24
+  --> $DIR/invalid_pymethods.rs:79:12
    |
-79 |     #[text_signature = "()"]
-   |                        ^^^^
+79 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
 
 error: cannot specify a second method type
   --> $DIR/invalid_pymethods.rs:86:7
@@ -95,3 +95,9 @@ Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and
     |
 108 |     async fn async_method(&self) {}
     |     ^^^^^
+
+error: `pass_module` cannot be used on Python methods
+   --> $DIR/invalid_pymethods.rs:113:12
+    |
+113 |     #[pyo3(pass_module)]
+    |            ^^^^^^^^^^^

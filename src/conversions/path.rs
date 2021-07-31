@@ -1,4 +1,5 @@
-use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::types::PyType;
+use crate::{FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,21 @@ impl ToPyObject for Path {
 
 impl FromPyObject<'_> for PathBuf {
     fn extract(ob: &PyAny) -> PyResult<Self> {
-        Ok(PathBuf::from(OsString::extract(ob)?))
+        let os_str = match OsString::extract(ob) {
+            Ok(s) => s,
+            Err(err) => {
+                let py = ob.py();
+                let pathlib = py.import("pathlib")?;
+                let pathlib_path: &PyType = pathlib.getattr("Path")?.downcast()?;
+                if pathlib_path.is_instance(ob)? {
+                    let path_str = ob.call_method0("__str__")?;
+                    OsString::extract(path_str)?
+                } else {
+                    return Err(err);
+                }
+            }
+        };
+        Ok(PathBuf::from(os_str))
     }
 }
 
@@ -51,8 +66,14 @@ impl IntoPy<PyObject> for PathBuf {
     }
 }
 
+impl<'a> IntoPy<PyObject> for &'a PathBuf {
+    fn into_py(self, py: Python) -> PyObject {
+        self.as_os_str().to_object(py)
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{types::PyString, IntoPy, PyObject, Python, ToPyObject};
     use std::borrow::Cow;
     use std::fmt::Debug;
@@ -105,11 +126,12 @@ mod test {
                 let pystring: &PyString = pyobject.extract(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
                 let roundtripped_obj: PathBuf = pystring.extract().unwrap();
-                assert!(obj.as_ref() == roundtripped_obj.as_path());
+                assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
             }
             let path = Path::new("Hello\0\n🐍");
             test_roundtrip::<&Path>(py, path);
             test_roundtrip::<PathBuf>(py, path.to_path_buf());
+            test_roundtrip::<&PathBuf>(py, &path.to_path_buf());
         })
     }
 }

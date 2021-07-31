@@ -67,7 +67,7 @@ pub fn impl_methods(
                         attributes,
                     };
                     let attrs = get_cfg_attributes(&konst.attrs);
-                    let meth = pymethod::gen_py_const(ty, &spec);
+                    let meth = gen_py_const(ty, &spec);
                     methods.push(quote!(#(#attrs)* #meth));
                 }
             }
@@ -87,6 +87,26 @@ pub fn impl_methods(
 
         #methods_registration
     })
+}
+
+fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
+    let member = &spec.rust_ident;
+    let deprecations = &spec.attributes.deprecations;
+    let python_name = &spec.null_terminated_python_name();
+    quote! {
+        pyo3::class::PyMethodDefType::ClassAttribute({
+            pyo3::class::PyClassAttributeDef::new(
+                #python_name,
+                pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                        #deprecations
+                        pyo3::IntoPy::into_py(#cls::#member, py)
+                    }
+                    __wrap
+                })
+            )
+        })
+    }
 }
 
 fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {

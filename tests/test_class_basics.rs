@@ -317,7 +317,7 @@ fn test_pymethods_from_py_with() {
 }
 
 #[pyclass]
-struct TupleClass(i32);
+struct TupleClass(#[pyo3(get, set, name = "value")] i32);
 
 #[test]
 fn test_tuple_struct_class() {
@@ -326,5 +326,18 @@ fn test_tuple_struct_class() {
         assert!(typeobj.call((), None).is_err());
 
         py_assert!(py, typeobj, "typeobj.__name__ == 'TupleClass'");
+
+        let instance = Py::new(py, TupleClass(5)).unwrap();
+        py_run!(
+            py,
+            instance,
+            r#"
+        assert instance.value == 5;
+        instance.value = 1234;
+        assert instance.value == 1234;
+        "#
+        );
+
+        assert_eq!(instance.borrow(py).0, 1234);
     });
 }

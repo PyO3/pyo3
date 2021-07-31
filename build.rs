@@ -1,22 +1,13 @@
 use std::{env, process::Command};
 
-use pyo3_build_config::{InterpreterConfig, PythonImplementation, PythonVersion};
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use pyo3_build_config::{
+    bail, ensure,
+    errors::{Context, Result},
+    InterpreterConfig, PythonImplementation, PythonVersion,
+};
 
 /// Minimum Python version PyO3 supports.
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 6 };
-
-// A simple macro for returning an error. Resembles anyhow::bail.
-macro_rules! bail {
-    ($msg: expr) => { return Err($msg.into()); };
-    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
-}
-
-// A simple macro for checking a condition. Resembles anyhow::ensure.
-macro_rules! ensure {
-    ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
-}
 
 fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     ensure!(
@@ -87,9 +78,7 @@ fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
         match config.implementation {
             PythonImplementation::CPython => match &config.ld_version {
                 Some(ld_version) => format!("python{}", ld_version),
-                None => {
-                    return Err("failed to configure `ld_version` when compiling for unix".into())
-                }
+                None => bail!("failed to configure `ld_version` when compiling for unix"),
             },
             PythonImplementation::PyPy => format!("pypy{}-c", config.version.major),
         }
@@ -119,7 +108,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
     match (is_extension_module, target_os.as_str()) {
         (_, "windows") => {
             // always link on windows, even with extension module
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             // Set during cross-compiling.
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
@@ -137,7 +126,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
         (false, _) | (_, "android") => {
             // other systems, only link libs if not extension module
             // android always link.
-            println!("{}", get_rustc_link_lib(&interpreter_config)?);
+            println!("{}", get_rustc_link_lib(interpreter_config)?);
             if let Some(libdir) = &interpreter_config.libdir {
                 println!("cargo:rustc-link-search=native={}", libdir);
             }
@@ -157,7 +146,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 
     if env::var_os("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
         if !interpreter_config.shared {
-            return Err(format!(
+            bail!(
                 "The `auto-initialize` feature is enabled, but your python installation only supports \
                 embedding the Python interpreter statically. If you are attempting to run tests, or a \
                 binary which is okay to link dynamically, install a Python distribution which ships \
@@ -170,31 +159,49 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
                 https://pyo3.rs/v{pyo3_version}/\
                     building_and_distribution.html#embedding-python-in-rust",
                 pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
-            )
-            .into());
+            );
         }
 
         // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
         // currently cause `auto-initialize` to be enabled in CI.
         // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
         if interpreter_config.is_pypy() && env::var_os("PYO3_CI").is_none() {
-            return Err("The `auto-initialize` feature is not supported with PyPy.".into());
+            bail!("The `auto-initialize` feature is not supported with PyPy.");
         }
     }
 
     Ok(())
 }
 
+/// Generates the interpreter config suitable for the host / target / cross-compilation at hand.
+///
+/// The result is written to pyo3_build_config::PATH, which downstream scripts can read from
+/// (including `pyo3-macros-backend` during macro expansion).
 fn configure_pyo3() -> Result<()> {
-    let interpreter_config = pyo3_build_config::get();
+    let interpreter_config = pyo3_build_config::make_interpreter_config()?;
     ensure_python_version(&interpreter_config)?;
     ensure_target_architecture(&interpreter_config)?;
     emit_cargo_configuration(&interpreter_config)?;
+    interpreter_config.to_writer(
+        &mut std::fs::File::create(pyo3_build_config::PATH).with_context(|| {
+            format!(
+                "failed to create config file at {}",
+                pyo3_build_config::PATH
+            )
+        })?,
+    )?;
     interpreter_config.emit_pyo3_cfgs();
 
+    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+
     // Enable use of const generics on Rust 1.51 and greater
-    if rustc_minor_version().unwrap_or(0) >= 51 {
+    if rustc_minor_version >= 51 {
         println!("cargo:rustc-cfg=min_const_generics");
+    }
+
+    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=addr_of");
     }
 
     Ok(())
@@ -203,7 +210,18 @@ fn configure_pyo3() -> Result<()> {
 fn main() {
     // Print out error messages using display, to get nicer formatting.
     if let Err(e) = configure_pyo3() {
+        use std::error::Error;
         eprintln!("error: {}", e);
+        let mut source = e.source();
+        if source.is_some() {
+            eprintln!("caused by:");
+            let mut index = 0;
+            while let Some(some_source) = source {
+                eprintln!("  - {}: {}", index, some_source);
+                source = some_source.source();
+                index += 1;
+            }
+        }
         std::process::exit(1)
     }
 }

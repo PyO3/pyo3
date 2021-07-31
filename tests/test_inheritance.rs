@@ -159,7 +159,7 @@ mod inheriting_native_type {
     #[pyclass(extends=PySet)]
     #[derive(Debug)]
     struct SetWithName {
-        #[pyo3(get(name))]
+        #[pyo3(get, name = "name")]
         _name: &'static str,
     }
 
@@ -179,14 +179,14 @@ mod inheriting_native_type {
         py_run!(
             py,
             set_sub,
-            r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub._name == "Hello :)""#
+            r#"set_sub.add(10); assert list(set_sub) == [10]; assert set_sub.name == "Hello :)""#
         );
     }
 
     #[pyclass(extends=PyDict)]
     #[derive(Debug)]
     struct DictWithName {
-        #[pyo3(get(name))]
+        #[pyo3(get, name = "name")]
         _name: &'static str,
     }
 
@@ -206,8 +206,25 @@ mod inheriting_native_type {
         py_run!(
             py,
             dict_sub,
-            r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub._name == "Hello :)""#
+            r#"dict_sub[0] = 1; assert dict_sub[0] == 1; assert dict_sub.name == "Hello :)""#
         );
+    }
+
+    #[test]
+    fn inherit_dict_drop() {
+        Python::with_gil(|py| {
+            let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
+            assert_eq!(dict_sub.get_refcnt(py), 1);
+
+            let item = py.eval("object()", None, None).unwrap();
+            assert_eq!(item.get_refcnt(), 1);
+
+            dict_sub.as_ref(py).set_item("foo", item).unwrap();
+            assert_eq!(item.get_refcnt(), 2);
+
+            drop(dict_sub);
+            assert_eq!(item.get_refcnt(), 1);
+        })
     }
 
     #[pyclass(extends=PyException)]

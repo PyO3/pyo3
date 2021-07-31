@@ -3,7 +3,8 @@
 
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
-use crate::pyclass::{create_type_object, PyClass};
+use crate::pyclass::create_type_object;
+use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyType};
 use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
@@ -15,11 +16,7 @@ use std::thread::{self, ThreadId};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyLayout<T> {
-    const IS_NATIVE_TYPE: bool = true;
-    fn py_init(&mut self, _value: T) {}
-    unsafe fn py_drop(&mut self, _py: Python) {}
-}
+pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
@@ -113,7 +110,7 @@ impl LazyStaticType {
         py: Python,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
-        for_each_method_def: &dyn Fn(&mut dyn FnMut(&PyMethodDefType)),
+        for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
     ) {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
@@ -147,17 +144,21 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for_each_method_def(&mut |def| {
-            if let PyMethodDefType::ClassAttribute(attr) = def {
-                items.push((
-                    extract_cstr_or_leak_cstring(
+        for_each_method_def(&mut |method_defs| {
+            items.extend(method_defs.iter().filter_map(|def| {
+                if let PyMethodDefType::ClassAttribute(attr) = def {
+                    let key = extract_cstr_or_leak_cstring(
                         attr.name,
                         "class attribute name cannot contain nul bytes",
                     )
-                    .unwrap(),
-                    (attr.meth.0)(py),
-                ));
-            }
+                    .unwrap();
+
+                    let val = (attr.meth.0)(py);
+                    Some((key, val))
+                } else {
+                    None
+                }
+            }));
         });
 
         // Now we hold the GIL and we can assume it won't be released until we
@@ -196,3 +197,32 @@ fn initialize_tp_dict(
 
 // This is necessary for making static `LazyStaticType`s
 unsafe impl Sync for LazyStaticType {}
+
+#[inline]
+pub(crate) unsafe fn get_tp_alloc(tp: *mut ffi::PyTypeObject) -> Option<ffi::allocfunc> {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*tp).tp_alloc
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_alloc);
+        std::mem::transmute(ptr)
+    }
+}
+
+#[inline]
+pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
+    #[cfg(not(Py_LIMITED_API))]
+    {
+        (*tp).tp_free.unwrap()
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    {
+        let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
+        debug_assert_ne!(ptr, std::ptr::null_mut());
+        std::mem::transmute(ptr)
+    }
+}

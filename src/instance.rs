@@ -18,6 +18,7 @@ use std::ptr::NonNull;
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
 pub unsafe trait PyNativeType: Sized {
+    /// Returns a GIL marker constrained to the lifetime of this type.
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -32,21 +33,145 @@ pub unsafe trait PyNativeType: Sized {
     }
 }
 
-/// A Python object of known type T.
+/// A GIL-independent reference to an object allocated on the Python heap.
 ///
-/// Accessing this object is thread-safe, since any access to its API requires a `Python<'py>` GIL
-/// token. There are a few different ways to use the Python object contained:
-///  - [`Py::as_ref`](#method.as_ref) to borrow a GIL-bound reference to the contained object.
-///  - [`Py::borrow`](#method.borrow), [`Py::try_borrow`](#method.try_borrow),
-///    [`Py::borrow_mut`](#method.borrow_mut), or [`Py::try_borrow_mut`](#method.try_borrow_mut),
-///    to directly access a `#[pyclass]` value (which has RefCell-like behavior, see
-///    [the `PyCell` guide entry](https://pyo3.rs/main/class.html#pycell-and-interior-mutability)
-///    ).
-///  - Use methods directly on `Py`, such as [`Py::call`](#method.call) and
-///    [`Py::call_method`](#method.call_method).
+/// This type does not auto-dereference to the inner object because you must prove you hold the GIL to access it.
+/// Instead, call one of its methods to access the inner object:
+///  - [`Py::as_ref`], to borrow a GIL-bound reference to the contained object.
+///  - [`Py::borrow`], [`Py::try_borrow`], [`Py::borrow_mut`], or [`Py::try_borrow_mut`],
+/// to get a (mutable) reference to a contained pyclass, using a scheme similar to std's [`RefCell`].
+/// See the [`PyCell` guide entry](https://pyo3.rs/latest/class.html#pycell-and-interior-mutability)
+/// for more information.
+///  - You can call methods directly on `Py` with [`Py::call`], [`Py::call_method`] and friends.
+/// These require passing in the [`Python<'py>`](crate::Python) token but are otherwise similar to the corresponding
+/// methods on [`PyAny`].
 ///
-/// See [the guide](https://pyo3.rs/main/types.html) for an explanation
-/// of the different Python object types.
+/// # Example: Storing Python objects in structs
+///
+/// As all the native Python objects only appear as references, storing them in structs doesn't work well.
+/// For example, this won't compile:
+///
+/// ```compile_fail
+/// # use pyo3::prelude::*;
+/// # use pyo3::types::PyDict;
+/// #
+/// #[pyclass]
+/// struct Foo<'py> {
+///     inner: &'py PyDict,
+/// }
+///
+/// impl Foo {
+///     fn new() -> Foo {
+///         let foo = Python::with_gil(|py| {
+///             // `py` will only last for this scope.
+///
+///             // `&PyDict` derives its lifetime from `py` and
+///             // so won't be able to outlive this closure.
+///             let dict: &PyDict = PyDict::new(py);
+///
+///             // because `Foo` contains `dict` its lifetime
+///             // is now also tied to `py`.
+///             Foo { inner: dict }
+///         });
+///         // Foo is no longer valid.
+///         // Returning it from this function is a 💥 compiler error 💥
+///         foo
+///     }
+/// }
+/// ```
+///
+/// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// # use pyo3::types::PyDict;
+/// #
+/// #[pyclass]
+/// struct Foo {
+///     inner: Py<PyDict>,
+/// }
+///
+/// impl Foo {
+///     fn new() -> Foo {
+///         Python::with_gil(|py| {
+///             let dict: Py<PyDict> = PyDict::new(py).into();
+///             Foo { inner: dict }
+///         })
+///     }
+/// }
+/// ```
+///
+/// This can also be done with other pyclasses:
+/// ```rust
+/// # use pyo3::prelude::*;
+/// #
+/// #[pyclass]
+/// struct Bar {/* fields omitted */}
+///
+/// #[pyclass]
+/// struct Foo {
+///     inner: Py<Bar>,
+/// }
+///
+/// impl Foo {
+///     fn new() -> PyResult<Foo> {
+///         Python::with_gil(|py| {
+///             let bar: Py<Bar> = Py::new(py, Bar {})?;
+///             Ok(Foo { inner: bar })
+///         })
+///     }
+/// }
+/// ```
+///
+/// # Example: Shared ownership of Python objects
+///
+/// `Py<T>` can be used to share ownership of a Python object, similar to std's [`Rc`]`<T>`.
+/// As with [`Rc`]`<T>`, cloning it increases its reference count rather than duplicating
+/// the underlying object.
+///
+/// This can be done using either [`Py::clone_ref`] or [`Py`]`<T>`'s [`Clone`] trait implementation.
+/// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::types::PyDict;
+/// use pyo3::conversion::AsPyPointer;
+///
+/// # fn main() {
+/// Python::with_gil(|py| {
+///     let first: Py<PyDict> = PyDict::new(py).into();
+///
+///     // All of these are valid syntax
+///     let second = Py::clone_ref(&first, py);
+///     let third = first.clone_ref(py);
+///     let fourth = Py::clone(&first);
+///     let fifth = first.clone();
+///
+///     // Disposing of our original `Py<PyDict>` just decrements the reference count.
+///     drop(first);
+///
+///     // They all point to the same object
+///     assert_eq!(second.as_ptr(), third.as_ptr());
+///     assert_eq!(fourth.as_ptr(), fifth.as_ptr());
+///     assert_eq!(second.as_ptr(), fourth.as_ptr());
+/// });
+/// # }
+/// ```
+///
+/// # Preventing reference cycles
+///
+/// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
+/// The Python interpreter can break these reference cycles within pyclasses if they
+/// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If your pyclass
+/// contains other Python objects you should implement this protocol to avoid leaking memory.
+///
+/// # A note on `Send` and `Sync`
+///
+/// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
+/// As you can only get this by acquiring the GIL, `Py<...>` "implements [`Send`] and [`Sync`].
+///
+/// [`Rc`]: std::rc::Rc
+/// [`RefCell`]: std::cell::RefCell
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -57,7 +182,24 @@ impl<T> Py<T>
 where
     T: PyClass,
 {
-    /// Create a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
+    /// Creates a new instance `Py<T>` of a `#[pyclass]` on the Python heap.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Foo {/* fields omitted */}
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<Py<Foo>> {
+    ///     let foo: Py<Foo> = Py::new(py, Foo {})?;
+    ///     Ok(foo)
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
         let initializer = value.into();
         let obj = initializer.create_cell(py)?;
@@ -70,56 +212,91 @@ impl<T> Py<T>
 where
     T: PyTypeInfo,
 {
-    /// Borrows a GIL-bound reference to the contained `T`. By binding to the GIL lifetime, this
-    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    /// Borrows a GIL-bound reference to the contained `T`.
+    ///
+    /// By binding to the GIL lifetime, this allows the GIL-bound reference to not require
+    /// [`Python<'py>`](crate::Python) for any of its methods, which makes calling methods
+    /// on it more ergonomic.
     ///
     /// For native types, this reference is `&T`. For pyclasses, this is `&PyCell<T>`.
     ///
+    /// Note that the lifetime of the returned reference is the shortest of `&self` and
+    /// [`Python<'py>`](crate::Python).
+    /// Consider using [`Py::into_ref`] instead if this poses a problem.
+    ///
     /// # Examples
+    ///
     /// Get access to `&PyList` from `Py<PyList>`:
     ///
     /// ```
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyList;
-    /// # Python::with_gil(|py| {
-    /// let list: Py<PyList> = PyList::empty(py).into();
-    /// let list: &PyList = list.as_ref(py);
-    /// assert_eq!(list.len(), 0);
-    /// # });
+    /// #
+    /// Python::with_gil(|py| {
+    ///     let list: Py<PyList> = PyList::empty(py).into();
+    ///     let list: &PyList = list.as_ref(py);
+    ///     assert_eq!(list.len(), 0);
+    /// });
     /// ```
     ///
     /// Get access to `&PyCell<MyClass>` from `Py<MyClass>`:
     ///
     /// ```
     /// # use pyo3::prelude::*;
+    /// #
     /// #[pyclass]
     /// struct MyClass { }
-    /// # Python::with_gil(|py| {
-    /// let my_class: Py<MyClass> = Py::new(py, MyClass { }).unwrap();
-    /// let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
-    /// assert!(my_class_cell.try_borrow().is_ok());
-    /// # });
+    ///
+    /// Python::with_gil(|py| {
+    ///     let my_class: Py<MyClass> = Py::new(py, MyClass { }).unwrap();
+    ///     let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
+    ///     assert!(my_class_cell.try_borrow().is_ok());
+    /// });
     /// ```
     pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py T::AsRefTarget {
         let any = self.as_ptr() as *const PyAny;
         unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
 
-    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Borrows a GIL-bound reference to the contained `T` independently of the lifetime of `T`.
+    ///
+    /// This method is similar to [`as_ref`](#method.as_ref) but consumes `self` and registers the
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
     ///
+    /// You should prefer using [`as_ref`](#method.as_ref) if you can as it'll have less overhead.
+    ///
     /// # Examples
     ///
-    /// Useful when returning GIL-bound references from functions. In the snippet below, note that
-    /// the `'py` lifetime of the input GIL lifetime is also given to the returned reference:
-    /// ```
-    /// # use pyo3::prelude::*;
-    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<PyObject>) -> &'py PyAny {
-    ///     let obj: PyObject = value.into_py(py);
+    /// [`Py::as_ref`]'s lifetime limitation forbids creating a function that references a
+    /// variable created inside the function.
     ///
-    ///     // .as_ref(py) would not be suitable here, because a reference to `obj` may not be
-    ///     // returned from the function.
+    /// ```rust,compile_fail
+    /// # use pyo3::prelude::*;
+    /// #
+    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
+    ///     let obj: Py<PyAny> = value.into_py(py);
+    ///
+    ///     // The lifetime of the return value of this function is the shortest
+    ///     // of `obj` and `py`. As `obj` is owned by the current function,
+    ///     // Rust won't let the return value escape this function!
+    ///     obj.as_ref(py)
+    /// }
+    /// ```
+    ///
+    /// This can be solved by using [`Py::into_ref`] instead, which does not suffer from this issue.
+    /// Note that the lifetime of the [`Python<'py>`](crate::Python) token is transferred to
+    /// the returned reference.
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// #
+    /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
+    ///     let obj: Py<PyAny> = value.into_py(py);
+    ///
+    ///     // This reference's lifetime is determined by `py`'s lifetime.
+    ///     // Because that originates from outside this function,
+    ///     // this return value is allowed.
     ///     obj.into_ref(py)
     /// }
     /// ```
@@ -132,22 +309,72 @@ impl<T> Py<T>
 where
     T: PyClass,
 {
-    /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
+    /// Immutably borrows the value `T`.
+    ///
+    /// This borrow lasts while the returned [`PyRef`] exists.
+    /// Multiple immutable borrows can be taken out at the same time.
     ///
     /// Equivalent to `self.as_ref(py).borrow()` -
-    /// see [`PyCell::borrow`](../pycell/struct.PyCell.html#method.borrow)
+    /// see [`PyCell::borrow`](crate::pycell::PyCell::borrow).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// #
+    /// #[pyclass]
+    /// struct Foo {
+    ///     inner: u8,
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
+    ///     let inner: &u8 = &foo.borrow(py).inner;
+    ///
+    ///     assert_eq!(*inner, 73);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Panics
+    ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
         self.as_ref(py).borrow()
     }
 
-    /// Mutably borrows the value `T`. This borrow lasts untill the returned `PyRefMut` exists.
+    /// Mutably borrows the value `T`.
+    ///
+    /// This borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// Equivalent to `self.as_ref(py).borrow_mut()` -
-    /// see [`PyCell::borrow_mut`](../pycell/struct.PyCell.html#method.borrow_mut)
+    /// see [`PyCell::borrow_mut`](crate::pycell::PyCell::borrow_mut).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #
+    /// #[pyclass]
+    /// struct Foo {
+    ///     inner: u8,
+    /// }
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
+    ///     foo.borrow_mut(py).inner = 35;
+    ///
+    ///     assert_eq!(foo.borrow(py).inner, 35);
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    ///  ```
     ///
     /// # Panics
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
@@ -156,24 +383,26 @@ where
         self.as_ref(py).borrow_mut()
     }
 
-    /// Immutably borrows the value `T`, returning an error if the value is currently
-    /// mutably borrowed. This borrow lasts untill the returned `PyRef` exists.
+    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyRef`] exists.
     ///
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
-    /// Equivalent to `self.as_ref(py).try_borrow()` -
-    /// see [`PyCell::try_borrow`](../pycell/struct.PyCell.html#method.try_borrow)
+    /// Equivalent to `self.as_ref(py).borrow_mut()` -
+    /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
         self.as_ref(py).try_borrow()
     }
 
-    /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
-    /// This borrow lasts untill the returned `PyRefMut` exists.
+    /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     ///
-    /// Equivalent to `self.as_ref(py).try_borrow_mut() -
-    /// see [`PyCell::try_borrow_mut`](../pycell/struct.PyCell.html#method.try_borrow_mut)
+    /// Equivalent to `self.as_ref(py).try_borrow_mut()` -
+    /// see [`PyCell::try_borrow_mut`](crate::pycell::PyCell::try_borrow_mut).
     pub fn try_borrow_mut<'py>(
         &'py self,
         py: Python<'py>,
@@ -189,7 +418,29 @@ impl<T> Py<T> {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
-    /// Clones self by calling `Py_INCREF()` on the ptr.
+    /// Makes a clone of `self`.
+    ///
+    /// This creates another pointer to the same object, increasing its reference count.
+    ///
+    /// You should prefer using this method over [`Clone`] if you happen to be holding the GIL already.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyDict;
+    /// use pyo3::conversion::AsPyPointer;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let first: Py<PyDict> = PyDict::new(py).into();
+    ///     let second = Py::clone_ref(&first, py);
+    ///
+    ///     // Both point to the same object
+    ///     assert_eq!(first.as_ptr(), second.as_ptr());
+    /// });
+    /// # }
+    /// ```
     #[inline]
     pub fn clone_ref(&self, py: Python) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
@@ -524,6 +775,9 @@ impl<T> PartialEq for Py<T> {
     }
 }
 
+/// If the GIL is held this increments `self`'s reference count.
+/// Otherwise this registers the [`Py`]`<T>` instance to have its reference count
+/// incremented the next time PyO3 acquires the GIL.
 impl<T> Clone for Py<T> {
     fn clone(&self) -> Self {
         unsafe {
@@ -608,7 +862,7 @@ impl PyObject {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Py, PyObject};
     use crate::types::PyDict;
     use crate::{ffi, AsPyPointer, Python};

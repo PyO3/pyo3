@@ -39,6 +39,7 @@ impl FunctionDescription {
             format!("{}()", self.func_name)
         }
     }
+
     /// Extracts the `args` and `kwargs` provided into `output`, according to this function
     /// definition.
     ///
@@ -52,8 +53,9 @@ impl FunctionDescription {
     /// Unexpected, duplicate or invalid arguments will cause this function to return `TypeError`.
     pub fn extract_arguments<'p>(
         &self,
-        args: &'p PyTuple,
-        kwargs: Option<&'p PyDict>,
+        py: Python<'p>,
+        mut args: impl ExactSizeIterator<Item = &'p PyAny>,
+        kwargs: Option<impl Iterator<Item = (&'p PyAny, &'p PyAny)>>,
         output: &mut [Option<&'p PyAny>],
     ) -> PyResult<(Option<&'p PyTuple>, Option<&'p PyDict>)> {
         let num_positional_parameters = self.positional_parameter_names.len();
@@ -66,25 +68,28 @@ impl FunctionDescription {
         );
 
         // Handle positional arguments
-        let (args_provided, varargs) = {
+        let args_provided = {
             let args_provided = args.len();
-
             if self.accept_varargs {
-                (
-                    std::cmp::min(num_positional_parameters, args_provided),
-                    Some(args.slice(num_positional_parameters as isize, args_provided as isize)),
-                )
+                std::cmp::min(num_positional_parameters, args_provided)
             } else if args_provided > num_positional_parameters {
                 return Err(self.too_many_positional_arguments(args_provided));
             } else {
-                (args_provided, None)
+                args_provided
             }
         };
 
         // Copy positional arguments into output
-        for (out, arg) in output[..args_provided].iter_mut().zip(args) {
+        for (out, arg) in output[..args_provided].iter_mut().zip(args.by_ref()) {
             *out = Some(arg);
         }
+
+        // Collect varargs into tuple
+        let varargs = if self.accept_varargs {
+            Some(PyTuple::new(py, args))
+        } else {
+            None
+        };
 
         // Handle keyword arguments
         let varkeywords = match (kwargs, self.accept_varkeywords) {
@@ -92,7 +97,7 @@ impl FunctionDescription {
                 let mut varkeywords = None;
                 self.extract_keyword_arguments(kwargs, output, |name, value| {
                     varkeywords
-                        .get_or_insert_with(|| PyDict::new(kwargs.py()))
+                        .get_or_insert_with(|| PyDict::new(py))
                         .set_item(name, value)
                 })?;
                 varkeywords
@@ -146,7 +151,7 @@ impl FunctionDescription {
     #[inline]
     fn extract_keyword_arguments<'p>(
         &self,
-        kwargs: &'p PyDict,
+        kwargs: impl Iterator<Item = (&'p PyAny, &'p PyAny)>,
         output: &mut [Option<&'p PyAny>],
         mut unexpected_keyword_handler: impl FnMut(&'p PyAny, &'p PyAny) -> PyResult<()>,
     ) -> PyResult<()> {
@@ -289,7 +294,7 @@ impl ModuleDef {
     /// Make new module defenition with given module name.
     ///
     /// # Safety
-    /// `name` must be a null-terminated string.
+    /// `name` and `doc` must be null-terminated strings.
     pub const unsafe fn new(name: &'static str, doc: &'static str) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,

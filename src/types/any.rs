@@ -11,7 +11,7 @@ use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
-/// Represents any Python object.  
+/// Represents any Python object.
 ///
 /// It currently only appears as a *reference*, `&PyAny`,
 /// with a lifetime that represents the scope during which the GIL is held.
@@ -31,7 +31,7 @@ use std::os::raw::c_int;
 /// It can be cast to a concrete type with PyAny::downcast (for native Python types only)
 /// and FromPyObject::extract. See their documentation for more information.
 ///
-/// See [the guide](https://pyo3.rs/main/types.html) for an explanation
+/// See [the guide](https://pyo3.rs/latest/types.html) for an explanation
 /// of the different Python object types.
 #[repr(transparent)]
 pub struct PyAny(UnsafeCell<ffi::PyObject>);
@@ -378,7 +378,7 @@ impl PyAny {
     ///
     /// value = add(1,2)
     /// assert value == 3
-    /// ```   
+    /// ```
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
@@ -682,7 +682,7 @@ impl PyAny {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,

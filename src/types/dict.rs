@@ -51,7 +51,7 @@ impl PyDict {
 
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
-    /// This is equivalent to the Python expression `dict(self)`.
+    /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
             self.py()
@@ -203,6 +203,15 @@ impl<'py> Iterator for PyDictIterator<'py> {
                 None
             }
         }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.dict.len().unwrap_or_default();
+        (
+            len.saturating_sub(self.pos as usize),
+            Some(len.saturating_sub(self.pos as usize)),
+        )
     }
 }
 
@@ -447,7 +456,7 @@ mod hashbrown_hashmap_conversion {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::conversion::IntoPy;
     use crate::types::dict::IntoPyDict;
     #[cfg(not(PyPy))]
@@ -696,6 +705,28 @@ mod test {
         }
         assert_eq!(7 + 8 + 9, key_sum);
         assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+    #[test]
+    fn test_iter_size_hint() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        let mut iter = dict.iter();
+        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+        iter.next();
+        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+
+        // Exhust iterator.
+        for _ in &mut iter {}
+
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
     #[test]

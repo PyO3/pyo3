@@ -1,19 +1,72 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
-use crate::pyfunction::{impl_wrap_pyfunction, PyFunctionOptions};
+use crate::{
+    attributes::{self, take_pyo3_options},
+    deprecations::Deprecations,
+    pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+};
 use crate::{
     attributes::{is_attribute_ident, take_attributes, NameAttribute},
     deprecations::Deprecation,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{parse::Parse, spanned::Spanned, token::Comma, Ident, Path};
+use syn::{
+    ext::IdentExt,
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
+    token::Comma,
+    Ident, Path, Result,
+};
+
+pub struct PyModuleOptions {
+    name: Option<syn::Ident>,
+    deprecations: Deprecations,
+}
+
+impl PyModuleOptions {
+    pub fn from_pymodule_arg_and_attrs(
+        deprecated_pymodule_name_arg: Option<syn::Ident>,
+        attrs: &mut Vec<syn::Attribute>,
+    ) -> Result<Self> {
+        let mut deprecations = Deprecations::new();
+        if let Some(name) = &deprecated_pymodule_name_arg {
+            deprecations.push(Deprecation::PyModuleNameArgument, name.span());
+        }
+
+        let mut options: PyModuleOptions = PyModuleOptions {
+            name: deprecated_pymodule_name_arg,
+            deprecations,
+        };
+
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                PyModulePyO3Option::Name(name) => options.set_name(name.0)?,
+            }
+        }
+
+        Ok(options)
+    }
+
+    fn set_name(&mut self, name: syn::Ident) -> Result<()> {
+        ensure_spanned!(
+            self.name.is_none(),
+            name.span() => "`name` may only be specified once"
+        );
+
+        self.name = Some(name);
+        Ok(())
+    }
+}
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
+pub fn py_init(fnname: &Ident, options: PyModuleOptions, doc: syn::LitStr) -> TokenStream {
+    let name = options.name.unwrap_or_else(|| fnname.unraw());
+    let deprecations = options.deprecations;
     let cb_name = Ident::new(&format!("PyInit_{}", name), Span::call_site());
+    assert!(doc.value().ends_with('\0'));
 
     quote! {
         #[no_mangle]
@@ -23,8 +76,10 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
         pub unsafe extern "C" fn #cb_name() -> *mut pyo3::ffi::PyObject {
             use pyo3::derive_utils::ModuleDef;
             static NAME: &str = concat!(stringify!(#name), "\0");
-            static DOC: &str = concat!(#doc, "\0");
+            static DOC: &str = #doc;
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME, DOC) };
+
+            #deprecations
 
             pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(_py, #fnname) })
         }
@@ -35,21 +90,19 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
 pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
 
-    for stmt in func.block.stmts.iter_mut() {
-        if let syn::Stmt::Item(syn::Item::Fn(func)) = stmt {
+    for mut stmt in func.block.stmts.drain(..) {
+        if let syn::Stmt::Item(syn::Item::Fn(func)) = &mut stmt {
             if let Some(pyfn_args) = get_pyfn_attr(&mut func.attrs)? {
                 let module_name = pyfn_args.modname;
                 let (ident, wrapped_function) = impl_wrap_pyfunction(func, pyfn_args.options)?;
-                let item: syn::ItemFn = syn::parse_quote! {
-                    fn block_wrapper() {
-                        #wrapped_function
-                        #module_name.add_function(#ident(#module_name)?)?;
-                    }
+                let statements: Vec<syn::Stmt> = syn::parse_quote! {
+                    #wrapped_function
+                    #module_name.add_function(#ident(#module_name)?)?;
                 };
-                stmts.extend(item.block.stmts.into_iter());
+                stmts.extend(statements);
             }
         };
-        stmts.push(stmt.clone());
+        stmts.push(stmt);
     }
 
     func.block.stmts = stmts;
@@ -114,8 +167,23 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     })?;
 
     if let Some(pyfn_args) = &mut pyfn_args {
-        pyfn_args.options.take_pyo3_attributes(attrs)?;
+        pyfn_args.options.take_pyo3_options(attrs)?;
     }
 
     Ok(pyfn_args)
+}
+
+enum PyModulePyO3Option {
+    Name(NameAttribute),
+}
+
+impl Parse for PyModulePyO3Option {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::name) {
+            input.parse().map(PyModulePyO3Option::Name)
+        } else {
+            Err(lookahead.error())
+        }
+    }
 }

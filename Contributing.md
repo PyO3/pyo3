@@ -30,9 +30,22 @@ Don't be afraid if the solution is not clear to you! The core PyO3 contributors 
 PyO3 has a user guide (using mdbook) as well as the usual Rust API docs. The aim is for both of these to be detailed, easy to understand, and up-to-date. Pull requests are always welcome to fix typos, change wording, add examples, etc.
 
 There are some specific areas of focus where help is currently needed for the documentation:
+
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
-- Not all `unsafe` APIs had safety notes when they made. We'd like to ensure all `unsafe` APIs are carefully explained ([#698](https://github.com/PyO3/pyo3/issues/698)). If you see an `unsafe` function missing safety notes, please write some and open a PR!
+
+#### Doctests
+
+We use lots of code blocks in our docs. Run `cargo test --doc` when making changes to check that
+the doctests still work, or `cargo test` to run all the tests including doctests. See 
+https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctests.
+
+#### Building the guide
+
+You can preview the user guide by building it locally with `mdbook`. 
+
+First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run 
+`mdbook build -d ../gh-pages-build guide --open`.
 
 ### Help design the next PyO3
 
@@ -92,4 +105,4 @@ At the moment there is no official organisation that accepts sponsorship on PyO3
 
 In the meanwhile, some of our maintainers have personal Github sponsorship pages and would be grateful for your support:
 
-* [davidhewitt](https://github.com/sponsors/davidhewitt)
+- [davidhewitt](https://github.com/sponsors/davidhewitt)

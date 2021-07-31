@@ -5,7 +5,7 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
   |
   = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
-  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
    --> $DIR/abi3_nativetype_inheritance.rs:5:1
@@ -19,4 +19,4 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
     |                                               --------------- required by this bound in `ThreadCheckerInherited`
     |
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
-    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

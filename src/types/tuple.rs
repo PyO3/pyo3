@@ -26,6 +26,9 @@ impl PyTuple {
         unsafe {
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
             for (i, e) in elements_iter.enumerate() {
+                #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+                ffi::PyTuple_SET_ITEM(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
+                #[cfg(any(Py_LIMITED_API, PyPy))]
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
             py.from_owned_ptr(ptr)
@@ -40,8 +43,12 @@ impl PyTuple {
     /// Gets the length of the tuple.
     pub fn len(&self) -> usize {
         unsafe {
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            let size = ffi::PyTuple_GET_SIZE(self.as_ptr());
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            let size = ffi::PyTuple_Size(self.as_ptr());
             // non-negative Py_ssize_t should always fit into Rust uint
-            ffi::PyTuple_Size(self.as_ptr()) as usize
+            size as usize
         }
     }
 
@@ -72,8 +79,12 @@ impl PyTuple {
     pub fn get_item(&self, index: usize) -> &PyAny {
         assert!(index < self.len());
         unsafe {
-            self.py()
-                .from_borrowed_ptr(ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            let item = ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t);
+
+            self.py().from_borrowed_ptr(item)
         }
     }
 
@@ -119,6 +130,20 @@ impl<'a> Iterator for PyTupleIterator<'a> {
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (
+            self.length.saturating_sub(self.index as usize),
+            Some(self.length.saturating_sub(self.index as usize)),
+        )
+    }
+}
+
+impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
+    fn len(&self) -> usize {
+        self.length - self.index
     }
 }
 
@@ -290,7 +315,7 @@ tuple_conversion!(
 );
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::types::{PyAny, PyTuple};
     use crate::{PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
@@ -329,9 +354,17 @@ mod test {
         let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
+
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+
         assert_eq!(2, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+
         assert_eq!(3, iter.next().unwrap().extract().unwrap());
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
     #[test]

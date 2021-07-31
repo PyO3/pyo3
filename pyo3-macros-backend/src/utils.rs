@@ -2,6 +2,8 @@
 use proc_macro2::Span;
 use syn::spanned::Spanned;
 
+use crate::attributes::TextSignatureAttribute;
+
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
     ($span:expr => $msg:expr) => {
@@ -27,12 +29,8 @@ macro_rules! ensure_spanned {
 }
 
 /// Check if the given type `ty` is `pyo3::Python`.
-pub fn is_python(mut ty: &syn::Type) -> bool {
-    while let syn::Type::Group(group) = ty {
-        // Macros can create invisible delimiters around types.
-        ty = &*group.elem;
-    }
-    match ty {
+pub fn is_python(ty: &syn::Type) -> bool {
+    match unwrap_ty_group(ty) {
         syn::Type::Path(typath) => typath
             .path
             .segments
@@ -56,79 +54,19 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
     None
 }
 
-pub fn is_text_signature_attr(attr: &syn::Attribute) -> bool {
-    attr.path.is_ident("text_signature")
-}
-
-fn parse_text_signature_attr(
-    attr: &syn::Attribute,
-    python_name: &syn::Ident,
-) -> syn::Result<Option<syn::LitStr>> {
-    if !is_text_signature_attr(attr) {
-        return Ok(None);
-    }
-    let python_name_str = python_name.to_string();
-    let python_name_str = python_name_str
-        .rsplit('.')
-        .next()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-        .ok_or_else(|| err_spanned!(python_name.span() => "failed to parse python name"))?;
-    match attr.parse_meta()? {
-        syn::Meta::NameValue(syn::MetaNameValue {
-            lit: syn::Lit::Str(lit),
-            ..
-        }) => {
-            let value = lit.value();
-            ensure_spanned!(
-                value.starts_with('(') && value.ends_with(')'),
-                lit.span() => "text_signature must start with \"(\" and end with \")\""
-            );
-            Ok(Some(syn::LitStr::new(
-                &(python_name_str.to_owned() + &value),
-                lit.span(),
-            )))
-        }
-        meta => bail_spanned!(
-            meta.span() => "text_signature must be of the form #[text_signature = \"\"]"
-        ),
-    }
-}
-
-pub fn parse_text_signature_attrs(
-    attrs: &mut Vec<syn::Attribute>,
-    python_name: &syn::Ident,
-) -> syn::Result<Option<syn::LitStr>> {
-    let mut text_signature = None;
-    let mut attrs_out = Vec::with_capacity(attrs.len());
-    for attr in attrs.drain(..) {
-        if let Some(value) = parse_text_signature_attr(&attr, python_name)? {
-            ensure_spanned!(
-                text_signature.is_none(),
-                attr.span() => "text_signature attribute already specified previously"
-            );
-            text_signature = Some(value);
-        } else {
-            attrs_out.push(attr);
-        }
-    }
-    *attrs = attrs_out;
-    Ok(text_signature)
-}
-
-// FIXME(althonos): not sure the docstring formatting is on par here.
+// Returns a null-terminated syn::LitStr for use as a Python docstring.
 pub fn get_doc(
     attrs: &[syn::Attribute],
-    text_signature: Option<syn::LitStr>,
-    null_terminated: bool,
+    text_signature: Option<(&syn::Ident, &TextSignatureAttribute)>,
 ) -> syn::Result<syn::LitStr> {
     let mut doc = String::new();
     let mut span = Span::call_site();
 
-    if let Some(text_signature) = text_signature {
+    if let Some((python_name, text_signature)) = text_signature {
         // create special doc string lines to set `__text_signature__`
-        span = text_signature.span();
-        doc.push_str(&text_signature.value());
+        doc.push_str(&python_name.to_string());
+        span = text_signature.lit.span();
+        doc.push_str(&text_signature.lit.value());
         doc.push_str("\n--\n\n");
     }
 
@@ -136,33 +74,43 @@ pub fn get_doc(
     let mut first = true;
 
     for attr in attrs.iter() {
-        if let Ok(syn::Meta::NameValue(metanv)) = attr.parse_meta() {
-            if metanv.path.is_ident("doc") {
-                if let syn::Lit::Str(litstr) = metanv.lit {
-                    if first {
-                        first = false;
-                        span = litstr.span();
-                    }
-                    let d = litstr.value();
-                    doc.push_str(separator);
-                    if d.starts_with(' ') {
-                        doc.push_str(&d[1..d.len()]);
-                    } else {
-                        doc.push_str(&d);
-                    };
-                    separator = "\n";
-                } else {
-                    bail_spanned!(metanv.span() => "invalid doc comment")
+        if attr.path.is_ident("doc") {
+            if let Ok(DocArgs { _eq_token, lit_str }) = syn::parse2(attr.tokens.clone()) {
+                if first {
+                    first = false;
+                    span = lit_str.span();
                 }
+                let d = lit_str.value();
+                doc.push_str(separator);
+                if d.starts_with(' ') {
+                    doc.push_str(&d[1..d.len()]);
+                } else {
+                    doc.push_str(&d);
+                };
+                separator = "\n";
             }
         }
     }
 
-    if null_terminated {
-        doc.push('\0');
-    }
+    doc.push('\0');
 
     Ok(syn::LitStr::new(&doc, span))
+}
+
+struct DocArgs {
+    _eq_token: syn::Token![=],
+    lit_str: syn::LitStr,
+}
+
+impl syn::parse::Parse for DocArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let this = Self {
+            _eq_token: input.parse()?,
+            lit_str: input.parse()?,
+        };
+        ensure_spanned!(input.is_empty(), input.span() => "expected end of doc attribute");
+        Ok(this)
+    }
 }
 
 pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
@@ -174,4 +122,18 @@ pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
         );
     };
     Ok(())
+}
+
+pub fn unwrap_group(mut expr: &syn::Expr) -> &syn::Expr {
+    while let syn::Expr::Group(g) = expr {
+        expr = &*g.expr;
+    }
+    expr
+}
+
+pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
+    while let syn::Type::Group(g) = ty {
+        ty = &*g.elem;
+    }
+    ty
 }

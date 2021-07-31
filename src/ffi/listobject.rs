@@ -52,4 +52,15 @@ extern "C" {
     pub fn PyList_Reverse(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyList_AsTuple")]
     pub fn PyList_AsTuple(arg1: *mut PyObject) -> *mut PyObject;
+
+    // CPython macros exported as functions on PyPy
+    #[cfg(PyPy)]
+    #[cfg_attr(PyPy, link_name = "PyPyList_GET_ITEM")]
+    pub fn PyList_GET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
+    #[cfg(PyPy)]
+    #[cfg_attr(PyPy, link_name = "PyPyList_GET_SIZE")]
+    pub fn PyList_GET_SIZE(arg1: *mut PyObject) -> Py_ssize_t;
+    #[cfg(PyPy)]
+    #[cfg_attr(PyPy, link_name = "PyPyList_SET_ITEM")]
+    pub fn PyList_SET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
 }

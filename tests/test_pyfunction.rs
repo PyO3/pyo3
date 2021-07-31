@@ -4,7 +4,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyCFunction;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::{PyDateTime, PyFunction};
-use pyo3::{raw_pycfunction, wrap_pyfunction};
 
 mod common;
 
@@ -162,31 +161,6 @@ fn test_function_with_custom_conversion_error() {
         PyTypeError,
         "argument 'timestamp': 'list' object cannot be converted to 'PyDateTime'"
     );
-}
-
-#[test]
-fn test_raw_function() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let raw_func = raw_pycfunction!(optional_bool);
-    let fun = PyCFunction::new_with_keywords(raw_func, "fun", "", py.into()).unwrap();
-    let res = fun.call((), None).unwrap().extract::<&str>().unwrap();
-    assert_eq!(res, "Some(true)");
-    let res = fun.call((false,), None).unwrap().extract::<&str>().unwrap();
-    assert_eq!(res, "Some(false)");
-    let no_module = fun.getattr("__module__").unwrap().is_none();
-    assert!(no_module);
-
-    let module = PyModule::new(py, "cool_module").unwrap();
-    module.add_function(fun).unwrap();
-    let res = module
-        .getattr("fun")
-        .unwrap()
-        .call((), None)
-        .unwrap()
-        .extract::<&str>()
-        .unwrap();
-    assert_eq!(res, "Some(true)");
 }
 
 #[pyfunction]

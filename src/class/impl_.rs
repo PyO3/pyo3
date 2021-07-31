@@ -2,12 +2,13 @@
 
 use crate::{
     ffi,
+    impl_::freelist::FreeList,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
-    PyClass, PyMethodDefType, PyNativeType, PyTypeInfo,
+    PyClass, PyMethodDefType, PyNativeType, PyTypeInfo, Python,
 };
-use std::{marker::PhantomData, thread};
+use std::{marker::PhantomData, os::raw::c_void, thread};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
 /// applied to apply implementations from `#[pymethods]` & `#[pyproto]`
@@ -65,14 +66,20 @@ pub trait PyClassImpl: Sized {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
-    fn for_each_method_def(_visitor: &mut dyn FnMut(&PyMethodDefType)) {}
+    fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
     fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
-    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&ffi::PyType_Slot)) {}
+    fn get_alloc() -> Option<ffi::allocfunc> {
+        None
+    }
+    fn get_free() -> Option<ffi::freefunc> {
+        None
+    }
+    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
     }
@@ -98,6 +105,112 @@ impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
     fn call_impl(self) -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
+}
+
+pub trait PyClassAllocImpl<T> {
+    fn alloc_impl(self) -> Option<ffi::allocfunc>;
+}
+
+impl<T> PyClassAllocImpl<T> for &'_ PyClassImplCollector<T> {
+    fn alloc_impl(self) -> Option<ffi::allocfunc> {
+        None
+    }
+}
+
+pub trait PyClassFreeImpl<T> {
+    fn free_impl(self) -> Option<ffi::freefunc>;
+}
+
+impl<T> PyClassFreeImpl<T> for &'_ PyClassImplCollector<T> {
+    fn free_impl(self) -> Option<ffi::freefunc> {
+        None
+    }
+}
+
+/// Implements a freelist.
+///
+/// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
+/// on a Rust struct to implement it.
+pub trait PyClassWithFreeList: PyClass {
+    fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;
+}
+
+/// Implementation of tp_alloc for `freelist` classes.
+///
+/// # Safety
+/// - `subtype` must be a valid pointer to the type object of T or a subclass.
+/// - The GIL must be held.
+pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
+    subtype: *mut ffi::PyTypeObject,
+    nitems: ffi::Py_ssize_t,
+) -> *mut ffi::PyObject {
+    let py = Python::assume_gil_acquired();
+
+    #[cfg(not(Py_3_8))]
+    bpo_35810_workaround(py, subtype);
+
+    let self_type = T::type_object_raw(py);
+    // If this type is a variable type or the subtype is not equal to this type, we cannot use the
+    // freelist
+    if nitems == 0 && subtype == self_type {
+        if let Some(obj) = T::get_free_list(py).pop() {
+            ffi::PyObject_Init(obj, subtype);
+            return obj as _;
+        }
+    }
+
+    ffi::PyType_GenericAlloc(subtype, nitems)
+}
+
+/// Implementation of tp_free for `freelist` classes.
+///
+/// # Safety
+/// - `obj` must be a valid pointer to an instance of T (not a subclass).
+/// - The GIL must be held.
+#[allow(clippy::collapsible_if)] // for if cfg!
+pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
+    let obj = obj as *mut ffi::PyObject;
+    debug_assert_eq!(
+        T::type_object_raw(Python::assume_gil_acquired()),
+        ffi::Py_TYPE(obj)
+    );
+    if let Some(obj) = T::get_free_list(Python::assume_gil_acquired()).insert(obj) {
+        let ty = ffi::Py_TYPE(obj);
+
+        // Deduce appropriate inverse of PyType_GenericAlloc
+        let free = if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del
+        } else {
+            ffi::PyObject_Free
+        };
+        free(obj as *mut c_void);
+
+        if cfg!(Py_3_8) {
+            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+            }
+        }
+    }
+}
+
+/// Workaround for Python issue 35810; no longer necessary in Python 3.8
+#[inline]
+#[cfg(not(Py_3_8))]
+unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObject) {
+    #[cfg(Py_LIMITED_API)]
+    {
+        // Must check version at runtime for abi3 wheels - they could run against a higher version
+        // than the build config suggests.
+        use crate::once_cell::GILOnceCell;
+        static IS_PYTHON_3_8: GILOnceCell<bool> = GILOnceCell::new();
+
+        if *IS_PYTHON_3_8.get_or_init(_py, || _py.version_info() >= (3, 8)) {
+            // No fix needed - the wheel is running on a sufficiently new interpreter.
+            return;
+        }
+    }
+
+    ffi::Py_INCREF(ty as *mut ffi::PyObject);
 }
 
 // General methods implementation: either dtolnay specialization trait or inventory if
@@ -216,6 +329,7 @@ pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
 
 impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
     fn ensure(&self) {}
+    #[inline]
     fn new() -> Self {
         ThreadCheckerStub(PhantomData)
     }
@@ -224,6 +338,7 @@ impl<T: Send> PyClassThreadChecker<T> for ThreadCheckerStub<T> {
 
 impl<T: PyNativeType> PyClassThreadChecker<T> for ThreadCheckerStub<crate::PyObject> {
     fn ensure(&self) {}
+    #[inline]
     fn new() -> Self {
         ThreadCheckerStub(PhantomData)
     }
@@ -279,8 +394,26 @@ pub trait PyClassBaseType: Sized {
 impl<T: PyClass> PyClassBaseType for T {
     type Dict = T::Dict;
     type WeakRef = T::WeakRef;
-    type LayoutAsBase = crate::pycell::PyCellInner<T>;
+    type LayoutAsBase = crate::pycell::PyCell<T>;
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
+}
+
+/// Default new implementation
+pub(crate) unsafe extern "C" fn fallback_new(
+    _subtype: *mut ffi::PyTypeObject,
+    _args: *mut ffi::PyObject,
+    _kwds: *mut ffi::PyObject,
+) -> *mut ffi::PyObject {
+    crate::callback_body!(py, {
+        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+            "No constructor defined",
+        ))
+    })
+}
+
+/// Implementation of tp_dealloc for all pyclasses
+pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
+    crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
 }

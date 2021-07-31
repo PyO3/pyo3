@@ -16,9 +16,13 @@ use std::os::raw::{c_char, c_int};
 /// See [Python::version].
 #[derive(Debug)]
 pub struct PythonVersionInfo<'p> {
+    /// Python major version (e.g. `3`).
     pub major: u8,
+    /// Python minor version (e.g. `11`).
     pub minor: u8,
+    /// Python patch version (e.g. `0`).
     pub patch: u8,
+    /// Python version suffix, if applicable (e.g. `a0`).
     pub suffix: Option<&'p str>,
 }
 
@@ -189,7 +193,7 @@ impl<'p> Python<'p> {
     ///
     /// # Examples
     /// ```
-    /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict; use pyo3::wrap_pyfunction;
+    /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict;
     /// use pyo3::exceptions::PyRuntimeError;
     /// use std::sync::Arc;
     /// use std::thread;
@@ -674,7 +678,7 @@ impl<'p> Python<'p> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyList};
 

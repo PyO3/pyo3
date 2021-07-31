@@ -172,6 +172,15 @@ impl<'py> Iterator for PySetIterator<'py> {
             }
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.set.len().unwrap_or_default();
+        (
+            len.saturating_sub(self.pos as usize),
+            Some(len.saturating_sub(self.pos as usize)),
+        )
+    }
 }
 
 impl<'a> std::iter::IntoIterator for &'a PySet {
@@ -183,9 +192,10 @@ impl<'a> std::iter::IntoIterator for &'a PySet {
     }
 }
 
-impl<T> ToPyObject for collections::HashSet<T>
+impl<T, S> ToPyObject for collections::HashSet<T, S>
 where
     T: hash::Hash + Eq + ToPyObject,
+    S: hash::BuildHasher + Default,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
@@ -395,7 +405,7 @@ mod hashbrown_hashset_conversion {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{PyFrozenSet, PySet};
     use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
@@ -502,6 +512,24 @@ mod test {
         // intoiterator iteration
         for el in set {
             assert_eq!(1i32, el.extract().unwrap());
+        }
+    }
+
+    #[test]
+    fn test_set_iter_size_hint() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let set = PySet::new(py, &[1]).unwrap();
+
+        let mut iter = set.iter();
+
+        if cfg!(Py_LIMITED_API) {
+            assert_eq!(iter.size_hint(), (0, None));
+        } else {
+            assert_eq!(iter.size_hint(), (1, Some(1)));
+            iter.next();
+            assert_eq!(iter.size_hint(), (0, Some(0)));
         }
     }
 
