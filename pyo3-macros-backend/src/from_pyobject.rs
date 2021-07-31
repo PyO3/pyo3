@@ -205,7 +205,7 @@ impl<'a> Container<'a> {
     fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
-            let err_msg = format!(
+            let error_msg = format!(
                 "failed to extract field {}.{}",
                 quote!(#self_ty),
                 quote!(#ident)
@@ -214,14 +214,13 @@ impl<'a> Container<'a> {
                 Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
-                    let err_msg = format!("{}: {}",
-                        #err_msg,
-                        inner.instance(py).str().unwrap());
-                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                    let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                    new_err.set_cause(py, Some(inner));
+                    new_err
                 })?})
             )
         } else {
-            let err_msg = if self.is_enum_variant {
+            let error_msg = if self.is_enum_variant {
                 let variant_name = &self.path.segments.last().unwrap();
                 format!("- variant {} ({})", quote!(#variant_name), &self.err_name)
             } else {
@@ -232,7 +231,7 @@ impl<'a> Container<'a> {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
                     let err_msg = format!("{}: {}",
-                        #err_msg,
+                        #error_msg,
                         inner.instance(py).str().unwrap());
                     pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?))
@@ -249,10 +248,9 @@ impl<'a> Container<'a> {
                 s.get_item(#i).extract().map_err(|inner| {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
-                let err_msg = format!("{}: {}",
-                            #error_msg,
-                            inner.instance(py).str().unwrap());
-                pyo3::exceptions::PyTypeError::new_err(err_msg)
+                let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                new_err.set_cause(py, Some(inner));
+                new_err
                 })?));
         }
         let msg = if self.is_enum_variant {
@@ -291,19 +289,17 @@ impl<'a> Container<'a> {
                     #get_field.extract().map_err(|inner| {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
-                    let err_msg = format!("{}: {}",
-                        #conversion_error_msg,
-                        inner.instance(py).str().unwrap());
-                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                    let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                    new_err.set_cause(py, Some(inner));
+                    new_err
                 })?),
                 Some(FromPyWithAttribute(expr_path)) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
                         let gil = Python::acquire_gil();
                         let py = gil.python();
-                        let err_msg = format!("{}: {}",
-                            #conversion_error_msg,
-                            inner.instance(py).str().unwrap());
-                        pyo3::exceptions::PyTypeError::new_err(err_msg)
+                        let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                        new_err.set_cause(py, Some(inner));
+                        new_err
                     })?
                 ),
             };
