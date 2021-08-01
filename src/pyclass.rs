@@ -16,7 +16,7 @@ use std::{
 /// world, via `PyCell`.
 ///
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
-/// so you don't normally have to use this trait directly.
+/// so you normally don't have to use this trait directly.
 pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {

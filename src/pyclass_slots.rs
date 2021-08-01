@@ -1,5 +1,5 @@
 //! This module contains additional fields for `#[pyclass]`.
-//! Mainly used by our proc-macro code.
+//! Mainly used by PyO3's proc-macro code.
 use crate::{ffi, Python};
 
 /// Represents the `__dict__` field for `#[pyclass]`.
