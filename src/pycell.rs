@@ -29,12 +29,12 @@ pub struct PyCellBase<T> {
 
 unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 
-/// `PyCell` is the container type for [`PyClass`](../pyclass/trait.PyClass.html).
+/// `PyCell` is the container type for [`PyClass`](../pyclass/trait.PyClass.html) values.
 ///
-/// From Python side, `PyCell<T>` is the concrete layout of `T: PyClass` in the Python heap,
+/// From the Python side, `PyCell<T>` is the concrete layout of `T: PyClass` in the Python heap,
 /// which means we can convert `*const PyClass<T>` to `*mut ffi::PyObject`.
 ///
-/// From Rust side, `PyCell<T>` is the mutable container of `T`.
+/// From the Rust side, `PyCell<T>` is the mutable container of `T`.
 /// Since `PyCell<T: PyClass>` is always on the Python heap, we don't have the ownership of it.
 /// Thus, to mutate the data behind `&PyCell<T>` safely, we employ the
 /// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
@@ -46,7 +46,7 @@ unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 /// # Examples
 ///
 /// In most cases, `PyCell` is hidden behind `#[pymethods]`.
-/// However, you can construct `&PyCell` directly to test your pyclass in Rust code.
+/// However, you can construct a `&PyCell` directly to test your pyclass in Rust code.
 ///
 /// ```
 /// # use pyo3::prelude::*;
@@ -67,7 +67,7 @@ unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 /// });
 /// ```
 /// You can use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`,
-/// though you rarely need it.
+/// though you'll rarely need it.
 /// ```
 /// # use pyo3::prelude::*;
 /// use std::collections::HashMap;
@@ -189,7 +189,7 @@ impl<T: PyClass> PyCell<T> {
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
 
 impl<T: PyClass> PyCell<T> {
-    /// Make a new `PyCell` on the Python heap and return the reference to it.
+    /// Makes a new `PyCell` on the Python heap and return the reference to it.
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
     /// creation, consider [`Py::new`](../instance/struct.Py.html#method.new) as a more efficient
@@ -202,7 +202,7 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
-    /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
+    /// Immutably borrows the value `T`. This borrow lasts as long as the returned `PyRef` exists.
     ///
     /// # Panics
     ///
@@ -212,7 +212,7 @@ impl<T: PyClass> PyCell<T> {
         self.try_borrow().expect("Already mutably borrowed")
     }
 
-    /// Mutably borrows the value `T`. This borrow lasts untill the returned `PyRefMut` exists.
+    /// Mutably borrows the value `T`. This borrow lasts as long as the returned `PyRefMut` exists.
     ///
     /// # Panics
     ///
@@ -223,7 +223,7 @@ impl<T: PyClass> PyCell<T> {
     }
 
     /// Immutably borrows the value `T`, returning an error if the value is currently
-    /// mutably borrowed. This borrow lasts untill the returned `PyRef` exists.
+    /// mutably borrowed. This borrow lasts as long as the returned `PyRef` exists.
     ///
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
@@ -257,7 +257,7 @@ impl<T: PyClass> PyCell<T> {
     }
 
     /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
-    /// This borrow lasts untill the returned `PyRefMut` exists.
+    /// This borrow lasts as long as the returned `PyRefMut` exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     ///
@@ -323,7 +323,7 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
-    /// Replaces the wrapped value with a new one, returning the old value,
+    /// Replaces the wrapped value with a new one, returning the old value.
     ///
     /// # Panics
     ///
@@ -410,10 +410,12 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// Wraps a borrowed reference to a value in a `PyCell<T>`.
 ///
 /// See the [`PyCell`](struct.PyCell.html) documentation for more.
+///
 /// # Examples
-/// You can use `PyRef` as an alternative of `&self` receiver when
-/// - You need to access the pointer of `PyCell`.
-/// - You want to get super class.
+///
+/// You can use `PyRef` as an alternative to a `&self` receiver when
+/// - you need to access the pointer of the `PyCell`, or
+/// - you want to get a super class.
 /// ```
 /// # use pyo3::prelude::*;
 /// #[pyclass(subclass)]
@@ -449,8 +451,8 @@ pub struct PyRef<'p, T: PyClass> {
 }
 
 impl<'p, T: PyClass> PyRef<'p, T> {
-    /// Returns `Python` token.
-    /// This function is safe since PyRef has the same lifetime as a `GILGuard`.
+    /// Returns a `Python` token.
+    /// This function is safe since `PyRef` has the same lifetime as a `GILGuard`.
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -471,8 +473,13 @@ where
     T: PyClass<BaseType = U>,
     U: PyClass,
 {
-    /// Get `PyRef<T::BaseType>`.
-    /// You can use this method to get super class of super class.
+    /// Gets a `PyRef<T::BaseType>`.
+    ///
+    /// While `as_ref()` returns a reference of type `&T::BaseType`, this cannot be
+    /// used to get the base of `T::BaseType`.
+    ///
+    /// But with the help of this method, you can get hold of instances of the
+    /// super-superclass when needed.
     ///
     /// # Examples
     /// ```
@@ -560,14 +567,14 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 
 /// Wraps a mutable borrowed reference to a value in a `PyCell<T>`.
 ///
-/// See the [`PyCell`](struct.PyCell.html) and [`PyRef`](struct.PyRef.html) documentations for more.
+/// See the [`PyCell`](struct.PyCell.html) and [`PyRef`](struct.PyRef.html) documentation for more.
 pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCell<T>,
 }
 
 impl<'p, T: PyClass> PyRefMut<'p, T> {
-    /// Returns `Python` token.
-    /// This function is safe since PyRefMut has the same lifetime as a `GILGuard`.
+    /// Returns a `Python` token.
+    /// This function is safe since `PyRefMut` has the same lifetime as a `GILGuard`.
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -598,8 +605,8 @@ where
     T: PyClass<BaseType = U>,
     U: PyClass,
 {
-    /// Get `PyRef<T::BaseType>`.
-    /// See  [`PyRef::into_super`](struct.PyRef.html#method.into_super) for more.
+    /// Gets a `PyRef<T::BaseType>`.
+    /// See [`PyRef::into_super`](struct.PyRef.html#method.into_super) for more.
     pub fn into_super(self) -> PyRefMut<'p, U> {
         let PyRefMut { inner } = self;
         std::mem::forget(self);
@@ -673,7 +680,7 @@ impl BorrowFlag {
 
 /// An error returned by [`PyCell::try_borrow`](struct.PyCell.html#method.try_borrow).
 ///
-/// In Python, you can catch this error by `except RuntimeError`.
+/// In Python, you can catch this error using `except RuntimeError`.
 pub struct PyBorrowError {
     _private: (),
 }
@@ -698,7 +705,7 @@ impl From<PyBorrowError> for PyErr {
 
 /// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
 ///
-/// In Python, you can catch this error by `except RuntimeError`.
+/// In Python, you can catch this error using `except RuntimeError`.
 pub struct PyBorrowMutError {
     _private: (),
 }
