@@ -61,8 +61,7 @@ impl<'a> Enum<'a> {
                 match maybe_ret {
                     ok @ Ok(_) => return ok,
                     Err(inner) => {
-                        let gil = Python::acquire_gil();
-                        let py = gil.python();
+                        let py = unsafe { Python::assume_gil_acquired() };
                         err_reasons.push_str(&format!("{}\n", inner.instance(py).str().unwrap()));
                     }
                 }
@@ -212,8 +211,7 @@ impl<'a> Container<'a> {
             );
             quote!(
                 Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    let py = unsafe {Python::assume_gil_acquired() };
                     let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
                     new_err.set_cause(py, Some(inner));
                     new_err
@@ -228,8 +226,7 @@ impl<'a> Container<'a> {
             };
             quote!(
                 Ok(#self_ty(obj.extract().map_err(|inner| {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    let py = unsafe { Python::assume_gil_acquired() };
                     let err_msg = format!("{}: {}",
                         #error_msg,
                         inner.instance(py).str().unwrap());
@@ -246,8 +243,7 @@ impl<'a> Container<'a> {
             let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
             fields.push(quote!(
                 s.get_item(#i).extract().map_err(|inner| {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
+                let py = unsafe { Python::assume_gil_acquired() };
                 let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
                 new_err.set_cause(py, Some(inner));
                 new_err
@@ -287,16 +283,14 @@ impl<'a> Container<'a> {
             let extractor = match &attrs.from_py_with {
                 None => quote!(
                     #get_field.extract().map_err(|inner| {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    let py = unsafe{ Python::assume_gil_acquired() };
                     let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
                     new_err.set_cause(py, Some(inner));
                     new_err
                 })?),
                 Some(FromPyWithAttribute(expr_path)) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
-                        let gil = Python::acquire_gil();
-                        let py = gil.python();
+                        let py = unsafe{ Python::assume_gil_acquired() };
                         let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
                         new_err.set_cause(py, Some(inner));
                         new_err
