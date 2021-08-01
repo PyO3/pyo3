@@ -11,32 +11,34 @@ use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
 
-/// `T: PyLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
+/// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
 pub unsafe trait PyLayout<T> {}
 
-/// `T: PySizedLayout<U>` represents `T` is not a instance of
+/// `T: PySizedLayout<U>` represents that `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
-/// , in addition that `T` is a concrete representaion of `U`.
+/// In addition, that `T` is a concrete representaion of `U`.
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
 /// Python type information.
-/// All Python native types(e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
+/// All Python native types (e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
 ///
 /// This trait is marked unsafe because:
 ///  - specifying the incorrect layout can lead to memory errors
 ///  - the return value of type_object must always point to the same PyTypeObject instance
+///
+/// It is safely implemented by the `pyclass` macro.
 pub unsafe trait PyTypeInfo: Sized {
-    /// Class name
+    /// Class name.
     const NAME: &'static str;
 
-    /// Module name, if any
+    /// Module name, if any.
     const MODULE: Option<&'static str>;
 
-    /// Utility type to make Py::as_ref work
+    /// Utility type to make Py::as_ref work.
     type AsRefTarget: crate::PyNativeType;
 
     /// PyTypeObject instance for this type.
@@ -73,7 +75,7 @@ where
     }
 }
 
-/// Lazy type object for PyClass
+/// Lazy type object for PyClass.
 #[doc(hidden)]
 pub struct LazyStaticType {
     // Boxed because Python expects the type object to have a stable address.

@@ -1,8 +1,8 @@
-//! This module contains additional fields for `#[pyclass]`..
-//! Mainly used by our proc-macro codes.
+//! This module contains additional fields for `#[pyclass]`.
+//! Mainly used by PyO3's proc-macro code.
 use crate::{ffi, Python};
 
-/// Represents `__dict__` field for `#[pyclass]`.
+/// Represents the `__dict__` field for `#[pyclass]`.
 pub trait PyClassDict {
     /// Whether this `__dict__` field is capable of holding a dictionary.
     const IS_DUMMY: bool = true;
@@ -14,7 +14,7 @@ pub trait PyClassDict {
     private_decl! {}
 }
 
-/// Represents `__weakref__` field for `#[pyclass]`.
+/// Represents the `__weakref__` field for `#[pyclass]`.
 pub trait PyClassWeakRef {
     /// Whether this `weakref` type is capable of holding weak references.
     const IS_DUMMY: bool = true;
