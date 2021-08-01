@@ -40,21 +40,22 @@ pub(crate) fn gil_is_acquired() -> bool {
 
 /// Prepares the use of Python in a free-threaded context.
 ///
-/// If the Python interpreter is not already initialized, this function
-/// will initialize it with disabled signal handling
-/// (Python will not raise the `KeyboardInterrupt` exception).
-/// Python signal handling depends on the notion of a 'main thread', which must be
-/// the thread that initializes the Python interpreter.
+/// If the Python interpreter is not already initialized, this function will initialize it with
+/// signal handling disabled (Python will not raise the `KeyboardInterrupt` exception). Python
+/// signal handling depends on the notion of a 'main thread', which must be the thread that
+/// initializes the Python interpreter.
 ///
-/// If both the Python interpreter and Python threading are already initialized,
-/// this function has no effect.
+/// If both the Python interpreter and Python threading are already initialized, this function has
+/// no effect.
+///
+/// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
+/// software). Support for this is tracked on the
+/// [PyPy issue tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3286).
 ///
 /// # Panics
-/// - If the Python interpreter is initialized but Python threading is not,
-///   a panic occurs.
-///   It is not possible to safely access the Python runtime unless the main
-///   thread (the thread which originally initialized Python) also initializes
-///   threading.
+/// - If the Python interpreter is initialized but Python threading is not, a panic occurs.
+///   It is not possible to safely access the Python runtime unless the main thread (the thread
+///   which originally initialized Python) also initializes threading.
 ///
 /// # Examples
 /// ```rust
