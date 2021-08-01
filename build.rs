@@ -1,7 +1,7 @@
 use std::{env, process::Command};
 
 use pyo3_build_config::{
-    bail, ensure,
+    bail, cargo_env_var, ensure, env_var,
     errors::{Context, Result},
     InterpreterConfig, PythonImplementation, PythonVersion,
 };
@@ -22,7 +22,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 
 fn ensure_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
     // Try to check whether the target architecture matches the python library
-    let rust_target = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap().as_str() {
+    let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
+        .unwrap()
+        .as_str()
+    {
         "64" => "64-bit",
         "32" => "32-bit",
         x => bail!("unexpected Rust target pointer width: {}", x),
@@ -55,14 +58,14 @@ fn ensure_target_architecture(interpreter_config: &InterpreterConfig) -> Result<
 }
 
 fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
-    let link_name = if env::var_os("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+    let link_name = if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
         if config.abi3 {
             // Link against python3.lib for the stable ABI on Windows.
             // See https://www.python.org/dev/peps/pep-0384/#linkage
             //
             // This contains only the limited ABI symbols.
             "pythonXY:python3".to_owned()
-        } else if env::var_os("CARGO_CFG_TARGET_ENV").unwrap() == "gnu" {
+        } else if cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap() == "gnu" {
             // https://packages.msys2.org/base/mingw-w64-python
             format!(
                 "pythonXY:python{}.{}",
@@ -103,8 +106,8 @@ fn rustc_minor_version() -> Option<u32> {
 }
 
 fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     match (is_extension_module, target_os.as_str()) {
         (_, "windows") => {
             // always link on windows, even with extension module
@@ -144,7 +147,7 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
         _ => {}
     }
 
-    if env::var_os("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
+    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
         if !interpreter_config.shared {
             bail!(
                 "The `auto-initialize` feature is enabled, but your python installation only supports \
@@ -179,6 +182,9 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 /// (including `pyo3-macros-backend` during macro expansion).
 fn configure_pyo3() -> Result<()> {
     let interpreter_config = pyo3_build_config::make_interpreter_config()?;
+    if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
+        print_config_and_exit(&interpreter_config);
+    }
     ensure_python_version(&interpreter_config)?;
     ensure_target_architecture(&interpreter_config)?;
     emit_cargo_configuration(&interpreter_config)?;
@@ -205,6 +211,20 @@ fn configure_pyo3() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_config_and_exit(config: &InterpreterConfig) {
+    println!("\n-- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --");
+    println!("implementation: {}", config.implementation);
+    println!("interpreter version: {}", config.version);
+    println!("interpreter path: {:?}", config.executable);
+    println!("libdir: {:?}", config.libdir);
+    println!("shared: {}", config.shared);
+    println!("base prefix: {:?}", config.base_prefix);
+    println!("ld_version: {:?}", config.ld_version);
+    println!("pointer width: {:?}", config.calcsize_pointer);
+
+    std::process::exit(101);
 }
 
 fn main() {

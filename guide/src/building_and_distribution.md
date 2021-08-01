@@ -17,25 +17,34 @@ You can override the Python interpreter by setting the `PYO3_PYTHON` environment
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
-To validate the configuration which PyO3 will use, you can run the `print-config` binary from the `pyo3-build-config` crate. An example usage of this binary is shown below:
+To validate the configuration which PyO3 will use, you can run a compilation with the environment variable `PYO3_PRINT_CONFIG=1` set. An example output of doing this is shown below:
 
-```bash
-# (First, clone the PyO3 git repository)
-$ cd path/to/pyo3/repository
-$ cd pyo3-build-config
-$ cargo run --bin print-config
-cargo:rerun-if-env-changed=PYO3_PYTHON
-cargo:rerun-if-env-changed=VIRTUAL_ENV
-cargo:rerun-if-env-changed=CONDA_PREFIX
-cargo:rerun-if-env-changed=PATH
-implementation: CPython
-interpreter version: 3.8
-interpreter path: Some("/usr/bin/python")
-libdir: Some("/usr/lib")
-shared: true
-base prefix: Some("/usr")
-ld_version: Some("3.8")
-pointer width: Some(8)
+```console
+$ PYO3_PRINT_CONFIG=1 cargo build
+   Compiling pyo3 v0.14.1 (/home/david/dev/pyo3)
+error: failed to run custom build command for `pyo3 v0.14.1 (/home/david/dev/pyo3)`
+
+Caused by:
+  process didn't exit successfully: `/home/david/dev/pyo3/target/debug/build/pyo3-7a8cf4fe22e959b7/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=PYO3_CROSS
+  cargo:rerun-if-env-changed=PYO3_CROSS_LIB_DIR
+  cargo:rerun-if-env-changed=PYO3_CROSS_PYTHON_VERSION
+  cargo:rerun-if-env-changed=PYO3_PYTHON
+  cargo:rerun-if-env-changed=VIRTUAL_ENV
+  cargo:rerun-if-env-changed=CONDA_PREFIX
+  cargo:rerun-if-env-changed=PATH
+  cargo:rerun-if-env-changed=PYO3_PRINT_CONFIG
+
+  -- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --
+  implementation: CPython
+  interpreter version: 3.8
+  interpreter path: Some("/usr/bin/python")
+  libdir: Some("/usr/lib")
+  shared: true
+  base prefix: Some("/usr")
+  ld_version: Some("3.8")
+  pointer width: Some(8)
 ```
 
 ## Building Python extension modules
