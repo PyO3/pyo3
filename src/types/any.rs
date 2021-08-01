@@ -6,7 +6,7 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, PyObject};
+use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -675,6 +675,12 @@ impl PyAny {
     /// This is equivalent to the Python expression `isinstance(self, T)`.
     pub fn is_instance<T: PyTypeObject>(&self) -> PyResult<bool> {
         T::type_object(self.py()).is_instance(self)
+    }
+
+    /// Returns a GIL marker constrained to the lifetime of this type.
+    #[inline]
+    pub fn py(&self) -> Python<'_> {
+        PyNativeType::py(self)
     }
 }
 

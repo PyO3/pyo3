@@ -5,8 +5,8 @@ use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyNativeType, PyObject, PyTryFrom, Python,
-    ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToBorrowedObject,
+    ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;

@@ -1,5 +1,5 @@
 use crate::types::PyType;
-use crate::{FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, PyResult, Python, ToPyObject};
+use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

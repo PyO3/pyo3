@@ -39,7 +39,7 @@ pub unsafe trait PyTypeInfo: Sized {
     const MODULE: Option<&'static str>;
 
     /// Utility type to make Py::as_ref work.
-    type AsRefTarget: crate::PyNativeType;
+    type AsRefTarget: PyNativeType;
 
     /// PyTypeObject instance for this type.
     fn type_object_raw(py: Python) -> *mut ffi::PyTypeObject;

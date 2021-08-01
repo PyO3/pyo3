@@ -35,7 +35,7 @@ mod min_const_generics {
         for<'a> T: Default + FromPyObject<'a> + crate::buffer::Element,
     {
         fn extract(obj: &'source PyAny) -> PyResult<Self> {
-            use crate::{AsPyPointer, PyNativeType};
+            use crate::AsPyPointer;
             // first try buffer protocol
             if unsafe { crate::ffi::PyObject_CheckBuffer(obj.as_ptr()) } == 1 {
                 if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {

@@ -62,8 +62,8 @@
 //! ```
 
 use crate::{
-    err, ffi, types::*, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyErr, PyNativeType,
-    PyObject, PyResult, Python, ToPyObject,
+    err, ffi, types::*, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 
 use num_bigint::{BigInt, BigUint};

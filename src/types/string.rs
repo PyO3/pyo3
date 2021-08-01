@@ -2,8 +2,8 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, PyResult, PyTryFrom,
-    Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ToPyObject,
 };
 use std::borrow::Cow;
 use std::os::raw::c_char;

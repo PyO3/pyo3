@@ -1,7 +1,6 @@
 use crate::types::PyString;
 #[cfg(windows)]
 use crate::PyErr;
-use crate::PyNativeType;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,

@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, PyAny, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, PyAny, PyErr, PyResult, Python};
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
 use crate::{PyDowncastError, PyTryFrom};
 

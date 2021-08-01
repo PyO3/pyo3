@@ -3,7 +3,6 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{self, PyResult};
-use crate::instance::PyNativeType;
 use crate::type_object::PyTypeObject;
 use crate::{ffi, AsPyPointer, PyAny, Python};
 
