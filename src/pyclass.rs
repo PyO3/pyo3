@@ -12,11 +12,11 @@ use std::{
     ptr,
 };
 
-/// If `PyClass` is implemented for `T`, then we can use `T` in the Python world,
-/// via `PyCell`.
+/// If `PyClass` is implemented for a Rust type `T`, then we can use `T` in the Python
+/// world, via `PyCell`.
 ///
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
-/// so you don't have to use this trait directly.
+/// so you don't normally have to use this trait directly.
 pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {

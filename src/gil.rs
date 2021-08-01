@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Interaction with python's global interpreter lock
+//! Interaction with Python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, Python};
 use parking_lot::{const_mutex, Mutex, Once};
@@ -14,21 +14,21 @@ use std::{
 static START: Once = Once::new();
 
 thread_local! {
-    /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
+    /// This is an internal counter in pyo3 monitoring whether this thread has the GIL.
     ///
     /// It will be incremented whenever a GILGuard or GILPool is created, and decremented whenever
     /// they are dropped.
     ///
     /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
     ///
-    /// pub(crate) because it is manipulated temporarily by Python::allow_threads
+    /// pub(crate) because it is manipulated temporarily by `Python::allow_threads`.
     pub(crate) static GIL_COUNT: Cell<usize> = Cell::new(0);
 
-    /// Temporally hold objects that will be released when the GILPool drops.
+    /// Temporarily hold objects that will be released when the GILPool drops.
     static OWNED_OBJECTS: RefCell<Vec<NonNull<ffi::PyObject>>> = RefCell::new(Vec::with_capacity(256));
 }
 
-/// Check whether the GIL is acquired.
+/// Checks whether the GIL is acquired.
 ///
 /// Note: This uses pyo3's internal count rather than PyGILState_Check for two reasons:
 ///  1) for performance
@@ -174,7 +174,7 @@ where
 
 /// RAII type that represents the Global Interpreter Lock acquisition.
 ///
-/// Users are strongly encouraged to [`Python::with_gil`](struct.Python.html#method.with_gil)
+/// Users are strongly encouraged to use [`Python::with_gil`](struct.Python.html#method.with_gil)
 /// instead of directly constructing this type.
 /// See [`Python::acquire_gil`](struct.Python.html#method.acquire_gil) for more.
 ///
@@ -355,7 +355,7 @@ pub struct GILPool {
 }
 
 impl GILPool {
-    /// Create a new `GILPool`. This function should only ever be called with the GIL.
+    /// Creates a new `GILPool`. This function should only ever be called with the GIL held.
     ///
     /// It is recommended not to use this API directly, but instead to use `Python::new_pool`, as
     /// that guarantees the GIL is held.
@@ -402,8 +402,8 @@ impl Drop for GILPool {
     }
 }
 
-/// Register a Python object pointer inside the release pool, to have reference count increased
-/// next time the GIL is acquired in pyo3.
+/// Registers a Python object pointer inside the release pool, to have its reference count increased
+/// the next time the GIL is acquired in pyo3.
 ///
 /// If the GIL is held, the reference count will be increased immediately instead of being queued
 /// for later.
@@ -418,8 +418,8 @@ pub unsafe fn register_incref(obj: NonNull<ffi::PyObject>) {
     }
 }
 
-/// Register a Python object pointer inside the release pool, to have reference count decreased
-/// next time the GIL is acquired in pyo3.
+/// Registers a Python object pointer inside the release pool, to have its reference count decreased
+/// the next time the GIL is acquired in pyo3.
 ///
 /// If the GIL is held, the reference count will be decreased immediately instead of being queued
 /// for later.
@@ -434,7 +434,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     }
 }
 
-/// Register an owned object inside the GILPool.
+/// Registers an owned object inside the GILPool, to be released when the GILPool drops.
 ///
 /// # Safety
 /// The object must be an owned Python reference.
@@ -444,14 +444,14 @@ pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
     let _ = OWNED_OBJECTS.try_with(|holder| holder.borrow_mut().push(obj));
 }
 
-/// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
+/// Increments pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
 #[inline(always)]
 fn increment_gil_count() {
     // Ignores the error in case this function called from `atexit`.
     let _ = GIL_COUNT.try_with(|c| c.set(c.get() + 1));
 }
 
-/// Decrement pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
+/// Decrements pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
 #[inline(always)]
 fn decrement_gil_count() {
     // Ignores the error in case this function called from `atexit`.
@@ -465,7 +465,7 @@ fn decrement_gil_count() {
     });
 }
 
-/// Ensure the GIL is held, used in the implementation of Python::with_gil
+/// Ensures the GIL is held, used in the implementation of `Python::with_gil`.
 pub(crate) fn ensure_gil() -> EnsureGIL {
     if gil_is_acquired() {
         EnsureGIL(None)
