@@ -13,7 +13,7 @@ fmt:
 clippy:
 	cargo clippy --features="num-bigint num-complex hashbrown serde" --tests -- -Dwarnings
 	cargo clippy --features="abi3 num-bigint num-complex hashbrown serde" --tests -- -Dwarnings
-	for example in examples/*; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
+	for example in examples/*/; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
 
 lint: fmt clippy
 	@true

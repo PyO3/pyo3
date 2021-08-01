@@ -125,114 +125,17 @@
 //! [pypy section](https://pyo3.rs/latest/building_and_distribution/pypy.html)
 //! in the guide for more information.
 //!
-//! # Example: Building a native Python module
+//! # Examples
 //!
-//! To build, test and publish your crate as a Python module, it is recommended that you use
-//! [maturin](https://github.com/PyO3/maturin) or
-//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the
-//! [Building and Distribution chapter of the guide](https://pyo3.rs/latest/building_and_distribution.html)
-//! for more information.
+//! The PyO3 [README](https://github.com/PyO3/pyo3#readme) contains quick-start examples for both
+//! using [Rust from Python](https://github.com/PyO3/pyo3#using-rust-from-python) and
+//! [Python from Rust](https://github.com/PyO3/pyo3#using-python-from-rust).
 //!
-//! Add these files to your crate's root:
+//! The PyO3 repository's [examples subdirectory](https://github.com/PyO3/pyo3/tree/main/examples)
+//! contains some basic packages to demonstrate usage of PyO3.
 //!
-//! **`Cargo.toml`**
-//!
-//! ```toml
-//! [package]
-//! name = "string-sum"
-//! version = "0.1.0"
-//! edition = "2018"
-//!
-//! [lib]
-//! name = "string_sum"
-//! # "cdylib" is necessary to produce a shared library for Python to import from.
-//! #
-//! # Downstream Rust code (including code in `bin/`, `examples/`, and `tests/`) will not be able
-//! # to `use string_sum;` unless the "rlib" or "lib" crate type is also included, e.g.:
-//! # crate-type = ["cdylib", "rlib"]
-//! crate-type = ["cdylib"]
-//!
-//! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
-//! features = ["extension-module"]
-//! ```
-//!
-//! **`src/lib.rs`**
-//!
-//! ```rust
-//! use pyo3::prelude::*;
-//!
-//! /// Formats the sum of two numbers as string.
-//! #[pyfunction]
-//! fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-//!     Ok((a + b).to_string())
-//! }
-//!
-//! /// A Python module implemented in Rust.
-//! #[pymodule]
-//! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
-//!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! **`.cargo/config.toml`**
-//! ```toml
-//! # These flags must be passed to rustc when compiling for macOS
-//! # They can be omitted if you pass the flags yourself
-//! # or don't care about macOS
-//!
-//! [target.x86_64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//!
-//! [target.aarch64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//! ```
-//!
-//! # Example: Using Python from Rust
-//!
-//! You can use PyO3 to call Python functions from Rust.
-//!
-//! Add `pyo3` to your `Cargo.toml`:
-//!
-//! ```toml
-//! [dependencies.pyo3]
-// workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
-#![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")))]
-#![cfg_attr(not(docsrs), doc = "version = \"*\"")]
-//! # this is necessary to automatically initialize the Python interpreter
-//! features = ["auto-initialize"]
-//! ```
-//!
-//! Example program displaying the value of `sys.version`:
-//!
-//! ```rust
-//! use pyo3::prelude::*;
-//! use pyo3::types::IntoPyDict;
-//!
-//! fn main() -> PyResult<()> {
-//!     let gil = Python::acquire_gil();
-//!     let py = gil.python();
-//!     let sys = py.import("sys")?;
-//!     let version: String = sys.get("version")?.extract()?;
-//!
-//!     let locals = [("os", py.import("os")?)].into_py_dict(py);
-//!     let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!     let user: String = py.eval(code, None, Some(&locals))?.extract()?;
-//!
-//!     println!("Hello {}, I'm Python {}", user, version);
-//!     Ok(())
-//! }
-//! ```
+//! There are many projects using PyO3 - see a list of some at
+//! <https://github.com/PyO3/pyo3#examples>
 
 pub use crate::class::*;
 pub use crate::conversion::{
