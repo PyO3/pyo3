@@ -25,13 +25,13 @@ const ABI3_MAX_MINOR: u8 = 9;
 /// Gets an environment variable owned by cargo.
 ///
 /// Environment variables set by cargo are expected to be valid UTF8.
-fn cargo_env_var(var: &str) -> Option<String> {
+pub fn cargo_env_var(var: &str) -> Option<String> {
     env::var_os(var).map(|os_string| os_string.to_str().unwrap().into())
 }
 
 /// Gets an external environment variable, and registers the build script to rerun if
 /// the variable changes.
-fn env_var(var: &str) -> Option<OsString> {
+pub fn env_var(var: &str) -> Option<OsString> {
     println!("cargo:rerun-if-env-changed={}", var);
     env::var_os(var)
 }

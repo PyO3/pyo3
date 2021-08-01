@@ -20,7 +20,6 @@
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
   - [Supporting multiple Python versions](building_and_distribution/multiple_python_versions.md)
-  - [PyPy support](building_and_distribution/pypy.md)
 - [Useful Crates](ecosystem.md)
   - [Logging](ecosystem/logging.md)
   - [Async / Await](ecosystem/async-await.md)

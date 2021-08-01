@@ -27,7 +27,7 @@ pub use impl_::{
 
 // Used in PyO3's build.rs
 #[doc(hidden)]
-pub use impl_::make_interpreter_config;
+pub use impl_::{cargo_env_var, env_var, make_interpreter_config};
 
 /// Reads the configuration written by PyO3's build.rs
 ///

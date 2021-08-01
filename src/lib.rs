@@ -118,12 +118,9 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! PyO3 supports Python 3.6+ and Rust 1.41+.
-//!
-//! Building with PyPy is also possible (via cpyext) for Python 3.6,
-//! targeted PyPy version is 7.3+. Please refer to the
-//! [pypy section](https://pyo3.rs/latest/building_and_distribution/pypy.html)
-//! in the guide for more information.
+//! PyO3 supports the following software versions:
+//!   - Python 3.6 and up (CPython and PyPy)
+//!   - Rust 1.41 and up
 //!
 //! # Example: Building a native Python module
 //!
@@ -494,10 +491,6 @@ pub mod doc_test {
     doctest!(
         "guide/src/building_and_distribution.md",
         guide_building_and_distribution_md
-    );
-    doctest!(
-        "guide/src/building_and_distribution/pypy.md",
-        guide_building_and_distribution_pypy_md
     );
     doctest!("guide/src/class.md", guide_class_md);
     doctest!("guide/src/class/protocols.md", guide_class_protocols_md);

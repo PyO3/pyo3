@@ -17,7 +17,7 @@ PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` bu
 
 ## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
-Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
+Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
 
 ```toml
 [dependencies.pyo3]
@@ -138,5 +138,4 @@ print(f"a: {a}\nb: {b}")
 a: <builtins.Inner object at 0x0000020044FCC670>
 b: <builtins.Inner object at 0x0000020044FCC670>
 ```
-The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field. 
-
+The downside to this approach is that any Rust code working on the `Outer` struct now has to acquire the GIL to do anything with its field.
