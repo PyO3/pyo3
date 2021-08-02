@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
+- Add `pyo3_build_config::add_extension_module_link_args()` to use in build scripts to set linker arguments (for macOS). [#1755](https://github.com/PyO3/pyo3/pull/1755)
 
 ### Changed
 
 - `PyErr::new` no longer acquires the Python GIL internally. [#1724](https://github.com/PyO3/pyo3/pull/1724)
+- Reverted PyO3 0.14.0's use of `cargo:rustc-cdylib-link-arg` in its build script, as Cargo unintentionally allowed crates to pass linker args to downstream crates in this way. Projects supporting macOS may need to restore `.cargo/config.toml` files. [#1755](https://github.com/PyO3/pyo3/pull/1755)
 
 ### Fixed
 
