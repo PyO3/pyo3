@@ -828,9 +828,7 @@ where
     T::AsRefTarget: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        std::fmt::Display::fmt(self.as_ref(py), f)
+        Python::with_gil(|py| std::fmt::Display::fmt(self.as_ref(py), f))
     }
 }
 
