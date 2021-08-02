@@ -179,7 +179,7 @@ jobs:
       - name: Test example extension modules
         shell: bash
         run: |
-          for example_dir in examples/*; do
+          for example_dir in examples/*/; do
               tox -c $example_dir -e py
           done
         env:

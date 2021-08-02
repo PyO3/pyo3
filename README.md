@@ -98,13 +98,13 @@ As well as with `maturin`, it is possible to build using [`setuptools-rust`](htt
 
 To embed Python into a Rust binary, you need to ensure that your Python installation contains a shared library. The following steps demonstrate how to ensure this (for Ubuntu), and then give some example code which runs an embedded Python interpreter.
 
-To install the Python shared library, if you are on Ubuntu, you can run:
+To install the Python shared library on Ubuntu:
 
 ```bash
 sudo apt install python3-dev
 ```
 
-Start a new project with `cargo new`. Next, add  `pyo3` to your `Cargo.toml` like this:
+Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 
 ```toml
 [dependencies.pyo3]
@@ -118,24 +118,18 @@ Example program displaying the value of `sys.version` and the current user name:
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
-fn main() -> Result<(), ()> {
+fn main() -> PyResult<()> {
     Python::with_gil(|py| {
-        main_(py).map_err(|e| {
-          // We can't display Python exceptions via std::fmt::Display,
-          // so print the error here manually.
-          e.print_and_set_sys_last_vars(py);
-        })
-    })
-}
+        let sys = py.import("sys")?;
+        let version: String = sys.get("version")?.extract()?;
 
-fn main_(py: Python) -> PyResult<()> {
-    let sys = py.import("sys")?;
-    let version: String = sys.get("version")?.extract()?;
-    let locals = [("os", py.import("os")?)].into_py_dict(py);
-    let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-    let user: String = py.eval(code, None, Some(&locals))?.extract()?;
-    println!("Hello {}, I'm Python {}", user, version);
-    Ok(())
+        let locals = [("os", py.import("os")?)].into_py_dict(py);
+        let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
+
+        println!("Hello {}, I'm Python {}", user, version);
+        Ok(())
+    })
 }
 ```
 

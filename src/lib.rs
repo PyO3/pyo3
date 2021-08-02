@@ -124,13 +124,13 @@
 //!
 //! # Example: Building a native Python module
 //!
-//! To build, test and publish your crate as a Python module, it is recommended that you use
-//! [maturin](https://github.com/PyO3/maturin) or
-//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can also do this manually. See the
-//! [Building and Distribution chapter of the guide](https://pyo3.rs/latest/building_and_distribution.html)
-//! for more information.
+//! PyO3 can be used to generate a native Python module. The easiest way to try this out for the
+//! first time is to use [`maturin`](https://github.com/PyO3/maturin). `maturin` is a tool for
+//! building and publishing Rust-based Python packages with minimal configuration. The following
+//! steps set up some files for an example Python module, install `maturin`, and then show how build
+//! and import the Python module.
 //!
-//! Add these files to your crate's root:
+//! First, create a new folder (let's call it `string_sum`) containing the following two files:
 //!
 //! **`Cargo.toml`**
 //!
@@ -176,30 +176,46 @@
 //! }
 //! ```
 //!
-//! **`.cargo/config.toml`**
-//! ```toml
-//! # These flags must be passed to rustc when compiling for macOS
-//! # They can be omitted if you pass the flags yourself
-//! # or don't care about macOS
+//! With those two files in place, now `maturin` needs to be installed. This can be done using
+//! Python's package manager `pip`. First, load up a new Python `virtualenv`, and install `maturin`
+//! into it:
 //!
-//! [target.x86_64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//!
-//! [target.aarch64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
+//! ```bash
+//! $ cd string_sum
+//! $ python -m venv .env
+//! $ source .env/bin/activate
+//! $ pip install maturin
 //! ```
+//!
+//! Now build and execute the module:
+//!
+//! ```bash
+//! $ maturin develop
+//! # lots of progress output as maturin runs the compilation...
+//! $ python
+//! >>> import string_sum
+//! >>> string_sum.sum_as_string(5, 20)
+//! '25'
+//! ```
+//!
+//! As well as with `maturin`, it is possible to build using
+//! [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or
+//! [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). Both offer more
+//! flexibility than `maturin` but require further configuration.
 //!
 //! # Example: Using Python from Rust
 //!
-//! You can use PyO3 to call Python functions from Rust.
+//! To embed Python into a Rust binary, you need to ensure that your Python installation contains a
+//! shared library. The following steps demonstrate how to ensure this (for Ubuntu), and then give
+//! some example code which runs an embedded Python interpreter.
 //!
-//! Add `pyo3` to your `Cargo.toml`:
+//! To install the Python shared library on Ubuntu:
+//!
+//! ```bash
+//! sudo apt install python3-dev
+//! ```
+//!
+//! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 //!
 //! ```toml
 //! [dependencies.pyo3]
@@ -210,26 +226,41 @@
 //! features = ["auto-initialize"]
 //! ```
 //!
-//! Example program displaying the value of `sys.version`:
+//! Example program displaying the value of `sys.version` and the current user name:
 //!
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
 //!
 //! fn main() -> PyResult<()> {
-//!     let gil = Python::acquire_gil();
-//!     let py = gil.python();
-//!     let sys = py.import("sys")?;
-//!     let version: String = sys.get("version")?.extract()?;
+//!     Python::with_gil(|py| {
+//!         let sys = py.import("sys")?;
+//!         let version: String = sys.get("version")?.extract()?;
 //!
-//!     let locals = [("os", py.import("os")?)].into_py_dict(py);
-//!     let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//!     let user: String = py.eval(code, None, Some(&locals))?.extract()?;
+//!         let locals = [("os", py.import("os")?)].into_py_dict(py);
+//!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+//!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
-//!     println!("Hello {}, I'm Python {}", user, version);
-//!     Ok(())
+//!         println!("Hello {}, I'm Python {}", user, version);
+//!         Ok(())
+//!     })
 //! }
 //! ```
+//!
+//! The guide has [a section](https://pyo3.rs/latest/python_from_rust.html) with lots of examples
+//! about this topic.
+//!
+//! # Other Examples
+//!
+//! The PyO3 [README](https://github.com/PyO3/pyo3#readme) contains quick-start examples for both
+//! using [Rust from Python](https://github.com/PyO3/pyo3#using-rust-from-python) and
+//! [Python from Rust](https://github.com/PyO3/pyo3#using-python-from-rust).
+//!
+//! The PyO3 repository's [examples subdirectory](https://github.com/PyO3/pyo3/tree/main/examples)
+//! contains some basic packages to demonstrate usage of PyO3.
+//!
+//! There are many projects using PyO3 - see a list of some at
+//! <https://github.com/PyO3/pyo3#examples>
 
 pub use crate::class::*;
 pub use crate::conversion::{
