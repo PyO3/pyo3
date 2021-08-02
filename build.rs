@@ -148,12 +148,23 @@ fn configure_pyo3() -> Result<()> {
     };
 
     if let Some(path) = path_to_write {
-        interpreter_config.to_writer(&mut std::fs::File::create(&path).with_context(|| {
+        let path = Path::new(&path);
+        let parent_dir = path.parent().ok_or_else(|| {
             format!(
-                "failed to create config file at {}",
-                Path::new(&path).display()
+                "failed to resolve parent directory of config file {}",
+                path.display()
             )
-        })?)?;
+        })?;
+        std::fs::create_dir_all(&parent_dir).with_context(|| {
+            format!(
+                "failed to create config file directory {}",
+                parent_dir.display()
+            )
+        })?;
+        interpreter_config
+            .to_writer(&mut std::fs::File::create(&path).with_context(|| {
+                format!("failed to create config file at {}", path.display())
+            })?)?;
     }
     if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
         print_config_and_exit(&interpreter_config);
