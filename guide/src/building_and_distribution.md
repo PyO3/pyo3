@@ -82,6 +82,36 @@ You can then open a Python shell in the output directory and you'll be able to r
 
 See, as an example, Bazel rules to build PyO3 on Linux at https://github.com/TheButlah/rules_pyo3.
 
+#### macOS
+
+On macOS, because the `extension-module` feature disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
+
+The easiest way to set the correct linker arguments is to add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) with the following content:
+
+```rust,ignore
+fn main() {
+  pyo3_build_config::add_extension_module_link_args();
+}
+```
+
+Remember to also add `pyo3-build-config` to the `build-dependencies` section in `Cargo.toml`.
+
+An alternative to using `pyo3-build-config` is add the following to a cargo configuration file (e.g. `.cargo/config.toml`):
+
+```toml
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+```
+
 ### The `extension-module` feature
 
 PyO3's `extension-module` feature is used to disable [linking](https://en.wikipedia.org/wiki/Linker_(computing)) to `libpython` on unix targets.

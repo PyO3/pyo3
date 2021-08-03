@@ -121,11 +121,6 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
                 println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
             }
         }
-        (true, "macos") => {
-            // with extension module on macos some extra linker arguments are needed
-            println!("cargo:rustc-cdylib-link-arg=-undefined");
-            println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
-        }
         (false, _) | (_, "android") => {
             // other systems, only link libs if not extension module
             // android always link.
