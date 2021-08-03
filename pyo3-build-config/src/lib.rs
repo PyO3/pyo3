@@ -7,6 +7,8 @@
 pub mod errors;
 mod impl_;
 
+use std::{ffi::OsString, path::Path};
+
 use once_cell::sync::OnceCell;
 
 // Used in PyO3's build.rs
@@ -23,15 +25,20 @@ pub use impl_::{
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
-        let config_file = std::fs::File::open(PATH).expect("config file missing");
+        let config_path = std::env::var_os("PYO3_CONFIG_FILE")
+            .unwrap_or_else(|| OsString::from(DEFAULT_CONFIG_PATH));
+        let config_file = std::fs::File::open(DEFAULT_CONFIG_PATH).expect(&format!(
+            "failed to open PyO3 config file at {}",
+            Path::new(&config_path).display()
+        ));
         let reader = std::io::BufReader::new(config_file);
         InterpreterConfig::from_reader(reader).expect("failed to parse config file")
     })
 }
 
-/// Path where PyO3's build.rs will write configuration.
+/// Path where PyO3's build.rs will write configuration by default.
 #[doc(hidden)]
-pub const PATH: &str = concat!(env!("OUT_DIR"), "/pyo3-build-config.txt");
+pub const DEFAULT_CONFIG_PATH: &str = concat!(env!("OUT_DIR"), "/pyo3-build-config.txt");
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///

@@ -43,15 +43,14 @@ pub fn env_var(var: &str) -> Option<OsString> {
 /// this type.
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct InterpreterConfig {
+    pub implementation: PythonImplementation,
     pub version: PythonVersion,
-    pub libdir: Option<String>,
     pub shared: bool,
     pub abi3: bool,
-    pub ld_version: Option<String>,
-    pub base_prefix: Option<String>,
+    pub lib_name: Option<String>,
+    pub lib_dir: Option<String>,
     pub executable: Option<String>,
-    pub calcsize_pointer: Option<u32>,
-    pub implementation: PythonImplementation,
+    pub pointer_width: Option<u32>,
     pub build_flags: BuildFlags,
 }
 
@@ -89,66 +88,85 @@ impl InterpreterConfig {
     #[doc(hidden)]
     pub fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
-        let mut lines = reader.lines();
+        let lines = reader.lines();
 
-        macro_rules! parse_line {
-            ($value:literal) => {
-                lines
+        macro_rules! parse_value {
+            ($variable:ident, $value:ident) => {
+                $variable = Some($value.parse().context(format!(
+                    concat!(
+                        "failed to parse ",
+                        stringify!($variable),
+                        " from config value '{}'"
+                    ),
+                    $value
+                ))?)
+            };
+        }
+
+        let mut implementation = None;
+        let mut version = None;
+        let mut shared = None;
+        let mut abi3 = None;
+        let mut lib_name = None;
+        let mut lib_dir = None;
+        let mut executable = None;
+        let mut pointer_width = None;
+        let mut build_flags = None;
+
+        for (i, line) in lines.enumerate() {
+            let line = line.context("failed to read line from config")?;
+            let mut split = line.splitn(2, '=');
+            let (key, value) = (
+                split
                     .next()
-                    .ok_or(concat!("reached end of config when reading ", $value))?
-                    .context(concat!("failed to read ", $value, " from config"))?
-                    .parse()
-                    .context(concat!("failed to parse ", $value, " from config"))
-            };
+                    .expect("first splitn value should always be present"),
+                split
+                    .next()
+                    .ok_or_else(|| format!("expected key=value pair on line {}", i + 1))?,
+            );
+            match key {
+                "implementation" => parse_value!(implementation, value),
+                "version" => parse_value!(version, value),
+                "shared" => parse_value!(shared, value),
+                "abi3" => parse_value!(abi3, value),
+                "lib_name" => parse_value!(lib_name, value),
+                "lib_dir" => parse_value!(lib_dir, value),
+                "executable" => parse_value!(executable, value),
+                "pointer_width" => parse_value!(pointer_width, value),
+                "build_flags" => parse_value!(build_flags, value),
+                unknown => bail!("unknown config key `{}`", unknown),
+            }
         }
 
-        macro_rules! parse_option_line {
-            ($value:literal) => {
-                parse_option_string(
-                    lines
-                        .next()
-                        .ok_or(concat!("reached end of config when reading ", $value))?
-                        .context(concat!("failed to read ", $value, " from config"))?,
-                )
-                .context(concat!("failed to parse ", $value, "from config"))
-            };
-        }
+        let version = version.ok_or("missing value for version")?;
+        let implementation = implementation.unwrap_or(PythonImplementation::CPython);
+        let abi3 = abi3.unwrap_or(false);
 
-        let major = parse_line!("major version")?;
-        let minor = parse_line!("minor version")?;
-        let libdir = parse_option_line!("libdir")?;
-        let shared = parse_line!("shared")?;
-        let abi3 = parse_line!("abi3")?;
-        let ld_version = parse_option_line!("ld_version")?;
-        let base_prefix = parse_option_line!("base_prefix")?;
-        let executable = parse_option_line!("executable")?;
-        let calcsize_pointer = parse_option_line!("calcsize_pointer")?;
-        let implementation = parse_line!("implementation")?;
-        let mut build_flags = BuildFlags(HashSet::new());
-        for line in lines {
-            build_flags
-                .0
-                .insert(line.context("failed to read flag from config")?.parse()?);
-        }
         Ok(InterpreterConfig {
-            version: PythonVersion { major, minor },
-            libdir,
-            shared,
-            abi3,
-            ld_version,
-            base_prefix,
-            executable,
-            calcsize_pointer,
             implementation,
-            build_flags,
+            version,
+            shared: shared.unwrap_or(true),
+            abi3,
+            lib_name,
+            lib_dir,
+            executable,
+            pointer_width,
+            build_flags: build_flags.unwrap_or_else(|| {
+                if abi3 {
+                    BuildFlags::abi3()
+                } else {
+                    BuildFlags(HashSet::new())
+                }
+                .fixup(version, implementation)
+            }),
         })
     }
 
     #[doc(hidden)]
     pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
         macro_rules! write_line {
-            ($value:expr) => {
-                writeln!(writer, "{}", $value).context(concat!(
+            ($value:ident) => {
+                writeln!(writer, "{}={}", stringify!($value), self.$value).context(concat!(
                     "failed to write ",
                     stringify!($value),
                     " to config"
@@ -157,41 +175,29 @@ impl InterpreterConfig {
         }
 
         macro_rules! write_option_line {
-            ($opt:expr) => {
-                match &$opt {
-                    Some(value) => writeln!(writer, "{}", value),
-                    None => writeln!(writer, "null"),
+            ($value:ident) => {
+                if let Some(value) = &self.$value {
+                    writeln!(writer, "{}={}", stringify!($value), value).context(concat!(
+                        "failed to write ",
+                        stringify!($value),
+                        " to config"
+                    ))
+                } else {
+                    Ok(())
                 }
-                .context(concat!(
-                    "failed to write ",
-                    stringify!($value),
-                    " to config"
-                ))
             };
         }
 
-        write_line!(self.version.major)?;
-        write_line!(self.version.minor)?;
-        write_option_line!(self.libdir)?;
-        write_line!(self.shared)?;
-        write_line!(self.abi3)?;
-        write_option_line!(self.ld_version)?;
-        write_option_line!(self.base_prefix)?;
-        write_option_line!(self.executable)?;
-        write_option_line!(self.calcsize_pointer)?;
-        write_line!(self.implementation)?;
-        for flag in &self.build_flags.0 {
-            write_line!(flag)?;
-        }
+        write_line!(implementation)?;
+        write_line!(version)?;
+        write_line!(shared)?;
+        write_line!(abi3)?;
+        write_option_line!(lib_name)?;
+        write_option_line!(lib_dir)?;
+        write_option_line!(executable)?;
+        write_option_line!(pointer_width)?;
+        write_line!(build_flags)?;
         Ok(())
-    }
-}
-
-fn parse_option_string<T: FromStr>(string: String) -> Result<Option<T>, <T as FromStr>::Err> {
-    if string == "null" {
-        Ok(None)
-    } else {
-        string.parse().map(Some)
     }
 }
 
@@ -208,6 +214,24 @@ impl PythonVersion {
 impl Display for PythonVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+impl FromStr for PythonVersion {
+    type Err = crate::errors::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let mut split = value.splitn(2, '.');
+        let (major, minor) = (
+            split
+                .next()
+                .expect("first splitn value should always be present"),
+            split.next().ok_or("expected major.minor version")?,
+        );
+        Ok(Self {
+            major: major.parse().context("failed to parse major version")?,
+            minor: minor.parse().context("failed to parse minor version")?,
+        })
     }
 }
 
@@ -453,14 +477,6 @@ impl BuildFlags {
         // query the interpreter directly for its build flags.
         let mut flags = HashSet::new();
         flags.insert(BuildFlag::WITH_THREAD);
-
-        // Uncomment these manually if your python was built with these and you want
-        // the cfg flags to be set in rust.
-        //
-        // flags.insert(BuildFlag::Py_DEBUG);
-        // flags.insert(BuildFlag::Py_REF_DEBUG);
-        // flags.insert(BuildFlag::Py_TRACE_REFS);
-        // flags.insert(BuildFlag::COUNT_ALLOCS;
         Self(flags)
     }
 
@@ -485,6 +501,33 @@ impl BuildFlags {
         }
 
         self
+    }
+}
+
+impl Display for BuildFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut first = true;
+        for flag in &self.0 {
+            if !first {
+                write!(f, ",")?;
+            } else {
+                first = false;
+            }
+            write!(f, "{}", flag)?;
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for BuildFlags {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let mut flags = HashSet::new();
+        for flag in value.split(',') {
+            flags.insert(flag.parse().unwrap());
+        }
+        Ok(BuildFlags(flags))
     }
 }
 
@@ -675,11 +718,10 @@ fn load_cross_compile_from_sysconfigdata(
 
     let major = sysconfig_data.get_numeric("version_major")?;
     let minor = sysconfig_data.get_numeric("version_minor")?;
-    let ld_version = match sysconfig_data.get("LDVERSION") {
-        Some(s) => s.clone(),
-        None => format!("{}.{}", major, minor),
-    };
-    let calcsize_pointer = sysconfig_data.get_numeric("SIZEOF_VOID_P").ok();
+    let pointer_width = sysconfig_data
+        .get_numeric("SIZEOF_VOID_P")
+        .map(|bytes_width: u32| bytes_width * 8)
+        .ok();
     let soabi = match sysconfig_data.get("SOABI") {
         Some(s) => s,
         None => bail!("sysconfigdata did not define SOABI"),
@@ -695,15 +737,18 @@ fn load_cross_compile_from_sysconfigdata(
     };
 
     Ok(InterpreterConfig {
+        implementation,
         version,
-        libdir: cross_compile_config.lib_dir.to_str().map(String::from),
         shared: sysconfig_data.get_bool("Py_ENABLE_SHARED")?,
         abi3: is_abi3(),
-        ld_version: Some(ld_version),
-        base_prefix: None,
+        lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
+        lib_name: Some(default_lib_name_unix(
+            &version,
+            implementation,
+            sysconfig_data.get("LDVERSION").map(String::as_str),
+        )?),
         executable: None,
-        calcsize_pointer,
-        implementation,
+        pointer_width,
         build_flags: BuildFlags::from_config_map(&sysconfig_data).fixup(version, implementation),
     })
 }
@@ -730,16 +775,17 @@ fn windows_hardcoded_cross_compile(
         bail!("PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified when cross-compiling for Windows.")
     };
 
+    let version = PythonVersion { major, minor };
+
     Ok(InterpreterConfig {
-        version: PythonVersion { major, minor },
-        libdir: cross_compile_config.lib_dir.to_str().map(String::from),
+        implementation: PythonImplementation::CPython,
+        version,
         shared: true,
         abi3: is_abi3(),
-        ld_version: None,
-        base_prefix: None,
+        lib_name: Some(default_lib_name_windows(&version, false, "msvc")),
+        lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
-        calcsize_pointer: None,
-        implementation: PythonImplementation::CPython,
+        pointer_width: None,
         build_flags: BuildFlags::windows_hardcoded(),
     })
 }
@@ -759,6 +805,37 @@ fn load_cross_compile_info(cross_compile_config: CrossCompileConfig) -> Result<I
         ),
         // Unknown os family - try to do something useful
         None => load_cross_compile_from_sysconfigdata(cross_compile_config),
+    }
+}
+
+// Link against python3.lib for the stable ABI on Windows.
+// See https://www.python.org/dev/peps/pep-0384/#linkage
+//
+// This contains only the limited ABI symbols.
+const WINDOWS_ABI3_LIB_NAME: &str = "python3";
+
+fn default_lib_name_windows(version: &PythonVersion, abi3: bool, target_env: &str) -> String {
+    if abi3 {
+        WINDOWS_ABI3_LIB_NAME.to_owned()
+    } else if target_env == "gnu" {
+        // https://packages.msys2.org/base/mingw-w64-python
+        format!("python{}.{}", version.major, version.minor)
+    } else {
+        format!("python{}{}", version.major, version.minor)
+    }
+}
+
+fn default_lib_name_unix(
+    version: &PythonVersion,
+    implementation: PythonImplementation,
+    ld_version: Option<&str>,
+) -> Result<String> {
+    match implementation {
+        PythonImplementation::CPython => match &ld_version {
+            Some(ld_version) => Ok(format!("python{}", ld_version)),
+            None => bail!("failed to configure `ld_version` when compiling for unix"),
+        },
+        PythonImplementation::PyPy => Ok(format!("pypy{}-c", version.major)),
     }
 }
 
@@ -878,13 +955,13 @@ FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
 # unix-style shared library enabled
 SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 
+print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
-print("implementation", platform.python_implementation())
-print_if_set("libdir", get_config_var("LIBDIR"))
-print_if_set("ld_version", get_config_var("LDVERSION"))
-print_if_set("base_prefix", base_prefix)
 print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
+print_if_set("ld_version", get_config_var("LDVERSION"))
+print_if_set("libdir", get_config_var("LIBDIR"))
+print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
@@ -901,22 +978,48 @@ print("calcsize_pointer", struct.calcsize("P"))
             .context("failed to parse minor version")?,
     };
 
+    let abi3 = is_abi3();
     let implementation = map["implementation"].parse()?;
+
+    let lib_name = if cfg!(windows) {
+        default_lib_name_windows(
+            &version,
+            abi3,
+            &cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap(),
+        )
+    } else {
+        default_lib_name_unix(
+            &version,
+            implementation,
+            map.get("ld_version").map(String::as_str),
+        )?
+    };
+
+    let lib_dir = if cfg!(windows) {
+        map.get("base_prefix")
+            .map(|base_prefix| format!("cargo:rustc-link-search=native={}\\libs", base_prefix))
+    } else {
+        map.get("libdir").cloned()
+    };
+
+    // The reason we don't use platform.architecture() here is that it's not
+    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
+    // Similarly, sys.maxsize is not reliable on Windows. See
+    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
+    // and https://stackoverflow.com/a/3411134/823869.
+    let calcsize_pointer: u32 = map["calcsize_pointer"]
+        .parse()
+        .context("failed to parse calcsize_pointer")?;
 
     Ok(InterpreterConfig {
         version,
         implementation,
-        libdir: map.get("libdir").cloned(),
         shared,
-        abi3: is_abi3(),
-        ld_version: map.get("ld_version").cloned(),
-        base_prefix: map.get("base_prefix").cloned(),
+        abi3,
+        lib_name: Some(lib_name),
+        lib_dir,
         executable: map.get("executable").cloned(),
-        calcsize_pointer: Some(
-            map["calcsize_pointer"]
-                .parse()
-                .context("failed to parse calcsize_pointer")?,
-        ),
+        pointer_width: Some(calcsize_pointer * 8),
         build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
     })
 }
@@ -932,19 +1035,25 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
     if let Some(abi3_minor_version) = abi3_version {
         if env_var("PYO3_NO_PYTHON").is_some() {
+            let version = PythonVersion {
+                major: 3,
+                minor: abi3_minor_version,
+            };
+            let implementation = PythonImplementation::CPython;
+            let lib_name = if cfg!(windows) {
+                Some(WINDOWS_ABI3_LIB_NAME.to_owned())
+            } else {
+                None
+            };
             return Ok(InterpreterConfig {
-                version: PythonVersion {
-                    major: 3,
-                    minor: abi3_minor_version,
-                },
-                implementation: PythonImplementation::CPython,
+                version,
+                implementation,
                 abi3: true,
-                libdir: None,
+                lib_name,
+                lib_dir: None,
                 build_flags: BuildFlags::abi3(),
-                base_prefix: None,
-                calcsize_pointer: None,
+                pointer_width: None,
                 executable: None,
-                ld_version: None,
                 shared: true,
             });
         }
@@ -981,13 +1090,12 @@ mod tests {
     fn test_read_write_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
-            base_prefix: Some("base_prefix".into()),
             build_flags: BuildFlags::abi3(),
-            calcsize_pointer: Some(32),
+            pointer_width: Some(32),
             executable: Some("executable".into()),
             implementation: PythonImplementation::CPython,
-            ld_version: Some("ld_version".into()),
-            libdir: Some("libdir".into()),
+            lib_name: Some("lib_name".into()),
+            lib_dir: Some("lib_dir".into()),
             shared: true,
             version: MINIMUM_SUPPORTED_VERSION,
         };
@@ -1003,18 +1111,17 @@ mod tests {
 
         let config = InterpreterConfig {
             abi3: false,
-            base_prefix: None,
             build_flags: {
                 let mut flags = HashSet::new();
                 flags.insert(BuildFlag::Py_DEBUG);
                 flags.insert(BuildFlag::Other(String::from("Py_SOME_FLAG")));
                 BuildFlags(flags)
             },
-            calcsize_pointer: None,
+            pointer_width: None,
             executable: None,
             implementation: PythonImplementation::PyPy,
-            ld_version: None,
-            libdir: None,
+            lib_dir: None,
+            lib_name: None,
             shared: true,
             version: PythonVersion {
                 major: 3,
