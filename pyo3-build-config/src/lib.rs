@@ -7,14 +7,14 @@
 pub mod errors;
 mod impl_;
 
-use std::{ffi::OsString, path::Path};
+use std::io::Cursor;
 
 use once_cell::sync::OnceCell;
 
 // Used in PyO3's build.rs
 #[doc(hidden)]
 pub use impl_::{
-    cargo_env_var, env_var, find_interpreter, get_config_from_interpreter, make_interpreter_config,
+    cargo_env_var, env_var, find_interpreter, get_config_from_interpreter, make_interpreter_config, make_cross_compile_config,
     InterpreterConfig, PythonImplementation, PythonVersion,
 };
 
@@ -25,20 +25,24 @@ pub use impl_::{
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
-        let config_path = std::env::var_os("PYO3_CONFIG_FILE")
-            .unwrap_or_else(|| OsString::from(DEFAULT_CONFIG_PATH));
-        let config_file = std::fs::File::open(DEFAULT_CONFIG_PATH).expect(&format!(
-            "failed to open PyO3 config file at {}",
-            Path::new(&config_path).display()
-        ));
-        let reader = std::io::BufReader::new(config_file);
-        InterpreterConfig::from_reader(reader).expect("failed to parse config file")
+        if let Some(path) = std::env::var_os("PYO3_CONFIG_FILE") {
+            // Config file set - use that
+            InterpreterConfig::from_path(path)
+        } else if impl_::any_cross_compiling_env_vars_set() {
+            InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
+        } else {
+            InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
+        }.expect("failed to parse PyO3 config file")
     })
 }
 
 /// Path where PyO3's build.rs will write configuration by default.
 #[doc(hidden)]
-pub const DEFAULT_CONFIG_PATH: &str = concat!(env!("OUT_DIR"), "/pyo3-build-config.txt");
+pub const DEFAULT_CROSS_COMPILE_CONFIG_PATH: &str = concat!(env!("OUT_DIR"), "/pyo3-cross-compile-config.txt");
+
+/// Build configuration discovered by `pyo3-build-config` build script. Not aware of
+/// cross-compilation settings.
+pub const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config.txt"));
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///

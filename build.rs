@@ -1,9 +1,9 @@
-use std::{env, ffi::OsString, path::Path, process::Command};
+use std::{env, io::Cursor, path::Path, process::Command};
 
 use pyo3_build_config::{
     bail, cargo_env_var, ensure, env_var,
     errors::{Context, Result},
-    InterpreterConfig, PythonVersion,
+    make_cross_compile_config, InterpreterConfig, PythonVersion,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -114,41 +114,16 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 /// The result is written to pyo3_build_config::PATH, which downstream scripts can read from
 /// (including `pyo3-macros-backend` during macro expansion).
 fn configure_pyo3() -> Result<()> {
-    let write_config_file = env_var("PYO3_WRITE_CONFIG_FILE").map_or(false, |os_str| os_str == "1");
-    let custom_config_file_path = env_var("PYO3_CONFIG_FILE");
-    if let Some(path) = &custom_config_file_path {
-        ensure!(
-            Path::new(path).is_absolute(),
-            "PYO3_CONFIG_FILE must be absolute"
-        );
-    }
-    let (interpreter_config, path_to_write) = match (write_config_file, custom_config_file_path) {
-        (true, Some(path)) => {
-            // Create new interpreter config and write it to config file
-            (pyo3_build_config::make_interpreter_config()?, Some(path))
-        }
-        (true, None) => bail!("PYO3_CONFIG_FILE must be set when PYO3_WRITE_CONFIG_FILE is set"),
-        (false, Some(path)) => {
-            // Read custom config file
-            let path = Path::new(&path);
-            println!("cargo:rerun-if-changed={}", path.display());
-            let config_file = std::fs::File::open(path)
-                .with_context(|| format!("failed to read config file at {}", path.display()))?;
-            let reader = std::io::BufReader::new(config_file);
-            (
-                pyo3_build_config::InterpreterConfig::from_reader(reader)?,
-                None,
-            )
-        }
-        (false, None) => (
-            // Create new interpreter config and write it to the default location
-            pyo3_build_config::make_interpreter_config()?,
-            Some(OsString::from(pyo3_build_config::DEFAULT_CONFIG_PATH)),
-        ),
-    };
-
-    if let Some(path) = path_to_write {
+    let interpreter_config = if let Some(path) = env_var("PYO3_CONFIG_FILE") {
         let path = Path::new(&path);
+        // This is necessary because the compilations that access PYO3_CONFIG_FILE (build scripts,
+        // proc macros) have many different working directories, so a relative path is no good.
+        ensure!(path.is_absolute(), "PYO3_CONFIG_FILE must be an absolute path");
+        println!("cargo:rerun-if-changed={}", path.display());
+        InterpreterConfig::from_path(path)?
+    } else if let Some(interpreter_config) = make_cross_compile_config()? {
+        // This is a cross compile, need to write the config file.
+        let path = Path::new(&pyo3_build_config::DEFAULT_CROSS_COMPILE_CONFIG_PATH);
         let parent_dir = path.parent().ok_or_else(|| {
             format!(
                 "failed to resolve parent directory of config file {}",
@@ -165,7 +140,11 @@ fn configure_pyo3() -> Result<()> {
             .to_writer(&mut std::fs::File::create(&path).with_context(|| {
                 format!("failed to create config file at {}", path.display())
             })?)?;
-    }
+        interpreter_config
+    } else {
+        InterpreterConfig::from_reader(Cursor::new(pyo3_build_config::HOST_CONFIG))?
+    };
+
     if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
         print_config_and_exit(&interpreter_config);
     }
@@ -201,20 +180,8 @@ fn print_config_and_exit(config: &InterpreterConfig) {
 }
 
 fn main() {
-    // Print out error messages using display, to get nicer formatting.
     if let Err(e) = configure_pyo3() {
-        use std::error::Error;
-        eprintln!("error: {}", e);
-        let mut source = e.source();
-        if source.is_some() {
-            eprintln!("caused by:");
-            let mut index = 0;
-            while let Some(some_source) = source {
-                eprintln!("  - {}: {}", index, some_source);
-                source = some_source.source();
-                index += 1;
-            }
-        }
+        eprintln!("error: {}", e.report());
         std::process::exit(1)
     }
 }

@@ -86,6 +86,20 @@ impl InterpreterConfig {
     }
 
     #[doc(hidden)]
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let config_file =
+            std::fs::File::open(path).with_context(|| {
+                format!(
+                    "failed to open PyO3 config file at {}",
+                    path.display()
+                )
+            })?;
+        let reader = std::io::BufReader::new(config_file);
+        InterpreterConfig::from_reader(reader)
+    }
+
+    #[doc(hidden)]
     pub fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let lines = reader.lines();
@@ -301,6 +315,12 @@ struct CrossCompileConfig {
     version: Option<String>,
     os: String,
     arch: String,
+}
+
+pub fn any_cross_compiling_env_vars_set() -> bool {
+    env::var_os("PYO3_CROSS").is_some()
+        || env::var_os("PYO3_CROSS_LIB_DIR").is_some()
+        || env::var_os("PYO3_CROSS_PYTHON_VERSION").is_some()
 }
 
 fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
@@ -1029,6 +1049,30 @@ fn get_abi3_minor_version() -> Option<u8> {
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
 }
 
+pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
+    let abi3_version = get_abi3_minor_version();
+
+    let mut interpreter_config = if let Some(paths) = cross_compiling()? {
+        load_cross_compile_info(paths)?
+    } else {
+        return Ok(None);
+    };
+
+    // Fixup minor version if abi3-pyXX feature set
+    if let Some(abi3_minor_version) = abi3_version {
+        ensure!(
+            abi3_minor_version <= interpreter_config.version.minor,
+            "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",
+            abi3_minor_version,
+            interpreter_config.version.minor
+        );
+
+        interpreter_config.version.minor = abi3_minor_version;
+    }
+
+    Ok(Some(interpreter_config))
+}
+
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_minor_version();
 
@@ -1059,11 +1103,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         }
     }
 
-    let mut interpreter_config = if let Some(paths) = cross_compiling()? {
-        load_cross_compile_info(paths)?
-    } else {
-        get_config_from_interpreter(&find_interpreter()?)?
-    };
+    let mut interpreter_config = get_config_from_interpreter(&find_interpreter()?)?;
 
     // Fixup minor version if abi3-pyXX feature set
     if let Some(abi3_minor_version) = abi3_version {
