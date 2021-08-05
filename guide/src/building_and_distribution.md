@@ -30,22 +30,21 @@ Caused by:
   cargo:rerun-if-env-changed=PYO3_CROSS
   cargo:rerun-if-env-changed=PYO3_CROSS_LIB_DIR
   cargo:rerun-if-env-changed=PYO3_CROSS_PYTHON_VERSION
-  cargo:rerun-if-env-changed=PYO3_PYTHON
-  cargo:rerun-if-env-changed=VIRTUAL_ENV
-  cargo:rerun-if-env-changed=CONDA_PREFIX
-  cargo:rerun-if-env-changed=PATH
   cargo:rerun-if-env-changed=PYO3_PRINT_CONFIG
 
   -- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --
-  implementation: CPython
-  interpreter version: 3.8
-  interpreter path: Some("/usr/bin/python")
-  libdir: Some("/usr/lib")
-  shared: true
-  base prefix: Some("/usr")
-  ld_version: Some("3.8")
-  pointer width: Some(8)
+  implementation=CPython
+  version=3.8
+  shared=true
+  abi3=false
+  lib_name=python3.8
+  lib_dir=/usr/lib
+  executable=/usr/bin/python
+  pointer_width=64
+  build_flags=WITH_THREAD
 ```
+
+> Note: if you safe the output config to a file, it is possible to manually override the and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var. For now, this is an advanced feature that should not be needed for most users. The format of the config file and its contents are deliberately unstable and undocumented. If you have a production use-case for this config file, please file an issue and help us stabilize it!
 
 ## Building Python extension modules
 

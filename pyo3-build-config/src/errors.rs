@@ -1,5 +1,6 @@
 /// A simple macro for returning an error. Resembles anyhow::bail.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! bail {
     ($msg: expr) => { return Err($msg.into()); };
     ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
@@ -7,12 +8,14 @@ macro_rules! bail {
 
 /// A simple macro for checking a condition. Resembles anyhow::ensure.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! ensure {
     ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
 }
 
 /// Show warning. If needed, please extend this macro to support arguments.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! warn {
     ($msg: literal) => {
         println!(concat!("cargo:warning=", $msg));
@@ -27,7 +30,7 @@ pub struct Error {
 }
 
 /// Error report inspired by
-/// https://blog.rust-lang.org/inside-rust/2021/07/01/What-the-error-handling-project-group-is-working-towards.html#2-error-reporter
+/// <https://blog.rust-lang.org/inside-rust/2021/07/01/What-the-error-handling-project-group-is-working-towards.html#2-error-reporter>
 pub struct ErrorReport<'a>(&'a Error);
 
 impl Error {

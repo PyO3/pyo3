@@ -38,9 +38,11 @@ pub fn env_var(var: &str) -> Option<OsString> {
 
 /// Configuration needed by PyO3 to build for the correct Python implementation.
 ///
-/// Usually this is queried directly from the Python interpreter. When the `PYO3_NO_PYTHON` variable
-/// is set, or during cross compile situations, then alternative strategies are used to populate
-/// this type.
+/// Usually this is queried directly from the Python interpreter, or overridden using the
+/// `PYO3_CONFIG_FILE` environment variable.
+///
+/// When the `PYO3_NO_PYTHON` variable is set, or during cross compile situations, then alternative
+/// strategies are used to populate this type.
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct InterpreterConfig {
     pub implementation: PythonImplementation,
@@ -55,6 +57,7 @@ pub struct InterpreterConfig {
 }
 
 impl InterpreterConfig {
+    #[doc(hidden)]
     pub fn emit_pyo3_cfgs(&self) {
         // This should have been checked during pyo3-build-config build time.
         assert!(self.version >= MINIMUM_SUPPORTED_VERSION);
@@ -66,7 +69,7 @@ impl InterpreterConfig {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
 
-        if self.is_pypy() {
+        if self.implementation.is_pypy() {
             println!("cargo:rustc-cfg=PyPy");
             if self.abi3 {
                 warn!(
@@ -81,20 +84,119 @@ impl InterpreterConfig {
         }
     }
 
-    pub fn is_pypy(&self) -> bool {
-        self.implementation == PythonImplementation::PyPy
+    #[doc(hidden)]
+    pub fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
+        let script = r#"
+# Allow the script to run on Python 2, so that nicer error can be printed later.
+from __future__ import print_function
+
+import os.path
+import platform
+import struct
+import sys
+from sysconfig import get_config_var
+
+PYPY = platform.python_implementation() == "PyPy"
+
+# sys.base_prefix is missing on Python versions older than 3.3; this allows the script to continue
+# so that the version mismatch can be reported in a nicer way later.
+base_prefix = getattr(sys, "base_prefix", None)
+
+if base_prefix:
+    # Anaconda based python distributions have a static python executable, but include
+    # the shared library. Use the shared library for embedding to avoid rust trying to
+    # LTO the static library (and failing with newer gcc's, because it is old).
+    ANACONDA = os.path.exists(os.path.join(base_prefix, "conda-meta"))
+else:
+    ANACONDA = False
+
+def print_if_set(varname, value):
+    if value is not None:
+        print(varname, value)
+
+# Windows always uses shared linking
+WINDOWS = hasattr(platform, "win32_ver")
+
+# macOS framework packages use shared linking
+FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
+
+# unix-style shared library enabled
+SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
+
+print("implementation", platform.python_implementation())
+print("version_major", sys.version_info[0])
+print("version_minor", sys.version_info[1])
+print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
+print_if_set("ld_version", get_config_var("LDVERSION"))
+print_if_set("libdir", get_config_var("LIBDIR"))
+print_if_set("base_prefix", base_prefix)
+print("executable", sys.executable)
+print("calcsize_pointer", struct.calcsize("P"))
+"#;
+        let output = run_python_script(interpreter.as_ref(), script)?;
+        let map: HashMap<String, String> = parse_script_output(&output);
+        let shared = map["shared"].as_str() == "True";
+
+        let version = PythonVersion {
+            major: map["version_major"]
+                .parse()
+                .context("failed to parse major version")?,
+            minor: map["version_minor"]
+                .parse()
+                .context("failed to parse minor version")?,
+        };
+
+        let abi3 = is_abi3();
+        let implementation = map["implementation"].parse()?;
+
+        let lib_name = if cfg!(windows) {
+            default_lib_name_windows(
+                &version,
+                abi3,
+                &cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap(),
+            )
+        } else {
+            default_lib_name_unix(
+                &version,
+                implementation,
+                map.get("ld_version").map(String::as_str),
+            )?
+        };
+
+        let lib_dir = if cfg!(windows) {
+            map.get("base_prefix")
+                .map(|base_prefix| format!("{}\\libs", base_prefix))
+        } else {
+            map.get("libdir").cloned()
+        };
+
+        // The reason we don't use platform.architecture() here is that it's not
+        // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
+        // Similarly, sys.maxsize is not reliable on Windows. See
+        // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
+        // and https://stackoverflow.com/a/3411134/823869.
+        let calcsize_pointer: u32 = map["calcsize_pointer"]
+            .parse()
+            .context("failed to parse calcsize_pointer")?;
+
+        Ok(InterpreterConfig {
+            version,
+            implementation,
+            shared,
+            abi3,
+            lib_name: Some(lib_name),
+            lib_dir,
+            executable: map.get("executable").cloned(),
+            pointer_width: Some(calcsize_pointer * 8),
+            build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
+        })
     }
 
     #[doc(hidden)]
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        let config_file =
-            std::fs::File::open(path).with_context(|| {
-                format!(
-                    "failed to open PyO3 config file at {}",
-                    path.display()
-                )
-            })?;
+        let config_file = std::fs::File::open(path)
+            .with_context(|| format!("failed to open PyO3 config file at {}", path.display()))?;
         let reader = std::io::BufReader::new(config_file);
         InterpreterConfig::from_reader(reader)
     }
@@ -255,6 +357,13 @@ pub enum PythonImplementation {
     PyPy,
 }
 
+impl PythonImplementation {
+    #[doc(hidden)]
+    pub fn is_pypy(self) -> bool {
+        self == PythonImplementation::PyPy
+    }
+}
+
 impl Display for PythonImplementation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -312,7 +421,7 @@ impl GetPrimitive for HashMap<String, String> {
 
 struct CrossCompileConfig {
     lib_dir: PathBuf,
-    version: Option<String>,
+    version: Option<PythonVersion>,
     os: String,
     arch: String,
 }
@@ -377,10 +486,12 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
         arch: target_arch.unwrap(),
         version: cross_python_version
             .map(|os_string| {
-                os_string
+                let utf8_str = os_string
                     .to_str()
-                    .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid utf-8.")
-                    .map(str::to_owned)
+                    .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid utf-8.")?;
+                utf8_str
+                    .parse()
+                    .context("failed to parse PYO3_CROSS_PYTHON_VERSION")
             })
             .transpose()?,
     }))
@@ -462,7 +573,7 @@ impl BuildFlags {
     /// Examine python's compile flags to pass to cfg by launching
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
-    fn from_interpreter(interpreter: &Path) -> Result<Self> {
+    fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
         // If we're on a Windows host, then Python won't have any useful config vars
         if cfg!(windows) {
             return Ok(Self::windows_hardcoded());
@@ -475,7 +586,7 @@ impl BuildFlags {
             script.push_str(&format!("print(config.get('{}', '0'))\n", k));
         }
 
-        let stdout = run_python_script(interpreter, &script)?;
+        let stdout = run_python_script(interpreter.as_ref(), &script)?;
         let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
         ensure!(
             split_stdout.len() == BuildFlags::ALL.len(),
@@ -500,7 +611,7 @@ impl BuildFlags {
         Self(flags)
     }
 
-    fn abi3() -> Self {
+    pub fn abi3() -> Self {
         let mut flags = HashSet::new();
         flags.insert(BuildFlag::WITH_THREAD);
         Self(flags)
@@ -776,26 +887,8 @@ fn load_cross_compile_from_sysconfigdata(
 fn windows_hardcoded_cross_compile(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
-    let (major, minor) = if let Some(version) = cross_compile_config.version {
-        let mut parts = version.split('.');
-        match (
-            parts.next().and_then(|major| major.parse().ok()),
-            parts.next().and_then(|minor| minor.parse().ok()),
-            parts.next(),
-        ) {
-            (Some(major), Some(minor), None) => (major, minor),
-            _ => bail!(
-                "Expected major.minor version (e.g. 3.9) for PYO3_CROSS_PYTHON_VERSION, got `{}`",
-                version
-            ),
-        }
-    } else if let Some(minor_version) = get_abi3_minor_version() {
-        (3, minor_version)
-    } else {
-        bail!("PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified when cross-compiling for Windows.")
-    };
-
-    let version = PythonVersion { major, minor };
+    let version = cross_compile_config.version.or_else(get_abi3_version)
+        .ok_or("PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified when cross-compiling for Windows.")?;
 
     Ok(InterpreterConfig {
         implementation: PythonImplementation::CPython,
@@ -810,7 +903,9 @@ fn windows_hardcoded_cross_compile(
     })
 }
 
-fn load_cross_compile_info(cross_compile_config: CrossCompileConfig) -> Result<InterpreterConfig> {
+fn load_cross_compile_config(
+    cross_compile_config: CrossCompileConfig,
+) -> Result<InterpreterConfig> {
     match cargo_env_var("CARGO_CFG_TARGET_FAMILY") {
         // Configure for unix platforms using the sysconfigdata file
         Some(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
@@ -820,7 +915,10 @@ fn load_cross_compile_info(cross_compile_config: CrossCompileConfig) -> Result<I
         Some(os) if os == "wasm" => load_cross_compile_from_sysconfigdata(cross_compile_config),
         // Waiting for users to tell us what they expect on their target platform
         Some(os) => bail!(
-            "Unsupported target OS family for cross-compilation: {:?}",
+            "Unknown target OS family for cross-compilation: {:?}.\n\
+            \n\
+            Please set the PYO3_CONFIG_FILE environment variable to a config suitable for your \
+            target interpreter.",
             os
         ),
         // Unknown os family - try to do something useful
@@ -903,11 +1001,13 @@ fn get_venv_path() -> Option<PathBuf> {
     }
 }
 
-/// Attempts to locate a python interpreter. Locations are checked in the order listed:
-/// 1. If `PYO3_PYTHON` is set, this intepreter is used.
-/// 2. If in a virtualenv, that environment's interpreter is used.
-/// 3. `python`, if this is functional a Python 3.x interpreter
-/// 4. `python3`, as above
+/// Attempts to locate a python interpreter.
+///
+/// Locations are checked in the order listed:
+///   1. If `PYO3_PYTHON` is set, this intepreter is used.
+///   2. If in a virtualenv, that environment's interpreter is used.
+///   3. `python`, if this is functional a Python 3.x interpreter
+///   4. `python3`, as above
 pub fn find_interpreter() -> Result<PathBuf> {
     if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
@@ -936,187 +1036,52 @@ pub fn find_interpreter() -> Result<PathBuf> {
     }
 }
 
-/// Extract compilation vars from the specified interpreter.
-pub fn get_config_from_interpreter(interpreter: &Path) -> Result<InterpreterConfig> {
-    let script = r#"
-# Allow the script to run on Python 2, so that nicer error can be printed later.
-from __future__ import print_function
-
-import os.path
-import platform
-import struct
-import sys
-from sysconfig import get_config_var
-
-PYPY = platform.python_implementation() == "PyPy"
-
-# sys.base_prefix is missing on Python versions older than 3.3; this allows the script to continue
-# so that the version mismatch can be reported in a nicer way later.
-base_prefix = getattr(sys, "base_prefix", None)
-
-if base_prefix:
-    # Anaconda based python distributions have a static python executable, but include
-    # the shared library. Use the shared library for embedding to avoid rust trying to
-    # LTO the static library (and failing with newer gcc's, because it is old).
-    ANACONDA = os.path.exists(os.path.join(base_prefix, "conda-meta"))
-else:
-    ANACONDA = False
-
-def print_if_set(varname, value):
-    if value is not None:
-        print(varname, value)
-
-# Windows always uses shared linking
-WINDOWS = hasattr(platform, "win32_ver")
-
-# macOS framework packages use shared linking
-FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
-
-# unix-style shared library enabled
-SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
-
-print("implementation", platform.python_implementation())
-print("version_major", sys.version_info[0])
-print("version_minor", sys.version_info[1])
-print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
-print_if_set("ld_version", get_config_var("LDVERSION"))
-print_if_set("libdir", get_config_var("LIBDIR"))
-print_if_set("base_prefix", base_prefix)
-print("executable", sys.executable)
-print("calcsize_pointer", struct.calcsize("P"))
-"#;
-    let output = run_python_script(interpreter, script)?;
-    let map: HashMap<String, String> = parse_script_output(&output);
-    let shared = map["shared"].as_str() == "True";
-
-    let version = PythonVersion {
-        major: map["version_major"]
-            .parse()
-            .context("failed to parse major version")?,
-        minor: map["version_minor"]
-            .parse()
-            .context("failed to parse minor version")?,
-    };
-
-    let abi3 = is_abi3();
-    let implementation = map["implementation"].parse()?;
-
-    let lib_name = if cfg!(windows) {
-        default_lib_name_windows(
-            &version,
-            abi3,
-            &cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap(),
-        )
-    } else {
-        default_lib_name_unix(
-            &version,
-            implementation,
-            map.get("ld_version").map(String::as_str),
-        )?
-    };
-
-    let lib_dir = if cfg!(windows) {
-        map.get("base_prefix")
-            .map(|base_prefix| format!("cargo:rustc-link-search=native={}\\libs", base_prefix))
-    } else {
-        map.get("libdir").cloned()
-    };
-
-    // The reason we don't use platform.architecture() here is that it's not
-    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
-    // Similarly, sys.maxsize is not reliable on Windows. See
-    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
-    // and https://stackoverflow.com/a/3411134/823869.
-    let calcsize_pointer: u32 = map["calcsize_pointer"]
-        .parse()
-        .context("failed to parse calcsize_pointer")?;
-
-    Ok(InterpreterConfig {
-        version,
-        implementation,
-        shared,
-        abi3,
-        lib_name: Some(lib_name),
-        lib_dir,
-        executable: map.get("executable").cloned(),
-        pointer_width: Some(calcsize_pointer * 8),
-        build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
-    })
+pub fn get_abi3_version() -> Option<PythonVersion> {
+    let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
+        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some());
+    minor_version.map(|minor| PythonVersion { major: 3, minor })
 }
 
-fn get_abi3_minor_version() -> Option<u8> {
-    (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
-        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{}", i)).is_some())
+/// Lowers the configured version to the abi3 version, if set.
+fn fixup_config_for_abi3(
+    config: &mut InterpreterConfig,
+    abi3_version: Option<PythonVersion>,
+) -> Result<()> {
+    if let Some(version) = abi3_version {
+        ensure!(
+            version <= config.version,
+            "cannot set a mininimum Python version {} higher than the interpreter version {} \
+             (the minimum Python version is implied by the abi3-py3{} feature)",
+            version,
+            config.version,
+            version.minor,
+        );
+
+        config.version = version;
+    }
+    Ok(())
 }
 
+/// Generates an interpreter config suitable for cross-compilation.
+///
+/// This must be called from PyO3's build script, because it relies on environment variables such as
+/// CARGO_CFG_TARGET_OS which aren't available at any other time.
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
-    let abi3_version = get_abi3_minor_version();
-
     let mut interpreter_config = if let Some(paths) = cross_compiling()? {
-        load_cross_compile_info(paths)?
+        load_cross_compile_config(paths)?
     } else {
         return Ok(None);
     };
-
-    // Fixup minor version if abi3-pyXX feature set
-    if let Some(abi3_minor_version) = abi3_version {
-        ensure!(
-            abi3_minor_version <= interpreter_config.version.minor,
-            "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",
-            abi3_minor_version,
-            interpreter_config.version.minor
-        );
-
-        interpreter_config.version.minor = abi3_minor_version;
-    }
-
+    fixup_config_for_abi3(&mut interpreter_config, get_abi3_version())?;
     Ok(Some(interpreter_config))
 }
 
+/// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
+/// Only used by `pyo3-build-config` build script.
+#[allow(dead_code)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
-    let abi3_version = get_abi3_minor_version();
-
-    // If PYO3_NO_PYTHON is set with abi3, we can build PyO3 without calling Python.
-    if let Some(abi3_minor_version) = abi3_version {
-        if env_var("PYO3_NO_PYTHON").is_some() {
-            let version = PythonVersion {
-                major: 3,
-                minor: abi3_minor_version,
-            };
-            let implementation = PythonImplementation::CPython;
-            let lib_name = if cfg!(windows) {
-                Some(WINDOWS_ABI3_LIB_NAME.to_owned())
-            } else {
-                None
-            };
-            return Ok(InterpreterConfig {
-                version,
-                implementation,
-                abi3: true,
-                lib_name,
-                lib_dir: None,
-                build_flags: BuildFlags::abi3(),
-                pointer_width: None,
-                executable: None,
-                shared: true,
-            });
-        }
-    }
-
-    let mut interpreter_config = get_config_from_interpreter(&find_interpreter()?)?;
-
-    // Fixup minor version if abi3-pyXX feature set
-    if let Some(abi3_minor_version) = abi3_version {
-        ensure!(
-            abi3_minor_version <= interpreter_config.version.minor,
-            "You cannot set a mininimum Python version 3.{} higher than the interpreter version 3.{}",
-            abi3_minor_version,
-            interpreter_config.version.minor
-        );
-
-        interpreter_config.version.minor = abi3_minor_version;
-    }
-
+    let mut interpreter_config = InterpreterConfig::from_interpreter(&find_interpreter()?)?;
+    fixup_config_for_abi3(&mut interpreter_config, get_abi3_version())?;
     Ok(interpreter_config)
 }
 

@@ -1,9 +1,11 @@
-use std::{env, io::Cursor, path::Path, process::Command};
+use std::{env, process::Command};
 
 use pyo3_build_config::{
-    bail, cargo_env_var, ensure, env_var,
-    errors::{Context, Result},
-    make_cross_compile_config, InterpreterConfig, PythonVersion,
+    bail, ensure,
+    pyo3_build_script_impl::{
+        cargo_env_var, env_var, errors::Result, resolve_interpreter_config, InterpreterConfig,
+        PythonVersion,
+    },
 };
 
 /// Minimum Python version PyO3 supports.
@@ -20,24 +22,54 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
-fn ensure_target_pointer_width(pointer_width: u32) -> Result<()> {
-    // Try to check whether the target architecture matches the python library
-    let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
-        .unwrap()
-        .as_str()
-    {
-        "64" => 64,
-        "32" => 32,
-        x => bail!("unexpected Rust target pointer width: {}", x),
-    };
+fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
+    if let Some(pointer_width) = interpreter_config.pointer_width {
+        // Try to check whether the target architecture matches the python library
+        let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
+            .unwrap()
+            .as_str()
+        {
+            "64" => 64,
+            "32" => 32,
+            x => bail!("unexpected Rust target pointer width: {}", x),
+        };
 
-    ensure!(
-        rust_target == pointer_width,
-        "your Rust target architecture ({}-bit) does not match your python interpreter ({}-bit)",
-        rust_target,
-        pointer_width
-    );
+        ensure!(
+            rust_target == pointer_width,
+            "your Rust target architecture ({}-bit) does not match your python interpreter ({}-bit)",
+            rust_target,
+            pointer_width
+        );
+    }
+    Ok(())
+}
 
+fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
+    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
+        if !interpreter_config.shared {
+            bail!(
+                "The `auto-initialize` feature is enabled, but your python installation only supports \
+                embedding the Python interpreter statically. If you are attempting to run tests, or a \
+                binary which is okay to link dynamically, install a Python distribution which ships \
+                with the Python shared library.\n\
+                \n\
+                Embedding the Python interpreter statically does not yet have first-class support in \
+                PyO3. If you are sure you intend to do this, disable the `auto-initialize` feature.\n\
+                \n\
+                For more information, see \
+                https://pyo3.rs/v{pyo3_version}/\
+                    building_and_distribution.html#embedding-python-in-rust",
+                pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
+            );
+        }
+
+        // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
+        // currently cause `auto-initialize` to be enabled in CI.
+        // Once MSRV is 1.51 or higher, use cargo's `resolver = "2"` instead.
+        if interpreter_config.implementation.is_pypy() && env::var_os("PYO3_CI").is_none() {
+            bail!("the `auto-initialize` feature is not supported with PyPy");
+        }
+    }
     Ok(())
 }
 
@@ -70,89 +102,36 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
             } else {
                 ""
             },
-            lib_name = interpreter_config
-                .lib_name
-                .as_ref()
-                .ok_or("config does not contain lib_name")?,
+            lib_name = interpreter_config.lib_name.as_ref().ok_or(
+                "attempted to link to Python shared library but config does not contain lib_name"
+            )?,
         );
         if let Some(lib_dir) = &interpreter_config.lib_dir {
             println!("cargo:rustc-link-search=native={}", lib_dir);
         }
     }
 
-    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
-        if !interpreter_config.shared {
-            bail!(
-                "The `auto-initialize` feature is enabled, but your python installation only supports \
-                embedding the Python interpreter statically. If you are attempting to run tests, or a \
-                binary which is okay to link dynamically, install a Python distribution which ships \
-                with the Python shared library.\n\
-                \n\
-                Embedding the Python interpreter statically does not yet have first-class support in \
-                PyO3. If you are sure you intend to do this, disable the `auto-initialize` feature.\n\
-                \n\
-                For more information, see \
-                https://pyo3.rs/v{pyo3_version}/\
-                    building_and_distribution.html#embedding-python-in-rust",
-                pyo3_version = env::var("CARGO_PKG_VERSION").unwrap()
-            );
-        }
-
-        // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
-        // currently cause `auto-initialize` to be enabled in CI.
-        // Once MSRV is 1.51 or higher, use cargo's `resolver = "2"` instead.
-        if interpreter_config.is_pypy() && env::var_os("PYO3_CI").is_none() {
-            bail!("the `auto-initialize` feature is not supported with PyPy");
-        }
-    }
-
     Ok(())
 }
 
-/// Generates the interpreter config suitable for the host / target / cross-compilation at hand.
+/// Prepares the PyO3 crate for compilation.
 ///
-/// The result is written to pyo3_build_config::PATH, which downstream scripts can read from
-/// (including `pyo3-macros-backend` during macro expansion).
+/// This loads the config from pyo3-build-config and then makes some additional checks to improve UX
+/// for users.
+///
+/// Emits the cargo configuration based on this config as well as a few checks of the Rust compiler
+/// version to enable features which aren't supported on MSRV.
 fn configure_pyo3() -> Result<()> {
-    let interpreter_config = if let Some(path) = env_var("PYO3_CONFIG_FILE") {
-        let path = Path::new(&path);
-        // This is necessary because the compilations that access PYO3_CONFIG_FILE (build scripts,
-        // proc macros) have many different working directories, so a relative path is no good.
-        ensure!(path.is_absolute(), "PYO3_CONFIG_FILE must be an absolute path");
-        println!("cargo:rerun-if-changed={}", path.display());
-        InterpreterConfig::from_path(path)?
-    } else if let Some(interpreter_config) = make_cross_compile_config()? {
-        // This is a cross compile, need to write the config file.
-        let path = Path::new(&pyo3_build_config::DEFAULT_CROSS_COMPILE_CONFIG_PATH);
-        let parent_dir = path.parent().ok_or_else(|| {
-            format!(
-                "failed to resolve parent directory of config file {}",
-                path.display()
-            )
-        })?;
-        std::fs::create_dir_all(&parent_dir).with_context(|| {
-            format!(
-                "failed to create config file directory {}",
-                parent_dir.display()
-            )
-        })?;
-        interpreter_config
-            .to_writer(&mut std::fs::File::create(&path).with_context(|| {
-                format!("failed to create config file at {}", path.display())
-            })?)?;
-        interpreter_config
-    } else {
-        InterpreterConfig::from_reader(Cursor::new(pyo3_build_config::HOST_CONFIG))?
-    };
+    let interpreter_config = resolve_interpreter_config()?;
 
     if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
         print_config_and_exit(&interpreter_config);
     }
 
     ensure_python_version(&interpreter_config)?;
-    if let Some(pointer_width) = interpreter_config.pointer_width {
-        ensure_target_pointer_width(pointer_width)?;
-    }
+    ensure_target_pointer_width(&interpreter_config)?;
+    ensure_auto_initialize_ok(&interpreter_config)?;
+
     emit_cargo_configuration(&interpreter_config)?;
     interpreter_config.emit_pyo3_cfgs();
 
