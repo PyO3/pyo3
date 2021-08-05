@@ -94,7 +94,7 @@ import os.path
 import platform
 import struct
 import sys
-from sysconfig import get_config_var
+from sysconfig import get_config_var, get_platform
 
 PYPY = platform.python_implementation() == "PyPy"
 
@@ -132,6 +132,7 @@ print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
+print("mingw", get_platform() == "mingw")
 "#;
         let output = run_python_script(interpreter.as_ref(), script)?;
         let map: HashMap<String, String> = parse_script_output(&output);
@@ -150,11 +151,7 @@ print("calcsize_pointer", struct.calcsize("P"))
         let implementation = map["implementation"].parse()?;
 
         let lib_name = if cfg!(windows) {
-            default_lib_name_windows(
-                &version,
-                abi3,
-                &cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap(),
-            )
+            default_lib_name_windows(&version, abi3, map["mingw"].as_str() == "True")
         } else {
             default_lib_name_unix(
                 &version,
@@ -895,7 +892,7 @@ fn windows_hardcoded_cross_compile(
         version,
         shared: true,
         abi3: is_abi3(),
-        lib_name: Some(default_lib_name_windows(&version, false, "msvc")),
+        lib_name: Some(default_lib_name_windows(&version, false, false)),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
         pointer_width: None,
@@ -932,10 +929,10 @@ fn load_cross_compile_config(
 // This contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 
-fn default_lib_name_windows(version: &PythonVersion, abi3: bool, target_env: &str) -> String {
+fn default_lib_name_windows(version: &PythonVersion, abi3: bool, mingw: bool) -> String {
     if abi3 {
         WINDOWS_ABI3_LIB_NAME.to_owned()
-    } else if target_env == "gnu" {
+    } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
         format!("python{}.{}", version.major, version.minor)
     } else {
