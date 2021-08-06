@@ -44,7 +44,7 @@ Caused by:
   build_flags=WITH_THREAD
 ```
 
-> Note: if you safe the output config to a file, it is possible to manually override the and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var. For now, this is an advanced feature that should not be needed for most users. The format of the config file and its contents are deliberately unstable and undocumented. If you have a production use-case for this config file, please file an issue and help us stabilize it!
+> Note: if you save the output config to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var. For now, this is an advanced feature that should not be needed for most users. The format of the config file and its contents are deliberately unstable and undocumented. If you have a production use-case for this config file, please file an issue and help us stabilize it!
 
 ## Building Python extension modules
 

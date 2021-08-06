@@ -86,7 +86,7 @@ impl InterpreterConfig {
 
     #[doc(hidden)]
     pub fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
-        let script = r#"
+        const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
 from __future__ import print_function
 
@@ -133,7 +133,7 @@ print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 "#;
-        let output = run_python_script(interpreter.as_ref(), script)?;
+        let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
         let shared = map["shared"].as_str() == "True";
 
@@ -151,16 +151,16 @@ print("calcsize_pointer", struct.calcsize("P"))
 
         let lib_name = if cfg!(windows) {
             default_lib_name_windows(
-                &version,
+                version,
                 abi3,
                 &cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap(),
             )
         } else {
             default_lib_name_unix(
-                &version,
+                version,
                 implementation,
                 map.get("ld_version").map(String::as_str),
-            )?
+            )
         };
 
         let lib_dir = if cfg!(windows) {
@@ -271,7 +271,7 @@ print("calcsize_pointer", struct.calcsize("P"))
                 if abi3 {
                     BuildFlags::abi3()
                 } else {
-                    BuildFlags(HashSet::new())
+                    BuildFlags::default()
                 }
                 .fixup(version, implementation)
             }),
@@ -544,6 +544,7 @@ impl FromStr for BuildFlag {
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
 #[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Default)]
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
@@ -555,6 +556,10 @@ impl BuildFlags {
         BuildFlag::Py_TRACE_REFS,
         BuildFlag::COUNT_ALLOCS,
     ];
+
+    pub fn new() -> Self {
+        BuildFlags(HashSet::new())
+    }
 
     fn from_config_map(config_map: &HashMap<String, String>) -> Self {
         Self(
@@ -724,7 +729,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// pybuilddir = 'build/lib.%s-%s' % (get_platform(), sys.version_info[:2])
 /// ```
 ///
-/// Where get_platform returns a kebab-case formated string containing the os, the architecture and
+/// Where get_platform returns a kebab-case formatted string containing the os, the architecture and
 /// possibly the os' kernel version (not the case on linux). However, when installed using a package
 /// manager, the `_sysconfigdata*.py` file is installed in the `${PREFIX}/lib/python3.Y/` directory.
 /// The `_sysconfigdata*.py` is generally in a sub-directory of the location of `libpython3.Y.so`.
@@ -790,7 +795,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
         "python3.".into()
     };
     for f in fs::read_dir(path).expect("Path does not exist") {
-        let sysc = match &f {
+        sysconfig_paths.extend(match &f {
             Ok(f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
             Ok(f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
             Ok(f) if starts_with(f, "lib.") => {
@@ -811,8 +816,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
             }
             Ok(f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
             _ => continue,
-        };
-        sysconfig_paths.extend(sysc);
+        });
     }
     // If we got more than one file, only take those that contain the arch name.
     // For ubuntu 20.04 with host architecture x86_64 and a foreign architecture of armhf
@@ -874,10 +878,10 @@ fn load_cross_compile_from_sysconfigdata(
         abi3: is_abi3(),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         lib_name: Some(default_lib_name_unix(
-            &version,
+            version,
             implementation,
             sysconfig_data.get("LDVERSION").map(String::as_str),
-        )?),
+        )),
         executable: None,
         pointer_width,
         build_flags: BuildFlags::from_config_map(&sysconfig_data).fixup(version, implementation),
@@ -895,7 +899,7 @@ fn windows_hardcoded_cross_compile(
         version,
         shared: true,
         abi3: is_abi3(),
-        lib_name: Some(default_lib_name_windows(&version, false, "msvc")),
+        lib_name: Some(default_lib_name_windows(version, false, "msvc")),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
         pointer_width: None,
@@ -932,7 +936,7 @@ fn load_cross_compile_config(
 // This contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 
-fn default_lib_name_windows(version: &PythonVersion, abi3: bool, target_env: &str) -> String {
+fn default_lib_name_windows(version: PythonVersion, abi3: bool, target_env: &str) -> String {
     if abi3 {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if target_env == "gnu" {
@@ -944,16 +948,16 @@ fn default_lib_name_windows(version: &PythonVersion, abi3: bool, target_env: &st
 }
 
 fn default_lib_name_unix(
-    version: &PythonVersion,
+    version: PythonVersion,
     implementation: PythonImplementation,
     ld_version: Option<&str>,
-) -> Result<String> {
+) -> String {
     match implementation {
-        PythonImplementation::CPython => match &ld_version {
-            Some(ld_version) => Ok(format!("python{}", ld_version)),
-            None => bail!("failed to configure `ld_version` when compiling for unix"),
+        PythonImplementation::CPython => match ld_version {
+            Some(ld_version) => format!("python{}", ld_version),
+            None => format!("python{}.{}", version.major, version.minor),
         },
-        PythonImplementation::PyPy => Ok(format!("pypy{}-c", version.major)),
+        PythonImplementation::PyPy => format!("pypy{}-c", version.major),
     }
 }
 
@@ -1004,7 +1008,7 @@ fn get_venv_path() -> Option<PathBuf> {
 /// Attempts to locate a python interpreter.
 ///
 /// Locations are checked in the order listed:
-///   1. If `PYO3_PYTHON` is set, this intepreter is used.
+///   1. If `PYO3_PYTHON` is set, this interpreter is used.
 ///   2. If in a virtualenv, that environment's interpreter is used.
 ///   3. `python`, if this is functional a Python 3.x interpreter
 ///   4. `python3`, as above
@@ -1050,7 +1054,7 @@ fn fixup_config_for_abi3(
     if let Some(version) = abi3_version {
         ensure!(
             version <= config.version,
-            "cannot set a mininimum Python version {} higher than the interpreter version {} \
+            "cannot set a minimum Python version {} higher than the interpreter version {} \
              (the minimum Python version is implied by the abi3-py3{} feature)",
             version,
             config.version,
@@ -1080,7 +1084,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
 /// Only used by `pyo3-build-config` build script.
 #[allow(dead_code)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
-    let mut interpreter_config = InterpreterConfig::from_interpreter(&find_interpreter()?)?;
+    let mut interpreter_config = InterpreterConfig::from_interpreter(find_interpreter()?)?;
     fixup_config_for_abi3(&mut interpreter_config, get_abi3_version())?;
     Ok(interpreter_config)
 }
@@ -1092,7 +1096,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_read_write_roundtrip() {
+    fn test_config_file_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
             build_flags: BuildFlags::abi3(),
@@ -1143,6 +1147,30 @@ mod tests {
     }
 
     #[test]
+    fn test_config_file_defaults() {
+        // Only version is required
+        assert_eq!(
+            InterpreterConfig::from_reader(Cursor::new("version=3.6")).unwrap(),
+            InterpreterConfig {
+                version: PythonVersion { major: 3, minor: 6 },
+                implementation: PythonImplementation::CPython,
+                shared: true,
+                abi3: false,
+                lib_name: None,
+                lib_dir: None,
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+            }
+        )
+    }
+
+    #[test]
+    fn build_flags_default() {
+        assert_eq!(BuildFlags::default(), BuildFlags::new());
+    }
+
+    #[test]
     fn build_flags_from_config_map() {
         let mut config_map = HashMap::new();
 
@@ -1165,7 +1193,7 @@ mod tests {
 
     #[test]
     fn build_flags_fixup_py36_debug() {
-        let mut build_flags = BuildFlags(HashSet::new());
+        let mut build_flags = BuildFlags::new();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
         build_flags = build_flags.fixup(
@@ -1180,7 +1208,7 @@ mod tests {
 
     #[test]
     fn build_flags_fixup_py37_debug() {
-        let mut build_flags = BuildFlags(HashSet::new());
+        let mut build_flags = BuildFlags::new();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
         build_flags = build_flags.fixup(PythonVersion::PY37, PythonImplementation::CPython);
@@ -1194,7 +1222,7 @@ mod tests {
 
     #[test]
     fn build_flags_fixup_pypy() {
-        let mut build_flags = BuildFlags(HashSet::new());
+        let mut build_flags = BuildFlags::new();
 
         build_flags = build_flags.fixup(
             PythonVersion { major: 3, minor: 6 },
@@ -1203,5 +1231,136 @@ mod tests {
 
         // PyPy always has WITH_THREAD
         assert!(build_flags.0.contains(&BuildFlag::WITH_THREAD));
+    }
+
+    #[test]
+    fn parse_script_output() {
+        let output = "foo bar\nbar foobar\n\n";
+        let map = super::parse_script_output(output);
+        assert_eq!(map.len(), 2);
+        assert_eq!(map["foo"], "bar");
+        assert_eq!(map["bar"], "foobar");
+    }
+
+    #[test]
+    fn config_from_interpreter() {
+        // Smoke test to just see whether this works
+        //
+        // PyO3's CI is dependent on Python being installed, so this should be reliable.
+        assert!(make_interpreter_config().is_ok())
+    }
+
+    #[test]
+    fn windows_hardcoded_cross_compile() {
+        let cross_config = CrossCompileConfig {
+            lib_dir: "C:\\some\\path".into(),
+            version: Some(PythonVersion { major: 3, minor: 6 }),
+            os: "os".into(),
+            arch: "arch".into(),
+        };
+
+        assert_eq!(
+            super::windows_hardcoded_cross_compile(cross_config).unwrap(),
+            InterpreterConfig {
+                implementation: PythonImplementation::CPython,
+                version: PythonVersion { major: 3, minor: 6 },
+                shared: true,
+                abi3: false,
+                lib_name: Some("python36".into()),
+                lib_dir: Some("C:\\some\\path".into()),
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::windows_hardcoded()
+            }
+        );
+    }
+
+    #[test]
+    fn default_lib_name_windows() {
+        assert_eq!(
+            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, false, "mvsc"),
+            "python36",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, true, "mvsc"),
+            "python3",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, false, "gnu"),
+            "python3.6",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, true, "gnu"),
+            "python3",
+        );
+    }
+
+    #[test]
+    fn default_lib_name_unix() {
+        use PythonImplementation::*;
+        // Defaults to pythonX.Y for CPython
+        assert_eq!(
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 6 }, CPython, None),
+            "python3.6",
+        );
+        assert_eq!(
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, None),
+            "python3.9",
+        );
+        // Can use ldversion to override for CPython
+        assert_eq!(
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                Some("3.7md")
+            ),
+            "python3.7md",
+        );
+
+        // PyPy ignores ldversion
+        assert_eq!(
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.7md")),
+            "pypy3-c",
+        );
+    }
+
+    #[test]
+    fn interpreter_version_reduced_to_abi3() {
+        let mut config = InterpreterConfig {
+            abi3: true,
+            build_flags: BuildFlags::new(),
+            pointer_width: None,
+            executable: None,
+            implementation: PythonImplementation::CPython,
+            lib_dir: None,
+            lib_name: None,
+            shared: true,
+            version: PythonVersion { major: 3, minor: 7 },
+        };
+
+        fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 6 })).unwrap();
+        assert_eq!(config.version, PythonVersion { major: 3, minor: 6 });
+    }
+
+    #[test]
+    fn abi3_version_cannot_be_higher_than_interpreter() {
+        let mut config = InterpreterConfig {
+            abi3: true,
+            build_flags: BuildFlags::new(),
+            pointer_width: None,
+            executable: None,
+            implementation: PythonImplementation::CPython,
+            lib_dir: None,
+            lib_name: None,
+            shared: true,
+            version: PythonVersion { major: 3, minor: 6 },
+        };
+
+        assert!(
+            fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 7 }))
+                .unwrap_err()
+                .to_string()
+                .contains("cannot set a minimum Python version 3.7 higher than the interpreter version 3.6")
+        );
     }
 }

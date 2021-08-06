@@ -43,9 +43,16 @@ pub fn use_pyo3_cfgs() {
 /// This is currently a no-op on non-macOS platforms, however may emit additional linker arguments
 /// in future if deemed necessarys.
 pub fn add_extension_module_link_args() {
-    if impl_::cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "macos" {
-        println!("cargo:rustc-cdylib-link-arg=-undefined");
-        println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+    _add_extension_module_link_args(
+        &impl_::cargo_env_var("CARGO_CFG_TARGET_OS").unwrap(),
+        std::io::stdout(),
+    )
+}
+
+fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Write) {
+    if target_os == "macos" {
+        writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
+        writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
     }
 }
 
@@ -150,5 +157,26 @@ pub mod pyo3_build_script_impl {
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extension_module_link_args() {
+        let mut buf = Vec::new();
+
+        // Does nothing on non-mac
+        _add_extension_module_link_args("windows", &mut buf);
+        assert_eq!(buf, Vec::new());
+
+        _add_extension_module_link_args("macos", &mut buf);
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-cdylib-link-arg=-undefined\n\
+             cargo:rustc-cdylib-link-arg=dynamic_lookup\n"
+        );
     }
 }

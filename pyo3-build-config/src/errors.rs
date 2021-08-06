@@ -115,3 +115,31 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn error_report() {
+        let error: Result<()> = Err(Error::from("there was an internal error"))
+            .with_context(|| format!("failed to do {}", "something difficult"))
+            .context("things went wrong");
+
+        assert_eq!(
+            error
+                .unwrap_err()
+                .report()
+                .to_string()
+                .split('\n')
+                .collect::<Vec<&str>>(),
+            vec![
+                "things went wrong",
+                "caused by:",
+                "  - 0: failed to do something difficult",
+                "  - 1: there was an internal error",
+                ""
+            ]
+        );
+    }
+}
