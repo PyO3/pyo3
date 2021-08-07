@@ -14,7 +14,7 @@ macro_rules! err_spanned {
 /// Macro inspired by `anyhow::bail!` to return a compiler error with the given span.
 macro_rules! bail_spanned {
     ($span:expr => $msg:expr) => {
-        return Err(err_spanned!($span => $msg));
+        return Err(err_spanned!($span => $msg))
     };
 }
 

@@ -75,7 +75,7 @@ impl InterpreterConfig {
                 warn!(
                     "PyPy does not yet support abi3 so the build artifacts will be version-specific. \
                     See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
-                )
+                );
             }
         };
 

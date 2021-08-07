@@ -84,7 +84,7 @@ impl PyClassArgs {
                 expected!($expected, right.span())
             };
             ($expected: literal, $span: expr) => {
-                bail_spanned!($span => concat!("expected ", $expected));
+                bail_spanned!($span => concat!("expected ", $expected))
             };
         }
 
