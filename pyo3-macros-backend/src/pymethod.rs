@@ -81,7 +81,7 @@ pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
 
 fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()> {
     if let Some(pass_module) = &options.pass_module {
-        bail_spanned!(pass_module.span() => "`pass_module` cannot be used on Python methods")
+        bail_spanned!(pass_module.span() => "`pass_module` cannot be used on Python methods");
     }
     Ok(())
 }
@@ -334,7 +334,7 @@ impl PropertyType<'_> {
                     (Some(name), _) => name.0.to_string(),
                     (None, Some(field_name)) => format!("{}\0", field_name.unraw()),
                     (None, None) => {
-                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`")
+                        bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
                     }
                 };
                 Ok(syn::LitStr::new(&name, field.span()))

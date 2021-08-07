@@ -2,8 +2,8 @@
 #[macro_export]
 #[doc(hidden)]
 macro_rules! bail {
-    ($msg: expr) => { return Err($msg.into()); };
-    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()); };
+    ($msg: expr) => { return Err($msg.into()) };
+    ($fmt: literal $($args: tt)+) => { return Err(format!($fmt $($args)+).into()) };
 }
 
 /// A simple macro for checking a condition. Resembles anyhow::ensure.
@@ -18,7 +18,7 @@ macro_rules! ensure {
 #[doc(hidden)]
 macro_rules! warn {
     ($msg: literal) => {
-        println!(concat!("cargo:warning=", $msg));
+        println!(concat!("cargo:warning=", $msg))
     };
 }
 
