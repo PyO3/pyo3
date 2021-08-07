@@ -1,9 +1,11 @@
 use std::{env, process::Command};
 
 use pyo3_build_config::{
-    bail, cargo_env_var, ensure, env_var,
-    errors::{Context, Result},
-    InterpreterConfig, PythonImplementation, PythonVersion,
+    bail, ensure,
+    pyo3_build_script_impl::{
+        cargo_env_var, env_var, errors::Result, resolve_interpreter_config, InterpreterConfig,
+        PythonVersion,
+    },
 };
 
 /// Minimum Python version PyO3 supports.
@@ -20,118 +22,29 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     Ok(())
 }
 
-fn ensure_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
-    // Try to check whether the target architecture matches the python library
-    let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
-        .unwrap()
-        .as_str()
-    {
-        "64" => "64-bit",
-        "32" => "32-bit",
-        x => bail!("unexpected Rust target pointer width: {}", x),
-    };
+fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
+    if let Some(pointer_width) = interpreter_config.pointer_width {
+        // Try to check whether the target architecture matches the python library
+        let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
+            .unwrap()
+            .as_str()
+        {
+            "64" => 64,
+            "32" => 32,
+            x => bail!("unexpected Rust target pointer width: {}", x),
+        };
 
-    // The reason we don't use platform.architecture() here is that it's not
-    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
-    // Similarly, sys.maxsize is not reliable on Windows. See
-    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
-    // and https://stackoverflow.com/a/3411134/823869.
-    let python_target = match interpreter_config.calcsize_pointer {
-        Some(8) => "64-bit",
-        Some(4) => "32-bit",
-        None => {
-            // Unset, e.g. because we're cross-compiling. Don't check anything
-            // in this case.
-            return Ok(());
-        }
-        Some(n) => bail!("unexpected Python calcsize_pointer value: {}", n),
-    };
-
-    ensure!(
-        rust_target == python_target,
-        "Your Rust target architecture ({}) does not match your python interpreter ({})",
-        rust_target,
-        python_target
-    );
-
+        ensure!(
+            rust_target == pointer_width,
+            "your Rust target architecture ({}-bit) does not match your python interpreter ({}-bit)",
+            rust_target,
+            pointer_width
+        );
+    }
     Ok(())
 }
 
-fn get_rustc_link_lib(config: &InterpreterConfig) -> Result<String> {
-    let link_name = if cargo_env_var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        if config.abi3 {
-            // Link against python3.lib for the stable ABI on Windows.
-            // See https://www.python.org/dev/peps/pep-0384/#linkage
-            //
-            // This contains only the limited ABI symbols.
-            "pythonXY:python3".to_owned()
-        } else if cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap() == "gnu" {
-            // https://packages.msys2.org/base/mingw-w64-python
-            format!(
-                "pythonXY:python{}.{}",
-                config.version.major, config.version.minor
-            )
-        } else {
-            format!(
-                "pythonXY:python{}{}",
-                config.version.major, config.version.minor
-            )
-        }
-    } else {
-        match config.implementation {
-            PythonImplementation::CPython => match &config.ld_version {
-                Some(ld_version) => format!("python{}", ld_version),
-                None => bail!("failed to configure `ld_version` when compiling for unix"),
-            },
-            PythonImplementation::PyPy => format!("pypy{}-c", config.version.major),
-        }
-    };
-
-    Ok(format!(
-        "cargo:rustc-link-lib={link_model}{link_name}",
-        link_model = if config.shared { "" } else { "static=" },
-        link_name = link_name
-    ))
-}
-
-fn rustc_minor_version() -> Option<u32> {
-    let rustc = env::var_os("RUSTC")?;
-    let output = Command::new(rustc).arg("--version").output().ok()?;
-    let version = core::str::from_utf8(&output.stdout).ok()?;
-    let mut pieces = version.split('.');
-    if pieces.next() != Some("rustc 1") {
-        return None;
-    }
-    pieces.next()?.parse().ok()
-}
-
-fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
-    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
-    let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    match (is_extension_module, target_os.as_str()) {
-        (_, "windows") => {
-            // always link on windows, even with extension module
-            println!("{}", get_rustc_link_lib(interpreter_config)?);
-            // Set during cross-compiling.
-            if let Some(libdir) = &interpreter_config.libdir {
-                println!("cargo:rustc-link-search=native={}", libdir);
-            }
-            // Set if we have an interpreter to use.
-            if let Some(base_prefix) = &interpreter_config.base_prefix {
-                println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
-            }
-        }
-        (false, _) | (_, "android") => {
-            // other systems, only link libs if not extension module
-            // android always link.
-            println!("{}", get_rustc_link_lib(interpreter_config)?);
-            if let Some(libdir) = &interpreter_config.libdir {
-                println!("cargo:rustc-link-search=native={}", libdir);
-            }
-        }
-        _ => {}
-    }
-
+fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
         if !interpreter_config.shared {
             bail!(
@@ -152,35 +65,74 @@ fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()
 
         // TODO: PYO3_CI env is a hack to workaround CI with PyPy, where the `dev-dependencies`
         // currently cause `auto-initialize` to be enabled in CI.
-        // Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
-        if interpreter_config.is_pypy() && env::var_os("PYO3_CI").is_none() {
-            bail!("The `auto-initialize` feature is not supported with PyPy.");
+        // Once MSRV is 1.51 or higher, use cargo's `resolver = "2"` instead.
+        if interpreter_config.implementation.is_pypy() && env::var_os("PYO3_CI").is_none() {
+            bail!("the `auto-initialize` feature is not supported with PyPy");
+        }
+    }
+    Ok(())
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    let rustc = env::var_os("RUSTC")?;
+    let output = Command::new(rustc).arg("--version").output().ok()?;
+    let version = core::str::from_utf8(&output.stdout).ok()?;
+    let mut pieces = version.split('.');
+    if pieces.next() != Some("rustc 1") {
+        return None;
+    }
+    pieces.next()?.parse().ok()
+}
+
+fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    if target_os == "windows" || target_os == "android" || !is_extension_module {
+        // windows and android - always link
+        // other systems - only link if not extension module
+        println!(
+            "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
+            link_model = if interpreter_config.shared {
+                ""
+            } else {
+                "static="
+            },
+            alias = if target_os == "windows" {
+                "pythonXY:"
+            } else {
+                ""
+            },
+            lib_name = interpreter_config.lib_name.as_ref().ok_or(
+                "attempted to link to Python shared library but config does not contain lib_name"
+            )?,
+        );
+        if let Some(lib_dir) = &interpreter_config.lib_dir {
+            println!("cargo:rustc-link-search=native={}", lib_dir);
         }
     }
 
     Ok(())
 }
 
-/// Generates the interpreter config suitable for the host / target / cross-compilation at hand.
+/// Prepares the PyO3 crate for compilation.
 ///
-/// The result is written to pyo3_build_config::PATH, which downstream scripts can read from
-/// (including `pyo3-macros-backend` during macro expansion).
+/// This loads the config from pyo3-build-config and then makes some additional checks to improve UX
+/// for users.
+///
+/// Emits the cargo configuration based on this config as well as a few checks of the Rust compiler
+/// version to enable features which aren't supported on MSRV.
 fn configure_pyo3() -> Result<()> {
-    let interpreter_config = pyo3_build_config::make_interpreter_config()?;
+    let interpreter_config = resolve_interpreter_config()?;
+
     if env_var("PYO3_PRINT_CONFIG").map_or(false, |os_str| os_str == "1") {
         print_config_and_exit(&interpreter_config);
     }
+
     ensure_python_version(&interpreter_config)?;
-    ensure_target_architecture(&interpreter_config)?;
+    ensure_target_pointer_width(&interpreter_config)?;
+    ensure_auto_initialize_ok(&interpreter_config)?;
+
     emit_cargo_configuration(&interpreter_config)?;
-    interpreter_config.to_writer(
-        &mut std::fs::File::create(pyo3_build_config::PATH).with_context(|| {
-            format!(
-                "failed to create config file at {}",
-                pyo3_build_config::PATH
-            )
-        })?,
-    )?;
     interpreter_config.emit_pyo3_cfgs();
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
@@ -200,33 +152,15 @@ fn configure_pyo3() -> Result<()> {
 
 fn print_config_and_exit(config: &InterpreterConfig) {
     println!("\n-- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --");
-    println!("implementation: {}", config.implementation);
-    println!("interpreter version: {}", config.version);
-    println!("interpreter path: {:?}", config.executable);
-    println!("libdir: {:?}", config.libdir);
-    println!("shared: {}", config.shared);
-    println!("base prefix: {:?}", config.base_prefix);
-    println!("ld_version: {:?}", config.ld_version);
-    println!("pointer width: {:?}", config.calcsize_pointer);
-
+    config
+        .to_writer(&mut std::io::stdout())
+        .expect("failed to print config to stdout");
     std::process::exit(101);
 }
 
 fn main() {
-    // Print out error messages using display, to get nicer formatting.
     if let Err(e) = configure_pyo3() {
-        use std::error::Error;
-        eprintln!("error: {}", e);
-        let mut source = e.source();
-        if source.is_some() {
-            eprintln!("caused by:");
-            let mut index = 0;
-            while let Some(some_source) = source {
-                eprintln!("  - {}: {}", index, some_source);
-                source = some_source.source();
-                index += 1;
-            }
-        }
+        eprintln!("error: {}", e.report());
         std::process::exit(1)
     }
 }
