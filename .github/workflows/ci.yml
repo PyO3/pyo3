@@ -215,38 +215,29 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
         continue-on-error: true
-      - name: install grcov
+      - name: install cargo-llvm-cov
         run: |
-          wget https://github.com/mozilla/grcov/releases/download/v${GRCOV_VERSION}/grcov-linux-x86_64.tar.bz2 -qO- | tar -xjvf -
-          mv grcov ~/.cargo/bin
+          wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
+          mv cargo-llvm-cov ~/.cargo/bin
         env:
-          GRCOV_VERSION: 0.7.1
+          CARGO_LLVM_COV_VERSION: 0.1.0-alpha.5
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
           profile: minimal
           components: llvm-tools-preview
-      - run: cargo test --no-default-features --no-fail-fast
-      - run: cargo test --no-default-features --no-fail-fast --features "macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
-      - run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
-      - run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
-      # can't yet use actions-rs/grcov with source-based coverage: https://github.com/actions-rs/grcov/issues/105
-      # - uses: actions-rs/grcov@v0.1
-      #   id: coverage
-      # - uses: codecov/codecov-action@v1
-      #   with:
-      #     file: ${{ steps.coverage.outputs.report }}
-      - run: grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing -o coverage.lcov
+      # TODO: workaround for
+      # https://github.com/taiki-e/cargo-llvm-cov/issues/48, shouldn't be needed
+      # in next cargo-llvm-cov release.
+      - run: cargo clean
+      - run: |
+          cargo llvm-cov \
+            --package pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros \
+            --features "macros num-bigint num-complex hashbrown indexmap serde" \
+            --lcov --output-path coverage.lcov
       - uses: codecov/codecov-action@v1
         with:
           file: coverage.lcov
-
-    env:
-      CARGO_TERM_VERBOSE: true
-      RUSTFLAGS: "-Zinstrument-coverage"
-      RUSTDOCFLAGS: "-Zinstrument-coverage"
-      LLVM_PROFILE_FILE: "coverage-%p-%m.profraw"
