@@ -8,5 +8,4 @@ opaque_struct!(PyFrameObject);
 extern "C" {
     pub fn PyFrame_GetLineNumber(f: *mut PyFrameObject) -> c_int;
 }
-// skipped PyFrame_GetLineNumber
 // skipped PyFrame_GetCode
