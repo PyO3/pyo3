@@ -160,6 +160,31 @@ impl Python<'_> {
     {
         f(unsafe { gil::ensure_gil().python() })
     }
+
+    /// Like [Python::with_gil] except Python interpreter state checking is skipped.
+    ///
+    /// Normally when the GIL is acquired, we check that the Python interpreter is an
+    /// appropriate state (e.g. it is fully initialized). This function skips those
+    /// checks.
+    ///
+    /// # Safety
+    ///
+    /// If [Python::with_gil] would succeed, it is safe to call this function.
+    ///
+    /// In most cases, you should use [Python::with_gil].
+    ///
+    /// A justified scenario for calling this function is during multi-phase interpreter
+    /// initialization when [Python::with_gil] would fail before `_Py_InitializeMain()`
+    /// is called because the interpreter is only partially initialized.
+    ///
+    /// Behavior in other scenarios is not documented.
+    #[inline]
+    pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
+    where
+        F: for<'p> FnOnce(Python<'p>) -> R,
+    {
+        f(gil::ensure_gil_unchecked().python())
+    }
 }
 
 impl<'p> Python<'p> {

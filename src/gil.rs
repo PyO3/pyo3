@@ -241,6 +241,15 @@ impl GILGuard {
             }
         }
 
+        Self::acquire_unchecked()
+    }
+
+    /// Acquires the `GILGuard` without performing any state checking.
+    ///
+    /// This can be called in "unsafe" contexts where the normal interpreter state
+    /// checking performed by `GILGuard::acquire` may fail. This includes calling
+    /// as part of multi-phase interpreter initialization.
+    pub(crate) fn acquire_unchecked() -> GILGuard {
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
 
         // If there's already a GILPool, we should not create another or this could lead to
@@ -472,6 +481,18 @@ pub(crate) fn ensure_gil() -> EnsureGIL {
         EnsureGIL(None)
     } else {
         EnsureGIL(Some(GILGuard::acquire()))
+    }
+}
+
+/// Ensures the GIL is held, without interpreter state checking.
+///
+/// This bypasses interpreter state checking that would normally be performed
+/// before acquiring the GIL.
+pub(crate) fn ensure_gil_unchecked() -> EnsureGIL {
+    if gil_is_acquired() {
+        EnsureGIL(None)
+    } else {
+        EnsureGIL(Some(GILGuard::acquire_unchecked()))
     }
 }
 
