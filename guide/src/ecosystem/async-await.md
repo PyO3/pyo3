@@ -105,7 +105,7 @@ async-std = "1.9"
 For `tokio`:
 ```toml
 [dependencies]
-pyo3 = { version = "0.13", features = ["extension-module"] }
+pyo3 = { version = "0.14", features = ["extension-module"] }
 pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
 tokio = "1.4"
 ```
