@@ -60,9 +60,9 @@ extern "C" {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _frozen {
-    name: *const c_char,
-    code: *const c_uchar,
-    size: c_int,
+    pub name: *const c_char,
+    pub code: *const c_uchar,
+    pub size: c_int,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
