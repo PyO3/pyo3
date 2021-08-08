@@ -1,6 +1,19 @@
 #[rustversion::stable]
 #[test]
 fn test_compile_errors() {
+    // stable - require all tests to pass
+    _test_compile_errors()
+}
+
+#[rustversion::nightly]
+#[test]
+fn test_compile_errors() {
+    // nightly - don't care if test output is potentially wrong, to avoid churn in PyO3's CI thanks
+    // to diagnostics changing on nightly.
+    let _ = std::panic::catch_unwind(_test_compile_errors);
+}
+
+fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/ui/invalid_macro_args.rs");
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
