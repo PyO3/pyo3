@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix incorrect calculation of `dictoffset` on 32-bit Windows. [#1475](https://github.com/PyO3/pyo3/pull/1475)
 - Fix regression in 0.13.2 leading to linking to incorrect Python library on Windows "gnu" targets. [#1759](https://github.com/PyO3/pyo3/pull/1759)
 - Fix compiler warning: deny trailing semicolons in expression macro. [#1762](https://github.com/PyO3/pyo3/pull/1762)
+- Fix incorrect FFI definition of `Py_DecodeLocale`. The 2nd argument is now `*mut Py_ssize_t` instead of `Py_ssize_t`. [#1766](https://github.com/PyO3/pyo3/pull/1766)
 
 ## [0.14.1] - 2021-07-04
 

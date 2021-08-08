@@ -4,7 +4,7 @@ use libc::wchar_t;
 use std::os::raw::{c_char, c_int};
 
 extern "C" {
-    pub fn Py_DecodeLocale(arg1: *const c_char, arg2: Py_ssize_t) -> *mut wchar_t;
+    pub fn Py_DecodeLocale(arg1: *const c_char, arg2: *mut Py_ssize_t) -> *mut wchar_t;
     #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySys_SetObject")]
