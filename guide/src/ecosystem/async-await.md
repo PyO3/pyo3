@@ -454,7 +454,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 Using `uvloop` in Rust applications is a bit trickier, but it's still possible
 with relatively few modifications.
 
-> Unfortunately, we can't make use of the `#[pyo3_asyncio::<runtime>::main]` attribute with non-standard event loops. This is because the `#[pyo3_asyncio::<runtime>::main]` proc macro has to interact with the Python
+Unfortunately, we can't make use of the `#[pyo3_asyncio::<runtime>::main]` attribute with non-standard event loops. This is because the `#[pyo3_asyncio::<runtime>::main]` proc macro has to interact with the Python
 event loop before we can install the `uvloop` policy.
 
 ```toml
