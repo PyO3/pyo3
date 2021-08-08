@@ -12,6 +12,172 @@ In the following sections, we'll give a general overview of `pyo3-asyncio` expla
 async Python functions with PyO3, how to call async Rust functions from Python, and how to configure
 your codebase to manage the runtimes of both.
 
+## Quickstart
+
+Here are some examples to get you started right away! A more detailed breakdown
+of the concepts in these examples can be found in the following sections.
+
+### Rust Applications
+Here we initialize the runtime, import Python's `asyncio` library and run the given future to completion using Python's default `EventLoop` and `async-std`. Inside the future, we convert `asyncio` sleep into a Rust future and await it.
+
+
+```toml
+# Cargo.toml dependencies
+[dependencies]
+pyo3 = { version = "0.14" }
+pyo3-asyncio = { version = "0.14", features = ["attributes", "async-std-runtime"] }
+async-std = "1.9"
+```
+
+```rust
+//! main.rs
+
+use pyo3::prelude::*;
+
+#[pyo3_asyncio::async_std::main]
+async fn main() -> PyResult<()> {
+    let fut = Python::with_gil(|py| {
+        let asyncio = py.import("asyncio")?;
+        // convert asyncio.sleep into a Rust Future
+        pyo3_asyncio::async_std::into_future(asyncio.call_method1("sleep", (1.into_py(py),))?)
+    })?;
+
+    fut.await?;
+
+    Ok(())
+}
+```
+
+The same application can be written to use `tokio` instead using the `#[pyo3_asyncio::tokio::main]`
+attribute.
+
+```toml
+# Cargo.toml dependencies
+[dependencies]
+pyo3 = { version = "0.14" }
+pyo3-asyncio = { version = "0.14", features = ["attributes", "tokio-runtime"] }
+tokio = "1.4"
+```
+
+```rust
+//! main.rs
+
+use pyo3::prelude::*;
+
+#[pyo3_asyncio::tokio::main]
+async fn main() -> PyResult<()> {
+    let fut = Python::with_gil(|py| {
+        let asyncio = py.import("asyncio")?;
+        // convert asyncio.sleep into a Rust Future
+        pyo3_asyncio::tokio::into_future(asyncio.call_method1("sleep", (1.into_py(py),))?)
+    })?;
+
+    fut.await?;
+
+    Ok(())
+}
+```
+
+More details on the usage of this library can be found in the [API docs](https://awestlake87.github.io/pyo3-asyncio/master/doc) and the primer below.
+
+### PyO3 Native Rust Modules
+
+PyO3 Asyncio can also be used to write native modules with async functions.
+
+Add the `[lib]` section to `Cargo.toml` to make your library a `cdylib` that Python can import.
+```toml
+[lib]
+name = "my_async_module"
+crate-type = ["cdylib"]
+```
+
+Make your project depend on `pyo3` with the `extension-module` feature enabled and select your
+`pyo3-asyncio` runtime:
+
+For `async-std`:
+```toml
+[dependencies]
+pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3-asyncio = { version = "0.14", features = ["async-std-runtime"] }
+async-std = "1.9"
+```
+
+For `tokio`:
+```toml
+[dependencies]
+pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
+tokio = "1.4"
+```
+
+Export an async function that makes use of `async-std`:
+
+```rust
+//! lib.rs
+
+use pyo3::{prelude::*, wrap_pyfunction};
+
+#[pyfunction]
+fn rust_sleep(py: Python) -> PyResult<&PyAny> {
+    pyo3_asyncio::async_std::future_into_py(py, async {
+        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+        Ok(Python::with_gil(|py| py.None()))
+    })
+}
+
+#[pymodule]
+fn my_async_module(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
+
+    Ok(())
+}
+
+```
+
+If you want to use `tokio` instead, here's what your module should look like:
+
+```rust
+//! lib.rs
+
+use pyo3::{prelude::*, wrap_pyfunction};
+
+#[pyfunction]
+fn rust_sleep(py: Python) -> PyResult<&PyAny> {
+    pyo3_asyncio::tokio::future_into_py(py, async {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        Ok(Python::with_gil(|py| py.None()))
+    })
+}
+
+#[pymodule]
+fn my_async_module(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
+    Ok(())
+}
+```
+
+You can build your module with maturin (see the [Using Rust in Python](https://pyo3.rs/main/#using-rust-from-python) section in the PyO3 guide for setup instructions). After that you should be able to run the Python REPL to try it out.
+
+```bash
+maturin develop && python3
+🔗 Found pyo3 bindings
+🐍 Found CPython 3.8 at python3
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+Python 3.8.5 (default, Jan 27 2021, 15:41:15) 
+[GCC 9.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import asyncio
+>>>
+>>> from my_async_module import rust_sleep
+>>> 
+>>> async def main():
+>>>     await rust_sleep()
+>>>
+>>> # should sleep for 1s
+>>> asyncio.run(main())
+>>>
+```
+
 ## Awaiting an Async Python Function in Rust
 
 Let's take a look at a dead simple async Python function:
@@ -34,20 +200,29 @@ That's where `pyo3-asyncio` comes in.
 performs this conversion for us:
 
 
-```rust
-let future = Python::with_gil(|py| {
-    // import the module containing the py_sleep function
-    let example = py.import("example")?;
+```rust no_run
+use pyo3::prelude::*;
 
-    // calling the py_sleep method like a normal function returns a coroutine
-    let coroutine = example.call_method0("py_sleep")?;
+#[pyo3_asyncio::tokio::main]
+async fn main() -> PyResult<()> {
+    let future = Python::with_gil(|py| -> PyResult<_> {
+        // import the module containing the py_sleep function
+        let example = py.import("example")?;
 
-    // convert the coroutine into a Rust future
-    pyo3_asyncio::into_future(coroutine)
-})?;
+        // calling the py_sleep method like a normal function 
+        // returns a coroutine
+        let coroutine = example.call_method0("py_sleep")?;
 
-// await the future
-future.await;
+        // convert the coroutine into a Rust future using the 
+        // tokio runtime
+        pyo3_asyncio::tokio::into_future(coroutine)
+    })?;
+
+    // await the future
+    future.await?;
+
+    Ok(())
+}
 ```
 
 > If you're interested in learning more about `coroutines` and `awaitables` in general, check out the 
@@ -61,27 +236,33 @@ Here we have the same async function as before written in Rust using the
 ```rust
 /// Sleep for 1 second
 async fn rust_sleep() {
-    async_std::task::sleep(Duration::from_secs(1)).await;
+    async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 }
 ```
 
 Similar to Python, Rust's async functions also return a special object called a
 `Future`:
 
-```rust
+```rust compile_fail
 let future = rust_sleep();
 ```
 
 We can convert this `Future` object into Python to make it `awaitable`. This tells Python that you 
 can use the `await` keyword with it. In order to do this, we'll call 
-[`pyo3_asyncio::async_std::into_coroutine`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.into_coroutine.html):
+[`pyo3_asyncio::async_std::future_into_py`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.future_into_py.html):
 
 ```rust
+use pyo3::prelude::*;
+
+async fn rust_sleep() {
+    async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+}
+
 #[pyfunction]
-fn call_rust_sleep(py: Python) -> PyResult<PyObject> {
-    pyo3_asyncio::async_std::into_coroutine(py, async move {
+fn call_rust_sleep(py: Python) -> PyResult<&PyAny> {
+    pyo3_asyncio::async_std::future_into_py(py, async move {
         rust_sleep().await;
-        Ok(())
+        Ok(Python::with_gil(|py| py.None()))
     })
 }
 ```
@@ -116,7 +297,7 @@ Because we have to block on one of those functions, we can't use [`#[async_std::
 since it's not a good idea to make long blocking calls during an async function.
 
 > Internally, these `#[main]` proc macros are expanded to something like this:
-> ```rust
+> ```rust compile_fail
 > fn main() {
 >     // your async main fn
 >     async fn _main_impl() { /* ... */ }
@@ -134,18 +315,20 @@ initialization. These macros are intended to mirror the initialization of `async
 while also satisfying the Python runtime's needs.
 
 Here's a full example of PyO3 initialization with the `async-std` runtime:
-```rust
+```rust no_run
 use pyo3::prelude::*;
 
 #[pyo3_asyncio::async_std::main]
 async fn main() -> PyResult<()> {
     // PyO3 is initialized - Ready to go
 
-    let fut = Python::with_gil(|py| {
+    let fut = Python::with_gil(|py| -> PyResult<_> {
         let asyncio = py.import("asyncio")?;
 
         // convert asyncio.sleep into a Rust Future
-        pyo3_asyncio::into_future(asyncio.call_method1("sleep", (1.into_py(py),))?)
+        pyo3_asyncio::async_std::into_future(
+            asyncio.call_method1("sleep", (1.into_py(py),))?
+        )
     })?;
 
     fut.await?;
@@ -154,117 +337,165 @@ async fn main() -> PyResult<()> {
 }
 ```
 
-## PyO3 Asyncio in Cargo Tests
+### A Note About `asyncio.run`
 
-The default Cargo Test harness does not currently allow test crates to provide their own `main` 
-function, so there doesn't seem to be a good way to allow Python to gain control over the main
-thread.
+In Python 3.7+, the recommended way to run a top-level coroutine with `asyncio`
+is with `asyncio.run`. In `v0.13` we recommended against using this function due to initialization issues, but in `v0.14` it's perfectly valid to use this function... with a caveat.
 
-We can, however, override the default test harness and provide our own. `pyo3-asyncio` provides some
-utilities to help us do just that! In the following sections, we will provide an overview for 
-constructing a Cargo integration test with `pyo3-asyncio` and adding your tests to it.
+Since our Rust <--> Python conversions require a reference to the Python event loop, this poses a problem. Imagine we have a PyO3 Asyncio module that defines
+a `rust_sleep` function like in previous examples. You might rightfully assume that you can call pass this directly into `asyncio.run` like this:
 
-### Main Test File
-First, we need to create the test's main file. Although these tests are considered integration
-tests, we cannot put them in the `tests` directory since that is a special directory owned by
-Cargo. Instead, we put our tests in a `pytests` directory.
+```python
+import asyncio
 
-> The name `pytests` is just a convention. You can name this folder anything you want in your own
-> projects.
+from my_async_module import rust_sleep
 
-We'll also want to provide the test's main function. Most of the functionality that the test harness needs is packed in the [`pyo3_asyncio::testing::main`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/testing/fn.main.html) function. This function will parse the test's CLI arguments, collect and pass the functions marked with [`#[pyo3_asyncio::async_std::test]`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html) or [`#[pyo3_asyncio::tokio::test]`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html) and pass them into the test harness for running and filtering.
-
-`pytests/test_example.rs` for the `tokio` runtime:
-```rust
-#[pyo3_asyncio::tokio::main]
-async fn main() -> pyo3::PyResult<()> {
-    pyo3_asyncio::testing::main().await
-}
+asyncio.run(rust_sleep())
 ```
 
-`pytests/test_example.rs` for the `async-std` runtime:
-```rust
-#[pyo3_asyncio::async_std::main]
-async fn main() -> pyo3::PyResult<()> {
-    pyo3_asyncio::testing::main().await
-}
+You might be surprised to find out that this throws an error:
+```bash
+Traceback (most recent call last):
+  File "example.py", line 5, in <module>
+    asyncio.run(rust_sleep())
+RuntimeError: no running event loop
 ```
 
-### Cargo Configuration
-Next, we need to add our test file to the Cargo manifest by adding the following section to the
-`Cargo.toml`
+What's happening here is that we are calling `rust_sleep` _before_ the future is
+actually running on the event loop created by `asyncio.run`. This is counter-intuitive, but expected behaviour, and unfortunately there doesn't seem to be a good way of solving this problem within PyO3 Asyncio itself.
+
+However, we can make this example work with a simple workaround:
+
+```python
+import asyncio
+
+from my_async_module import rust_sleep
+
+# Calling main will just construct the coroutine that later calls rust_sleep.
+# - This ensures that rust_sleep will be called when the event loop is running,
+#   not before.
+async def main():
+    await rust_sleep()
+
+# Run the main() coroutine at the top-level instead
+asyncio.run(main())
+```
+
+### Non-standard Python Event Loops
+
+Python allows you to use alternatives to the default `asyncio` event loop. One
+popular alternative is `uvloop`. In `v0.13` using non-standard event loops was
+a bit of an ordeal, but in `v0.14` it's trivial.
+
+#### Using `uvloop` in a PyO3 Asyncio Native Extensions
 
 ```toml
-[[test]]
-name = "test_example"
-path = "pytests/test_example.rs"
-harness = false
+# Cargo.toml
+
+[lib]
+name = "my_async_module"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.14", features = ["extension-module"] }
+pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
+async-std = "1.9"
+tokio = "1.4"
 ```
 
-Also add the `testing` and `attributes` features to the `pyo3-asyncio` dependency and select your preferred runtime:
+```rust
+//! lib.rs
+
+use pyo3::{prelude::*, wrap_pyfunction};
+
+#[pyfunction]
+fn rust_sleep(py: Python) -> PyResult<&PyAny> {
+    pyo3_asyncio::tokio::future_into_py(py, async {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        Ok(Python::with_gil(|py| py.None()))
+    })
+}
+
+#[pymodule]
+fn my_async_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(rust_sleep, m)?)?;
+
+    Ok(())
+}
+```
+
+```bash
+$ maturin develop && python3
+🔗 Found pyo3 bindings
+🐍 Found CPython 3.8 at python3
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+Python 3.8.8 (default, Apr 13 2021, 19:58:26) 
+[GCC 7.3.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import asyncio
+>>> import uvloop
+>>> 
+>>> import my_async_module
+>>> 
+>>> uvloop.install()
+>>> 
+>>> async def main():
+...     await my_async_module.rust_sleep()
+... 
+>>> asyncio.run(main())
+>>>
+```
+
+#### Using `uvloop` in Rust Applications
+
+Using `uvloop` in Rust applications is a bit trickier, but it's still possible
+with relatively few modifications.
+
+Unfortunately, we can't make use of the `#[pyo3_asyncio::<runtime>::main]` attribute with non-standard event loops. This is because the `#[pyo3_asyncio::<runtime>::main]` proc macro has to interact with the Python
+event loop before we can install the `uvloop` policy.
 
 ```toml
-pyo3-asyncio = { version = "0.13", features = ["testing", "attributes", "async-std-runtime"] }
+[dependencies]
+async-std = "1.9"
+pyo3 = "0.14"
+pyo3-asyncio = { version = "0.14", features = ["async-std-runtime"] }
 ```
 
-At this point, you should be able to run the test via `cargo test`
-
-### Adding Tests to the PyO3 Asyncio Test Harness
-
-We can add tests anywhere in the test crate with the runtime's corresponding `#[test]` attribute:
-
-For `async-std` use the [`pyo3_asyncio::async_std::test`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/attr.test.html) attribute:
 ```rust
-mod tests {
-    use std::{time::Duration, thread};
+//! main.rs
 
-    use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyType};
 
-    // tests can be async
-    #[pyo3_asyncio::async_std::test]
-    async fn test_async_sleep() -> PyResult<()> {
-        async_std::task::sleep(Duration::from_secs(1)).await;
-        Ok(())
-    }
+fn main() -> PyResult<()> {
+    pyo3::prepare_freethreaded_python();
 
-    // they can also be synchronous
-    #[pyo3_asyncio::async_std::test]
-    fn test_blocking_sleep() -> PyResult<()> {
-        thread::sleep(Duration::from_secs(1));
-        Ok(())
-    }
-}
+    Python::with_gil(|py| {
+        let uvloop = py.import("uvloop")?;
+        uvloop.call_method0("install")?;
 
-#[pyo3_asyncio::async_std::main]
-async fn main() -> pyo3::PyResult<()> {
-    pyo3_asyncio::testing::main().await
-}
-```
+        // store a reference for the assertion
+        let uvloop = PyObject::from(uvloop);
 
-For `tokio` use the [`pyo3_asyncio::tokio::test`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/tokio/attr.test.html) attribute:
-```rust
-mod tests {
-    use std::{time::Duration, thread};
+        pyo3_asyncio::async_std::run(py, async move {
+            // verify that we are on a uvloop.Loop
+            Python::with_gil(|py| -> PyResult<()> {
+                assert!(uvloop
+                    .as_ref(py)
+                    .getattr("Loop")?
+                    .downcast::<PyType>()
+                    .unwrap()
+                    .is_instance(pyo3_asyncio::async_std::get_current_loop(py)?)?);
+                Ok(())
+            })?;
 
-    use pyo3::prelude::*;
+            async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
-    // tests can be async
-    #[pyo3_asyncio::tokio::test]
-    async fn test_async_sleep() -> PyResult<()> {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        Ok(())
-    }
-
-    // they can also be synchronous
-    #[pyo3_asyncio::tokio::test]
-    fn test_blocking_sleep() -> PyResult<()> {
-        thread::sleep(Duration::from_secs(1));
-        Ok(())
-    }
-}
-
-#[pyo3_asyncio::tokio::main]
-async fn main() -> pyo3::PyResult<()> {
-    pyo3_asyncio::testing::main().await
+            Ok(())
+        })
+    })
 }
 ```
+
+## Additional Information
+- Managing event loop references can be tricky with pyo3-asyncio. See [Event Loop References](https://docs.rs/pyo3-asyncio/#event-loop-references) in the API docs to get a better intuition for how event loop references are managed in this library.
+- Testing pyo3-asyncio libraries and applications requires a custom test harness since Python requires control over the main thread. You can find a testing guide in the [API docs for the `testing` module](https://docs.rs/pyo3-asyncio/testing)
