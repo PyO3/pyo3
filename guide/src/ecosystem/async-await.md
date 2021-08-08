@@ -400,7 +400,7 @@ name = "my_async_module"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.14", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.14", features = ["extension-module"] }
 pyo3-asyncio = { version = "0.14", features = ["tokio-runtime"] }
 async-std = "1.9"
 tokio = "1.4"
