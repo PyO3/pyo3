@@ -97,7 +97,7 @@ Make your project depend on `pyo3` with the `extension-module` feature enabled a
 For `async-std`:
 ```toml
 [dependencies]
-pyo3 = { version = "0.13", features = ["extension-module"] }
+pyo3 = { version = "0.14", features = ["extension-module"] }
 pyo3-asyncio = { version = "0.14", features = ["async-std-runtime"] }
 async-std = "1.9"
 ```
