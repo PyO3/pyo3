@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
 - Add `pyo3_build_config::add_extension_module_link_args()` to use in build scripts to set linker arguments (for macOS). [#1755](https://github.com/PyO3/pyo3/pull/1755)
+- Add `Python::with_gil_unchecked()` unsafe variation of `Python::with_gil()` to allow obtaining a `Python` in scenarios where `Python::with_gil()` would fail.
 
 ### Changed
 
