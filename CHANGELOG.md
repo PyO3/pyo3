@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- Add `PyString::data()` to access the raw bytes stored in a Python string. [#1794](https://github.com/PyO3/pyo3/issues/1794)
+
 ### Fixed
 
 - Raise `AttributeError` to avoid panic when calling `del` on a `#[setter]` defined class property. [#1779](https://github.com/PyO3/pyo3/issues/1779)
