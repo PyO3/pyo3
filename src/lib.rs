@@ -545,4 +545,7 @@ pub mod doc_test {
     doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
     doctest!("guide/src/types.md", guide_types_md);
     doctest!("guide/src/faq.md", faq);
+
+    // deliberate choice not to test guide/ecosystem because those pages depend on external crates
+    // such as pyo3_asyncio.
 }
