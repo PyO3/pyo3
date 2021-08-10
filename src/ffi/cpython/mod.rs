@@ -20,6 +20,7 @@ pub(crate) mod pydebug;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod pylifecycle;
 pub(crate) mod pystate;
+pub(crate) mod unicodeobject;
 
 pub use self::abstract_::*;
 #[cfg(not(PyPy))]
@@ -40,3 +41,4 @@ pub use self::pydebug::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
 pub use self::pystate::*;
+pub use self::unicodeobject::*;
