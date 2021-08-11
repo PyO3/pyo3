@@ -7,7 +7,7 @@ use crate::pyclass::create_type_object;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyType};
 use crate::{conversion::IntoPyPointer, PyMethodDefType};
-use crate::{ffi, AsPyPointer, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, AsPyPointer, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
 
@@ -190,9 +190,7 @@ fn initialize_tp_dict(
     // the POV of other threads.
     for (key, val) in items {
         let ret = unsafe { ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr()) };
-        if ret < 0 {
-            return Err(PyErr::fetch(py));
-        }
+        crate::err::error_on_minusone(py, ret)?;
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::{PyTryFrom, ToBorrowedObject};
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyTuple};
@@ -458,11 +458,8 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `bool(self)`.
     pub fn is_true(&self, py: Python) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(v != 0)
-        }
+        err::error_on_minusone(py, v)?;
+        Ok(v != 0)
     }
 
     /// Extracts some type from the Python object.
@@ -548,7 +545,7 @@ impl<T> Py<T> {
             let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
-                return Err(PyErr::fetch(py));
+                return Err(PyErr::api_call_failed(py));
             }
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
@@ -615,7 +612,7 @@ impl<T> Py<T> {
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
-            None => Err(PyErr::fetch(py)),
+            None => Err(PyErr::api_call_failed(py)),
         }
     }
 
@@ -653,7 +650,7 @@ impl<T> Py<T> {
     /// `ptr` must be a pointer to a Python object of type T.
     #[inline]
     pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Self> {
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py))
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::api_call_failed(py))
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.

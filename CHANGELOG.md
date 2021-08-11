@@ -6,6 +6,12 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
+
 ## [0.14.2] - 2021-08-09
 
 ### Added

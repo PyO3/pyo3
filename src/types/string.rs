@@ -54,7 +54,7 @@ impl PyString {
                     let mut size: ffi::Py_ssize_t = 0;
                     let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
                     if data.is_null() {
-                        return Err(crate::PyErr::fetch(self.py()));
+                        return Err(crate::PyErr::api_call_failed(self.py()));
                     } else {
                         unsafe { std::slice::from_raw_parts(data as *const u8, size as usize) }
                     }

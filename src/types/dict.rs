@@ -41,11 +41,11 @@ impl PyDict {
     pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
-            match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
-                0 => Ok(dict),
-                -1 => Err(PyErr::fetch(py)),
-                _ => unreachable!(),
-            }
+            err::error_on_minusone(
+                py,
+                ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1),
+            )?;
+            Ok(dict)
         }
     }
 
@@ -87,7 +87,7 @@ impl PyDict {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
+                _ => Err(PyErr::api_call_failed(self.py())),
             }
         })
     }

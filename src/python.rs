@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
@@ -383,7 +383,7 @@ impl<'p> Python<'p> {
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
             if mptr.is_null() {
-                return Err(PyErr::fetch(self));
+                return Err(PyErr::api_call_failed(self));
             }
 
             let globals = globals
@@ -393,7 +393,7 @@ impl<'p> Python<'p> {
 
             let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
             if code_obj.is_null() {
-                return Err(PyErr::fetch(self));
+                return Err(PyErr::api_call_failed(self));
             }
             let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
 
@@ -622,11 +622,7 @@ impl<'p> Python<'p> {
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
         let v = unsafe { ffi::PyErr_CheckSignals() };
-        if v == -1 {
-            Err(PyErr::fetch(self))
-        } else {
-            Ok(())
-        }
+        err::error_on_minusone(self, v)
     }
 
     /// Retrieves a Python instance under the assumption that the GIL is already

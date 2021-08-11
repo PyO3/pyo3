@@ -423,7 +423,7 @@ impl PyAny {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
-                return Err(PyErr::fetch(py));
+                return Err(PyErr::api_call_failed(py));
             }
             let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
@@ -516,11 +516,8 @@ impl PyAny {
     /// This is equivalent to the Python expression `bool(self)`.
     pub fn is_true(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
-        if v == -1 {
-            Err(PyErr::fetch(self.py()))
-        } else {
-            Ok(v != 0)
-        }
+        err::error_on_minusone(self.py(), v)?;
+        Ok(v != 0)
     }
 
     /// Returns whether the object is considered to be None.
@@ -647,7 +644,7 @@ impl PyAny {
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(self.py()))
+            Err(PyErr::api_call_failed(self.py()))
         } else {
             Ok(v)
         }
@@ -660,7 +657,7 @@ impl PyAny {
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(self.py()))
+            Err(PyErr::api_call_failed(self.py()))
         } else {
             Ok(v as usize)
         }

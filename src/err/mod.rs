@@ -215,16 +215,21 @@ impl PyErr {
     /// Retrieves the current error from the Python interpreter's global state.
     ///
     /// The error is cleared from the Python interpreter.
-    /// If no error is set, returns a `SystemError`.
+    /// If no error is set, returns a `None`.
     ///
     /// If the error fetched is a `PanicException` (which would have originated from a panic in a
     /// pyo3 callback) then this function will resume the panic.
-    pub fn fetch(py: Python) -> PyErr {
+    pub fn fetch(py: Python) -> Option<PyErr> {
         unsafe {
             let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
             let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
             let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
+
+            // If the error indicator is not set, all three variables are set to NULL
+            if ptype.is_null() && pvalue.is_null() && ptraceback.is_null() {
+                return None;
+            }
 
             let err = PyErr::new_from_ffi_tuple(py, ptype, pvalue, ptraceback);
 
@@ -242,7 +247,26 @@ impl PyErr {
                 std::panic::resume_unwind(Box::new(msg))
             }
 
-            err
+            Some(err)
+        }
+    }
+
+    /// Retrieves the current error from the Python interpreter's global state.
+    ///
+    /// The error is cleared from the Python interpreter.
+    /// If no error is set, returns a `SystemError` in release mode,
+    /// panics in debug mode.
+    pub(crate) fn api_call_failed(py: Python) -> PyErr {
+        #[cfg(debug_assertions)]
+        {
+            PyErr::fetch(py).expect("error return without exception set")
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            use crate::exceptions::PySystemError;
+
+            PyErr::fetch(py)
+                .unwrap_or_else(|| PySystemError::new_err("error return without exception set"))
         }
     }
 
@@ -456,13 +480,8 @@ impl PyErr {
             ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
             let self_state = &mut *self.state.get();
             *self_state = Some(PyErrState::Normalized(PyErrStateNormalized {
-                ptype: Py::from_owned_ptr_or_opt(py, ptype)
-                    .unwrap_or_else(|| exceptions::PySystemError::type_object(py).into()),
-                pvalue: Py::from_owned_ptr_or_opt(py, pvalue).unwrap_or_else(|| {
-                    exceptions::PySystemError::new_err("Exception value missing")
-                        .instance(py)
-                        .into_py(py)
-                }),
+                ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
+                pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
                 ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback),
             }));
 
@@ -554,7 +573,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {
-        Err(PyErr::fetch(py))
+        Err(PyErr::api_call_failed(py))
     }
 }
 
@@ -570,13 +589,20 @@ mod tests {
     use crate::{PyErr, Python};
 
     #[test]
+    fn no_error() {
+        Python::with_gil(|py| {
+            assert!(PyErr::fetch(py).is_none());
+        });
+    }
+
+    #[test]
     fn set_valueerror() {
         Python::with_gil(|py| {
             let err: PyErr = exceptions::PyValueError::new_err("some exception message");
             assert!(err.is_instance::<exceptions::PyValueError>(py));
             err.restore(py);
             assert!(PyErr::occurred(py));
-            let err = PyErr::fetch(py);
+            let err = PyErr::fetch(py).unwrap();
             assert!(err.is_instance::<exceptions::PyValueError>(py));
             assert_eq!(err.to_string(), "ValueError: some exception message");
         })
@@ -588,13 +614,23 @@ mod tests {
             let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
             assert!(err.is_instance::<exceptions::PyTypeError>(py));
             err.restore(py);
-            let err = PyErr::fetch(py);
+            let err = PyErr::fetch(py).unwrap();
             assert!(err.is_instance::<exceptions::PyTypeError>(py));
             assert_eq!(
                 err.to_string(),
                 "TypeError: exceptions must derive from BaseException"
             );
         })
+    }
+
+    #[test]
+    fn set_typeerror() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let err: PyErr = exceptions::PyTypeError::new_err(());
+        err.restore(py);
+        assert!(PyErr::occurred(py));
+        drop(PyErr::fetch(py));
     }
 
     #[test]
