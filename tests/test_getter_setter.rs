@@ -54,6 +54,8 @@ fn class_with_properties() {
     py_run!(py, inst, "inst.DATA = 20");
     py_run!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
 
+    py_expect_exception!(py, inst, "del inst.DATA", PyAttributeError);
+
     py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
     py_run!(py, inst, "inst.unwrapped = 42");
     py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
