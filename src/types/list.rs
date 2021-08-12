@@ -214,224 +214,221 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2, 3, 5, 7]);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[1, 2, 3, 4]);
-        assert_eq!(4, list.len());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 2, 3, 4]);
+            assert_eq!(4, list.len());
+        });
     }
 
     #[test]
     fn test_get_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2, 3, 5, 7]);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     #[should_panic]
     fn test_get_item_invalid() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2, 3, 5, 7]);
-        list.get_item(-1);
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            list.get_item(-1);
+        });
     }
 
     #[test]
     fn test_set_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2, 3, 5, 7]);
-        let val = 42i32.to_object(py);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        list.set_item(0, val).unwrap();
-        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            let val = 42i32.to_object(py);
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            list.set_item(0, val).unwrap();
+            assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_set_item_refcnt() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let cnt;
+            {
+                let _pool = unsafe { crate::GILPool::new() };
+                let v = vec![2];
+                let ob = v.to_object(py);
+                let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+                let none = py.None();
+                cnt = none.get_refcnt(py);
+                list.set_item(0, none).unwrap();
+            }
 
-        let cnt;
-        {
-            let _pool = unsafe { crate::GILPool::new() };
-            let v = vec![2];
-            let ob = v.to_object(py);
-            let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-            let none = py.None();
-            cnt = none.get_refcnt(py);
-            list.set_item(0, none).unwrap();
-        }
-
-        assert_eq!(cnt, py.None().get_refcnt(py));
+            assert_eq!(cnt, py.None().get_refcnt(py));
+        });
     }
 
     #[test]
     fn test_insert() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2, 3, 5, 7]);
-        let val = 42i32.to_object(py);
-        assert_eq!(4, list.len());
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        list.insert(0, val).unwrap();
-        assert_eq!(5, list.len());
-        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            let val = 42i32.to_object(py);
+            assert_eq!(4, list.len());
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            list.insert(0, val).unwrap();
+            assert_eq!(5, list.len());
+            assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_insert_refcnt() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let cnt;
+            {
+                let _pool = unsafe { crate::GILPool::new() };
+                let list = PyList::empty(py);
+                let none = py.None();
+                cnt = none.get_refcnt(py);
+                list.insert(0, none).unwrap();
+            }
 
-        let cnt;
-        {
-            let _pool = unsafe { crate::GILPool::new() };
-            let list = PyList::empty(py);
-            let none = py.None();
-            cnt = none.get_refcnt(py);
-            list.insert(0, none).unwrap();
-        }
-
-        assert_eq!(cnt, py.None().get_refcnt(py));
+            assert_eq!(cnt, py.None().get_refcnt(py));
+        });
     }
 
     #[test]
     fn test_append() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[2]);
-        list.append(3).unwrap();
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2]);
+            list.append(3).unwrap();
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_append_refcnt() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let cnt;
-        {
-            let _pool = unsafe { crate::GILPool::new() };
-            let list = PyList::empty(py);
-            let none = py.None();
-            cnt = none.get_refcnt(py);
-            list.append(none).unwrap();
-        }
-        assert_eq!(cnt, py.None().get_refcnt(py));
+        Python::with_gil(|py| {
+            let cnt;
+            {
+                let _pool = unsafe { crate::GILPool::new() };
+                let list = PyList::empty(py);
+                let none = py.None();
+                cnt = none.get_refcnt(py);
+                list.append(none).unwrap();
+            }
+            assert_eq!(cnt, py.None().get_refcnt(py));
+        });
     }
 
     #[test]
     fn test_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
-        let mut idx = 0;
-        for el in list.iter() {
-            assert_eq!(v[idx], el.extract::<i32>().unwrap());
-            idx += 1;
-        }
-        assert_eq!(idx, v.len());
+        Python::with_gil(|py| {
+            let v = vec![2, 3, 5, 7];
+            let list = PyList::new(py, &v);
+            let mut idx = 0;
+            for el in list.iter() {
+                assert_eq!(v[idx], el.extract::<i32>().unwrap());
+                idx += 1;
+            }
+            assert_eq!(idx, v.len());
+        });
     }
 
     #[test]
     fn test_iter_size_hint() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        Python::with_gil(|py| {
+            let v = vec![2, 3, 5, 7];
+            let ob = v.to_object(py);
+            let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
-        let mut iter = list.iter();
-        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
-        iter.next();
-        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+            let mut iter = list.iter();
+            assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+            iter.next();
+            assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
 
-        // Exhust iterator.
-        for _ in &mut iter {}
+            // Exhust iterator.
+            for _ in &mut iter {}
 
-        assert_eq!(iter.size_hint(), (0, Some(0)));
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
     }
 
     #[test]
     fn test_into_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = PyList::new(py, &[1, 2, 3, 4]);
-        for (i, item) in list.iter().enumerate() {
-            assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
-        }
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 2, 3, 4]);
+            for (i, item) in list.iter().enumerate() {
+                assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_extract() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
-        let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
-        assert_eq!(v, v2);
+        Python::with_gil(|py| {
+            let v = vec![2, 3, 5, 7];
+            let list = PyList::new(py, &v);
+            let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
+            assert_eq!(v, v2);
+        });
     }
 
     #[test]
     fn test_sort() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![7, 3, 2, 5];
-        let list = PyList::new(py, &v);
-        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(3).extract::<i32>().unwrap());
-        list.sort().unwrap();
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let v = vec![7, 3, 2, 5];
+            let list = PyList::new(py, &v);
+            assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(3).extract::<i32>().unwrap());
+            list.sort().unwrap();
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_reverse() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
-        list.reverse().unwrap();
-        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let v = vec![2, 3, 5, 7];
+            let list = PyList::new(py, &v);
+            assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+            list.reverse().unwrap();
+            assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
+            assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_array_into_py() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let array: PyObject = [1, 2].into_py(py);
-        let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
-        assert_eq!(1, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let array: PyObject = [1, 2].into_py(py);
+            let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
+            assert_eq!(1, list.get_item(0).extract::<i32>().unwrap());
+            assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+        });
     }
 }

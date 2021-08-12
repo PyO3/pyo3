@@ -867,25 +867,24 @@ mod tests {
 
     #[test]
     fn test_call_for_non_existing_method() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj: PyObject = PyDict::new(py).into();
-        assert!(obj.call_method0(py, "asdf").is_err());
-        assert!(obj
-            .call_method(py, "nonexistent_method", (1,), None)
-            .is_err());
-        assert!(obj.call_method0(py, "nonexistent_method").is_err());
-        assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
+        Python::with_gil(|py| {
+            let obj: PyObject = PyDict::new(py).into();
+            assert!(obj.call_method0(py, "asdf").is_err());
+            assert!(obj
+                .call_method(py, "nonexistent_method", (1,), None)
+                .is_err());
+            assert!(obj.call_method0(py, "nonexistent_method").is_err());
+            assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
+        });
     }
 
     #[test]
     fn py_from_dict() {
-        let dict: Py<PyDict> = {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+        let dict: Py<PyDict> = Python::with_gil(|py| -> Py<PyDict> {
             let native = PyDict::new(py);
             Py::from(native)
-        };
+        });
+
         assert_eq!(unsafe { ffi::Py_REFCNT(dict.as_ptr()) }, 1);
     }
 

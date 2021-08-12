@@ -663,64 +663,64 @@ mod tests {
 
     #[test]
     fn test_bytes_buffer() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let bytes = py.eval("b'abcde'", None, None).unwrap();
-        let buffer = PyBuffer::get(bytes).unwrap();
-        assert_eq!(buffer.dimensions(), 1);
-        assert_eq!(buffer.item_count(), 5);
-        assert_eq!(buffer.format().to_str().unwrap(), "B");
-        assert_eq!(buffer.shape(), [5]);
-        // single-dimensional buffer is always contiguous
-        assert!(buffer.is_c_contiguous());
-        assert!(buffer.is_fortran_contiguous());
+        Python::with_gil(|py| {
+            let bytes = py.eval("b'abcde'", None, None).unwrap();
+            let buffer = PyBuffer::get(bytes).unwrap();
+            assert_eq!(buffer.dimensions(), 1);
+            assert_eq!(buffer.item_count(), 5);
+            assert_eq!(buffer.format().to_str().unwrap(), "B");
+            assert_eq!(buffer.shape(), [5]);
+            // single-dimensional buffer is always contiguous
+            assert!(buffer.is_c_contiguous());
+            assert!(buffer.is_fortran_contiguous());
 
-        let slice = buffer.as_slice(py).unwrap();
-        assert_eq!(slice.len(), 5);
-        assert_eq!(slice[0].get(), b'a');
-        assert_eq!(slice[2].get(), b'c');
+            let slice = buffer.as_slice(py).unwrap();
+            assert_eq!(slice.len(), 5);
+            assert_eq!(slice[0].get(), b'a');
+            assert_eq!(slice[2].get(), b'c');
 
-        assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
-        let mut arr = [0; 5];
-        buffer.copy_to_slice(py, &mut arr).unwrap();
-        assert_eq!(arr, b"abcde" as &[u8]);
+            assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
+            let mut arr = [0; 5];
+            buffer.copy_to_slice(py, &mut arr).unwrap();
+            assert_eq!(arr, b"abcde" as &[u8]);
 
-        assert!(buffer.copy_from_slice(py, &[0u8; 5]).is_err());
-        assert_eq!(buffer.to_vec(py).unwrap(), b"abcde");
+            assert!(buffer.copy_from_slice(py, &[0u8; 5]).is_err());
+            assert_eq!(buffer.to_vec(py).unwrap(), b"abcde");
+        });
     }
 
     #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let array = py
-            .import("array")
-            .unwrap()
-            .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
-            .unwrap();
-        let buffer = PyBuffer::get(array).unwrap();
-        assert_eq!(buffer.dimensions(), 1);
-        assert_eq!(buffer.item_count(), 4);
-        assert_eq!(buffer.format().to_str().unwrap(), "f");
-        assert_eq!(buffer.shape(), [4]);
+        Python::with_gil(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            let buffer = PyBuffer::get(array).unwrap();
+            assert_eq!(buffer.dimensions(), 1);
+            assert_eq!(buffer.item_count(), 4);
+            assert_eq!(buffer.format().to_str().unwrap(), "f");
+            assert_eq!(buffer.shape(), [4]);
 
-        let slice = buffer.as_slice(py).unwrap();
-        assert_eq!(slice.len(), 4);
-        assert_eq!(slice[0].get(), 1.0);
-        assert_eq!(slice[3].get(), 2.5);
+            let slice = buffer.as_slice(py).unwrap();
+            assert_eq!(slice.len(), 4);
+            assert_eq!(slice[0].get(), 1.0);
+            assert_eq!(slice[3].get(), 2.5);
 
-        let mut_slice = buffer.as_mut_slice(py).unwrap();
-        assert_eq!(mut_slice.len(), 4);
-        assert_eq!(mut_slice[0].get(), 1.0);
-        mut_slice[3].set(2.75);
-        assert_eq!(slice[3].get(), 2.75);
+            let mut_slice = buffer.as_mut_slice(py).unwrap();
+            assert_eq!(mut_slice.len(), 4);
+            assert_eq!(mut_slice[0].get(), 1.0);
+            mut_slice[3].set(2.75);
+            assert_eq!(slice[3].get(), 2.75);
 
-        buffer
-            .copy_from_slice(py, &[10.0f32, 11.0, 12.0, 13.0])
-            .unwrap();
-        assert_eq!(slice[2].get(), 12.0);
+            buffer
+                .copy_from_slice(py, &[10.0f32, 11.0, 12.0, 13.0])
+                .unwrap();
+            assert_eq!(slice[2].get(), 12.0);
 
-        assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
+            assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
+        });
     }
 }

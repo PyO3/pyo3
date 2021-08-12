@@ -383,24 +383,22 @@ mod hashbrown_hashset_conversion {
 
     #[test]
     fn test_extract_hashbrown_hashset() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
-        let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
-        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
+            assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        });
     }
 
     #[test]
     fn test_hashbrown_hashset_into_py() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-        let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let hso: PyObject = hs.clone().into_py(py);
 
-        let hso: PyObject = hs.clone().into_py(py);
-
-        assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(hs, hso.extract(py).unwrap());
+        });
     }
 }
 
@@ -412,205 +410,196 @@ mod tests {
 
     #[test]
     fn test_set_new() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            assert_eq!(1, set.len());
 
-        let set = PySet::new(py, &[1]).unwrap();
-        assert_eq!(1, set.len());
-
-        let v = vec![1];
-        assert!(PySet::new(py, &[v]).is_err());
+            let v = vec![1];
+            assert!(PySet::new(py, &[v]).is_err());
+        });
     }
 
     #[test]
     fn test_set_empty() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::empty(py).unwrap();
-        assert_eq!(0, set.len());
+        Python::with_gil(|py| {
+            let set = PySet::empty(py).unwrap();
+            assert_eq!(0, set.len());
+        });
     }
 
     #[test]
     fn test_set_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let mut v = HashSet::new();
-        let ob = v.to_object(py);
-        let set = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(0, set.len());
-        v.insert(7);
-        let ob = v.to_object(py);
-        let set2 = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(1, set2.len());
+        Python::with_gil(|py| {
+            let mut v = HashSet::new();
+            let ob = v.to_object(py);
+            let set = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(0, set.len());
+            v.insert(7);
+            let ob = v.to_object(py);
+            let set2 = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(1, set2.len());
+        });
     }
 
     #[test]
     fn test_set_clear() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::new(py, &[1]).unwrap();
-        assert_eq!(1, set.len());
-        set.clear();
-        assert_eq!(0, set.len());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            assert_eq!(1, set.len());
+            set.clear();
+            assert_eq!(0, set.len());
+        });
     }
 
     #[test]
     fn test_set_contains() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::new(py, &[1]).unwrap();
-        assert!(set.contains(1).unwrap());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            assert!(set.contains(1).unwrap());
+        });
     }
 
     #[test]
     fn test_set_discard() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::new(py, &[1]).unwrap();
-        set.discard(2);
-        assert_eq!(1, set.len());
-        set.discard(1);
-        assert_eq!(0, set.len());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            set.discard(2);
+            assert_eq!(1, set.len());
+            set.discard(1);
+            assert_eq!(0, set.len());
+        });
     }
 
     #[test]
     fn test_set_add() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::new(py, &[1, 2]).unwrap();
-        set.add(1).unwrap(); // Add a dupliated element
-        assert!(set.contains(1).unwrap());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2]).unwrap();
+            set.add(1).unwrap(); // Add a dupliated element
+            assert!(set.contains(1).unwrap());
+        });
     }
 
     #[test]
     fn test_set_pop() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PySet::new(py, &[1]).unwrap();
-        let val = set.pop();
-        assert!(val.is_some());
-        let val2 = set.pop();
-        assert!(val2.is_none());
-        assert!(py
-            .eval("print('Exception state should not be set.')", None, None)
-            .is_ok());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
+            let val = set.pop();
+            assert!(val.is_some());
+            let val2 = set.pop();
+            assert!(val2.is_none());
+            assert!(py
+                .eval("print('Exception state should not be set.')", None, None)
+                .is_ok());
+        });
     }
 
     #[test]
     fn test_set_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
 
-        let set = PySet::new(py, &[1]).unwrap();
+            // iter method
+            for el in set.iter() {
+                assert_eq!(1i32, el.extract().unwrap());
+            }
 
-        // iter method
-        for el in set.iter() {
-            assert_eq!(1i32, el.extract().unwrap());
-        }
-
-        // intoiterator iteration
-        for el in set {
-            assert_eq!(1i32, el.extract().unwrap());
-        }
+            // intoiterator iteration
+            for el in set {
+                assert_eq!(1i32, el.extract().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_set_iter_size_hint() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1]).unwrap();
 
-        let set = PySet::new(py, &[1]).unwrap();
+            let mut iter = set.iter();
 
-        let mut iter = set.iter();
-
-        if cfg!(Py_LIMITED_API) {
-            assert_eq!(iter.size_hint(), (0, None));
-        } else {
-            assert_eq!(iter.size_hint(), (1, Some(1)));
-            iter.next();
-            assert_eq!(iter.size_hint(), (0, Some(0)));
-        }
+            if cfg!(Py_LIMITED_API) {
+                assert_eq!(iter.size_hint(), (0, None));
+            } else {
+                assert_eq!(iter.size_hint(), (1, Some(1)));
+                iter.next();
+                assert_eq!(iter.size_hint(), (0, Some(0)));
+            }
+        });
     }
 
     #[test]
     fn test_frozenset_new_and_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            assert_eq!(1, set.len());
 
-        let set = PyFrozenSet::new(py, &[1]).unwrap();
-        assert_eq!(1, set.len());
-
-        let v = vec![1];
-        assert!(PyFrozenSet::new(py, &[v]).is_err());
+            let v = vec![1];
+            assert!(PyFrozenSet::new(py, &[v]).is_err());
+        });
     }
 
     #[test]
     fn test_frozenset_empty() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PyFrozenSet::empty(py).unwrap();
-        assert_eq!(0, set.len());
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::empty(py).unwrap();
+            assert_eq!(0, set.len());
+        });
     }
 
     #[test]
     fn test_frozenset_contains() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let set = PyFrozenSet::new(py, &[1]).unwrap();
-        assert!(set.contains(1).unwrap());
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
+            assert!(set.contains(1).unwrap());
+        });
     }
 
     #[test]
     fn test_frozenset_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let set = PyFrozenSet::new(py, &[1]).unwrap();
 
-        let set = PyFrozenSet::new(py, &[1]).unwrap();
+            // iter method
+            for el in set.iter() {
+                assert_eq!(1i32, el.extract::<i32>().unwrap());
+            }
 
-        // iter method
-        for el in set.iter() {
-            assert_eq!(1i32, el.extract::<i32>().unwrap());
-        }
-
-        // intoiterator iteration
-        for el in set {
-            assert_eq!(1i32, el.extract::<i32>().unwrap());
-        }
+            // intoiterator iteration
+            for el in set {
+                assert_eq!(1i32, el.extract::<i32>().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_extract_hashset() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
-        let hash_set: HashSet<usize> = set.extract().unwrap();
-        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let hash_set: HashSet<usize> = set.extract().unwrap();
+            assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        });
     }
 
     #[test]
     fn test_extract_btreeset() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
-        let hash_set: BTreeSet<usize> = set.extract().unwrap();
-        assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+            let hash_set: BTreeSet<usize> = set.extract().unwrap();
+            assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
+        });
     }
 
     #[test]
     fn test_set_into_py() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-        let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-        let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let bto: PyObject = bt.clone().into_py(py);
+            let hso: PyObject = hs.clone().into_py(py);
 
-        let bto: PyObject = bt.clone().into_py(py);
-        let hso: PyObject = hs.clone().into_py(py);
-
-        assert_eq!(bt, bto.extract(py).unwrap());
-        assert_eq!(hs, hso.extract(py).unwrap());
+            assert_eq!(bt, bto.extract(py).unwrap());
+            assert_eq!(hs, hso.extract(py).unwrap());
+        });
     }
 }

@@ -56,21 +56,20 @@ mod tests {
     use crate::types::PyDict;
 
     #[test]
-    fn marhshal_roundtrip() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn marshal_roundtrip() {
+        Python::with_gil(|py| {
+            let dict = PyDict::new(py);
+            dict.set_item("aap", "noot").unwrap();
+            dict.set_item("mies", "wim").unwrap();
+            dict.set_item("zus", "jet").unwrap();
 
-        let dict = PyDict::new(py);
-        dict.set_item("aap", "noot").unwrap();
-        dict.set_item("mies", "wim").unwrap();
-        dict.set_item("zus", "jet").unwrap();
+            let bytes = dumps(py, dict, VERSION)
+                .expect("marshalling failed")
+                .as_bytes();
+            let deserialized = loads(py, bytes).expect("unmarshalling failed");
 
-        let bytes = dumps(py, dict, VERSION)
-            .expect("marshalling failed")
-            .as_bytes();
-        let deserialzed = loads(py, bytes).expect("unmarshalling failed");
-
-        assert!(equal(py, dict, deserialzed));
+            assert!(equal(py, dict, deserialized));
+        });
     }
 
     fn equal(_py: Python, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {

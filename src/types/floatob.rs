@@ -93,11 +93,12 @@ mod tests {
             fn $func_name() {
                 use assert_approx_eq::assert_approx_eq;
 
-                let gil = Python::acquire_gil();
-                let py = gil.python();
+                Python::with_gil(|py|{
+
                 let val = 123 as $t1;
                 let obj = val.to_object(py);
                 assert_approx_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                });
             }
         )
     );
@@ -111,10 +112,10 @@ mod tests {
     fn test_as_double_macro() {
         use assert_approx_eq::assert_approx_eq;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = 1.23f64;
-        let obj = v.to_object(py);
-        assert_approx_eq!(v, unsafe { PyFloat_AS_DOUBLE(obj.as_ptr()) });
+        Python::with_gil(|py| {
+            let v = 1.23f64;
+            let obj = v.to_object(py);
+            assert_approx_eq!(v, unsafe { PyFloat_AS_DOUBLE(obj.as_ptr()) });
+        });
     }
 }

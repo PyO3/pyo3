@@ -172,132 +172,125 @@ mod tests {
 
     #[test]
     fn test_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
-        assert_eq!(src.len(), bytearray.len());
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
+            assert_eq!(src.len(), bytearray.len());
+        });
     }
 
     #[test]
     fn test_as_bytes() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
 
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
-
-        let slice = unsafe { bytearray.as_bytes() };
-        assert_eq!(src, slice);
-        assert_eq!(bytearray.data() as *const _, slice.as_ptr());
+            let slice = unsafe { bytearray.as_bytes() };
+            assert_eq!(src, slice);
+            assert_eq!(bytearray.data() as *const _, slice.as_ptr());
+        });
     }
 
     #[test]
     fn test_as_bytes_mut() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
 
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
+            let slice = unsafe { bytearray.as_bytes_mut() };
+            assert_eq!(src, slice);
+            assert_eq!(bytearray.data(), slice.as_mut_ptr());
 
-        let slice = unsafe { bytearray.as_bytes_mut() };
-        assert_eq!(src, slice);
-        assert_eq!(bytearray.data(), slice.as_mut_ptr());
+            slice[0..5].copy_from_slice(b"Hi...");
 
-        slice[0..5].copy_from_slice(b"Hi...");
-
-        assert_eq!(
-            bytearray.str().unwrap().to_str().unwrap(),
-            "bytearray(b'Hi... Python')"
-        );
+            assert_eq!(
+                bytearray.str().unwrap().to_str().unwrap(),
+                "bytearray(b'Hi... Python')"
+            );
+        });
     }
 
     #[test]
     fn test_to_vec() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
 
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
-
-        let vec = bytearray.to_vec();
-        assert_eq!(src, vec.as_slice());
+            let vec = bytearray.to_vec();
+            assert_eq!(src, vec.as_slice());
+        });
     }
 
     #[test]
     fn test_from() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
 
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
+            let ba: PyObject = bytearray.into();
+            let bytearray = PyByteArray::from(py, &ba).unwrap();
 
-        let ba: PyObject = bytearray.into();
-        let bytearray = PyByteArray::from(py, &ba).unwrap();
-
-        assert_eq!(src, unsafe { bytearray.as_bytes() });
+            assert_eq!(src, unsafe { bytearray.as_bytes() });
+        });
     }
 
     #[test]
     fn test_from_err() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        if let Err(err) = PyByteArray::from(py, &py.None()) {
-            assert!(err.is_instance::<exceptions::PyTypeError>(py));
-        } else {
-            panic!("error");
-        }
+        Python::with_gil(|py| {
+            if let Err(err) = PyByteArray::from(py, &py.None()) {
+                assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            } else {
+                panic!("error");
+            }
+        });
     }
 
     #[test]
     fn test_resize() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let src = b"Hello Python";
+            let bytearray = PyByteArray::new(py, src);
 
-        let src = b"Hello Python";
-        let bytearray = PyByteArray::new(py, src);
-
-        bytearray.resize(20).unwrap();
-        assert_eq!(20, bytearray.len());
+            bytearray.resize(20).unwrap();
+            assert_eq!(20, bytearray.len());
+        });
     }
 
     #[test]
     fn test_byte_array_new_with() -> super::PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
-            b.copy_from_slice(b"Hello Rust");
+        Python::with_gil(|py| -> super::PyResult<()> {
+            let py_bytearray = PyByteArray::new_with(py, 10, |b: &mut [u8]| {
+                b.copy_from_slice(b"Hello Rust");
+                Ok(())
+            })?;
+            let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+            assert_eq!(bytearray, b"Hello Rust");
             Ok(())
-        })?;
-        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
-        assert_eq!(bytearray, b"Hello Rust");
-        Ok(())
+        })
     }
 
     #[test]
     fn test_byte_array_new_with_zero_initialised() -> super::PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
-        let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
-        assert_eq!(bytearray, &[0; 10]);
-        Ok(())
+        Python::with_gil(|py| -> super::PyResult<()> {
+            let py_bytearray = PyByteArray::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
+            assert_eq!(bytearray, &[0; 10]);
+            Ok(())
+        })
     }
 
     #[test]
     fn test_byte_array_new_with_error() {
         use crate::exceptions::PyValueError;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
-            Err(PyValueError::new_err("Hello Crustaceans!"))
-        });
-        assert!(py_bytearray_result.is_err());
-        assert!(py_bytearray_result
-            .err()
-            .unwrap()
-            .is_instance::<PyValueError>(py));
+        Python::with_gil(|py| {
+            let py_bytearray_result = PyByteArray::new_with(py, 10, |_b: &mut [u8]| {
+                Err(PyValueError::new_err("Hello Crustaceans!"))
+            });
+            assert!(py_bytearray_result.is_err());
+            assert!(py_bytearray_result
+                .err()
+                .unwrap()
+                .is_instance::<PyValueError>(py));
+        })
     }
 }

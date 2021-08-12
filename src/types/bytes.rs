@@ -121,57 +121,56 @@ mod tests {
 
     #[test]
     fn test_extract_bytes() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
-        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
-        assert_eq!(bytes, b"Hello Python");
+        Python::with_gil(|py| {
+            let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
+            let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+            assert_eq!(bytes, b"Hello Python");
+        });
     }
 
     #[test]
     fn test_bytes_index() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let bytes = PyBytes::new(py, b"Hello World");
-        assert_eq!(bytes[1], b'e');
+        Python::with_gil(|py| {
+            let bytes = PyBytes::new(py, b"Hello World");
+            assert_eq!(bytes[1], b'e');
+        });
     }
 
     #[test]
     fn test_bytes_new_with() -> super::PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
-            b.copy_from_slice(b"Hello Rust");
+        Python::with_gil(|py| -> super::PyResult<()> {
+            let py_bytes = PyBytes::new_with(py, 10, |b: &mut [u8]| {
+                b.copy_from_slice(b"Hello Rust");
+                Ok(())
+            })?;
+            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            assert_eq!(bytes, b"Hello Rust");
             Ok(())
-        })?;
-        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
-        assert_eq!(bytes, b"Hello Rust");
-        Ok(())
+        })
     }
 
     #[test]
     fn test_bytes_new_with_zero_initialised() -> super::PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
-        let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
-        assert_eq!(bytes, &[0; 10]);
-        Ok(())
+        Python::with_gil(|py| -> super::PyResult<()> {
+            let py_bytes = PyBytes::new_with(py, 10, |_b: &mut [u8]| Ok(()))?;
+            let bytes: &[u8] = FromPyObject::extract(py_bytes)?;
+            assert_eq!(bytes, &[0; 10]);
+            Ok(())
+        })
     }
 
     #[test]
     fn test_bytes_new_with_error() {
         use crate::exceptions::PyValueError;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
-            Err(PyValueError::new_err("Hello Crustaceans!"))
+        Python::with_gil(|py| {
+            let py_bytes_result = PyBytes::new_with(py, 10, |_b: &mut [u8]| {
+                Err(PyValueError::new_err("Hello Crustaceans!"))
+            });
+            assert!(py_bytes_result.is_err());
+            assert!(py_bytes_result
+                .err()
+                .unwrap()
+                .is_instance::<PyValueError>(py));
         });
-        assert!(py_bytes_result.is_err());
-        assert!(py_bytes_result
-            .err()
-            .unwrap()
-            .is_instance::<PyValueError>(py));
     }
 }

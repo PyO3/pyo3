@@ -322,77 +322,77 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ob = PyTuple::new(py, &[1, 2, 3]);
-        assert_eq!(3, ob.len());
-        let ob: &PyAny = ob.into();
-        assert_eq!((1, 2, 3), ob.extract().unwrap());
+        Python::with_gil(|py| {
+            let ob = PyTuple::new(py, &[1, 2, 3]);
+            assert_eq!(3, ob.len());
+            let ob: &PyAny = ob.into();
+            assert_eq!((1, 2, 3), ob.extract().unwrap());
 
-        let mut map = HashSet::new();
-        map.insert(1);
-        map.insert(2);
-        PyTuple::new(py, &map);
+            let mut map = HashSet::new();
+            map.insert(1);
+            map.insert(2);
+            PyTuple::new(py, &map);
+        });
     }
 
     #[test]
     fn test_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(3, tuple.len());
-        let ob: &PyAny = tuple.into();
-        assert_eq!((1, 2, 3), ob.extract().unwrap());
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(3, tuple.len());
+            let ob: &PyAny = tuple.into();
+            assert_eq!((1, 2, 3), ob.extract().unwrap());
+        });
     }
 
     #[test]
     fn test_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(3, tuple.len());
-        let mut iter = tuple.iter();
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(3, tuple.len());
+            let mut iter = tuple.iter();
 
-        assert_eq!(iter.size_hint(), (3, Some(3)));
+            assert_eq!(iter.size_hint(), (3, Some(3)));
 
-        assert_eq!(1, iter.next().unwrap().extract().unwrap());
-        assert_eq!(iter.size_hint(), (2, Some(2)));
+            assert_eq!(1, iter.next().unwrap().extract().unwrap());
+            assert_eq!(iter.size_hint(), (2, Some(2)));
 
-        assert_eq!(2, iter.next().unwrap().extract().unwrap());
-        assert_eq!(iter.size_hint(), (1, Some(1)));
+            assert_eq!(2, iter.next().unwrap().extract().unwrap());
+            assert_eq!(iter.size_hint(), (1, Some(1)));
 
-        assert_eq!(3, iter.next().unwrap().extract().unwrap());
-        assert_eq!(iter.size_hint(), (0, Some(0)));
+            assert_eq!(3, iter.next().unwrap().extract().unwrap());
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
     }
 
     #[test]
     fn test_into_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(3, tuple.len());
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(3, tuple.len());
 
-        for (i, item) in tuple.iter().enumerate() {
-            assert_eq!(i + 1, item.extract().unwrap());
-        }
+            for (i, item) in tuple.iter().enumerate() {
+                assert_eq!(i + 1, item.extract().unwrap());
+            }
+        });
     }
 
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_as_slice() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
-        let slice = tuple.as_slice();
-        assert_eq!(3, slice.len());
-        assert_eq!(1, slice[0].extract().unwrap());
-        assert_eq!(2, slice[1].extract().unwrap());
-        assert_eq!(3, slice[2].extract().unwrap());
+            let slice = tuple.as_slice();
+            assert_eq!(3, slice.len());
+            assert_eq!(1, slice[0].extract().unwrap());
+            assert_eq!(2, slice[1].extract().unwrap());
+            assert_eq!(3, slice[2].extract().unwrap());
+        });
     }
 
     #[test]
