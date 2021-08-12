@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
 
+### Fixed
+
+- Restrict FFI definitions `PyGILState_Check` and `Py_tracefunc` to the unlimited API. [#1787](https://github.com/PyO3/pyo3/pull/1787)
+
 ## [0.14.2] - 2021-08-09
 
 ### Added

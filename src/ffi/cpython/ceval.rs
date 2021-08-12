@@ -1,5 +1,4 @@
-use crate::ffi::object::{freefunc, PyObject};
-use crate::ffi::pystate::Py_tracefunc;
+use crate::ffi::{freefunc, PyObject, Py_tracefunc};
 use std::os::raw::c_int;
 
 extern "C" {
