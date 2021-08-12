@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
 - `Python::with_gil` will now always acquire the GIL. [#1788](https://github.com/PyO3/pyo3/pull/1788)
-- Deprecate `Python::acquire_gil` in favor of `Python::with_gil`. [#1788](https://github.com/PyO3/pyo3/pull/1788)
+- Deprecate `Python::acquire` in favour of `Python::with_gil`. [#1788](https://github.com/PyO3/pyo3/pull/1788)
 
 ### Fixed
 
@@ -350,7 +350,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove `PyString::to_string` (use new `PyString::to_str`). [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `PyString::as_bytes`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
 - Remove `Python::register_any`. [#1023](https://github.com/PyO3/pyo3/pull/1023)
-- Remove `GILGuard::acquire` from the public API. Use `Python::acquire_gil` or `Python::with_gil`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
+- Remove `GILGuard::acquire` from the public API. Use `Python::acquire` or `Python::with_gil`. [#1036](https://github.com/PyO3/pyo3/pull/1036)
 - Remove the `FromPy` trait. [#1063](https://github.com/PyO3/pyo3/pull/1063)
 - Remove the `AsPyRef` trait. [#1098](https://github.com/PyO3/pyo3/pull/1098)
 
@@ -422,7 +422,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Fix deadlock in `Python::acquire_gil()` after dropping a `PyObject` or `Py<T>`. [#924](https://github.com/PyO3/pyo3/pull/924)
+- Fix deadlock in `Python::acquire()` after dropping a `PyObject` or `Py<T>`. [#924](https://github.com/PyO3/pyo3/pull/924)
 
 ## [0.10.0] - 2020-05-13
 
@@ -463,7 +463,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix lifetime safety bug with `AsPyRef::as_ref`. [#876](https://github.com/PyO3/pyo3/pull/876)
 - Fix `#[pyo3(get)]` attribute on `Py<T>` fields. [#880](https://github.com/PyO3/pyo3/pull/880)
 - Fix segmentation faults caused by functions such as `PyList::get_item` returning borrowed objects when it was not safe to do so. [#890](https://github.com/PyO3/pyo3/pull/890)
-- Fix segmentation faults caused by nested `Python::acquire_gil` calls creating dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
+- Fix segmentation faults caused by nested `Python::acquire` calls creating dangling references. [#893](https://github.com/PyO3/pyo3/pull/893)
 - Fix segmentatation faults when a panic occurs during a call to `Python::allow_threads`. [#912](https://github.com/PyO3/pyo3/pull/912)
 
 ## [0.9.2] - 2020-04-09

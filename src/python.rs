@@ -140,6 +140,11 @@ impl Python<'_> {
     /// initialized, this function will initialize it. See
     /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     ///
+    /// This function will always touch a global lock, so will incur a small performance cost when
+    /// called in tight loops. Note that when implementing `#[pymethods]` or `#[pyfunction]` add a
+    /// function argument `py: Python` to receive access to the GIL context in which the function is
+    /// running without the performance overhead.
+    ///
     /// # Panics
     /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
     ///   initialized.
@@ -158,7 +163,18 @@ impl Python<'_> {
     where
         F: for<'p> FnOnce(Python<'p>) -> R,
     {
-        f(unsafe { gil::ensure_gil().python() })
+        // Maybe auto-initialize the GIL:
+        //  - If auto-initialize feature set, try to initialize the interpreter.
+        //  - Otherwise, just check the GIL is initialized.
+        cfg_if::cfg_if! {
+            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
+                crate::gil::prepare_freethreaded_python();
+            } else {
+                crate::gil::assert_initialized_once();
+            }
+        }
+
+        unsafe { Python::with_gil_unchecked(f) }
     }
 
     /// Like [Python::with_gil] except Python interpreter state checking is skipped.
@@ -183,37 +199,12 @@ impl Python<'_> {
     where
         F: for<'p> FnOnce(Python<'p>) -> R,
     {
-        f(gil::ensure_gil_unchecked().python())
+        let guard = GILGuard::acquire();
+        f(guard.python())
     }
 }
 
 impl<'p> Python<'p> {
-    /// Acquires the global interpreter lock, which allows access to the Python runtime.
-    ///
-    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See
-    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
-    ///
-    /// Most users should not need to use this API directly, and should prefer one of two options:
-    /// 1. When implementing `#[pymethods]` or `#[pyfunction]` add a function argument
-    ///    `py: Python` to receive access to the GIL context in which the function is running.
-    /// 2. Use [`Python::with_gil`](#method.with_gil) to run a closure with the GIL, acquiring
-    ///    only if needed.
-    ///
-    /// **Note:** This return type from this function, `GILGuard`, is implemented as a RAII guard
-    /// around the C-API Python_EnsureGIL. This means that multiple `acquire_gil()` calls are
-    /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
-    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
-    /// an irrecoverable panic.
-    ///
-    /// # Panics
-    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
-    ///   initialized.
-    #[inline]
-    pub fn acquire_gil() -> GILGuard {
-        GILGuard::acquire()
-    }
-
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
     ///
     /// # Examples
@@ -646,7 +637,7 @@ impl<'p> Python<'p> {
     /// all have their Python reference counts decremented, potentially allowing Python to drop
     /// the corresponding Python objects.
     ///
-    /// Typical usage of PyO3 will not need this API, as `Python::acquire_gil` automatically
+    /// Typical usage of PyO3 will not need this API, as `Python::with_gil` automatically
     /// creates a `GILPool` where appropriate.
     ///
     /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
@@ -695,6 +686,47 @@ impl<'p> Python<'p> {
     #[inline]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
+    }
+
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+    ///
+    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
+    /// initialized, this function will initialize it. See
+    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    ///
+    /// Most users should not need to use this API directly, and should prefer one of two options:
+    /// 1. When implementing `#[pymethods]` or `#[pyfunction]` add a function argument
+    ///    `py: Python` to receive access to the GIL context in which the function is running.
+    /// 2. Use [`Python::with_gil`](#method.with_gil) to run a closure with the GIL, acquiring
+    ///    only if needed.
+    ///
+    /// **Note:** This return type from this function, `GILGuard`, is implemented as a RAII guard
+    /// around the C-API Python_EnsureGIL. This means that multiple `()` calls are
+    /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
+    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
+    /// an irrecoverable panic.
+    ///
+    /// # Panics
+    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
+    ///   initialized.
+    #[inline]
+    #[deprecated(
+        since = "0.15.0",
+        note = "prefer Python::with_gil"
+    )]
+    pub fn acquire_gil() -> GILGuard {
+        // Maybe auto-initialize the GIL:
+        //  - If auto-initialize feature set, try to initialize the interpreter.
+        //  - Otherwise, just check the GIL is initialized.
+        cfg_if::cfg_if! {
+            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
+                crate::gil::prepare_freethreaded_python();
+            } else {
+                crate::gil::assert_initialized_once();
+            }
+        }
+
+        unsafe { GILGuard::acquire() }
     }
 }
 
@@ -802,6 +834,25 @@ mod tests {
 
     #[test]
     #[cfg(not(Py_LIMITED_API))]
+    fn test_with_gil() {
+        const GIL_NOT_HELD: c_int = 0;
+        const GIL_HELD: c_int = 1;
+
+        let state = unsafe { crate::ffi::PyGILState_Check() };
+        assert_eq!(state, GIL_NOT_HELD);
+
+        Python::with_gil(|py| {
+            let state = unsafe { crate::ffi::PyGILState_Check() };
+            assert_eq!(state, GIL_HELD);
+        });
+
+        let state = unsafe { crate::ffi::PyGILState_Check() };
+        assert_eq!(state, GIL_NOT_HELD);
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    #[allow(deprecated)]
     fn test_acquire_gil() {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;

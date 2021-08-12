@@ -99,6 +99,31 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
+#[cfg(any(not(feature = "auto-initialize"), PyPy))]
+pub(crate) fn assert_initialized_once() {
+    START.call_once_force(|_| unsafe {
+        // Use call_once_force because if there is a panic because the interpreter is
+        // not initialized, it's fine for the user to initialize the interpreter and
+        // retry.
+        assert_ne!(
+            ffi::Py_IsInitialized(),
+            0,
+            "The Python interpreter is not initalized and the `auto-initialize` \
+             feature is not enabled.\n\n\
+             Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+             to use Python APIs."
+        );
+        assert_ne!(
+            ffi::PyEval_ThreadsInitialized(),
+            0,
+            "Python threading is not initalized and the `auto-initialize` feature is \
+             not enabled.\n\n\
+             Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
+             to use Python APIs."
+        );
+    });
+}
+
 /// Executes the provided closure with an embedded Python interpreter.
 ///
 /// This function intializes the Python interpreter, executes the provided closure, and then
@@ -175,10 +200,6 @@ where
 
 /// RAII type that represents the Global Interpreter Lock acquisition.
 ///
-/// Users are strongly encouraged to use [`Python::with_gil`](struct.Python.html#method.with_gil)
-/// instead of directly constructing this type.
-/// See [`Python::acquire_gil`](struct.Python.html#method.acquire_gil) for more.
-///
 /// # Examples
 /// ```
 /// use pyo3::Python;
@@ -202,60 +223,23 @@ impl GILGuard {
         unsafe { Python::assume_gil_acquired() }
     }
 
-    /// PyO3 internal API for acquiring the GIL. The public API is Python::acquire_gil.
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
     ///
-    /// If PyO3 does not yet have a `GILPool` for tracking owned PyObject references, then this new
-    /// `GILGuard` will also contain a `GILPool`.
-    pub(crate) fn acquire() -> GILGuard {
-        // Maybe auto-initialize the GIL:
-        //  - If auto-initialize feature set and supported, try to initalize the interpreter.
-        //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
-        //    extension-module feature is not activated - extension modules don't care about
-        //    auto-initialize so this avoids breaking existing builds.
-        //  - Otherwise, just check the GIL is initialized.
-        cfg_if::cfg_if! {
-            if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
-                prepare_freethreaded_python();
-            } else {
-                START.call_once_force(|_| unsafe {
-                    // Use call_once_force because if there is a panic because the interpreter is
-                    // not initialized, it's fine for the user to initialize the interpreter and
-                    // retry.
-                    assert_ne!(
-                        ffi::Py_IsInitialized(),
-                        0,
-                        "The Python interpreter is not initalized and the `auto-initialize` \
-                         feature is not enabled.\n\n\
-                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
-                         to use Python APIs."
-                    );
-                    assert_ne!(
-                        ffi::PyEval_ThreadsInitialized(),
-                        0,
-                        "Python threading is not initalized and the `auto-initialize` feature is \
-                         not enabled.\n\n\
-                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
-                         to use Python APIs."
-                    );
-                });
-            }
-        }
-
-        Self::acquire_unchecked()
-    }
-
-    /// Acquires the `GILGuard` without performing any state checking.
+    /// # Safety
+    /// - The Python interpreter should have already been initialized.
+    /// - `GILGuard` objects must be dropped in the reverse order they are acquired. See note below.
     ///
-    /// This can be called in "unsafe" contexts where the normal interpreter state
-    /// checking performed by `GILGuard::acquire` may fail. This includes calling
-    /// as part of multi-phase interpreter initialization.
-    pub(crate) fn acquire_unchecked() -> GILGuard {
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+    /// **Note:** This return type from this function, `GILGuard`, is implemented as a RAII guard
+    /// around the C-API Python_EnsureGIL. This means that multiple `acquire()` calls are
+    /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
+    /// to acquisition. Failing to do this will corrupt the Python GIL state.
+    pub unsafe fn acquire() -> GILGuard {
+        let gstate = ffi::PyGILState_Ensure(); // acquire GIL
 
         // If there's already a GILPool, we should not create another or this could lead to
         // incorrect dangling references in safe code (see #864).
         let pool = if !gil_is_acquired() {
-            Some(unsafe { GILPool::new() })
+            Some(GILPool::new())
         } else {
             // As no GILPool was created, need to update the gil count manually.
             increment_gil_count();
@@ -272,16 +256,6 @@ impl GILGuard {
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        // First up, try to detect if the order of destruction is correct.
-        let _ = GIL_COUNT.try_with(|c| {
-            if self.gstate == ffi::PyGILState_STATE::PyGILState_UNLOCKED && c.get() != 1 {
-                // XXX: this panic commits to leaking all objects in the pool as well as
-                // potentially meaning the GIL never releases. Perhaps should be an abort?
-                // Unfortunately abort UX is much worse than panic.
-                panic!("The first GILGuard acquired must be the last one dropped.");
-            }
-        });
-
         // If this GILGuard doesn't own a pool, then need to decrease the count after dropping
         // all objects from the pool.
         let should_decrement = self.pool.is_none();
@@ -473,47 +447,6 @@ fn decrement_gil_count() {
         );
         c.set(current - 1);
     });
-}
-
-/// Ensures the GIL is held, used in the implementation of `Python::with_gil`.
-pub(crate) fn ensure_gil() -> EnsureGIL {
-    if gil_is_acquired() {
-        EnsureGIL(None)
-    } else {
-        EnsureGIL(Some(GILGuard::acquire()))
-    }
-}
-
-/// Ensures the GIL is held, without interpreter state checking.
-///
-/// This bypasses interpreter state checking that would normally be performed
-/// before acquiring the GIL.
-pub(crate) fn ensure_gil_unchecked() -> EnsureGIL {
-    if gil_is_acquired() {
-        EnsureGIL(None)
-    } else {
-        EnsureGIL(Some(GILGuard::acquire_unchecked()))
-    }
-}
-
-/// Struct used internally which avoids acquiring the GIL where it's not necessary.
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) struct EnsureGIL(Option<GILGuard>);
-
-impl EnsureGIL {
-    /// Get the GIL token.
-    ///
-    /// # Safety
-    /// If `self.0` is `None`, then this calls [Python::assume_gil_acquired].
-    /// Thus this method could be used to get access to a GIL token while the GIL is not held.
-    /// Care should be taken to only use the returned Python in contexts where it is certain the
-    /// GIL continues to be held.
-    pub unsafe fn python(&self) -> Python {
-        match &self.0 {
-            Some(gil) => gil.python(),
-            None => Python::assume_gil_acquired(),
-        }
-    }
 }
 
 #[cfg(test)]
