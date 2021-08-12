@@ -1,7 +1,19 @@
-use crate::ffi::pystate::{PyInterpreterState, PyThreadState};
+#[cfg(not(PyPy))]
+use crate::ffi::PyThreadState;
+use crate::ffi::{PyFrameObject, PyInterpreterState, PyObject};
 use std::os::raw::c_int;
 
-// Py_tracefunc is defined in ffi::pystate
+// skipped _PyInterpreterState_RequiresIDRef
+// skipped _PyInterpreterState_RequireIDRef
+
+// skipped _PyInterpreterState_GetMainModule
+
+pub type Py_tracefunc = extern "C" fn(
+    obj: *mut PyObject,
+    frame: *mut PyFrameObject,
+    what: c_int,
+    arg: *mut PyObject,
+) -> c_int;
 
 pub const PyTrace_CALL: c_int = 0;
 pub const PyTrace_EXCEPTION: c_int = 1;
@@ -12,13 +24,38 @@ pub const PyTrace_C_EXCEPTION: c_int = 5;
 pub const PyTrace_C_RETURN: c_int = 6;
 pub const PyTrace_OPCODE: c_int = 7;
 
+// skipped PyTraceInfo
+// skipped CFrame
+// skipped _PyErr_StackItem
+// skipped _PyStackChunk
+// skipped _ts (aka PyThreadState)
+
 extern "C" {
-    // PyGILState_Check is defined in ffi::pystate
+    // skipped _PyThreadState_Prealloc
+    // skipped _PyThreadState_UncheckedGet
+    // skipped _PyThreadState_GetDict
+
+    #[cfg_attr(PyPy, link_name = "_PyPyGILState_Check")]
+    pub fn PyGILState_Check() -> c_int;
+
+    // skipped _PyGILState_GetInterpreterStateUnsafe
+    // skipped _PyThread_CurrentFrames
+    // skipped _PyThread_CurrentExceptions
+
+    #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_Main() -> *mut PyInterpreterState;
+    #[cfg_attr(PyPy, link_name = "_PyPyInterpreterState_Head")]
     pub fn PyInterpreterState_Head() -> *mut PyInterpreterState;
+    #[cfg_attr(PyPy, link_name = "_PyPyInterpreterState_Next")]
     pub fn PyInterpreterState_Next(interp: *mut PyInterpreterState) -> *mut PyInterpreterState;
+    #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_ThreadHead(interp: *mut PyInterpreterState) -> *mut PyThreadState;
+    #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyThreadState_Next(tstate: *mut PyThreadState) -> *mut PyThreadState;
+    // skipped PyThreadState_DeleteCurrent
 }
 
 #[cfg(Py_3_9)]
@@ -44,3 +81,17 @@ extern "C" {
         eval_frame: _PyFrameEvalFunction,
     );
 }
+
+// skipped _PyInterpreterState_GetConfig
+// skipped _PyInterpreterState_GetConfigCopy
+// skipped _PyInterpreterState_SetConfig
+// skipped _Py_GetConfig
+
+// skipped _PyCrossInterpreterData
+// skipped _PyObject_GetCrossInterpreterData
+// skipped _PyCrossInterpreterData_NewObject
+// skipped _PyCrossInterpreterData_Release
+// skipped _PyObject_CheckCrossInterpreterData
+// skipped crossinterpdatafunc
+// skipped _PyCrossInterpreterData_RegisterClass
+// skipped _PyCrossInterpreterData_Lookup
