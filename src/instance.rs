@@ -863,7 +863,7 @@ impl PyObject {
 mod tests {
     use super::{Py, PyObject};
     use crate::types::PyDict;
-    use crate::{ffi, AsPyPointer, Python};
+    use crate::Python;
 
     #[test]
     fn test_call_for_non_existing_method() {
