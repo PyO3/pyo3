@@ -880,12 +880,12 @@ mod tests {
 
     #[test]
     fn py_from_dict() {
-        let dict: Py<PyDict> = Python::with_gil(|py| -> Py<PyDict> {
+        let dict: Py<PyDict> = Python::with_gil(|py| {
             let native = PyDict::new(py);
             Py::from(native)
         });
 
-        assert_eq!(unsafe { ffi::Py_REFCNT(dict.as_ptr()) }, 1);
+        assert_eq!(Python::with_gil(|py| dict.get_refcnt(py)), 1);
     }
 
     #[test]

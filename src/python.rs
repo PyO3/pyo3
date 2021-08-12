@@ -805,6 +805,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_acquire_gil() {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;

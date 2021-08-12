@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn iter_refcnt() {
-        let (obj, count) = Python::with_gil(|py| -> (Py<PyAny>, isize) {
+        let (obj, count) = Python::with_gil(|py| {
             let obj = vec![10, 20].to_object(py);
             let count = obj.get_refcnt(py);
             (obj, count)
