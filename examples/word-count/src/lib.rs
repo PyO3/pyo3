@@ -1,6 +1,3 @@
-// Source adopted from
-// https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
@@ -24,28 +21,11 @@ fn search_sequential_allow_threads(py: Python, contents: &str, needle: &str) -> 
     py.allow_threads(|| search_sequential(contents, needle))
 }
 
-fn matches(word: &str, needle: &str) -> bool {
-    let mut needle = needle.chars();
-    for ch in word.chars().skip_while(|ch| !ch.is_alphabetic()) {
-        match needle.next() {
-            None => {
-                return !ch.is_alphabetic();
-            }
-            Some(expect) => {
-                if ch.to_lowercase().next() != Some(expect) {
-                    return false;
-                }
-            }
-        }
-    }
-    needle.next().is_none()
-}
-
-/// Count the occurences of needle in line, case insensitive
+/// Count the occurrences of needle in line, case insensitive
 fn count_line(line: &str, needle: &str) -> usize {
     let mut total = 0;
     for word in line.split(' ') {
-        if matches(word, needle) {
+        if word == needle {
             total += 1;
         }
     }
