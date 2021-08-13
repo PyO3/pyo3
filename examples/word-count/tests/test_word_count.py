@@ -1,7 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-
 import word_count
 
 
