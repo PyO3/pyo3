@@ -35,7 +35,7 @@ extern "C" {
     // skipped _PyThreadState_UncheckedGet
     // skipped _PyThreadState_GetDict
 
-    #[cfg_attr(PyPy, link_name = "_PyPyGILState_Check")]
+    #[cfg_attr(PyPy, link_name = "PyPyGILState_Check")]
     pub fn PyGILState_Check() -> c_int;
 
     // skipped _PyGILState_GetInterpreterStateUnsafe
@@ -45,9 +45,9 @@ extern "C" {
     #[cfg(not(PyPy))]
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_Main() -> *mut PyInterpreterState;
-    #[cfg_attr(PyPy, link_name = "_PyPyInterpreterState_Head")]
+    #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Head")]
     pub fn PyInterpreterState_Head() -> *mut PyInterpreterState;
-    #[cfg_attr(PyPy, link_name = "_PyPyInterpreterState_Next")]
+    #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Next")]
     pub fn PyInterpreterState_Next(interp: *mut PyInterpreterState) -> *mut PyInterpreterState;
     #[cfg(not(PyPy))]
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
