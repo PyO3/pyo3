@@ -342,141 +342,139 @@ mod tests {
 
     #[test]
     fn test_check_exception() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let err: PyErr = gaierror::new_err(());
+            let socket = py
+                .import("socket")
+                .map_err(|e| e.print(py))
+                .expect("could not import socket");
 
-        let err: PyErr = gaierror::new_err(());
-        let socket = py
-            .import("socket")
-            .map_err(|e| e.print(py))
-            .expect("could not import socket");
+            let d = PyDict::new(py);
+            d.set_item("socket", socket)
+                .map_err(|e| e.print(py))
+                .expect("could not setitem");
 
-        let d = PyDict::new(py);
-        d.set_item("socket", socket)
-            .map_err(|e| e.print(py))
-            .expect("could not setitem");
+            d.set_item("exc", err)
+                .map_err(|e| e.print(py))
+                .expect("could not setitem");
 
-        d.set_item("exc", err)
-            .map_err(|e| e.print(py))
-            .expect("could not setitem");
-
-        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
-            .map_err(|e| e.print(py))
-            .expect("assertion failed");
+            py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
+                .map_err(|e| e.print(py))
+                .expect("assertion failed");
+        });
     }
 
     #[test]
     fn test_check_exception_nested() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let err: PyErr = MessageError::new_err(());
+            let email = py
+                .import("email")
+                .map_err(|e| e.print(py))
+                .expect("could not import email");
 
-        let err: PyErr = MessageError::new_err(());
-        let email = py
-            .import("email")
-            .map_err(|e| e.print(py))
-            .expect("could not import email");
+            let d = PyDict::new(py);
+            d.set_item("email", email)
+                .map_err(|e| e.print(py))
+                .expect("could not setitem");
+            d.set_item("exc", err)
+                .map_err(|e| e.print(py))
+                .expect("could not setitem");
 
-        let d = PyDict::new(py);
-        d.set_item("email", email)
+            py.run(
+                "assert isinstance(exc, email.errors.MessageError)",
+                None,
+                Some(d),
+            )
             .map_err(|e| e.print(py))
-            .expect("could not setitem");
-        d.set_item("exc", err)
-            .map_err(|e| e.print(py))
-            .expect("could not setitem");
-
-        py.run(
-            "assert isinstance(exc, email.errors.MessageError)",
-            None,
-            Some(d),
-        )
-        .map_err(|e| e.print(py))
-        .expect("assertion failed");
+            .expect("assertion failed");
+        });
     }
 
     #[test]
     fn custom_exception() {
         create_exception!(mymodule, CustomError, PyException);
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let error_type = py.get_type::<CustomError>();
-        let ctx = [("CustomError", error_type)].into_py_dict(py);
-        let type_description: String = py
-            .eval("str(CustomError)", None, Some(ctx))
-            .unwrap()
-            .extract()
+        Python::with_gil(|py| {
+            let error_type = py.get_type::<CustomError>();
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let type_description: String = py
+                .eval("str(CustomError)", None, Some(ctx))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            py.run(
+                "assert CustomError('oops').args == ('oops',)",
+                None,
+                Some(ctx),
+            )
             .unwrap();
-        assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-        py.run(
-            "assert CustomError('oops').args == ('oops',)",
-            None,
-            Some(ctx),
-        )
-        .unwrap();
+        });
     }
 
     #[test]
     fn native_exception_debug() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let exc = py
-            .run("raise Exception('banana')", None, None)
-            .expect_err("raising should have given us an error")
-            .into_instance(py)
-            .into_ref(py);
-        assert_eq!(
-            format!("{:?}", exc),
-            exc.repr().unwrap().extract::<String>().unwrap()
-        );
+        Python::with_gil(|py| {
+            let exc = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error")
+                .into_instance(py)
+                .into_ref(py);
+            assert_eq!(
+                format!("{:?}", exc),
+                exc.repr().unwrap().extract::<String>().unwrap()
+            );
+        });
     }
 
     #[test]
     fn native_exception_display() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let exc = py
-            .run("raise Exception('banana')", None, None)
-            .expect_err("raising should have given us an error")
-            .into_instance(py)
-            .into_ref(py);
-        assert_eq!(
-            exc.to_string(),
-            exc.str().unwrap().extract::<String>().unwrap()
-        );
+        Python::with_gil(|py| {
+            let exc = py
+                .run("raise Exception('banana')", None, None)
+                .expect_err("raising should have given us an error")
+                .into_instance(py)
+                .into_ref(py);
+            assert_eq!(
+                exc.to_string(),
+                exc.str().unwrap().extract::<String>().unwrap()
+            );
+        });
     }
 
     #[test]
     fn native_exception_chain() {
         use std::error::Error;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let exc = py
-            .run(
-                "raise Exception('banana') from TypeError('peach')",
-                None,
-                None,
-            )
-            .expect_err("raising should have given us an error")
-            .into_instance(py)
-            .into_ref(py);
+        Python::with_gil(|py| {
+            let exc = py
+                .run(
+                    "raise Exception('banana') from TypeError('peach')",
+                    None,
+                    None,
+                )
+                .expect_err("raising should have given us an error")
+                .into_instance(py)
+                .into_ref(py);
 
-        if py.version_info() >= (3, 7) {
-            assert_eq!(format!("{:?}", exc), "Exception('banana')");
-        } else {
-            assert_eq!(format!("{:?}", exc), "Exception('banana',)");
-        }
+            if py.version_info() >= (3, 7) {
+                assert_eq!(format!("{:?}", exc), "Exception('banana')");
+            } else {
+                assert_eq!(format!("{:?}", exc), "Exception('banana',)");
+            }
 
-        let source = exc.source().expect("cause should exist");
+            let source = exc.source().expect("cause should exist");
 
-        if py.version_info() >= (3, 7) {
-            assert_eq!(format!("{:?}", source), "TypeError('peach')");
-        } else {
-            assert_eq!(format!("{:?}", source), "TypeError('peach',)");
-        }
+            if py.version_info() >= (3, 7) {
+                assert_eq!(format!("{:?}", source), "TypeError('peach')");
+            } else {
+                assert_eq!(format!("{:?}", source), "TypeError('peach',)");
+            }
 
-        let source_source = source.source();
-        assert!(source_source.is_none(), "source_source should be None");
+            let source_source = source.source();
+            assert!(source_source.is_none(), "source_source should be None");
+        });
     }
 
     #[test]

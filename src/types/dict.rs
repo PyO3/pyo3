@@ -412,46 +412,43 @@ mod hashbrown_hashmap_conversion {
 
     #[test]
     fn test_hashbrown_hashmap_to_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = hashbrown::HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m = map.to_object(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        assert_eq!(map, py_map.extract().unwrap());
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert_eq!(map, py_map.extract().unwrap());
+        });
     }
     #[test]
     fn test_hashbrown_hashmap_into_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = hashbrown::HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m: PyObject = map.into_py(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        });
     }
 
     #[test]
     fn test_hashbrown_hashmap_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = hashbrown::HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = hashbrown::HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let py_map = map.into_py_dict(py);
 
-        let py_map = map.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 1);
-        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(py_map.len(), 1);
+            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+        });
     }
 }
 
@@ -469,397 +466,388 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let dict = [(7, 32)].into_py_dict(py);
-        assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-        assert_eq!(None, dict.get_item(8i32));
-        let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-        assert_eq!(map, dict.extract().unwrap());
-        let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-        assert_eq!(map, dict.extract().unwrap());
+        Python::with_gil(|py| {
+            let dict = [(7, 32)].into_py_dict(py);
+            assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(None, dict.get_item(8i32));
+            let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
+            assert_eq!(map, dict.extract().unwrap());
+            let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
+            assert_eq!(map, dict.extract().unwrap());
+        });
     }
 
     #[test]
     #[cfg(not(PyPy))]
     fn test_from_sequence() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
-        let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
-        assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
-        assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
-        let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
-        assert_eq!(map, dict.extract().unwrap());
-        let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
-        assert_eq!(map, dict.extract().unwrap());
+        Python::with_gil(|py| {
+            let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
+            let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
+            assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
+            let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+            assert_eq!(map, dict.extract().unwrap());
+            let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+            assert_eq!(map, dict.extract().unwrap());
+        });
     }
 
     #[test]
     #[cfg(not(PyPy))]
     fn test_from_sequence_err() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let items = PyList::new(py, &vec!["a", "b"]);
-        assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
+        Python::with_gil(|py| {
+            let items = PyList::new(py, &vec!["a", "b"]);
+            assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
+        });
     }
 
     #[test]
     fn test_copy() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let dict = [(7, 32)].into_py_dict(py);
+        Python::with_gil(|py| {
+            let dict = [(7, 32)].into_py_dict(py);
 
-        let ndict = dict.copy().unwrap();
-        assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-        assert_eq!(None, ndict.get_item(8i32));
+            let ndict = dict.copy().unwrap();
+            assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(None, ndict.get_item(8i32));
+        });
     }
 
     #[test]
     fn test_len() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(0, dict.len());
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(1, dict2.len());
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(0, dict.len());
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(1, dict2.len());
+        });
     }
 
     #[test]
     fn test_contains() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(dict.contains(7i32).unwrap());
-        assert!(!dict.contains(8i32).unwrap());
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(dict.contains(7i32).unwrap());
+            assert!(!dict.contains(8i32).unwrap());
+        });
     }
 
     #[test]
     fn test_get_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-        assert_eq!(None, dict.get_item(8i32));
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(None, dict.get_item(8i32));
+        });
     }
 
     #[test]
     fn test_set_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(dict.set_item(7i32, 42i32).is_ok()); // change
-        assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
-        assert_eq!(
-            42i32,
-            dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
-        );
-        assert_eq!(
-            123i32,
-            dict.get_item(8i32).unwrap().extract::<i32>().unwrap()
-        );
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+            assert_eq!(
+                42i32,
+                dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
+            );
+            assert_eq!(
+                123i32,
+                dict.get_item(8i32).unwrap().extract::<i32>().unwrap()
+            );
+        });
     }
 
     #[test]
     fn test_set_item_refcnt() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let cnt;
-        {
-            let _pool = unsafe { crate::GILPool::new() };
-            let none = py.None();
-            cnt = none.get_refcnt(py);
-            let _dict = [(10, none)].into_py_dict(py);
-        }
-        {
-            assert_eq!(cnt, py.None().get_refcnt(py));
-        }
+        Python::with_gil(|py| {
+            let cnt;
+            {
+                let _pool = unsafe { crate::GILPool::new() };
+                let none = py.None();
+                cnt = none.get_refcnt(py);
+                let _dict = [(10, none)].into_py_dict(py);
+            }
+            {
+                assert_eq!(cnt, py.None().get_refcnt(py));
+            }
+        });
     }
 
     #[test]
     fn test_set_item_does_not_update_original_object() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(dict.set_item(7i32, 42i32).is_ok()); // change
-        assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
-        assert_eq!(32i32, v[&7i32]); // not updated!
-        assert_eq!(None, v.get(&8i32));
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+            assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+            assert_eq!(32i32, v[&7i32]); // not updated!
+            assert_eq!(None, v.get(&8i32));
+        });
     }
 
     #[test]
     fn test_del_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(dict.del_item(7i32).is_ok());
-        assert_eq!(0, dict.len());
-        assert_eq!(None, dict.get_item(7i32));
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(dict.del_item(7i32).is_ok());
+            assert_eq!(0, dict.len());
+            assert_eq!(None, dict.get_item(7i32));
+        });
     }
 
     #[test]
     fn test_del_item_does_not_update_original_object() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(dict.del_item(7i32).is_ok()); // change
-        assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(dict.del_item(7i32).is_ok()); // change
+            assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+        });
     }
 
     #[test]
     fn test_items() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
-        let mut key_sum = 0;
-        let mut value_sum = 0;
-        for el in dict.items().iter() {
-            let tuple = el.cast_as::<PyTuple>().unwrap();
-            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
-            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
-        assert_eq!(32 + 42 + 123, value_sum);
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            for el in dict.items().iter() {
+                let tuple = el.cast_as::<PyTuple>().unwrap();
+                key_sum += tuple.get_item(0).extract::<i32>().unwrap();
+                value_sum += tuple.get_item(1).extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
     }
 
     #[test]
     fn test_keys() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
-        let mut key_sum = 0;
-        for el in dict.keys().iter() {
-            key_sum += el.extract::<i32>().unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+            let mut key_sum = 0;
+            for el in dict.keys().iter() {
+                key_sum += el.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+        });
     }
 
     #[test]
     fn test_values() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
-        let mut values_sum = 0;
-        for el in dict.values().iter() {
-            values_sum += el.extract::<i32>().unwrap();
-        }
-        assert_eq!(32 + 42 + 123, values_sum);
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+            let mut values_sum = 0;
+            for el in dict.values().iter() {
+                values_sum += el.extract::<i32>().unwrap();
+            }
+            assert_eq!(32 + 42 + 123, values_sum);
+        });
     }
 
     #[test]
     fn test_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        let mut key_sum = 0;
-        let mut value_sum = 0;
-        for (key, value) in dict.iter() {
-            key_sum += key.extract::<i32>().unwrap();
-            value_sum += value.extract::<i32>().unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
-        assert_eq!(32 + 42 + 123, value_sum);
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            for (key, value) in dict.iter() {
+                key_sum += key.extract::<i32>().unwrap();
+                value_sum += value.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
     }
 
     #[test]
     fn test_iter_size_hint() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
-        let mut iter = dict.iter();
-        assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
-        iter.next();
-        assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
+            let mut iter = dict.iter();
+            assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
+            iter.next();
+            assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
 
-        // Exhust iterator.
-        for _ in &mut iter {}
+            // Exhust iterator.
+            for _ in &mut iter {}
 
-        assert_eq!(iter.size_hint(), (0, Some(0)));
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
     }
 
     #[test]
     fn test_into_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        let mut key_sum = 0;
-        let mut value_sum = 0;
-        for (key, value) in dict {
-            key_sum += key.extract::<i32>().unwrap();
-            value_sum += value.extract::<i32>().unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
-        assert_eq!(32 + 42 + 123, value_sum);
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            v.insert(8, 42);
+            v.insert(9, 123);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let mut key_sum = 0;
+            let mut value_sum = 0;
+            for (key, value) in dict {
+                key_sum += key.extract::<i32>().unwrap();
+                value_sum += value.extract::<i32>().unwrap();
+            }
+            assert_eq!(7 + 8 + 9, key_sum);
+            assert_eq!(32 + 42 + 123, value_sum);
+        });
     }
 
     #[test]
     fn test_hashmap_to_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m = map.to_object(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        assert_eq!(map, py_map.extract().unwrap());
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert_eq!(map, py_map.extract().unwrap());
+        });
     }
 
     #[test]
     fn test_btreemap_to_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = BTreeMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = BTreeMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m = map.to_object(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        assert_eq!(map, py_map.extract().unwrap());
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert_eq!(map, py_map.extract().unwrap());
+        });
     }
 
     #[test]
     fn test_hashmap_into_python() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m: PyObject = map.into_py(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        });
     }
 
     #[test]
     fn test_hashmap_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = HashMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let py_map = map.into_py_dict(py);
 
-        let py_map = map.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 1);
-        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(py_map.len(), 1);
+            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+        });
     }
 
     #[test]
     fn test_btreemap_into_py() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = BTreeMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = BTreeMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let m: PyObject = map.into_py(py);
+            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+            assert!(py_map.len() == 1);
+            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        });
     }
 
     #[test]
     fn test_btreemap_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let mut map = BTreeMap::<i32, i32>::new();
+            map.insert(1, 1);
 
-        let mut map = BTreeMap::<i32, i32>::new();
-        map.insert(1, 1);
+            let py_map = map.into_py_dict(py);
 
-        let py_map = map.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 1);
-        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+            assert_eq!(py_map.len(), 1);
+            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
+        });
     }
 
     #[test]
     fn test_vec_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let vec = vec![("a", 1), ("b", 2), ("c", 3)];
+            let py_map = vec.into_py_dict(py);
 
-        let vec = vec![("a", 1), ("b", 2), ("c", 3)];
-        let py_map = vec.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 3);
-        assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(py_map.len(), 3);
+            assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+        });
     }
 
     #[test]
     fn test_slice_into_dict() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let arr = [("a", 1), ("b", 2), ("c", 3)];
+            let py_map = arr.into_py_dict(py);
 
-        let arr = [("a", 1), ("b", 2), ("c", 3)];
-        let py_map = arr.into_py_dict(py);
-
-        assert_eq!(py_map.len(), 3);
-        assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+            assert_eq!(py_map.len(), 3);
+            assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+        });
     }
 }

@@ -705,64 +705,62 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            // Make sure builtin names are accessible
+            let v: i32 = py
+                .eval("min(1, 2)", None, None)
+                .map_err(|e| e.print(py))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(v, 1);
 
-        // Make sure builtin names are accessible
-        let v: i32 = py
-            .eval("min(1, 2)", None, None)
-            .map_err(|e| e.print(py))
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert_eq!(v, 1);
+            let d = [("foo", 13)].into_py_dict(py);
 
-        let d = [("foo", 13)].into_py_dict(py);
+            // Inject our own global namespace
+            let v: i32 = py
+                .eval("foo + 29", Some(d), None)
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(v, 42);
 
-        // Inject our own global namespace
-        let v: i32 = py
-            .eval("foo + 29", Some(d), None)
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert_eq!(v, 42);
+            // Inject our own local namespace
+            let v: i32 = py
+                .eval("foo + 29", None, Some(d))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(v, 42);
 
-        // Inject our own local namespace
-        let v: i32 = py
-            .eval("foo + 29", None, Some(d))
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert_eq!(v, 42);
-
-        // Make sure builtin names are still accessible when using a local namespace
-        let v: i32 = py
-            .eval("min(foo, 2)", None, Some(d))
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert_eq!(v, 2);
+            // Make sure builtin names are still accessible when using a local namespace
+            let v: i32 = py
+                .eval("min(foo, 2)", None, Some(d))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(v, 2);
+        });
     }
 
     #[test]
     fn test_allow_threads_panics_safely() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let result = std::panic::catch_unwind(|| unsafe {
-            let py = Python::assume_gil_acquired();
-            py.allow_threads(|| {
-                panic!("There was a panic!");
+        Python::with_gil(|py| {
+            let result = std::panic::catch_unwind(|| unsafe {
+                let py = Python::assume_gil_acquired();
+                py.allow_threads(|| {
+                    panic!("There was a panic!");
+                });
             });
+
+            // Check panic was caught
+            assert!(result.is_err());
+
+            // If allow_threads is implemented correctly, this thread still owns the GIL here
+            // so the following Python calls should not cause crashes.
+            let list = PyList::new(py, &[1, 2, 3, 4]);
+            assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
         });
-
-        // Check panic was caught
-        assert!(result.is_err());
-
-        // If allow_threads is implemented correctly, this thread still owns the GIL here
-        // so the following Python calls should not cause crashes.
-        let list = PyList::new(py, &[1, 2, 3, 4]);
-        assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![1, 2, 3, 4]);
     }
 
     #[test]
@@ -800,5 +798,26 @@ mod tests {
         assert!(PythonVersionInfo::from_str("3.5+") == (3, 5));
         assert!(PythonVersionInfo::from_str("3.5.2a1+") < (3, 6));
         assert!(PythonVersionInfo::from_str("3.5.2a1+") > (3, 4));
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_acquire_gil() {
+        const GIL_NOT_HELD: c_int = 0;
+        const GIL_HELD: c_int = 1;
+
+        let state = unsafe { crate::ffi::PyGILState_Check() };
+        assert_eq!(state, GIL_NOT_HELD);
+
+        {
+            let gil = Python::acquire_gil();
+            let _py = gil.python();
+            let state = unsafe { crate::ffi::PyGILState_Check() };
+            assert_eq!(state, GIL_HELD);
+            drop(gil);
+        }
+
+        let state = unsafe { crate::ffi::PyGILState_Check() };
+        assert_eq!(state, GIL_NOT_HELD);
     }
 }

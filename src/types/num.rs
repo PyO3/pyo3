@@ -361,45 +361,45 @@ mod tests {
 
     #[test]
     fn test_u32_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::u32::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(u64::from(v), obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
+        Python::with_gil(|py| {
+            let v = std::u32::MAX;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<u32>(py).unwrap());
+            assert_eq!(u64::from(v), obj.extract::<u64>(py).unwrap());
+            assert!(obj.extract::<i32>(py).is_err());
+        });
     }
 
     #[test]
     fn test_i64_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i64::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<u32>(py).is_err());
+        Python::with_gil(|py| {
+            let v = std::i64::MAX;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<i64>(py).unwrap());
+            assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
+            assert!(obj.extract::<u32>(py).is_err());
+        });
     }
 
     #[test]
     fn test_i64_min() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i64::MIN;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
-        assert!(obj.extract::<u64>(py).is_err());
+        Python::with_gil(|py| {
+            let v = std::i64::MIN;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<i64>(py).unwrap());
+            assert!(obj.extract::<i32>(py).is_err());
+            assert!(obj.extract::<u64>(py).is_err());
+        });
     }
 
     #[test]
     fn test_u64_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::u64::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i64>(py).is_err());
+        Python::with_gil(|py| {
+            let v = std::u64::MAX;
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<u64>(py).unwrap());
+            assert!(obj.extract::<i64>(py).is_err());
+        });
     }
 
     macro_rules! test_common (
@@ -411,32 +411,31 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    Python::with_gil(|py|{
+
 
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance::<exceptions::PyTypeError>(py));
+                    });
                 }
 
                 #[test]
                 fn from_py_float_type_error() {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    Python::with_gil(|py|{
 
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::PyTypeError>(py));
+                    assert!(err.is_instance::<exceptions::PyTypeError>(py));});
                 }
 
                 #[test]
                 fn to_py_object_and_back() {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
+                    Python::with_gil(|py|{
 
                     let val = 123 as $t;
                     let obj = val.to_object(py);
-                    assert_eq!(obj.extract::<$t>(py).unwrap(), val as $t);
+                    assert_eq!(obj.extract::<$t>(py).unwrap(), val as $t);});
                 }
             }
         )

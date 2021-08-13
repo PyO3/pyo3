@@ -107,65 +107,62 @@ mod tests {
 
     #[test]
     fn vec_iter() {
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
-        let obj = vec![10, 20].to_object(py);
-        let inst = obj.as_ref(py);
-        let mut it = inst.iter().unwrap();
-        assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-        assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
-        assert!(it.next().is_none());
+        Python::with_gil(|py| {
+            let obj = vec![10, 20].to_object(py);
+            let inst = obj.as_ref(py);
+            let mut it = inst.iter().unwrap();
+            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+            assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
+            assert!(it.next().is_none());
+        });
     }
 
     #[test]
     fn iter_refcnt() {
-        let obj;
-        let count;
-        {
-            let gil_guard = Python::acquire_gil();
-            let py = gil_guard.python();
-            obj = vec![10, 20].to_object(py);
-            count = obj.get_refcnt(py);
-        }
+        let (obj, count) = Python::with_gil(|py| {
+            let obj = vec![10, 20].to_object(py);
+            let count = obj.get_refcnt(py);
+            (obj, count)
+        });
 
-        {
-            let gil_guard = Python::acquire_gil();
-            let py = gil_guard.python();
+        Python::with_gil(|py| {
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-        }
-        assert_eq!(count, obj.get_refcnt(Python::acquire_gil().python()));
+        });
+
+        Python::with_gil(|py| {
+            assert_eq!(count, obj.get_refcnt(py));
+        });
     }
 
     #[test]
     fn iter_item_refcnt() {
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
+        Python::with_gil(|py| {
+            let obj;
+            let none;
+            let count;
+            {
+                let _pool = unsafe { GILPool::new() };
+                let l = PyList::empty(py);
+                none = py.None();
+                l.append(10).unwrap();
+                l.append(&none).unwrap();
+                count = none.get_refcnt(py);
+                obj = l.to_object(py);
+            }
 
-        let obj;
-        let none;
-        let count;
-        {
-            let _pool = unsafe { GILPool::new() };
-            let l = PyList::empty(py);
-            none = py.None();
-            l.append(10).unwrap();
-            l.append(&none).unwrap();
-            count = none.get_refcnt(py);
-            obj = l.to_object(py);
-        }
+            {
+                let _pool = unsafe { GILPool::new() };
+                let inst = obj.as_ref(py);
+                let mut it = inst.iter().unwrap();
 
-        {
-            let _pool = unsafe { GILPool::new() };
-            let inst = obj.as_ref(py);
-            let mut it = inst.iter().unwrap();
-
-            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-            assert!(it.next().unwrap().unwrap().is_none());
-        }
-        assert_eq!(count, none.get_refcnt(py));
+                assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+                assert!(it.next().unwrap().unwrap().is_none());
+            }
+            assert_eq!(count, none.get_refcnt(py));
+        });
     }
 
     #[test]
@@ -181,37 +178,35 @@ mod tests {
         "#
         );
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let context = PyDict::new(py);
+            py.run(fibonacci_generator, None, Some(context)).unwrap();
 
-        let context = PyDict::new(py);
-        py.run(fibonacci_generator, None, Some(context)).unwrap();
-
-        let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
-        for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
-            let actual = actual.unwrap().extract::<usize>().unwrap();
-            assert_eq!(actual, *expected)
-        }
+            let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
+            for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
+                let actual = actual.unwrap().extract::<usize>().unwrap();
+                assert_eq!(actual, *expected)
+            }
+        });
     }
 
     #[test]
     fn int_not_iterable() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let x = 5.to_object(py);
+            let err = PyIterator::from_object(py, &x).unwrap_err();
 
-        let x = 5.to_object(py);
-        let err = PyIterator::from_object(py, &x).unwrap_err();
-
-        assert!(err.is_instance::<PyTypeError>(py))
+            assert!(err.is_instance::<PyTypeError>(py));
+        });
     }
 
     #[test]
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     fn iterator_try_from() {
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
-        let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-        let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
-        assert_eq!(obj, iter.into());
+        Python::with_gil(|py| {
+            let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
+            let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
+            assert_eq!(obj, iter.into());
+        });
     }
 }

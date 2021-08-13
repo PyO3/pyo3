@@ -338,80 +338,79 @@ mod tests {
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| -> PyObject {
+            let obj = py.eval("object()", None, None).unwrap();
 
-        let obj = py.eval("object()", None, None).unwrap();
-
-        obj.to_object(py)
+            obj.to_object(py)
+        })
     }
 
     #[test]
     fn test_numbers_are_not_sequences() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = 42i32;
-        assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_err());
+        Python::with_gil(|py| {
+            let v = 42i32;
+            assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_err());
+        });
     }
 
     #[test]
     fn test_strings_are_sequences() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = "London Calling";
-        assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_ok());
+        Python::with_gil(|py| {
+            let v = "London Calling";
+            assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_ok());
+        });
     }
     #[test]
     fn test_seq_empty() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(0, seq.len().unwrap());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(0, seq.len().unwrap());
 
-        let needle = 7i32.to_object(py);
-        assert!(!seq.contains(&needle).unwrap());
+            let needle = 7i32.to_object(py);
+            assert!(!seq.contains(&needle).unwrap());
+        });
     }
 
     #[test]
     fn test_seq_contains() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(6, seq.len().unwrap());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(6, seq.len().unwrap());
 
-        let bad_needle = 7i32.to_object(py);
-        assert!(!seq.contains(&bad_needle).unwrap());
+            let bad_needle = 7i32.to_object(py);
+            assert!(!seq.contains(&bad_needle).unwrap());
 
-        let good_needle = 8i32.to_object(py);
-        assert!(seq.contains(&good_needle).unwrap());
+            let good_needle = 8i32.to_object(py);
+            assert!(seq.contains(&good_needle).unwrap());
 
-        let type_coerced_needle = 8f32.to_object(py);
-        assert!(seq.contains(&type_coerced_needle).unwrap());
+            let type_coerced_needle = 8f32.to_object(py);
+            assert!(seq.contains(&type_coerced_needle).unwrap());
+        });
     }
 
     #[test]
     fn test_seq_get_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert_eq!(1, seq.get_item(1).unwrap().extract::<i32>().unwrap());
-        assert_eq!(2, seq.get_item(2).unwrap().extract::<i32>().unwrap());
-        assert_eq!(3, seq.get_item(3).unwrap().extract::<i32>().unwrap());
-        assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
-        assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
-        assert_eq!(8, seq.get_item(-1).unwrap().extract::<i32>().unwrap());
-        assert_eq!(5, seq.get_item(-2).unwrap().extract::<i32>().unwrap());
-        assert_eq!(3, seq.get_item(-3).unwrap().extract::<i32>().unwrap());
-        assert_eq!(2, seq.get_item(-4).unwrap().extract::<i32>().unwrap());
-        assert_eq!(1, seq.get_item(-5).unwrap().extract::<i32>().unwrap());
-        assert!(seq.get_item(10).is_err());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq.get_item(2).unwrap().extract::<i32>().unwrap());
+            assert_eq!(3, seq.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
+            assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
+            assert_eq!(8, seq.get_item(-1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(5, seq.get_item(-2).unwrap().extract::<i32>().unwrap());
+            assert_eq!(3, seq.get_item(-3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq.get_item(-4).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq.get_item(-5).unwrap().extract::<i32>().unwrap());
+            assert!(seq.get_item(10).is_err());
+        });
     }
 
     // fn test_get_slice() {}
@@ -420,259 +419,257 @@ mod tests {
 
     #[test]
     fn test_seq_del_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.del_item(10).is_err());
-        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
-        assert!(seq.del_item(0).is_ok());
-        assert_eq!(0, seq.len().unwrap());
-        assert!(seq.del_item(0).is_err());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert!(seq.del_item(10).is_err());
+            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert!(seq.del_item(0).is_ok());
+            assert_eq!(0, seq.len().unwrap());
+            assert!(seq.del_item(0).is_err());
+        });
     }
 
     #[test]
     fn test_seq_set_item() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 2];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
-        assert!(seq.set_item(1, 10).is_ok());
-        assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert!(seq.set_item(1, 10).is_ok());
+            assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+        });
     }
 
     #[test]
     fn test_seq_set_item_refcnt() {
         let obj = get_object();
-        {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+
+        Python::with_gil(|py| {
             let v: Vec<i32> = vec![1, 2];
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             assert!(seq.set_item(1, &obj).is_ok());
             assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
-        }
-        {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+        });
+
+        Python::with_gil(|py| {
             assert_eq!(1, obj.get_refcnt(py));
-        }
+        });
     }
 
     #[test]
     fn test_seq_index() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(0, seq.index(1i32).unwrap());
-        assert_eq!(2, seq.index(2i32).unwrap());
-        assert_eq!(3, seq.index(3i32).unwrap());
-        assert_eq!(4, seq.index(5i32).unwrap());
-        assert_eq!(5, seq.index(8i32).unwrap());
-        assert!(seq.index(42i32).is_err());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(0, seq.index(1i32).unwrap());
+            assert_eq!(2, seq.index(2i32).unwrap());
+            assert_eq!(3, seq.index(3i32).unwrap());
+            assert_eq!(4, seq.index(5i32).unwrap());
+            assert_eq!(5, seq.index(8i32).unwrap());
+            assert!(seq.index(42i32).is_err());
+        });
     }
 
     #[test]
     #[cfg(not(PyPy))]
     fn test_seq_count() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert_eq!(2, seq.count(1i32).unwrap());
-        assert_eq!(1, seq.count(2i32).unwrap());
-        assert_eq!(1, seq.count(3i32).unwrap());
-        assert_eq!(1, seq.count(5i32).unwrap());
-        assert_eq!(1, seq.count(8i32).unwrap());
-        assert_eq!(0, seq.count(42i32).unwrap());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(2, seq.count(1i32).unwrap());
+            assert_eq!(1, seq.count(2i32).unwrap());
+            assert_eq!(1, seq.count(3i32).unwrap());
+            assert_eq!(1, seq.count(5i32).unwrap());
+            assert_eq!(1, seq.count(8i32).unwrap());
+            assert_eq!(0, seq.count(42i32).unwrap());
+        });
     }
 
     #[test]
     fn test_seq_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let mut idx = 0;
-        for el in seq.iter().unwrap() {
-            assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
-            idx += 1;
-        }
-        assert_eq!(idx, v.len());
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let mut idx = 0;
+            for el in seq.iter().unwrap() {
+                assert_eq!(v[idx], el.unwrap().extract::<i32>().unwrap());
+                idx += 1;
+            }
+            assert_eq!(idx, v.len());
+        });
     }
 
     #[test]
     fn test_seq_strings() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec!["It", "was", "the", "worst", "of", "times"];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
+        Python::with_gil(|py| {
+            let v = vec!["It", "was", "the", "worst", "of", "times"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
 
-        let bad_needle = "blurst".to_object(py);
-        assert!(!seq.contains(bad_needle).unwrap());
+            let bad_needle = "blurst".to_object(py);
+            assert!(!seq.contains(bad_needle).unwrap());
 
-        let good_needle = "worst".to_object(py);
-        assert!(seq.contains(good_needle).unwrap());
+            let good_needle = "worst".to_object(py);
+            assert!(seq.contains(good_needle).unwrap());
+        });
     }
 
     #[test]
     fn test_seq_concat() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = vec![1, 2, 3];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(seq).unwrap();
-        assert_eq!(6, concat_seq.len().unwrap());
-        let concat_v: Vec<i32> = vec![1, 2, 3, 1, 2, 3];
-        for (el, cc) in concat_seq.iter().unwrap().zip(concat_v) {
-            assert_eq!(cc, el.unwrap().extract::<i32>().unwrap());
-        }
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 2, 3];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let concat_seq = seq.concat(seq).unwrap();
+            assert_eq!(6, concat_seq.len().unwrap());
+            let concat_v: Vec<i32> = vec![1, 2, 3, 1, 2, 3];
+            for (el, cc) in concat_seq.iter().unwrap().zip(concat_v) {
+                assert_eq!(cc, el.unwrap().extract::<i32>().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_seq_concat_string() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = "string";
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(seq).unwrap();
-        assert_eq!(12, concat_seq.len().unwrap());
-        /*let concat_v = "stringstring".to_owned();
-        for (el, cc) in seq.iter(py).unwrap().zip(concat_v.chars()) {
-            assert_eq!(cc, el.unwrap().extract::<char>(py).unwrap()); //TODO: extract::<char>() is not implemented
-        }*/
+        Python::with_gil(|py| {
+            let v = "string";
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let concat_seq = seq.concat(seq).unwrap();
+            assert_eq!(12, concat_seq.len().unwrap());
+            let concat_v = "stringstring".to_owned();
+            for (el, cc) in seq.iter().unwrap().zip(concat_v.chars()) {
+                assert_eq!(cc, el.unwrap().extract::<char>().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_seq_repeat() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec!["foo", "bar"];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let repeat_seq = seq.repeat(3).unwrap();
-        assert_eq!(6, repeat_seq.len().unwrap());
-        let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
-        for (el, rpt) in repeat_seq.iter().unwrap().zip(repeated.iter()) {
-            assert_eq!(*rpt, el.unwrap().extract::<String>().unwrap());
-        }
+        Python::with_gil(|py| {
+            let v = vec!["foo", "bar"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let repeat_seq = seq.repeat(3).unwrap();
+            assert_eq!(6, repeat_seq.len().unwrap());
+            let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
+            for (el, rpt) in repeat_seq.iter().unwrap().zip(repeated.iter()) {
+                assert_eq!(*rpt, el.unwrap().extract::<String>().unwrap());
+            }
+        });
     }
 
     #[test]
     fn test_list_coercion() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec!["foo", "bar"];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.list().is_ok());
+        Python::with_gil(|py| {
+            let v = vec!["foo", "bar"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert!(seq.list().is_ok());
+        });
     }
 
     #[test]
     fn test_strings_coerce_to_lists() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = "foo";
-        let ob = v.to_object(py);
-        let seq = <PySequence as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert!(seq.list().is_ok());
+        Python::with_gil(|py| {
+            let v = "foo";
+            let ob = v.to_object(py);
+            let seq = <PySequence as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert!(seq.list().is_ok());
+        });
     }
 
     #[test]
     fn test_tuple_coercion() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = ("foo", "bar");
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.tuple().is_ok());
+        Python::with_gil(|py| {
+            let v = ("foo", "bar");
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert!(seq.tuple().is_ok());
+        });
     }
 
     #[test]
     fn test_lists_coerce_to_tuples() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec!["foo", "bar"];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.tuple().is_ok());
+        Python::with_gil(|py| {
+            let v = vec!["foo", "bar"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert!(seq.tuple().is_ok());
+        });
     }
 
     #[test]
     fn test_extract_tuple_to_vec() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = py.eval("(1, 2)", None, None).unwrap().extract().unwrap();
-        assert!(v == [1, 2]);
+        Python::with_gil(|py| {
+            let v: Vec<i32> = py.eval("(1, 2)", None, None).unwrap().extract().unwrap();
+            assert!(v == [1, 2]);
+        });
     }
 
     #[test]
     fn test_extract_range_to_vec() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<i32> = py
-            .eval("range(1, 5)", None, None)
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert!(v == [1, 2, 3, 4]);
+        Python::with_gil(|py| {
+            let v: Vec<i32> = py
+                .eval("range(1, 5)", None, None)
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert!(v == [1, 2, 3, 4]);
+        });
     }
 
     #[test]
     fn test_extract_bytearray_to_vec() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v: Vec<u8> = py
-            .eval("bytearray(b'abc')", None, None)
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert!(v == b"abc");
+        Python::with_gil(|py| {
+            let v: Vec<u8> = py
+                .eval("bytearray(b'abc')", None, None)
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert!(v == b"abc");
+        });
     }
 
     #[test]
     fn test_seq_try_from_unchecked() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec!["foo", "bar"];
-        let ob = v.to_object(py);
-        let seq = ob.cast_as::<PySequence>(py).unwrap();
-        let type_ptr = seq.as_ref();
-        let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
-        assert!(seq_from.list().is_ok());
+        Python::with_gil(|py| {
+            let v = vec!["foo", "bar"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let type_ptr = seq.as_ref();
+            let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
+            assert!(seq_from.list().is_ok());
+        });
     }
 
     #[test]
     fn test_is_empty() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let list = vec![1].to_object(py);
-        let seq = list.cast_as::<PySequence>(py).unwrap();
-        assert!(!seq.is_empty().unwrap());
-        let vec: Vec<u32> = Vec::new();
-        let empty_list = vec.to_object(py);
-        let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
-        assert!(empty_seq.is_empty().unwrap());
+        Python::with_gil(|py| {
+            let list = vec![1].to_object(py);
+            let seq = list.cast_as::<PySequence>(py).unwrap();
+            assert!(!seq.is_empty().unwrap());
+            let vec: Vec<u32> = Vec::new();
+            let empty_list = vec.to_object(py);
+            let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
+            assert!(empty_seq.is_empty().unwrap());
+        });
     }
 }
