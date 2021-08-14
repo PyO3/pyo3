@@ -4,6 +4,7 @@ use crate::ffi::Py_ssize_t;
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_ulong};
 
+#[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum _PyStatus_TYPE {
     _PyStatus_TYPE_OK = 0,
@@ -14,6 +15,7 @@ pub enum _PyStatus_TYPE {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyStatus {
+    pub _type: _PyStatus_TYPE,
     pub func: *const c_char,
     pub err_msg: *const c_char,
     pub exitcode: c_int,
