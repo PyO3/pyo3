@@ -49,8 +49,8 @@ impl PyString {
     pub fn to_str(&self) -> PyResult<&str> {
         let utf8_slice = {
             cfg_if::cfg_if! {
-                if #[cfg(any(not(Py_LIMITED_API), Py_3_10))] {
-                    // PyUnicode_AsUTF8AndSize only available on limited API from Python 3.10 and up.
+                if #[cfg(not(Py_LIMITED_API))] {
+                    // PyUnicode_AsUTF8AndSize only available on limited API.
                     let mut size: ffi::Py_ssize_t = 0;
                     let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
                     if data.is_null() {
