@@ -218,7 +218,11 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                     ) -> std::os::raw::c_int {
                         pyo3::callback::handle_panic(|_py| {
                             #slf
-                            let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
+                            let _value = _py
+                                .from_borrowed_ptr_or_opt(_value)
+                                .ok_or_else(|| {
+                                    pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
+                                })?;
                             let _val = pyo3::FromPyObject::extract(_value)?;
 
                             pyo3::callback::convert(_py, #setter_impl)
