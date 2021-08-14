@@ -32,6 +32,7 @@ First, create a new folder (let's call it `string_sum`) containing the following
 
 ```toml
 [package]
+authors = ["PyO3 Authors"]
 name = "string-sum"
 version = "0.1.0"
 edition = "2018"
