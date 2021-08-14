@@ -228,11 +228,15 @@ pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
 // skipped PyUnicode_WSTR_LENGTH
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "_PyPyUnicode_Ready")]
     pub fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
 
     // skipped _PyUnicode_Copy
 
+    #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyUnicode_CopyCharacters(
         to: *mut PyObject,
         to_start: Py_ssize_t,
@@ -243,6 +247,8 @@ extern "C" {
 
     // skipped _PyUnicode_FastCopyCharacters
 
+    #[cfg(not(PyPy))]
+    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyUnicode_Fill(
         unicode: *mut PyObject,
         start: Py_ssize_t,
@@ -257,6 +263,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromUnicode")]
     pub fn PyUnicode_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t) -> *mut PyObject;
 
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromKindAndData")]
     pub fn PyUnicode_FromKindAndData(
         kind: c_int,
         buffer: *const c_void,
@@ -518,6 +525,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(Py_3_10, allow(deprecated))]
     fn ascii() {
         Python::with_gil(|py| {
             // This test relies on implementation details of PyString.
@@ -557,6 +565,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(Py_3_10, allow(deprecated))]
     fn ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
