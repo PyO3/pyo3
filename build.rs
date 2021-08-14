@@ -152,6 +152,11 @@ fn configure_pyo3() -> Result<()> {
         println!("cargo:rustc-cfg=addr_of");
     }
 
+    // Extra lines come last, to support last write wins.
+    for line in &interpreter_config.extra_build_script_lines {
+        println!("{}", line);
+    }
+
     Ok(())
 }
 
