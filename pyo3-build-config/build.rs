@@ -67,6 +67,7 @@ pub fn abi3_config() -> Option<InterpreterConfig> {
                 pointer_width: None,
                 executable: None,
                 shared: true,
+                suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
             });
         }

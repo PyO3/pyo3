@@ -101,6 +101,18 @@ pub struct InterpreterConfig {
     /// Serialized to `build_flags`.
     pub build_flags: BuildFlags,
 
+    /// Whether to suppress emitting of `cargo:rustc-link-*` lines from the build script.
+    ///
+    /// Typically, `pyo3`'s build script will emit `cargo:rustc-link-lib=` and
+    /// `cargo:rustc-link-search=` lines derived from other fields in this struct. In
+    /// advanced building configurations, the default logic to derive these lines may not
+    /// be sufficient. This field can be set to `Some(true)` to suppress the emission
+    /// of these lines.
+    ///
+    /// If suppression is enabled, `extra_build_script_lines` should contain equivalent
+    /// functionality or else a build failure is likely.
+    pub suppress_build_script_link_lines: bool,
+
     /// Additional lines to `println!()` from Cargo build scripts.
     ///
     /// This field can be populated to enable the `pyo3` crate to emit additional lines from its
@@ -244,6 +256,7 @@ print("mingw", get_platform() == "mingw")
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
             build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
+            suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
     }
@@ -284,6 +297,7 @@ print("mingw", get_platform() == "mingw")
         let mut executable = None;
         let mut pointer_width = None;
         let mut build_flags = None;
+        let mut suppress_build_script_link_lines = None;
         let mut extra_build_script_lines = vec![];
 
         for (i, line) in lines.enumerate() {
@@ -307,6 +321,9 @@ print("mingw", get_platform() == "mingw")
                 "executable" => parse_value!(executable, value),
                 "pointer_width" => parse_value!(pointer_width, value),
                 "build_flags" => parse_value!(build_flags, value),
+                "suppress_build_script_link_lines" => {
+                    parse_value!(suppress_build_script_link_lines, value)
+                }
                 "extra_build_script_line" => {
                     extra_build_script_lines.push(value.to_string());
                 }
@@ -335,6 +352,7 @@ print("mingw", get_platform() == "mingw")
                 }
                 .fixup(version, implementation)
             }),
+            suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
     }
@@ -374,6 +392,7 @@ print("mingw", get_platform() == "mingw")
         write_option_line!(executable)?;
         write_option_line!(pointer_width)?;
         write_line!(build_flags)?;
+        write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
             writeln!(writer, "extra_build_script_line={}", line)
                 .context("failed to write extra_build_script_line")?;
@@ -950,6 +969,7 @@ fn load_cross_compile_from_sysconfigdata(
         executable: None,
         pointer_width,
         build_flags: BuildFlags::from_config_map(&sysconfig_data).fixup(version, implementation),
+        suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
     })
 }
@@ -970,6 +990,7 @@ fn windows_hardcoded_cross_compile(
         executable: None,
         pointer_width: None,
         build_flags: BuildFlags::windows_hardcoded(),
+        suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
     })
 }
@@ -1174,6 +1195,7 @@ mod tests {
             lib_dir: Some("lib_dir".into()),
             shared: true,
             version: MINIMUM_SUPPORTED_VERSION,
+            suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
         };
         let mut buf: Vec<u8> = Vec::new();
@@ -1204,6 +1226,7 @@ mod tests {
                 major: 3,
                 minor: 10,
             },
+            suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         };
         let mut buf: Vec<u8> = Vec::new();
@@ -1230,6 +1253,7 @@ mod tests {
                 executable: None,
                 pointer_width: None,
                 build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
             }
         )
@@ -1341,6 +1365,7 @@ mod tests {
                 executable: None,
                 pointer_width: None,
                 build_flags: BuildFlags::windows_hardcoded(),
+                suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
             }
         );
@@ -1407,6 +1432,7 @@ mod tests {
             lib_name: None,
             shared: true,
             version: PythonVersion { major: 3, minor: 7 },
+            suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         };
 
@@ -1426,6 +1452,7 @@ mod tests {
             lib_name: None,
             shared: true,
             version: PythonVersion { major: 3, minor: 6 },
+            suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         };
 
