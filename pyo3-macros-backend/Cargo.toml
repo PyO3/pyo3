@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-macros-backend"
-version = "0.14.2"
+version = "0.14.3"
 description = "Code generation for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -16,7 +16,7 @@ edition = "2018"
 [dependencies]
 quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.14.2" }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.14.3" }
 
 [dependencies.syn]
 version = "1"
