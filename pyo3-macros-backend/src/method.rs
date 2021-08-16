@@ -133,21 +133,21 @@ impl SelfType {
         match self {
             SelfType::Receiver { mutable: false } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
                     let _ref = _cell.try_borrow()?;
                     let _slf = &_ref;
                 }
             }
             SelfType::Receiver { mutable: true } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
                     let mut _ref = _cell.try_borrow_mut()?;
                     let _slf = &mut _ref;
                 }
             }
             SelfType::TryFromPyCell(span) => {
                 quote_spanned! { *span =>
-                    let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
                     #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
                     let _slf = std::convert::TryFrom::try_from(_cell)?;
                 }
