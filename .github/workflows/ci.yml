@@ -213,6 +213,8 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
+          # NB: doesn't include target dir so that the coverage stats are fresh
+          # each run.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
@@ -223,22 +225,20 @@ jobs:
           wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
           mv cargo-llvm-cov ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.0-alpha.5
+          CARGO_LLVM_COV_VERSION: 0.1.0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
           profile: minimal
           components: llvm-tools-preview
-      # TODO: workaround for
-      # https://github.com/taiki-e/cargo-llvm-cov/issues/48, shouldn't be needed
-      # in next cargo-llvm-cov release.
-      - run: cargo clean
       - run: |
-          cargo llvm-cov \
-            --package pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros \
-            --features "macros num-bigint num-complex hashbrown indexmap serde" \
-            --lcov --output-path coverage.lcov
+          cargo llvm-cov --package $ALL_PACKAGES --no-report
+          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
+          cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods
+          cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
+        env:
+          ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
       - uses: codecov/codecov-action@v1
         with:
           file: coverage.lcov
