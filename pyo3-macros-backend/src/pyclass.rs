@@ -47,7 +47,7 @@ impl Default for PyClassArgs {
             freelist: None,
             name: None,
             module: None,
-            base: parse_quote! { pyo3::PyAny },
+            base: parse_quote! { ::pyo3::PyAny },
             has_dict: false,
             has_weaklist: false,
             is_gc: false,
@@ -347,7 +347,7 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
         pub struct #inventory_cls {
             methods: Vec<pyo3::class::PyMethodDefType>,
         }
-        impl pyo3::class::impl_::PyMethodsInventory for #inventory_cls {
+        impl ::pyo3::class::impl_::PyMethodsInventory for #inventory_cls {
             fn new(methods: Vec<pyo3::class::PyMethodDefType>) -> Self {
                 Self { methods }
             }
@@ -356,11 +356,11 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
             }
         }
 
-        impl pyo3::class::impl_::HasMethodsInventory for #cls {
+        impl ::pyo3::class::impl_::HasMethodsInventory for #cls {
             type Methods = #inventory_cls;
         }
 
-        pyo3::inventory::collect!(#inventory_cls);
+        ::pyo3::inventory::collect!(#inventory_cls);
     }
 }
 
@@ -380,31 +380,31 @@ fn impl_class(
 
     let alloc = attr.freelist.as_ref().map(|freelist| {
             quote! {
-                impl pyo3::class::impl_::PyClassWithFreeList for #cls {
+                impl ::pyo3::class::impl_::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(_py: pyo3::Python<'_>) -> &mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> {
-                        static mut FREELIST: *mut pyo3::impl_::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
+                    fn get_free_list(_py: ::pyo3::Python<'_>) -> &mut ::pyo3::impl_::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
+                        static mut FREELIST: *mut ::pyo3::impl_::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
-                                FREELIST = Box::into_raw(Box::new(
-                                    pyo3::impl_::freelist::FreeList::with_capacity(#freelist)));
+                                FREELIST = ::std::boxed::Box::into_raw(::std::boxed::Box::new(
+                                    ::pyo3::impl_::freelist::FreeList::with_capacity(#freelist)));
                             }
                             &mut *FREELIST
                         }
                     }
                 }
 
-                impl pyo3::class::impl_::PyClassAllocImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+                impl ::pyo3::class::impl_::PyClassAllocImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
                     #[inline]
-                    fn alloc_impl(self) -> Option<pyo3::ffi::allocfunc> {
-                        Some(pyo3::class::impl_::alloc_with_freelist::<#cls>)
+                    fn alloc_impl(self) -> ::std::option::Option<::pyo3::ffi::allocfunc> {
+                        ::std::option::Option::Some(::pyo3::class::impl_::alloc_with_freelist::<#cls>)
                     }
                 }
 
-                impl pyo3::class::impl_::PyClassFreeImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+                impl ::pyo3::class::impl_::PyClassFreeImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
                     #[inline]
-                    fn free_impl(self) -> Option<pyo3::ffi::freefunc> {
-                        Some(pyo3::class::impl_::free_with_freelist::<#cls>)
+                    fn free_impl(self) -> ::std::option::Option<::pyo3::ffi::freefunc> {
+                        ::std::option::Option::Some(::pyo3::class::impl_::free_with_freelist::<#cls>)
                     }
                 }
             }
@@ -414,23 +414,23 @@ fn impl_class(
 
     // insert space for weak ref
     let weakref = if attr.has_weaklist {
-        quote! { pyo3::pyclass_slots::PyClassWeakRefSlot }
+        quote! { ::pyo3::pyclass_slots::PyClassWeakRefSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::WeakRef }
+        quote! { <Self::BaseType as ::pyo3::class::impl_::PyClassBaseType>::WeakRef }
     } else {
-        quote! { pyo3::pyclass_slots::PyClassDummySlot }
+        quote! { ::pyo3::pyclass_slots::PyClassDummySlot }
     };
     let dict = if attr.has_dict {
-        quote! { pyo3::pyclass_slots::PyClassDictSlot }
+        quote! { ::pyo3::pyclass_slots::PyClassDictSlot }
     } else if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::Dict }
+        quote! { <Self::BaseType as ::pyo3::class::impl_::PyClassBaseType>::Dict }
     } else {
-        quote! { pyo3::pyclass_slots::PyClassDummySlot }
+        quote! { ::pyo3::pyclass_slots::PyClassDummySlot }
     };
     let module = if let Some(m) = &attr.module {
-        quote! { Some(#m) }
+        quote! { ::std::option::Option::Some(#m) }
     } else {
-        quote! { None }
+        quote! { ::std::option::Option::None }
     };
 
     // Enforce at compile time that PyGCProtocol is implemented
@@ -439,9 +439,9 @@ fn impl_class(
         let closure_token = syn::Ident::new(&closure_name, Span::call_site());
         quote! {
             fn #closure_token() {
-                use pyo3::class;
+                use ::pyo3::class;
 
-                fn _assert_implements_protocol<'p, T: pyo3::class::PyGCProtocol<'p>>() {}
+                fn _assert_implements_protocol<'p, T: ::pyo3::class::PyGCProtocol<'p>>() {}
                 _assert_implements_protocol::<#cls>();
             }
         }
@@ -450,12 +450,15 @@ fn impl_class(
     };
 
     let (impl_inventory, for_each_py_method) = match methods_type {
-        PyClassMethodsType::Specialization => (None, quote! { visitor(collector.py_methods()); }),
+        PyClassMethodsType::Specialization => (
+            ::std::option::Option::None,
+            quote! { visitor(collector.py_methods()); },
+        ),
         PyClassMethodsType::Inventory => (
             Some(impl_methods_inventory(cls)),
             quote! {
-                for inventory in pyo3::inventory::iter::<<Self as pyo3::class::impl_::HasMethodsInventory>::Methods>() {
-                    visitor(pyo3::class::impl_::PyMethodsInventory::get(inventory));
+                for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::HasMethodsInventory>::Methods>() {
+                    visitor(::pyo3::class::impl_::PyMethodsInventory::get(inventory));
                 }
             },
         ),
@@ -463,17 +466,17 @@ fn impl_class(
 
     let base = &attr.base;
     let base_nativetype = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::class::impl_::PyClassBaseType>::BaseNativeType }
+        quote! { <Self::BaseType as ::pyo3::class::impl_::PyClassBaseType>::BaseNativeType }
     } else {
-        quote! { pyo3::PyAny }
+        quote! { ::pyo3::PyAny }
     };
 
     // If #cls is not extended type, we allow Self->PyObject conversion
     let into_pyobject = if !attr.has_extends {
         quote! {
-            impl pyo3::IntoPy<pyo3::PyObject> for #cls {
-                fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
-                    pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
+            impl ::pyo3::IntoPy<::pyo3::PyObject> for #cls {
+                fn into_py(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
+                    ::pyo3::IntoPy::into_py(::pyo3::Py::new(py, self).unwrap(), py)
                 }
             }
         }
@@ -482,13 +485,13 @@ fn impl_class(
     };
 
     let thread_checker = if attr.has_unsendable {
-        quote! { pyo3::class::impl_::ThreadCheckerImpl<#cls> }
+        quote! { ::pyo3::class::impl_::ThreadCheckerImpl<#cls> }
     } else if attr.has_extends {
         quote! {
-            pyo3::class::impl_::ThreadCheckerInherited<#cls, <#cls as pyo3::class::impl_::PyClassImpl>::BaseType>
+            ::pyo3::class::impl_::ThreadCheckerInherited<#cls, <#cls as ::pyo3::class::impl_::PyClassImpl>::BaseType>
         }
     } else {
-        quote! { pyo3::class::impl_::ThreadCheckerStub<#cls> }
+        quote! { ::pyo3::class::impl_::ThreadCheckerStub<#cls> }
     };
 
     let is_gc = attr.is_gc;
@@ -496,54 +499,54 @@ fn impl_class(
     let is_subclass = attr.has_extends;
 
     Ok(quote! {
-        unsafe impl pyo3::type_object::PyTypeInfo for #cls {
-            type AsRefTarget = pyo3::PyCell<Self>;
+        unsafe impl ::pyo3::type_object::PyTypeInfo for #cls {
+            type AsRefTarget = ::pyo3::PyCell<Self>;
 
             const NAME: &'static str = #cls_name;
-            const MODULE: Option<&'static str> = #module;
+            const MODULE: ::std::option::Option<&'static str> = #module;
 
             #[inline]
-            fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
+            fn type_object_raw(py: ::pyo3::Python<'_>) -> *mut ::pyo3::ffi::PyTypeObject {
                 #deprecations
 
-                use pyo3::type_object::LazyStaticType;
+                use ::pyo3::type_object::LazyStaticType;
                 static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
                 TYPE_OBJECT.get_or_init::<Self>(py)
             }
         }
 
-        impl pyo3::PyClass for #cls {
+        impl ::pyo3::PyClass for #cls {
             type Dict = #dict;
             type WeakRef = #weakref;
             type BaseNativeType = #base_nativetype;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+        impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a #cls
         {
-            type Target = pyo3::PyRef<'a, #cls>;
+            type Target = ::pyo3::PyRef<'a, #cls>;
         }
 
-        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+        impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
         {
-            type Target = pyo3::PyRefMut<'a, #cls>;
+            type Target = ::pyo3::PyRefMut<'a, #cls>;
         }
 
         #into_pyobject
 
         #impl_inventory
 
-        impl pyo3::class::impl_::PyClassImpl for #cls {
+        impl ::pyo3::class::impl_::PyClassImpl for #cls {
             const DOC: &'static str = #doc;
             const IS_GC: bool = #is_gc;
             const IS_BASETYPE: bool = #is_basetype;
             const IS_SUBCLASS: bool = #is_subclass;
 
-            type Layout = pyo3::PyCell<Self>;
+            type Layout = ::pyo3::PyCell<Self>;
             type BaseType = #base;
             type ThreadChecker = #thread_checker;
 
-            fn for_each_method_def(visitor: &mut dyn FnMut(&[pyo3::class::PyMethodDefType])) {
-                use pyo3::class::impl_::*;
+            fn for_each_method_def(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::class::PyMethodDefType])) {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 #for_each_py_method;
                 visitor(collector.py_class_descriptors());
@@ -554,30 +557,30 @@ fn impl_class(
                 visitor(collector.mapping_protocol_methods());
                 visitor(collector.number_protocol_methods());
             }
-            fn get_new() -> Option<pyo3::ffi::newfunc> {
-                use pyo3::class::impl_::*;
+            fn get_new() -> ::std::option::Option<::pyo3::ffi::newfunc> {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.new_impl()
             }
-            fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
-                use pyo3::class::impl_::*;
+            fn get_alloc() -> ::std::option::Option<::pyo3::ffi::allocfunc> {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.alloc_impl()
             }
-            fn get_free() -> Option<pyo3::ffi::freefunc> {
-                use pyo3::class::impl_::*;
+            fn get_free() -> ::std::option::Option<::pyo3::ffi::freefunc> {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.free_impl()
             }
-            fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
-                use pyo3::class::impl_::*;
+            fn get_call() -> ::std::option::Option<::pyo3::ffi::PyCFunctionWithKeywords> {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.call_impl()
             }
 
-            fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
+            fn for_each_proto_slot(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::ffi::PyType_Slot])) {
                 // Implementation which uses dtolnay specialization to load all slots.
-                use pyo3::class::impl_::*;
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 visitor(collector.object_protocol_slots());
                 visitor(collector.number_protocol_slots());
@@ -590,8 +593,8 @@ fn impl_class(
                 visitor(collector.buffer_protocol_slots());
             }
 
-            fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
-                use pyo3::class::impl_::*;
+            fn get_buffer() -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {
+                use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.buffer_procs()
             }
@@ -645,11 +648,11 @@ fn impl_descriptors(
         .collect::<syn::Result<_>>()?;
 
     Ok(quote! {
-        impl pyo3::class::impl_::PyClassDescriptors<#cls>
-            for pyo3::class::impl_::PyClassImplCollector<#cls>
+        impl ::pyo3::class::impl_::PyClassDescriptors<#cls>
+            for ::pyo3::class::impl_::PyClassImplCollector<#cls>
         {
-            fn py_class_descriptors(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[pyo3::class::methods::PyMethodDefType] = &[#(#py_methods),*];
+            fn py_class_descriptors(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[#(#py_methods),*];
                 METHODS
             }
         }
