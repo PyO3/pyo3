@@ -4,6 +4,7 @@
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
+use crate::internal_tricks::get_ssize_index;
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
     ToPyObject,
@@ -83,17 +84,35 @@ impl PyList {
         }
     }
 
+    /// Takes the slice `self[low:high]` and returns it as a new list.
+    ///
+    /// Indices must be nonnegative, and out-of-range indices are clipped to
+    /// `self.len()`.
+    pub fn slice(&self, low: usize, high: usize) -> &PyList {
+        unsafe {
+            self.py().from_owned_ptr(ffi::PyList_GetSlice(
+                self.as_ptr(),
+                get_ssize_index(low),
+                get_ssize_index(high),
+            ))
+        }
+    }
+
     /// Sets the item at the specified index.
     ///
-    /// Panics if the index is out of range.
-    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
+    /// Raises `IndexError` if the index is out of range.
+    pub fn set_item<I>(&self, index: usize, item: I) -> PyResult<()>
     where
         I: ToPyObject,
     {
         unsafe {
             err::error_on_minusone(
                 self.py(),
-                ffi::PyList_SetItem(self.as_ptr(), index, item.to_object(self.py()).into_ptr()),
+                ffi::PyList_SetItem(
+                    self.as_ptr(),
+                    get_ssize_index(index),
+                    item.to_object(self.py()).into_ptr(),
+                ),
             )
         }
     }
@@ -110,13 +129,16 @@ impl PyList {
 
     /// Inserts an item at the specified index.
     ///
-    /// Panics if the index is out of range.
-    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()>
+    /// If `index >= self.len()`, inserts at the end.
+    pub fn insert<I>(&self, index: usize, item: I) -> PyResult<()>
     where
         I: ToBorrowedObject,
     {
         item.with_borrowed_ptr(self.py(), |item| unsafe {
-            err::error_on_minusone(self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
+            err::error_on_minusone(
+                self.py(),
+                ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item),
+            )
         })
     }
 
@@ -252,13 +274,26 @@ mod tests {
     }
 
     #[test]
+    fn test_slice() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5, 7]);
+            let slice = list.slice(1, 3);
+            assert_eq!(2, slice.len());
+            let slice = list.slice(1, 7);
+            assert_eq!(3, slice.len());
+        });
+    }
+
+    #[test]
     fn test_set_item() {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[2, 3, 5, 7]);
             let val = 42i32.to_object(py);
+            let val2 = 42i32.to_object(py);
             assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
             list.set_item(0, val).unwrap();
             assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+            assert!(list.set_item(10, val2).is_err());
         });
     }
 
@@ -285,12 +320,15 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[2, 3, 5, 7]);
             let val = 42i32.to_object(py);
+            let val2 = 43i32.to_object(py);
             assert_eq!(4, list.len());
             assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
             list.insert(0, val).unwrap();
-            assert_eq!(5, list.len());
+            list.insert(1000, val2).unwrap();
+            assert_eq!(6, list.len());
             assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
             assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+            assert_eq!(43, list.get_item(5).extract::<i32>().unwrap());
         });
     }
 

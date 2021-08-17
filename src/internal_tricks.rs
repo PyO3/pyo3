@@ -1,3 +1,4 @@
+use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -50,4 +51,10 @@ pub(crate) fn extract_cstr_or_leak_cstring(
             CString::new(src.as_bytes()).map(|c_string| &*Box::leak(c_string.into_boxed_c_str()))
         })
         .map_err(|_| NulByteInString(err_msg))
+}
+
+/// Convert an usize index into a Py_ssize_t index, clamping overflow to
+/// PY_SSIZE_T_MAX.
+pub(crate) fn get_ssize_index(index: usize) -> Py_ssize_t {
+    index.min(PY_SSIZE_T_MAX as usize) as Py_ssize_t
 }
