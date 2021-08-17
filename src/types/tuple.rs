@@ -72,6 +72,7 @@ impl PyTuple {
         }
     }
 
+    #[deprecated(since = "0.15.0", note = "use tuple.slice(low, tuple.len()) instead")]
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
     pub fn split_from(&self, low: usize) -> &PyTuple {
         unsafe {
