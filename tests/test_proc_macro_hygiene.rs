@@ -36,7 +36,7 @@ pub struct Foo2;
     unsendable,
     gc,
     subclass,
-    extends = ::pyo3::types::PyDict,
+    extends = ::pyo3::types::PyAny,
     module = "Spam"
 )]
 pub struct Bar {
