@@ -6,8 +6,7 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 
 /// Represents a Python `list`.

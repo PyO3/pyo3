@@ -5,8 +5,7 @@ use crate::err::{self, PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};

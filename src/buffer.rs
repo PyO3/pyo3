@@ -18,8 +18,7 @@
 
 //! `PyBuffer` implementation
 use crate::{
-    err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyResult,
-    Python,
+    err, exceptions::PyBufferError, ffi, AsPyPointer, FromPyObject, PyAny, PyResult, Python,
 };
 use std::marker::PhantomData;
 use std::os::raw;

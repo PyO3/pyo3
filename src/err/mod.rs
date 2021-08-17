@@ -8,8 +8,7 @@ use crate::{
     ffi,
 };
 use crate::{
-    AsPyPointer, FromPyPointer, IntoPy, Py, PyAny, PyNativeType, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPyPointer, IntoPy, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
 use std::borrow::Cow;
 use std::cell::UnsafeCell;

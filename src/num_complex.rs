@@ -100,8 +100,8 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi, types::PyComplex, AsPyPointer, FromPyObject, PyAny, PyErr, PyNativeType, PyObject,
-    PyResult, Python, ToPyObject,
+    ffi, types::PyComplex, AsPyPointer, FromPyObject, PyAny, PyErr, PyObject, PyResult, Python,
+    ToPyObject,
 };
 use num_complex::Complex;
 use std::os::raw::c_double;

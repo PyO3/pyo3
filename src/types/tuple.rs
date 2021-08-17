@@ -3,8 +3,8 @@
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::{
-    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyNativeType,
-    PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
+    PyResult, PyTryFrom, Python, ToPyObject,
 };
 
 /// Represents a Python `tuple` object.

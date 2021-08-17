@@ -293,7 +293,7 @@ that inherit native types. Even in such cases, you can unsafely get a base class
 # #[cfg(not(Py_LIMITED_API))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::{AsPyPointer, PyNativeType};
+use pyo3::AsPyPointer;
 use std::collections::HashMap;
 
 #[pyclass(extends=PyDict)]

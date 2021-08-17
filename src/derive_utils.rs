@@ -6,7 +6,6 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyTypeError;
-use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
 use crate::{ffi, PyCell, Python};

@@ -19,6 +19,7 @@ use std::ptr::NonNull;
 /// types.
 pub unsafe trait PyNativeType: Sized {
     /// Returns a GIL marker constrained to the lifetime of this type.
+    #[inline]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }

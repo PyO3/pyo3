@@ -40,7 +40,6 @@ impl PyComplex {
 #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 mod not_limited_impls {
     use super::*;
-    use crate::instance::PyNativeType;
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
     impl PyComplex {
