@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Loosened the lower bound on the `num-complex` optional dependency to support
   interop with `rust-numpy` and `ndarray` when building with the MSRV of 1.41
   [#1799](https://github.com/PyO3/pyo3/pull/1799)
+- Add missing `Py_DECREF` to fix memory leak when calling Python from Rust. [#1806](https://github.com/PyO3/pyo3/pull/1806)
 
 ## [0.14.2] - 2021-08-09
 
