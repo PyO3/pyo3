@@ -86,18 +86,34 @@ impl PyTuple {
     }
 
     /// Gets the tuple item at the specified index.
-    ///
-    /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyAny {
-        assert!(index < self.len());
+    /// # Example
+    /// ```
+    /// use pyo3::{prelude::*, types::PyTuple};
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     let ob = (1, 2, 3).to_object(py);
+    ///     let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+    ///     let obj = tuple.get_item(0);
+    ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
+    ///     Ok(())
+    /// });
+    /// ```
+    pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
-            #[cfg(any(Py_LIMITED_API, PyPy))]
             let item = ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t);
-
-            self.py().from_borrowed_ptr(item)
+            self.py().from_borrowed_ptr_or_err(item)
         }
+    }
+
+    /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
+    ///
+    /// # Safety
+    ///
+    /// Caller must verify that the index is within the bounds of the tuple.
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
+    pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
+        let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
+        self.py().from_borrowed_ptr(item)
     }
 
     /// Returns `self` as a slice of objects.
@@ -136,7 +152,10 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.length {
-            let item = self.tuple.get_item(self.index);
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            let item = self.tuple.get_item(self.index).expect("tuple.get failed");
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            let item = unsafe { self.tuple.get_item_unchecked(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -212,9 +231,11 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             if t.len() == $length {
-                Ok((
-                    $(t.get_item($n).extract::<$T>()?,)+
-                ))
+                #[cfg(any(Py_LIMITED_API, PyPy))]
+                return Ok(($(t.get_item($n)?.extract::<$T>()?,)+));
+
+                #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+                unsafe {return Ok(($(t.get_item_unchecked($n).extract::<$T>()?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
@@ -480,5 +501,40 @@ mod tests {
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,)
             );
         })
+    }
+
+    #[test]
+    fn test_tuple_get_item_invalid_index() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let obj = tuple.get_item(5);
+            assert!(obj.is_err());
+            assert_eq!(
+                obj.unwrap_err().to_string(),
+                "IndexError: tuple index out of range"
+            );
+        });
+    }
+
+    #[test]
+    fn test_tuple_get_item_sanity() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let obj = tuple.get_item(0);
+            assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
+        });
+    }
+
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+    #[test]
+    fn test_tuple_get_item_unchecked_sanity() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let obj = unsafe { tuple.get_item_unchecked(0) };
+            assert_eq!(obj.extract::<i32>().unwrap(), 1);
+        });
     }
 }

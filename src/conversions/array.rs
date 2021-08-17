@@ -60,7 +60,7 @@ mod min_const_generics {
         if seq_len != N {
             return Err(invalid_sequence_length(N, seq_len));
         }
-        array_try_from_fn(|idx| seq.get_item(idx as isize).and_then(PyAny::extract))
+        array_try_from_fn(|idx| seq.get_item(idx).and_then(PyAny::extract))
     }
 
     // TODO use std::array::try_from_fn, if that stabilises:

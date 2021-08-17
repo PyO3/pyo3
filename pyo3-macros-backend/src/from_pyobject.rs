@@ -243,7 +243,7 @@ impl<'a> Container<'a> {
         for i in 0..len {
             let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
             fields.push(quote!(
-                s.get_item(#i).extract().map_err(|inner| {
+                s.get_item(#i).and_then(PyAny::extract).map_err(|inner| {
                 let py = pyo3::PyNativeType::py(obj);
                 let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
                 new_err.set_cause(py, Some(inner));
