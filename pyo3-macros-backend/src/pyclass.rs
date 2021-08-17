@@ -345,13 +345,13 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
     quote! {
         #[doc(hidden)]
         pub struct #inventory_cls {
-            methods: Vec<pyo3::class::PyMethodDefType>,
+            methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>,
         }
         impl ::pyo3::class::impl_::PyMethodsInventory for #inventory_cls {
-            fn new(methods: Vec<pyo3::class::PyMethodDefType>) -> Self {
+            fn new(methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>) -> Self {
                 Self { methods }
             }
-            fn get(&'static self) -> &'static [pyo3::class::PyMethodDefType] {
+            fn get(&'static self) -> &'static [::pyo3::class::PyMethodDefType] {
                 &self.methods
             }
         }
