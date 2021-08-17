@@ -1,7 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::ffi::{self, Py_ssize_t};
+use crate::ffi;
+use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
@@ -17,13 +18,12 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `len(self)`.
     #[inline]
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> PyResult<isize> {
+    pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
         if v == -1 {
             Err(PyErr::api_call_failed(self.py()))
         } else {
-            Ok(v as isize)
+            Ok(v as usize)
         }
     }
 
@@ -52,15 +52,14 @@ impl PySequence {
     /// Returns the result of repeating a sequence object `count` times.
     ///
     /// This is equivalent to the Python expression `self * count`.
-    /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
-    pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
+    pub fn repeat(&self, count: usize) -> PyResult<&PySequence> {
         unsafe {
             let ptr = self
                 .py()
                 .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Repeat(
                     self.as_ptr(),
-                    count as Py_ssize_t,
+                    get_ssize_index(count),
                 ))?;
             Ok(&*(ptr as *const PyAny as *const PySequence))
         }
@@ -84,11 +83,10 @@ impl PySequence {
     /// Repeats the sequence object `count` times and updates `self`.
     ///
     /// This is equivalent to the Python statement `self *= count`.
-    /// NB: Python accepts negative counts; it empties the Sequence.
     #[inline]
-    pub fn in_place_repeat(&self, count: isize) -> PyResult<()> {
+    pub fn in_place_repeat(&self, count: usize) -> PyResult<()> {
         unsafe {
-            let ptr = ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t);
+            let ptr = ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count));
             if ptr.is_null() {
                 Err(PyErr::api_call_failed(self.py()))
             } else {
@@ -103,8 +101,10 @@ impl PySequence {
     #[inline]
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
+            self.py().from_owned_ptr_or_err(ffi::PySequence_GetItem(
+                self.as_ptr(),
+                get_ssize_index(index),
+            ))
         }
     }
 
@@ -112,12 +112,12 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
-    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyAny> {
+    pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PyAny> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
                 self.as_ptr(),
-                begin as Py_ssize_t,
-                end as Py_ssize_t,
+                get_ssize_index(begin),
+                get_ssize_index(end),
             ))
         }
     }
@@ -126,7 +126,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python statement `self[i] = v`.
     #[inline]
-    pub fn set_item<I>(&self, i: isize, item: I) -> PyResult<()>
+    pub fn set_item<I>(&self, i: usize, item: I) -> PyResult<()>
     where
         I: ToBorrowedObject,
     {
@@ -134,7 +134,7 @@ impl PySequence {
             item.with_borrowed_ptr(self.py(), |item| {
                 err::error_on_minusone(
                     self.py(),
-                    ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, item),
+                    ffi::PySequence_SetItem(self.as_ptr(), get_ssize_index(i), item),
                 )
             })
         }
@@ -144,11 +144,11 @@ impl PySequence {
     ///
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
-    pub fn del_item(&self, i: isize) -> PyResult<()> {
+    pub fn del_item(&self, i: usize) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.py(),
-                ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t),
+                ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i)),
             )
         }
     }
@@ -157,14 +157,14 @@ impl PySequence {
     ///
     /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
-    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyAny) -> PyResult<()> {
+    pub fn set_slice(&self, i1: usize, i2: usize, v: &PyAny) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.py(),
                 ffi::PySequence_SetSlice(
                     self.as_ptr(),
-                    i1 as Py_ssize_t,
-                    i2 as Py_ssize_t,
+                    get_ssize_index(i1),
+                    get_ssize_index(i2),
                     v.as_ptr(),
                 ),
             )
@@ -175,11 +175,11 @@ impl PySequence {
     ///
     /// This is equivalent to the Python statement `del self[i1:i2]`.
     #[inline]
-    pub fn del_slice(&self, i1: isize, i2: isize) -> PyResult<()> {
+    pub fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.py(),
-                ffi::PySequence_DelSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t),
+                ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2)),
             )
         }
     }
