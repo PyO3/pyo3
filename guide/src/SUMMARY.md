@@ -17,6 +17,7 @@
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
 - [Features Reference](features.md)
+- [Memory Management](memory.md)
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
   - [Supporting multiple Python versions](building_and_distribution/multiple_python_versions.md)

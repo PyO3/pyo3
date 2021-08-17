@@ -8,10 +8,7 @@ The C API is naturally unsafe and requires you to manage reference counts, error
 
 ## Memory Management
 
-PyO3's "owned references" (`&PyAny` etc.) make PyO3 more ergonomic to use by ensuring that their lifetime can never be longer than the duration the Python GIL is held. This means that most of PyO3's API can assume the GIL is held. (If PyO3 could not assume this, every PyO3 API would need to take a `Python` GIL token to prove that the GIL is held.)
-
-The caveat to these "owned references" is that Rust references do not normally convey ownership (they are always `Copy`, and cannot implement `Drop`). Whenever a PyO3 API returns an owned reference, PyO3 stores it internally, so that PyO3 can decrease the reference count just before PyO3 releases the GIL.
-
-For most use cases this behaviour is invisible. Occasionally, however, users may need to clear memory usage sooner than PyO3 usually does. PyO3 exposes this functionality with the  the `GILPool` struct. When a `GILPool` is dropped, ***all*** owned references created after the `GILPool` was created will be cleared.
-
-The unsafe function `Python::new_pool` allows you to create a new `GILPool`. When doing this, you must be very careful to ensure that once the `GILPool` is dropped you do not retain access any owned references created after the `GILPool` was created.
+PyO3's `&PyAny` "owned references" and `Py<PyAny>` smart pointers are used to
+access memory stored in Python's heap.  This memory sometimes lives for longer
+than expected because of differences in Rust and Python's memory models.  See
+the chapter on [memory management](./memory,md) for more information.
