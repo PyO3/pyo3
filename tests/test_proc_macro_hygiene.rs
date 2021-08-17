@@ -1,22 +1,26 @@
 #![no_implicit_prelude]
-#![allow(non_camel_case_types)]
-#![allow(dead_code)]
 
-trait Use_unambiguous_imports<T> {
-    type Error;
+macro_rules! shadow {
+    ($name: ident) => {
+        ::paste::item! {
+            #[allow(non_camel_case_types, dead_code)]
+            unsafe trait [<NobodyImplsThis_ $name>]  {}
+
+            #[allow(non_camel_case_types, dead_code)]
+            struct [<Shadows_ $name>]<T: [<NobodyImplsThis_ $name>]> {
+                _ty: ::core::marker::PhantomData<T>,
+              }
+
+            #[allow(non_camel_case_types, dead_code)]
+            type $name = [<Shadows_ $name>]<()>;
+        }
+    };
 }
 
-struct Pyo3Shadowed;
-type pyo3 = <Pyo3Shadowed as Use_unambiguous_imports<Pyo3Shadowed>>::Error;
-
-struct CoreShadowed;
-type core = <CoreShadowed as Use_unambiguous_imports<CoreShadowed>>::Error;
-
-struct StdShadowed;
-type std = <StdShadowed as Use_unambiguous_imports<StdShadowed>>::Error;
-
-struct AllocShadowed;
-type alloc = <AllocShadowed as Use_unambiguous_imports<AllocShadowed>>::Error;
+shadow!(std);
+shadow!(alloc);
+shadow!(core);
+shadow!(pyo3);
 
 #[::pyo3::proc_macro::pyclass]
 #[derive(::std::clone::Clone)]
