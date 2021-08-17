@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::ffi::{self, Py_ssize_t};
+use crate::internal_tricks::get_ssize_index;
 use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyNativeType,
     PyObject, PyResult, PyTryFrom, Python, ToPyObject,
@@ -57,18 +58,28 @@ impl PyTuple {
         self.len() == 0
     }
 
-    /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
-    pub fn slice(&self, low: isize, high: isize) -> &PyTuple {
+    /// Takes the slice `self[low:high]` and returns it as a new tuple.
+    ///
+    /// Indices must be nonnegative, and out-of-range indices are clipped to
+    /// `self.len()`.
+    pub fn slice(&self, low: usize, high: usize) -> &PyTuple {
         unsafe {
-            self.py()
-                .from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
+            self.py().from_owned_ptr(ffi::PyTuple_GetSlice(
+                self.as_ptr(),
+                get_ssize_index(low),
+                get_ssize_index(high),
+            ))
         }
     }
 
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
-    pub fn split_from(&self, low: isize) -> &PyTuple {
+    pub fn split_from(&self, low: usize) -> &PyTuple {
         unsafe {
-            let ptr = ffi::PyTuple_GetSlice(self.as_ptr(), low, self.len() as Py_ssize_t);
+            let ptr = ffi::PyTuple_GetSlice(
+                self.as_ptr(),
+                get_ssize_index(low),
+                self.len() as Py_ssize_t,
+            );
             self.py().from_owned_ptr(ptr)
         }
     }
@@ -343,6 +354,17 @@ mod tests {
             assert_eq!(3, tuple.len());
             let ob: &PyAny = tuple.into();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_slice() {
+        Python::with_gil(|py| {
+            let tup = PyTuple::new(py, &[2, 3, 5, 7]);
+            let slice = tup.slice(1, 3);
+            assert_eq!(2, slice.len());
+            let slice = tup.slice(1, 7);
+            assert_eq!(3, slice.len());
         });
     }
 
