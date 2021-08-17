@@ -165,6 +165,19 @@ pub unsafe trait PyNativeType: Sized {
 /// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If your pyclass
 /// contains other Python objects you should implement this protocol to avoid leaking memory.
 ///
+/// # A note on Python reference counts
+///
+/// Dropping a [`Py`]`<T>` will eventually decrease Python's reference count
+/// of the pointed-to variable, allowing Python's garbage collector to free
+/// the associated memory, but this may not happen immediately.  This is
+/// because a [`Py`]`<T>` can be dropped at any time, but the Python reference
+/// count can only be modified when the GIL is held.
+///
+/// If a [`Py`]`<T>` is dropped while its thread happens to be holding the
+/// GIL then the Python reference count will be decreased immediately.
+/// Otherwise, the reference count will be decreased the next time the GIL is
+/// reacquired.
+///
 /// # A note on `Send` and `Sync`
 ///
 /// Accessing this object is threadsafe, since any access to its API requires a [`Python<'py>`](crate::Python) token.
