@@ -465,8 +465,8 @@ mod tests {
     #[cfg(not(PyPy))]
     #[test]
     fn test_new_with_fold() {
-        pyo3::Python::with_gil(|py| {
-            use pyo3::types::{PyDateTime, PyTimeAccess};
+        crate::Python::with_gil(|py| {
+            use crate::types::{PyDateTime, PyTimeAccess};
 
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
