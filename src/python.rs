@@ -396,6 +396,7 @@ impl<'p> Python<'p> {
                 return Err(PyErr::api_call_failed(self));
             }
             let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
+            ffi::Py_DECREF(code_obj);
 
             self.from_owned_ptr_or_err(res_ptr)
         }
