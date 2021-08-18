@@ -127,6 +127,7 @@ impl PyModule {
 
             let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
             if mptr.is_null() {
+                ffi::Py_DECREF(cptr);
                 return Err(PyErr::api_call_failed(py));
             }
 
