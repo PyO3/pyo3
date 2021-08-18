@@ -65,33 +65,43 @@ impl PySequence {
         }
     }
 
-    /// Concatenates `self` and `other` in place.
+    /// Concatenates `self` and `other`, in place if possible.
     ///
-    /// This is equivalent to the Python statement `self += other`.
+    /// This is equivalent to the Python expression `self.__iadd__(other)`.
+    ///
+    /// The Python statement `self += other` is syntactic sugar for `self =
+    /// self.__iadd__(other)`.  `__iadd__` should modify and return `self` if
+    /// possible, but create and return a new object if not.
     #[inline]
-    pub fn in_place_concat(&self, other: &PySequence) -> PyResult<()> {
+    pub fn in_place_concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr());
-            if ptr.is_null() {
-                Err(PyErr::api_call_failed(self.py()))
-            } else {
-                Ok(())
-            }
+            let ptr = self
+                .py()
+                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_InPlaceConcat(
+                    self.as_ptr(),
+                    other.as_ptr(),
+                ))?;
+            Ok(&*(ptr as *const PyAny as *const PySequence))
         }
     }
 
-    /// Repeats the sequence object `count` times and updates `self`.
+    /// Repeats the sequence object `count` times and updates `self`, if possible.
     ///
-    /// This is equivalent to the Python statement `self *= count`.
+    /// This is equivalent to the Python expression `self.__imul__(other)`.
+    ///
+    /// The Python statement `self *= other` is syntactic sugar for `self =
+    /// self.__imul__(other)`.  `__imul__` should modify and return `self` if
+    /// possible, but create and return a new object if not.
     #[inline]
-    pub fn in_place_repeat(&self, count: usize) -> PyResult<()> {
+    pub fn in_place_repeat(&self, count: usize) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count));
-            if ptr.is_null() {
-                Err(PyErr::api_call_failed(self.py()))
-            } else {
-                Ok(())
-            }
+            let ptr = self
+                .py()
+                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_InPlaceRepeat(
+                    self.as_ptr(),
+                    get_ssize_index(count),
+                ))?;
+            Ok(&*(ptr as *const PyAny as *const PySequence))
         }
     }
 
