@@ -130,6 +130,7 @@ impl PyModule {
                 return Err(PyErr::api_call_failed(py));
             }
 
+            ffi::Py_DECREF(cptr);
             <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
