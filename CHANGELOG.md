@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Reduce lower bound `num-complex` optional dependency to support interop with `rust-numpy` and `ndarray` when building with the MSRV of 1.41 [#1799](https://github.com/PyO3/pyo3/pull/1799)
 - Add missing `Py_DECREF` to `Python::run_code` and `PyModule::from_code` which fixes a memory leak when
   calling Python from Rust. [#1806](https://github.com/PyO3/pyo3/pull/1806), [#1810](https://github.com/PyO3/pyo3/pull/1810)
+- Use crate:: syntax to refer to current crate in pyo3::types::datetime
+  [#1811](https://github.com/PyO3/pyo3/issues/1811)
 
 ## [0.14.2] - 2021-08-09
 
