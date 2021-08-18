@@ -126,12 +126,11 @@ impl PyModule {
             }
 
             let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
+            ffi::Py_DECREF(cptr);
             if mptr.is_null() {
-                ffi::Py_DECREF(cptr);
                 return Err(PyErr::api_call_failed(py));
             }
 
-            ffi::Py_DECREF(cptr);
             <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
