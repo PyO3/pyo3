@@ -4,7 +4,7 @@ Rust and Python have very different notions of memory management.  Rust has
 a strict memory model with concepts of ownership, borrowing, and lifetimes,
 where memory is freed at predictable points in program execution.  Python has
 a looser memory model in which variables are reference-counted with shared,
-mutable state by default, a global interpreter lock (GIL) is needed to prevent
+mutable state by default. A global interpreter lock (GIL) is needed to prevent
 race conditions, and a garbage collector is needed to break reference cycles.
 Memory in Python is freed eventually by the garbage collector, but not usually
 in a predictable way.
@@ -94,7 +94,7 @@ when the nested `GILPool` is dropped.  Here, the nested `GILPool` is dropped
 at the end of each loop iteration, before the `with_gil()` closure ends.
 
 When doing this, you must be very careful to ensure that once the `GILPool` is
-dropped you do not retain access any owned references created after the
+dropped you do not retain access to any owned references created after the
 `GILPool` was created.  Read the documentation for `Python::new_pool()` for more
 information on safety.
 

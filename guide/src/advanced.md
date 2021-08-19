@@ -11,4 +11,4 @@ The C API is naturally unsafe and requires you to manage reference counts, error
 PyO3's `&PyAny` "owned references" and `Py<PyAny>` smart pointers are used to
 access memory stored in Python's heap.  This memory sometimes lives for longer
 than expected because of differences in Rust and Python's memory models.  See
-the chapter on [memory management](./memory,md) for more information.
+the chapter on [memory management](./memory.md) for more information.
