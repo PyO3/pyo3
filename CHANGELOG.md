@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Add `PyList::get_item_unchecked()` and `PyTuple::get_item_unchecked()` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Add `PyAny::py()` as a convenience for `PyNativeType::py()`. [#1751](https://github.com/PyO3/pyo3/pull/1751)
+- Implement `PyString.data()` to access the raw bytes storing a Python string. [#1794](https://github.com/PyO3/pyo3/issues/1794)
 
 ### Changed
 
