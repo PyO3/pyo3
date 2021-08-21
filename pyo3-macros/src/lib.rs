@@ -118,40 +118,12 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// [10]: https://en.wikipedia.org/wiki/Free_list
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
-    pyclass_impl(attr, input, PyClassMethodsType::Specialization)
-}
-
-/// A proc macro used to expose Rust structs as Python objects.
-///
-/// `#[pyclass]` accepts the following [parameters][2]:
-///
-/// |  Parameter  |  Description |
-/// | :-  | :- |
-/// | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
-/// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
-/// | `weakref` | Allows this class to be [weakly referenceable][6]. |
-/// | <span style="white-space: pre">`extends = BaseType`</span> | Use a custom baseclass. Defaults to [`PyAny`][4] |
-/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
-/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
-/// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
-///
-/// For more on creating Python classes,
-/// see the [class section of the guide][1].
-///
-/// [1]: https://pyo3.rs/latest/class.html
-/// [2]: https://pyo3.rs/latest/class.html#customizing-the-class
-/// [3]: std::marker::Send
-/// [4]: ../prelude/struct.PyAny.html
-/// [5]: https://pyo3.rs/latest/class/protocols.html#garbage-collector-integration
-/// [6]: https://docs.python.org/3/library/weakref.html
-/// [7]: https://doc.rust-lang.org/nomicon/leaking.html
-/// [8]: std::rc::Rc
-/// [9]: std::sync::Arc
-/// [10]: https://en.wikipedia.org/wiki/Free_list
-#[proc_macro_attribute]
-pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStream {
-    pyclass_impl(attr, input, PyClassMethodsType::Inventory)
+    let methods_type = if cfg!(feature = "multiple-pymethods") {
+        PyClassMethodsType::Inventory
+    } else {
+        PyClassMethodsType::Specialization
+    };
+    pyclass_impl(attr, input, methods_type)
 }
 
 /// A proc macro used to expose methods to Python.
@@ -188,46 +160,12 @@ pub fn pyclass_with_inventory(attr: TokenStream, input: TokenStream) -> TokenStr
 /// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
 #[proc_macro_attribute]
 pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
-    pymethods_impl(input, PyClassMethodsType::Specialization)
-}
-
-/// A proc macro used to expose methods to Python.
-///
-/// Methods within a `#[pymethods]` block can be annotated with the following:
-///
-/// |  Annotation  |  Description |
-/// | :-  | :- |
-/// | [`#[new]`][4]  | Defines the class constructor, like Python's `__new__` method. |
-/// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case consider using [`#[pyo3(get, set)]`][11] on the struct's field(s).|
-/// | [`#[staticmethod]`][6]| Defines the method as a staticmethod, like Python's `@staticmethod` decorator.|
-/// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
-/// | [`#[call]`][8]  | Allows Python code to call a class instance as a function, like Python's `__call__` method. |
-/// | [`#[classattr]`][9]  | Defines a class variable. |
-/// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
-///
-/// Methods within a `#[pymethods]` block can also be annotated with any of the `#[pyo3]` options which can
-/// be used with [`#[pyfunction]`][attr.pyfunction.html], except for `pass_module`.
-///
-/// For more on creating class methods see the [class section of the guide][1].
-///
-/// If the [`multiple-pymethods`][2] feature is enabled, it is possible to implement
-/// multiple `#[pymethods]` blocks for a single `#[pyclass]`.
-/// This will add a transitive dependency on the [`inventory`][3] crate.
-///
-/// [1]: https://pyo3.rs/latest/class.html#instance-methods
-/// [2]: https://pyo3.rs/latest/features.html#multiple-pymethods
-/// [3]: https://docs.rs/inventory/
-/// [4]: https://pyo3.rs/latest/class.html#constructor
-/// [5]: https://pyo3.rs/latest/class.html#object-properties-using-getter-and-setter
-/// [6]: https://pyo3.rs/latest/class.html#static-methods
-/// [7]: https://pyo3.rs/latest/class.html#class-methods
-/// [8]: https://pyo3.rs/latest/class.html#callable-objects
-/// [9]: https://pyo3.rs/latest/class.html#class-attributes
-/// [10]: https://pyo3.rs/latest/class.html#method-arguments
-/// [11]: https://pyo3.rs/latest/class.html#object-properties-using-pyo3get-set
-#[proc_macro_attribute]
-pub fn pymethods_with_inventory(_: TokenStream, input: TokenStream) -> TokenStream {
-    pymethods_impl(input, PyClassMethodsType::Inventory)
+    let methods_type = if cfg!(feature = "multiple-pymethods") {
+        PyClassMethodsType::Inventory
+    } else {
+        PyClassMethodsType::Specialization
+    };
+    pymethods_impl(input, methods_type)
 }
 
 /// A proc macro used to expose Rust functions to Python.

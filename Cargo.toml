@@ -51,7 +51,7 @@ default = ["macros"]
 macros = ["pyo3-macros", "indoc", "paste", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
-multiple-pymethods = ["inventory"]
+multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,

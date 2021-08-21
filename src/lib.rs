@@ -349,17 +349,7 @@ pub mod serde;
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]
 pub mod proc_macro {
-    pub use pyo3_macros::pymodule;
-
-    pub use pyo3_macros::{pyfunction, pyproto};
-
-    #[cfg(not(feature = "multiple-pymethods"))]
-    pub use pyo3_macros::{pyclass, pymethods};
-
-    #[cfg(feature = "multiple-pymethods")]
-    pub use pyo3_macros::{
-        pyclass_with_inventory as pyclass, pymethods_with_inventory as pymethods,
-    };
+    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto};
 }
 
 /// Returns a function that takes a [Python] instance and returns a Python function.
