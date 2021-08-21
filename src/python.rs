@@ -129,6 +129,39 @@ impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
 ///
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with
 /// [Python::allow_threads].
+///
+/// # A note on Python reference counts
+///
+/// The [`Python`] type can be used to generate references to variables in
+/// Python's memory e.g. using [`Python::eval()`] and indirectly e.g.
+/// using [`PyModule::import()`], which takes a [`Python`] token
+/// as one if its arguments to prove the GIL is held.  The lifetime of these
+/// references is bound to the GIL (more precisely the [`GILPool`], see
+/// [`Python::new_pool()`]), which can cause surprising results with respect to
+/// when a variable's reference count is decreased so that it can be released to
+/// the Python garbage collector.  For example:
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// # use pyo3::types::PyString;
+/// # fn main () -> PyResult<()> {
+/// Python::with_gil(|py| -> PyResult<()> {
+///     for _ in 0..10 {
+///         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
+///         println!("Python says: {}", hello.to_str()?);
+///     }
+///     Ok(())
+/// })
+/// # }
+/// ```
+///
+/// The variable `hello` is dropped at the end of each loop iteration, but the
+/// lifetime of the pointed-to memory is bound to the [`GILPool`] and will not
+/// be dropped until the [`GILPool`] is dropped at the end of
+/// [`Python::with_gil()`].  Only then is each `hello` variable's Python
+/// reference count decreased.  This means at the last line of the example there
+/// are 10 copies of `hello` in Python's memory, not just one as we might expect
+/// from typical Rust lifetimes.
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
