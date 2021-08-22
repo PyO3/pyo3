@@ -102,7 +102,7 @@ pub fn impl_py_method_def(
     };
     let methoddef = spec.get_methoddef(quote! {{ #wrapper_def #wrapper_ident }});
     Ok(quote! {
-        pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        ::pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
     })
 }
 
@@ -110,7 +110,7 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
-        impl pyo3::class::impl_::PyClassNewImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+        impl ::pyo3::class::impl_::PyClassNewImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
             fn new_impl(self) -> Option<pyo3::ffi::newfunc> {
                 Some({
                     #wrapper
@@ -125,7 +125,7 @@ fn impl_py_method_def_call(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
-        impl pyo3::class::impl_::PyClassCallImpl<#cls> for pyo3::class::impl_::PyClassImplCollector<#cls> {
+        impl ::pyo3::class::impl_::PyClassCallImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
             fn call_impl(self) -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
                 Some({
                     #wrapper
@@ -141,13 +141,13 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
     quote! {
-        pyo3::class::PyMethodDefType::ClassAttribute({
-            pyo3::class::PyClassAttributeDef::new(
+        ::pyo3::class::PyMethodDefType::ClassAttribute({
+            ::pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                pyo3::class::methods::PyClassAttributeFactory({
-                    fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                ::pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: ::pyo3::Python<'_>) -> ::pyo3::PyObject {
                         #deprecations
-                        pyo3::IntoPy::into_py(#cls::#name(), py)
+                        ::pyo3::IntoPy::into_py(#cls::#name(), py)
                     }
                     __wrap
                 })
@@ -206,22 +206,26 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
         PropertyType::Function { self_type, .. } => self_type.receiver(cls),
     };
     Ok(quote! {
-        pyo3::class::PyMethodDefType::Setter({
+        ::pyo3::class::PyMethodDefType::Setter({
             #deprecations
-            pyo3::class::PySetterDef::new(
+            ::pyo3::class::PySetterDef::new(
                 #python_name,
-                pyo3::class::methods::PySetter({
+                ::pyo3::class::methods::PySetter({
                     unsafe extern "C" fn __wrap(
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _value: *mut pyo3::ffi::PyObject,
-                        _: *mut std::os::raw::c_void
-                    ) -> std::os::raw::c_int {
-                        pyo3::callback::handle_panic(|_py| {
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _value: *mut ::pyo3::ffi::PyObject,
+                        _: *mut ::std::os::raw::c_void
+                    ) -> ::std::os::raw::c_int {
+                        ::pyo3::callback::handle_panic(|_py| {
                             #slf
-                            let _value = _py.from_borrowed_ptr::<pyo3::types::PyAny>(_value);
-                            let _val = pyo3::FromPyObject::extract(_value)?;
+                            let _value = _py
+                                .from_borrowed_ptr_or_opt(_value)
+                                .ok_or_else(|| {
+                                    ::pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
+                                })?;
+                            let _val = ::pyo3::FromPyObject::extract(_value)?;
 
-                            pyo3::callback::convert(_py, #setter_impl)
+                            ::pyo3::callback::convert(_py, #setter_impl)
                         })
                     }
                     __wrap
@@ -262,12 +266,13 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
             ..
         } => {
             // named struct field
-            quote!(_slf.#ident.clone())
+            //quote!(_slf.#ident.clone())
+            quote!(::std::clone::Clone::clone(&(_slf.#ident)))
         }
         PropertyType::Descriptor { field_index, .. } => {
             // tuple struct field
             let index = syn::Index::from(field_index);
-            quote!(_slf.#index.clone())
+            quote!(::std::clone::Clone::clone(&(_slf.#index)))
         }
         PropertyType::Function { spec, .. } => impl_call_getter(cls, spec)?,
     };
@@ -277,18 +282,18 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
         PropertyType::Function { self_type, .. } => self_type.receiver(cls),
     };
     Ok(quote! {
-        pyo3::class::PyMethodDefType::Getter({
+        ::pyo3::class::PyMethodDefType::Getter({
             #deprecations
-            pyo3::class::PyGetterDef::new(
+            ::pyo3::class::PyGetterDef::new(
                 #python_name,
-                pyo3::class::methods::PyGetter({
+                ::pyo3::class::methods::PyGetter({
                     unsafe extern "C" fn __wrap(
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _: *mut std::os::raw::c_void
-                    ) -> *mut pyo3::ffi::PyObject {
-                        pyo3::callback::handle_panic(|_py| {
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _: *mut ::std::os::raw::c_void
+                    ) -> *mut ::pyo3::ffi::PyObject {
+                        ::pyo3::callback::handle_panic(|_py| {
                             #slf
-                            pyo3::callback::convert(_py, #getter_impl)
+                            ::pyo3::callback::convert(_py, #getter_impl)
                         })
                     }
                     __wrap

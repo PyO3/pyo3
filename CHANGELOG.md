@@ -6,13 +6,29 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2021-08-22
+
+### Added
+
+- Add `PyString::data()` to access the raw bytes stored in a Python string. [#1794](https://github.com/PyO3/pyo3/issues/1794)
+
+### Fixed
+
+- Raise `AttributeError` to avoid panic when calling `del` on a `#[setter]` defined class property. [#1779](https://github.com/PyO3/pyo3/issues/1779)
+- Restrict FFI definitions `PyGILState_Check` and `Py_tracefunc` to the unlimited API. [#1787](https://github.com/PyO3/pyo3/pull/1787)
+- Add missing `_type` field to `PyStatus` struct definition. [#1791](https://github.com/PyO3/pyo3/pull/1791)
+- Reduce lower bound `num-complex` optional dependency to support interop with `rust-numpy` and `ndarray` when building with the MSRV of 1.41 [#1799](https://github.com/PyO3/pyo3/pull/1799)
+- Fix memory leak in `Python::run_code`. [#1806](https://github.com/PyO3/pyo3/pull/1806)
+- Fix memory leak in `PyModule::from_code`. [#1810](https://github.com/PyO3/pyo3/pull/1810)
+- Remove use of `pyo3::` in `pyo3::types::datetime` which broke builds using `-Z avoid-dev-deps` [#1811](https://github.com/PyO3/pyo3/issues/1811)
+
 ## [0.14.2] - 2021-08-09
 
 ### Added
 
 - Add `indexmap` feature to add `ToPyObject`, `IntoPy` and `FromPyObject` implementations for `indexmap::IndexMap`. [#1728](https://github.com/PyO3/pyo3/pull/1728)
 - Add `pyo3_build_config::add_extension_module_link_args()` to use in build scripts to set linker arguments (for macOS). [#1755](https://github.com/PyO3/pyo3/pull/1755)
-- Add `Python::with_gil_unchecked()` unsafe variation of `Python::with_gil()` to allow obtaining a `Python` in scenarios where `Python::with_gil()` would fail.
+- Add `Python::with_gil_unchecked()` unsafe variation of `Python::with_gil()` to allow obtaining a `Python` in scenarios where `Python::with_gil()` would fail. [#1769](https://github.com/PyO3/pyo3/pull/1769)
 
 ### Changed
 
@@ -880,7 +896,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.1...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.3...HEAD
+[0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pyo3/pyo3/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pyo3/pyo3/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/pyo3/pyo3/compare/v0.13.2...v0.14.0

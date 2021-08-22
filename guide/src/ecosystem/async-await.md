@@ -1,14 +1,14 @@
 # Async / Await
 
-If you are working with a Python library that makes use of async functions or wish to provide 
+If you are working with a Python library that makes use of async functions or wish to provide
 Python bindings for an async Rust library, [`pyo3-asyncio`](https://github.com/awestlake87/pyo3-asyncio)
-likely has the tools you need. It provides conversions between async functions in both Python and 
-Rust and was designed with first-class support for popular Rust runtimes such as 
-[`tokio`](https://tokio.rs/) and [`async-std`](https://async.rs/). In addition, all async Python 
-code runs on the default `asyncio` event loop, so `pyo3-asyncio` should work just fine with existing 
+likely has the tools you need. It provides conversions between async functions in both Python and
+Rust and was designed with first-class support for popular Rust runtimes such as
+[`tokio`](https://tokio.rs/) and [`async-std`](https://async.rs/). In addition, all async Python
+code runs on the default `asyncio` event loop, so `pyo3-asyncio` should work just fine with existing
 Python libraries.
 
-In the following sections, we'll give a general overview of `pyo3-asyncio` explaining how to call 
+In the following sections, we'll give a general overview of `pyo3-asyncio` explaining how to call
 async Python functions with PyO3, how to call async Rust functions from Python, and how to configure
 your codebase to manage the runtimes of both.
 
@@ -163,13 +163,13 @@ maturin develop && python3
 🔗 Found pyo3 bindings
 🐍 Found CPython 3.8 at python3
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
-Python 3.8.5 (default, Jan 27 2021, 15:41:15) 
+Python 3.8.5 (default, Jan 27 2021, 15:41:15)
 [GCC 9.3.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import asyncio
 >>>
 >>> from my_async_module import rust_sleep
->>> 
+>>>
 >>> async def main():
 >>>     await rust_sleep()
 >>>
@@ -188,19 +188,21 @@ async def py_sleep():
     await asyncio.sleep(1)
 ```
 
-**Async functions in Python are simply functions that return a `coroutine` object**. For our purposes, 
+**Async functions in Python are simply functions that return a `coroutine` object**. For our purposes,
 we really don't need to know much about these `coroutine` objects. The key factor here is that calling
 an `async` function is _just like calling a regular function_, the only difference is that we have
 to do something special with the object that it returns.
 
-Normally in Python, that something special is the `await` keyword, but in order to await this 
-coroutine in Rust, we first need to convert it into Rust's version of a `coroutine`: a `Future`. 
-That's where `pyo3-asyncio` comes in. 
-[`pyo3_asyncio::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html) 
-performs this conversion for us:
+Normally in Python, that something special is the `await` keyword, but in order to await this
+coroutine in Rust, we first need to convert it into Rust's version of a `coroutine`: a `Future`.
+That's where `pyo3-asyncio` comes in.
+[`pyo3_asyncio::into_future`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.into_future.html)
+performs this conversion for us.
 
+The following example uses `into_future` to call the `py_sleep` function shown above and then await the
+coroutine object returned from the call:
 
-```rust no_run
+```rust
 use pyo3::prelude::*;
 
 #[pyo3_asyncio::tokio::main]
@@ -209,11 +211,11 @@ async fn main() -> PyResult<()> {
         // import the module containing the py_sleep function
         let example = py.import("example")?;
 
-        // calling the py_sleep method like a normal function 
+        // calling the py_sleep method like a normal function
         // returns a coroutine
         let coroutine = example.call_method0("py_sleep")?;
 
-        // convert the coroutine into a Rust future using the 
+        // convert the coroutine into a Rust future using the
         // tokio runtime
         pyo3_asyncio::tokio::into_future(coroutine)
     })?;
@@ -225,12 +227,67 @@ async fn main() -> PyResult<()> {
 }
 ```
 
-> If you're interested in learning more about `coroutines` and `awaitables` in general, check out the 
+Alternatively, the below example shows how to write a `#[pyfunction]` which uses `into_future` to receive and await
+a coroutine argument:
+
+```rust
+#[pyfunction]
+fn await_coro(coro: &PyAny) -> PyResult<()> {
+    // convert the coroutine into a Rust future using the
+    // async_std runtime
+    let f = pyo3_asyncio::async_std::into_future(coro)?;
+
+    pyo3_asyncio::async_std::run_until_complete(coro.py(), async move {
+        // await the future
+        f.await?;
+        Ok(())
+    })
+}
+```
+
+This could be called from Python as:
+
+```python
+import asyncio
+
+async def py_sleep():
+    asyncio.sleep(1)
+
+await_coro(py_sleep())
+```
+
+If for you wanted to pass a callable function to the `#[pyfunction]` instead, (i.e. the last line becomes `await_coro(py_sleep))`, then the above example needs to be tweaked to first call the callable to get the coroutine:
+
+```rust
+#[pyfunction]
+fn await_coro(callable: &PyAny) -> PyResult<()> {
+    // get the coroutine by calling the callable
+    let coro = callable.call0()?;
+
+    // convert the coroutine into a Rust future using the
+    // async_std runtime
+    let f = pyo3_asyncio::async_std::into_future(coro)?;
+
+    pyo3_asyncio::async_std::run_until_complete(coro.py(), async move {
+        // await the future
+        f.await?;
+        Ok(())
+    })
+}
+```
+
+This can be particularly helpful where you need to repeatedly create and await a coroutine. Trying to await the same coroutine multiple times will raise an error:
+
+```python
+RuntimeError: cannot reuse already awaited coroutine
+```
+
+> If you're interested in learning more about `coroutines` and `awaitables` in general, check out the
 > [Python 3 `asyncio` docs](https://docs.python.org/3/library/asyncio-task.html) for more information.
 
 ## Awaiting a Rust Future in Python
 
-Here we have the same async function as before written in Rust using the 
+Here we have the same async function as before written in Rust using the
 [`async-std`](https://async.rs/) runtime:
 
 ```rust
@@ -243,12 +300,12 @@ async fn rust_sleep() {
 Similar to Python, Rust's async functions also return a special object called a
 `Future`:
 
-```rust compile_fail
+```rust
 let future = rust_sleep();
 ```
 
-We can convert this `Future` object into Python to make it `awaitable`. This tells Python that you 
-can use the `await` keyword with it. In order to do this, we'll call 
+We can convert this `Future` object into Python to make it `awaitable`. This tells Python that you
+can use the `await` keyword with it. In order to do this, we'll call
 [`pyo3_asyncio::async_std::future_into_py`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.future_into_py.html):
 
 ```rust
@@ -284,38 +341,38 @@ doesn't always play well with Rust.
 
 Luckily, Rust's event loops are pretty flexible and don't _need_ control over the main thread, so in
 `pyo3-asyncio`, we decided the best way to handle Rust/Python interop was to just surrender the main
-thread to Python and run Rust's event loops in the background. Unfortunately, since most event loop 
+thread to Python and run Rust's event loops in the background. Unfortunately, since most event loop
 implementations _prefer_ control over the main thread, this can still make some things awkward.
 
 ### PyO3 Asyncio Initialization
 
 Because Python needs to control the main thread, we can't use the convenient proc macros from Rust
-runtimes to handle the `main` function or `#[test]` functions. Instead, the initialization for PyO3 has to be done from the `main` function and the main 
+runtimes to handle the `main` function or `#[test]` functions. Instead, the initialization for PyO3 has to be done from the `main` function and the main
 thread must block on [`pyo3_asyncio::run_forever`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/fn.run_forever.html) or [`pyo3_asyncio::async_std::run_until_complete`](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/async_std/fn.run_until_complete.html).
 
 Because we have to block on one of those functions, we can't use [`#[async_std::main]`](https://docs.rs/async-std/latest/async_std/attr.main.html) or [`#[tokio::main]`](https://docs.rs/tokio/1.1.0/tokio/attr.main.html)
 since it's not a good idea to make long blocking calls during an async function.
 
 > Internally, these `#[main]` proc macros are expanded to something like this:
-> ```rust compile_fail
+> ```rust
 > fn main() {
 >     // your async main fn
 >     async fn _main_impl() { /* ... */ }
->     Runtime::new().block_on(_main_impl());   
+>     Runtime::new().block_on(_main_impl());
 > }
 > ```
 > Making a long blocking call inside the `Future` that's being driven by `block_on` prevents that
-> thread from doing anything else and can spell trouble for some runtimes (also this will actually 
-> deadlock a single-threaded runtime!). Many runtimes have some sort of `spawn_blocking` mechanism 
-> that can avoid this problem, but again that's not something we can use here since we need it to 
+> thread from doing anything else and can spell trouble for some runtimes (also this will actually
+> deadlock a single-threaded runtime!). Many runtimes have some sort of `spawn_blocking` mechanism
+> that can avoid this problem, but again that's not something we can use here since we need it to
 > block on the _main_ thread.
 
-For this reason, `pyo3-asyncio` provides its own set of proc macros to provide you with this 
-initialization. These macros are intended to mirror the initialization of `async-std` and `tokio` 
+For this reason, `pyo3-asyncio` provides its own set of proc macros to provide you with this
+initialization. These macros are intended to mirror the initialization of `async-std` and `tokio`
 while also satisfying the Python runtime's needs.
 
 Here's a full example of PyO3 initialization with the `async-std` runtime:
-```rust no_run
+```rust
 use pyo3::prelude::*;
 
 #[pyo3_asyncio::async_std::main]
@@ -429,19 +486,19 @@ $ maturin develop && python3
 🔗 Found pyo3 bindings
 🐍 Found CPython 3.8 at python3
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
-Python 3.8.8 (default, Apr 13 2021, 19:58:26) 
+Python 3.8.8 (default, Apr 13 2021, 19:58:26)
 [GCC 7.3.0] :: Anaconda, Inc. on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import asyncio
 >>> import uvloop
->>> 
+>>>
 >>> import my_async_module
->>> 
+>>>
 >>> uvloop.install()
->>> 
+>>>
 >>> async def main():
 ...     await my_async_module.rust_sleep()
-... 
+...
 >>> asyncio.run(main())
 >>>
 ```
@@ -498,4 +555,4 @@ fn main() -> PyResult<()> {
 
 ## Additional Information
 - Managing event loop references can be tricky with pyo3-asyncio. See [Event Loop References](https://docs.rs/pyo3-asyncio/#event-loop-references) in the API docs to get a better intuition for how event loop references are managed in this library.
-- Testing pyo3-asyncio libraries and applications requires a custom test harness since Python requires control over the main thread. You can find a testing guide in the [API docs for the `testing` module](https://docs.rs/pyo3-asyncio/testing)
+- Testing pyo3-asyncio libraries and applications requires a custom test harness since Python requires control over the main thread. You can find a testing guide in the [API docs for the `testing` module](https://docs.rs/pyo3-asyncio/latest/pyo3_asyncio/testing)

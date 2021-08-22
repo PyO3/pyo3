@@ -45,14 +45,60 @@ pub fn env_var(var: &str) -> Option<OsString> {
 /// strategies are used to populate this type.
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct InterpreterConfig {
+    /// The Python implementation flavor.
+    ///
+    /// Serialized to `implementation`.
     pub implementation: PythonImplementation,
+
+    /// Python `X.Y` version. e.g. `3.9`.
+    ///
+    /// Serialized to `version`.
     pub version: PythonVersion,
+
+    /// Whether link library is shared.
+    ///
+    /// Serialized to `shared`.
     pub shared: bool,
+
+    /// Whether linking against the stable/limited Python 3 API.
+    ///
+    /// Serialized to `abi3`.
     pub abi3: bool,
+
+    /// The name of the link library defining Python.
+    ///
+    /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
+    /// control how libpython is linked. Values should not contain the `lib`
+    /// prefix.
+    ///
+    /// Serialized to `lib_name`.
     pub lib_name: Option<String>,
+
+    /// The directory containing the Python library to link against.
+    ///
+    /// The effectively controls the `cargo:rustc-link-search=native=<path>` value
+    /// to add an additional library search path for the linker.
+    ///
+    /// Serialized to `lib_dir`.
     pub lib_dir: Option<String>,
+
+    /// Path of host `python` executable.
+    ///
+    /// This is a valid executable capable of running on the host/building machine.
+    /// For configurations derived by invoking a Python interpreter, it was the
+    /// executable invoked.
+    ///
+    /// Serialized to `executable`.
     pub executable: Option<String>,
+
+    /// Width in bits of pointers on the target machine.
+    ///
+    /// Serialized to `pointer_width`.
     pub pointer_width: Option<u32>,
+
+    /// Additional relevant Python build flags / configuration settings.
+    ///
+    /// Serialized to `build_flags`.
     pub build_flags: BuildFlags,
 }
 

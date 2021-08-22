@@ -454,6 +454,10 @@ impl MyClass {
 
 In this case, the property `number` is defined and available from Python code as `self.number`.
 
+Attributes defined by `#[setter]` or `#[pyo3(set)]` will always raise `AttributeError` on `del`
+operations. Support for defining custom `del` behavior is tracked in
+[#1778](https://github.com/PyO3/pyo3/issues/1778).
+
 ## Instance methods
 
 To define a Python compatible method, an `impl` block for your struct has to be annotated with the
