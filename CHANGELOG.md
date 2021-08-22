@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Add `PyList::get_item_unchecked()` and `PyTuple::get_item_unchecked()` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Add `PyAny::py()` as a convenience for `PyNativeType::py()`. [#1751](https://github.com/PyO3/pyo3/pull/1751)
-- Implement `PyString.data()` to access the raw bytes storing a Python string. [#1794](https://github.com/PyO3/pyo3/issues/1794)
 
 ### Changed
 
@@ -21,18 +20,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PyList` and `PyTuple`'s `get_item` now return `PyResult<&PyAny> instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
 
+## [0.14.3] - 2021-08-22
+
+### Added
+
+- Add `PyString::data()` to access the raw bytes stored in a Python string. [#1794](https://github.com/PyO3/pyo3/issues/1794)
+
 ### Fixed
 
-- Restrict FFI definitions `PyGILState_Check` and `Py_tracefunc` to the unlimited API. [#1787](https://github.com/PyO3/pyo3/pull/1787)
 - Raise `AttributeError` to avoid panic when calling `del` on a `#[setter]` defined class property. [#1779](https://github.com/PyO3/pyo3/issues/1779)
+- Restrict FFI definitions `PyGILState_Check` and `Py_tracefunc` to the unlimited API. [#1787](https://github.com/PyO3/pyo3/pull/1787)
 - Add missing `_type` field to `PyStatus` struct definition. [#1791](https://github.com/PyO3/pyo3/pull/1791)
-- Loosened the lower bound on the `num-complex` optional dependency to support
-  interop with `rust-numpy` and `ndarray` when building with the MSRV of 1.41
-  [#1799](https://github.com/PyO3/pyo3/pull/1799)
-- Add missing `Py_DECREF` to `Python::run_code` and `PyModule::from_code` which fixes a memory leak when
-  calling Python from Rust. [#1806](https://github.com/PyO3/pyo3/pull/1806), [#1810](https://github.com/PyO3/pyo3/pull/1810)
-- Use crate:: syntax to refer to current crate in pyo3::types::datetime
-  [#1811](https://github.com/PyO3/pyo3/issues/1811)
+- Reduce lower bound `num-complex` optional dependency to support interop with `rust-numpy` and `ndarray` when building with the MSRV of 1.41 [#1799](https://github.com/PyO3/pyo3/pull/1799)
+- Fix memory leak in `Python::run_code`. [#1806](https://github.com/PyO3/pyo3/pull/1806)
+- Fix memory leak in `PyModule::from_code`. [#1810](https://github.com/PyO3/pyo3/pull/1810)
+- Remove use of `pyo3::` in `pyo3::types::datetime` which broke builds using `-Z avoid-dev-deps` [#1811](https://github.com/PyO3/pyo3/issues/1811)
 
 ## [0.14.2] - 2021-08-09
 
@@ -908,7 +910,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.1...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.3...HEAD
+[0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pyo3/pyo3/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pyo3/pyo3/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/pyo3/pyo3/compare/v0.13.2...v0.14.0

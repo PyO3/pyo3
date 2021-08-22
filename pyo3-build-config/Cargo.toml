@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.14.2"
+version = "0.14.3"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
