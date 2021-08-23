@@ -35,7 +35,6 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
 
 extern "C" {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
-    // skipped PyGen_New
     // skipped PyGen_NewWithQualName
     // skipped _PyGen_SetStopIterationValue
     // skipped _PyGen_FetchStopIterationValue
