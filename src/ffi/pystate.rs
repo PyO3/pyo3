@@ -2,6 +2,7 @@
 use crate::ffi::moduleobject::PyModuleDef;
 use crate::ffi::object::PyObject;
 use std::os::raw::c_int;
+
 #[cfg(not(PyPy))]
 use std::os::raw::c_long;
 
@@ -27,15 +28,16 @@ extern "C" {
 
     #[cfg(all(Py_3_8, not(PyPy)))]
     #[cfg_attr(docsrs, doc(all(Py_3_8, not(PyPy))))]
-    pub fn PyInterpreterState_GetDict() -> *mut PyObject;
+    pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
     #[cfg(all(Py_3_7, not(PyPy)))]
     #[cfg_attr(docsrs, doc(all(Py_3_7, not(PyPy))))]
-    pub fn PyInterpreterState_GetID() -> i64;
+    pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
     #[cfg(not(PyPy))]
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyState_AddModule(arg1: *mut PyObject, arg2: *mut PyModuleDef) -> c_int;
+
     #[cfg(not(PyPy))]
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
@@ -46,18 +48,21 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]
     pub fn PyThreadState_New(arg1: *mut PyInterpreterState) -> *mut PyThreadState;
-    //fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState)
-    // -> *mut PyThreadState;
-    //fn _PyThreadState_Init(arg1: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Clear")]
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Delete")]
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState);
-    #[cfg(py_sys_config = "WITH_THREAD")]
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
-    pub fn PyThreadState_DeleteCurrent();
+
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Get")]
     pub fn PyThreadState_Get() -> *mut PyThreadState;
+}
+
+#[inline]
+pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
+    PyThreadState_Get()
+}
+
+extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
@@ -66,6 +71,10 @@ extern "C" {
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
 }
+
+// skipped non-limited / 3.9 PyThreadState_GetInterpreter
+// skipped non-limited / 3.9 PyThreadState_GetFrame
+// skipped non-limited / 3.9 PyThreadState_GetID
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -82,9 +91,4 @@ extern "C" {
     #[cfg(not(PyPy))]
     #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
-}
-
-#[inline]
-pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
-    PyThreadState_Get()
 }
