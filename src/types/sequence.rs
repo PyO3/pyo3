@@ -340,14 +340,14 @@ impl<'v> PyTryFrom<'v> for PySequence {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::PySequence;
+    use crate::types::{PyList, PySequence};
     use crate::AsPyPointer;
     use crate::Python;
     use crate::{PyObject, PyTryFrom, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
-        Python::with_gil(|py| -> PyObject {
+        Python::with_gil(|py| {
             let obj = py.eval("object()", None, None).unwrap();
 
             obj.to_object(py)
@@ -379,6 +379,19 @@ mod tests {
 
             let needle = 7i32.to_object(py);
             assert!(!seq.contains(&needle).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_seq_is_empty() {
+        Python::with_gil(|py| {
+            let list = vec![1].to_object(py);
+            let seq = list.cast_as::<PySequence>(py).unwrap();
+            assert!(!seq.is_empty().unwrap());
+            let vec: Vec<u32> = Vec::new();
+            let empty_list = vec.to_object(py);
+            let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
+            assert!(empty_seq.is_empty().unwrap());
         });
     }
 
@@ -416,10 +429,6 @@ mod tests {
             assert!(seq.get_item(10).is_err());
         });
     }
-
-    // fn test_get_slice() {}
-    // fn test_set_slice() {}
-    // fn test_del_slice() {}
 
     #[test]
     fn test_seq_del_item() {
@@ -471,6 +480,54 @@ mod tests {
 
         Python::with_gil(|py| {
             assert_eq!(1, obj.get_refcnt(py));
+        });
+    }
+
+    #[test]
+    fn test_seq_get_slice() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(
+                [1, 2, 3],
+                seq.get_slice(1, 4).unwrap().extract::<[i32; 3]>().unwrap()
+            );
+            assert_eq!(
+                [3, 5, 8],
+                seq.get_slice(3, 100)
+                    .unwrap()
+                    .extract::<[i32; 3]>()
+                    .unwrap()
+            );
+        });
+    }
+
+    #[test]
+    fn test_set_slice() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let w: Vec<i32> = vec![7, 4];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let ins = w.to_object(py);
+            seq.set_slice(1, 4, ins.as_ref(py)).unwrap();
+            assert_eq!([1, 7, 4, 5, 8], seq.extract::<[i32; 5]>().unwrap());
+            seq.set_slice(3, 100, PyList::empty(py)).unwrap();
+            assert_eq!([1, 7, 4], seq.extract::<[i32; 3]>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_del_slice() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            seq.del_slice(1, 4).unwrap();
+            assert_eq!([1, 5, 8], seq.extract::<[i32; 3]>().unwrap());
+            seq.del_slice(1, 100).unwrap();
+            assert_eq!([1], seq.extract::<[i32; 1]>().unwrap());
         });
     }
 
@@ -581,6 +638,22 @@ mod tests {
     }
 
     #[test]
+    fn test_seq_inplace() {
+        Python::with_gil(|py| {
+            let v = vec!["foo", "bar"];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let rep_seq = seq.in_place_repeat(3).unwrap();
+            assert_eq!(6, seq.len().unwrap());
+            assert_eq!(seq, rep_seq);
+
+            let conc_seq = seq.in_place_concat(seq).unwrap();
+            assert_eq!(12, seq.len().unwrap());
+            assert_eq!(seq, conc_seq);
+        });
+    }
+
+    #[test]
     fn test_list_coercion() {
         Python::with_gil(|py| {
             let v = vec!["foo", "bar"];
@@ -661,19 +734,6 @@ mod tests {
             let type_ptr = seq.as_ref();
             let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
             assert!(seq_from.list().is_ok());
-        });
-    }
-
-    #[test]
-    fn test_is_empty() {
-        Python::with_gil(|py| {
-            let list = vec![1].to_object(py);
-            let seq = list.cast_as::<PySequence>(py).unwrap();
-            assert!(!seq.is_empty().unwrap());
-            let vec: Vec<u32> = Vec::new();
-            let empty_list = vec.to_object(py);
-            let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
-            assert!(empty_seq.is_empty().unwrap());
         });
     }
 }
