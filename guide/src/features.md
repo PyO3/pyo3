@@ -109,3 +109,7 @@ struct User {
     permissions: Vec<Py<Permission>>
 }
 ```
+
+### `anyhow`
+
+This feature makes it possible to return [`anyhow::Result<T>`](https://docs.rs/anyhow/1.0.43/anyhow/type.Result.html) from functions and methods exposed to Python. It does so by adding `impl From<anyhow::Error> for PyErr`. Currently, the conversion simply stringifies the `anyhow::Error` and shoves it into a `PyRuntimeError`. As a consequence, there is no way to convert a `PyErr` back to the original `anyhow::Error`. It is mostly intended as a developer convenience.
