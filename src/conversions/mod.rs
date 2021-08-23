@@ -6,3 +6,5 @@ mod array;
 pub mod indexmap;
 mod osstr;
 mod path;
+#[cfg(feature = "anyhow")]
+pub mod anyhow;
