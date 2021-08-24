@@ -39,13 +39,8 @@ impl PySequence {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self
-                .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Concat(
-                    self.as_ptr(),
-                    other.as_ptr(),
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+            self.py()
+                .from_owned_ptr_or_err(ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
         }
     }
 
@@ -55,13 +50,10 @@ impl PySequence {
     #[inline]
     pub fn repeat(&self, count: usize) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self
-                .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Repeat(
-                    self.as_ptr(),
-                    get_ssize_index(count),
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+            self.py().from_owned_ptr_or_err(ffi::PySequence_Repeat(
+                self.as_ptr(),
+                get_ssize_index(count),
+            ))
         }
     }
 
@@ -75,13 +67,8 @@ impl PySequence {
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self
-                .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_InPlaceConcat(
-                    self.as_ptr(),
-                    other.as_ptr(),
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+            self.py()
+                .from_owned_ptr_or_err(ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()))
         }
     }
 
@@ -95,13 +82,11 @@ impl PySequence {
     #[inline]
     pub fn in_place_repeat(&self, count: usize) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self
-                .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_InPlaceRepeat(
+            self.py()
+                .from_owned_ptr_or_err(ffi::PySequence_InPlaceRepeat(
                     self.as_ptr(),
                     get_ssize_index(count),
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+                ))
         }
     }
 
