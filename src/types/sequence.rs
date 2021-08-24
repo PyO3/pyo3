@@ -471,17 +471,17 @@ mod tests {
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             assert!(seq.del_item(10).is_err());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(3, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(5, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(8, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
             assert_eq!(0, seq.len().unwrap());
             assert!(seq.del_item(0).is_err());
@@ -494,9 +494,9 @@ mod tests {
             let v: Vec<i32> = vec![1, 2];
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
-            assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq[1].extract::<i32>().unwrap());
             assert!(seq.set_item(1, 10).is_ok());
-            assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(10, seq[1].extract::<i32>().unwrap());
         });
     }
 
@@ -509,7 +509,7 @@ mod tests {
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             assert!(seq.set_item(1, &obj).is_ok());
-            assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
+            assert!(seq[1].as_ptr() == obj.as_ptr());
         });
 
         Python::with_gil(|py| {

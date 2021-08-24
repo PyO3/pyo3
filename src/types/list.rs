@@ -204,7 +204,7 @@ impl<'a> Iterator for PyListIterator<'a> {
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.list.len() {
             #[cfg(any(Py_LIMITED_API, PyPy))]
-            let item = self.list.get_item(self.index).expect("tuple.get failed");
+            let item = self.list.get_item(self.index).expect("list.get failed");
             #[cfg(not(any(Py_LIMITED_API, PyPy)))]
             let item = unsafe { self.list.get_item_unchecked(self.index) };
             self.index += 1;
@@ -271,10 +271,10 @@ mod tests {
     fn test_new() {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[2, 3, 5, 7]);
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(5, list[2].extract::<i32>().unwrap());
+            assert_eq!(7, list[3].extract::<i32>().unwrap());
         });
     }
 
@@ -314,9 +314,9 @@ mod tests {
             let list = PyList::new(py, &[2, 3, 5, 7]);
             let val = 42i32.to_object(py);
             let val2 = 42i32.to_object(py);
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
             list.set_item(0, val).unwrap();
-            assert_eq!(42, list.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(42, list[0].extract::<i32>().unwrap());
             assert!(list.set_item(10, val2).is_err());
         });
     }
@@ -346,13 +346,13 @@ mod tests {
             let val = 42i32.to_object(py);
             let val2 = 43i32.to_object(py);
             assert_eq!(4, list.len());
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
             list.insert(0, val).unwrap();
             list.insert(1000, val2).unwrap();
             assert_eq!(6, list.len());
-            assert_eq!(42, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(43, list.get_item(5).unwrap().extract::<i32>().unwrap());
+            assert_eq!(42, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list[1].extract::<i32>().unwrap());
+            assert_eq!(43, list[5].extract::<i32>().unwrap());
         });
     }
 
@@ -377,8 +377,8 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[2]);
             list.append(3).unwrap();
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
         });
     }
 
@@ -455,15 +455,15 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![7, 3, 2, 5];
             let list = PyList::new(py, &v);
-            assert_eq!(7, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, list.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, list.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(7, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(2, list[2].extract::<i32>().unwrap());
+            assert_eq!(5, list[3].extract::<i32>().unwrap());
             list.sort().unwrap();
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(5, list[2].extract::<i32>().unwrap());
+            assert_eq!(7, list[3].extract::<i32>().unwrap());
         });
     }
 
@@ -472,15 +472,15 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
             let list = PyList::new(py, &v);
-            assert_eq!(2, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(5, list[2].extract::<i32>().unwrap());
+            assert_eq!(7, list[3].extract::<i32>().unwrap());
             list.reverse().unwrap();
-            assert_eq!(7, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(5, list.get_item(1).unwrap().extract::<i32>().unwrap());
-            assert_eq!(3, list.get_item(2).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, list.get_item(3).unwrap().extract::<i32>().unwrap());
+            assert_eq!(7, list[0].extract::<i32>().unwrap());
+            assert_eq!(5, list[1].extract::<i32>().unwrap());
+            assert_eq!(3, list[2].extract::<i32>().unwrap());
+            assert_eq!(2, list[3].extract::<i32>().unwrap());
         });
     }
 
@@ -489,8 +489,8 @@ mod tests {
         Python::with_gil(|py| {
             let array: PyObject = [1, 2].into_py(py);
             let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
-            assert_eq!(1, list.get_item(0).unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, list.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list[1].extract::<i32>().unwrap());
         });
     }
 
