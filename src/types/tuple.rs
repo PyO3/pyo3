@@ -72,7 +72,22 @@ impl PyTuple {
         }
     }
 
-    #[deprecated(since = "0.15.0", note = "use tuple.get_slice(low, tuple.len()) instead")]
+    #[deprecated(since = "0.15.0", note = "use self.get_slice instead")]
+    /// Takes the slice `self[low:high]` and returns it as a new tuple.
+    ///
+    /// Indices must be nonnegative, and out-of-range indices are clipped to
+    /// `self.len()`.
+    pub fn slice(&self, low: isize, high: isize) -> &PyTuple {
+        unsafe {
+            self.py()
+                .from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
+        }
+    }
+
+    #[deprecated(
+        since = "0.15.0",
+        note = "use tuple.get_slice(low, tuple.len()) instead"
+    )]
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
     pub fn split_from(&self, low: usize) -> &PyTuple {
         unsafe {
