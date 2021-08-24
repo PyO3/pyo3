@@ -62,7 +62,7 @@ impl PyTuple {
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
-    pub fn slice(&self, low: usize, high: usize) -> &PyTuple {
+    pub fn get_slice(&self, low: usize, high: usize) -> &PyTuple {
         unsafe {
             self.py().from_owned_ptr(ffi::PyTuple_GetSlice(
                 self.as_ptr(),
@@ -72,7 +72,7 @@ impl PyTuple {
         }
     }
 
-    #[deprecated(since = "0.15.0", note = "use tuple.slice(low, tuple.len()) instead")]
+    #[deprecated(since = "0.15.0", note = "use tuple.get_slice(low, tuple.len()) instead")]
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
     pub fn split_from(&self, low: usize) -> &PyTuple {
         unsafe {
@@ -383,9 +383,9 @@ mod tests {
     fn test_slice() {
         Python::with_gil(|py| {
             let tup = PyTuple::new(py, &[2, 3, 5, 7]);
-            let slice = tup.slice(1, 3);
+            let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
-            let slice = tup.slice(1, 7);
+            let slice = tup.get_slice(1, 7);
             assert_eq!(3, slice.len());
         });
     }

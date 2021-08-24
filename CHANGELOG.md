@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PySequence`'s `in_place_repeat` and `in_place_concat` now return the result instead of `()`, which is needed
   in case of immutable sequences. [#1803](https://github.com/PyO3/pyo3/pull/1803)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
+- `PyTuple`'s `slice` method is now called `get_slice` for consistency. [#](https://github.com/PyO3/pyo3/pull/)
 
 ## [0.14.3] - 2021-08-22
 

@@ -103,7 +103,7 @@ impl PyList {
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
     /// `self.len()`.
-    pub fn slice(&self, low: usize, high: usize) -> &PyList {
+    pub fn get_slice(&self, low: usize, high: usize) -> &PyList {
         unsafe {
             self.py().from_owned_ptr(ffi::PyList_GetSlice(
                 self.as_ptr(),
@@ -283,12 +283,12 @@ mod tests {
     }
 
     #[test]
-    fn test_slice() {
+    fn test_get_slice() {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[2, 3, 5, 7]);
-            let slice = list.slice(1, 3);
+            let slice = list.get_slice(1, 3);
             assert_eq!(2, slice.len());
-            let slice = list.slice(1, 7);
+            let slice = list.get_slice(1, 7);
             assert_eq!(3, slice.len());
         });
     }
