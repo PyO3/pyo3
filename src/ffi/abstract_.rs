@@ -251,9 +251,9 @@ extern "C" {
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Fast")]
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char) -> *mut PyObject;
-    // skipped PySequenc_Fast_GET_SIZE
-    // skipped PySequenc_Fast_GET_ITEM
-    // skipped PySequenc_Fast_GET_ITEMS
+    // skipped PySequence_Fast_GET_SIZE
+    // skipped PySequence_Fast_GET_ITEM
+    // skipped PySequence_Fast_GET_ITEMS
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Contains")]
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject) -> c_int;

@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Add `PyList::get_item_unchecked()` and `PyTuple::get_item_unchecked()` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
 - Add `PyAny::py()` as a convenience for `PyNativeType::py()`. [#1751](https://github.com/PyO3/pyo3/pull/1751)
-- Add implementation of `std::ops::Index` for `PyList`, `PyTuple` and `PySequence`. [#1825](https://github.com/PyO3/pyo3/pull/1825)
+- Add implementation of `std::ops::Index<usize>` for `PyList`, `PyTuple` and `PySequence`. [#1825](https://github.com/PyO3/pyo3/pull/1825)
+- Add range indexing implementations of `std::ops::Index` for `PyList`, `PyTuple` and `PySequence`. [#1829](https://github.com/PyO3/pyo3/pull/1829)
 
 ### Changed
 
@@ -20,11 +21,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PyList`, `PyTuple` and `PySequence`'s APIs now accepts only `usize` indices instead of `isize`.
   [#1733](https://github.com/PyO3/pyo3/pull/1733), [#1802](https://github.com/PyO3/pyo3/pull/1802),
   [#1803](https://github.com/PyO3/pyo3/pull/1803)
-- `PyList` and `PyTuple`'s `get_item` now return `PyResult<&PyAny>` instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
-- `PySequence`'s `in_place_repeat` and `in_place_concat` now return the result instead of `()`, which is needed
-  in case of immutable sequences. [#1803](https://github.com/PyO3/pyo3/pull/1803)
+- `PyList::get_item` and `PyTuple::get_item` now return `PyResult<&PyAny>` instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
+- `PySequence::in_place_repeat` and `PySequence::in_place_concat` now return `PyResult<&PySequence>` instead of `PyResult<()>`, which is needed in case of immutable sequences such as tuples. [#1803](https://github.com/PyO3/pyo3/pull/1803)
+- `PySequence::get_slice` now returns `PyResult<&PySequence>` instead of `PyResult<&PyAny>`. [#1829](https://github.com/PyO3/pyo3/pull/1829)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
-- Deprecate `PyTuple::slice`, new method `get_slice` added with proper index types. [#1828](https://github.com/PyO3/pyo3/pull/1828)
+- Deprecate `PyTuple::slice`, new method `PyTuple::get_slice` added with `usize` indices. [#1828](https://github.com/PyO3/pyo3/pull/1828)
 
 ## [0.14.3] - 2021-08-22
 

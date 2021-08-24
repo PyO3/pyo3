@@ -21,6 +21,18 @@ Note that *slice* indices (accepted by `PySequence::get_slice` and other) still
 inherit the Python behavior of clamping the indices to the actual length, and
 not panicking/returning an error on out of range indices.
 
+An additional advantage of using Rust's indexing conventions for these types is
+that these types can now also support Rust's indexing operators as part of a
+consistent API:
+
+```rust
+use pyo3::{Python, types::PyList};
+
+Python::with_gil(|py| {
+    let list = PyList::new(py, &[1, 2, 3]);
+    assert_eq!(list[0..2].to_string(), "[1, 2]");
+});
+```
 
 ## from 0.13.* to 0.14
 
