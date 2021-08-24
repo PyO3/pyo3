@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Change `PyErr::fetch()` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
-- `PyList`, `PyTuple` and `PySequence`'s `get_item` now accepts only `usize` indices instead of `isize`. [#1733](https://github.com/PyO3/pyo3/pull/1733)
-- `PyList` and `PyTuple`'s `get_item` now return `PyResult<&PyAny> instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
+- `PyList`, `PyTuple` and `PySequence`'s APIs now accepts only `usize` indices instead of `isize`.
+  [#1733](https://github.com/PyO3/pyo3/pull/1733), [#1802](https://github.com/PyO3/pyo3/pull/1802),
+  [#1803](https://github.com/PyO3/pyo3/pull/1803)
+- `PyList` and `PyTuple`'s `get_item` now return `PyResult<&PyAny>` instead of panicking. [#1733](https://github.com/PyO3/pyo3/pull/1733)
+- `PySequence`'s `in_place_repeat` and `in_place_concat` now return the result instead of `()`, which is needed
+  in case of immutable sequences. [#1803](https://github.com/PyO3/pyo3/pull/1803)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
 
 ## [0.14.3] - 2021-08-22

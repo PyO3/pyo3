@@ -40,7 +40,7 @@ impl Foo {
     }
 
     #[classattr]
-    fn foo() -> Foo {
+    fn a_foo() -> Foo {
         Foo { x: 1 }
     }
 }
@@ -54,7 +54,7 @@ fn class_attributes() {
     py_assert!(py, foo_obj, "foo_obj.RENAMED_CONST == 'foobar_2'");
     py_assert!(py, foo_obj, "foo_obj.a == 5");
     py_assert!(py, foo_obj, "foo_obj.B == 'bar'");
-    py_assert!(py, foo_obj, "foo_obj.foo.x == 1");
+    py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
 }
 
 // Ignored because heap types are not immutable:
@@ -71,7 +71,7 @@ fn class_attributes_are_immutable() {
 #[pymethods]
 impl Bar {
     #[classattr]
-    fn foo() -> Foo {
+    fn a_foo() -> Foo {
         Foo { x: 3 }
     }
 }
@@ -83,7 +83,7 @@ fn recursive_class_attributes() {
 
     let foo_obj = py.get_type::<Foo>();
     let bar_obj = py.get_type::<Bar>();
-    py_assert!(py, foo_obj, "foo_obj.foo.x == 1");
+    py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
     py_assert!(py, foo_obj, "foo_obj.bar.x == 2");
-    py_assert!(py, bar_obj, "bar_obj.foo.x == 3");
+    py_assert!(py, bar_obj, "bar_obj.a_foo.x == 3");
 }
