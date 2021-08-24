@@ -3,6 +3,25 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.14.* to 0.15
+
+### Changes in sequence indexing
+
+For all types that take sequence indices (`PyList`, `PyTuple` and `PySequence`),
+the API has been made consistent to only take `usize` indices, for consistency
+with Rust's indexing conventions.  Negative indices, which were only
+sporadically supported even in APIs that took `isize`, now aren't supported
+anywhere.
+
+Further, the `get_item` methods now always return a `PyResult` instead of
+panicking on invalid indices.  The `Index` trait has been implemented instead,
+and provides the same panic behavior as on Rust vectors.
+
+Note that *slice* indices (accepted by `PySequence::get_slice` and other) still
+inherit the Python behavior of clamping the indices to the actual length, and
+not panicking/returning an error on out of range indices.
+
+
 ## from 0.13.* to 0.14
 
 ### `auto-initialize` feature is now opt-in

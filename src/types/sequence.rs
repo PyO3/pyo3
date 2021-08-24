@@ -6,6 +6,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
+use std::ops::Index;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -268,6 +269,16 @@ impl PySequence {
     }
 }
 
+impl Index<usize> for PySequence {
+    type Output = PyAny;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get_item(index).unwrap_or_else(|_| {
+            panic!("index {} out of range for sequence", index);
+        })
+    }
+}
+
 impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
@@ -431,23 +442,46 @@ mod tests {
     }
 
     #[test]
+    fn test_seq_index_trait() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
+            assert_eq!(1, seq[1].extract::<i32>().unwrap());
+            assert_eq!(2, seq[2].extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_seq_index_trait_panic() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let _ = &seq[7];
+        });
+    }
+
+    #[test]
     fn test_seq_del_item() {
         Python::with_gil(|py| {
             let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             assert!(seq.del_item(10).is_err());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(3, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(5, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
-            assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+            assert_eq!(8, seq[0].extract::<i32>().unwrap());
             assert!(seq.del_item(0).is_ok());
             assert_eq!(0, seq.len().unwrap());
             assert!(seq.del_item(0).is_err());
@@ -460,9 +494,9 @@ mod tests {
             let v: Vec<i32> = vec![1, 2];
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
-            assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(2, seq[1].extract::<i32>().unwrap());
             assert!(seq.set_item(1, 10).is_ok());
-            assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+            assert_eq!(10, seq[1].extract::<i32>().unwrap());
         });
     }
 
@@ -475,7 +509,7 @@ mod tests {
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             assert!(seq.set_item(1, &obj).is_ok());
-            assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
+            assert!(seq[1].as_ptr() == obj.as_ptr());
         });
 
         Python::with_gil(|py| {
