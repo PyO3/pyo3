@@ -8,6 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
+use std::ops::Index;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -173,6 +174,20 @@ impl PyList {
     /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     pub fn reverse(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
+    }
+}
+
+impl Index<usize> for PyList {
+    type Output = PyAny;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get_item(index).unwrap_or_else(|_| {
+            panic!(
+                "index {} out of range for list of length {}",
+                index,
+                self.len()
+            );
+        })
     }
 }
 
@@ -508,6 +523,25 @@ mod tests {
             let list = PyList::new(py, &[2, 3, 5, 7]);
             let obj = unsafe { list.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn test_list_index_trait() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert_eq!(3, list[1].extract::<i32>().unwrap());
+            assert_eq!(5, list[2].extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_list_index_trait_panic() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            let _ = &list[7];
         });
     }
 }

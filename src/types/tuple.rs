@@ -6,6 +6,7 @@ use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
     PyResult, PyTryFrom, Python, ToPyObject,
 };
+use std::ops::Index;
 
 /// Represents a Python `tuple` object.
 ///
@@ -136,6 +137,20 @@ impl PyTuple {
             index: 0,
             length: self.len(),
         }
+    }
+}
+
+impl Index<usize> for PyTuple {
+    type Output = PyAny;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get_item(index).unwrap_or_else(|_| {
+            panic!(
+                "index {} out of range for tuple of length {}",
+                index,
+                self.len()
+            );
+        })
     }
 }
 
@@ -535,6 +550,27 @@ mod tests {
             let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 1);
+        });
+    }
+
+    #[test]
+    fn test_tuple_index_trait() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(1, tuple[0].extract::<i32>().unwrap());
+            assert_eq!(2, tuple[1].extract::<i32>().unwrap());
+            assert_eq!(3, tuple[2].extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_tuple_index_trait_panic() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let _ = &tuple[7];
         });
     }
 }

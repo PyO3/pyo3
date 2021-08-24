@@ -6,6 +6,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
+use std::ops::Index;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -268,6 +269,16 @@ impl PySequence {
     }
 }
 
+impl Index<usize> for PySequence {
+    type Output = PyAny;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get_item(index).unwrap_or_else(|_| {
+            panic!("index {} out of range for sequence", index);
+        })
+    }
+}
+
 impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
@@ -427,6 +438,29 @@ mod tests {
             assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
             assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
             assert!(seq.get_item(10).is_err());
+        });
+    }
+
+    #[test]
+    fn test_seq_index_trait() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(1, seq[0].extract::<i32>().unwrap());
+            assert_eq!(1, seq[1].extract::<i32>().unwrap());
+            assert_eq!(2, seq[2].extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_seq_index_trait_panic() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let _ = &seq[7];
         });
     }
 
