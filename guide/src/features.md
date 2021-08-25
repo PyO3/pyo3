@@ -69,17 +69,29 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 - `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
 - `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
 
+## Optional Dependencies
+
+These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.
+
+### `hashbrown`
+
+Adds a dependency on [hashbrown](https://docs.rs/hashbrown) and enables conversions into its [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html) types.
+
+### `indexmap`
+
+Adds a dependency on [indexmap](https://docs.rs/indexmap) and enables conversions into its [`IndexMap`](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html) type.
+
 ### `num-bigint`
 
-This feature adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html) types.
+Adds a dependency on [num-bigint](https://docs.rs/num-bigint) and enables conversions into its [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUInt.html) types.
 
 ### `num-complex`
 
-This feature adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conversions into its [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
+Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conversions into its [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 
 ### `serde`
 
-The `serde` feature enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
+Enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust
