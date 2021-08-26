@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `PySequence::get_slice` now returns `PyResult<&PySequence>` instead of `PyResult<&PyAny>`. [#1829](https://github.com/PyO3/pyo3/pull/1829)
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
 - Deprecate `PyTuple::slice`, new method `PyTuple::get_slice` added with `usize` indices. [#1828](https://github.com/PyO3/pyo3/pull/1828)
+- Mark `PyString::data` as `unsafe` and disable it and some supporting PyUnicode FFI APIs (which depend on a C bitfield) on big-endian targets. [#1834](https://github.com/PyO3/pyo3/pull/1834)
 
 ## [0.14.3] - 2021-08-22
 

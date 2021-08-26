@@ -17,8 +17,8 @@ use std::str;
 ///
 /// Python internally stores strings in various representations. This enumeration
 /// represents those variations.
-#[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
+#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PyStringData<'a> {
     /// UCS1 representation.
@@ -31,7 +31,7 @@ pub enum PyStringData<'a> {
     Ucs4(&'a [u32]),
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
 impl<'a> PyStringData<'a> {
     /// Obtain the raw bytes backing this instance as a [u8] slice.
     pub fn as_bytes(&self) -> &[u8] {
@@ -211,16 +211,28 @@ impl PyString {
 
     /// Obtains the raw data backing the Python string.
     ///
-    /// If the Python string object was created through legacy APIs, its internal
-    /// storage format will be canonicalized before data is returned.
-    #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
-    pub fn data(&self) -> PyResult<PyStringData<'_>> {
+    /// If the Python string object was created through legacy APIs, its internal storage format
+    /// will be canonicalized before data is returned.
+    ///
+    /// # Safety
+    ///
+    /// This function implementation relies on manually decoding a C bitfield. In practice, this
+    /// works well on common little-endian architectures such as x86_64, where the bitfield has a
+    /// common representation (even if it is not part of the C spec). The PyO3 CI tests this API on
+    /// x86_64 platforms.
+    ///
+    /// By using this API, you accept responsibility for testing that PyStringData behaves as
+    /// expected on the targets where you plan to distribute your software.
+    ///
+    /// For example, it is known not to work on big-endian platforms.
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
+    pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         let ptr = self.as_ptr();
 
         if cfg!(not(Py_3_12)) {
             #[allow(deprecated)]
-            let ready = unsafe { ffi::PyUnicode_READY(ptr) };
+            let ready = ffi::PyUnicode_READY(ptr);
             if ready != 0 {
                 // Exception was created on failure.
                 return Err(crate::PyErr::api_call_failed(self.py()));
@@ -230,20 +242,23 @@ impl PyString {
         // The string should be in its canonical form after calling `PyUnicode_READY()`.
         // And non-canonical form not possible after Python 3.12. So it should be safe
         // to call these APIs.
-        let length = unsafe { ffi::PyUnicode_GET_LENGTH(ptr) } as usize;
-        let raw_data = unsafe { ffi::PyUnicode_DATA(ptr) };
-        let kind = unsafe { ffi::PyUnicode_KIND(ptr) };
+        let length = ffi::PyUnicode_GET_LENGTH(ptr) as usize;
+        let raw_data = ffi::PyUnicode_DATA(ptr);
+        let kind = ffi::PyUnicode_KIND(ptr);
 
         match kind {
-            ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(unsafe {
-                std::slice::from_raw_parts(raw_data as *const u8, length)
-            })),
-            ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(unsafe {
-                std::slice::from_raw_parts(raw_data as *const u16, length)
-            })),
-            ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(unsafe {
-                std::slice::from_raw_parts(raw_data as *const u32, length)
-            })),
+            ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
+                raw_data as *const u8,
+                length,
+            ))),
+            ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
+                raw_data as *const u16,
+                length,
+            ))),
+            ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
+                raw_data as *const u32,
+                length,
+            ))),
             _ => unreachable!(),
         }
     }
@@ -465,11 +480,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs1() {
         Python::with_gil(|py| {
             let s = PyString::new(py, "hello, world");
-            let data = s.data().unwrap();
+            let data = unsafe { s.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs1(b"hello, world"));
             assert_eq!(data.to_string(py).unwrap(), Cow::Borrowed("hello, world"));
@@ -478,7 +493,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs1_invalid() {
         Python::with_gil(|py| {
             // 0xfe is not allowed in UTF-8.
@@ -492,7 +507,7 @@ mod tests {
             };
             assert!(!ptr.is_null());
             let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
-            let data = s.data().unwrap();
+            let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
             assert_eq!(err.ptype(py), PyUnicodeDecodeError::type_object(py));
@@ -504,12 +519,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
             let s = py.eval("'foo\\ud800'", None, None).unwrap();
             let py_string = s.cast_as::<PyString>().unwrap();
-            let data = py_string.data().unwrap();
+            let data = unsafe { py_string.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs2(&[102, 111, 111, 0xd800]));
             assert_eq!(
@@ -520,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs2_invalid() {
         Python::with_gil(|py| {
             // U+FF22 (valid) & U+d800 (never valid)
@@ -534,7 +549,7 @@ mod tests {
             };
             assert!(!ptr.is_null());
             let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
-            let data = s.data().unwrap();
+            let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert_eq!(err.ptype(py), PyUnicodeDecodeError::type_object(py));
@@ -546,12 +561,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
             let py_string = PyString::new(py, s);
-            let data = py_string.data().unwrap();
+            let data = unsafe { py_string.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs4(&[21704, 21704, 128008]));
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>(s.to_string()));
@@ -559,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     fn test_string_data_ucs4_invalid() {
         Python::with_gil(|py| {
             // U+20000 (valid) & U+d800 (never valid)
@@ -573,7 +588,7 @@ mod tests {
             };
             assert!(!ptr.is_null());
             let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
-            let data = s.data().unwrap();
+            let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert_eq!(err.ptype(py), PyUnicodeDecodeError::type_object(py));
