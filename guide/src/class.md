@@ -614,23 +614,67 @@ impl MyClass {
 To specify a custom `__call__` method for a custom class, the method needs to be annotated with
 the `#[call]` attribute. Arguments of the method are specified as for instance methods.
 
+The following pyclass is a basic decorator - its constructor takes a Python object
+as argument and calls that object when called.
+
 ```rust
 # use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-# #[pyclass]
-# struct MyClass {
-#     num: i32,
-#     debug: bool,
-# }
+# use pyo3::types::{PyDict, PyTuple};
+#
+#[pyclass(name = "counter")]
+struct PyCounter {
+    count: u64,
+    wraps: Py<PyAny>,
+}
+
 #[pymethods]
-impl MyClass {
+impl PyCounter {
+    #[new]
+    fn __new__(wraps: Py<PyAny>) -> Self {
+        PyCounter { count: 0, wraps }
+    }
+
     #[call]
-    #[args(args="*")]
-    fn __call__(&self, args: &PyTuple) -> PyResult<i32> {
-        println!("MyClass has been called");
-        Ok(self.num)
+    #[args(args = "*", kwargs = "**")]
+    fn __call__(
+        &mut self,
+        py: Python,
+        args: &PyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        self.count += 1;
+        let name = self.wraps.getattr(py, "__name__").unwrap();
+
+        println!("{} has been called {} time(s).", name, self.count);
+        self.wraps.call(py, args, kwargs)
     }
 }
+```
+
+Python code:
+
+```python
+@counter
+def say_hello():
+    print("hello")
+
+say_hello()
+say_hello()
+say_hello()
+say_hello()
+```
+
+Output:
+
+```text
+say_hello has been called 1 time(s).
+hello
+say_hello has been called 2 time(s).
+hello
+say_hello has been called 3 time(s).
+hello
+say_hello has been called 4 time(s).
+hello
 ```
 
 ## Method arguments
