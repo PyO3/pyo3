@@ -620,7 +620,6 @@ as argument and calls that object when called.
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, PyTuple};
-# use pyo3::PyNativeType;
 #
 #[pyclass(name = "counter")]
 struct PyCounter {
@@ -638,15 +637,16 @@ impl PyCounter {
     #[call]
     #[args(args = "*", kwargs = "**")]
     fn __call__(
-        mut slf: PyRefMut<Self>,
+        &mut self,
+        py: Python,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py<PyAny>> {
-        slf.count += 1;
-        let name = slf.wraps.getattr(args.py(), "__name__").unwrap();
+        self.count += 1;
+        let name = self.wraps.getattr(py, "__name__").unwrap();
 
-        println!("{} has been called {} time(s).", name, slf.count);
-        slf.wraps.call(args.py(), args, kwargs)
+        println!("{} has been called {} time(s).", name, self.count);
+        self.wraps.call(py, args, kwargs)
     }
 }
 ```
