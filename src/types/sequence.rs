@@ -6,7 +6,6 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
-use std::ops::Index;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -108,7 +107,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
-    pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PyAny> {
+    pub fn get_slice(&self, begin: usize, end: usize) -> PyResult<&PySequence> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
                 self.as_ptr(),
@@ -254,15 +253,18 @@ impl PySequence {
     }
 }
 
-impl Index<usize> for PySequence {
-    type Output = PyAny;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.get_item(index).unwrap_or_else(|_| {
-            panic!("index {} out of range for sequence", index);
-        })
-    }
+#[inline]
+fn sequence_len(seq: &PySequence) -> usize {
+    seq.len().expect("failed to get sequence length")
 }
+
+#[inline]
+fn sequence_slice(seq: &PySequence, start: usize, end: usize) -> &PySequence {
+    seq.get_slice(start, end)
+        .expect("sequence slice operation failed")
+}
+
+index_impls!(PySequence, "sequence", sequence_len, sequence_slice);
 
 impl<'a, T> FromPyObject<'a> for Vec<T>
 where
@@ -439,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic = "index 7 out of range for sequence"]
     fn test_seq_index_trait_panic() {
         Python::with_gil(|py| {
             let v: Vec<i32> = vec![1, 1, 2];
@@ -447,6 +449,68 @@ mod tests {
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             let _ = &seq[7];
         });
+    }
+
+    #[test]
+    fn test_seq_index_trait_ranges() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            assert_eq!(vec![1, 2], seq[1..3].extract::<Vec<i32>>().unwrap());
+            assert_eq!(Vec::<i32>::new(), seq[3..3].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 2], seq[1..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(Vec::<i32>::new(), seq[3..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 1, 2], seq[..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 2], seq[1..=2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 1], seq[..2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 1], seq[..=1].extract::<Vec<i32>>().unwrap());
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 5 out of range for sequence of length 3"]
+    fn test_seq_index_trait_range_panic_start() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            seq[5..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range end index 10 out of range for sequence of length 3"]
+    fn test_seq_index_trait_range_panic_end() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            seq[1..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "slice index starts at 2 but ends at 1"]
+    fn test_seq_index_trait_range_panic_wrong_order() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            #[allow(clippy::reversed_empty_ranges)]
+            seq[2..1].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 8 out of range for sequence of length 3"]
+    fn test_seq_index_trait_range_from_panic() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            seq[8..].extract::<Vec<i32>>().unwrap();
+        })
     }
 
     #[test]

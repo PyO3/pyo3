@@ -58,3 +58,146 @@ pub(crate) fn extract_cstr_or_leak_cstring(
 pub(crate) fn get_ssize_index(index: usize) -> Py_ssize_t {
     index.min(PY_SSIZE_T_MAX as usize) as Py_ssize_t
 }
+
+/// Implementations used for slice indexing PySequence, PyTuple, and PyList
+macro_rules! index_impls {
+    (
+        $ty:ty,
+        $ty_name:literal,
+        $len:expr,
+        $get_slice:expr $(,)?
+    ) => {
+        impl std::ops::Index<usize> for $ty {
+            // Always PyAny output (even if the slice operation returns something else)
+            type Output = PyAny;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(&self, index: usize) -> &Self::Output {
+                self.get_item(index).unwrap_or_else(|_| {
+                    crate::internal_tricks::index_len_fail(index, $ty_name, $len(self))
+                })
+            }
+        }
+
+        impl std::ops::Index<std::ops::Range<usize>> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(
+                &self,
+                std::ops::Range { start, end }: std::ops::Range<usize>,
+            ) -> &Self::Output {
+                let len = $len(self);
+                if start > len {
+                    crate::internal_tricks::slice_start_index_len_fail(start, $ty_name, len)
+                } else if end > len {
+                    crate::internal_tricks::slice_end_index_len_fail(end, $ty_name, len)
+                } else if start > end {
+                    crate::internal_tricks::slice_index_order_fail(start, end)
+                } else {
+                    $get_slice(self, start, end)
+                }
+            }
+        }
+
+        impl std::ops::Index<std::ops::RangeFrom<usize>> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(
+                &self,
+                std::ops::RangeFrom { start }: std::ops::RangeFrom<usize>,
+            ) -> &Self::Output {
+                let len = $len(self);
+                if start > len {
+                    crate::internal_tricks::slice_start_index_len_fail(start, $ty_name, len)
+                } else {
+                    $get_slice(self, start, len)
+                }
+            }
+        }
+
+        impl std::ops::Index<std::ops::RangeFull> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(&self, _: std::ops::RangeFull) -> &Self::Output {
+                let len = $len(self);
+                $get_slice(self, 0, len)
+            }
+        }
+
+        impl std::ops::Index<std::ops::RangeInclusive<usize>> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(&self, range: std::ops::RangeInclusive<usize>) -> &Self::Output {
+                let exclusive_end = range
+                    .end()
+                    .checked_add(1)
+                    .expect("range end exceeds Python limit");
+                &self[*range.start()..exclusive_end]
+            }
+        }
+
+        impl std::ops::Index<std::ops::RangeTo<usize>> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(&self, std::ops::RangeTo { end }: std::ops::RangeTo<usize>) -> &Self::Output {
+                &self[0..end]
+            }
+        }
+
+        impl std::ops::Index<std::ops::RangeToInclusive<usize>> for $ty {
+            type Output = $ty;
+
+            #[cfg_attr(track_caller, track_caller)]
+            fn index(
+                &self,
+                std::ops::RangeToInclusive { end }: std::ops::RangeToInclusive<usize>,
+            ) -> &Self::Output {
+                &self[0..=end]
+            }
+        }
+    };
+}
+
+// these error messages are shamelessly "borrowed" from std.
+
+#[inline(never)]
+#[cold]
+#[cfg_attr(track_caller, track_caller)]
+pub(crate) fn index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
+    panic!(
+        "index {} out of range for {} of length {}",
+        index, ty_name, len
+    );
+}
+
+#[inline(never)]
+#[cold]
+#[cfg_attr(track_caller, track_caller)]
+pub(crate) fn slice_start_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
+    panic!(
+        "range start index {} out of range for {} of length {}",
+        index, ty_name, len
+    );
+}
+
+#[inline(never)]
+#[cold]
+#[cfg_attr(track_caller, track_caller)]
+pub(crate) fn slice_end_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
+    panic!(
+        "range end index {} out of range for {} of length {}",
+        index, ty_name, len
+    );
+}
+
+#[inline(never)]
+#[cold]
+#[cfg_attr(track_caller, track_caller)]
+pub(crate) fn slice_index_order_fail(index: usize, end: usize) -> ! {
+    panic!("slice index starts at {} but ends at {}", index, end);
+}

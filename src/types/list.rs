@@ -8,7 +8,6 @@ use crate::internal_tricks::get_ssize_index;
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
 };
-use std::ops::Index;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -177,19 +176,7 @@ impl PyList {
     }
 }
 
-impl Index<usize> for PyList {
-    type Output = PyAny;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.get_item(index).unwrap_or_else(|_| {
-            panic!(
-                "index {} out of range for list of length {}",
-                index,
-                self.len()
-            );
-        })
-    }
-}
+index_impls!(PyList, "list", PyList::len, PyList::get_slice);
 
 /// Used by `PyList::iter()`.
 pub struct PyListIterator<'a> {
@@ -543,5 +530,57 @@ mod tests {
             let list = PyList::new(py, &[2, 3, 5]);
             let _ = &list[7];
         });
+    }
+
+    #[test]
+    fn test_list_index_trait_ranges() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            assert_eq!(vec![3, 5], list[1..3].extract::<Vec<i32>>().unwrap());
+            assert_eq!(Vec::<i32>::new(), list[3..3].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![3, 5], list[1..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(Vec::<i32>::new(), list[3..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![2, 3, 5], list[..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![3, 5], list[1..=2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![2, 3], list[..2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![2, 3], list[..=1].extract::<Vec<i32>>().unwrap());
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 5 out of range for list of length 3"]
+    fn test_list_index_trait_range_panic_start() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            list[5..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range end index 10 out of range for list of length 3"]
+    fn test_list_index_trait_range_panic_end() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            list[1..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "slice index starts at 2 but ends at 1"]
+    fn test_list_index_trait_range_panic_wrong_order() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            #[allow(clippy::reversed_empty_ranges)]
+            list[2..1].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 8 out of range for list of length 3"]
+    fn test_list_index_trait_range_from_panic() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[2, 3, 5]);
+            list[8..].extract::<Vec<i32>>().unwrap();
+        })
     }
 }

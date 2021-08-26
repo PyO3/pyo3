@@ -6,7 +6,6 @@ use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
     PyResult, PyTryFrom, Python, ToPyObject,
 };
-use std::ops::Index;
 
 /// Represents a Python `tuple` object.
 ///
@@ -155,19 +154,7 @@ impl PyTuple {
     }
 }
 
-impl Index<usize> for PyTuple {
-    type Output = PyAny;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.get_item(index).unwrap_or_else(|_| {
-            panic!(
-                "index {} out of range for tuple of length {}",
-                index,
-                self.len()
-            );
-        })
-    }
-}
+index_impls!(PyTuple, "tuple", PyTuple::len, PyTuple::get_slice);
 
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
@@ -587,5 +574,65 @@ mod tests {
             let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             let _ = &tuple[7];
         });
+    }
+
+    #[test]
+    fn test_tuple_index_trait_ranges() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(vec![2, 3], tuple[1..3].extract::<Vec<i32>>().unwrap());
+            assert_eq!(
+                Vec::<i32>::new(),
+                tuple[3..3].extract::<Vec<i32>>().unwrap()
+            );
+            assert_eq!(vec![2, 3], tuple[1..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(Vec::<i32>::new(), tuple[3..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 2, 3], tuple[..].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![2, 3], tuple[1..=2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 2], tuple[..2].extract::<Vec<i32>>().unwrap());
+            assert_eq!(vec![1, 2], tuple[..=1].extract::<Vec<i32>>().unwrap());
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 5 out of range for tuple of length 3"]
+    fn test_tuple_index_trait_range_panic_start() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            tuple[5..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range end index 10 out of range for tuple of length 3"]
+    fn test_tuple_index_trait_range_panic_end() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            tuple[1..10].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "slice index starts at 2 but ends at 1"]
+    fn test_tuple_index_trait_range_panic_wrong_order() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            #[allow(clippy::reversed_empty_ranges)]
+            tuple[2..1].extract::<Vec<i32>>().unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic = "range start index 8 out of range for tuple of length 3"]
+    fn test_tuple_index_trait_range_from_panic() {
+        Python::with_gil(|py| {
+            let ob = (1, 2, 3).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            tuple[8..].extract::<Vec<i32>>().unwrap();
+        })
     }
 }
