@@ -38,7 +38,7 @@ Python::with_gil(|py| {
 
 ### `auto-initialize` feature is now opt-in
 
-For projects embedding Python in Rust, PyO3 no longer automatically initalizes a Python interpreter on the first call to `Python::with_gil` (or `Python::acquire_gil`) unless the [`auto-initalize` feature](features.md#auto-initalize) is enabled.
+For projects embedding Python in Rust, PyO3 no longer automatically initializes a Python interpreter on the first call to `Python::with_gil` (or `Python::acquire_gil`) unless the [`auto-initialize` feature](features.md#auto-initialize) is enabled.
 
 ### New `multiple-pymethods` feature
 
@@ -108,7 +108,7 @@ The largest of these is that all types created from PyO3 are what CPython calls 
 ### `PyErr` has been reworked
 
 In PyO3 `0.12` the `PyErr` type has been re-implemented to be significantly more compatible with
-the standard Rust error handling ecosystem. Specificially `PyErr` now implements
+the standard Rust error handling ecosystem. Specifically `PyErr` now implements
 `Error + Send + Sync`, which are the standard traits used for error types.
 
 While this has necessitated the removal of a number of APIs, the resulting `PyErr` type should now
@@ -126,7 +126,7 @@ Similarly, any types which implemented `PyErrArguments` will now need to be `Sen
 #### `PyErr`'s contents are now private
 
 It is no longer possible to access the fields `.ptype`, `.pvalue` and `.ptraceback` of a `PyErr`.
-You should instead now use the new methods `PyErr::ptype()`, `PyErr::pvalue()` and `PyErr::ptraceback()`.
+You should instead now use the new methods `PyErr::ptype`, `PyErr::pvalue` and `PyErr::ptraceback`.
 
 #### `PyErrValue` and `PyErr::from_value` have been removed
 
