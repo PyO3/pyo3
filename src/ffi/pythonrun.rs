@@ -1,7 +1,7 @@
 use crate::ffi::object::*;
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 use libc::FILE;
-#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+#[cfg(any(Py_LIMITED_API, not(Py_3_10)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 
