@@ -105,6 +105,7 @@ extern "C" {
         arg4: *mut PyObject,
         arg5: *mut PyCompilerFlags,
     ) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyRun_FileExFlags(
         fp: *mut FILE,
         filename: *const c_char,
@@ -156,24 +157,34 @@ pub unsafe fn Py_CompileStringFlags(
 // skipped _Py_SourceAsString
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyRun_String")]
     pub fn PyRun_String(
         string: *const c_char,
         s: c_int,
         g: *mut PyObject,
         l: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyRun_AnyFile(fp: *mut FILE, name: *const c_char) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_AnyFileEx(fp: *mut FILE, name: *const c_char, closeit: c_int) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_AnyFileFlags(
         arg1: *mut FILE,
         arg2: *const c_char,
         arg3: *mut PyCompilerFlags,
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyRun_SimpleString")]
     pub fn PyRun_SimpleString(s: *const c_char) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_SimpleFile(f: *mut FILE, p: *const c_char) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_SimpleFileEx(f: *mut FILE, p: *const c_char, c: c_int) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_InteractiveOne(f: *mut FILE, p: *const c_char) -> c_int;
+    #[cfg(not(PyPy))]
     pub fn PyRun_InteractiveLoop(f: *mut FILE, p: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyRun_File")]
     pub fn PyRun_File(
         fp: *mut FILE,
         p: *const c_char,
@@ -181,6 +192,7 @@ extern "C" {
         g: *mut PyObject,
         l: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyRun_FileEx(
         fp: *mut FILE,
         p: *const c_char,
@@ -189,6 +201,7 @@ extern "C" {
         l: *mut PyObject,
         c: c_int,
     ) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyRun_FileFlags(
         fp: *mut FILE,
         p: *const c_char,

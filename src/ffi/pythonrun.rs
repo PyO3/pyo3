@@ -59,13 +59,13 @@ pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int
 }
 
 extern "C" {
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn Py_SymtableString(
         str: *const c_char,
         filename: *const c_char,
         start: c_int,
     ) -> *mut symtable;
-    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+    #[cfg(not(any(Py_LIMITED_API, Py_3_10, PyPy)))]
     pub fn Py_SymtableStringObject(
         str: *const c_char,
         filename: *mut PyObject,
