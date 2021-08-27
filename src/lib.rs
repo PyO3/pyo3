@@ -358,11 +358,13 @@ pub mod proc_macro {
 #[macro_export]
 macro_rules! wrap_pyfunction {
     ($function_name: ident) => {{
-        &|py| pyo3::paste::expr! { [<__pyo3_get_function_ $function_name>] }(py)
+        &|py| $crate::paste::expr! { [<__pyo3_get_function_ $function_name>] }(py)
     }};
 
     ($function_name: ident, $arg: expr) => {
-        pyo3::wrap_pyfunction!($function_name)(pyo3::derive_utils::PyFunctionArguments::from($arg))
+        $crate::wrap_pyfunction!($function_name)(
+            <$crate::derive_utils::PyFunctionArguments as ::std::convert::From<_>>::from($arg),
+        )
     };
 }
 
@@ -372,8 +374,8 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
-        pyo3::paste::expr! {
-            &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
+        $crate::paste::expr! {
+            &|py| unsafe { $crate::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
         }
     }};
 }
@@ -479,14 +481,15 @@ macro_rules! py_run_impl {
         $crate::py_run_impl!($py, *d, $code)
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        if let Err(e) = $py.run($code, None, Some($dict)) {
+        use ::std::option::Option::*;
+        if let ::std::result::Result::Err(e) = $py.run($code, None, Some($dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
             $py.run("import sys; sys.stderr.flush()", None, None)
                 .unwrap();
-            panic!("{}", $code)
+            ::std::panic!("{}", $code)
         }
     }};
 }
