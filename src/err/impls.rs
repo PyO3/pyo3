@@ -18,6 +18,8 @@ impl std::convert::From<io::Error> for PyErr {
             io::ErrorKind::ConnectionReset => exceptions::PyConnectionResetError::new_err(err),
             io::ErrorKind::Interrupted => exceptions::PyInterruptedError::new_err(err),
             io::ErrorKind::NotFound => exceptions::PyFileNotFoundError::new_err(err),
+            io::ErrorKind::PermissionDenied => exceptions::PyPermissionError::new_err(err),
+            io::ErrorKind::AlreadyExists => exceptions::PyFileExistsError::new_err(err),
             io::ErrorKind::WouldBlock => exceptions::PyBlockingIOError::new_err(err),
             io::ErrorKind::TimedOut => exceptions::PyTimeoutError::new_err(err),
             _ => exceptions::PyOSError::new_err(err),
@@ -108,6 +110,8 @@ mod tests {
         check_err(io::ErrorKind::ConnectionReset, "ConnectionResetError");
         check_err(io::ErrorKind::Interrupted, "InterruptedError");
         check_err(io::ErrorKind::NotFound, "FileNotFoundError");
+        check_err(io::ErrorKind::PermissionDenied, "PermissionError");
+        check_err(io::ErrorKind::AlreadyExists, "FileExistsError");
         check_err(io::ErrorKind::WouldBlock, "BlockingIOError");
         check_err(io::ErrorKind::TimedOut, "TimeoutError");
     }
