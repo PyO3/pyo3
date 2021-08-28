@@ -6,7 +6,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.14.4] - 2021-08-29
 
 ### Changed
 
@@ -902,7 +902,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.3...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.4...HEAD
+[0.14.4]: https://github.com/pyo3/pyo3/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pyo3/pyo3/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pyo3/pyo3/compare/v0.14.0...v0.14.1
