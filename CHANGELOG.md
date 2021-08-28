@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate `PyTuple::split_from`. [#1804](https://github.com/PyO3/pyo3/pull/1804)
 - Deprecate `PyTuple::slice`, new method `PyTuple::get_slice` added with `usize` indices. [#1828](https://github.com/PyO3/pyo3/pull/1828)
 - Mark `PyString::data` as `unsafe` and disable it and some supporting PyUnicode FFI APIs (which depend on a C bitfield) on big-endian targets. [#1834](https://github.com/PyO3/pyo3/pull/1834)
+- Deprecate FFI definitions `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags` when building for Python 3.9. [#1830](https://github.com/PyO3/pyo3/pull/1830)
+- Mark FFI definitions removed in Python 3.10 `PyParser_ASTFromString`, `PyParser_ASTFromStringObject`, `PyParser_ASTFromFile`, `PyParser_ASTFromFileObject`, `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags`, `PyParser_SimpleParseString`, `PyParser_SimpleParseFile`, `Py_SymtableString`, and `Py_SymtableStringObject`. [#1830](https://github.com/PyO3/pyo3/pull/1830)
+
 
 ## [0.14.3] - 2021-08-22
 
