@@ -26,6 +26,43 @@ pub struct Bar {
     c: ::std::option::Option<::pyo3::Py<Foo2>>,
 }
 
+#[::pyo3::proc_macro::pymethods]
+impl Bar {
+    #[args(x = "1", "*", _z = "2")]
+    fn test(&self, _y: &Bar, _z: i32) {}
+    #[staticmethod]
+    fn staticmethod() {}
+    #[classmethod]
+    fn clsmethod(_: &::pyo3::types::PyType) {}
+    #[call]
+    #[args(args = "*", kwds = "**")]
+    fn __call__(
+        &self,
+        _args: &::pyo3::types::PyTuple,
+        _kwds: ::std::option::Option<&::pyo3::types::PyDict>,
+    ) -> ::pyo3::PyResult<i32> {
+        ::std::unimplemented!()
+    }
+    #[new]
+    fn new(a: u8) -> Self {
+        Bar {
+            a,
+            b: Foo,
+            c: ::std::option::Option::None,
+        }
+    }
+    #[getter]
+    fn get(&self) -> i32 {
+        0
+    }
+    #[setter]
+    fn set(&self, _v: i32) {}
+    #[classattr]
+    fn class_attr() -> i32 {
+        0
+    }
+}
+
 #[::pyo3::proc_macro::pyproto]
 impl ::pyo3::class::gc::PyGCProtocol for Bar {
     fn __traverse__(
@@ -41,6 +78,19 @@ impl ::pyo3::class::gc::PyGCProtocol for Bar {
     fn __clear__(&mut self) {
         self.c = ::std::option::Option::None;
     }
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[::pyo3::proc_macro::pyproto]
+impl ::pyo3::class::PyBufferProtocol for Bar {
+    fn bf_getbuffer(
+        _s: ::pyo3::PyRefMut<Self>,
+        _v: *mut ::pyo3::ffi::Py_buffer,
+        _f: ::std::os::raw::c_int,
+    ) -> ::pyo3::PyResult<()> {
+        ::std::unimplemented!()
+    }
+    fn bf_releasebuffer(_s: ::pyo3::PyRefMut<Self>, _v: *mut ::pyo3::ffi::Py_buffer) {}
 }
 
 #[::pyo3::proc_macro::pyfunction]

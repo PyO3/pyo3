@@ -143,7 +143,7 @@ impl SlotDef {
 
 pub const OBJECT: Proto = Proto {
     name: "Object",
-    module: "pyo3::class::basic",
+    module: "::pyo3::class::basic",
     methods: &[
         MethodProto::new("__getattr__", "PyObjectGetAttrProtocol")
             .args(&["Name"])
@@ -189,7 +189,7 @@ pub const OBJECT: Proto = Proto {
 
 pub const ASYNC: Proto = Proto {
     name: "Async",
-    module: "pyo3::class::pyasync",
+    module: "::pyo3::class::pyasync",
     methods: &[
         MethodProto::new("__await__", "PyAsyncAwaitProtocol").args(&["Receiver"]),
         MethodProto::new("__aiter__", "PyAsyncAiterProtocol").args(&["Receiver"]),
@@ -212,7 +212,7 @@ pub const ASYNC: Proto = Proto {
 
 pub const BUFFER: Proto = Proto {
     name: "Buffer",
-    module: "pyo3::class::buffer",
+    module: "::pyo3::class::buffer",
     methods: &[
         MethodProto::new("bf_getbuffer", "PyBufferGetBufferProtocol").has_self(),
         MethodProto::new("bf_releasebuffer", "PyBufferReleaseBufferProtocol").has_self(),
@@ -230,7 +230,7 @@ pub const BUFFER: Proto = Proto {
 
 pub const CONTEXT: Proto = Proto {
     name: "Context",
-    module: "pyo3::class::context",
+    module: "::pyo3::class::context",
     methods: &[
         MethodProto::new("__enter__", "PyContextEnterProtocol").has_self(),
         MethodProto::new("__exit__", "PyContextExitProtocol")
@@ -246,7 +246,7 @@ pub const CONTEXT: Proto = Proto {
 
 pub const GC: Proto = Proto {
     name: "GC",
-    module: "pyo3::class::gc",
+    module: "::pyo3::class::gc",
     methods: &[
         MethodProto::new("__traverse__", "PyGCTraverseProtocol")
             .has_self()
@@ -264,7 +264,7 @@ pub const GC: Proto = Proto {
 
 pub const DESCR: Proto = Proto {
     name: "Descr",
-    module: "pyo3::class::descr",
+    module: "::pyo3::class::descr",
     methods: &[
         MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Receiver", "Inst", "Owner"]),
         MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Receiver", "Inst", "Value"]),
@@ -287,7 +287,7 @@ pub const DESCR: Proto = Proto {
 
 pub const ITER: Proto = Proto {
     name: "Iter",
-    module: "pyo3::class::iter",
+    module: "::pyo3::class::iter",
     py_methods: &[],
     methods: &[
         MethodProto::new("__iter__", "PyIterIterProtocol").args(&["Receiver"]),
@@ -301,7 +301,7 @@ pub const ITER: Proto = Proto {
 
 pub const MAPPING: Proto = Proto {
     name: "Mapping",
-    module: "pyo3::class::mapping",
+    module: "::pyo3::class::mapping",
     methods: &[
         MethodProto::new("__len__", "PyMappingLenProtocol").has_self(),
         MethodProto::new("__getitem__", "PyMappingGetItemProtocol")
@@ -334,7 +334,7 @@ pub const MAPPING: Proto = Proto {
 
 pub const SEQ: Proto = Proto {
     name: "Sequence",
-    module: "pyo3::class::sequence",
+    module: "::pyo3::class::sequence",
     methods: &[
         MethodProto::new("__len__", "PySequenceLenProtocol").has_self(),
         MethodProto::new("__getitem__", "PySequenceGetItemProtocol")
@@ -391,7 +391,7 @@ pub const SEQ: Proto = Proto {
 
 pub const NUM: Proto = Proto {
     name: "Number",
-    module: "pyo3::class::number",
+    module: "::pyo3::class::number",
     methods: &[
         MethodProto::new("__add__", "PyNumberAddProtocol").args(&["Left", "Right"]),
         MethodProto::new("__sub__", "PyNumberSubProtocol").args(&["Left", "Right"]),
