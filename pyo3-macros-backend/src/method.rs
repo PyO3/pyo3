@@ -103,12 +103,12 @@ impl FnType {
             }
             FnType::FnClass => {
                 quote! {
-                    let _slf = pyo3::types::PyType::from_type_ptr(_py, _slf as *mut pyo3::ffi::PyTypeObject);
+                    let _slf = ::pyo3::types::PyType::from_type_ptr(_py, _slf as *mut ::pyo3::ffi::PyTypeObject);
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
+                    let _slf = _py.from_borrowed_ptr::<::pyo3::types::PyModule>(_slf);
                 }
             }
         }
@@ -455,17 +455,17 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
         let rust_call =
-            quote! { pyo3::callback::convert(#py, #rust_name(#self_arg #(#arg_names),*)) };
+            quote! { ::pyo3::callback::convert(#py, #rust_name(#self_arg #(#arg_names),*)) };
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                    ) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                    ) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
                             #rust_call
                         })
@@ -476,23 +476,24 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, true)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *const *mut pyo3::ffi::PyObject,
-                        _nargs: pyo3::ffi::Py_ssize_t,
-                        _kwnames: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *const *mut ::pyo3::ffi::PyObject,
+                        _nargs: ::pyo3::ffi::Py_ssize_t,
+                        _kwnames: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _kwnames: Option<&pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
+                            use ::std::option::Option;
+                            let _kwnames: Option<&::pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
                             // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
-                            let _args = _args as *const &pyo3::PyAny;
-                            let _kwargs = if let Some(kwnames) = _kwnames {
-                                std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
+                            let _args = _args as *const &::pyo3::PyAny;
+                            let _kwargs = if let Option::Some(kwnames) = _kwnames {
+                                ::std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
                             } else {
                                 &[]
                             };
-                            let _args = std::slice::from_raw_parts(_args, _nargs as usize);
+                            let _args = ::std::slice::from_raw_parts(_args, _nargs as usize);
 
                             #arg_convert_and_rust_call
                         })
@@ -503,15 +504,15 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                        _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                        _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                            let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                            let _args = #py.from_borrowed_ptr::<::pyo3::types::PyTuple>(_args);
+                            let _kwargs: ::std::option::Option<&::pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                             #arg_convert_and_rust_call
                         })
@@ -523,20 +524,20 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        subtype: *mut pyo3::ffi::PyTypeObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                        _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        subtype: *mut ::pyo3::ffi::PyTypeObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                        _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        use pyo3::callback::IntoPyCallbackOutput;
-                        pyo3::callback::handle_panic(|#py| {
-                            let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                            let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                        use ::pyo3::callback::IntoPyCallbackOutput;
+                        ::pyo3::callback::handle_panic(|#py| {
+                            let _args = #py.from_borrowed_ptr::<::pyo3::types::PyTuple>(_args);
+                            let _kwargs: ::std::option::Option<&::pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                             let result = #arg_convert_and_rust_call;
-                            let initializer: pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
+                            let initializer: ::pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
-                            Ok(cell as *mut pyo3::ffi::PyObject)
+                            Ok(cell as *mut ::pyo3::ffi::PyObject)
                         })
                     }
                 }
@@ -551,23 +552,23 @@ impl<'a> FnSpec<'a> {
         let doc = &self.doc;
         match self.convention {
             CallingConvention::Noargs => quote! {
-                pyo3::class::methods::PyMethodDef::noargs(
+                ::pyo3::class::methods::PyMethodDef::noargs(
                     #python_name,
-                    pyo3::class::methods::PyCFunction(#wrapper),
+                    ::pyo3::class::methods::PyCFunction(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
-                pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
+                ::pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
+                    ::pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
-                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                ::pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
+                    ::pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
                     #doc,
                 )
             },

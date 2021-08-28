@@ -42,3 +42,22 @@ impl ::pyo3::class::gc::PyGCProtocol for Bar {
         self.c = ::std::option::Option::None;
     }
 }
+
+#[::pyo3::proc_macro::pyfunction]
+fn do_something(x: i32) -> ::pyo3::PyResult<i32> {
+    ::std::result::Result::Ok(x)
+}
+
+#[::pyo3::proc_macro::pymodule]
+fn my_module(_py: ::pyo3::Python, m: &::pyo3::types::PyModule) -> ::pyo3::PyResult<()> {
+    m.add_function(::pyo3::wrap_pyfunction!(do_something, m)?)?;
+    ::std::result::Result::Ok(())
+}
+
+#[test]
+fn invoke_wrap_pyfunction() {
+    ::pyo3::Python::with_gil(|py| {
+        let func = ::pyo3::wrap_pyfunction!(do_something)(py).unwrap();
+        ::pyo3::py_run!(py, func, r#"func(5)"#);
+    });
+}
