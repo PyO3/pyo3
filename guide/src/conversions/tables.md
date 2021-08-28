@@ -35,6 +35,7 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.timedelta` | -                        | `&PyDelta`           |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
+| `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2], `indexmap::IndexMap<K, V>`[^3] | `&PyMapping` |
 | `typing.Iterator[Any]` | -                      | `&PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.html#deriving-a-hrefhttpsdocsrspyo3latestpyo3conversiontraitfrompyobjecthtmlfrompyobjecta-for-enums) | - |
 
