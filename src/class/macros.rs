@@ -60,8 +60,8 @@ macro_rules! py_binary_func {
     ($name:ident, $trait:ident, $class:ident :: $f:ident, $return:ty, $call:ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            slf: *mut ffi::PyObject,
-            arg: *mut ffi::PyObject,
+            slf: *mut $crate::ffi::PyObject,
+            arg: *mut $crate::ffi::PyObject,
         ) -> $return
         where
             T: for<'p> $trait<'p>,
@@ -85,8 +85,8 @@ macro_rules! py_binary_num_func {
     ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            lhs: *mut ffi::PyObject,
-            rhs: *mut ffi::PyObject,
+            lhs: *mut $crate::ffi::PyObject,
+            rhs: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
@@ -104,8 +104,8 @@ macro_rules! py_binary_reversed_num_func {
     ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            lhs: *mut ffi::PyObject,
-            rhs: *mut ffi::PyObject,
+            lhs: *mut $crate::ffi::PyObject,
+            rhs: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
@@ -124,8 +124,8 @@ macro_rules! py_binary_fallback_num_func {
     ($name:ident, $class:ident, $lop_trait: ident :: $lop: ident, $rop_trait: ident :: $rop: ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            lhs: *mut ffi::PyObject,
-            rhs: *mut ffi::PyObject,
+            lhs: *mut $crate::ffi::PyObject,
+            rhs: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $lop_trait<'p> + for<'p> $rop_trait<'p>,
@@ -153,8 +153,8 @@ macro_rules! py_binary_self_func {
     ($name:ident, $trait:ident, $class:ident :: $f:ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            slf: *mut ffi::PyObject,
-            arg: *mut ffi::PyObject,
+            slf: *mut $crate::ffi::PyObject,
+            arg: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
@@ -163,7 +163,7 @@ macro_rules! py_binary_self_func {
                 let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg);
                 call_operator_mut!(py, slf_, $f, arg).convert(py)?;
-                ffi::Py_INCREF(slf);
+                $crate::ffi::Py_INCREF(slf);
                 Ok::<_, $crate::err::PyErr>(slf)
             })
         }
@@ -178,7 +178,7 @@ macro_rules! py_ssizearg_func {
     ($name:ident, $trait:ident, $class:ident :: $f:ident, $call:ident) => {
         #[doc(hidden)]
         pub unsafe extern "C" fn $name<T>(
-            slf: *mut ffi::PyObject,
+            slf: *mut $crate::ffi::PyObject,
             arg: $crate::ffi::Py_ssize_t,
         ) -> *mut $crate::ffi::PyObject
         where
@@ -231,7 +231,7 @@ macro_rules! py_func_set {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> std::os::raw::c_int
+        ) -> ::std::os::raw::c_int
         where
             T: for<'p> $trait_name<'p>,
         {
@@ -260,7 +260,7 @@ macro_rules! py_func_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> std::os::raw::c_int
+        ) -> ::std::os::raw::c_int
         where
             T: for<'p> $trait_name<'p>,
         {
@@ -272,7 +272,7 @@ macro_rules! py_func_del {
                         .extract()?;
                     slf.try_borrow_mut()?.$fn_del(name).convert(py)
                 } else {
-                    Err(exceptions::PyNotImplementedError::new_err(
+                    Err($crate::exceptions::PyNotImplementedError::new_err(
                         "Subscript assignment not supported",
                     ))
                 }
@@ -288,7 +288,7 @@ macro_rules! py_func_set_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> std::os::raw::c_int
+        ) -> ::std::os::raw::c_int
         where
             T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {
@@ -313,7 +313,7 @@ macro_rules! extract_or_return_not_implemented {
             Ok(value) => value,
             Err(_) => {
                 let res = $crate::ffi::Py_NotImplemented();
-                ffi::Py_INCREF(res);
+                $crate::ffi::Py_INCREF(res);
                 return Ok(res);
             }
         }

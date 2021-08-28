@@ -4,7 +4,7 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::{exceptions, ffi, FromPyObject, PyClass, PyObject};
+use crate::{FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
