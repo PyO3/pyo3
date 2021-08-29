@@ -41,7 +41,7 @@ impl Bar {
         _args: &::pyo3::types::PyTuple,
         _kwds: ::std::option::Option<&::pyo3::types::PyDict>,
     ) -> ::pyo3::PyResult<i32> {
-        ::std::unimplemented!()
+        ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
     #[new]
     fn new(a: u8) -> Self {
@@ -88,7 +88,7 @@ impl ::pyo3::class::PyBufferProtocol for Bar {
         _v: *mut ::pyo3::ffi::Py_buffer,
         _f: ::std::os::raw::c_int,
     ) -> ::pyo3::PyResult<()> {
-        ::std::unimplemented!()
+        ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
     fn bf_releasebuffer(_s: ::pyo3::PyRefMut<Self>, _v: *mut ::pyo3::ffi::Py_buffer) {}
 }
