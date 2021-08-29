@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use syn::spanned::Spanned;
 
 use crate::attributes::TextSignatureAttribute;
@@ -54,59 +55,94 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
     None
 }
 
-// Returns a null-terminated syn::LitStr for use as a Python docstring.
+/// A syntax tree which evaluates to a null-terminated docstring for Python.
+///
+/// It's built as a `concat!` evaluation, so it's hard to do anything with this
+/// contents such as parse the string contents.
+#[derive(Clone)]
+pub struct PythonDoc(TokenStream);
+
+// TODO(#1782) use strip_prefix on Rust 1.45 or greater
+#[allow(clippy::manual_strip)]
+/// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string
+/// e.g. concat!("...", "\n", "\0")
 pub fn get_doc(
     attrs: &[syn::Attribute],
     text_signature: Option<(&syn::Ident, &TextSignatureAttribute)>,
-) -> syn::Result<syn::LitStr> {
-    let mut doc = String::new();
-    let mut span = Span::call_site();
+) -> PythonDoc {
+    let mut tokens = TokenStream::new();
+    let comma = syn::token::Comma(Span::call_site());
+    let newline = syn::LitStr::new("\n", Span::call_site());
 
-    if let Some((python_name, text_signature)) = text_signature {
-        // create special doc string lines to set `__text_signature__`
-        doc.push_str(&python_name.to_string());
-        span = text_signature.lit.span();
-        doc.push_str(&text_signature.lit.value());
-        doc.push_str("\n--\n\n");
-    }
+    syn::Ident::new("concat", Span::call_site()).to_tokens(&mut tokens);
+    syn::token::Bang(Span::call_site()).to_tokens(&mut tokens);
+    syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
+        if let Some((python_name, text_signature)) = text_signature {
+            // create special doc string lines to set `__text_signature__`
+            let signature_lines = format!(
+                "{}{}\n--\n\n",
+                python_name.to_string(),
+                text_signature.lit.value()
+            );
+            signature_lines.to_tokens(tokens);
+            comma.to_tokens(tokens);
+        }
 
-    let mut separator = "";
-    let mut first = true;
+        let mut first = true;
 
-    for attr in attrs.iter() {
-        if attr.path.is_ident("doc") {
-            if let Ok(DocArgs { _eq_token, lit_str }) = syn::parse2(attr.tokens.clone()) {
-                if first {
-                    first = false;
-                    span = lit_str.span();
+        for attr in attrs.iter() {
+            if attr.path.is_ident("doc") {
+                if let Ok(DocArgs {
+                    _eq_token,
+                    token_stream,
+                }) = syn::parse2(attr.tokens.clone())
+                {
+                    if !first {
+                        newline.to_tokens(tokens);
+                        comma.to_tokens(tokens);
+                    } else {
+                        first = false;
+                    }
+                    if let Ok(syn::Lit::Str(lit_str)) = syn::parse2(token_stream.clone()) {
+                        // Strip single left space from literal strings, if needed.
+                        // e.g. `/// Hello world` expands to #[doc = " Hello world"]
+                        let doc_line = lit_str.value();
+                        if doc_line.starts_with(' ') {
+                            syn::LitStr::new(&doc_line[1..], lit_str.span()).to_tokens(tokens)
+                        } else {
+                            lit_str.to_tokens(tokens)
+                        }
+                    } else {
+                        // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
+                        token_stream.to_tokens(tokens)
+                    }
+                    comma.to_tokens(tokens);
                 }
-                let d = lit_str.value();
-                doc.push_str(separator);
-                if d.starts_with(' ') {
-                    doc.push_str(&d[1..d.len()]);
-                } else {
-                    doc.push_str(&d);
-                };
-                separator = "\n";
             }
         }
+
+        syn::LitStr::new("\0", Span::call_site()).to_tokens(tokens);
+    });
+
+    PythonDoc(tokens)
+}
+
+impl quote::ToTokens for PythonDoc {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
-
-    doc.push('\0');
-
-    Ok(syn::LitStr::new(&doc, span))
 }
 
 struct DocArgs {
     _eq_token: syn::Token![=],
-    lit_str: syn::LitStr,
+    token_stream: TokenStream,
 }
 
 impl syn::parse::Parse for DocArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let this = Self {
             _eq_token: input.parse()?,
-            lit_str: input.parse()?,
+            token_stream: input.parse()?,
         };
         ensure_spanned!(input.is_empty(), input.span() => "expected end of doc attribute");
         Ok(this)

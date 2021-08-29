@@ -52,10 +52,7 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
         return err.to_compile_error().into();
     }
 
-    let doc = match get_doc(&ast.attrs, None) {
-        Ok(doc) => doc,
-        Err(err) => return err.to_compile_error().into(),
-    };
+    let doc = get_doc(&ast.attrs, None);
 
     let expanded = py_init(&ast.sig.ident, options, doc);
 

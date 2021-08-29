@@ -7,7 +7,7 @@ use crate::attributes::{
 use crate::deprecations::Deprecations;
 use crate::pyimpl::PyClassMethodsType;
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
-use crate::utils::{self, unwrap_group};
+use crate::utils::{self, unwrap_group, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -230,7 +230,7 @@ pub fn build_py_class(
             .text_signature
             .as_ref()
             .map(|attr| (get_class_python_name(&class.ident, args), attr)),
-    )?;
+    );
 
     ensure_spanned!(
         class.generics.params.is_empty(),
@@ -371,7 +371,7 @@ fn get_class_python_name<'a>(cls: &'a syn::Ident, attr: &'a PyClassArgs) -> &'a 
 fn impl_class(
     cls: &syn::Ident,
     attr: &PyClassArgs,
-    doc: syn::LitStr,
+    doc: PythonDoc,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
     methods_type: PyClassMethodsType,
     deprecations: Deprecations,
