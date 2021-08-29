@@ -91,7 +91,7 @@ pub fn impl_arg_params(
 
         if kwonly {
             keyword_only_parameters.push(quote! {
-                pyo3::derive_utils::KeywordOnlyParameterDescription {
+                ::pyo3::derive_utils::KeywordOnlyParameterDescription {
                     name: #name,
                     required: #required,
                 }
@@ -123,7 +123,7 @@ pub fn impl_arg_params(
     let (accept_args, accept_kwargs) = accept_args_kwargs(&spec.attrs);
 
     let cls_name = if let Some(cls) = self_ {
-        quote! { ::std::option::Option::Some(<#cls as pyo3::type_object::PyTypeInfo>::NAME) }
+        quote! { ::std::option::Option::Some(<#cls as ::pyo3::type_object::PyTypeInfo>::NAME) }
     } else {
         quote! { ::std::option::Option::None }
     };
@@ -236,12 +236,22 @@ fn impl_arg_param(
 
     let arg_value_or_default = match (spec.default_value(name), arg.optional.is_some()) {
         (Some(default), true) if default.to_string() != "None" => {
-            quote_arg_span! { #arg_value.map_or_else(|| Ok(Some(#default)), |_obj| #extract)? }
+            quote_arg_span! {
+                #arg_value.map_or_else(|| ::std::result::Result::Ok(::std::option::Option::Some(#default)),
+                                       |_obj| #extract)?
+            }
         }
         (Some(default), _) => {
-            quote_arg_span! { #arg_value.map_or_else(|| Ok(#default), |_obj| #extract)? }
+            quote_arg_span! {
+                #arg_value.map_or_else(|| ::std::result::Result::Ok(#default), |_obj| #extract)?
+            }
         }
-        (None, true) => quote_arg_span! { #arg_value.map_or(Ok(None), |_obj| #extract)? },
+        (None, true) => {
+            quote_arg_span! {
+                #arg_value.map_or(::std::result::Result::Ok(::std::option::Option::None),
+                                  |_obj| #extract)?
+            }
+        }
         (None, false) => {
             quote_arg_span! {
                 {
@@ -257,7 +267,7 @@ fn impl_arg_param(
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
             (
-                quote_arg_span! { Option<<#tref as pyo3::derive_utils::ExtractExt<'_>>::Target> },
+                quote_arg_span! { ::std::option::Option<<#tref as ::pyo3::derive_utils::ExtractExt<'_>>::Target> },
                 if mut_.is_some() {
                     quote_arg_span! { _tmp.as_deref_mut() }
                 } else {
@@ -267,7 +277,7 @@ fn impl_arg_param(
         } else {
             // Get &T from PyRef<T>
             (
-                quote_arg_span! { <#tref as pyo3::derive_utils::ExtractExt<'_>>::Target },
+                quote_arg_span! { <#tref as ::pyo3::derive_utils::ExtractExt<'_>>::Target },
                 quote_arg_span! { &#mut_ *_tmp },
             )
         };

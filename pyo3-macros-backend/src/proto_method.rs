@@ -95,7 +95,7 @@ pub(crate) fn impl_method_proto(
     };
 
     Ok(quote! {
-        impl<'p> ::#module::#proto<'p> for #cls {
+        impl<'p> #module::#proto<'p> for #cls {
             #(#impl_types)*
             #res_type_def
         }

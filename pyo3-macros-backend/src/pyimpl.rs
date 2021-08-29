@@ -94,13 +94,13 @@ fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
     quote! {
-        pyo3::class::PyMethodDefType::ClassAttribute({
-            pyo3::class::PyClassAttributeDef::new(
+        ::pyo3::class::PyMethodDefType::ClassAttribute({
+            ::pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                pyo3::class::methods::PyClassAttributeFactory({
-                    fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                ::pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: ::pyo3::Python<'_>) -> ::pyo3::PyObject {
                         #deprecations
-                        pyo3::IntoPy::into_py(#cls::#member, py)
+                        ::pyo3::IntoPy::into_py(#cls::#member, py)
                     }
                     __wrap
                 })
@@ -111,11 +111,11 @@ fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
 
 fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
     quote! {
-        impl pyo3::class::impl_::PyMethods<#ty>
-            for pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl ::pyo3::class::impl_::PyMethods<#ty>
+            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
+            fn py_methods(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
                 METHODS
             }
         }
@@ -128,10 +128,10 @@ fn submit_methods_inventory(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenS
     }
 
     quote! {
-        pyo3::inventory::submit! {
-            #![crate = pyo3] {
-                type Inventory = <#ty as pyo3::class::impl_::HasMethodsInventory>::Methods;
-                <Inventory as pyo3::class::impl_::PyMethodsInventory>::new(vec![#(#methods),*])
+        ::pyo3::inventory::submit! {
+            #![crate = ::pyo3] {
+                type Inventory = <#ty as ::pyo3::class::impl_::HasMethodsInventory>::Methods;
+                <Inventory as ::pyo3::class::impl_::PyMethodsInventory>::new(::std::vec![#(#methods),*])
             }
         }
     }

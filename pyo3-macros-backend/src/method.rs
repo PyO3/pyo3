@@ -484,11 +484,10 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            use ::std::option::Option;
-                            let _kwnames: Option<&::pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
+                            let _kwnames: ::std::option::Option<&::pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
                             // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
                             let _args = _args as *const &::pyo3::PyAny;
-                            let _kwargs = if let Option::Some(kwnames) = _kwnames {
+                            let _kwargs = if let ::std::option::Option::Some(kwnames) = _kwnames {
                                 ::std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
                             } else {
                                 &[]
@@ -537,7 +536,7 @@ impl<'a> FnSpec<'a> {
                             let result = #arg_convert_and_rust_call;
                             let initializer: ::pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
-                            Ok(cell as *mut ::pyo3::ffi::PyObject)
+                            ::std::result::Result::Ok(cell as *mut ::pyo3::ffi::PyObject)
                         })
                     }
                 }

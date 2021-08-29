@@ -144,13 +144,13 @@ fn impl_proto_methods(
             {
                 fn buffer_procs(
                     self
-                ) -> Option<&'static ::pyo3::class::impl_::PyBufferProcs> {
+                ) -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {
                     static PROCS: ::pyo3::class::impl_::PyBufferProcs
                         = ::pyo3::class::impl_::PyBufferProcs {
-                            bf_getbuffer: Some(pyo3::class::buffer::getbuffer::<#ty>),
-                            bf_releasebuffer: Some(pyo3::class::buffer::releasebuffer::<#ty>),
+                            bf_getbuffer: ::std::option::Option::Some(::pyo3::class::buffer::getbuffer::<#ty>),
+                            bf_releasebuffer: ::std::option::Option::Some(::pyo3::class::buffer::releasebuffer::<#ty>),
                         };
-                    Some(&PROCS)
+                    ::std::option::Option::Some(&PROCS)
                 }
             }
         });
@@ -164,7 +164,7 @@ fn impl_proto_methods(
             quote! {{
                 ::pyo3::ffi::PyType_Slot {
                     slot: ::pyo3::ffi::#slot,
-                    pfunc: ::#module::#slot_impl::<#ty> as _
+                    pfunc: #module::#slot_impl::<#ty> as _
                 }
             }}
         })

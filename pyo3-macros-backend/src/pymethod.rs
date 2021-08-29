@@ -36,12 +36,12 @@ pub fn gen_py_method(
         FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             &spec,
-            Some(quote!(pyo3::ffi::METH_CLASS)),
+            Some(quote!(::pyo3::ffi::METH_CLASS)),
         )?),
         FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             &spec,
-            Some(quote!(pyo3::ffi::METH_STATIC)),
+            Some(quote!(::pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
         FnType::FnNew => GeneratedPyMethod::New(impl_py_method_def_new(cls, &spec)?),
@@ -111,8 +111,8 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
         impl ::pyo3::class::impl_::PyClassNewImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-            fn new_impl(self) -> Option<pyo3::ffi::newfunc> {
-                Some({
+            fn new_impl(self) -> ::std::option::Option<::pyo3::ffi::newfunc> {
+                ::std::option::Option::Some({
                     #wrapper
                     #wrapper_ident
                 })
@@ -126,8 +126,8 @@ fn impl_py_method_def_call(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
         impl ::pyo3::class::impl_::PyClassCallImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-            fn call_impl(self) -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
-                Some({
+            fn call_impl(self) -> ::std::option::Option<::pyo3::ffi::PyCFunctionWithKeywords> {
+                ::std::option::Option::Some({
                     #wrapper
                     #wrapper_ident
                 })
