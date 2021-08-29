@@ -61,3 +61,6 @@ fn invoke_wrap_pyfunction() {
         ::pyo3::py_run!(py, func, r#"func(5)"#);
     });
 }
+
+::pyo3::create_exception!(mymodule, CustomError, ::pyo3::exceptions::PyException);
+::pyo3::import_exception!(socket, gaierror);

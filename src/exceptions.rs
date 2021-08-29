@@ -11,7 +11,7 @@ use std::os::raw::c_char;
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
-        impl std::convert::From<&$name> for $crate::PyErr {
+        impl ::std::convert::From<&$name> for $crate::PyErr {
             fn from(err: &$name) -> $crate::PyErr {
                 $crate::PyErr::from_instance(err)
             }
@@ -21,21 +21,21 @@ macro_rules! impl_exception_boilerplate {
             /// Creates a new [PyErr](crate::PyErr) of this type.
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
-                A: $crate::PyErrArguments + Send + Sync + 'static,
+                A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
             {
                 $crate::PyErr::new::<$name, A>(args)
             }
         }
 
-        impl std::error::Error for $name {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        impl ::std::error::Error for $name {
+            fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
                 unsafe {
                     use $crate::AsPyPointer;
                     let cause: &$crate::exceptions::PyBaseException = self
                         .py()
                         .from_owned_ptr_or_opt($crate::ffi::PyException_GetCause(self.as_ptr()))?;
 
-                    Some(cause)
+                    ::std::option::Option::Some(cause)
                 }
             }
         }
@@ -79,7 +79,7 @@ macro_rules! import_exception {
         $crate::pyobject_native_type_core!(
             $name,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            #module=Some(stringify!($module))
+            #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
@@ -164,7 +164,7 @@ macro_rules! create_exception_type_object {
         $crate::pyobject_native_type_core!(
             $name,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            #module=Some(stringify!($module))
+            #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
@@ -181,8 +181,8 @@ macro_rules! create_exception_type_object {
                             $crate::PyErr::new_type(
                                 py,
                                 concat!(stringify!($module), ".", stringify!($name)),
-                                Some(py.get_type::<$base>()),
-                                None,
+                                ::std::option::Option::Some(py.get_type::<$base>()),
+                                ::std::option::Option::None,
                             )
                             .as_ptr() as *mut $crate::ffi::PyObject,
                         )
@@ -199,10 +199,10 @@ macro_rules! impl_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, *(ffi::$exc_name as *mut ffi::PyTypeObject));
+        $crate::pyobject_native_type!($name, $layout, *($crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject));
     );
     ($name:ident, $exc_name:ident) => (
-        impl_native_exception!($name, $exc_name, ffi::PyBaseExceptionObject);
+        impl_native_exception!($name, $exc_name, $crate::ffi::PyBaseExceptionObject);
     )
 );
 
