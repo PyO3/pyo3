@@ -50,29 +50,34 @@ pub struct PyASCIIObject {
     pub wstr: *mut wchar_t,
 }
 
+/// Interacting with the bitfield is not actually well-defined, so we mark these APIs unsafe.
+///
+/// In addition, they are disabled on big-endian architectures to restrict this to most "common"
+/// platforms, which are at least tested on CI and appear to be sound.
+#[cfg(not(target_endian = "big"))]
 impl PyASCIIObject {
     #[inline]
-    pub fn interned(&self) -> c_uint {
+    pub unsafe fn interned(&self) -> c_uint {
         self.state & 3
     }
 
     #[inline]
-    pub fn kind(&self) -> c_uint {
+    pub unsafe fn kind(&self) -> c_uint {
         (self.state >> 2) & 7
     }
 
     #[inline]
-    pub fn compact(&self) -> c_uint {
+    pub unsafe fn compact(&self) -> c_uint {
         (self.state >> 5) & 1
     }
 
     #[inline]
-    pub fn ascii(&self) -> c_uint {
+    pub unsafe fn ascii(&self) -> c_uint {
         (self.state >> 6) & 1
     }
 
     #[inline]
-    pub fn ready(&self) -> c_uint {
+    pub unsafe fn ready(&self) -> c_uint {
         (self.state >> 7) & 1
     }
 }
@@ -114,6 +119,7 @@ pub const SSTATE_INTERNED_MORTAL: c_uint = 1;
 pub const SSTATE_INTERNED_IMMORTAL: c_uint = 2;
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_IS_ASCII(op: *mut PyObject) -> c_uint {
     debug_assert!(PyUnicode_Check(op) != 0);
     debug_assert!(PyUnicode_IS_READY(op) != 0);
@@ -122,11 +128,13 @@ pub unsafe fn PyUnicode_IS_ASCII(op: *mut PyObject) -> c_uint {
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_IS_COMPACT(op: *mut PyObject) -> c_uint {
     (*(op as *mut PyASCIIObject)).compact()
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_IS_COMPACT_ASCII(op: *mut PyObject) -> c_uint {
     if (*(op as *mut PyASCIIObject)).ascii() != 0 && PyUnicode_IS_COMPACT(op) != 0 {
         1
@@ -144,21 +152,25 @@ pub const PyUnicode_2BYTE_KIND: c_uint = 2;
 pub const PyUnicode_4BYTE_KIND: c_uint = 4;
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
     PyUnicode_DATA(op) as *mut Py_UCS1
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
     PyUnicode_DATA(op) as *mut Py_UCS2
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
     PyUnicode_DATA(op) as *mut Py_UCS4
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
     debug_assert!(PyUnicode_Check(op) != 0);
     debug_assert!(PyUnicode_IS_READY(op) != 0);
@@ -167,6 +179,7 @@ pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     if PyUnicode_IS_ASCII(op) != 0 {
         (op as *mut PyASCIIObject).offset(1) as *mut c_void
@@ -176,6 +189,7 @@ pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
@@ -183,6 +197,7 @@ pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(PyUnicode_Check(op) != 0);
 
@@ -206,6 +221,7 @@ pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
     (*(op as *mut PyASCIIObject)).ready()
 }
@@ -213,6 +229,7 @@ pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
 #[cfg(not(Py_3_12))]
 #[cfg_attr(Py_3_10, deprecated(note = "Python 3.10"))]
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
     debug_assert!(PyUnicode_Check(op) != 0);
 
@@ -481,6 +498,7 @@ extern "C" {
 // skipped _PyUnicode_ScanIdentifier
 
 #[cfg(test)]
+#[cfg(not(target_endian = "big"))]
 mod tests {
     use super::*;
     use crate::types::PyString;
@@ -498,30 +516,32 @@ mod tests {
             wstr: std::ptr::null_mut() as *mut wchar_t,
         };
 
-        assert_eq!(o.interned(), 0);
-        assert_eq!(o.kind(), 0);
-        assert_eq!(o.compact(), 0);
-        assert_eq!(o.ascii(), 0);
-        assert_eq!(o.ready(), 0);
+        unsafe {
+            assert_eq!(o.interned(), 0);
+            assert_eq!(o.kind(), 0);
+            assert_eq!(o.compact(), 0);
+            assert_eq!(o.ascii(), 0);
+            assert_eq!(o.ready(), 0);
 
-        for i in 0..4 {
-            o.state = i;
-            assert_eq!(o.interned(), i);
+            for i in 0..4 {
+                o.state = i;
+                assert_eq!(o.interned(), i);
+            }
+
+            for i in 0..8 {
+                o.state = i << 2;
+                assert_eq!(o.kind(), i);
+            }
+
+            o.state = 1 << 5;
+            assert_eq!(o.compact(), 1);
+
+            o.state = 1 << 6;
+            assert_eq!(o.ascii(), 1);
+
+            o.state = 1 << 7;
+            assert_eq!(o.ready(), 1);
         }
-
-        for i in 0..8 {
-            o.state = i << 2;
-            assert_eq!(o.kind(), i);
-        }
-
-        o.state = 1 << 5;
-        assert_eq!(o.compact(), 1);
-
-        o.state = 1 << 6;
-        assert_eq!(o.ascii(), 1);
-
-        o.state = 1 << 7;
-        assert_eq!(o.ready(), 1);
     }
 
     #[test]
