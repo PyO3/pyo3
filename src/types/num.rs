@@ -277,8 +277,10 @@ mod slow_128bit_int_conversion {
 mod test_128bit_intergers {
     use super::*;
 
+    #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
+    #[cfg(not(target_arch = "wasm32"))]
     proptest! {
         #[test]
         fn test_i128_roundtrip(x: i128) {
@@ -291,6 +293,7 @@ mod test_128bit_intergers {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     proptest! {
         #[test]
         fn test_u128_roundtrip(x: u128) {
