@@ -5,8 +5,10 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
+use crate::types::PySequence;
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
+    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, PyTryFrom, Python, ToBorrowedObject,
+    ToPyObject,
 };
 
 /// Represents a Python `list`.
@@ -132,6 +134,40 @@ impl PyList {
         }
     }
 
+    /// Deletes the `index`th element of self.
+    ///
+    /// This is equivalent to the Python statement `del self[i]`.
+    #[inline]
+    pub fn del_item(&self, index: usize) -> PyResult<()> {
+        unsafe { PySequence::try_from_unchecked(self).del_item(index) }
+    }
+
+    /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
+    ///
+    /// This is equivalent to the Python statement `self[low:high] = v`.
+    #[inline]
+    pub fn set_slice(&self, low: usize, high: usize, seq: &PyAny) -> PyResult<()> {
+        unsafe {
+            err::error_on_minusone(
+                self.py(),
+                ffi::PyList_SetSlice(
+                    self.as_ptr(),
+                    get_ssize_index(low),
+                    get_ssize_index(high),
+                    seq.as_ptr(),
+                ),
+            )
+        }
+    }
+
+    /// Deletes the slice from `low` to `high` from `self`.
+    ///
+    /// This is equivalent to the Python statement `del self[low:high]`.
+    #[inline]
+    pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
+        unsafe { PySequence::try_from_unchecked(self).del_slice(low, high) }
+    }
+
     /// Appends an item to the list.
     pub fn append<I>(&self, item: I) -> PyResult<()>
     where
@@ -155,6 +191,28 @@ impl PyList {
                 ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item),
             )
         })
+    }
+
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    #[inline]
+    pub fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToBorrowedObject,
+    {
+        unsafe { PySequence::try_from_unchecked(self).contains(value) }
+    }
+
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
+    #[inline]
+    pub fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToBorrowedObject,
+    {
+        unsafe { PySequence::try_from_unchecked(self).index(value) }
     }
 
     /// Returns an iterator over this list's items.
@@ -582,5 +640,80 @@ mod tests {
             let list = PyList::new(py, &[2, 3, 5]);
             list[8..].extract::<Vec<i32>>().unwrap();
         })
+    }
+
+    #[test]
+    fn test_list_del_item() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 1, 2, 3, 5, 8]);
+            assert!(list.del_item(10).is_err());
+            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(2, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(3, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(5, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(8, list[0].extract::<i32>().unwrap());
+            assert!(list.del_item(0).is_ok());
+            assert_eq!(0, list.len());
+            assert!(list.del_item(0).is_err());
+        });
+    }
+
+    #[test]
+    fn test_list_set_slice() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 1, 2, 3, 5, 8]);
+            let ins = PyList::new(py, &[7, 4]);
+            list.set_slice(1, 4, ins).unwrap();
+            assert_eq!([1, 7, 4, 5, 8], list.extract::<[i32; 5]>().unwrap());
+            list.set_slice(3, 100, PyList::empty(py)).unwrap();
+            assert_eq!([1, 7, 4], list.extract::<[i32; 3]>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_list_del_slice() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 1, 2, 3, 5, 8]);
+            list.del_slice(1, 4).unwrap();
+            assert_eq!([1, 5, 8], list.extract::<[i32; 3]>().unwrap());
+            list.del_slice(1, 100).unwrap();
+            assert_eq!([1], list.extract::<[i32; 1]>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_list_contains() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 1, 2, 3, 5, 8]);
+            assert_eq!(6, list.len());
+
+            let bad_needle = 7i32.to_object(py);
+            assert!(!list.contains(&bad_needle).unwrap());
+
+            let good_needle = 8i32.to_object(py);
+            assert!(list.contains(&good_needle).unwrap());
+
+            let type_coerced_needle = 8f32.to_object(py);
+            assert!(list.contains(&type_coerced_needle).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_list_index() {
+        Python::with_gil(|py| {
+            let list = PyList::new(py, &[1, 1, 2, 3, 5, 8]);
+            assert_eq!(0, list.index(1i32).unwrap());
+            assert_eq!(2, list.index(2i32).unwrap());
+            assert_eq!(3, list.index(3i32).unwrap());
+            assert_eq!(4, list.index(5i32).unwrap());
+            assert_eq!(5, list.index(8i32).unwrap());
+            assert!(list.index(42i32).is_err());
+        });
     }
 }
