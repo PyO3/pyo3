@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate FFI definitions `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags` when building for Python 3.9. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 - Mark FFI definitions removed in Python 3.10 `PyParser_ASTFromString`, `PyParser_ASTFromStringObject`, `PyParser_ASTFromFile`, `PyParser_ASTFromFileObject`, `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags`, `PyParser_SimpleParseString`, `PyParser_SimpleParseFile`, `Py_SymtableString`, and `Py_SymtableStringObject`. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 
+### Fixed
+
+- Fix 0.14.4 compile regression on `s390x-unknown-linux-gnu` target. [#1850](https://github.com/PyO3/pyo3/pull/1850)
+
 ## [0.14.4] - 2021-08-29
 
 ### Changed
