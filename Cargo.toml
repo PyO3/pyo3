@@ -12,6 +12,7 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/tox.ini"]
 edition = "2018"
+links = "python"
 
 [dependencies]
 cfg-if = { version = "1.0" }
