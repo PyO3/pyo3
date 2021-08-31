@@ -13,11 +13,7 @@ use std::io::Cursor;
 
 use once_cell::sync::OnceCell;
 
-use impl_::InterpreterConfig;
-
-// Used in `pyo3-macros-backend`; may expose this in a future release.
-#[doc(hidden)]
-pub use impl_::PythonVersion;
+pub use impl_::{BuildFlag, BuildFlags, InterpreterConfig, PythonImplementation, PythonVersion};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
