@@ -628,7 +628,7 @@ impl FromStr for BuildFlag {
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
 #[cfg_attr(test, derive(Debug, PartialEq))]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
