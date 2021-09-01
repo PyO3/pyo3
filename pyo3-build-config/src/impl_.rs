@@ -472,37 +472,6 @@ fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
 }
 
-trait GetPrimitive {
-    fn get_bool(&self, key: &str) -> Result<bool>;
-    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>
-    where
-        T::Err: std::error::Error + 'static;
-}
-
-impl GetPrimitive for HashMap<String, String> {
-    fn get_bool(&self, key: &str) -> Result<bool> {
-        match self
-            .get(key)
-            .map(|x| x.as_str())
-            .ok_or(format!("{} is not defined", key))?
-        {
-            "1" | "true" | "True" => Ok(true),
-            "0" | "false" | "False" => Ok(false),
-            _ => bail!("{} must be a bool (1/true/True or 0/false/False", key),
-        }
-    }
-
-    fn get_numeric<T: FromStr>(&self, key: &str) -> Result<T>
-    where
-        T::Err: std::error::Error + 'static,
-    {
-        self.get(key)
-            .ok_or(format!("{} is not defined", key))?
-            .parse::<T>()
-            .with_context(|| format!("Could not parse value of {}", key))
-    }
-}
-
 struct CrossCompileConfig {
     lib_dir: PathBuf,
     version: Option<PythonVersion>,
@@ -766,17 +735,19 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 /// The sysconfigdata is simply a dictionary containing all the build time variables used for the
 /// python executable and library. Here it is read and added to a script to extract only what is
 /// necessary. This necessitates a python interpreter for the host machine to work.
-fn parse_sysconfigdata(config_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
-    let mut script = fs::read_to_string(config_path.as_ref()).with_context(|| {
+fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<InterpreterConfig> {
+    let sysconfigdata_path = sysconfigdata_path.as_ref();
+    let mut script = fs::read_to_string(&sysconfigdata_path).with_context(|| {
         format!(
             "failed to read config from {}",
-            config_path.as_ref().display()
+            sysconfigdata_path.display()
         )
     })?;
     script += r#"
-print("version_major", build_time_vars["VERSION"][0])  # 3
-print("version_minor", build_time_vars["VERSION"][2])  # E.g., 8
+print("version", build_time_vars["VERSION"])
 print("SOABI", build_time_vars.get("SOABI", ""))
+if "LIBDIR" in build_time_vars:
+    print("LIBDIR", build_time_vars["LIBDIR"])
 KEYS = [
     "WITH_THREAD",
     "Py_DEBUG",
@@ -792,7 +763,64 @@ for key in KEYS:
 "#;
     let output = run_python_script(&find_interpreter()?, &script)?;
 
-    Ok(parse_script_output(&output))
+    let sysconfigdata = parse_script_output(&output);
+
+    macro_rules! get_key {
+        ($sysconfigdata:expr, $key:literal) => {
+            $sysconfigdata
+                .get($key)
+                .ok_or(concat!($key, " not found in sysconfigdata file"))
+        };
+    }
+
+    macro_rules! parse_key {
+        ($sysconfigdata:expr, $key:literal) => {
+            get_key!($sysconfigdata, $key)?
+                .parse()
+                .context(concat!("could not parse value of ", $key))
+        };
+    }
+
+    let version = parse_key!(sysconfigdata, "version")?;
+    let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
+        .map(|bytes_width: u32| bytes_width * 8)
+        .ok();
+
+    let soabi = get_key!(sysconfigdata, "SOABI")?;
+    let implementation = if soabi.starts_with("pypy") {
+        PythonImplementation::PyPy
+    } else if soabi.starts_with("cpython") {
+        PythonImplementation::CPython
+    } else {
+        bail!("unsupported Python interpreter");
+    };
+
+    let shared = match sysconfigdata
+        .get("Py_ENABLE_SHARED")
+        .map(|string| string.as_str())
+    {
+        Some("1") | Some("true") | Some("True") => true,
+        Some("0") | Some("false") | Some("False") | None => false,
+        _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
+    };
+
+    Ok(InterpreterConfig {
+        implementation,
+        version,
+        shared,
+        abi3: is_abi3(),
+        lib_dir: get_key!(sysconfigdata, "LIBDIR").ok().cloned(),
+        lib_name: Some(default_lib_name_unix(
+            version,
+            implementation,
+            sysconfigdata.get("LDVERSION").map(String::as_str),
+        )),
+        executable: None,
+        pointer_width,
+        build_flags: BuildFlags::from_config_map(&sysconfigdata).fixup(version, implementation),
+        suppress_build_script_link_lines: false,
+        extra_build_script_lines: vec![],
+    })
 }
 
 fn starts_with(entry: &DirEntry, pat: &str) -> bool {
@@ -848,6 +876,7 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
             }
         })
         .collect::<Vec<PathBuf>>();
+    sysconfig_paths.sort();
     sysconfig_paths.dedup();
     if sysconfig_paths.is_empty() {
         bail!(
@@ -864,7 +893,7 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
         for path in sysconfig_paths {
             error_msg += &format!("\n\t{}", path.display());
         }
-        bail!("{}", error_msg);
+        bail!("{}\n", error_msg);
     }
 
     Ok(sysconfig_paths.remove(0))
@@ -878,27 +907,37 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     } else {
         "python3.".into()
     };
-    for f in fs::read_dir(path).expect("Path does not exist") {
+    for f in fs::read_dir(path).expect("Path does not exist").into_iter() {
         sysconfig_paths.extend(match &f {
-            Ok(f) if starts_with(f, "_sysconfigdata") && ends_with(f, "py") => vec![f.path()],
-            Ok(f) if starts_with(f, "build") => search_lib_dir(f.path(), cross),
-            Ok(f) if starts_with(f, "lib.") => {
-                let name = f.file_name();
-                // check if right target os
-                if !name.to_string_lossy().contains(if cross.os == "android" {
-                    "linux"
+            // Python 3.6 sysconfigdata without platform specifics
+            Ok(f) if f.file_name() == "_sysconfigdata.py" => vec![f.path()],
+            // Python 3.7+ sysconfigdata with platform specifics
+            Ok(f) if starts_with(f, "_sysconfigdata__") && ends_with(f, "py") => vec![f.path()],
+            Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
+                let file_name = f.file_name();
+                let file_name = file_name.to_string_lossy();
+                if file_name.starts_with("build") {
+                    search_lib_dir(f.path(), cross)
+                } else if file_name.starts_with("lib.") {
+                    // check if right target os
+                    if !file_name.contains(if cross.os == "android" {
+                        "linux"
+                    } else {
+                        &cross.os
+                    }) {
+                        continue;
+                    }
+                    // Check if right arch
+                    if !file_name.contains(&cross.arch) {
+                        continue;
+                    }
+                    search_lib_dir(f.path(), cross)
+                } else if file_name.starts_with(&version_pat) {
+                    search_lib_dir(f.path(), cross)
                 } else {
-                    &cross.os
-                }) {
                     continue;
                 }
-                // Check if right arch
-                if !name.to_string_lossy().contains(&cross.arch) {
-                    continue;
-                }
-                search_lib_dir(f.path(), cross)
             }
-            Ok(f) if starts_with(f, &version_pat) => search_lib_dir(f.path(), cross),
             _ => continue,
         });
     }
@@ -932,46 +971,8 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
 fn load_cross_compile_from_sysconfigdata(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
-    let sysconfig_path = find_sysconfigdata(&cross_compile_config)?;
-    let sysconfig_data = parse_sysconfigdata(sysconfig_path)?;
-
-    let major = sysconfig_data.get_numeric("version_major")?;
-    let minor = sysconfig_data.get_numeric("version_minor")?;
-    let pointer_width = sysconfig_data
-        .get_numeric("SIZEOF_VOID_P")
-        .map(|bytes_width: u32| bytes_width * 8)
-        .ok();
-    let soabi = match sysconfig_data.get("SOABI") {
-        Some(s) => s,
-        None => bail!("sysconfigdata did not define SOABI"),
-    };
-
-    let version = PythonVersion { major, minor };
-    let implementation = if soabi.starts_with("pypy") {
-        PythonImplementation::PyPy
-    } else if soabi.starts_with("cpython") {
-        PythonImplementation::CPython
-    } else {
-        bail!("unsupported Python interpreter");
-    };
-
-    Ok(InterpreterConfig {
-        implementation,
-        version,
-        shared: sysconfig_data.get_bool("Py_ENABLE_SHARED")?,
-        abi3: is_abi3(),
-        lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
-        lib_name: Some(default_lib_name_unix(
-            version,
-            implementation,
-            sysconfig_data.get("LDVERSION").map(String::as_str),
-        )),
-        executable: None,
-        pointer_width,
-        build_flags: BuildFlags::from_config_map(&sysconfig_data).fixup(version, implementation),
-        suppress_build_script_link_lines: false,
-        extra_build_script_lines: vec![],
-    })
+    let sysconfigdata_path = find_sysconfigdata(&cross_compile_config)?;
+    parse_sysconfigdata(sysconfigdata_path)
 }
 
 fn windows_hardcoded_cross_compile(
@@ -1462,5 +1463,52 @@ mod tests {
                 .to_string()
                 .contains("cannot set a minimum Python version 3.7 higher than the interpreter version 3.6")
         );
+    }
+
+    #[test]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    fn parse_sysconfigdata() {
+        // A best effort attempt to get test coverage for the sysconfigdata parsing.
+        // Might not complete successfully depending on host installation; that's ok as long as
+        // CI demonstrates this path is covered!
+
+        let interpreter_config = crate::get();
+
+        let lib_dir = match &interpreter_config.lib_dir {
+            Some(lib_dir) => Path::new(lib_dir),
+            // Don't know where to search for sysconfigdata; never mind.
+            None => return,
+        };
+
+        let cross = CrossCompileConfig {
+            lib_dir: lib_dir.into(),
+            version: Some(interpreter_config.version),
+            os: "linux".into(),
+            arch: "x86_64".into(),
+        };
+
+        let sysconfigdata_path = match find_sysconfigdata(&cross) {
+            Ok(path) => path,
+            // Couldn't find a matching sysconfigdata; never mind!
+            Err(_) => return,
+        };
+        let parsed_config = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
+
+        assert_eq!(
+            parsed_config,
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags(interpreter_config.build_flags.0.clone()),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: interpreter_config.lib_dir.to_owned(),
+                lib_name: interpreter_config.lib_name.to_owned(),
+                shared: true,
+                version: interpreter_config.version,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        )
     }
 }
