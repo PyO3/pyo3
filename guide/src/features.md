@@ -69,6 +69,14 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 - `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
 - `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
 
+### `resolve-config`
+
+The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's
+build script automatically resolves a Python interpreter / build configuration. Disabling
+this feature enables this crate to be used in *library mode*. This may be desirable for
+use cases where you want to read or write PyO3 build configuration files or resolve
+metadata about a Python interpreter.
+
 ## Optional Dependencies
 
 These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.

@@ -16,7 +16,7 @@ edition = "2018"
 [dependencies]
 quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.14.4" }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.14.4", features = ["resolve-config"] }
 
 [dependencies.syn]
 version = "1"

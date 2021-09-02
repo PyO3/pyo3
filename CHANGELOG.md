@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add implementation of `std::ops::Index<usize>` for `PyList`, `PyTuple` and `PySequence`. [#1825](https://github.com/PyO3/pyo3/pull/1825)
 - Add range indexing implementations of `std::ops::Index` for `PyList`, `PyTuple` and `PySequence`. [#1829](https://github.com/PyO3/pyo3/pull/1829)
 - Add commonly-used sequence methods to `PyList` and `PyTuple`. [#1849](https://github.com/PyO3/pyo3/pull/1849)
+- The `pyo3-build-config` crate now has a `resolve-config` feature to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
 
 ### Changed
 
