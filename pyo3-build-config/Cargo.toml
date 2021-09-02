@@ -14,7 +14,11 @@ edition = "2018"
 once_cell = "1"
 
 [features]
-default = []
+default = ["resolve-config"]
+
+# Attempt to resolve a Python interpreter config for building in the build
+# script. If this feature isn't enabled, the build script no-ops.
+resolve-config = []
 
 abi3 = []
 abi3-py36 = ["abi3-py37"]

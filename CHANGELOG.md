@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- Add `resolve-config` feature to the `pyo3-build-config` to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
+
+### Changed
+
+- Make `pyo3-build-config::InterpreterConfig` and subfields public. [#1848](https://github.com/PyO3/pyo3/pull/1848)
+
 ### Fixed
 
 - Fix 0.14.4 compile regression on `s390x-unknown-linux-gnu` target. [#1850](https://github.com/PyO3/pyo3/pull/1850)
