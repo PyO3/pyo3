@@ -244,11 +244,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
-          # NB: doesn't include target dir so that the coverage stats are fresh
-          # each run.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
         continue-on-error: true
       - name: install cargo-llvm-cov
@@ -256,7 +255,7 @@ jobs:
           wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
           mv cargo-llvm-cov ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.0
+          CARGO_LLVM_COV_VERSION: 0.1.5
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -264,6 +263,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
       - run: |
+          cargo llvm-cov clean --workspace
           cargo llvm-cov --package $ALL_PACKAGES --no-report
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods
