@@ -510,6 +510,7 @@ struct CrossCompileConfig {
     arch: String,
 }
 
+#[allow(unused)]
 pub fn any_cross_compiling_env_vars_set() -> bool {
     env::var_os("PYO3_CROSS").is_some()
         || env::var_os("PYO3_CROSS_LIB_DIR").is_some()
