@@ -59,6 +59,11 @@ impl PyTuple {
         self.len() == 0
     }
 
+    /// Returns `self` cast as a `PySequence`.
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+
     /// Takes the slice `self[low:high]` and returns it as a new tuple.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
@@ -153,7 +158,7 @@ impl PyTuple {
     where
         V: ToBorrowedObject,
     {
-        unsafe { PySequence::try_from_unchecked(self).contains(value) }
+        self.as_sequence().contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -164,7 +169,7 @@ impl PyTuple {
     where
         V: ToBorrowedObject,
     {
-        unsafe { PySequence::try_from_unchecked(self).index(value) }
+        self.as_sequence().index(value)
     }
 
     /// Returns an iterator over the tuple items.
