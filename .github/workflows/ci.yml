@@ -176,10 +176,22 @@ jobs:
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
 
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Build pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo build --no-default-features
+
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
         run: cargo test --no-default-features
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Test pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo test --no-default-features
 
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"

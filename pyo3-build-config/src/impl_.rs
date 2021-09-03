@@ -479,6 +479,7 @@ struct CrossCompileConfig {
     arch: String,
 }
 
+#[allow(unused)]
 pub fn any_cross_compiling_env_vars_set() -> bool {
     env::var_os("PYO3_CROSS").is_some()
         || env::var_os("PYO3_CROSS_LIB_DIR").is_some()
@@ -1466,7 +1467,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "x86_64",
+        feature = "resolve-config"
+    ))]
     fn parse_sysconfigdata() {
         // A best effort attempt to get test coverage for the sysconfigdata parsing.
         // Might not complete successfully depending on host installation; that's ok as long as
