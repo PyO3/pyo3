@@ -68,6 +68,11 @@ impl PyList {
         self.len() == 0
     }
 
+    /// Returns `self` cast as a `PySequence`.
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+
     /// Gets the list item at the specified index.
     /// # Example
     /// ```
@@ -139,7 +144,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, index: usize) -> PyResult<()> {
-        unsafe { PySequence::try_from_unchecked(self).del_item(index) }
+        self.as_sequence().del_item(index)
     }
 
     /// Assigns the sequence `seq` to the slice of `self` from `low` to `high`.
@@ -165,7 +170,7 @@ impl PyList {
     /// This is equivalent to the Python statement `del self[low:high]`.
     #[inline]
     pub fn del_slice(&self, low: usize, high: usize) -> PyResult<()> {
-        unsafe { PySequence::try_from_unchecked(self).del_slice(low, high) }
+        self.as_sequence().del_slice(low, high)
     }
 
     /// Appends an item to the list.
@@ -201,7 +206,7 @@ impl PyList {
     where
         V: ToBorrowedObject,
     {
-        unsafe { PySequence::try_from_unchecked(self).contains(value) }
+        self.as_sequence().contains(value)
     }
 
     /// Returns the first index `i` for which `self[i] == value`.
@@ -212,7 +217,7 @@ impl PyList {
     where
         V: ToBorrowedObject,
     {
-        unsafe { PySequence::try_from_unchecked(self).index(value) }
+        self.as_sequence().index(value)
     }
 
     /// Returns an iterator over this list's items.
