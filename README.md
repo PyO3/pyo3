@@ -169,6 +169,13 @@ about this topic.
 - [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust_
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library_
 
+## Articles and other media
+
+- [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
+- [Writing and publishing a Python module in Rust](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - Apr 29, 2021
+- [Vortexa - Integrating Rust into Python](https://www.vortexa.com/insight/integrating-rust-into-python) - Apr 12, 2021
+- [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Aug 2, 2020
+
 ## Contributing
 
 Everyone is welcomed to contribute to PyO3! There are many ways to support the project, such as:
