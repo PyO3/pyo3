@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add implementation of `std::ops::Index<usize>` for `PyList`, `PyTuple` and `PySequence`. [#1825](https://github.com/PyO3/pyo3/pull/1825)
 - Add range indexing implementations of `std::ops::Index` for `PyList`, `PyTuple` and `PySequence`. [#1829](https://github.com/PyO3/pyo3/pull/1829)
 - Add commonly-used sequence methods to `PyList` and `PyTuple`. [#1849](https://github.com/PyO3/pyo3/pull/1849)
-- The `pyo3-build-config` crate now has a `resolve-config` feature to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
 - Add `as_sequence` methods to `PyList` and `PyTuple`. [#1860](https://github.com/PyO3/pyo3/pull/1860)
 
 ### Changed
@@ -33,6 +32,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate FFI definitions `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags` when building for Python 3.9. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 - Mark FFI definitions removed in Python 3.10 `PyParser_ASTFromString`, `PyParser_ASTFromStringObject`, `PyParser_ASTFromFile`, `PyParser_ASTFromFileObject`, `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags`, `PyParser_SimpleParseString`, `PyParser_SimpleParseFile`, `Py_SymtableString`, and `Py_SymtableStringObject`. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 - `pyo3`'s `Cargo.toml` now advertises `links = "python"` to inform Cargo that it links against *libpython*. [#1819](https://github.com/PyO3/pyo3/pull/1819)
+
+## [0.14.5] - 2021-09-05
+
+## Added
+
+- Make `pyo3_build_config::InterpreterConfig` and subfields public. [#1848](https://github.com/PyO3/pyo3/pull/1848)
+- Add `resolve-config` feature to the `pyo3-build-config` to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
 
 ### Fixed
 
@@ -934,7 +940,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.4...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.5...HEAD
+[0.14.5]: https://github.com/pyo3/pyo3/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/pyo3/pyo3/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pyo3/pyo3/compare/v0.14.1...v0.14.2
