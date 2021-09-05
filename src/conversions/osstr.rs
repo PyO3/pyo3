@@ -164,7 +164,10 @@ mod tests {
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
         Python::with_gil(|py| {
+            #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
+            #[cfg(target_os = "wasi")]
+            use std::os::wasi::ffi::OsStrExt;
 
             // this is not valid UTF-8
             let payload = &[250, 251, 252, 253, 254, 255, 0, 255];

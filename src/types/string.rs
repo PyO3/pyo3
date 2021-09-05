@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{
@@ -8,8 +8,6 @@ use crate::{
     Python, ToPyObject,
 };
 use std::borrow::Cow;
-#[cfg(not(Py_LIMITED_API))]
-use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::str;
 
@@ -72,6 +70,7 @@ impl<'a> PyStringData<'a> {
     /// C APIs that skip input validation (like `PyUnicode_FromKindAndData`) and should
     /// never occur for strings that were created from Python code.
     pub fn to_string(self, py: Python) -> PyResult<Cow<'a, str>> {
+        use std::ffi::CStr;
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
@@ -365,16 +364,12 @@ impl FromPyObject<'_> for char {
 
 #[cfg(test)]
 mod tests {
-    use super::PyString;
-    #[cfg(not(Py_LIMITED_API))]
-    use super::PyStringData;
-    #[cfg(not(Py_LIMITED_API))]
-    use crate::exceptions::PyUnicodeDecodeError;
-    #[cfg(not(Py_LIMITED_API))]
+    use super::*;
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     use crate::type_object::PyTypeObject;
     use crate::Python;
     use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
     use std::borrow::Cow;
 
     #[test]

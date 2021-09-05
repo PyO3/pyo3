@@ -84,7 +84,7 @@ fn rustc_minor_version() -> Option<u32> {
     pieces.next()?.parse().ok()
 }
 
-fn emit_cargo_configuration(interpreter_config: &InterpreterConfig) -> Result<()> {
+fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
     let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if target_os == "windows" || target_os == "android" || !is_extension_module {
@@ -132,7 +132,10 @@ fn configure_pyo3() -> Result<()> {
     ensure_target_pointer_width(&interpreter_config)?;
     ensure_auto_initialize_ok(&interpreter_config)?;
 
-    emit_cargo_configuration(&interpreter_config)?;
+    if !interpreter_config.suppress_build_script_link_lines {
+        emit_link_config(&interpreter_config)?;
+    }
+
     interpreter_config.emit_pyo3_cfgs();
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
@@ -145,6 +148,11 @@ fn configure_pyo3() -> Result<()> {
     // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
     if rustc_minor_version >= 51 {
         println!("cargo:rustc-cfg=addr_of");
+    }
+
+    // Extra lines come last, to support last write wins.
+    for line in &interpreter_config.extra_build_script_lines {
+        println!("{}", line);
     }
 
     Ok(())

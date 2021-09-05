@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.14.4"
+version = "0.14.5"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -14,7 +14,11 @@ edition = "2018"
 once_cell = "1"
 
 [features]
-default = []
+default = ["resolve-config"]
+
+# Attempt to resolve a Python interpreter config for building in the build
+# script. If this feature isn't enabled, the build script no-ops.
+resolve-config = []
 
 abi3 = []
 abi3-py36 = ["abi3-py37"]

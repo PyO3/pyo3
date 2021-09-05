@@ -6,6 +6,24 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.14.5] - 2021-09-05
+
+## Added
+
+- Make `pyo3-build-config::InterpreterConfig` and subfields public. [#1848](https://github.com/PyO3/pyo3/pull/1848)
+
+### Added
+
+- Add `resolve-config` feature to the `pyo3-build-config` to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
+
+### Changed
+
+- Make `pyo3-build-config::InterpreterConfig` and subfields public. [#1848](https://github.com/PyO3/pyo3/pull/1848)
+
+### Fixed
+
+- Fix 0.14.4 compile regression on `s390x-unknown-linux-gnu` target. [#1850](https://github.com/PyO3/pyo3/pull/1850)
+
 ## [0.14.4] - 2021-08-29
 
 ### Changed
@@ -902,7 +920,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.4...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.5...HEAD
+[0.14.5]: https://github.com/pyo3/pyo3/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/pyo3/pyo3/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pyo3/pyo3/compare/v0.14.1...v0.14.2

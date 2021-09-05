@@ -1,6 +1,4 @@
-use crate::ffi::{
-    PyObject, PyUnicode_Check, Py_UCS1, Py_UCS2, Py_UCS4, Py_UNICODE, Py_hash_t, Py_ssize_t,
-};
+use crate::ffi::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_UNICODE, Py_hash_t, Py_ssize_t};
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 
@@ -121,7 +119,7 @@ pub const SSTATE_INTERNED_IMMORTAL: c_uint = 2;
 #[inline]
 #[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_IS_ASCII(op: *mut PyObject) -> c_uint {
-    debug_assert!(PyUnicode_Check(op) != 0);
+    debug_assert!(crate::ffi::PyUnicode_Check(op) != 0);
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).ascii()
@@ -172,7 +170,7 @@ pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
 #[inline]
 #[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
-    debug_assert!(PyUnicode_Check(op) != 0);
+    debug_assert!(crate::ffi::PyUnicode_Check(op) != 0);
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).kind()
@@ -199,7 +197,7 @@ pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 #[inline]
 #[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
-    debug_assert!(PyUnicode_Check(op) != 0);
+    debug_assert!(crate::ffi::PyUnicode_Check(op) != 0);
 
     if PyUnicode_IS_COMPACT(op) != 0 {
         _PyUnicode_COMPACT_DATA(op)
@@ -213,8 +211,9 @@ pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
 // skipped PyUnicode_READ_CHAR
 
 #[inline]
+#[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
-    debug_assert!(PyUnicode_Check(op) != 0);
+    debug_assert!(crate::ffi::PyUnicode_Check(op) != 0);
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).length
@@ -231,7 +230,7 @@ pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
 #[inline]
 #[cfg(not(target_endian = "big"))]
 pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
-    debug_assert!(PyUnicode_Check(op) != 0);
+    debug_assert!(crate::ffi::PyUnicode_Check(op) != 0);
 
     if PyUnicode_IS_READY(op) != 0 {
         0
