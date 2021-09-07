@@ -1,3 +1,6 @@
+#![cfg(feature = "indexmap")]
+#![cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
+
 //!  Conversions to and from [indexmap](https://docs.rs/indexmap/)’s
 //! `IndexMap`.
 //!

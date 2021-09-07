@@ -69,12 +69,12 @@
 //! so that your module can also be used with statically linked Python interpreters.
 //! Use this feature when building an extension module.
 //
-//! - `hashbrown`: Enables conversions between Python objects and
+//! - [`hashbrown`](./hashbrown/index.html): Enables conversions between Python objects and
 //! [hashbrown](https://docs.rs/hashbrown)'s
 //! [`HashMap`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html) and
 //! [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html) types.
 //
-//! - [`indexmap`](crate::indexmap): Enables conversions between Python dictionary and
+//! - [`indexmap`](./indexmap/index.html): Enables conversions between Python dictionary and
 //! [indexmap](https://docs.rs/indexmap)'s
 //! [`IndexMap`](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html).
 //
@@ -88,7 +88,7 @@
 //! [`BigInt`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigInt.html) and
 //! [`BigUint`](https://docs.rs/num-bigint/latest/num_bigint/struct.BigUint.html) types.
 //
-//! - [`num-complex`](crate::num_complex): Enables conversions between Python objects and
+//! - [`num-complex`](./num_complex/index.html): Enables conversions between Python objects and
 //! [num-complex](https://docs.rs/num-complex)'s
 //! [`Complex`](https://docs.rs/num-complex/latest/num_complex/struct.Complex.html) type.
 //
@@ -331,13 +331,7 @@ mod python;
 pub mod type_object;
 pub mod types;
 
-pub mod num_bigint;
-
-pub mod num_complex;
-
-#[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
-#[cfg(feature = "indexmap")]
-pub use crate::conversions::indexmap;
+pub use crate::conversions::*;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 #[cfg(feature = "serde")]
