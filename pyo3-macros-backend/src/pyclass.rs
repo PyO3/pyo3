@@ -591,6 +591,15 @@ fn impl_class(
                 visitor(collector.sequence_protocol_slots());
                 visitor(collector.async_protocol_slots());
                 visitor(collector.buffer_protocol_slots());
+                visitor(collector.methods_protocol_slots());
+                let mut generated_slots = Vec::new();
+                if let ::std::option::Option::Some(setattr) = ::pyo3::generate_pyclass_setattr_slot!(#cls) {
+                    generated_slots.push(setattr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_setdescr_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                visitor(&generated_slots);
             }
 
             fn get_buffer() -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {

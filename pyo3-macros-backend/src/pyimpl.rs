@@ -37,8 +37,8 @@ pub fn impl_methods(
     impls: &mut Vec<syn::ImplItem>,
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
-    let mut new_impls = Vec::new();
-    let mut call_impls = Vec::new();
+    let mut trait_impls = Vec::new();
+    let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
         match iimpl {
@@ -49,13 +49,13 @@ pub fn impl_methods(
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::New(token_stream) => {
+                    GeneratedPyMethod::TraitImpl(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        new_impls.push(quote!(#(#attrs)* #token_stream));
+                        trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::Call(token_stream) => {
+                    GeneratedPyMethod::Proto(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        call_impls.push(quote!(#(#attrs)* #token_stream));
+                        proto_impls.push(quote!(#(#attrs)* #token_stream))
                     }
                 }
             }
@@ -80,10 +80,23 @@ pub fn impl_methods(
         PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods),
     };
 
-    Ok(quote! {
-        #(#new_impls)*
+    let protos_registration = match methods_type {
+        PyClassMethodsType::Specialization => Some(impl_protos(ty, proto_impls)),
+        PyClassMethodsType::Inventory => {
+            if proto_impls.is_empty() {
+                None
+            } else {
+                panic!(
+                    "cannot implement protos in #[pymethods] using `multiple-pymethods` feature"
+                );
+            }
+        }
+    };
 
-        #(#call_impls)*
+    Ok(quote! {
+        #(#trait_impls)*
+
+        #protos_registration
 
         #methods_registration
     })
@@ -117,6 +130,18 @@ fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
             fn py_methods(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
                 static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
                 METHODS
+            }
+        }
+    }
+}
+
+fn impl_protos(ty: &syn::Type, proto_impls: Vec<TokenStream>) -> TokenStream {
+    quote! {
+        impl ::pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
+            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        {
+            fn methods_protocol_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
+                &[#(#proto_impls),*]
             }
         }
     }
