@@ -428,6 +428,22 @@ fn pyproto(cls: &syn::Type, spec: &FnSpec) -> Option<TokenStream> {
                 .return_conversion(quote! { ::pyo3::class::pyasync::IterANextOutput::<_, _> })
                 .generate_type_slot(cls, spec),
         ),
+        "__len__" => Some(
+            SlotDef::new("Py_mp_length", "lenfunc")
+                .ret_ty(Ty::PySsizeT)
+                .generate_type_slot(cls, spec),
+        ),
+        "__contains__" => Some(
+            SlotDef::new("Py_sq_contains", "objobjproc")
+                .arguments(&[Ty::Object])
+                .ret_ty(Ty::Int)
+                .generate_type_slot(cls, spec),
+        ),
+        "__getitem__" => Some(
+            SlotDef::new("Py_mp_subscript", "binaryfunc")
+                .arguments(&[Ty::Object])
+                .generate_type_slot(cls, spec),
+        ),
         _ => None,
     }
 }
@@ -439,6 +455,7 @@ enum Ty {
     CompareOp,
     Int,
     PyHashT,
+    PySsizeT,
 }
 
 impl Ty {
@@ -448,6 +465,7 @@ impl Ty {
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
+            Ty::PySsizeT => quote! { ::pyo3::ffi::Py_ssize_t },
         }
     }
 
@@ -473,12 +491,11 @@ impl Ty {
                     #extract
                 }
             }
-            Ty::Int => todo!(),
-            Ty::PyHashT => todo!(),
             Ty::CompareOp => quote! {
                 let #ident = ::pyo3::class::basic::CompareOp::from_raw(#ident)
                     .ok_or_else(|| ::pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))?;
             },
+            Ty::Int | Ty::PyHashT | Ty::PySsizeT => todo!(),
         }
     }
 }
