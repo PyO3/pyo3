@@ -1,8 +1,7 @@
-use pyo3::{basic::CompareOp, exceptions::PyAttributeError, prelude::*};
-use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::exceptions::PyValueError;
 use pyo3::types::{PySlice, PyType};
+use pyo3::{basic::CompareOp, exceptions::PyAttributeError, prelude::*};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
-use std::convert::TryFrom;
 use std::{isize, iter};
 
 mod common;
@@ -247,137 +246,6 @@ fn iterator() {
 }
 
 #[pyclass]
-struct StringMethods {}
-
-#[pymethods]
-impl StringMethods {
-    fn __str__(&self) -> &'static str {
-        "str"
-    }
-
-    fn __repr__(&self) -> &'static str {
-        "repr"
-    }
-
-    fn __format__(&self, format_spec: String) -> String {
-        format!("format({})", format_spec)
-    }
-
-    fn __bytes__(&self) -> &'static [u8] {
-        b"bytes"
-    }
-}
-
-#[test]
-fn string_methods() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let obj = Py::new(py, StringMethods {}).unwrap();
-    py_assert!(py, obj, "str(obj) == 'str'");
-    py_assert!(py, obj, "repr(obj) == 'repr'");
-    py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
-    py_assert!(py, obj, "bytes(obj) == b'bytes'");
-
-    // Test that `__bytes__` takes no arguments (should be METH_NOARGS)
-    py_assert!(py, obj, "obj.__bytes__() == b'bytes'");
-    py_expect_exception!(py, obj, "obj.__bytes__('unexpected argument')", PyTypeError);
-}
-
-#[pyclass]
-struct Comparisons {
-    val: i32,
-}
-
-#[pymethods]
-impl Comparisons {
-    fn __hash__(&self) -> isize {
-        self.val as isize
-    }
-    fn __bool__(&self) -> bool {
-        self.val != 0
-    }
-}
-
-#[test]
-fn comparisons() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let zero = Py::new(py, Comparisons { val: 0 }).unwrap();
-    let one = Py::new(py, Comparisons { val: 1 }).unwrap();
-    let ten = Py::new(py, Comparisons { val: 10 }).unwrap();
-    let minus_one = Py::new(py, Comparisons { val: -1 }).unwrap();
-    py_assert!(py, one, "hash(one) == 1");
-    py_assert!(py, ten, "hash(ten) == 10");
-    py_assert!(py, minus_one, "hash(minus_one) == -2");
-
-    py_assert!(py, one, "bool(one) is True");
-    py_assert!(py, zero, "not zero");
-}
-
-#[pyclass]
-#[derive(Debug)]
-struct Sequence {
-    fields: Vec<String>,
-}
-
-impl Default for Sequence {
-    fn default() -> Sequence {
-        let mut fields = vec![];
-        for &s in &["A", "B", "C", "D", "E", "F", "G"] {
-            fields.push(s.to_string());
-        }
-        Sequence { fields }
-    }
-}
-
-#[pymethods]
-impl Sequence {
-    fn __len__(&self) -> usize {
-        self.fields.len()
-    }
-
-    fn __getitem__(&self, key: isize) -> PyResult<String> {
-        let idx = usize::try_from(key)?;
-        if let Some(s) = self.fields.get(idx) {
-            Ok(s.clone())
-        } else {
-            Err(PyIndexError::new_err(()))
-        }
-    }
-
-    fn __setitem__(&mut self, idx: isize, value: String) -> PyResult<()> {
-        let idx = usize::try_from(idx)?;
-        if let Some(elem) = self.fields.get_mut(idx) {
-            *elem = value;
-            Ok(())
-        } else {
-            Err(PyIndexError::new_err(()))
-        }
-    }
-}
-
-#[test]
-fn sequence() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Sequence::default()).unwrap();
-    py_assert!(py, c, "list(c) == ['A', 'B', 'C', 'D', 'E', 'F', 'G']");
-    py_assert!(py, c, "c[-1] == 'G'");
-    py_run!(
-        py,
-        c,
-        r#"
-    c[0] = 'H'
-    assert c[0] == 'H'
-"#
-    );
-    py_expect_exception!(py, c, "c['abc']", PyTypeError);
-}
-
-#[pyclass]
 struct Callable {}
 
 #[pymethods]
@@ -388,6 +256,9 @@ impl Callable {
     }
 }
 
+#[pyclass]
+struct EmptyClass;
+
 #[test]
 fn callable() {
     let gil = Python::acquire_gil();
@@ -397,7 +268,7 @@ fn callable() {
     py_assert!(py, c, "callable(c)");
     py_assert!(py, c, "c(7) == 42");
 
-    let nc = Py::new(py, Comparisons { val: 0 }).unwrap();
+    let nc = Py::new(py, EmptyClass).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
 
@@ -490,25 +361,6 @@ fn setdelitem() {
 }
 
 #[pyclass]
-struct Reversed {}
-
-#[pymethods]
-impl Reversed {
-    fn __reversed__(&self) -> &'static str {
-        "I am reversed"
-    }
-}
-
-#[test]
-fn reversed() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Reversed {}).unwrap();
-    py_run!(py, c, "assert reversed(c) == 'I am reversed'");
-}
-
-#[pyclass]
 struct Contains {}
 
 #[pymethods]
@@ -530,74 +382,10 @@ fn contains() {
 }
 
 #[pyclass]
-struct ContextManager {
-    exit_called: bool,
-}
+struct GetItem {}
 
 #[pymethods]
-impl ContextManager {
-    fn __enter__(&mut self) -> i32 {
-        42
-    }
-
-    fn __exit__(
-        &mut self,
-        ty: Option<&PyType>,
-        _value: Option<&PyAny>,
-        _traceback: Option<&PyAny>,
-    ) -> bool {
-        let gil = Python::acquire_gil();
-        self.exit_called = true;
-        ty == Some(gil.python().get_type::<PyValueError>())
-    }
-}
-
-#[test]
-fn context_manager() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, ContextManager { exit_called: false }).unwrap();
-    py_run!(py, c, "with c as x: assert x == 42");
-    {
-        let mut c = c.borrow_mut();
-        assert!(c.exit_called);
-        c.exit_called = false;
-    }
-    py_run!(py, c, "with c as x: raise ValueError");
-    {
-        let mut c = c.borrow_mut();
-        assert!(c.exit_called);
-        c.exit_called = false;
-    }
-    py_expect_exception!(
-        py,
-        c,
-        "with c as x: raise NotImplementedError",
-        PyNotImplementedError
-    );
-    let c = c.borrow();
-    assert!(c.exit_called);
-}
-
-#[test]
-fn test_basics() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let v = PySlice::new(py, 1, 10, 2);
-    let indices = v.indices(100).unwrap();
-    assert_eq!(1, indices.start);
-    assert_eq!(10, indices.stop);
-    assert_eq!(2, indices.step);
-    assert_eq!(5, indices.slicelength);
-}
-
-#[pyclass]
-struct Test {}
-
-#[pymethods]
-impl Test {
+impl GetItem {
     fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
@@ -614,11 +402,11 @@ impl Test {
 }
 
 #[test]
-fn test_cls_impl() {
+fn test_getitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = Py::new(py, Test {}).unwrap();
+    let ob = Py::new(py, GetItem {}).unwrap();
 
     py_assert!(py, ob, "ob[1] == 'int'");
     py_assert!(py, ob, "ob[100:200:1] == 'slice'");
@@ -760,6 +548,6 @@ assert c.counter.count == 3
         .unwrap();
 }
 
-
 // TODO: test __delete__
+// TODO: test __anext__, __aiter__
 // TODO: better argument casting errors

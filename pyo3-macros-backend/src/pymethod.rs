@@ -415,6 +415,19 @@ fn pyproto(cls: &syn::Type, spec: &FnSpec) -> Option<TokenStream> {
                 .arguments(&[Ty::Object, Ty::Object])
                 .generate_type_slot(cls, spec),
         ),
+        "__iter__" => Some(SlotDef::new("Py_tp_iter", "getiterfunc").generate_type_slot(cls, spec)),
+        "__next__" => Some(
+            SlotDef::new("Py_tp_iternext", "iternextfunc")
+                .return_conversion(quote! { ::pyo3::class::iter::IterNextOutput::<_, _> })
+                .generate_type_slot(cls, spec),
+        ),
+        "__await__" => Some(SlotDef::new("Py_am_await", "unaryfunc").generate_type_slot(cls, spec)),
+        "__aiter__" => Some(SlotDef::new("Py_am_aiter", "unaryfunc").generate_type_slot(cls, spec)),
+        "__anext__" => Some(
+            SlotDef::new("Py_am_anext", "unaryfunc")
+                .return_conversion(quote! { ::pyo3::class::pyasync::IterANextOutput::<_, _> })
+                .generate_type_slot(cls, spec),
+        ),
         _ => None,
     }
 }
@@ -433,8 +446,7 @@ impl Ty {
         match self {
             Ty::Object => quote! { *mut ::pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
-            Ty::Int => quote! { ::std::os::raw::c_int },
-            Ty::CompareOp => quote! { ::std::os::raw::c_int },
+            Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
         }
     }

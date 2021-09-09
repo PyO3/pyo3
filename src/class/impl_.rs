@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::{
+    exceptions::PyAttributeError,
     ffi,
     impl_::freelist::FreeList,
-    exceptions::PyAttributeError,
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
