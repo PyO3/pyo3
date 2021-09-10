@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::{
-    exceptions::PyAttributeError,
+    exceptions::{PyAttributeError, PyNotImplementedError},
     ffi,
     impl_::freelist::FreeList,
     pycell::PyCellLayout,
@@ -108,23 +108,16 @@ impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
     }
 }
 
-pub trait PyClassSetattrSlotFragment<T>: Sized {
+#[allow(non_camel_case_types)]
+pub trait PyClass__setattr__SlotFragment<T>: Sized {
     #[inline]
-    fn setattr_implemented(self) -> bool {
+    #[allow(non_snake_case)]
+    fn __setattr__implemented(self) -> bool {
         false
     }
 
-    unsafe fn setattr(
-        self,
-        _slf: *mut ffi::PyObject,
-        attr: *mut ffi::PyObject,
-        value: NonNull<ffi::PyObject>,
-    ) -> PyResult<()>;
-}
-
-impl<T> PyClassSetattrSlotFragment<T> for &'_ PyClassImplCollector<T> {
     #[inline]
-    unsafe fn setattr(
+    unsafe fn __setattr__(
         self,
         _slf: *mut ffi::PyObject,
         _attr: *mut ffi::PyObject,
@@ -134,19 +127,27 @@ impl<T> PyClassSetattrSlotFragment<T> for &'_ PyClassImplCollector<T> {
     }
 }
 
-pub trait PyClassDelattrSlotFragment<T> {
-    fn delattr_impl(
-        self,
-    ) -> Option<unsafe fn(_slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> PyResult<()>>;
-}
+impl<T> PyClass__setattr__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
 
-impl<T> PyClassDelattrSlotFragment<T> for &'_ PyClassImplCollector<T> {
-    fn delattr_impl(
+#[allow(non_camel_case_types)]
+pub trait PyClass__delattr__SlotFragment<T>: Sized {
+    #[inline]
+    #[allow(non_snake_case)]
+    fn __delattr__implemented(self) -> bool {
+        false
+    }
+
+    #[inline]
+    unsafe fn __delattr__(
         self,
-    ) -> Option<unsafe fn(_slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> PyResult<()>> {
-        None
+        _slf: *mut ffi::PyObject,
+        _attr: *mut ffi::PyObject,
+    ) -> PyResult<()> {
+        Err(PyAttributeError::new_err("can't delete attribute"))
     }
 }
+
+impl<T> PyClass__delattr__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
 
 #[doc(hidden)]
 #[macro_export]
@@ -155,28 +156,19 @@ macro_rules! generate_pyclass_setattr_slot {
         use ::std::option::Option::*;
         use $crate::class::impl_::*;
         let collector = PyClassImplCollector::<$cls>::new();
-        let delattr = collector.delattr_impl();
-        if collector.setattr_implemented() || delattr.is_some() {
+        if collector.__setattr__implemented() || collector.__delattr__implemented() {
             unsafe extern "C" fn __wrap(
                 _slf: *mut $crate::ffi::PyObject,
                 attr: *mut $crate::ffi::PyObject,
                 value: *mut $crate::ffi::PyObject,
             ) -> ::std::os::raw::c_int {
-                $crate::callback::handle_panic::<_, ::std::os::raw::c_int>(|py| {
+                $crate::callback::handle_panic(|py| {
                     let collector = PyClassImplCollector::<$cls>::new();
                     $crate::callback::convert(py, {
                         if let Some(value) = ::std::ptr::NonNull::new(value) {
-                            collector.setattr(_slf, attr, value)
+                            collector.__setattr__(_slf, attr, value)
                         } else {
-                            if let Some(del) = collector.delattr_impl() {
-                                del(_slf, attr)
-                            } else {
-                                ::std::result::Result::Err(
-                                    $crate::exceptions::PyAttributeError::new_err(
-                                        "can't delete attribute",
-                                    ),
-                                )
-                            }
+                            collector.__delattr__(_slf, attr)
                         }
                     })
                 })
@@ -191,45 +183,46 @@ macro_rules! generate_pyclass_setattr_slot {
     }};
 }
 
-pub trait PyClassSetSlotFragment<T> {
-    fn set_impl(
-        self,
-    ) -> Option<
-        unsafe fn(
-            _slf: *mut ffi::PyObject,
-            attr: *mut ffi::PyObject,
-            value: NonNull<ffi::PyObject>,
-        ) -> PyResult<()>,
-    >;
-}
+#[allow(non_camel_case_types)]
+pub trait PyClass__set__SlotFragment<T>: Sized {
+    #[inline]
+    #[allow(non_snake_case)]
+    fn __set__implemented(self) -> bool {
+        false
+    }
 
-impl<T> PyClassSetSlotFragment<T> for &'_ PyClassImplCollector<T> {
-    fn set_impl(
+    #[inline]
+    unsafe fn __set__(
         self,
-    ) -> Option<
-        unsafe fn(
-            _slf: *mut ffi::PyObject,
-            attr: *mut ffi::PyObject,
-            value: NonNull<ffi::PyObject>,
-        ) -> PyResult<()>,
-    > {
-        None
+        _slf: *mut ffi::PyObject,
+        _attr: *mut ffi::PyObject,
+        _value: NonNull<ffi::PyObject>,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't set descriptor"))
     }
 }
 
-pub trait PyClassDeleteSlotFragment<T> {
-    fn delete_impl(
-        self,
-    ) -> Option<unsafe fn(_slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> PyResult<()>>;
-}
+impl<T> PyClass__set__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
 
-impl<T> PyClassDeleteSlotFragment<T> for &'_ PyClassImplCollector<T> {
-    fn delete_impl(
+#[allow(non_camel_case_types)]
+pub trait PyClass__delete__SlotFragment<T>: Sized {
+    #[allow(non_snake_case)]
+    #[inline]
+    fn __delete__implemented(self) -> bool {
+        false
+    }
+
+    #[inline]
+    unsafe fn __delete__(
         self,
-    ) -> Option<unsafe fn(_slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> PyResult<()>> {
-        None
+        _slf: *mut ffi::PyObject,
+        _attr: *mut ffi::PyObject,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't delete descriptor"))
     }
 }
+
+impl<T> PyClass__delete__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
 
 #[doc(hidden)]
 #[macro_export]
@@ -238,37 +231,19 @@ macro_rules! generate_pyclass_setdescr_slot {
         use ::std::option::Option::*;
         use $crate::class::impl_::*;
         let collector = PyClassImplCollector::<$cls>::new();
-        let set = collector.set_impl();
-        let delete = collector.delete_impl();
-        if set.is_some() || delete.is_some() {
+        if collector.__set__implemented() || collector.__delete__implemented() {
             unsafe extern "C" fn __wrap(
                 _slf: *mut $crate::ffi::PyObject,
                 attr: *mut $crate::ffi::PyObject,
                 value: *mut $crate::ffi::PyObject,
             ) -> ::std::os::raw::c_int {
-                $crate::callback::handle_panic::<_, ::std::os::raw::c_int>(|py| {
+                $crate::callback::handle_panic(|py| {
                     let collector = PyClassImplCollector::<$cls>::new();
                     $crate::callback::convert(py, {
                         if let Some(value) = ::std::ptr::NonNull::new(value) {
-                            if let Some(set) = collector.set_impl() {
-                                set(_slf, attr, value)
-                            } else {
-                                ::std::result::Result::Err(
-                                    $crate::exceptions::PyTypeError::new_err(
-                                        "can't set descriptor",
-                                    ),
-                                )
-                            }
+                            collector.__set__(_slf, attr, value)
                         } else {
-                            if let Some(del) = collector.delete_impl() {
-                                del(_slf, attr)
-                            } else {
-                                ::std::result::Result::Err(
-                                    $crate::exceptions::PyTypeError::new_err(
-                                        "can't delete descriptor",
-                                    ),
-                                )
-                            }
+                            collector.__delete__(_slf, attr)
                         }
                     })
                 })
@@ -276,6 +251,81 @@ macro_rules! generate_pyclass_setdescr_slot {
             Some($crate::ffi::PyType_Slot {
                 slot: $crate::ffi::Py_tp_descr_set,
                 pfunc: __wrap as $crate::ffi::descrsetfunc as _,
+            })
+        } else {
+            None
+        }
+    }};
+}
+
+#[allow(non_camel_case_types)]
+pub trait PyClass__setitem__SlotFragment<T>: Sized {
+    #[inline]
+    #[allow(non_snake_case)]
+    fn __setitem__implemented(self) -> bool {
+        false
+    }
+
+    #[inline]
+    unsafe fn __setitem__(
+        self,
+        _slf: *mut ffi::PyObject,
+        _attr: *mut ffi::PyObject,
+        _value: NonNull<ffi::PyObject>,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't set item"))
+    }
+}
+
+impl<T> PyClass__setitem__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
+
+#[allow(non_camel_case_types)]
+pub trait PyClass__delitem__SlotFragment<T>: Sized {
+    #[allow(non_snake_case)]
+    #[inline]
+    fn __delitem__implemented(self) -> bool {
+        false
+    }
+
+    #[inline]
+    unsafe fn __delitem__(
+        self,
+        _slf: *mut ffi::PyObject,
+        _attr: *mut ffi::PyObject,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't delete item"))
+    }
+}
+
+impl<T> PyClass__delitem__SlotFragment<T> for &'_ PyClassImplCollector<T> {}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_pyclass_setitem_slot {
+    ($cls:ty) => {{
+        use ::std::option::Option::*;
+        use $crate::class::impl_::*;
+        let collector = PyClassImplCollector::<$cls>::new();
+        if collector.__setitem__implemented() || collector.__delitem__implemented() {
+            unsafe extern "C" fn __wrap(
+                _slf: *mut $crate::ffi::PyObject,
+                attr: *mut $crate::ffi::PyObject,
+                value: *mut $crate::ffi::PyObject,
+            ) -> ::std::os::raw::c_int {
+                $crate::callback::handle_panic(|py| {
+                    let collector = PyClassImplCollector::<$cls>::new();
+                    $crate::callback::convert(py, {
+                        if let Some(value) = ::std::ptr::NonNull::new(value) {
+                            collector.__setitem__(_slf, attr, value)
+                        } else {
+                            collector.__delitem__(_slf, attr)
+                        }
+                    })
+                })
+            }
+            Some($crate::ffi::PyType_Slot {
+                slot: $crate::ffi::Py_mp_ass_subscript,
+                pfunc: __wrap as $crate::ffi::objobjargproc as _,
             })
         } else {
             None

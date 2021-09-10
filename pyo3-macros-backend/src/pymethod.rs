@@ -10,7 +10,7 @@ use crate::{
     pyfunction::PyFunctionOptions,
 };
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
 
@@ -31,8 +31,9 @@ pub fn gen_py_method(
     ensure_function_options_valid(&options)?;
     let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
-    if let Some(proto) = pyproto(cls, &spec) {
-        return Ok(GeneratedPyMethod::Proto(proto));
+    if let Some(slot_def) = pyproto(&spec.python_name.to_string()) {
+        let slot = slot_def.generate_type_slot(cls, &spec);
+        return Ok(GeneratedPyMethod::Proto(slot));
     }
 
     if let Some(proto) = pyproto_fragment(cls, &spec)? {
@@ -374,76 +375,65 @@ impl PropertyType<'_> {
     }
 }
 
-fn pyproto(cls: &syn::Type, spec: &FnSpec) -> Option<TokenStream> {
-    match spec.python_name.to_string().as_str() {
-        "__getattr__" => Some(
-            SlotDef::new("Py_tp_getattro", "getattrofunc")
-                .arguments(&[Ty::Object])
-                .before_call_method(quote! {
-                    // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-                    // for existing fields and methods first
-                    let existing = ::pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
-                    if existing.is_null() {
-                        // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                        ::pyo3::ffi::PyErr_Clear();
-                    } else {
-                        return existing;
-                    }
-                })
-                .generate_type_slot(cls, spec),
-        ),
-        "__str__" => Some(SlotDef::new("Py_tp_str", "reprfunc").generate_type_slot(cls, spec)),
-        "__repr__" => Some(SlotDef::new("Py_tp_repr", "reprfunc").generate_type_slot(cls, spec)),
-        "__hash__" => Some(
-            SlotDef::new("Py_tp_hash", "hashfunc")
-                .ret_ty(Ty::PyHashT)
-                .return_conversion(quote! { ::pyo3::callback::HashCallbackOutput })
-                .generate_type_slot(cls, spec),
-        ),
-        "__richcmp__" => Some(
-            SlotDef::new("Py_tp_richcompare", "richcmpfunc")
-                .arguments(&[Ty::Object, Ty::CompareOp])
-                .generate_type_slot(cls, spec),
-        ),
-        "__bool__" => Some(
-            SlotDef::new("Py_nb_bool", "inquiry")
-                .ret_ty(Ty::Int)
-                .generate_type_slot(cls, spec),
-        ),
-        "__get__" => Some(
-            SlotDef::new("Py_tp_descr_get", "descrgetfunc")
-                .arguments(&[Ty::Object, Ty::Object])
-                .generate_type_slot(cls, spec),
-        ),
-        "__iter__" => Some(SlotDef::new("Py_tp_iter", "getiterfunc").generate_type_slot(cls, spec)),
-        "__next__" => Some(
-            SlotDef::new("Py_tp_iternext", "iternextfunc")
-                .return_conversion(quote! { ::pyo3::class::iter::IterNextOutput::<_, _> })
-                .generate_type_slot(cls, spec),
-        ),
-        "__await__" => Some(SlotDef::new("Py_am_await", "unaryfunc").generate_type_slot(cls, spec)),
-        "__aiter__" => Some(SlotDef::new("Py_am_aiter", "unaryfunc").generate_type_slot(cls, spec)),
-        "__anext__" => Some(
-            SlotDef::new("Py_am_anext", "unaryfunc")
-                .return_conversion(quote! { ::pyo3::class::pyasync::IterANextOutput::<_, _> })
-                .generate_type_slot(cls, spec),
-        ),
-        "__len__" => Some(
-            SlotDef::new("Py_mp_length", "lenfunc")
-                .ret_ty(Ty::PySsizeT)
-                .generate_type_slot(cls, spec),
-        ),
-        "__contains__" => Some(
-            SlotDef::new("Py_sq_contains", "objobjproc")
-                .arguments(&[Ty::Object])
-                .ret_ty(Ty::Int)
-                .generate_type_slot(cls, spec),
-        ),
-        "__getitem__" => Some(
-            SlotDef::new("Py_mp_subscript", "binaryfunc")
-                .arguments(&[Ty::Object])
-                .generate_type_slot(cls, spec),
-        ),
+const __GETATTR__: SlotDef = SlotDef::new("Py_tp_getattro", "getattrofunc")
+    .arguments(&[Ty::Object])
+    .before_call_method(TokenGenerator(|| {
+        quote! {
+            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+            // for existing fields and methods first
+            let existing = ::pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
+            if existing.is_null() {
+                // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                ::pyo3::ffi::PyErr_Clear();
+            } else {
+                return existing;
+            }
+        }
+    }));
+const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
+const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
+const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
+    .ret_ty(Ty::PyHashT)
+    .return_conversion(TokenGenerator(
+        || quote! { ::pyo3::callback::HashCallbackOutput },
+    ));
+const __RICHCMP__: SlotDef =
+    SlotDef::new("Py_tp_richcompare", "richcmpfunc").arguments(&[Ty::Object, Ty::CompareOp]);
+const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
+const __GET__: SlotDef =
+    SlotDef::new("Py_tp_descr_get", "descrgetfunc").arguments(&[Ty::Object, Ty::Object]);
+const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
+const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
+    TokenGenerator(|| quote! { ::pyo3::class::iter::IterNextOutput::<_, _> }),
+);
+const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
+const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
+const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
+    TokenGenerator(|| quote! { ::pyo3::class::pyasync::IterANextOutput::<_, _> }),
+);
+const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
+    .arguments(&[Ty::Object])
+    .ret_ty(Ty::Int);
+const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+
+fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
+    match method_name {
+        "__getattr__" => Some(&__GETATTR__),
+        "__str__" => Some(&__STR__),
+        "__repr__" => Some(&__REPR__),
+        "__hash__" => Some(&__HASH__),
+        "__richcmp__" => Some(&__RICHCMP__),
+        "__bool__" => Some(&__BOOL__),
+        "__get__" => Some(&__GET__),
+        "__iter__" => Some(&__ITER__),
+        "__next__" => Some(&__NEXT__),
+        "__await__" => Some(&__AWAIT__),
+        "__aiter__" => Some(&__AITER__),
+        "__anext__" => Some(&__ANEXT__),
+        "__len__" => Some(&__LEN__),
+        "__contains__" => Some(&__CONTAINS__),
+        "__getitem__" => Some(&__GETITEM__),
         _ => None,
     }
 }
@@ -544,19 +534,19 @@ fn extract_from_any(self_: &syn::Type, target: &syn::Type, ident: &syn::Ident) -
 }
 
 struct SlotDef {
-    slot: syn::Ident,
-    func_ty: syn::Ident,
+    slot: StaticIdent,
+    func_ty: StaticIdent,
     arguments: &'static [Ty],
     ret_ty: Ty,
-    before_call_method: Option<TokenStream>,
-    return_conversion: Option<TokenStream>,
+    before_call_method: Option<TokenGenerator>,
+    return_conversion: Option<TokenGenerator>,
 }
 
 impl SlotDef {
-    fn new(slot: &str, func_ty: &str) -> Self {
+    const fn new(slot: &'static str, func_ty: &'static str) -> Self {
         SlotDef {
-            slot: syn::Ident::new(slot, Span::call_site()),
-            func_ty: syn::Ident::new(func_ty, Span::call_site()),
+            slot: StaticIdent(slot),
+            func_ty: StaticIdent(func_ty),
             arguments: &[],
             ret_ty: Ty::Object,
             before_call_method: None,
@@ -564,22 +554,22 @@ impl SlotDef {
         }
     }
 
-    fn arguments(mut self, arguments: &'static [Ty]) -> Self {
+    const fn arguments(mut self, arguments: &'static [Ty]) -> Self {
         self.arguments = arguments;
         self
     }
 
-    fn ret_ty(mut self, ret_ty: Ty) -> Self {
+    const fn ret_ty(mut self, ret_ty: Ty) -> Self {
         self.ret_ty = ret_ty;
         self
     }
 
-    fn before_call_method(mut self, before_call_method: TokenStream) -> Self {
+    const fn before_call_method(mut self, before_call_method: TokenGenerator) -> Self {
         self.before_call_method = Some(before_call_method);
         self
     }
 
-    fn return_conversion(mut self, return_conversion: TokenStream) -> Self {
+    const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
         self.return_conversion = Some(return_conversion);
         self
     }
@@ -594,34 +584,13 @@ impl SlotDef {
             return_conversion,
         } = self;
         let py = syn::Ident::new("_py", Span::call_site());
-        let self_conversion = spec.tp.self_conversion(Some(cls));
-        let rust_name = spec.name;
-        let arguments = arguments.into_iter().enumerate().map(|(i, arg)| {
-            let ident = syn::Ident::new(&format!("arg{}", i), Span::call_site());
-            let ffi_type = arg.ffi_type();
-            quote! {
-                #ident: #ffi_type
-            }
-        });
+        let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
-        let (arg_idents, conversions) =
-            extract_proto_arguments(cls, &py, &spec.args, &self.arguments);
-        let call =
-            quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
-        let body = if let Some(return_conversion) = return_conversion {
-            quote! {
-                let _result: PyResult<#return_conversion> = #call;
-                ::pyo3::callback::convert(#py, _result)
-            }
-        } else {
-            call
-        };
+        let body = generate_method_body(cls, spec, &py, arguments, return_conversion.as_ref());
         quote!({
-            unsafe extern "C" fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, #(#arguments),*) -> #ret_ty {
+            unsafe extern "C" fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 #before_call_method
                 ::pyo3::callback::handle_panic(|#py| {
-                    #self_conversion
-                    #conversions
                     #body
                 })
             }
@@ -633,94 +602,110 @@ impl SlotDef {
     }
 }
 
+fn generate_method_arguments(arguments: &[Ty]) -> impl Iterator<Item = TokenStream> + '_ {
+    arguments.into_iter().enumerate().map(|(i, arg)| {
+        let ident = syn::Ident::new(&format!("arg{}", i), Span::call_site());
+        let ffi_type = arg.ffi_type();
+        quote! {
+            #ident: #ffi_type
+        }
+    })
+}
+
+fn generate_method_body(
+    cls: &syn::Type,
+    spec: &FnSpec,
+    py: &syn::Ident,
+    arguments: &[Ty],
+    return_conversion: Option<&TokenGenerator>,
+) -> TokenStream {
+    let self_conversion = spec.tp.self_conversion(Some(cls));
+    let rust_name = spec.name;
+    let (arg_idents, conversions) = extract_proto_arguments(cls, &py, &spec.args, arguments);
+    let call = quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
+    let body = if let Some(return_conversion) = return_conversion {
+        quote! {
+            let _result: PyResult<#return_conversion> = #call;
+            ::pyo3::callback::convert(#py, _result)
+        }
+    } else {
+        call
+    };
+    quote! {
+        #self_conversion
+        #conversions
+        #body
+    }
+}
+
+fn generate_pyproto_fragment(
+    cls: &syn::Type,
+    spec: &FnSpec,
+    fragment: &str,
+    arguments: &[Ty],
+) -> TokenStream {
+    let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
+    let implemented = format_ident!("{}implemented", fragment);
+    let method = syn::Ident::new(fragment, Span::call_site());
+    let py = syn::Ident::new("_py", Span::call_site());
+    let method_arguments = generate_method_arguments(arguments);
+    let body = generate_method_body(cls, spec, &py, arguments, None);
+    quote! {
+        impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
+            #[inline]
+            fn #implemented(self) -> bool { true }
+
+            #[inline]
+            unsafe fn #method(
+                self,
+                _slf: *mut ::pyo3::ffi::PyObject,
+                #(#method_arguments),*
+            ) -> ::pyo3::PyResult<()> {
+                let #py = ::pyo3::Python::assume_gil_acquired();
+                #body
+            }
+        }
+    }
+}
+
 fn pyproto_fragment(cls: &syn::Type, spec: &FnSpec) -> Result<Option<TokenStream>> {
     Ok(match spec.python_name.to_string().as_str() {
-        "__setattr__" => {
-            let py = syn::Ident::new("_py", Span::call_site());
-            let self_conversion = spec.tp.self_conversion(Some(cls));
-            let rust_name = spec.name;
-            let (arg_idents, conversions) =
-                extract_proto_arguments(cls, &py, &spec.args, &[Ty::Object, Ty::NonNullObject]);
-            Some(quote! {
-                impl ::pyo3::class::impl_::PyClassSetattrSlotFragment<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                    #[inline]
-                    fn setattr_implemented(self) -> bool { true }
-
-                    #[inline]
-                    unsafe fn setattr(
-                        self,
-                        _slf: *mut ::pyo3::ffi::PyObject,
-                        arg0: *mut ::pyo3::ffi::PyObject,
-                        arg1: ::std::ptr::NonNull<::pyo3::ffi::PyObject>
-                    ) -> ::pyo3::PyResult<()> {
-                        let #py = ::pyo3::Python::assume_gil_acquired();
-                        #self_conversion
-                        #conversions
-                        ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*))
-                    }
-                }
-            })
-        }
-        "__delattr__" => {
-            let py = syn::Ident::new("_py", Span::call_site());
-            let self_conversion = spec.tp.self_conversion(Some(cls));
-            let rust_name = spec.name;
-            let (arg_idents, conversions) =
-                extract_proto_arguments(cls, &py, &spec.args, &[Ty::Object]);
-            Some(quote! {
-                impl ::pyo3::class::impl_::PyClassDelattrSlotFragment<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                    fn delattr_impl(self) -> ::std::option::Option<unsafe fn (_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject) -> ::pyo3::PyResult<()>> {
-                        unsafe fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject) -> ::pyo3::PyResult<()> {
-                            let #py = ::pyo3::Python::assume_gil_acquired();
-                            #self_conversion
-                            #conversions
-                            ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*))
-                        }
-                        Some(__wrap)
-                    }
-                }
-            })
-        }
-        "__set__" => {
-            let py = syn::Ident::new("_py", Span::call_site());
-            let self_conversion = spec.tp.self_conversion(Some(cls));
-            let rust_name = spec.name;
-            let (arg_idents, conversions) =
-                extract_proto_arguments(cls, &py, &spec.args, &[Ty::Object, Ty::NonNullObject]);
-            Some(quote! {
-                impl ::pyo3::class::impl_::PyClassSetSlotFragment<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                    fn set_impl(self) -> ::std::option::Option<unsafe fn (_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject, arg1: ::std::ptr::NonNull<::pyo3::ffi::PyObject>) -> ::pyo3::PyResult<()>> {
-                        unsafe fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject, arg1: ::std::ptr::NonNull<::pyo3::ffi::PyObject>) -> ::pyo3::PyResult<()> {
-                            let #py = ::pyo3::Python::assume_gil_acquired();
-                            #self_conversion
-                            #conversions
-                            ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*))
-                        }
-                        Some(__wrap)
-                    }
-                }
-            })
-        }
-        "__delete__" => {
-            let py = syn::Ident::new("_py", Span::call_site());
-            let self_conversion = spec.tp.self_conversion(Some(cls));
-            let rust_name = spec.name;
-            let (arg_idents, conversions) =
-                extract_proto_arguments(cls, &py, &spec.args, &[Ty::Object]);
-            Some(quote! {
-                impl ::pyo3::class::impl_::PyClassDeleteSlotFragment<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                    fn delete_impl(self) -> ::std::option::Option<unsafe fn (_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject) -> ::pyo3::PyResult<()>> {
-                        unsafe fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, arg0: *mut ::pyo3::ffi::PyObject) -> ::pyo3::PyResult<()> {
-                            let #py = ::pyo3::Python::assume_gil_acquired();
-                            #self_conversion
-                            #conversions
-                            ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*))
-                        }
-                        Some(__wrap)
-                    }
-                }
-            })
-        }
+        "__setattr__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__setattr__",
+            &[Ty::Object, Ty::NonNullObject],
+        )),
+        "__delattr__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__delattr__",
+            &[Ty::Object],
+        )),
+        "__set__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__set__",
+            &[Ty::Object, Ty::NonNullObject],
+        )),
+        "__delete__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__delete__",
+            &[Ty::Object],
+        )),
+        "__setitem__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__setitem__",
+            &[Ty::Object, Ty::NonNullObject],
+        )),
+        "__delitem__" => Some(generate_pyproto_fragment(
+            cls,
+            spec,
+            "__delitem__",
+            &[Ty::Object],
+        )),
         _ => None,
     })
 }
@@ -748,4 +733,20 @@ fn extract_proto_arguments(
     });
     let conversions = quote!(#(#args_conversion)*);
     (arg_idents, conversions)
+}
+
+struct StaticIdent(&'static str);
+
+impl ToTokens for StaticIdent {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        syn::Ident::new(self.0, Span::call_site()).to_tokens(tokens)
+    }
+}
+
+struct TokenGenerator(fn() -> TokenStream);
+
+impl ToTokens for TokenGenerator {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0().to_tokens(tokens)
+    }
 }

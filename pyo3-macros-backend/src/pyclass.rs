@@ -599,6 +599,9 @@ fn impl_class(
                 if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_setdescr_slot!(#cls) {
                     generated_slots.push(setdescr);
                 }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_setitem_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
                 visitor(&generated_slots);
             }
 
