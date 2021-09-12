@@ -152,6 +152,8 @@ jobs:
           target: ${{ matrix.platform.rust-target }}
           profile: minimal
           default: true
+          # needed to correctly format errors, see #1865
+          components: rust-src
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)

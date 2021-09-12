@@ -52,8 +52,6 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/pyclass_send.rs");
         t.compile_fail("tests/ui/static_ref.rs");
 
-        #[cfg(Py_LIMITED_API)]
-        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
     #[rustversion::before(1.54)]
     fn tests_rust_1_54(_t: &trybuild::TestCases) {}
@@ -64,5 +62,8 @@ fn _test_compile_errors() {
     #[rustversion::since(1.55)]
     fn tests_rust_1_55(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+
+        #[cfg(Py_LIMITED_API)]
+        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
 }

@@ -13,3 +13,7 @@ error[E0277]: the trait bound `i32: From<&PyCell<MyClass>>` is not satisfied
     = note: required because of the requirements on the impl of `Into<i32>` for `&PyCell<MyClass>`
     = note: required because of the requirements on the impl of `TryFrom<&PyCell<MyClass>>` for `i32`
 note: required by `std::convert::TryFrom::try_from`
+   --> $DIR/mod.rs:477:5
+    |
+477 |     fn try_from(value: T) -> Result<Self, Self::Error>;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
