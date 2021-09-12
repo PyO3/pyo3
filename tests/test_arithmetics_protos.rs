@@ -1,4 +1,7 @@
+#![allow(deprecated)] // for deprecated protocol methods
+
 use pyo3::class::basic::CompareOp;
+use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::py_run;
 
@@ -13,11 +16,17 @@ impl UnaryArithmetic {
     fn new(value: f64) -> Self {
         UnaryArithmetic { inner: value }
     }
+}
 
+#[pyproto]
+impl PyObjectProtocol for UnaryArithmetic {
     fn __repr__(&self) -> String {
         format!("UA({})", self.inner)
     }
+}
 
+#[pyproto]
+impl PyNumberProtocol for UnaryArithmetic {
     fn __neg__(&self) -> Self {
         Self::new(-self.inner)
     }
@@ -49,16 +58,29 @@ fn unary_arithmetic() {
 }
 
 #[pyclass]
+struct BinaryArithmetic {}
+
+#[pyproto]
+impl PyObjectProtocol for BinaryArithmetic {
+    fn __repr__(&self) -> &'static str {
+        "BA"
+    }
+}
+
+#[pyclass]
 struct InPlaceOperations {
     value: u32,
 }
 
-#[pymethods]
-impl InPlaceOperations {
+#[pyproto]
+impl PyObjectProtocol for InPlaceOperations {
     fn __repr__(&self) -> String {
         format!("IPO({:?})", self.value)
     }
+}
 
+#[pyproto]
+impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&mut self, other: u32) {
         self.value += other;
     }
@@ -120,49 +142,42 @@ fn inplace_operations() {
     );
 }
 
-#[pyclass]
-struct BinaryArithmetic {}
-
-#[pymethods]
-impl BinaryArithmetic {
-    fn __repr__(&self) -> &'static str {
-        "BA"
+#[pyproto]
+impl PyNumberProtocol for BinaryArithmetic {
+    fn __add__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} + {:?}", lhs, rhs)
     }
 
-    fn __add__(&self, rhs: &PyAny) -> String {
-        format!("BA + {:?}", rhs)
+    fn __sub__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} - {:?}", lhs, rhs)
     }
 
-    fn __sub__(&self, rhs: &PyAny) -> String {
-        format!("BA - {:?}", rhs)
+    fn __mul__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} * {:?}", lhs, rhs)
     }
 
-    fn __mul__(&self, rhs: &PyAny) -> String {
-        format!("BA * {:?}", rhs)
+    fn __lshift__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} << {:?}", lhs, rhs)
     }
 
-    fn __lshift__(&self, rhs: &PyAny) -> String {
-        format!("BA << {:?}", rhs)
+    fn __rshift__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} >> {:?}", lhs, rhs)
     }
 
-    fn __rshift__(&self, rhs: &PyAny) -> String {
-        format!("BA >> {:?}", rhs)
+    fn __and__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} & {:?}", lhs, rhs)
     }
 
-    fn __and__(&self, rhs: &PyAny) -> String {
-        format!("BA & {:?}", rhs)
+    fn __xor__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} ^ {:?}", lhs, rhs)
     }
 
-    fn __xor__(&self, rhs: &PyAny) -> String {
-        format!("BA ^ {:?}", rhs)
+    fn __or__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} | {:?}", lhs, rhs)
     }
 
-    fn __or__(&self, rhs: &PyAny) -> String {
-        format!("BA | {:?}", rhs)
-    }
-
-    fn __pow__(&self, rhs: &PyAny, mod_: Option<u32>) -> String {
-        format!("BA ** {:?} (mod: {:?})", rhs, mod_)
+    fn __pow__(lhs: &PyAny, rhs: &PyAny, mod_: Option<u32>) -> String {
+        format!("{:?} ** {:?} (mod: {:?})", lhs, rhs, mod_)
     }
 }
 
@@ -200,8 +215,8 @@ fn binary_arithmetic() {
 #[pyclass]
 struct RhsArithmetic {}
 
-#[pymethods]
-impl RhsArithmetic {
+#[pyproto]
+impl PyNumberProtocol for RhsArithmetic {
     fn __radd__(&self, other: &PyAny) -> String {
         format!("{:?} + RA", other)
     }
@@ -234,7 +249,7 @@ impl RhsArithmetic {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&PyAny>) -> String {
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
         format!("{:?} ** RA", other)
     }
 }
@@ -274,12 +289,8 @@ impl std::fmt::Debug for LhsAndRhs {
     }
 }
 
-#[pymethods]
-impl LhsAndRhs {
-    // fn __repr__(&self) -> &'static str {
-    //     "BA"
-    // }
-
+#[pyproto]
+impl PyNumberProtocol for LhsAndRhs {
     fn __add__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
         format!("{:?} + {:?}", lhs, rhs)
     }
@@ -352,12 +363,19 @@ impl LhsAndRhs {
         format!("{:?} | RA", other)
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&PyAny>) -> String {
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> String {
         format!("{:?} ** RA", other)
     }
 
     fn __rmatmul__(&self, other: &PyAny) -> String {
         format!("{:?} @ RA", other)
+    }
+}
+
+#[pyproto]
+impl PyObjectProtocol for LhsAndRhs {
+    fn __repr__(&self) -> &'static str {
+        "BA"
     }
 }
 
@@ -394,8 +412,8 @@ fn lhs_fellback_to_rhs() {
 #[pyclass]
 struct RichComparisons {}
 
-#[pymethods]
-impl RichComparisons {
+#[pyproto]
+impl PyObjectProtocol for RichComparisons {
     fn __repr__(&self) -> &'static str {
         "RC"
     }
@@ -415,8 +433,8 @@ impl RichComparisons {
 #[pyclass]
 struct RichComparisons2 {}
 
-#[pymethods]
-impl RichComparisons2 {
+#[pyproto]
+impl PyObjectProtocol for RichComparisons2 {
     fn __repr__(&self) -> &'static str {
         "RC2"
     }
@@ -490,73 +508,76 @@ mod return_not_implemented {
     #[pyclass]
     struct RichComparisonToSelf {}
 
-    #[pymethods]
-    impl RichComparisonToSelf {
+    #[pyproto]
+    impl<'p> PyObjectProtocol<'p> for RichComparisonToSelf {
         fn __repr__(&self) -> &'static str {
             "RC_Self"
         }
 
-        fn __richcmp__(&self, other: PyRef<Self>, _op: CompareOp) -> PyObject {
+        fn __richcmp__(&self, other: PyRef<'p, Self>, _op: CompareOp) -> PyObject {
             other.py().None()
         }
+    }
 
-        fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+    #[pyproto]
+    impl<'p> PyNumberProtocol<'p> for RichComparisonToSelf {
+        fn __add__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __sub__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __sub__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __mul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __mul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __matmul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __matmul__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __truediv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __truediv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __floordiv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __floordiv__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __mod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __mod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __pow__<'p>(slf: PyRef<'p, Self>, _other: u8, _modulo: Option<u8>) -> PyRef<'p, Self> {
-            slf
+        fn __pow__(lhs: &'p PyAny, _other: u8, _modulo: Option<u8>) -> &'p PyAny {
+            lhs
         }
-        fn __lshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __lshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __rshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __rshift__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __divmod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __divmod__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __and__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __and__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __or__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __or__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
-        fn __xor__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
+        fn __xor__(lhs: &'p PyAny, _other: PyRef<'p, Self>) -> &'p PyAny {
+            lhs
         }
 
         // Inplace assignments
-        fn __iadd__(&mut self, _other: PyRef<Self>) {}
-        fn __isub__(&mut self, _other: PyRef<Self>) {}
-        fn __imul__(&mut self, _other: PyRef<Self>) {}
-        fn __imatmul__(&mut self, _other: PyRef<Self>) {}
-        fn __itruediv__(&mut self, _other: PyRef<Self>) {}
-        fn __ifloordiv__(&mut self, _other: PyRef<Self>) {}
-        fn __imod__(&mut self, _other: PyRef<Self>) {}
-        fn __ipow__(&mut self, _other: PyRef<Self>) {}
-        fn __ilshift__(&mut self, _other: PyRef<Self>) {}
-        fn __irshift__(&mut self, _other: PyRef<Self>) {}
-        fn __iand__(&mut self, _other: PyRef<Self>) {}
-        fn __ior__(&mut self, _other: PyRef<Self>) {}
-        fn __ixor__(&mut self, _other: PyRef<Self>) {}
+        fn __iadd__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __isub__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imatmul__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __iand__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ior__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ixor__(&'p mut self, _other: PyRef<'p, Self>) {}
     }
 
     fn _test_binary_dunder(dunder: &str) {

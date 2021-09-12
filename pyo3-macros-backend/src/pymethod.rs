@@ -32,7 +32,7 @@ pub fn gen_py_method(
     let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
     if let Some(slot_def) = pyproto(&spec.python_name.to_string()) {
-        let slot = slot_def.generate_type_slot(cls, &spec);
+        let slot = slot_def.generate_type_slot(cls, &spec)?;
         return Ok(GeneratedPyMethod::Proto(slot));
     }
 
@@ -399,7 +399,6 @@ const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     ));
 const __RICHCMP__: SlotDef =
     SlotDef::new("Py_tp_richcompare", "richcmpfunc").arguments(&[Ty::Object, Ty::CompareOp]);
-const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
 const __GET__: SlotDef =
     SlotDef::new("Py_tp_descr_get", "descrgetfunc").arguments(&[Ty::Object, Ty::Object]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
@@ -417,6 +416,55 @@ const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .ret_ty(Ty::Int);
 const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
+const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
+const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
+const __ABS__: SlotDef = SlotDef::new("Py_nb_absolute", "unaryfunc");
+const __INVERT__: SlotDef = SlotDef::new("Py_nb_invert", "unaryfunc");
+const __INDEX__: SlotDef = SlotDef::new("Py_nb_index", "unaryfunc");
+const __INT__: SlotDef = SlotDef::new("Py_nb_int", "unaryfunc");
+const __FLOAT__: SlotDef = SlotDef::new("Py_nb_float", "unaryfunc");
+const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
+
+const __IADD__: SlotDef = SlotDef::new("Py_nb_inplace_add", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __ISUB__: SlotDef = SlotDef::new("Py_nb_inplace_subtract", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IMUL__: SlotDef = SlotDef::new("Py_nb_inplace_multiply", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IMATMUL__: SlotDef = SlotDef::new("Py_nb_inplace_matrix_multiply", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __ITRUEDIV__: SlotDef = SlotDef::new("Py_nb_inplace_true_divide", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IFLOORDIV__: SlotDef = SlotDef::new("Py_nb_inplace_floor_divide", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented, Ty::ObjectOrNotImplemented])
+    .return_self();
+const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IRSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_rshift", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IAND__: SlotDef = SlotDef::new("Py_nb_inplace_and", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IXOR__: SlotDef = SlotDef::new("Py_nb_inplace_xor", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .return_self();
+
 fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
     match method_name {
         "__getattr__" => Some(&__GETATTR__),
@@ -424,7 +472,6 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__repr__" => Some(&__REPR__),
         "__hash__" => Some(&__HASH__),
         "__richcmp__" => Some(&__RICHCMP__),
-        "__bool__" => Some(&__BOOL__),
         "__get__" => Some(&__GET__),
         "__iter__" => Some(&__ITER__),
         "__next__" => Some(&__NEXT__),
@@ -434,6 +481,27 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__len__" => Some(&__LEN__),
         "__contains__" => Some(&__CONTAINS__),
         "__getitem__" => Some(&__GETITEM__),
+        "__pos__" => Some(&__POS__),
+        "__neg__" => Some(&__NEG__),
+        "__abs__" => Some(&__ABS__),
+        "__invert__" => Some(&__INVERT__),
+        "__index__" => Some(&__INDEX__),
+        "__int__" => Some(&__INT__),
+        "__float__" => Some(&__FLOAT__),
+        "__bool__" => Some(&__BOOL__),
+        "__iadd__" => Some(&__IADD__),
+        "__isub__" => Some(&__ISUB__),
+        "__imul__" => Some(&__IMUL__),
+        "__imatmul__" => Some(&__IMATMUL__),
+        "__itruediv__" => Some(&__ITRUEDIV__),
+        "__ifloordiv__" => Some(&__IFLOORDIV__),
+        "__imod__" => Some(&__IMOD__),
+        "__ipow__" => Some(&__IPOW__),
+        "__ilshift__" => Some(&__ILSHIFT__),
+        "__irshift__" => Some(&__IRSHIFT__),
+        "__iand__" => Some(&__IAND__),
+        "__ixor__" => Some(&__IXOR__),
+        "__ior__" => Some(&__IOR__),
         _ => None,
     }
 }
@@ -441,6 +509,7 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
 #[derive(Clone, Copy)]
 enum Ty {
     Object,
+    ObjectOrNotImplemented,
     NonNullObject,
     CompareOp,
     Int,
@@ -451,7 +520,7 @@ enum Ty {
 impl Ty {
     fn ffi_type(self) -> TokenStream {
         match self {
-            Ty::Object => quote! { *mut ::pyo3::ffi::PyObject },
+            Ty::Object | Ty::ObjectOrNotImplemented => quote! { *mut ::pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
@@ -469,6 +538,29 @@ impl Ty {
         match self {
             Ty::Object => {
                 let extract = extract_from_any(cls, target, ident);
+                quote! {
+                    let #ident: &::pyo3::PyAny = #py.from_borrowed_ptr(#ident);
+                    #extract
+                }
+            }
+            Ty::ObjectOrNotImplemented => {
+                let extract = if let syn::Type::Reference(tref) = unwrap_ty_group(target) {
+                    let (tref, mut_) = preprocess_tref(tref, cls);
+                    quote! {
+                        let #mut_ #ident: <#tref as ::pyo3::derive_utils::ExtractExt<'_>>::Target = match #ident.extract() {
+                            Ok(#ident) => #ident,
+                            Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
+                        };
+                        let #ident = &#mut_ *#ident;
+                    }
+                } else {
+                    quote! {
+                        let #ident = match #ident.extract() {
+                            Ok(#ident) => #ident,
+                            Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
+                        };
+                    }
+                };
                 quote! {
                     let #ident: &::pyo3::PyAny = #py.from_borrowed_ptr(#ident);
                     #extract
@@ -502,33 +594,55 @@ fn extract_from_any(self_: &syn::Type, target: &syn::Type, ident: &syn::Ident) -
             let #ident = #ident.extract()?;
         }
     };
+}
 
-    /// Replace `Self`, remove lifetime and get mutability from the type
-    fn preprocess_tref(
-        tref: &syn::TypeReference,
-        self_: &syn::Type,
-    ) -> (syn::TypeReference, Option<syn::token::Mut>) {
-        let mut tref = tref.to_owned();
-        if let syn::Type::Path(tpath) = self_ {
-            replace_self(&mut tref, &tpath.path);
-        }
-        tref.lifetime = None;
-        let mut_ = tref.mutability;
-        (tref, mut_)
+/// Replace `Self`, remove lifetime and get mutability from the type
+fn preprocess_tref(
+    tref: &syn::TypeReference,
+    self_: &syn::Type,
+) -> (syn::TypeReference, Option<syn::token::Mut>) {
+    let mut tref = tref.to_owned();
+    if let syn::Type::Path(tpath) = self_ {
+        replace_self(&mut tref, &tpath.path);
     }
+    tref.lifetime = None;
+    let mut_ = tref.mutability;
+    (tref, mut_)
+}
 
-    /// Replace `Self` with the exact type name since it is used out of the impl block
-    fn replace_self(tref: &mut syn::TypeReference, self_path: &syn::Path) {
-        match &mut *tref.elem {
-            syn::Type::Reference(tref_inner) => replace_self(tref_inner, self_path),
-            syn::Type::Path(tpath) => {
-                if let Some(ident) = tpath.path.get_ident() {
-                    if ident == "Self" {
-                        tpath.path = self_path.to_owned();
-                    }
+/// Replace `Self` with the exact type name since it is used out of the impl block
+fn replace_self(tref: &mut syn::TypeReference, self_path: &syn::Path) {
+    match &mut *tref.elem {
+        syn::Type::Reference(tref_inner) => replace_self(tref_inner, self_path),
+        syn::Type::Path(tpath) => {
+            if let Some(ident) = tpath.path.get_ident() {
+                if ident == "Self" {
+                    tpath.path = self_path.to_owned();
                 }
             }
-            _ => {}
+        }
+        _ => {}
+    }
+}
+
+enum ReturnMode {
+    ReturnSelf,
+    Conversion(TokenGenerator),
+}
+
+impl ReturnMode {
+    fn return_call_output(&self, py: &syn::Ident, call: TokenStream) -> TokenStream {
+        match self {
+            ReturnMode::Conversion(conversion) => quote! {
+                let _result: PyResult<#conversion> = #call;
+                ::pyo3::callback::convert(#py, _result)
+            },
+            ReturnMode::ReturnSelf => quote! {
+                let _result: PyResult<()> = #call;
+                _result?;
+                ::pyo3::ffi::Py_XINCREF(_raw_slf);
+                Ok(_raw_slf)
+            },
         }
     }
 }
@@ -539,7 +653,7 @@ struct SlotDef {
     arguments: &'static [Ty],
     ret_ty: Ty,
     before_call_method: Option<TokenGenerator>,
-    return_conversion: Option<TokenGenerator>,
+    return_mode: Option<ReturnMode>,
 }
 
 impl SlotDef {
@@ -550,7 +664,7 @@ impl SlotDef {
             arguments: &[],
             ret_ty: Ty::Object,
             before_call_method: None,
-            return_conversion: None,
+            return_mode: None,
         }
     }
 
@@ -570,25 +684,31 @@ impl SlotDef {
     }
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
-        self.return_conversion = Some(return_conversion);
+        self.return_mode = Some(ReturnMode::Conversion(return_conversion));
         self
     }
 
-    fn generate_type_slot(&self, cls: &syn::Type, spec: &FnSpec) -> TokenStream {
+    const fn return_self(mut self) -> Self {
+        self.return_mode = Some(ReturnMode::ReturnSelf);
+        self
+    }
+
+    fn generate_type_slot(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
         let SlotDef {
             slot,
             func_ty,
             before_call_method,
             arguments,
             ret_ty,
-            return_conversion,
+            return_mode,
         } = self;
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
-        let body = generate_method_body(cls, spec, &py, arguments, return_conversion.as_ref());
-        quote!({
-            unsafe extern "C" fn __wrap(_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
+        let body = generate_method_body(cls, spec, &py, arguments, return_mode.as_ref())?;
+        Ok(quote!({
+            unsafe extern "C" fn __wrap(_raw_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
+                let _slf = _raw_slf;
                 #before_call_method
                 ::pyo3::callback::handle_panic(|#py| {
                     #body
@@ -598,7 +718,7 @@ impl SlotDef {
                 slot: ::pyo3::ffi::#slot,
                 pfunc: __wrap as ::pyo3::ffi::#func_ty as _
             }
-        })
+        }))
     }
 }
 
@@ -617,25 +737,22 @@ fn generate_method_body(
     spec: &FnSpec,
     py: &syn::Ident,
     arguments: &[Ty],
-    return_conversion: Option<&TokenGenerator>,
-) -> TokenStream {
+    return_mode: Option<&ReturnMode>,
+) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls));
     let rust_name = spec.name;
-    let (arg_idents, conversions) = extract_proto_arguments(cls, py, &spec.args, arguments);
+    let (arg_idents, conversions) = extract_proto_arguments(cls, py, &spec.args, arguments)?;
     let call = quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
-    let body = if let Some(return_conversion) = return_conversion {
-        quote! {
-            let _result: PyResult<#return_conversion> = #call;
-            ::pyo3::callback::convert(#py, _result)
-        }
+    let body = if let Some(return_mode) = return_mode {
+        return_mode.return_call_output(py, call)
     } else {
         call
     };
-    quote! {
+    Ok(quote! {
         #self_conversion
         #conversions
         #body
-    }
+    })
 }
 
 fn generate_pyproto_fragment(
@@ -643,14 +760,14 @@ fn generate_pyproto_fragment(
     spec: &FnSpec,
     fragment: &str,
     arguments: &[Ty],
-) -> TokenStream {
+) -> Result<TokenStream> {
     let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
     let implemented = format_ident!("{}implemented", fragment);
     let method = syn::Ident::new(fragment, Span::call_site());
     let py = syn::Ident::new("_py", Span::call_site());
     let method_arguments = generate_method_arguments(arguments);
-    let body = generate_method_body(cls, spec, &py, arguments, None);
-    quote! {
+    let body = generate_method_body(cls, spec, &py, arguments, None)?;
+    Ok(quote! {
         impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
             #[inline]
             fn #implemented(self) -> bool { true }
@@ -658,18 +775,19 @@ fn generate_pyproto_fragment(
             #[inline]
             unsafe fn #method(
                 self,
-                _slf: *mut ::pyo3::ffi::PyObject,
+                _raw_slf: *mut ::pyo3::ffi::PyObject,
                 #(#method_arguments),*
             ) -> ::pyo3::PyResult<()> {
+                let _slf = _raw_slf;
                 let #py = ::pyo3::Python::assume_gil_acquired();
                 #body
             }
         }
-    }
+    })
 }
 
 fn pyproto_fragment(cls: &syn::Type, spec: &FnSpec) -> Result<Option<TokenStream>> {
-    Ok(match spec.python_name.to_string().as_str() {
+    match spec.python_name.to_string().as_str() {
         "__setattr__" => Some(generate_pyproto_fragment(
             cls,
             spec,
@@ -707,7 +825,8 @@ fn pyproto_fragment(cls: &syn::Type, spec: &FnSpec) -> Result<Option<TokenStream
             &[Ty::Object],
         )),
         _ => None,
-    })
+    }
+    .transpose()
 }
 
 fn extract_proto_arguments(
@@ -715,24 +834,28 @@ fn extract_proto_arguments(
     py: &syn::Ident,
     method_args: &[FnArg],
     proto_args: &[Ty],
-) -> (Vec<Ident>, TokenStream) {
+) -> Result<(Vec<Ident>, TokenStream)> {
     let mut arg_idents = Vec::with_capacity(method_args.len());
     let mut non_python_args = 0;
 
-    let args_conversion = method_args.iter().filter_map(|arg| {
+    let mut args_conversions = Vec::with_capacity(proto_args.len());
+
+    for arg in method_args {
         if arg.py {
             arg_idents.push(py.clone());
-            None
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
-            let conversions = proto_args[non_python_args].extract(cls, py, &ident, arg.ty);
+            let conversions = proto_args.get(non_python_args)
+                .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
+                .extract(cls, py, &ident, arg.ty);
             non_python_args += 1;
+            args_conversions.push(conversions);
             arg_idents.push(ident);
-            Some(conversions)
         }
-    });
-    let conversions = quote!(#(#args_conversion)*);
-    (arg_idents, conversions)
+    }
+
+    let conversions = quote!(#(#args_conversions)*);
+    Ok((arg_idents, conversions))
 }
 
 struct StaticIdent(&'static str);
