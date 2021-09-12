@@ -603,7 +603,7 @@ impl SlotDef {
 }
 
 fn generate_method_arguments(arguments: &[Ty]) -> impl Iterator<Item = TokenStream> + '_ {
-    arguments.into_iter().enumerate().map(|(i, arg)| {
+    arguments.iter().enumerate().map(|(i, arg)| {
         let ident = syn::Ident::new(&format!("arg{}", i), Span::call_site());
         let ffi_type = arg.ffi_type();
         quote! {
@@ -621,7 +621,7 @@ fn generate_method_body(
 ) -> TokenStream {
     let self_conversion = spec.tp.self_conversion(Some(cls));
     let rust_name = spec.name;
-    let (arg_idents, conversions) = extract_proto_arguments(cls, &py, &spec.args, arguments);
+    let (arg_idents, conversions) = extract_proto_arguments(cls, py, &spec.args, arguments);
     let call = quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
     let body = if let Some(return_conversion) = return_conversion {
         quote! {
@@ -719,7 +719,7 @@ fn extract_proto_arguments(
     let mut arg_idents = Vec::with_capacity(method_args.len());
     let mut non_python_args = 0;
 
-    let args_conversion = method_args.into_iter().filter_map(|arg| {
+    let args_conversion = method_args.iter().filter_map(|arg| {
         if arg.py {
             arg_idents.push(py.clone());
             None
