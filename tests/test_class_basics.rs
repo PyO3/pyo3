@@ -341,3 +341,11 @@ fn test_tuple_struct_class() {
         assert_eq!(instance.borrow(py).0, 1234);
     });
 }
+
+#[pyclass]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+    fn method_with_invalid_self_type(slf: i32, py: Python, index: u32) {}
+}
