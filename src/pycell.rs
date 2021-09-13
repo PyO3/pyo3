@@ -1,4 +1,7 @@
-//! Includes `PyCell` implementation.
+//! PyO3's interior mutability primitive.
+//!
+//! For more information see the [guide](https://pyo3.rs/latest/class.html?highlight=pycell#pycell-and-interior-mutability "PyCell and interior mutability")
+
 use crate::exceptions::PyRuntimeError;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;

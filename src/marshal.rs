@@ -1,6 +1,6 @@
 #![cfg(not(Py_LIMITED_API))]
-//! Support for the Python `marshal` format. Not supported in limited API
-//! builds.
+#![cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
+//! Support for the Python `marshal` format.
 
 use crate::ffi;
 use crate::types::{PyAny, PyBytes};

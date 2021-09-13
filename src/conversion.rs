@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Conversions between various states of Rust and Python types and their wrappers.
+//! Defines conversions between Rust and Python types.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;

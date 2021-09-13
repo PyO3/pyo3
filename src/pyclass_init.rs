@@ -1,4 +1,4 @@
-//! Initialization utilities for `#[pyclass]`.
+//! Contains initialization utilities for `#[pyclass]`.
 use crate::class::impl_::PyClassThreadChecker;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::{callback::IntoPyCallbackOutput, class::impl_::PyClassBaseType};

@@ -21,14 +21,14 @@ enum Derive4 {
     B { f: i32 },
 } // enum case
 
-#[::pyo3::proc_macro::pyclass]
+#[::pyo3::pyclass]
 #[derive(::std::clone::Clone)]
 pub struct Foo;
 
-#[::pyo3::proc_macro::pyclass]
+#[::pyo3::pyclass]
 pub struct Foo2;
 
-#[::pyo3::proc_macro::pyclass(
+#[::pyo3::pyclass(
     name = "ActuallyBar",
     freelist = 8,
     weakref,
@@ -47,7 +47,7 @@ pub struct Bar {
     c: ::std::option::Option<::pyo3::Py<Foo2>>,
 }
 
-#[::pyo3::proc_macro::pymethods]
+#[::pyo3::pymethods]
 impl Bar {
     #[args(x = "1", "*", _z = "2")]
     fn test(&self, _y: &Bar, _z: i32) {}
@@ -84,7 +84,7 @@ impl Bar {
     }
 }
 
-#[::pyo3::proc_macro::pyproto]
+#[::pyo3::pyproto]
 impl ::pyo3::class::gc::PyGCProtocol for Bar {
     fn __traverse__(
         &self,
@@ -102,7 +102,7 @@ impl ::pyo3::class::gc::PyGCProtocol for Bar {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-#[::pyo3::proc_macro::pyproto]
+#[::pyo3::pyproto]
 impl ::pyo3::class::PyBufferProtocol for Bar {
     fn bf_getbuffer(
         _s: ::pyo3::PyRefMut<Self>,
@@ -114,12 +114,12 @@ impl ::pyo3::class::PyBufferProtocol for Bar {
     fn bf_releasebuffer(_s: ::pyo3::PyRefMut<Self>, _v: *mut ::pyo3::ffi::Py_buffer) {}
 }
 
-#[::pyo3::proc_macro::pyfunction]
+#[::pyo3::pyfunction]
 fn do_something(x: i32) -> ::pyo3::PyResult<i32> {
     ::std::result::Result::Ok(x)
 }
 
-#[::pyo3::proc_macro::pymodule]
+#[::pyo3::pymodule]
 fn my_module(_py: ::pyo3::Python, m: &::pyo3::types::PyModule) -> ::pyo3::PyResult<()> {
     m.add_function(::pyo3::wrap_pyfunction!(do_something, m)?)?;
     ::std::result::Result::Ok(())

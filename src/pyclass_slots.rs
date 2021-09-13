@@ -1,4 +1,5 @@
-//! This module contains additional fields for `#[pyclass]`.
+//! Contains additional fields for `#[pyclass]`.
+//!
 //! Mainly used by PyO3's proc-macro code.
 use crate::{ffi, Python};
 
