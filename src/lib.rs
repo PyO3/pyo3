@@ -1,10 +1,14 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(
-    invalid_doc_attributes,
-    rustdoc::broken_intra_doc_links,
-    rustdoc::bare_urls
+#![cfg_attr(
+    docsrs, // rustdoc:: is not supported on msrv
+    deny(
+        invalid_doc_attributes,
+        rustdoc::broken_intra_doc_links,
+        rustdoc::bare_urls
+    )
 )]
+
 //! Rust bindings to the Python interpreter.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
