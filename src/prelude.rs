@@ -10,6 +10,9 @@
 //! use pyo3::prelude::*;
 //! ```
 
+pub use crate::conversion::{
+    FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject,
+};
 pub use crate::err::{PyErr, PyResult};
 pub use crate::gil::GILGuard;
 pub use crate::instance::{Py, PyObject};
@@ -18,7 +21,6 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;
 pub use crate::types::{PyAny, PyModule};
 pub use crate::wrap_pyfunction;
-pub use crate::{FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
 
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]

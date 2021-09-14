@@ -353,7 +353,7 @@ pub mod proc_macro {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
 
 #[macro_use]
 mod macros;
