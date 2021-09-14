@@ -21,16 +21,17 @@
 //!
 //! ## The Python<'py> object
 //!
-//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`] token. All APIs
-//! that require that the GIL is held require this token as proof that you really are holding the
-//! GIL. It can be explicitly acquired and is also implicitly acquired by PyO3 as it wraps Rust
-//! functions and structs into Python functions and objects.
+//! Holding the [global interpreter lock] (GIL) is modeled with the [`Python<'py>`](crate::Python)
+//! token. All APIs that require that the GIL is held require this token as proof that you really
+//! are holding the GIL. It can be explicitly acquired and is also implicitly acquired by PyO3 as
+//! it wraps Rust functions and structs into Python functions and objects.
 //!
 //! ## The GIL-dependent types
 //!
 //! For example `&`[`PyAny`]. These are only ever seen as references, with a lifetime that is only
-//! valid for as long as the GIL is held, which is why using them doesn't require a  [`Python<'py>`]
-//! token. The underlying Python object, if mutable, can be mutated through any reference.
+//! valid for as long as the GIL is held, which is why using them doesn't require a
+//! [`Python<'py>`](crate::Python) token. The underlying Python object, if mutable, can be mutated
+//! through any reference.
 //!
 //! See the [guide][types] for an explanation of the different Python object types.
 //!
@@ -38,8 +39,8 @@
 //!
 //! When wrapped in [`Py`]`<...>`, like with [`Py`]`<`[`PyAny`]`>` or [`Py`]`<SomePyClass>`, Python
 //! objects no longer have a limited lifetime which makes them easier to store in structs and pass
-//! between functions. However, you cannot do much with them without a [`Python<'py>`] token, for
-//! which you’d need to reacquire the GIL.
+//! between functions. However, you cannot do much with them without a
+//! [`Python<'py>`](crate::Python) token, for which you’d need to reacquire the GIL.
 //!
 //! ## PyErr
 //!
@@ -70,9 +71,9 @@
 //! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
 //! your module can also be used with statically linked Python interpreters. Use this feature when
 //! building an extension module.
-//! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`] blocks per [`#[pyclass]`].
-//! This adds a dependency on the [inventory][inventory] crate, which is not supported on all
-//!  platforms.
+//! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
+//! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
+//! crate, which is not supported on all platforms.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //
@@ -277,7 +278,6 @@
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 //! [`#![feature(specialization)]`]: <https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md>
 //! [Features chapter of the guide]: <https://pyo3.rs/latest/features.html#features-reference> "Features Reference - PyO3 user guide"
-//! [`#[pyclass]`]: macro@crate::pyclass
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
