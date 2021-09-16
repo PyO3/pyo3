@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     convert::AsRef,
     env,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fmt::Display,
     fs::{self, DirEntry},
     io::{BufRead, BufReader, Read, Write},
@@ -1080,10 +1080,28 @@ fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
     }
 }
 
-fn get_venv_path() -> Option<PathBuf> {
+fn venv_interpreter(virtual_env: &OsStr, windows: bool) -> PathBuf {
+    if windows {
+        Path::new(virtual_env).join("Scripts").join("python.exe")
+    } else {
+        Path::new(virtual_env).join("bin").join("python")
+    }
+}
+
+fn conda_env_interpreter(conda_prefix: &OsStr, windows: bool) -> PathBuf {
+    if windows {
+        Path::new(conda_prefix).join("python.exe")
+    } else {
+        Path::new(conda_prefix).join("bin").join("python")
+    }
+}
+
+fn get_env_interpreter() -> Option<PathBuf> {
     match (env_var("VIRTUAL_ENV"), env_var("CONDA_PREFIX")) {
-        (Some(dir), None) => Some(PathBuf::from(dir)),
-        (None, Some(dir)) => Some(PathBuf::from(dir)),
+        // Use cfg rather can CARGO_TARGET_OS because this affects where files are located on the
+        // build host
+        (Some(dir), None) => Some(venv_interpreter(&dir, cfg!(windows))),
+        (None, Some(dir)) => Some(conda_env_interpreter(&dir, cfg!(windows))),
         (Some(_), Some(_)) => {
             warn!(
                 "Both VIRTUAL_ENV and CONDA_PREFIX are set. PyO3 will ignore both of these for \
@@ -1105,14 +1123,8 @@ fn get_venv_path() -> Option<PathBuf> {
 pub fn find_interpreter() -> Result<PathBuf> {
     if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
-    } else if let Some(venv_path) = get_venv_path() {
-        // Use cfg rather can CARGO_TARGET_OS because this affects how files are located on the
-        // host OS
-        if cfg!(windows) {
-            Ok(venv_path.join("Scripts\\python"))
-        } else {
-            Ok(venv_path.join("bin/python"))
-        }
+    } else if let Some(env_interpreter) = get_env_interpreter() {
+        Ok(env_interpreter)
     } else {
         println!("cargo:rerun-if-env-changed=PATH");
         ["python", "python3"]
@@ -1181,7 +1193,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::{io::Cursor, iter::FromIterator};
 
     use super::*;
 
@@ -1515,5 +1527,31 @@ mod tests {
                 extra_build_script_lines: vec![],
             }
         )
+    }
+
+    #[test]
+    fn test_venv_interpreter() {
+        let base = OsStr::new("base");
+        assert_eq!(
+            venv_interpreter(&base, true),
+            PathBuf::from_iter(&["base", "Scripts", "python.exe"])
+        );
+        assert_eq!(
+            venv_interpreter(&base, false),
+            PathBuf::from_iter(&["base", "bin", "python"])
+        );
+    }
+
+    #[test]
+    fn test_conda_env_interpreter() {
+        let base = OsStr::new("base");
+        assert_eq!(
+            conda_env_interpreter(&base, true),
+            PathBuf::from_iter(&["base", "python.exe"])
+        );
+        assert_eq!(
+            conda_env_interpreter(&base, false),
+            PathBuf::from_iter(&["base", "bin", "python"])
+        );
     }
 }

@@ -33,9 +33,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Mark FFI definitions removed in Python 3.10 `PyParser_ASTFromString`, `PyParser_ASTFromStringObject`, `PyParser_ASTFromFile`, `PyParser_ASTFromFileObject`, `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags`, `PyParser_SimpleParseString`, `PyParser_SimpleParseFile`, `Py_SymtableString`, and `Py_SymtableStringObject`. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 - `pyo3`'s `Cargo.toml` now advertises `links = "python"` to inform Cargo that it links against *libpython*. [#1819](https://github.com/PyO3/pyo3/pull/1819)
 
+### Fixed
+
+- Fix building with a conda environment on Windows. [#1873](https://github.com/PyO3/pyo3/pull/1873)
+
 ## [0.14.5] - 2021-09-05
 
-## Added
+### Added
 
 - Make `pyo3_build_config::InterpreterConfig` and subfields public. [#1848](https://github.com/PyO3/pyo3/pull/1848)
 - Add `resolve-config` feature to the `pyo3-build-config` to control whether its build script does anything. [#1856](https://github.com/PyO3/pyo3/pull/1856)
