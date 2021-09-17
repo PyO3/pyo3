@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Fix building with a conda environment on Windows. [#1873](https://github.com/PyO3/pyo3/pull/1873)
+- Fix panic on Python 3.6 when calling `Python::with_gil` with Python initialized but threading not initialized. [#1874](https://github.com/PyO3/pyo3/pull/1874)
 
 ## [0.14.5] - 2021-09-05
 
