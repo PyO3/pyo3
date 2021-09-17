@@ -151,6 +151,7 @@ macro_rules! define_pyclass_setattr_slot {
             #[inline]
             unsafe fn $set(
                 self,
+                _py: Python,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
                 _value: NonNull<ffi::PyObject>,
@@ -167,6 +168,7 @@ macro_rules! define_pyclass_setattr_slot {
             #[inline]
             unsafe fn $del(
                 self,
+                _py: Python,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
             ) -> PyResult<()> {
@@ -187,15 +189,14 @@ macro_rules! define_pyclass_setattr_slot {
                         attr: *mut $crate::ffi::PyObject,
                         value: *mut $crate::ffi::PyObject,
                     ) -> ::std::os::raw::c_int {
+                        use $crate::callback::IntoPyCallbackOutput;
                         $crate::callback::handle_panic(|py| {
                             let collector = PyClassImplCollector::<$cls>::new();
-                            $crate::callback::convert(py, {
-                                if let Some(value) = ::std::ptr::NonNull::new(value) {
-                                    collector.$set(_slf, attr, value)
-                                } else {
-                                    collector.$del(_slf, attr)
-                                }
-                            })
+                            if let Some(value) = ::std::ptr::NonNull::new(value) {
+                                collector.$set(py, _slf, attr, value).convert(py)
+                            } else {
+                                collector.$del(py, _slf, attr).convert(py)
+                            }
                         })
                     }
                     Some($crate::ffi::PyType_Slot {
@@ -250,6 +251,223 @@ define_pyclass_setattr_slot! {
     generate_pyclass_setitem_slot,
     Py_mp_ass_subscript,
     objobjargproc,
+}
+
+/// Macro which expands to three items
+/// - Trait for a lhs dunder e.g. __add__
+/// - Trait for the corresponding rhs e.g. __radd__
+/// - A macro which will use dtolnay specialisation to generate the shared slot for the two dunders
+macro_rules! define_pyclass_binary_operator_slot {
+    (
+        $lhs_trait:ident,
+        $rhs_trait:ident,
+        $lhs_implemented:ident,
+        $rhs_implemented:ident,
+        $lhs:ident,
+        $rhs:ident,
+        $generate_macro:ident,
+        $slot:ident,
+        $func_ty:ident,
+    ) => {
+        slot_fragment_trait! {
+            $lhs_trait,
+            $lhs_implemented,
+
+            /// # Safety: _slf and _attr must be valid non-null Python objects
+            #[inline]
+            unsafe fn $lhs(
+                self,
+                _py: Python,
+                _slf: *mut ffi::PyObject,
+                _other: *mut ffi::PyObject,
+            ) -> PyResult<*mut ffi::PyObject> {
+                ffi::Py_INCREF(ffi::Py_NotImplemented());
+                Ok(ffi::Py_NotImplemented())
+            }
+        }
+
+        slot_fragment_trait! {
+            $rhs_trait,
+            $rhs_implemented,
+
+            /// # Safety: _slf and _attr must be valid non-null Python objects
+            #[inline]
+            unsafe fn $rhs(
+                self,
+                _py: Python,
+                _slf: *mut ffi::PyObject,
+                _other: *mut ffi::PyObject,
+            ) -> PyResult<*mut ffi::PyObject> {
+                ffi::Py_INCREF(ffi::Py_NotImplemented());
+                Ok(ffi::Py_NotImplemented())
+            }
+        }
+
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! $generate_macro {
+            ($cls:ty) => {{
+                use ::std::option::Option::*;
+                use $crate::class::impl_::*;
+                let collector = PyClassImplCollector::<$cls>::new();
+                if collector.$lhs_implemented() || collector.$rhs_implemented() {
+                    unsafe extern "C" fn __wrap(
+                        _slf: *mut $crate::ffi::PyObject,
+                        _other: *mut $crate::ffi::PyObject,
+                    ) -> *mut $crate::ffi::PyObject {
+                        $crate::callback::handle_panic(|py| {
+                            let collector = PyClassImplCollector::<$cls>::new();
+                            let lhs_result = collector.$lhs(py, _slf, _other)?;
+                            if lhs_result == $crate::ffi::Py_NotImplemented() {
+                                $crate::ffi::Py_DECREF(lhs_result);
+                                collector.$rhs(py, _other, _slf)
+                            } else {
+                                ::std::result::Result::Ok(lhs_result)
+                            }
+                        })
+                    }
+                    Some($crate::ffi::PyType_Slot {
+                        slot: $crate::ffi::$slot,
+                        pfunc: __wrap as $crate::ffi::$func_ty as _,
+                    })
+                } else {
+                    None
+                }
+            }};
+        }
+    };
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__add__SlotFragment,
+    PyClass__radd__SlotFragment,
+    __add__implemented,
+    __radd__implemented,
+    __add__,
+    __radd__,
+    generate_pyclass_add_slot,
+    Py_nb_add,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__sub__SlotFragment,
+    PyClass__rsub__SlotFragment,
+    __sub__implemented,
+    __rsub__implemented,
+    __sub__,
+    __rsub__,
+    generate_pyclass_sub_slot,
+    Py_nb_subtract,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__mul__SlotFragment,
+    PyClass__rmul__SlotFragment,
+    __mul__implemented,
+    __rmul__implemented,
+    __mul__,
+    __rmul__,
+    generate_pyclass_mul_slot,
+    Py_nb_multiply,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__mod__SlotFragment,
+    PyClass__rmod__SlotFragment,
+    __mod__implemented,
+    __rmod__implemented,
+    __mod__,
+    __rmod__,
+    generate_pyclass_mod_slot,
+    Py_nb_remainder,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__divmod__SlotFragment,
+    PyClass__rdivmod__SlotFragment,
+    __divmod__implemented,
+    __rdivmod__implemented,
+    __divmod__,
+    __rdivmod__,
+    generate_pyclass_divmod_slot,
+    Py_nb_divmod,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__lshift__SlotFragment,
+    PyClass__rlshift__SlotFragment,
+    __lshift__implemented,
+    __rlshift__implemented,
+    __lshift__,
+    __rlshift__,
+    generate_pyclass_lshift_slot,
+    Py_nb_lshift,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__rshift__SlotFragment,
+    PyClass__rrshift__SlotFragment,
+    __rshift__implemented,
+    __rrshift__implemented,
+    __rshift__,
+    __rrshift__,
+    generate_pyclass_rshift_slot,
+    Py_nb_rshift,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__and__SlotFragment,
+    PyClass__rand__SlotFragment,
+    __and__implemented,
+    __rand__implemented,
+    __and__,
+    __rand__,
+    generate_pyclass_and_slot,
+    Py_nb_and,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__or__SlotFragment,
+    PyClass__ror__SlotFragment,
+    __or__implemented,
+    __ror__implemented,
+    __or__,
+    __ror__,
+    generate_pyclass_or_slot,
+    Py_nb_or,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__xor__SlotFragment,
+    PyClass__rxor__SlotFragment,
+    __xor__implemented,
+    __rxor__implemented,
+    __xor__,
+    __rxor__,
+    generate_pyclass_xor_slot,
+    Py_nb_xor,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__matmul__SlotFragment,
+    PyClass__rmatmul__SlotFragment,
+    __matmul__implemented,
+    __rmatmul__implemented,
+    __matmul__,
+    __rmatmul__,
+    generate_pyclass_matmul_slot,
+    Py_nb_matrix_multiply,
+    binaryfunc,
 }
 
 pub trait PyClassAllocImpl<T> {

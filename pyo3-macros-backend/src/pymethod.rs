@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
+use crate::method::ExtractErrorMode;
 use crate::utils::{ensure_not_async_fn, unwrap_ty_group, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -31,12 +32,15 @@ pub fn gen_py_method(
     ensure_function_options_valid(&options)?;
     let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
 
-    if let Some(slot_def) = pyproto(&spec.python_name.to_string()) {
+    let method_name = spec.python_name.to_string();
+
+    if let Some(slot_def) = pyproto(&method_name) {
         let slot = slot_def.generate_type_slot(cls, &spec)?;
         return Ok(GeneratedPyMethod::Proto(slot));
     }
 
-    if let Some(proto) = pyproto_fragment(cls, &spec)? {
+    if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
+        let proto = slot_fragment_def.generate_pyproto_fragment(cls, &spec)?;
         return Ok(GeneratedPyMethod::TraitImpl(proto));
     }
 
@@ -212,8 +216,8 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls, ExtractErrorMode::Raise),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls, ExtractErrorMode::Raise),
     };
     Ok(quote! {
         ::pyo3::class::PyMethodDefType::Setter({
@@ -288,8 +292,8 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls),
+        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls, ExtractErrorMode::Raise),
+        PropertyType::Function { self_type, .. } => self_type.receiver(cls, ExtractErrorMode::Raise),
     };
     Ok(quote! {
         ::pyo3::class::PyMethodDefType::Getter({
@@ -515,6 +519,7 @@ enum Ty {
     Int,
     PyHashT,
     PySsizeT,
+    Void,
 }
 
 impl Ty {
@@ -525,6 +530,7 @@ impl Ty {
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { ::pyo3::ffi::Py_ssize_t },
+            Ty::Void => quote! { () },
         }
     }
 
@@ -577,7 +583,7 @@ impl Ty {
                 let #ident = ::pyo3::class::basic::CompareOp::from_raw(#ident)
                     .ok_or_else(|| ::pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))?;
             },
-            Ty::Int | Ty::PyHashT | Ty::PySsizeT => todo!(),
+            Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => todo!(),
         }
     }
 }
@@ -705,7 +711,7 @@ impl SlotDef {
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
-        let body = generate_method_body(cls, spec, &py, arguments, return_mode.as_ref())?;
+        let body = generate_method_body(cls, spec, &py, arguments, ExtractErrorMode::Raise, return_mode.as_ref())?;
         Ok(quote!({
             unsafe extern "C" fn __wrap(_raw_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
@@ -737,9 +743,10 @@ fn generate_method_body(
     spec: &FnSpec,
     py: &syn::Ident,
     arguments: &[Ty],
+    extract_error_mode: ExtractErrorMode,
     return_mode: Option<&ReturnMode>,
 ) -> Result<TokenStream> {
-    let self_conversion = spec.tp.self_conversion(Some(cls));
+    let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let rust_name = spec.name;
     let (arg_idents, conversions) = extract_proto_arguments(cls, py, &spec.args, arguments)?;
     let call = quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
@@ -755,78 +762,89 @@ fn generate_method_body(
     })
 }
 
-fn generate_pyproto_fragment(
-    cls: &syn::Type,
-    spec: &FnSpec,
-    fragment: &str,
-    arguments: &[Ty],
-) -> Result<TokenStream> {
-    let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
-    let implemented = format_ident!("{}implemented", fragment);
-    let method = syn::Ident::new(fragment, Span::call_site());
-    let py = syn::Ident::new("_py", Span::call_site());
-    let method_arguments = generate_method_arguments(arguments);
-    let body = generate_method_body(cls, spec, &py, arguments, None)?;
-    Ok(quote! {
-        impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-            #[inline]
-            fn #implemented(self) -> bool { true }
-
-            #[inline]
-            unsafe fn #method(
-                self,
-                _raw_slf: *mut ::pyo3::ffi::PyObject,
-                #(#method_arguments),*
-            ) -> ::pyo3::PyResult<()> {
-                let _slf = _raw_slf;
-                let #py = ::pyo3::Python::assume_gil_acquired();
-                #body
-            }
-        }
-    })
+struct SlotFragmentDef {
+    fragment: &'static str,
+    arguments: &'static [Ty],
+    ret_ty: Ty,
 }
 
-fn pyproto_fragment(cls: &syn::Type, spec: &FnSpec) -> Result<Option<TokenStream>> {
-    match spec.python_name.to_string().as_str() {
-        "__setattr__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__setattr__",
-            &[Ty::Object, Ty::NonNullObject],
-        )),
-        "__delattr__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__delattr__",
-            &[Ty::Object],
-        )),
-        "__set__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__set__",
-            &[Ty::Object, Ty::NonNullObject],
-        )),
-        "__delete__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__delete__",
-            &[Ty::Object],
-        )),
-        "__setitem__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__setitem__",
-            &[Ty::Object, Ty::NonNullObject],
-        )),
-        "__delitem__" => Some(generate_pyproto_fragment(
-            cls,
-            spec,
-            "__delitem__",
-            &[Ty::Object],
-        )),
+impl SlotFragmentDef {
+    const fn new(fragment: &'static str, arguments: &'static [Ty]) -> Self {
+        SlotFragmentDef {
+            fragment,
+            arguments,
+            ret_ty: Ty::Void,
+        }
+    }
+
+    const fn ret_ty(mut self, ret_ty: Ty) -> Self {
+        self.ret_ty = ret_ty;
+        self
+    }
+
+    fn generate_pyproto_fragment(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+        let SlotFragmentDef {
+            fragment,
+            arguments,
+            ret_ty,
+        } = self;
+        let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
+        let implemented = format_ident!("{}implemented", fragment);
+        let method = syn::Ident::new(fragment, Span::call_site());
+        let py = syn::Ident::new("_py", Span::call_site());
+        let method_arguments = generate_method_arguments(arguments);
+        let body = generate_method_body(cls, spec, &py, arguments, ExtractErrorMode::NotImplemented, None)?;
+        let ret_ty = ret_ty.ffi_type();
+        Ok(quote! {
+            impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
+                #[inline]
+                fn #implemented(self) -> bool { true }
+
+                #[inline]
+                unsafe fn #method(
+                    self,
+                    #py: ::pyo3::Python,
+                    _raw_slf: *mut ::pyo3::ffi::PyObject,
+                    #(#method_arguments),*
+                ) -> ::pyo3::PyResult<#ret_ty> {
+                    let _slf = _raw_slf;
+                    #body
+                }
+            }
+        })
+    }
+}
+
+const __SETATTR__: SlotFragmentDef =
+    SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
+const __DELATTR__: SlotFragmentDef =
+    SlotFragmentDef::new("__delattr__", &[Ty::Object]);
+const __SET__: SlotFragmentDef =
+    SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject]);
+const __DELETE__: SlotFragmentDef =
+    SlotFragmentDef::new("__delete__", &[Ty::Object]);
+const __SETITEM__: SlotFragmentDef =
+    SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]);
+const __DELITEM__: SlotFragmentDef =
+    SlotFragmentDef::new("__delitem__", &[Ty::Object]);
+
+const __ADD__: SlotFragmentDef =
+    SlotFragmentDef::new("__add__", &[Ty::ObjectOrNotImplemented]).ret_ty(Ty::Object);
+const __RADD__: SlotFragmentDef =
+    SlotFragmentDef::new("__radd__", &[Ty::ObjectOrNotImplemented]).ret_ty(Ty::Object);
+
+fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
+    match method_name {
+        "__setattr__" => Some(&__SETATTR__),
+        "__delattr__" => Some(&__DELATTR__),
+        "__set__" => Some(&__SET__),
+        "__delete__" => Some(&__DELETE__),
+        "__setitem__" => Some(&__SETITEM__),
+        "__delitem__" => Some(&__DELITEM__),
+        "__add__" => Some(&__ADD__),
+        "__radd__" => Some(&__RADD__),
         _ => None,
     }
-    .transpose()
 }
 
 fn extract_proto_arguments(

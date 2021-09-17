@@ -93,10 +93,10 @@ pub enum FnType {
 }
 
 impl FnType {
-    pub fn self_conversion(&self, cls: Option<&syn::Type>) -> TokenStream {
+    pub fn self_conversion(&self, cls: Option<&syn::Type>, error_mode: ExtractErrorMode) -> TokenStream {
         match self {
             FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnCall(st) => {
-                st.receiver(cls.expect("no class given for Fn with a \"self\" receiver"))
+                st.receiver(cls.expect("no class given for Fn with a \"self\" receiver"), error_mode)
             }
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
@@ -128,26 +128,44 @@ pub enum SelfType {
     TryFromPyCell(Span),
 }
 
+pub enum ExtractErrorMode {
+    NotImplemented,
+    Raise,
+}
+
 impl SelfType {
-    pub fn receiver(&self, cls: &syn::Type) -> TokenStream {
+    pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
+        let cell = match error_mode {
+            ExtractErrorMode::Raise => {
+                quote! { _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>()? }
+            },
+            ExtractErrorMode::NotImplemented => {
+                quote! {
+                    match _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>() {
+                        ::std::result::Result::Ok(cell) => cell,
+                        ::std::result::Result::Err(_) => return ::pyo3::callback::convert(_py, _py.NotImplemented()),
+                    }
+                }
+            },
+        };
         match self {
             SelfType::Receiver { mutable: false } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     let _ref = _cell.try_borrow()?;
                     let _slf = &_ref;
                 }
             }
             SelfType::Receiver { mutable: true } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     let mut _ref = _cell.try_borrow_mut()?;
                     let _slf = &mut _ref;
                 }
             }
             SelfType::TryFromPyCell(span) => {
                 quote_spanned! { *span =>
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
                     let _slf = std::convert::TryFrom::try_from(_cell)?;
                 }
@@ -442,7 +460,7 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
     ) -> Result<TokenStream> {
         let deprecations = &self.deprecations;
-        let self_conversion = self.tp.self_conversion(cls);
+        let self_conversion = self.tp.self_conversion(cls, ExtractErrorMode::Raise);
         let self_arg = self.tp.self_arg();
         let arg_names = (0..self.args.len())
             .map(|pos| syn::Ident::new(&format!("arg{}", pos), Span::call_site()))

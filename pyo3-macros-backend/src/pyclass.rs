@@ -602,6 +602,39 @@ fn impl_class(
                 if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_setitem_slot!(#cls) {
                     generated_slots.push(setdescr);
                 }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_add_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_sub_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_mul_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_mod_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_divmod_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_lshift_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_rshift_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_and_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_or_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_xor_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
+                if let ::std::option::Option::Some(setdescr) = ::pyo3::generate_pyclass_matmul_slot!(#cls) {
+                    generated_slots.push(setdescr);
+                }
                 visitor(&generated_slots);
             }
 

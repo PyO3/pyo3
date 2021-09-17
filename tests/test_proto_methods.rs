@@ -551,4 +551,5 @@ assert c.counter.count == 3
 // TODO: test __delete__
 // TODO: test __anext__, __aiter__
 // TODO: test __index__, __int__, __float__, __invert__
+// TODO: __floordiv__, __truediv__
 // TODO: better argument casting errors
