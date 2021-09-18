@@ -695,12 +695,14 @@ struct SlotDef {
     return_mode: Option<ReturnMode>,
 }
 
+const NO_ARGUMENTS: &[Ty] = &[];
+
 impl SlotDef {
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
         SlotDef {
             slot: StaticIdent(slot),
             func_ty: StaticIdent(func_ty),
-            arguments: &[],
+            arguments: NO_ARGUMENTS,
             ret_ty: Ty::Object,
             before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,

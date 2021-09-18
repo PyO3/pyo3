@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PySlice, PyType};
-use pyo3::{basic::CompareOp, exceptions::PyAttributeError, prelude::*};
+use pyo3::{exceptions::PyAttributeError, prelude::*};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::{isize, iter};
 
@@ -54,10 +54,6 @@ impl ExampleClass {
     fn __hash__(&self) -> u64 {
         let i64_value: i64 = self.value.into();
         i64_value as u64
-    }
-
-    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
-        op.matches_ordering(self.value.cmp(&other.value))
     }
 
     fn __bool__(&self) -> bool {
@@ -153,18 +149,6 @@ fn test_hash() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.hash().unwrap(), 5);
-    })
-}
-
-#[test]
-fn test_richcmp() {
-    Python::with_gil(|py| {
-        let example_py = make_example(py);
-        assert!(example_py
-            .rich_compare(example_py, CompareOp::Eq)
-            .unwrap()
-            .is_true()
-            .unwrap());
     })
 }
 

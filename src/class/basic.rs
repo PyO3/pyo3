@@ -41,17 +41,6 @@ impl CompareOp {
             _ => None,
         }
     }
-
-    pub fn matches_ordering(self, ordering: std::cmp::Ordering) -> bool {
-        match self {
-            CompareOp::Lt => ordering.is_lt(),
-            CompareOp::Le => ordering.is_le(),
-            CompareOp::Eq => ordering.is_eq(),
-            CompareOp::Ne => ordering.is_ne(),
-            CompareOp::Gt => ordering.is_gt(),
-            CompareOp::Ge => ordering.is_ge(),
-        }
-    }
 }
 
 /// Basic Python class customization
