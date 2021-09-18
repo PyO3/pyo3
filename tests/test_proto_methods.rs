@@ -1,3 +1,5 @@
+#![cfg(not(feature = "multiple-pymethods"))]
+
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PySlice, PyType};
 use pyo3::{basic::CompareOp, exceptions::PyAttributeError, prelude::*};
