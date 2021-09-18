@@ -93,11 +93,17 @@ pub enum FnType {
 }
 
 impl FnType {
-    pub fn self_conversion(&self, cls: Option<&syn::Type>, error_mode: ExtractErrorMode) -> TokenStream {
+    pub fn self_conversion(
+        &self,
+        cls: Option<&syn::Type>,
+        error_mode: ExtractErrorMode,
+    ) -> TokenStream {
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnCall(st) => {
-                st.receiver(cls.expect("no class given for Fn with a \"self\" receiver"), error_mode)
-            }
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnCall(st) => st
+                .receiver(
+                    cls.expect("no class given for Fn with a \"self\" receiver"),
+                    error_mode,
+                ),
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
             }
@@ -128,6 +134,7 @@ pub enum SelfType {
     TryFromPyCell(Span),
 }
 
+#[derive(Clone, Copy)]
 pub enum ExtractErrorMode {
     NotImplemented,
     Raise,
@@ -138,7 +145,7 @@ impl SelfType {
         let cell = match error_mode {
             ExtractErrorMode::Raise => {
                 quote! { _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>()? }
-            },
+            }
             ExtractErrorMode::NotImplemented => {
                 quote! {
                     match _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>() {
@@ -146,7 +153,7 @@ impl SelfType {
                         ::std::result::Result::Err(_) => return ::pyo3::callback::convert(_py, _py.NotImplemented()),
                     }
                 }
-            },
+            }
         };
         match self {
             SelfType::Receiver { mutable: false } => {

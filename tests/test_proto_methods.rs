@@ -158,14 +158,11 @@ fn test_hash() {
 fn test_richcmp() {
     Python::with_gil(|py| {
         let example_py = make_example(py);
-        assert_eq!(
-            example_py
-                .rich_compare(example_py, CompareOp::Eq)
-                .unwrap()
-                .is_true()
-                .unwrap(),
-            true
-        );
+        assert!(example_py
+            .rich_compare(example_py, CompareOp::Eq)
+            .unwrap()
+            .is_true()
+            .unwrap());
     })
 }
 
@@ -552,4 +549,5 @@ assert c.counter.count == 3
 // TODO: test __anext__, __aiter__
 // TODO: test __index__, __int__, __float__, __invert__
 // TODO: __floordiv__, __truediv__
+// TODO: __pow__, __rpow__
 // TODO: better argument casting errors

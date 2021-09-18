@@ -19,6 +19,7 @@ pub enum GeneratedPyMethod {
     Method(TokenStream),
     Proto(TokenStream),
     TraitImpl(TokenStream),
+    SlotTraitImpl(String, TokenStream),
 }
 
 pub fn gen_py_method(
@@ -41,7 +42,7 @@ pub fn gen_py_method(
 
     if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
         let proto = slot_fragment_def.generate_pyproto_fragment(cls, &spec)?;
-        return Ok(GeneratedPyMethod::TraitImpl(proto));
+        return Ok(GeneratedPyMethod::SlotTraitImpl(method_name, proto));
     }
 
     Ok(match &spec.tp {
@@ -216,8 +217,12 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: true }.receiver(cls, ExtractErrorMode::Raise),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls, ExtractErrorMode::Raise),
+        PropertyType::Descriptor { .. } => {
+            SelfType::Receiver { mutable: true }.receiver(cls, ExtractErrorMode::Raise)
+        }
+        PropertyType::Function { self_type, .. } => {
+            self_type.receiver(cls, ExtractErrorMode::Raise)
+        }
     };
     Ok(quote! {
         ::pyo3::class::PyMethodDefType::Setter({
@@ -292,8 +297,12 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     };
 
     let slf = match property_type {
-        PropertyType::Descriptor { .. } => SelfType::Receiver { mutable: false }.receiver(cls, ExtractErrorMode::Raise),
-        PropertyType::Function { self_type, .. } => self_type.receiver(cls, ExtractErrorMode::Raise),
+        PropertyType::Descriptor { .. } => {
+            SelfType::Receiver { mutable: false }.receiver(cls, ExtractErrorMode::Raise)
+        }
+        PropertyType::Function { self_type, .. } => {
+            self_type.receiver(cls, ExtractErrorMode::Raise)
+        }
     };
     Ok(quote! {
         ::pyo3::class::PyMethodDefType::Getter({
@@ -401,8 +410,9 @@ const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .return_conversion(TokenGenerator(
         || quote! { ::pyo3::callback::HashCallbackOutput },
     ));
-const __RICHCMP__: SlotDef =
-    SlotDef::new("Py_tp_richcompare", "richcmpfunc").arguments(&[Ty::Object, Ty::CompareOp]);
+const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .arguments(&[Ty::ObjectOrNotImplemented, Ty::CompareOp]);
 const __GET__: SlotDef =
     SlotDef::new("Py_tp_descr_get", "descrgetfunc").arguments(&[Ty::Object, Ty::Object]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
@@ -431,42 +441,55 @@ const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
 
 const __IADD__: SlotDef = SlotDef::new("Py_nb_inplace_add", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ISUB__: SlotDef = SlotDef::new("Py_nb_inplace_subtract", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IMUL__: SlotDef = SlotDef::new("Py_nb_inplace_multiply", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IMATMUL__: SlotDef = SlotDef::new("Py_nb_inplace_matrix_multiply", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ITRUEDIV__: SlotDef = SlotDef::new("Py_nb_inplace_true_divide", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IFLOORDIV__: SlotDef = SlotDef::new("Py_nb_inplace_floor_divide", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented, Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IRSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_rshift", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IAND__: SlotDef = SlotDef::new("Py_nb_inplace_and", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IXOR__: SlotDef = SlotDef::new("Py_nb_inplace_xor", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 
 fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
@@ -659,6 +682,7 @@ struct SlotDef {
     arguments: &'static [Ty],
     ret_ty: Ty,
     before_call_method: Option<TokenGenerator>,
+    extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
 }
 
@@ -670,6 +694,7 @@ impl SlotDef {
             arguments: &[],
             ret_ty: Ty::Object,
             before_call_method: None,
+            extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
         }
     }
@@ -694,6 +719,11 @@ impl SlotDef {
         self
     }
 
+    const fn extract_error_mode(mut self, extract_error_mode: ExtractErrorMode) -> Self {
+        self.extract_error_mode = extract_error_mode;
+        self
+    }
+
     const fn return_self(mut self) -> Self {
         self.return_mode = Some(ReturnMode::ReturnSelf);
         self
@@ -705,13 +735,21 @@ impl SlotDef {
             func_ty,
             before_call_method,
             arguments,
+            extract_error_mode,
             ret_ty,
             return_mode,
         } = self;
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
-        let body = generate_method_body(cls, spec, &py, arguments, ExtractErrorMode::Raise, return_mode.as_ref())?;
+        let body = generate_method_body(
+            cls,
+            spec,
+            &py,
+            arguments,
+            *extract_error_mode,
+            return_mode.as_ref(),
+        )?;
         Ok(quote!({
             unsafe extern "C" fn __wrap(_raw_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
@@ -765,6 +803,7 @@ fn generate_method_body(
 struct SlotFragmentDef {
     fragment: &'static str,
     arguments: &'static [Ty],
+    extract_error_mode: ExtractErrorMode,
     ret_ty: Ty,
 }
 
@@ -773,8 +812,14 @@ impl SlotFragmentDef {
         SlotFragmentDef {
             fragment,
             arguments,
+            extract_error_mode: ExtractErrorMode::Raise,
             ret_ty: Ty::Void,
         }
+    }
+
+    const fn extract_error_mode(mut self, extract_error_mode: ExtractErrorMode) -> Self {
+        self.extract_error_mode = extract_error_mode;
+        self
     }
 
     const fn ret_ty(mut self, ret_ty: Ty) -> Self {
@@ -786,19 +831,17 @@ impl SlotFragmentDef {
         let SlotFragmentDef {
             fragment,
             arguments,
+            extract_error_mode,
             ret_ty,
         } = self;
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
-        let implemented = format_ident!("{}implemented", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
-        let body = generate_method_body(cls, spec, &py, arguments, ExtractErrorMode::NotImplemented, None)?;
+        let body = generate_method_body(cls, spec, &py, arguments, *extract_error_mode, None)?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
             impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                #[inline]
-                fn #implemented(self) -> bool { true }
 
                 #[inline]
                 unsafe fn #method(
@@ -817,21 +860,43 @@ impl SlotFragmentDef {
 
 const __SETATTR__: SlotFragmentDef =
     SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
-const __DELATTR__: SlotFragmentDef =
-    SlotFragmentDef::new("__delattr__", &[Ty::Object]);
-const __SET__: SlotFragmentDef =
-    SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject]);
-const __DELETE__: SlotFragmentDef =
-    SlotFragmentDef::new("__delete__", &[Ty::Object]);
+const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object]);
+const __SET__: SlotFragmentDef = SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject]);
+const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Object]);
 const __SETITEM__: SlotFragmentDef =
     SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]);
-const __DELITEM__: SlotFragmentDef =
-    SlotFragmentDef::new("__delitem__", &[Ty::Object]);
+const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object]);
 
-const __ADD__: SlotFragmentDef =
-    SlotFragmentDef::new("__add__", &[Ty::ObjectOrNotImplemented]).ret_ty(Ty::Object);
-const __RADD__: SlotFragmentDef =
-    SlotFragmentDef::new("__radd__", &[Ty::ObjectOrNotImplemented]).ret_ty(Ty::Object);
+macro_rules! binary_num_slot_fragment_def {
+    ($ident:ident, $name:literal) => {
+        const $ident: SlotFragmentDef = SlotFragmentDef::new($name, &[Ty::ObjectOrNotImplemented])
+            .extract_error_mode(ExtractErrorMode::NotImplemented)
+            .ret_ty(Ty::Object);
+    };
+}
+
+binary_num_slot_fragment_def!(__ADD__, "__add__");
+binary_num_slot_fragment_def!(__RADD__, "__radd__");
+binary_num_slot_fragment_def!(__SUB__, "__sub__");
+binary_num_slot_fragment_def!(__RSUB__, "__rsub__");
+binary_num_slot_fragment_def!(__MUL__, "__mul__");
+binary_num_slot_fragment_def!(__RMUL__, "__rmul__");
+binary_num_slot_fragment_def!(__MATMUL__, "__matmul__");
+binary_num_slot_fragment_def!(__RMATMUL__, "__rmatmul__");
+binary_num_slot_fragment_def!(__DIVMOD__, "__divmod__");
+binary_num_slot_fragment_def!(__RDIVMOD__, "__rdivmod__");
+binary_num_slot_fragment_def!(__MOD__, "__mod__");
+binary_num_slot_fragment_def!(__RMOD__, "__rmod__");
+binary_num_slot_fragment_def!(__LSHIFT__, "__lshift__");
+binary_num_slot_fragment_def!(__RLSHIFT__, "__rlshift__");
+binary_num_slot_fragment_def!(__RSHIFT__, "__rshift__");
+binary_num_slot_fragment_def!(__RRSHIFT__, "__rrshift__");
+binary_num_slot_fragment_def!(__AND__, "__and__");
+binary_num_slot_fragment_def!(__RAND__, "__rand__");
+binary_num_slot_fragment_def!(__XOR__, "__xor__");
+binary_num_slot_fragment_def!(__RXOR__, "__rxor__");
+binary_num_slot_fragment_def!(__OR__, "__or__");
+binary_num_slot_fragment_def!(__ROR__, "__ror__");
 
 fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
     match method_name {
@@ -843,6 +908,26 @@ fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
         "__delitem__" => Some(&__DELITEM__),
         "__add__" => Some(&__ADD__),
         "__radd__" => Some(&__RADD__),
+        "__sub__" => Some(&__SUB__),
+        "__rsub__" => Some(&__RSUB__),
+        "__mul__" => Some(&__MUL__),
+        "__rmul__" => Some(&__RMUL__),
+        "__matmul__" => Some(&__MATMUL__),
+        "__rmatmul__" => Some(&__RMATMUL__),
+        "__divmod__" => Some(&__DIVMOD__),
+        "__rdivmod__" => Some(&__RDIVMOD__),
+        "__mod__" => Some(&__MOD__),
+        "__rmod__" => Some(&__RMOD__),
+        "__lshift__" => Some(&__LSHIFT__),
+        "__rlshift__" => Some(&__RLSHIFT__),
+        "__rshift__" => Some(&__RSHIFT__),
+        "__rrshift__" => Some(&__RRSHIFT__),
+        "__and__" => Some(&__AND__),
+        "__rand__" => Some(&__RAND__),
+        "__xor__" => Some(&__XOR__),
+        "__rxor__" => Some(&__RXOR__),
+        "__or__" => Some(&__OR__),
+        "__ror__" => Some(&__ROR__),
         _ => None,
     }
 }

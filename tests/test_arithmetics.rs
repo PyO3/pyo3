@@ -9,7 +9,9 @@ struct UnaryArithmetic {
     inner: f64,
 }
 
+#[pymethods]
 impl UnaryArithmetic {
+    #[new]
     fn new(value: f64) -> Self {
         UnaryArithmetic { inner: value }
     }
@@ -521,7 +523,7 @@ mod return_not_implemented {
         fn __mod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
             slf
         }
-        fn __pow__<'p>(slf: PyRef<'p, Self>, _other: u8, _modulo: Option<u8>) -> PyRef<'p, Self> {
+        fn __pow__(slf: PyRef<Self>, _other: u8, _modulo: Option<u8>) -> PyRef<Self> {
             slf
         }
         fn __lshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {

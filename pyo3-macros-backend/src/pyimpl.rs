@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::collections::HashSet;
+
 use crate::{
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
@@ -40,6 +42,9 @@ pub fn impl_methods(
     let mut trait_impls = Vec::new();
     let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
+
+    let mut implemented_proto_fragments = HashSet::new();
+
     for iimpl in impls.iter_mut() {
         match iimpl {
             syn::ImplItem::Method(meth) => {
@@ -50,6 +55,11 @@ pub fn impl_methods(
                         methods.push(quote!(#(#attrs)* #token_stream));
                     }
                     GeneratedPyMethod::TraitImpl(token_stream) => {
+                        let attrs = get_cfg_attributes(&meth.attrs);
+                        trait_impls.push(quote!(#(#attrs)* #token_stream));
+                    }
+                    GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                        implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
                         trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
@@ -81,7 +91,9 @@ pub fn impl_methods(
     };
 
     let protos_registration = match methods_type {
-        PyClassMethodsType::Specialization => Some(impl_protos(ty, proto_impls)),
+        PyClassMethodsType::Specialization => {
+            Some(impl_protos(ty, proto_impls, implemented_proto_fragments))
+        }
         PyClassMethodsType::Inventory => {
             if proto_impls.is_empty() {
                 None
@@ -135,7 +147,36 @@ fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
     }
 }
 
-fn impl_protos(ty: &syn::Type, proto_impls: Vec<TokenStream>) -> TokenStream {
+fn impl_protos(
+    ty: &syn::Type,
+    mut proto_impls: Vec<TokenStream>,
+    mut implemented_proto_fragments: HashSet<String>,
+) -> TokenStream {
+    macro_rules! try_add_shared_slot {
+        ($first:literal, $second:literal, $slot:ident) => {{
+            let first_implemented = implemented_proto_fragments.remove($first);
+            let second_implemented = implemented_proto_fragments.remove($second);
+            if first_implemented || second_implemented {
+                proto_impls.push(quote! { ::pyo3::$slot!(#ty) })
+            }
+        }};
+    }
+
+    try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
+    try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
+    try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);
+    try_add_shared_slot!("__add__", "__radd__", generate_pyclass_add_slot);
+    try_add_shared_slot!("__sub__", "__rsub__", generate_pyclass_sub_slot);
+    try_add_shared_slot!("__mul__", "__rmul__", generate_pyclass_mul_slot);
+    try_add_shared_slot!("__mod__", "__rmod__", generate_pyclass_mod_slot);
+    try_add_shared_slot!("__divmod__", "__rdivmod__", generate_pyclass_divmod_slot);
+    try_add_shared_slot!("__lshift__", "__rlshift__", generate_pyclass_lshift_slot);
+    try_add_shared_slot!("__rshift__", "__rrshift__", generate_pyclass_rshift_slot);
+    try_add_shared_slot!("__and__", "__rand__", generate_pyclass_and_slot);
+    try_add_shared_slot!("__or__", "__ror__", generate_pyclass_or_slot);
+    try_add_shared_slot!("__xor__", "__rxor__", generate_pyclass_xor_slot);
+    try_add_shared_slot!("__matmul__", "__rmatmul__", generate_pyclass_matmul_slot);
+
     quote! {
         impl ::pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
             for ::pyo3::class::impl_::PyClassImplCollector<#ty>
