@@ -249,7 +249,7 @@ macro_rules! define_pyclass_binary_operator_slot {
         slot_fragment_trait! {
             $lhs_trait,
 
-            /// # Safety: _slf and _attr must be valid non-null Python objects
+            /// # Safety: _slf and _other must be valid non-null Python objects
             #[inline]
             unsafe fn $lhs(
                 self,
@@ -265,7 +265,7 @@ macro_rules! define_pyclass_binary_operator_slot {
         slot_fragment_trait! {
             $rhs_trait,
 
-            /// # Safety: _slf and _attr must be valid non-null Python objects
+            /// # Safety: _slf and _other must be valid non-null Python objects
             #[inline]
             unsafe fn $rhs(
                 self,
@@ -415,6 +415,68 @@ define_pyclass_binary_operator_slot! {
     generate_pyclass_matmul_slot,
     Py_nb_matrix_multiply,
     binaryfunc,
+}
+
+slot_fragment_trait! {
+    PyClass__pow__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __pow__(
+        self,
+        _py: Python,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+        _mod: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        ffi::Py_INCREF(ffi::Py_NotImplemented());
+        Ok(ffi::Py_NotImplemented())
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__rpow__SlotFragment,
+
+    /// # Safety: _slf and _other must be valid non-null Python objects
+    #[inline]
+    unsafe fn __rpow__(
+        self,
+        _py: Python,
+        _slf: *mut ffi::PyObject,
+        _other: *mut ffi::PyObject,
+        _mod: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        ffi::Py_INCREF(ffi::Py_NotImplemented());
+        Ok(ffi::Py_NotImplemented())
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_pyclass_pow_slot {
+    ($cls:ty) => {{
+        unsafe extern "C" fn __wrap(
+            _slf: *mut $crate::ffi::PyObject,
+            _other: *mut $crate::ffi::PyObject,
+            _mod: *mut $crate::ffi::PyObject,
+        ) -> *mut $crate::ffi::PyObject {
+            $crate::callback::handle_panic(|py| {
+                use ::pyo3::class::impl_::*;
+                let collector = PyClassImplCollector::<$cls>::new();
+                let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
+                if lhs_result == $crate::ffi::Py_NotImplemented() {
+                    $crate::ffi::Py_DECREF(lhs_result);
+                    collector.__rpow__(py, _other, _slf, _mod)
+                } else {
+                    ::std::result::Result::Ok(lhs_result)
+                }
+            })
+        }
+        $crate::ffi::PyType_Slot {
+            slot: $crate::ffi::Py_nb_power,
+            pfunc: __wrap as $crate::ffi::ternaryfunc as _,
+        }
+    }};
 }
 
 pub trait PyClassAllocImpl<T> {

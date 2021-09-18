@@ -177,24 +177,27 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert c + c == 'BA + BA'");
     py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
-    py_run!(py, c, "assert 1 + c == '1 + BA'");
     py_run!(py, c, "assert c - 1 == 'BA - 1'");
-    py_run!(py, c, "assert 1 - c == '1 - BA'");
     py_run!(py, c, "assert c * 1 == 'BA * 1'");
-    py_run!(py, c, "assert 1 * c == '1 * BA'");
-
     py_run!(py, c, "assert c << 1 == 'BA << 1'");
-    py_run!(py, c, "assert 1 << c == '1 << BA'");
     py_run!(py, c, "assert c >> 1 == 'BA >> 1'");
-    py_run!(py, c, "assert 1 >> c == '1 >> BA'");
     py_run!(py, c, "assert c & 1 == 'BA & 1'");
-    py_run!(py, c, "assert 1 & c == '1 & BA'");
     py_run!(py, c, "assert c ^ 1 == 'BA ^ 1'");
-    py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
-    py_run!(py, c, "assert 1 | c == '1 | BA'");
     py_run!(py, c, "assert c ** 1 == 'BA ** 1 (mod: None)'");
-    py_run!(py, c, "assert 1 ** c == '1 ** BA (mod: None)'");
+
+    // Class with __add__ only should not allow the reverse op;
+    // this is consistent with Python classes.
+
+    py_expect_exception!(py, c, "1 + c", PyTypeError);
+    py_expect_exception!(py, c, "1 - c", PyTypeError);
+    py_expect_exception!(py, c, "1 * c", PyTypeError);
+    py_expect_exception!(py, c, "1 << c", PyTypeError);
+    py_expect_exception!(py, c, "1 >> c", PyTypeError);
+    py_expect_exception!(py, c, "1 & c", PyTypeError);
+    py_expect_exception!(py, c, "1 ^ c", PyTypeError);
+    py_expect_exception!(py, c, "1 | c", PyTypeError);
+    py_expect_exception!(py, c, "1 ** c", PyTypeError);
 
     py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
 }
@@ -629,15 +632,13 @@ mod return_not_implemented {
     }
 
     #[test]
-    #[ignore]
     fn reverse_arith() {
         _test_binary_dunder("radd");
         _test_binary_dunder("rsub");
         _test_binary_dunder("rmul");
         _test_binary_dunder("rmatmul");
-        _test_binary_dunder("rtruediv");
-        _test_binary_dunder("rfloordiv");
         _test_binary_dunder("rmod");
+        _test_binary_dunder("rdivmod");
         _test_binary_dunder("rpow");
     }
 

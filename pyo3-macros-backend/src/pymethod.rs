@@ -439,6 +439,13 @@ const __INT__: SlotDef = SlotDef::new("Py_nb_int", "unaryfunc");
 const __FLOAT__: SlotDef = SlotDef::new("Py_nb_float", "unaryfunc");
 const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
 
+const __TRUEDIV__: SlotDef = SlotDef::new("Py_nb_true_divide", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented);
+const __FLOORDIV__: SlotDef = SlotDef::new("Py_nb_floor_divide", "binaryfunc")
+    .arguments(&[Ty::ObjectOrNotImplemented])
+    .extract_error_mode(ExtractErrorMode::NotImplemented);
+
 const __IADD__: SlotDef = SlotDef::new("Py_nb_inplace_add", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -516,6 +523,8 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__int__" => Some(&__INT__),
         "__float__" => Some(&__FLOAT__),
         "__bool__" => Some(&__BOOL__),
+        "__truediv__" => Some(&__TRUEDIV__),
+        "__floordiv__" => Some(&__FLOORDIV__),
         "__iadd__" => Some(&__IADD__),
         "__isub__" => Some(&__ISUB__),
         "__imul__" => Some(&__IMUL__),
@@ -898,6 +907,19 @@ binary_num_slot_fragment_def!(__RXOR__, "__rxor__");
 binary_num_slot_fragment_def!(__OR__, "__or__");
 binary_num_slot_fragment_def!(__ROR__, "__ror__");
 
+const __POW__: SlotFragmentDef = SlotFragmentDef::new(
+    "__pow__",
+    &[Ty::ObjectOrNotImplemented, Ty::ObjectOrNotImplemented],
+)
+.extract_error_mode(ExtractErrorMode::NotImplemented)
+.ret_ty(Ty::Object);
+const __RPOW__: SlotFragmentDef = SlotFragmentDef::new(
+    "__rpow__",
+    &[Ty::ObjectOrNotImplemented, Ty::ObjectOrNotImplemented],
+)
+.extract_error_mode(ExtractErrorMode::NotImplemented)
+.ret_ty(Ty::Object);
+
 fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
     match method_name {
         "__setattr__" => Some(&__SETATTR__),
@@ -928,6 +950,8 @@ fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
         "__rxor__" => Some(&__RXOR__),
         "__or__" => Some(&__OR__),
         "__ror__" => Some(&__ROR__),
+        "__pow__" => Some(&__POW__),
+        "__rpow__" => Some(&__RPOW__),
         _ => None,
     }
 }

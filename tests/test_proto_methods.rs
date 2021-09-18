@@ -544,10 +544,3 @@ assert c.counter.count == 3
         .map_err(|e| e.print(py))
         .unwrap();
 }
-
-// TODO: test __delete__
-// TODO: test __anext__, __aiter__
-// TODO: test __index__, __int__, __float__, __invert__
-// TODO: __floordiv__, __truediv__
-// TODO: __pow__, __rpow__
-// TODO: better argument casting errors
