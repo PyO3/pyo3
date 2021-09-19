@@ -29,7 +29,7 @@ To summarize, there are six main parts to the PyO3 codebase.
 5. [Procedural macros to simplify usage for users.](#5-procedural-macros-to-simplify-usage-for-users)
    - [`src/derive_utils.rs`], [`pyo3-macros`] and [`pyo3-macros-backend`]
 6. [`build.rs`](#6-buildrs)
-   - [`build.rs`](https://github.com/PyO3/pyo3/tree/master/build.rs)
+   - [`build.rs`](https://github.com/PyO3/pyo3/tree/main/build.rs)
 
 ## 1. Low-level bindings of Python/C API
 
@@ -168,7 +168,7 @@ such as parsing function arguments.
 
 ## 6. `build.rs`
 
-PyO3's [`build.rs`](https://github.com/PyO3/pyo3/tree/master/build.rs) is relatively long
+PyO3's [`build.rs`](https://github.com/PyO3/pyo3/tree/main/build.rs) is relatively long
 (about 900 lines) to support multiple architectures, interpreters, and usages.
 Below is a non-exhaustive list of its functionality:
 
@@ -192,25 +192,25 @@ Below is a non-exhaustive list of its functionality:
 
 <!-- Crates -->
 
-[`pyo3-macros`]: https://github.com/PyO3/pyo3/tree/master/pyo3-macros
-[`pyo3-macros-backend`]: https://github.com/PyO3/pyo3/tree/master/pyo3-macros-backend
+[`pyo3-macros`]: https://github.com/PyO3/pyo3/tree/main/pyo3-macros
+[`pyo3-macros-backend`]: https://github.com/PyO3/pyo3/tree/main/pyo3-macros-backend
 
 <!-- Directories -->
 
-[`src/class`]: https://github.com/PyO3/pyo3/tree/master/src/class
-[`src/ffi`]: https://github.com/PyO3/pyo3/tree/master/src/ffi
-[`src/types`]: https://github.com/PyO3/pyo3/tree/master/src/types
+[`src/class`]: https://github.com/PyO3/pyo3/tree/main/src/class
+[`src/ffi`]: https://github.com/PyO3/pyo3/tree/main/src/ffi
+[`src/types`]: https://github.com/PyO3/pyo3/tree/main/src/types
 
 <!-- Files -->
 
-[`src/derive_utils.rs`]: https://github.com/PyO3/pyo3/tree/master/src/derive_utils.rs
-[`src/instance.rs`]: https://github.com/PyO3/pyo3/tree/master/src/instance.rs
-[`src/pycell.rs`]: https://github.com/PyO3/pyo3/tree/master/src/pycell.rs
-[`src/pyclass.rs`]: https://github.com/PyO3/pyo3/tree/master/src/pyclass.rs
-[`src/pyclass_init.rs`]: https://github.com/PyO3/pyo3/tree/master/src/pyclass_init.rs
-[`src/pyclass_slot.rs`]: https://github.com/PyO3/pyo3/tree/master/src/pyclass_slot.rs
-[`src/type_object.rs`]: https://github.com/PyO3/pyo3/tree/master/src/type_object.rs
-[`src/class/methods.rs`]: https://github.com/PyO3/pyo3/tree/master/src/class/methods.rs
-[`src/class/impl_.rs`]: https://github.com/PyO3/pyo3/tree/master/src/class/impl_.rs
-[`src/types/any.rs`]: https://github.com/PyO3/pyo3/tree/master/src/types/any.rs
-[`src/types/mod.rs`]: https://github.com/PyO3/pyo3/tree/master/src/types/mod.rs
+[`src/derive_utils.rs`]: https://github.com/PyO3/pyo3/blob/main/src/derive_utils.rs
+[`src/instance.rs`]: https://github.com/PyO3/pyo3/tree/main/src/instance.rs
+[`src/pycell.rs`]: https://github.com/PyO3/pyo3/tree/main/src/pycell.rs
+[`src/pyclass.rs`]: https://github.com/PyO3/pyo3/tree/main/src/pyclass.rs
+[`src/pyclass_init.rs`]: https://github.com/PyO3/pyo3/tree/main/src/pyclass_init.rs
+[`src/pyclass_slot.rs`]: https://github.com/PyO3/pyo3/tree/main/src/pyclass_slot.rs
+[`src/type_object.rs`]: https://github.com/PyO3/pyo3/tree/main/src/type_object.rs
+[`src/class/methods.rs`]: https://github.com/PyO3/pyo3/tree/main/src/class/methods.rs
+[`src/class/impl_.rs`]: https://github.com/PyO3/pyo3/tree/main/src/class/impl_.rs
+[`src/types/any.rs`]: https://github.com/PyO3/pyo3/tree/main/src/types/any.rs
+[`src/types/mod.rs`]: https://github.com/PyO3/pyo3/tree/main/src/types/mod.rs

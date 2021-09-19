@@ -3,8 +3,8 @@
 All notable changes to this project will be documented in this file. For help with updating to new
 PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration.html).
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -823,7 +823,7 @@ Yanked
 
 - Merged both examples into one
 - Rustfmt all the things :heavy_check_mark:
-- Switched to [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+- Switched to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Removed
 
