@@ -982,12 +982,14 @@ fn windows_hardcoded_cross_compile(
     let version = cross_compile_config.version.or_else(get_abi3_version)
         .ok_or("PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified when cross-compiling for Windows.")?;
 
+    let abi3 = is_abi3();
+
     Ok(InterpreterConfig {
         implementation: PythonImplementation::CPython,
         version,
         shared: true,
-        abi3: is_abi3(),
-        lib_name: Some(default_lib_name_windows(version, false, false)),
+        abi3,
+        lib_name: Some(default_lib_name_windows(version, abi3, false)),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
         pointer_width: None,
