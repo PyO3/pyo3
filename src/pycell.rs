@@ -104,7 +104,7 @@
 //! #     inner: u32,
 //! # }
 //! #[pyfunction]
-//! fn swap_numbers(a: &mut Number, b: &mut Number){
+//! fn swap_numbers(a: &mut Number, b: &mut Number) {
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! ```
@@ -112,7 +112,7 @@
 //! fail and raise a `RuntimeError`:
 //! ```text
 //! >>> a = Number()
-//! >>> swap_numbers(a,a)
+//! >>> swap_numbers(a, a)
 //! Traceback (most recent call last):
 //!   File "<stdin>", line 1, in <module>
 //!   RuntimeError: Already borrowed
