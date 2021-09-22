@@ -77,7 +77,7 @@
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
-//!     let mut guard: PyRefMut<'_, Number> = n.borrow_mut();
+//!     let mut guard: PyRefMut<'_, Number> = n.as_ref(py).borrow_mut();
 //!     let n_mutable: &mut Number = &mut *guard;
 //!
 //!     n_mutable.increment();
@@ -86,7 +86,7 @@
 //!     // `PyRefMut` before borrowing again.
 //!     drop(guard);
 //!
-//!     let n_immutable : &Number = &n.borrow();
+//!     let n_immutable : &Number = &n.as_ref(py).borrow();
 //!     assert_eq!(n_immutable.inner, 1);
 //!
 //!     Ok(())
