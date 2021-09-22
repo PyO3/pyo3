@@ -89,8 +89,9 @@
 //!
 //! ## Unstable features
 //!
-//! - `nightly`: Gates some optimizations that rely on [`#![feature(specialization)]`], for which
-//! you'd also need nightly Rust. You should not use this feature.
+//! - `nightly`: Gates some optimizations that rely on
+//! [`#![feature(specialization)]`](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md),
+//! for which you'd also need nightly Rust. You should not use this feature.
 //
 //! ## `rustc` environment flags
 //!
@@ -276,8 +277,7 @@
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
-//! [`#![feature(specialization)]`]: <https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md>
-//! [Features chapter of the guide]: <https://pyo3.rs/latest/features.html#features-reference> "Features Reference - PyO3 user guide"
+//! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
