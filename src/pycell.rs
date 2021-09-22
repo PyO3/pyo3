@@ -73,7 +73,7 @@
 //! # }
 //! # fn main() -> PyResult<()> {
 //! Python::with_gil(|py| {
-//!     let n = PyCell::new(py, Number { inner: 0 })?;
+//!     let n = Py::new(py, Number { inner: 0 })?;
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
