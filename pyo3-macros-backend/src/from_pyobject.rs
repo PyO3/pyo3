@@ -63,7 +63,7 @@ impl<'a> Enum<'a> {
                     ok @ ::std::result::Result::Ok(_) => return ok,
                     ::std::result::Result::Err(inner) => {
                         let py = ::pyo3::PyNativeType::py(obj);
-                        err_reasons.push_str(&::std::format!("{}\n", inner.instance(py).str().unwrap()));
+                        err_reasons.push_str(&::std::format!("{}\n", inner.instance(py).str()?));
                     }
                 }
             );
