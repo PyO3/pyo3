@@ -30,6 +30,7 @@ pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
 // Implementations core to all native types
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
@@ -75,6 +76,7 @@ macro_rules! pyobject_native_type_base(
 
 // Implementations core to all native types except for PyAny (because they don't
 // make sense on PyAny / have different implementations).
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
@@ -129,6 +131,7 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
@@ -159,6 +162,7 @@ macro_rules! pyobject_native_type_info(
 
 // NOTE: This macro is not included in pyobject_native_type_base!
 // because rust-numpy has a special implementation.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
@@ -171,6 +175,7 @@ macro_rules! pyobject_native_type_extract {
 }
 
 /// Declares all of the boilerplate for Python types.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
@@ -183,6 +188,7 @@ macro_rules! pyobject_native_type_core {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
@@ -201,6 +207,7 @@ macro_rules! pyobject_native_type_sized {
 
 /// Declares all of the boilerplate for Python types which can be inherited from (because the exact
 /// Python layout is known).
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {

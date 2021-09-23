@@ -8,6 +8,7 @@ use std::ops;
 use std::os::raw::c_char;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
@@ -158,6 +159,7 @@ macro_rules! create_exception {
 
 /// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an
 /// exception newly defined in Rust code.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
