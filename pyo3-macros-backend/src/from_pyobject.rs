@@ -69,16 +69,11 @@ impl<'a> Enum<'a> {
             );
 
             var_extracts.push(ext);
-            error_names.push_str(&var.err_name);
-            if i < self.variants.len() - 1 {
-                error_names.push_str(", ");
+            if i > 0 {
+                error_names.push_str(" | ");
             }
+            error_names.push_str(&var.err_name);
         }
-        let error_names = if self.variants.len() > 1 {
-            format!("Union[{}]", error_names)
-        } else {
-            error_names
-        };
         let ty_name = self.enum_ident.to_string();
         quote!(
             let mut err_reasons = ::std::string::String::new();
