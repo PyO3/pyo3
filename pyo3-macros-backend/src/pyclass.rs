@@ -464,6 +464,13 @@ fn impl_class(
         ),
     };
 
+    let methods_protos = match methods_type {
+        PyClassMethodsType::Specialization => {
+            Some(quote! { visitor(collector.methods_protocol_slots()); })
+        }
+        PyClassMethodsType::Inventory => None,
+    };
+
     let base = &attr.base;
     let base_nativetype = if attr.has_extends {
         quote! { <Self::BaseType as ::pyo3::class::impl_::PyClassBaseType>::BaseNativeType }
@@ -591,6 +598,7 @@ fn impl_class(
                 visitor(collector.sequence_protocol_slots());
                 visitor(collector.async_protocol_slots());
                 visitor(collector.buffer_protocol_slots());
+                #methods_protos
             }
 
             fn get_buffer() -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {

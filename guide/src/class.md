@@ -865,6 +865,7 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.sequence_protocol_slots());
         visitor(collector.async_protocol_slots());
         visitor(collector.buffer_protocol_slots());
+        visitor(collector.methods_protocol_slots());
     }
 
     fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
