@@ -58,6 +58,7 @@ pub use self::dictobject::*;
 pub use self::enumobject::*;
 pub use self::eval::*;
 pub use self::fileobject::*;
+pub use self::fileutils::*;
 pub use self::floatobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::funcobject::*;
@@ -131,7 +132,7 @@ mod eval; // TODO supports PEP-384 only
 // skipped exports.h
 mod fileobject; // TODO: incomplete
 
-// skipped fileutils.h
+mod fileutils;
 mod floatobject; // TODO supports PEP-384 only
 
 // skipped empty frameobject.h
@@ -204,6 +205,7 @@ mod pycapsule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 an
 mod sliceobject;
 mod structseq;
 mod traceback; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+               // skipped tracemalloc.h
 mod warnings; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
