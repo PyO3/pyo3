@@ -172,9 +172,9 @@ about this topic.
 ## Articles and other media
 
 - [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
-- [Writing and publishing a Python module in Rust](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - Apr 29, 2021
+- [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Apr 29, 2021
 - [Vortexa - Integrating Rust into Python](https://www.vortexa.com/insight/integrating-rust-into-python) - Apr 12, 2021
-- [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Aug 2, 2020
+- [Writing and publishing a Python module in Rust](https://blog.yossarian.net/2020/08/02/Writing-and-publishing-a-python-module-in-rust) - Aug 2, 2020
 
 ## Contributing
 
