@@ -121,7 +121,7 @@ struct RustyTransparentStruct {
 
 The `FromPyObject` derivation for enums generates code that tries to extract the variants in the
 order of the fields. As soon as a variant can be extracted succesfully, that variant is returned.
-This makes it possible to extract Python types like `Union[str, int]`.
+This makes it possible to extract Python union types like `str | int`.
 
 The same customizations and restrictions described for struct derivations apply to enum variants,
 i.e. a tuple variant assumes that the input is a Python tuple, and a struct variant defaults to
@@ -171,7 +171,7 @@ enum RustyEnum {
 ```
 
 If the input is neither a string nor an integer, the error message will be:
-`"'<INPUT_TYPE>' cannot be converted to 'Union[str, int]'"`.
+`"'<INPUT_TYPE>' cannot be converted to 'str | int'"`.
 
 #### `#[derive(FromPyObject)]` Container Attributes
 - `pyo3(transparent)`

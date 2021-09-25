@@ -409,7 +409,7 @@ fn test_err_rename() {
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),
-            "TypeError: failed to extract enum Bar (\'Union[str, uint, int]\')\n- variant A (str): \
+            "TypeError: failed to extract enum Bar (\'str | uint | int\')\n- variant A (str): \
          \'dict\' object cannot be converted to \'PyString\'\n- variant B (uint): \'dict\' object \
          cannot be interpreted as an integer\n- variant C (int): \'dict\' object cannot be \
          interpreted as an integer\n"
