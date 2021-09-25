@@ -9,6 +9,7 @@ pub(crate) mod compile;
 #[cfg(not(PyPy))]
 pub(crate) mod dictobject;
 // skipped fileobject.h
+// skipped fileutils.h
 pub(crate) mod frameobject;
 pub(crate) mod import;
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -21,6 +22,8 @@ pub(crate) mod pydebug;
 pub(crate) mod pylifecycle;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
+// skipped sysmodule.h
+pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
 
 pub use self::abstract_::*;
@@ -43,4 +46,5 @@ pub use self::pydebug::*;
 pub use self::pylifecycle::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::tupleobject::*;
 pub use self::unicodeobject::*;

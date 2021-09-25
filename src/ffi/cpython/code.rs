@@ -90,7 +90,7 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
-    crate::ffi::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
+    crate::ffi::PyTuple_GET_SIZE((*op).co_freevars)
 }
 
 extern "C" {
