@@ -12,6 +12,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
 
+use super::PyMapping;
+
 /// Represents a Python `dict`.
 #[repr(transparent)]
 pub struct PyDict(PyAny);
@@ -177,6 +179,11 @@ impl PyDict {
             dict: self.as_ref(),
             pos: 0,
         }
+    }
+
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn as_mapping(&self) -> &PyMapping {
+        unsafe { PyMapping::try_from_unchecked(self) }
     }
 }
 
@@ -760,6 +767,27 @@ mod tests {
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn dict_as_mapping() {
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let py_map = map.into_py_dict(py);
+
+            assert_eq!(py_map.as_mapping().len().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .as_mapping()
+                    .get_item(1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 }
