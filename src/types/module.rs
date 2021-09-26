@@ -140,8 +140,7 @@ impl PyModule {
         unsafe {
             // PyModule_GetDict returns borrowed ptr; must make owned for safety (see #890).
             let ptr = ffi::PyModule_GetDict(self.as_ptr());
-            ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
+            self.py().from_owned_ptr(ffi::_Py_NewRef(ptr))
         }
     }
 

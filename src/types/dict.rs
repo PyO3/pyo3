@@ -105,8 +105,7 @@ impl PyDict {
             let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
             NonNull::new(ptr).map(|p| {
                 // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
-                ffi::Py_INCREF(p.as_ptr());
-                self.py().from_owned_ptr(p.as_ptr())
+                self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))
             })
         })
     }
@@ -196,9 +195,10 @@ impl<'py> Iterator for PyDictIterator<'py> {
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.dict.py();
                 // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
-                ffi::Py_INCREF(key);
-                ffi::Py_INCREF(value);
-                Some((py.from_owned_ptr(key), py.from_owned_ptr(value)))
+                Some((
+                    py.from_owned_ptr(ffi::_Py_NewRef(key)),
+                    py.from_owned_ptr(ffi::_Py_NewRef(value)),
+                ))
             } else {
                 None
             }

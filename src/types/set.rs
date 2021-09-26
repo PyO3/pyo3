@@ -164,8 +164,7 @@ impl<'py> Iterator for PySetIterator<'py> {
             let mut hash: ffi::Py_hash_t = 0;
             if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
                 // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                ffi::Py_INCREF(key);
-                Some(self.set.py().from_owned_ptr(key))
+                Some(self.set.py().from_owned_ptr(ffi::_Py_NewRef(key)))
             } else {
                 None
             }

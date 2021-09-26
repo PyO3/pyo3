@@ -64,13 +64,7 @@ where
     T: AsPyPointer,
 {
     fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.as_ptr();
-        if !ptr.is_null() {
-            unsafe {
-                ffi::Py_INCREF(ptr);
-            }
-        }
-        ptr
+        unsafe { ffi::_Py_XNewRef(self.as_ptr()) }
     }
 }
 
