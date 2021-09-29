@@ -117,7 +117,12 @@ pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
         || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
 }
 
-// skipped PySet_CheckExact
+#[inline]
+#[cfg(Py_3_10)]
+#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
+    crate::ffi::Py_IS_TYPE(op, &mut PySet_Type)
+}
 
 extern "C" {
     #[cfg(PyPy)]

@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Packaging
+
+- Support Python 3.10. [#1889](https://github.com/PyO3/pyo3/pull/1889)
+
 ### Added
 
 - Add `PyList::get_item_unchecked` and `PyTuple::get_item_unchecked` to get items without bounds checks. [#1733](https://github.com/PyO3/pyo3/pull/1733)
@@ -18,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PyMapping` type to represent the Python mapping protocol. [#1844](https://github.com/PyO3/pyo3/pull/1844)
 - Add commonly-used sequence methods to `PyList` and `PyTuple`. [#1849](https://github.com/PyO3/pyo3/pull/1849)
 - Add `as_sequence` methods to `PyList` and `PyTuple`. [#1860](https://github.com/PyO3/pyo3/pull/1860)
+- Add `abi3-py310` feature. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 
 ### Changed
 
