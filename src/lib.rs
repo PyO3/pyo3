@@ -76,7 +76,7 @@
 //! crate, which is not supported on all platforms.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
-//! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`]
+//! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
 //! - [`indexmap`]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
