@@ -76,7 +76,7 @@
 //! crate, which is not supported on all platforms.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
-//
+//! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`]
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
 //! - [`indexmap`]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
@@ -254,6 +254,9 @@
 //! [`Complex`]: https://docs.rs/num-complex/latest/num_complex/struct.Complex.html
 //! [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
+//! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
+//! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
+//! [`eyre`]: ./eyre/index.html
 //! [`hashbrown`]: ./hashbrown/index.html
 //! [`indexmap`]: <./indexmap/index.html>
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
