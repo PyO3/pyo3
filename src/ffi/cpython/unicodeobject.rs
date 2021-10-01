@@ -323,14 +323,6 @@ extern "C" {
 // skipped _PyUnicode_FormatAdvancedWriter
 
 extern "C" {
-    #[cfg(Py_3_7)]
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8AndSize")]
-    pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *const c_char;
-
-    #[cfg(not(Py_3_7))]
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8AndSize")]
-    pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *mut c_char;
-
     // skipped _PyUnicode_AsStringAndSize
 
     #[cfg(Py_3_7)]

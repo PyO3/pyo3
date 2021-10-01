@@ -158,7 +158,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     end: Py_ssize_t,
     _reason: *const c_char,
 ) -> *mut PyObject {
-    return crate::ffi::PyObject_CallFunction(
+    crate::ffi::PyObject_CallFunction(
         PyExc_UnicodeDecodeError,
         std::ffi::CStr::from_bytes_with_nul(b"sy#nns\0")
             .unwrap()
@@ -168,7 +168,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
         length,
         start,
         end,
-    );
+    )
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -374,6 +374,9 @@ extern "C" {
     pub fn PyErr_CheckSignals() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
     pub fn PyErr_SetInterrupt();
+    #[cfg(Py_3_10)]
+    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+    pub fn PyErr_SetInterruptEx(signum: c_int);
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;

@@ -257,8 +257,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                ffi::Py_INCREF(ffi::Py_NotImplemented());
-                Ok(ffi::Py_NotImplemented())
+                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
             }
         }
 
@@ -273,8 +272,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
-                ffi::Py_INCREF(ffi::Py_NotImplemented());
-                Ok(ffi::Py_NotImplemented())
+                Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
             }
         }
 
@@ -429,8 +427,7 @@ slot_fragment_trait! {
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        ffi::Py_INCREF(ffi::Py_NotImplemented());
-        Ok(ffi::Py_NotImplemented())
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
     }
 }
 
@@ -446,8 +443,7 @@ slot_fragment_trait! {
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        ffi::Py_INCREF(ffi::Py_NotImplemented());
-        Ok(ffi::Py_NotImplemented())
+        Ok(ffi::_Py_NewRef(ffi::Py_NotImplemented()))
     }
 }
 

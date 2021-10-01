@@ -41,7 +41,7 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.repr().map_err(|_| ::std::fmt::Error)?;
+                let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -50,7 +50,7 @@ macro_rules! pyobject_native_type_base(
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.str().map_err(|_| ::std::fmt::Error)?;
+                let s = self.str().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
