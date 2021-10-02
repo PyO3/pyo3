@@ -78,7 +78,6 @@ For users who are not very familiar with `RefCell`, here is a reminder of Rust's
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyDict;
 #[pyclass]
 struct MyClass {
     #[pyo3(get)]

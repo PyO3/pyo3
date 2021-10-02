@@ -66,7 +66,7 @@ a list:
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::{Py, Python, PyAny, PyResult, types::PyList};
+# use pyo3::types::PyList;
 # Python::with_gil(|py| -> PyResult<()> {
 let obj: &PyAny = PyList::empty(py);
 
@@ -86,7 +86,7 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::{Py, Python, PyAny, PyResult, types::PyList};
+# use pyo3::{Py, Python, PyAny, PyResult};
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let obj: &PyAny = Py::new(py, MyClass { })?.into_ref(py);
@@ -236,7 +236,6 @@ so it also exposes all of the methods on `PyAny`.
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyList;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
@@ -257,7 +256,6 @@ let _: &mut MyClass = &mut *py_ref_mut;
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyList;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;

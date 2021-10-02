@@ -63,13 +63,12 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
-/// # #[allow(clippy::needless_doctest_main)]
-/// fn main() {
-///     pyo3::prepare_freethreaded_python();
-///     Python::with_gil(|py| {
-///         py.run("print('Hello World')", None, None)
-///     });
-/// }
+/// # fn main() -> PyResult<()>{
+/// pyo3::prepare_freethreaded_python();
+/// Python::with_gil(|py| {
+///     py.run("print('Hello World')", None, None)
+/// })
+/// # }
 /// ```
 #[cfg(not(PyPy))]
 #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
@@ -131,14 +130,13 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// use pyo3::prelude::*;
 ///
-/// # #[allow(clippy::needless_doctest_main)]
-/// fn main() {
-///     unsafe {
-///         pyo3::with_embedded_python_interpreter(|py| {
-///             py.run("print('Hello World')", None, None)
-///         });
-///     }
+/// # fn main() -> PyResult<()>{
+/// unsafe {
+///     pyo3::with_embedded_python_interpreter(|py| {
+///         py.run("print('Hello World')", None, None)
+///     })
 /// }
+/// # }
 /// ```
 #[cfg(not(PyPy))]
 #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]

@@ -146,7 +146,7 @@ let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
 
 After (also using the new reworked exception types; see the following section):
 ```rust
-# use pyo3::{PyErr, PyResult, exceptions::PyTypeError};
+# use pyo3::{PyResult, exceptions::PyTypeError};
 let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 ```
 
@@ -433,6 +433,7 @@ rules of references.
 Here is an example.
 ```rust
 # use pyo3::prelude::*;
+
 #[pyclass]
 struct Names {
     names: Vec<String>

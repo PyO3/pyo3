@@ -199,8 +199,6 @@ mod io {
 }
 
 fn tell(file: &PyAny) -> PyResult<u64> {
-    use pyo3::exceptions::*;
-
     match file.call_method0("tell") {
         Err(_) => Err(io::UnsupportedOperation::new_err("not supported: tell")),
         Ok(x) => x.extract::<u64>(),

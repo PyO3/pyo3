@@ -180,11 +180,14 @@ impl Python<'_> {
     /// # Examples
     /// ```
     /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let x: i32 = py.eval("5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
-    /// });
+    /// })
+    /// # }
     /// ```
     #[inline]
     pub fn with_gil<F, R>(f: F) -> R
@@ -250,18 +253,18 @@ impl<'p> Python<'p> {
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict;
     /// use pyo3::exceptions::PyRuntimeError;
-    /// use std::sync::Arc;
-    /// use std::thread;
+    ///
     /// #[pyfunction]
     /// fn parallel_count(py: Python<'_>, strings: Vec<String>, query: String) -> PyResult<usize> {
     ///     let query = query.chars().next().unwrap();
     ///     py.allow_threads(move || {
     ///         let threads: Vec<_> = strings
     ///             .into_iter()
-    ///             .map(|s| thread::spawn(move || s.chars().filter(|&c| c == query).count()))
+    ///             .map(|s| std::thread::spawn(move || s.chars().filter(|&c| c == query).count()))
     ///             .collect();
     ///         let mut sum = 0;
     ///         for t in threads {
@@ -341,8 +344,9 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     ///
     /// # Examples
+    ///
     /// ```
-    /// # use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// # use pyo3::prelude::*;
     /// # Python::with_gil(|py| {
     /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
@@ -699,7 +703,7 @@ impl<'p> Python<'p> {
     ///
     ///         // It is recommended to *always* immediately set py to the pool's Python, to help
     ///         // avoid creating references with invalid lifetimes.
-    ///         let py = unsafe { pool.python() };
+    ///         let py = pool.python();
     ///
     ///         // do stuff...
     /// #       break;  // Exit the loop so that doctest terminates!

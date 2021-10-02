@@ -28,8 +28,11 @@ impl PyByteArray {
     /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyByteArray)`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use pyo3::{prelude::*, types::PyByteArray};
+    ///
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let py_bytearray = PyByteArray::new_with(py, 10, |bytes: &mut [u8]| {
     ///         bytes.copy_from_slice(b"Hello Rust");
@@ -38,7 +41,8 @@ impl PyByteArray {
     ///     let bytearray: &[u8] = unsafe { py_bytearray.as_bytes() };
     ///     assert_eq!(bytearray, b"Hello Rust");
     ///     Ok(())
-    /// });
+    /// })
+    /// # }
     /// ```
     pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
     where

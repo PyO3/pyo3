@@ -160,8 +160,9 @@ impl PyErr {
     /// # Examples
     /// ```rust
     /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
+    ///
     /// Python::with_gil(|py| {
-    ///     let err = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert_eq!(err.ptype(py), PyType::new::<PyTypeError>(py));
     /// });
     /// ```
@@ -174,10 +175,12 @@ impl PyErr {
     /// The object will be normalized first if needed.
     ///
     /// # Examples
+    ///
     /// ```rust
-    /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
+    /// use pyo3::{Python, PyErr, exceptions::PyTypeError};
+    ///
     /// Python::with_gil(|py| {
-    ///     let err = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     assert!(err.is_instance::<PyTypeError>(py));
     ///     assert_eq!(err.pvalue(py).to_string(), "some type error");
     /// });
@@ -192,7 +195,8 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
+    /// use pyo3::{Python, exceptions::PyTypeError};
+    ///
     /// Python::with_gil(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
     ///     assert_eq!(err.ptraceback(py), None);
@@ -403,9 +407,9 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{Python, PyErr, exceptions::PyTypeError, types::PyType};
+    /// use pyo3::{Python, PyErr, exceptions::PyTypeError};
     /// Python::with_gil(|py| {
-    ///     let err = PyTypeError::new_err(("some type error",));
+    ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
     ///     assert_eq!(err.ptype(py), err_clone.ptype(py));
     ///     assert_eq!(err.pvalue(py), err_clone.pvalue(py));

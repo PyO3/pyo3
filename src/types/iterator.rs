@@ -11,8 +11,7 @@ use crate::{PyDowncastError, PyTryFrom};
 /// # Examples
 ///
 /// ```rust
-/// # use pyo3::prelude::*;
-/// use pyo3::types::PyIterator;
+///  use pyo3::prelude::*;
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::with_gil(|py| ->  PyResult<()> {
@@ -21,8 +20,7 @@ use crate::{PyDowncastError, PyTryFrom};
 ///     let sum: usize = numbers?.iter().sum();
 ///     assert_eq!(sum, 10);
 ///     Ok(())
-/// });
-/// # Ok(())
+/// })
 /// # }
 /// ```
 #[repr(transparent)]

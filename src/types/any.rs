@@ -391,8 +391,7 @@ impl PyAny {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    /// use crate::pyo3::types::IntoPyDict;
+    /// use pyo3::types::{IntoPyDict, PyList};
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
