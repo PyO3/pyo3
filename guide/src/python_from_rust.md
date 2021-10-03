@@ -36,11 +36,11 @@ fn main() -> PyResult<()> {
             py,
             "def example(*args, **kwargs):
                 if args != ():
-                    print(\"called with args\", args)
+                    print('called with args', args)
                 if kwargs != {}:
-                    print(\"called with kwargs\", kwargs)
+                    print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print(\"called with no arguments\")",
+                    print('called with no arguments')",
             "",
             "",
         )?.getattr("example")?.into();
@@ -80,11 +80,11 @@ fn main() -> PyResult<()> {
             py,
             "def example(*args, **kwargs):
                 if args != ():
-                    print(\"called with args\", args)
+                    print('called with args', args)
                 if kwargs != {}:
-                    print(\"called with kwargs\", kwargs)
+                    print('called with kwargs', kwargs)
                 if args == () and kwargs == {}:
-                    print(\"called with no arguments\")",
+                    print('called with no arguments')",
             "",
             "",
         )?.getattr("example")?.into();
