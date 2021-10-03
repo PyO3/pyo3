@@ -33,8 +33,7 @@ impl PyBufferProtocol for TestBufferClass {
         }
 
         unsafe {
-            (*view).obj = slf.as_ptr();
-            ffi::Py_INCREF((*view).obj);
+            (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
         }
 
         let bytes = &slf.vec;

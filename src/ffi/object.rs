@@ -85,6 +85,11 @@ pub struct PyVarObject {
 // skipped _PyVarObject_CAST
 // skipped _PyVarObject_CAST_CONST
 
+#[inline]
+pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
+    (x == y).into()
+}
+
 // skipped _Py_REFCNT: defined in Py_REFCNT
 
 #[inline]
@@ -347,6 +352,14 @@ extern "C" {
 // Flag bits for printing:
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
+#[cfg(Py_3_10)]
+#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+pub const Py_TPFLAGS_DISALLOW_INSTANTIATION: c_ulong = 1 << 7;
+
+#[cfg(Py_3_10)]
+#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+pub const Py_TPFLAGS_IMMUTABLETYPE: c_ulong = 1 << 8;
+
 /// Set if the type object is dynamically allocated
 pub const Py_TPFLAGS_HEAPTYPE: c_ulong = 1 << 9;
 
@@ -454,10 +467,28 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
-    // skipped Py_NewRef
-    // skipped Py_XNewRef
-    // skipped _Py_NewRef
-    // skipped _Py_XNewRef
+    #[cfg(Py_3_10)]
+    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+    pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
+    #[cfg(Py_3_10)]
+    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+    pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
+}
+
+// Technically these macros are only available in the C header from 3.10 and up, however their
+// implementation works on all supported Python versions so we define these macros on all
+// versions for simplicity.
+
+#[inline]
+pub unsafe fn _Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
+    Py_INCREF(obj);
+    obj
+}
+
+#[inline]
+pub unsafe fn _Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
+    Py_XINCREF(obj);
+    obj
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -469,6 +500,11 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
     &mut _Py_NoneStruct
+}
+
+#[inline]
+pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
+    Py_Is(x, Py_None())
 }
 
 // skipped Py_RETURN_NONE
@@ -494,7 +530,14 @@ pub const Py_NE: c_int = 3;
 pub const Py_GT: c_int = 4;
 pub const Py_GE: c_int = 5;
 
-// skipped non-limited / 3.10 PySendResult
+#[cfg(Py_3_10)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PySendResult {
+    PYGEN_RETURN = 0,
+    PYGEN_ERROR = -1,
+    PYGEN_NEXT = 1,
+}
 
 // skipped Py_RETURN_RICHCOMPARE
 

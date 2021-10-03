@@ -22,9 +22,11 @@ It restricts PyO3's API to a subset of the full Python API which is guaranteed b
 
 See the [building and distribution](building_and_distribution.md#py_limited_apiabi3) section for further detail.
 
-### `abi3-py36` / `abi3-py37` / `abi3-py38` / `abi3-py39`
+### The `abi3-pyXY` features
 
-These features are an extension of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
+(`abi3-py36`, `abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
+
+These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
 See the [building and distribution](building_and_distribution.md#minimum-python-version-for-abi3) section for further detail.
 

@@ -3,7 +3,9 @@ use std::os::raw::{c_char, c_int};
 
 extern "C" {
     pub fn PyCodec_Register(search_function: *mut PyObject) -> c_int;
-    // skipped PyCodec_Unregister
+    #[cfg(Py_3_10)]
+    #[cfg(not(PyPy))]
+    pub fn PyCodec_Unregister(search_function: *mut PyObject) -> c_int;
     // skipped non-limited _PyCodec_Lookup from Include/codecs.h
     // skipped non-limited _PyCodec_Forget from Include/codecs.h
     pub fn PyCodec_KnownEncoding(encoding: *const c_char) -> c_int;
