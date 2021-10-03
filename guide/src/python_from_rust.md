@@ -20,7 +20,7 @@ Both of these APIs take `args` and `kwargs` arguments (for positional and keywor
 
 For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
-The example below shows a calling Python functions behind a `PyObject` (aka `Py<PyAny>`) reference:
+The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) reference:
 
 ```rust
 use pyo3::prelude::*;
@@ -34,13 +34,13 @@ fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
-    "def example(*args, **kwargs):
-		if args != ():
-		    print(\"called with args\", args )
-		if kwargs != {}:
-		    print(\"called with kwargs\", kwargs )
-		if args == () and kwargs == {}:
-		    print(\"called with no arguments\")",
+            "def example(*args, **kwargs):
+                if args != ():
+                    print(\"called with args\", args)
+                if kwargs != {}:
+                    print(\"called with kwargs\", kwargs)
+                if args == () and kwargs == {}:
+                    print(\"called with no arguments\")",
             "",
             "",
         )?.getattr("example")?.into();
@@ -78,13 +78,13 @@ fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let fun: Py<PyAny> = PyModule::from_code(
             py,
-    "def example(*args, **kwargs):
-		if args != ():
-		    print(\"called with args\", args )
-		if kwargs != {}:
-		    print(\"called with kwargs\", kwargs )
-		if args == () and kwargs == {}:
-		    print(\"called with no arguments\")",
+            "def example(*args, **kwargs):
+                if args != ():
+                    print(\"called with args\", args)
+                if kwargs != {}:
+                    print(\"called with kwargs\", kwargs)
+                if args == () and kwargs == {}:
+                    print(\"called with no arguments\")",
             "",
             "",
         )?.getattr("example")?.into();
