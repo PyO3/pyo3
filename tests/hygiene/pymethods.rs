@@ -73,7 +73,7 @@ impl Dummy {
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
     fn __dir__<'py>(&self, py: ::pyo3::Python<'py>) -> &'py ::pyo3::types::PyList {
-        ::pyo3::types::PyList::new(py, vec![0])
+        ::pyo3::types::PyList::new(py, ::std::vec![0_u8])
     }
 
     //////////////////////
