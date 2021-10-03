@@ -16,8 +16,8 @@ links = "python"
 
 [dependencies]
 cfg-if = { version = "1.0" }
-# must stay at 0.3.x for Rust 1.41 compatibility
-eyre = {version = ">= 0.4" , optional = true}
+eyre = {version = ">= 0.4, < 0.7" , optional = true}
+# indoc must stay at 0.3.x for Rust 1.41 compatibility
 indoc = { version = "0.3.6", optional = true }
 inventory = { version = "0.1.4", optional = true }
 libc = "0.2.62"
