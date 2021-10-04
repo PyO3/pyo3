@@ -1,4 +1,4 @@
-from setuptools_rust_starter import PythonClass, ExampleClass
+from setuptools_rust_starter import ExampleClass, PythonClass
 
 
 def test_python_class() -> None:
@@ -9,3 +9,12 @@ def test_python_class() -> None:
 def test_example_class() -> None:
     example = ExampleClass(value=11)
     assert example.value == 11
+
+
+def test_doc() -> None:
+    import setuptools_rust_starter
+
+    assert (
+        setuptools_rust_starter.__doc__
+        == "An example module implemented in Rust using PyO3."
+    )
