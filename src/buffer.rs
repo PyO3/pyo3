@@ -182,7 +182,7 @@ impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Get the underlying buffer from the specified python object.
+    /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
         let mut buf = Box::new(mem::MaybeUninit::uninit());
@@ -575,6 +575,9 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
+    /// Releases the buffer and decrements the reference count. Note that this will happen
+    /// automatically when the buffer is dropped, so it is not neccessary to call this function.
+    // TODO: Why would we ever want to call this instead of just using `std::mem::drop(buffer)`?
     pub fn release(self, _py: Python) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would acquire the GIL and call PyBuffer_Release
