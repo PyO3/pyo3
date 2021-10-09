@@ -26,7 +26,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"num-bigint\"] }"
 )]
 //! ```
-//! 
+//!
 //! Note that you must use compatible versions of num-bigint and PyO3.
 //! The required num-bigint version may vary based on the version of PyO3.
 //!
@@ -50,7 +50,7 @@
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! Python code:
 //! ```python
 //! from my_module import add_one

@@ -253,12 +253,12 @@ impl PyModule {
     ///
     /// print("Foo is", Foo)
     /// ```
-    /// 
+    ///
     /// This will result in the following output:
     /// ```text
     /// Foo is <class 'builtins.Foo'>
     /// ```
-    /// 
+    ///
     /// Note that as we haven't defined a [constructor][1], Python code can't actually
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).

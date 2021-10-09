@@ -21,7 +21,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"num-complex\"] }"
 )]
 //! ```
-//! 
+//!
 //! Note that you must use compatible versions of num-complex and PyO3.
 //! The required num-complex version may vary based on the version of PyO3.
 //!
@@ -85,7 +85,7 @@
 //! #     })
 //! # }
 //! ```
-//! 
+//!
 //! Python code:
 //! ```python
 //! from my_module import get_eigenvalues

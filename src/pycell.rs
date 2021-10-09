@@ -109,13 +109,13 @@
 //! }
 //! # use pyo3::AsPyPointer;
 //! # fn main() {
-//! # 	Python::with_gil(|py|{
-//! # 		let n = Py::new(py, Number{inner: 35}).unwrap();
-//! # 		let n2 = n.clone_ref(py);
-//! #       assert_eq!(n.as_ptr(), n2.as_ptr());
-//! # 		let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
-//! # 		fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
-//! # 	});
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = n.clone_ref(py);
+//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
+//! #     });
 //! # }
 //! ```
 //! When users pass in the same `Number` as both arguments, one of the mutable borrows will
@@ -127,7 +127,7 @@
 //!   File "<stdin>", line 1, in <module>
 //!   RuntimeError: Already borrowed
 //! ```
-//! 
+//!
 //! It is better to write that function like this:
 //! ```rust
 //! # use pyo3::prelude::*;
@@ -146,27 +146,27 @@
 //! }
 //! # use pyo3::AsPyPointer;
 //! # fn main() {
-//! #   // With duplicate numbers
-//! # 	Python::with_gil(|py|{
-//! # 		let n = Py::new(py, Number{inner: 35}).unwrap();
-//! # 		let n2 = n.clone_ref(py);
-//! #       assert_eq!(n.as_ptr(), n2.as_ptr());
-//! # 		let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
-//! # 		fun.call1((n, n2)).unwrap();
-//! # 	});
+//! #     // With duplicate numbers
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = n.clone_ref(py);
+//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((n, n2)).unwrap();
+//! #     });
 //! #
-//! #   // With two different numbers
-//! # 	Python::with_gil(|py|{
-//! # 		let n = Py::new(py, Number{inner: 35}).unwrap();
-//! # 		let n2 = Py::new(py, Number{inner: 42}).unwrap();
-//! #       assert_ne!(n.as_ptr(), n2.as_ptr());
-//! # 		let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
-//! # 		fun.call1((&n, &n2)).unwrap();
-//! #       let n: u32 = n.borrow(py).inner;
-//! #       let n2: u32 = n2.borrow(py).inner;
-//! #       assert_eq!(n, 42);
-//! #       assert_eq!(n2, 35);
-//! # 	});
+//! #     // With two different numbers
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
+//! #         assert_ne!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((&n, &n2)).unwrap();
+//! #         let n: u32 = n.borrow(py).inner;
+//! #         let n2: u32 = n2.borrow(py).inner;
+//! #         assert_eq!(n, 42);
+//! #         assert_eq!(n2, 35);
+//! #     });
 //! # }
 //! ```
 //! See the [guide] for more information.

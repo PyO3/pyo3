@@ -26,7 +26,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"indexmap\"] }"
 )]
 //! ```
-//! 
+//!
 //! Note that you must use compatible versions of indexmap and PyO3.
 //! The required indexmap version may vary based on the version of PyO3.
 //!
@@ -82,7 +82,7 @@
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! Python code:
 //! ```python
 //! from my_module import calculate_statistics

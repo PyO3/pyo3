@@ -19,7 +19,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"hashbrown\"] }"
 )]
 //! ```
-//! 
+//!
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{

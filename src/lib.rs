@@ -144,7 +144,7 @@
 #![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! features = ["extension-module"]
 //! ```
-//! 
+//!
 //! **`src/lib.rs`**
 //! ```rust
 //! use pyo3::prelude::*;
@@ -163,7 +163,7 @@
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! With those two files in place, now `maturin` needs to be installed. This can be done using
 //! Python's package manager `pip`. First, load up a new Python `virtualenv`, and install `maturin`
 //! into it:
@@ -173,7 +173,7 @@
 //! $ source .env/bin/activate
 //! $ pip install maturin
 //! ```
-//! 
+//!
 //! Now build and execute the module:
 //! ```bash
 //! $ maturin develop
@@ -183,7 +183,7 @@
 //! >>> string_sum.sum_as_string(5, 20)
 //! '25'
 //! ```
-//! 
+//!
 //! As well as with `maturin`, it is possible to build using [setuptools-rust] or
 //! [manually][manual_builds]. Both offer more flexibility than `maturin` but require further
 //! configuration.
@@ -198,7 +198,7 @@
 //! ```bash
 //! sudo apt install python3-dev
 //! ```
-//! 
+//!
 //! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
 //! ```toml
 //! [dependencies.pyo3]
@@ -208,7 +208,7 @@
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
-//! 
+//!
 //! Example program displaying the value of `sys.version` and the current user name:
 //! ```rust
 //! use pyo3::prelude::*;
@@ -228,7 +228,7 @@
 //!     })
 //! }
 //! ```
-//! 
+//!
 //! The guide has [a section][calling_rust] with lots of examples about this topic.
 //!
 //! # Other Examples
