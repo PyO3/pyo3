@@ -1,12 +1,12 @@
 error[E0277]: the trait bound `Result<(), MyError>: IntoPyCallbackOutput<_>` is not satisfied
-   --> $DIR/invalid_result_conversion.rs:21:1
+   --> tests/ui/invalid_result_conversion.rs:21:1
     |
 21  | #[pyfunction]
     | ^^^^^^^^^^^^^ the trait `IntoPyCallbackOutput<_>` is not implemented for `Result<(), MyError>`
     |
-   ::: $WORKSPACE/src/callback.rs
+   ::: src/callback.rs:182:8
     |
-    |     T: IntoPyCallbackOutput<U>,
+182 |     T: IntoPyCallbackOutput<U>,
     |        ----------------------- required by this bound in `pyo3::callback::convert`
     |
     = help: the following implementations were found:
