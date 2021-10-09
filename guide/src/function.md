@@ -102,8 +102,6 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
     Ok(())
 }
-
-# fn main() {}
 ```
 
 ## Making the function signature available to Python
@@ -123,11 +121,30 @@ use pyo3::prelude::*;
 fn add(a: u64, b: u64) -> u64 {
     a + b
 }
+# 
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(add, py)?;
+# 
+#         let doc: String = fun.getattr("__doc__")?.extract()?;
+#         assert_eq!(doc, "This function adds two unsigned 64-bit integers.");
+# 
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let sig: String = inspect
+#             .call1((fun,))?
+#             .call_method0("__str__")?
+#             .extract()?;
+#         assert_eq!(sig, "(a, b, /)");
+# 
+#         Ok(())
+#     })
+# }
 ```
 
 This also works for classes and methods:
 
 ```rust
+# #![allow(dead_code)]
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
@@ -161,6 +178,63 @@ impl MyClass {
         e + f
     }
 }
+# 
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new(py, "my_module")?;
+#         module.add_class::<MyClass>()?;
+#         let class = module.getattr("MyClass")?;
+#         {
+#             let doc: String = class.getattr("__doc__")?.extract()?;
+#             assert_eq!(doc, "");
+# 
+#             let sig: String = inspect
+#                 .call1((class,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(c, d, /)");
+#         }
+# 
+#         {
+#             let method = class.getattr("my_method")?;
+# 
+#             assert!(method.getattr("__doc__")?.is_none());
+# 
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(self, /, e, f)");
+#         }
+# 
+#         {
+#             let method = class.getattr("my_class_method")?;
+# 
+#             assert!(method.getattr("__doc__")?.is_none());
+# 
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(cls, e, f)");
+#         }
+# 
+#         {
+#             let method = class.getattr("my_static_method")?;
+# 
+#             assert!(method.getattr("__doc__")?.is_none());
+# 
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(e, f)");
+#         }
+# 
+#         Ok(())
+#     })
+# }
 ```
 
 Note that `text_signature` on classes is not compatible with compilation in
@@ -176,6 +250,7 @@ formatted like in the following example. Please note that the newline after the
 generated signatures when those are added in a future version of PyO3.
 
 ```rust
+# #![allow(dead_code)]
 use pyo3::prelude::*;
 
 /// add(a, b, /)
@@ -262,8 +337,6 @@ fn pyfunction_with_module(module: &PyModule) -> PyResult<&str> {
 fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)
 }
-
-# fn main() {}
 ```
 
 If `pass_module` is set, the first argument **must** be the `&PyModule`. It is then possible to use the module

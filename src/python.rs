@@ -276,12 +276,17 @@ impl<'p> Python<'p> {
     ///
     /// Python::with_gil(|py| {
     ///     let m = PyModule::new(py, "pcount").unwrap();
-    ///     m.add_function(wrap_pyfunction!(parallel_count, m).unwrap()).unwrap();
+    ///     m.add_function(wrap_pyfunction!(parallel_count, m).unwrap())
+    ///         .unwrap();
     ///     let locals = [("pcount", m)].into_py_dict(py);
-    ///     pyo3::py_run!(py, *locals, r#"
+    ///     pyo3::py_run!(
+    ///         py,
+    ///         *locals,
+    ///         r#"
     ///         s = ["Flow", "my", "tears", "the", "Policeman", "Said"]
     ///         assert pcount.parallel_count(s, "a") == 3
-    ///     "#);
+    ///     "#
+    ///     );
     /// });
     /// ```
     ///
@@ -369,7 +374,10 @@ impl<'p> Python<'p> {
     ///
     /// # Examples
     /// ```
-    /// use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// use pyo3::{
+    ///     prelude::*,
+    ///     types::{PyBytes, PyDict},
+    /// };
     /// Python::with_gil(|py| {
     ///     let locals = PyDict::new(py);
     ///     py.run(
@@ -378,8 +386,8 @@ impl<'p> Python<'p> {
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
     /// "#,
-    ///       None,
-    ///       Some(locals),
+    ///         None,
+    ///         Some(locals),
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap();
@@ -635,7 +643,9 @@ impl<'p> Python<'p> {
     /// # Example
     ///
     /// ```rust
+    /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
+    ///
     /// # fn main(){
     /// #[pyfunction]
     /// fn loop_forever(py: Python) -> PyResult<()> {

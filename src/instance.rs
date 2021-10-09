@@ -84,44 +84,74 @@ pub unsafe trait PyNativeType: Sized {
 /// [`Py`]`<T>` can be used to get around this by converting `dict` into a GIL-independent reference:
 ///
 /// ```rust
-/// # use pyo3::prelude::*;
-/// # use pyo3::types::PyDict;
-/// #
+/// use pyo3::prelude::*;
+/// use pyo3::types::PyDict;
+///
 /// #[pyclass]
 /// struct Foo {
 ///     inner: Py<PyDict>,
 /// }
 ///
+/// #[pymethods]
 /// impl Foo {
-///     fn new() -> Foo {
+///     #[new]
+///     fn __new__() -> Foo {
 ///         Python::with_gil(|py| {
 ///             let dict: Py<PyDict> = PyDict::new(py).into();
 ///             Foo { inner: dict }
 ///         })
 ///     }
 /// }
+/// #
+/// # fn main() -> PyResult<()> {
+/// #     Python::with_gil(|py| {
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
+/// #         m.add_class::<Foo>()?;
+/// #
+/// #         let foo: &PyCell<Foo> = pyo3::PyTryFrom::try_from(m.getattr("Foo")?.call0()?)?;
+/// #         let dict = &foo.borrow().inner;
+/// #         let dict: &PyDict = dict.as_ref(py);
+/// #
+/// #         Ok(())
+/// #     })
+/// # }
 /// ```
 ///
 /// This can also be done with other pyclasses:
 /// ```rust
-/// # use pyo3::prelude::*;
-/// #
+/// use pyo3::prelude::*;
+///
 /// #[pyclass]
-/// struct Bar {/* fields omitted */}
+/// struct Bar {/* ... */}
 ///
 /// #[pyclass]
 /// struct Foo {
 ///     inner: Py<Bar>,
 /// }
 ///
+/// #[pymethods]
 /// impl Foo {
-///     fn new() -> PyResult<Foo> {
+///     #[new]
+///     fn __new__() -> PyResult<Foo> {
 ///         Python::with_gil(|py| {
 ///             let bar: Py<Bar> = Py::new(py, Bar {})?;
 ///             Ok(Foo { inner: bar })
 ///         })
 ///     }
 /// }
+/// #
+/// # fn main() -> PyResult<()> {
+/// #     Python::with_gil(|py| {
+/// #         let m = pyo3::types::PyModule::new(py, "test")?;
+/// #         m.add_class::<Foo>()?;
+/// #
+/// #         let foo: &PyCell<Foo> = pyo3::PyTryFrom::try_from(m.getattr("Foo")?.call0()?)?;
+/// #         let bar = &foo.borrow().inner;
+/// #         let bar: &Bar = &*bar.borrow(py);
+/// #
+/// #         Ok(())
+/// #     })
+/// # }
 /// ```
 ///
 /// # Example: Shared ownership of Python objects
@@ -134,9 +164,9 @@ pub unsafe trait PyNativeType: Sized {
 /// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
 ///
 /// ```rust
+/// use pyo3::conversion::AsPyPointer;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
-/// use pyo3::conversion::AsPyPointer;
 ///
 /// # fn main() {
 /// Python::with_gil(|py| {
@@ -259,10 +289,10 @@ where
     /// # use pyo3::prelude::*;
     /// #
     /// #[pyclass]
-    /// struct MyClass { }
+    /// struct MyClass {}
     ///
     /// Python::with_gil(|py| {
-    ///     let my_class: Py<MyClass> = Py::new(py, MyClass { }).unwrap();
+    ///     let my_class: Py<MyClass> = Py::new(py, MyClass {}).unwrap();
     ///     let my_class_cell: &PyCell<MyClass> = my_class.as_ref(py);
     ///     assert!(my_class_cell.try_borrow().is_ok());
     /// });
@@ -304,7 +334,7 @@ where
     ///
     /// ```rust
     /// # use pyo3::prelude::*;
-    /// #
+    /// # #[allow(dead_code)] // This is just to show it compiles.
     /// fn new_py_any<'py>(py: Python<'py>, value: impl IntoPy<Py<PyAny>>) -> &'py PyAny {
     ///     let obj: Py<PyAny> = value.into_py(py);
     ///
@@ -441,9 +471,9 @@ impl<T> Py<T> {
     /// # Examples
     ///
     /// ```rust
+    /// use pyo3::conversion::AsPyPointer;
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
-    /// use pyo3::conversion::AsPyPointer;
     ///
     /// # fn main() {
     /// Python::with_gil(|py| {

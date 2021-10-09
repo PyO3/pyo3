@@ -235,9 +235,9 @@ impl PyAny {
     /// # Examples
     ///
     /// ```rust
+    /// use pyo3::class::basic::CompareOp;
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyInt;
-    /// use pyo3::class::basic::CompareOp;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
@@ -245,7 +245,7 @@ impl PyAny {
     ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_true()?);
     ///     Ok(())
-    ///   })?;
+    /// })?;
     /// # Ok(())}
     /// ```
     pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<&PyAny>
@@ -274,10 +274,10 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///        let builtins = PyModule::import(py, "builtins")?;
-    ///        let print = builtins.getattr("print")?;
-    ///        assert!(print.is_callable());
-    ///        Ok(())
+    ///     let builtins = PyModule::import(py, "builtins")?;
+    ///     let print = builtins.getattr("print")?;
+    ///     assert!(print.is_callable());
+    ///     Ok(())
     /// })?;
     /// # Ok(())}
     /// ```
@@ -363,7 +363,7 @@ impl PyAny {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::import(py, "operator")?;
     ///     let add = module.getattr("add")?;
-    ///     let args = (1,2);
+    ///     let args = (1, 2);
     ///     let value = add.call1(args)?;
     ///     assert_eq!(value.extract::<i32>()?, 3);
     ///     Ok(())

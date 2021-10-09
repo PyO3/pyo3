@@ -17,13 +17,13 @@ use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 /// the integers 1 to 5, before raising `StopIteration("Ended")`.
 ///
 /// ```rust
+/// use pyo3::class::iter::IterNextOutput;
 /// use pyo3::prelude::*;
 /// use pyo3::PyIterProtocol;
-/// use pyo3::class::iter::IterNextOutput;
 ///
 /// #[pyclass]
 /// struct Iter {
-///     count: usize
+///     count: usize,
 /// }
 ///
 /// #[pyproto]

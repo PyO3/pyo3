@@ -11,12 +11,15 @@ use crate::{PyDowncastError, PyTryFrom};
 /// # Examples
 ///
 /// ```rust
-///  use pyo3::prelude::*;
+/// use pyo3::prelude::*;
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| ->  PyResult<()> {
+/// Python::with_gil(|py| -> PyResult<()> {
 ///     let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
-///     let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(PyAny::extract::<usize>)).collect();
+///     let numbers: PyResult<Vec<usize>> = list
+///         .iter()?
+///         .map(|i| i.and_then(PyAny::extract::<usize>))
+///         .collect();
 ///     let sum: usize = numbers?.iter().sum();
 ///     assert_eq!(sum, 10);
 ///     Ok(())

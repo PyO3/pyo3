@@ -10,7 +10,7 @@
 )]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
-#![doc(test(attr(deny(deprecated, unused_must_use, unused_imports))))]
+#![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -144,9 +144,8 @@
 #![cfg_attr(not(docsrs), doc = "version = \"*\"")]
 //! features = ["extension-module"]
 //! ```
-//!
+//! 
 //! **`src/lib.rs`**
-//!
 //! ```rust
 //! use pyo3::prelude::*;
 //!
@@ -164,20 +163,18 @@
 //!     Ok(())
 //! }
 //! ```
-//!
+//! 
 //! With those two files in place, now `maturin` needs to be installed. This can be done using
 //! Python's package manager `pip`. First, load up a new Python `virtualenv`, and install `maturin`
 //! into it:
-//!
 //! ```bash
 //! $ cd string_sum
 //! $ python -m venv .env
 //! $ source .env/bin/activate
 //! $ pip install maturin
 //! ```
-//!
+//! 
 //! Now build and execute the module:
-//!
 //! ```bash
 //! $ maturin develop
 //! # lots of progress output as maturin runs the compilation...
@@ -186,7 +183,7 @@
 //! >>> string_sum.sum_as_string(5, 20)
 //! '25'
 //! ```
-//!
+//! 
 //! As well as with `maturin`, it is possible to build using [setuptools-rust] or
 //! [manually][manual_builds]. Both offer more flexibility than `maturin` but require further
 //! configuration.
@@ -198,13 +195,11 @@
 //! some example code which runs an embedded Python interpreter.
 //!
 //! To install the Python shared library on Ubuntu:
-//!
 //! ```bash
 //! sudo apt install python3-dev
 //! ```
-//!
+//! 
 //! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
-//!
 //! ```toml
 //! [dependencies.pyo3]
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
@@ -213,9 +208,8 @@
 //! # this is necessary to automatically initialize the Python interpreter
 //! features = ["auto-initialize"]
 //! ```
-//!
+//! 
 //! Example program displaying the value of `sys.version` and the current user name:
-//!
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
@@ -234,7 +228,7 @@
 //!     })
 //! }
 //! ```
-//!
+//! 
 //! The guide has [a section][calling_rust] with lots of examples about this topic.
 //!
 //! # Other Examples
@@ -390,6 +384,7 @@ pub mod doc_test {
         "guide/src/conversions/tables.md",
         guide_conversions_tables_md
     );
+
     doctest!(
         "guide/src/conversions/traits.md",
         guide_conversions_traits_md

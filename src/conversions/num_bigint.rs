@@ -26,7 +26,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"num-bigint\"] }"
 )]
 //! ```
-//!
+//! 
 //! Note that you must use compatible versions of num-bigint and PyO3.
 //! The required num-bigint version may vary based on the version of PyO3.
 //!
@@ -35,7 +35,6 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//!
 //! ```rust
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
@@ -51,7 +50,7 @@
 //!     Ok(())
 //! }
 //! ```
-//!
+//! 
 //! Python code:
 //! ```python
 //! from my_module import add_one

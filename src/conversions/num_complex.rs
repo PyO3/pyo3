@@ -21,7 +21,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"num-complex\"] }"
 )]
 //! ```
-//!
+//! 
 //! Note that you must use compatible versions of num-complex and PyO3.
 //! The required num-complex version may vary based on the version of PyO3.
 //!
@@ -29,7 +29,6 @@
 //!
 //! Using [num-complex](https://docs.rs/num-complex) and [nalgebra](https://docs.rs/nalgebra)
 //! to create a pyfunction that calculates the eigenvalues of a 2x2 matrix.
-//!
 //! ```ignore
 //! # // not tested because nalgebra isn't supported on msrv
 //! # // please file an issue if it breaks!
@@ -86,7 +85,7 @@
 //! #     })
 //! # }
 //! ```
-//!
+//! 
 //! Python code:
 //! ```python
 //! from my_module import get_eigenvalues

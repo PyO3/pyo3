@@ -292,6 +292,7 @@ There can be two fixes:
 
    After:
    ```rust
+   # #![allow(dead_code)]
    use pyo3::prelude::*;
    use std::sync::{Arc, Mutex};
 
@@ -323,6 +324,7 @@ There can be two fixes:
 
    After:
    ```rust
+   # #![allow(dead_code)]
    use pyo3::prelude::*;
 
    #[pyclass(unsendable)]

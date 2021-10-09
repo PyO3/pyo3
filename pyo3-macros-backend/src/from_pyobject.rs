@@ -431,7 +431,6 @@ impl Parse for FieldPyO3Attribute {
 
 impl FieldPyO3Attributes {
     /// Extract the field attributes.
-    ///
     fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
         let mut getter = None;
         let mut from_py_with = None;

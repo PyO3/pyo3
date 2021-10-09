@@ -26,7 +26,7 @@
     doc = "pyo3 = { version = \"*\", features = [\"indexmap\"] }"
 )]
 //! ```
-//!
+//! 
 //! Note that you must use compatible versions of indexmap and PyO3.
 //! The required indexmap version may vary based on the version of PyO3.
 //!
@@ -35,7 +35,6 @@
 //! Using [indexmap](https://docs.rs/indexmap) to return a dictionary with some statistics
 //! about a list of numbers. Because of the insertion order guarantees, the Python code will
 //! always print the same result, matching users' expectations about Python's dict.
-//!
 //! ```rust
 //! use indexmap::{indexmap, IndexMap};
 //! use pyo3::prelude::*;
@@ -83,7 +82,7 @@
 //!     Ok(())
 //! }
 //! ```
-//!
+//! 
 //! Python code:
 //! ```python
 //! from my_module import calculate_statistics

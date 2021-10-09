@@ -64,7 +64,6 @@ impl PyModule {
     ///  ```
     ///
     /// This is equivalent to the following Python expression:
-    ///
     /// ```python
     /// import antigravity
     /// ```
@@ -99,12 +98,7 @@ impl PyModule {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///    let module = PyModule::from_code(
-    ///         py,
-    ///         "print(__file__, __name__)",
-    ///         "my_file",
-    ///         "my_module"
-    ///     )?;
+    ///     let module = PyModule::from_code(py, "print(__file__, __name__)", "my_file", "my_module")?;
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -254,19 +248,17 @@ impl PyModule {
     ///  ```
     ///
     /// Python code can see this class as such:
-    ///
     /// ```python
     /// from my_module import Foo
     ///
     /// print("Foo is", Foo)
     /// ```
-    ///
+    /// 
     /// This will result in the following output:
-    ///
     /// ```text
     /// Foo is <class 'builtins.Foo'>
     /// ```
-    ///
+    /// 
     /// Note that as we haven't defined a [constructor][1], Python code can't actually
     /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
     /// anything that can return instances of `Foo`).

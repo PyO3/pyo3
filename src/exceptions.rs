@@ -58,7 +58,7 @@ macro_rules! impl_exception_boilerplate {
 /// # Syntax
 ///
 /// ```import_exception!(module, MyError)```
-///
+/// 
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
 ///
@@ -132,7 +132,7 @@ macro_rules! import_exception {
 /// # Syntax
 ///
 /// ```create_exception!(module, MyError, BaseException)```
-///
+/// 
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
 /// * `BaseException` is the superclass of `MyError`, usually `pyo3::exceptions::PyException`.

@@ -15,9 +15,9 @@ use std::cell::UnsafeCell;
 /// between threads:
 ///
 /// ```
+/// use pyo3::once_cell::GILOnceCell;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyList;
-/// use pyo3::once_cell::GILOnceCell;
 ///
 /// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
 ///
