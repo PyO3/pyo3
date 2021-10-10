@@ -219,18 +219,14 @@ impl PyAny {
     /// Depending on the value of `compare_op`, this is equivalent to one of the
     /// following Python expressions:
     ///
-    /// <div style="width:1px">
-    ///
-    /// | `compare_op` | <span style="white-space: pre">Python expression</span> |
+    /// | `compare_op` | Python expression |
     /// | :---: | :----: |
-    /// | [`CompareOp::Eq`] | <span style="white-space: pre">`self == other`</span> |
-    /// | [`CompareOp::Ne`] | <span style="white-space: pre">`self != other`</span> |
-    /// | [`CompareOp::Lt`] | <span style="white-space: pre">`self < other`</span> |
-    /// | [`CompareOp::Le`] | <span style="white-space: pre">`self <= other`</span> |
-    /// | [`CompareOp::Gt`] | <span style="white-space: pre">`self > other`</span> |
-    /// | [`CompareOp::Ge`] | <span style="white-space: pre">`self >= other`</span> |
-    ///
-    /// </div>
+    /// | [`CompareOp::Eq`] | `self == other` |
+    /// | [`CompareOp::Ne`] | `self != other` |
+    /// | [`CompareOp::Lt`] | `self < other` |
+    /// | [`CompareOp::Le`] | `self <= other` |
+    /// | [`CompareOp::Gt`] | `self > other` |
+    /// | [`CompareOp::Ge`] | `self >= other` |
     ///
     /// # Examples
     ///

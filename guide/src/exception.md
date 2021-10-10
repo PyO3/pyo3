@@ -50,11 +50,11 @@ fn mymodule(py: Python, m: &PyModule) -> PyResult<()> {
 ## Raising an exception
 
 To raise an exception from `pyfunction`s and `pymethods`, you should return an `Err(PyErr)`.
-If it is returned to Python code, this [`PyErr`] will then be raised as a Python exception. Many PyO3 apis also return [`PyResult`].
+If returned to Python code, this [`PyErr`] will then be raised as a Python exception. Many PyO3 apis also return [`PyResult`].
 
 If a Rust type exists for the exception, then it is possible to use the `new_err` method.
 For example, each standard exception defined in the `pyo3::exceptions` module
-has a corresponding Rust type, exceptions defined by [`create_exception!`] and [`import_exception!`] macro have Rust types as well.
+has a corresponding Rust type and exceptions defined by [`create_exception!`] and [`import_exception!`] macro have Rust types as well.
 
 ```rust
 use pyo3::exceptions::PyZeroDivisionError;
@@ -302,6 +302,7 @@ defines exceptions for several standard library modules.
 [`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
 
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
+[`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
 [`PyErr::from_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_instance
 [`Python::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.is_instance
 [`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
