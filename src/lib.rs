@@ -117,7 +117,7 @@
 //! PyO3 can be used to generate a native Python module. The easiest way to try this out for the
 //! first time is to use [`maturin`]. `maturin` is a tool for building and publishing Rust-based
 //! Python packages with minimal configuration. The following steps set up some files for an example
-//! Python module, install `maturin`, and then show how build and import the Python module.
+//! Python module, install `maturin`, and then show how to build and import the Python module.
 //!
 //! First, create a new folder (let's call it `string_sum`) containing the following two files:
 //!

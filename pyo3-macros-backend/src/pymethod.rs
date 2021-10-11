@@ -586,16 +586,16 @@ impl Ty {
                     let (tref, mut_) = preprocess_tref(tref, cls);
                     quote! {
                         let #mut_ #ident: <#tref as ::pyo3::derive_utils::ExtractExt<'_>>::Target = match #ident.extract() {
-                            Ok(#ident) => #ident,
-                            Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
+                            ::std::result::Result::Ok(#ident) => #ident,
+                            ::std::result::Result::Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
                         };
                         let #ident = &#mut_ *#ident;
                     }
                 } else {
                     quote! {
                         let #ident = match #ident.extract() {
-                            Ok(#ident) => #ident,
-                            Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
+                            ::std::result::Result::Ok(#ident) => #ident,
+                            ::std::result::Result::Err(_) => return ::pyo3::callback::convert(#py, #py.NotImplemented()),
                         };
                     }
                 };
@@ -672,14 +672,14 @@ impl ReturnMode {
     fn return_call_output(&self, py: &syn::Ident, call: TokenStream) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
-                let _result: PyResult<#conversion> = #call;
+                let _result: ::pyo3::PyResult<#conversion> = #call;
                 ::pyo3::callback::convert(#py, _result)
             },
             ReturnMode::ReturnSelf => quote! {
-                let _result: PyResult<()> = #call;
+                let _result: ::pyo3::PyResult<()> = #call;
                 _result?;
                 ::pyo3::ffi::Py_XINCREF(_raw_slf);
-                Ok(_raw_slf)
+                ::std::result::Result::Ok(_raw_slf)
             },
         }
     }
