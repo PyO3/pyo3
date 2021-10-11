@@ -149,7 +149,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 // it works even if the item is not documented:
-
 #[pyclass]
 #[pyo3(text_signature = "(c, d, /)")]
 struct MyClass {}
@@ -185,7 +184,8 @@ impl MyClass {
 #         let module = PyModule::new(py, "my_module")?;
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
-#         {
+#
+#         if cfg!(not(Py_LIMITED_API)) || cfg!(Py_3_10)  {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
 # 
@@ -194,7 +194,12 @@ impl MyClass {
 #                 .call_method0("__str__")?
 #                 .extract()?;
 #             assert_eq!(sig, "(c, d, /)");
-#         }
+#         } else {
+#             let doc: String = class.getattr("__doc__")?.extract()?;
+#             assert_eq!(doc, "");
+# 
+#             inspect.call1((class,)).unwrap_err();
+#          }
 # 
 #         {
 #             let method = class.getattr("my_method")?;
