@@ -19,6 +19,7 @@ impl ExampleClass {
     }
 }
 
+/// An example module implemented in Rust using PyO3.
 #[pymodule]
 fn maturin_starter(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ExampleClass>()?;
