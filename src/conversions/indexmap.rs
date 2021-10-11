@@ -42,7 +42,7 @@
 //! fn median(data: &Vec<i32>) -> f32 {
 //!     let sorted_data = data.clone().sort();
 //!     let mid = data.len() / 2;
-//!     if (data.len() % 2 == 0) {
+//!     if data.len() % 2 == 0 {
 //!         data[mid] as f32
 //!     }
 //!     else {
