@@ -1,41 +1,41 @@
 error: expected one of freelist/name/extends/module
- --> $DIR/invalid_pyclass_args.rs:3:11
+ --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
   |           ^^^^^^
 
 error: expected type path (e.g., my_mod::BaseClass)
- --> $DIR/invalid_pyclass_args.rs:6:21
+ --> tests/ui/invalid_pyclass_args.rs:6:21
   |
 6 | #[pyclass(extends = "PyDict")]
   |                     ^^^^^^^^
 
 error: expected type name (e.g. "Name")
- --> $DIR/invalid_pyclass_args.rs:9:18
+ --> tests/ui/invalid_pyclass_args.rs:9:18
   |
 9 | #[pyclass(name = m::MyClass)]
   |                  ^
 
 error: expected a single identifier in double-quotes
-  --> $DIR/invalid_pyclass_args.rs:12:18
+  --> tests/ui/invalid_pyclass_args.rs:12:18
    |
 12 | #[pyclass(name = "Custom Name")]
    |                  ^^^^^^^^^^^^^
 
 error: since PyO3 0.13 a pyclass name should be in double-quotes, e.g. "CustomName"
-  --> $DIR/invalid_pyclass_args.rs:15:18
+  --> tests/ui/invalid_pyclass_args.rs:15:18
    |
 15 | #[pyclass(name = CustomName)]
    |                  ^^^^^^^^^^
 
 error: expected string literal (e.g., "my_mod")
-  --> $DIR/invalid_pyclass_args.rs:18:20
+  --> tests/ui/invalid_pyclass_args.rs:18:20
    |
 18 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
 error: expected one of gc/weakref/subclass/dict/unsendable
-  --> $DIR/invalid_pyclass_args.rs:21:11
+  --> tests/ui/invalid_pyclass_args.rs:21:11
    |
 21 | #[pyclass(weakrev)]
    |           ^^^^^^^

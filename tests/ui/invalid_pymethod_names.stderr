@@ -1,17 +1,17 @@
 error: `name` may only be specified once
-  --> $DIR/invalid_pymethod_names.rs:10:19
+  --> tests/ui/invalid_pymethod_names.rs:10:19
    |
 10 |     #[pyo3(name = "num")]
    |                   ^^^^^
 
 error: `name` may only be specified once
-  --> $DIR/invalid_pymethod_names.rs:18:19
+  --> tests/ui/invalid_pymethod_names.rs:18:19
    |
 18 |     #[pyo3(name = "bar")]
    |                   ^^^^^
 
 error: `name` not allowed with `#[new]`
-  --> $DIR/invalid_pymethod_names.rs:24:19
+  --> tests/ui/invalid_pymethod_names.rs:24:19
    |
 24 |     #[pyo3(name = "makenew")]
    |                   ^^^^^^^^^

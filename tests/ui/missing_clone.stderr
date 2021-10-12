@@ -1,5 +1,5 @@
 error[E0277]: the trait bound `TestClass: Clone` is not satisfied
-  --> $DIR/missing_clone.rs:15:32
+  --> tests/ui/missing_clone.rs:15:32
    |
 15 |     let t: TestClass = pyvalue.extract(py).unwrap();
    |                                ^^^^^^^ the trait `Clone` is not implemented for `TestClass`
