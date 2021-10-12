@@ -185,7 +185,7 @@ impl MyClass {
 #         module.add_class::<MyClass>()?;
 #         let class = module.getattr("MyClass")?;
 #
-#         if cfg!(not(Py_LIMITED_API)) || cfg!(Py_3_10)  {
+#         if cfg!(not(Py_LIMITED_API)) || py.version_info() >= (3, 10)  {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
 # 
@@ -198,7 +198,7 @@ impl MyClass {
 #             let doc: String = class.getattr("__doc__")?.extract()?;
 #             assert_eq!(doc, "");
 # 
-#             inspect.call1((class,)).unwrap_err();
+#             inspect.call1((class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
 #          }
 # 
 #         {
