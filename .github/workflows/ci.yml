@@ -112,7 +112,8 @@ jobs:
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # PyPy3.6 still runs on macos-10.15
-          - python-version: pypy-3.6
+          - rust: stable
+            python-version: pypy-3.6
             platform:
               {
                 os: "macos-10.15",
