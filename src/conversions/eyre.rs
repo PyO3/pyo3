@@ -36,18 +36,11 @@
 //! use pyo3::wrap_pyfunction;
 //! use std::path::PathBuf;
 //!
-//! // An example function that returns `eyre::Result<...>`.
-//! fn rust_open(filename: PathBuf) -> eyre::Result<Vec<u8>> {
-//!     let data = std::fs::read(filename)?;
-//!     Ok(data)
-//! }
-//!
 //! // A wrapper around a Rust function.
+//! // The pyfunction macro performs the conversion to a PyErr
 //! #[pyfunction]
-//! fn py_open(filename: PathBuf) -> PyResult<Vec<u8>> {
-//!     // The `?` ("try") operator performs the conversion
-//!     // into a `PyErr` - if it is an error.
-//!     let data = rust_open(filename)?;
+//! fn py_open(filename: PathBuf) -> eyre::Result<Vec<u8>> {
+//!     let data = std::fs::read(filename)?;
 //!     Ok(data)
 //! }
 //!
