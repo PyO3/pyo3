@@ -1,89 +1,89 @@
 error: class attribute methods cannot take arguments
- --> $DIR/invalid_pymethods.rs:9:29
+ --> tests/ui/invalid_pymethods.rs:9:29
   |
 9 |     fn class_attr_with_args(foo: i32) {}
   |                             ^^^
 
 error: `#[classattr]` does not take any arguments
-  --> $DIR/invalid_pymethods.rs:14:5
+  --> tests/ui/invalid_pymethods.rs:14:5
    |
 14 |     #[classattr(foobar)]
    |     ^
 
 error: static method needs #[staticmethod] attribute
-  --> $DIR/invalid_pymethods.rs:20:5
+  --> tests/ui/invalid_pymethods.rs:20:5
    |
 20 |     fn staticmethod_without_attribute() {}
    |     ^^
 
 error: unexpected receiver
-  --> $DIR/invalid_pymethods.rs:26:35
+  --> tests/ui/invalid_pymethods.rs:26:35
    |
 26 |     fn staticmethod_with_receiver(&self) {}
    |                                   ^
 
 error: expected receiver for #[getter]
-  --> $DIR/invalid_pymethods.rs:39:5
+  --> tests/ui/invalid_pymethods.rs:39:5
    |
 39 |     fn getter_without_receiver() {}
    |     ^^
 
 error: expected receiver for #[setter]
-  --> $DIR/invalid_pymethods.rs:45:5
+  --> tests/ui/invalid_pymethods.rs:45:5
    |
 45 |     fn setter_without_receiver() {}
    |     ^^
 
 error: text_signature not allowed on __new__; if you want to add a signature on __new__, put it on the struct definition instead
-  --> $DIR/invalid_pymethods.rs:51:12
+  --> tests/ui/invalid_pymethods.rs:51:12
    |
 51 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:58:12
+  --> tests/ui/invalid_pymethods.rs:58:12
    |
 58 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:65:12
+  --> tests/ui/invalid_pymethods.rs:65:12
    |
 65 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:72:12
+  --> tests/ui/invalid_pymethods.rs:72:12
    |
 72 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> $DIR/invalid_pymethods.rs:79:12
+  --> tests/ui/invalid_pymethods.rs:79:12
    |
 79 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: cannot specify a second method type
-  --> $DIR/invalid_pymethods.rs:86:7
+  --> tests/ui/invalid_pymethods.rs:86:7
    |
 86 |     #[staticmethod]
    |       ^^^^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
-  --> $DIR/invalid_pymethods.rs:92:23
+  --> tests/ui/invalid_pymethods.rs:92:23
    |
 92 |     fn generic_method<T>(value: T) {}
    |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-  --> $DIR/invalid_pymethods.rs:98:48
+  --> tests/ui/invalid_pymethods.rs:98:48
    |
 98 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
    |                                                ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> $DIR/invalid_pymethods.rs:103:56
+   --> tests/ui/invalid_pymethods.rs:103:56
     |
 103 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
     |                                                        ^^^^
@@ -91,13 +91,13 @@ error: Python functions cannot have `impl Trait` arguments
 error: `async fn` is not yet supported for Python functions.
 
 Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and Python. For more information, see https://github.com/PyO3/pyo3/issues/1632
-   --> $DIR/invalid_pymethods.rs:108:5
+   --> tests/ui/invalid_pymethods.rs:108:5
     |
 108 |     async fn async_method(&self) {}
     |     ^^^^^
 
 error: `pass_module` cannot be used on Python methods
-   --> $DIR/invalid_pymethods.rs:113:12
+   --> tests/ui/invalid_pymethods.rs:113:12
     |
 113 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
