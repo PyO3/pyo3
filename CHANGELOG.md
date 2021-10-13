@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Packaging
 
 - Support Python 3.10. [#1889](https://github.com/PyO3/pyo3/pull/1889)
+- Added optional `eyre` feature to convert `eyre::Report` into `PyErr`. [#1893](https://github.com/PyO3/pyo3/pull/1893)
 
 ### Added
 
