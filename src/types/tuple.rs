@@ -110,13 +110,16 @@ impl PyTuple {
     /// # Example
     /// ```
     /// use pyo3::{prelude::*, types::PyTuple};
+    ///
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
     ///     let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
-    /// });
+    /// })
+    /// # }
     /// ```
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {

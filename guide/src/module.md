@@ -92,9 +92,7 @@ pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyclass]
-struct SomeClass {
-    x: usize,
-}
+struct SomeClass {/* ... */}
 # }
 
 // src/osutil.rs

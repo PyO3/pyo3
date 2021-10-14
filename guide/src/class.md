@@ -25,11 +25,12 @@ To define a custom Python class, a Rust struct needs to be annotated with the
 `#[pyclass]` attribute.
 
 ```rust
+# #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
+    # #[pyo3(get)]
     num: i32,
-    debug: bool,
 }
 ```
 
@@ -45,8 +46,8 @@ Custom Python classes can then be added to a module using `add_class()`.
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
+#    #[allow(dead_code)] 
 #    num: i32,
-#    debug: bool,
 # }
 #[pymodule]
 fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -78,15 +79,13 @@ For users who are not very familiar with `RefCell`, here is a reminder of Rust's
 
 ```rust
 # use pyo3::prelude::*;
-# use pyo3::types::PyDict;
 #[pyclass]
 struct MyClass {
     #[pyo3(get)]
     num: i32,
-    debug: bool,
 }
 Python::with_gil(|py| {
-    let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
+    let obj = PyCell::new(py, MyClass { num: 3}).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
         assert_eq!(obj_ref.num, 3);
@@ -117,10 +116,13 @@ lifetime, and therefore needs a `Python<'_>` token to access.
 struct MyClass {
     num: i32,
 }
+
 fn return_myclass() -> Py<MyClass> {
     Python::with_gil(|py| Py::new(py, MyClass { num: 1 }).unwrap())
 }
+
 let obj = return_myclass();
+
 Python::with_gil(|py|{
     let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
     let obj_ref = cell.borrow(); // Get PyRef<T>
@@ -157,6 +159,7 @@ attribute. Only Python's `__new__` method can be specified, `__init__` is not av
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
+    # #[allow(dead_code)]
     num: i32,
 }
 
@@ -174,6 +177,7 @@ Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
+    # #[allow(dead_code)]
     num: i32,
 }
 
@@ -323,7 +327,7 @@ impl DictWithCounter {
 ```
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
-```compile_fail
+```rust,compile_fail
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -498,8 +502,8 @@ gets injected by the method wrapper, e.g.
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
+# #[allow(dead_code)]
 #     num: i32,
-#     debug: bool,
 # }
 #[pymethods]
 impl MyClass {
@@ -522,8 +526,8 @@ This is the equivalent of the Python decorator `@classmethod`.
 # use pyo3::types::PyType;
 # #[pyclass]
 # struct MyClass {
+#     #[allow(dead_code)]
 #     num: i32,
-#     debug: bool,
 # }
 #[pymethods]
 impl MyClass {
@@ -552,8 +556,8 @@ To create a static method for a custom class, the method needs to be annotated w
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
+#     #[allow(dead_code)]
 #     num: i32,
-#     debug: bool,
 # }
 #[pymethods]
 impl MyClass {
@@ -706,19 +710,17 @@ use pyo3::types::{PyDict, PyTuple};
 # #[pyclass]
 # struct MyClass {
 #     num: i32,
-#     debug: bool,
 # }
 #[pymethods]
 impl MyClass {
     #[new]
-    #[args(num = "-1", debug = "true")]
-    fn new(num: i32, debug: bool) -> Self {
-        MyClass { num, debug }
+    #[args(num = "-1")]
+    fn new(num: i32) -> Self {
+        MyClass { num }
     }
 
     #[args(
         num = "10",
-        debug = "true",
         py_args = "*",
         name = "\"Hello\"",
         py_kwargs = "**"
@@ -726,23 +728,20 @@ impl MyClass {
     fn method(
         &mut self,
         num: i32,
-        debug: bool,
         name: &str,
         py_args: &PyTuple,
         py_kwargs: Option<&PyDict>,
     ) -> PyResult<String> {
-        self.debug = debug;
         self.num = num;
         Ok(format!(
-            "py_args={:?}, py_kwargs={:?}, name={}, num={}, debug={}",
-            py_args, py_kwargs, name, self.num, self.debug
+            "py_args={:?}, py_kwargs={:?}, name={}, num={}",
+            py_args, py_kwargs, name, self.num
         ))
     }
 
-    fn make_change(&mut self, num: i32, debug: bool) -> PyResult<String> {
+    fn make_change(&mut self, num: i32) -> PyResult<String> {
         self.num = num;
-        self.debug = debug;
-        Ok(format!("num={}, debug={}", self.num, self.debug))
+        Ok(format!("num={}", self.num))
     }
 }
 ```
@@ -754,14 +753,13 @@ mc = mymodule.MyClass()
 print(mc.method(44, False, "World", 666, x=44, y=55))
 print(mc.method(num=-1, name="World"))
 print(mc.make_change(44, False))
-print(mc.make_change(debug=False, num=-1))
 ```
 Produces output:
 ```text
-py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44, debug=false
-py_args=(), py_kwargs=None, name=World, num=-1, debug=true
-num=44, debug=false
-num=-1, debug=false
+py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44
+py_args=(), py_kwargs=None, name=World, num=-1
+num=44
+num=-1
 ```
 
 ## Implementation details
@@ -781,8 +779,8 @@ The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplC
 
 /// Class for demonstration
 struct MyClass {
+    # #[allow(dead_code)]
     num: i32,
-    debug: bool,
 }
 
 unsafe impl pyo3::PyTypeInfo for MyClass {
@@ -812,7 +810,7 @@ impl pyo3::IntoPy<PyObject> for MyClass {
 }
 
 impl pyo3::class::impl_::PyClassImpl for MyClass {
-    const DOC: &'static str = "Class for demonstration";
+    const DOC: &'static str = "Class for demonstration\u{0}";
     const IS_GC: bool = false;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;

@@ -97,12 +97,14 @@ macro_rules! wrap_pymodule {
 /// #[pymethods]
 /// impl MyClass {
 ///     #[new]
-///     fn new() -> Self { MyClass {} }
+///     fn new() -> Self {
+///         MyClass {}
+///     }
 /// }
 ///
 /// Python::with_gil(|py| {
-///    let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
-///    pyo3::py_run!(py, *locals, "c = C()");
+///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py);
+///     pyo3::py_run!(py, *locals, "c = C()");
 /// });
 /// ```
 #[macro_export]

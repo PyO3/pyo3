@@ -219,25 +219,21 @@ impl PyAny {
     /// Depending on the value of `compare_op`, this is equivalent to one of the
     /// following Python expressions:
     ///
-    /// <div style="width:1px">
-    ///
-    /// | `compare_op` | <span style="white-space: pre">Python expression</span> |
+    /// | `compare_op` | Python expression |
     /// | :---: | :----: |
-    /// | [`CompareOp::Eq`] | <span style="white-space: pre">`self == other`</span> |
-    /// | [`CompareOp::Ne`] | <span style="white-space: pre">`self != other`</span> |
-    /// | [`CompareOp::Lt`] | <span style="white-space: pre">`self < other`</span> |
-    /// | [`CompareOp::Le`] | <span style="white-space: pre">`self <= other`</span> |
-    /// | [`CompareOp::Gt`] | <span style="white-space: pre">`self > other`</span> |
-    /// | [`CompareOp::Ge`] | <span style="white-space: pre">`self >= other`</span> |
-    ///
-    /// </div>
+    /// | [`CompareOp::Eq`] | `self == other` |
+    /// | [`CompareOp::Ne`] | `self != other` |
+    /// | [`CompareOp::Lt`] | `self < other` |
+    /// | [`CompareOp::Le`] | `self <= other` |
+    /// | [`CompareOp::Gt`] | `self > other` |
+    /// | [`CompareOp::Ge`] | `self >= other` |
     ///
     /// # Examples
     ///
     /// ```rust
+    /// use pyo3::class::basic::CompareOp;
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyInt;
-    /// use pyo3::class::basic::CompareOp;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
@@ -245,7 +241,7 @@ impl PyAny {
     ///     let b: &PyInt = 42_u8.into_py(py).into_ref(py).downcast()?;
     ///     assert!(a.rich_compare(b, CompareOp::Le)?.is_true()?);
     ///     Ok(())
-    ///   })?;
+    /// })?;
     /// # Ok(())}
     /// ```
     pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<&PyAny>
@@ -274,10 +270,10 @@ impl PyAny {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///        let builtins = PyModule::import(py, "builtins")?;
-    ///        let print = builtins.getattr("print")?;
-    ///        assert!(print.is_callable());
-    ///        Ok(())
+    ///     let builtins = PyModule::import(py, "builtins")?;
+    ///     let print = builtins.getattr("print")?;
+    ///     assert!(print.is_callable());
+    ///     Ok(())
     /// })?;
     /// # Ok(())}
     /// ```
@@ -363,7 +359,7 @@ impl PyAny {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::import(py, "operator")?;
     ///     let add = module.getattr("add")?;
-    ///     let args = (1,2);
+    ///     let args = (1, 2);
     ///     let value = add.call1(args)?;
     ///     assert_eq!(value.extract::<i32>()?, 3);
     ///     Ok(())
@@ -391,8 +387,7 @@ impl PyAny {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    /// use crate::pyo3::types::IntoPyDict;
+    /// use pyo3::types::{IntoPyDict, PyList};
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {

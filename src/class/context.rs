@@ -2,7 +2,6 @@
 
 //! Context manager api
 //! Trait and support implementation for context manager api
-//!
 
 use crate::callback::IntoPyCallbackOutput;
 use crate::{PyClass, PyObject};

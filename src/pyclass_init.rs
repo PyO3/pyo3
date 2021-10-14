@@ -85,7 +85,6 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// ```
 /// # use pyo3::prelude::*;
 /// # use pyo3::py_run;
-/// # use pyo3::types::IntoPyDict;
 /// #[pyclass(subclass)]
 /// struct BaseClass {
 ///     #[pyo3(get)]
@@ -108,7 +107,9 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 ///     fn new() -> PyClassInitializer<Self> {
 ///         PyClassInitializer::from(BaseClass { basename: "base" })
 ///             .add_subclass(SubClass { subname: "sub" })
-///             .add_subclass(SubSubClass { subsubname: "subsub" })
+///             .add_subclass(SubSubClass {
+///                 subsubname: "subsub",
+///             })
 ///     }
 /// }
 /// Python::with_gil(|py| {
@@ -141,19 +142,20 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///
     /// # Examples
     /// ```
-    /// # use pyo3::prelude::*;
-    /// #[pyclass]
+    /// use pyo3::prelude::*;
+    ///
+    /// #[pyclass(subclass)]
     /// struct BaseClass {
-    ///     value: u32,
+    ///     #[pyo3(get)]
+    ///     value: i32,
     /// }
     ///
     /// impl BaseClass {
     ///     fn new(value: i32) -> PyResult<Self> {
-    ///         Ok(Self {
-    ///             value: std::convert::TryFrom::try_from(value)?,
-    ///         })
+    ///         Ok(Self { value })
     ///     }
     /// }
+    ///
     /// #[pyclass(extends=BaseClass)]
     /// struct SubClass {}
     ///
@@ -164,6 +166,22 @@ impl<T: PyClass> PyClassInitializer<T> {
     ///         let base_init = PyClassInitializer::from(BaseClass::new(value)?);
     ///         Ok(base_init.add_subclass(SubClass {}))
     ///     }
+    /// }
+    ///
+    /// fn main() -> PyResult<()> {
+    ///     Python::with_gil(|py| {
+    ///         let m = PyModule::new(py, "example")?;
+    ///         m.add_class::<SubClass>()?;
+    ///         m.add_class::<BaseClass>()?;
+    ///
+    ///         let instance = m.getattr("SubClass")?.call1((92,))?;
+    ///
+    ///         // `SubClass` does not have a `value` attribute, but `BaseClass` does.
+    ///         let n = instance.getattr("value")?.extract::<i32>()?;
+    ///         assert_eq!(n, 92);
+    ///
+    ///         Ok(())
+    ///     })
     /// }
     /// ```
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>

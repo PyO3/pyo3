@@ -23,6 +23,7 @@ Let's say we have a function `solve` that operates on a model and mutates its st
 The argument of the function can be any model that implements the `Model` trait :
 
 ```rust
+# #![allow(dead_code)]
 pub trait Model {
   fn set_variables(&mut self, inputs: &Vec<f64>);
   fn compute(&mut self);
@@ -117,6 +118,7 @@ Now that this bit is implemented, let's expose the model wrapper to Python.
 Let's add the PyO3 annotations and add a constructor:
 
 ```rust
+# #![allow(dead_code)]
 # pub trait Model {
 #   fn set_variables(&mut self, inputs: &Vec<f64>);
 #   fn compute(&mut self);

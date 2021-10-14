@@ -29,7 +29,6 @@
 //!
 //! Using [num-complex](https://docs.rs/num-complex) and [nalgebra](https://docs.rs/nalgebra)
 //! to create a pyfunction that calculates the eigenvalues of a 2x2 matrix.
-//!
 //! ```ignore
 //! # // not tested because nalgebra isn't supported on msrv
 //! # // please file an issue if it breaks!

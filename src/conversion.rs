@@ -17,7 +17,7 @@ use std::ptr::NonNull;
 /// # Examples
 ///
 /// ```
-/// use pyo3::{AsPyPointer, prelude::*};
+/// use pyo3::{prelude::*, AsPyPointer};
 /// Python::with_gil(|py| {
 ///     let dict = pyo3::types::PyDict::new(py);
 ///     // All native object wrappers implement AsPyPointer!!!
@@ -147,8 +147,8 @@ where
 ///
 /// #[pyclass]
 /// struct Number {
-///    #[pyo3(get, set)]
-///    value: i32,
+///     #[pyo3(get, set)]
+///     value: i32,
 /// }
 /// ```
 /// Python code will see this as an instance of the `Number` class with a `value` attribute.
@@ -161,14 +161,14 @@ where
 /// use pyo3::prelude::*;
 ///
 /// struct Number {
-///   value: i32,
+///     value: i32,
 /// }
 ///
 /// impl IntoPy<PyObject> for Number {
 ///     fn into_py(self, py: Python) -> PyObject {
 ///         // delegates to i32's IntoPy implementation.
 ///         self.value.into_py(py)
-///    }
+///     }
 /// }
 /// ```
 /// Python code will see this as an `int` object.
@@ -183,7 +183,7 @@ where
 /// enum Value {
 ///     Integer(i32),
 ///     String(String),
-///     None
+///     None,
 /// }
 ///
 /// impl IntoPy<PyObject> for Value {
@@ -191,10 +191,22 @@ where
 ///         match self {
 ///             Self::Integer(val) => val.into_py(py),
 ///             Self::String(val) => val.into_py(py),
-///             Self::None => py.None()
+///             Self::None => py.None(),
 ///         }
-///    }
+///     }
 /// }
+/// # fn main() {
+/// #     Python::with_gil(|py| {
+/// #         let v = Value::Integer(73).into_py(py);
+/// #         let v = v.extract::<i32>(py).unwrap();
+/// #
+/// #         let v = Value::String("foo".into()).into_py(py);
+/// #         let v = v.extract::<String>(py).unwrap();
+/// #
+/// #         let v = Value::None.into_py(py);
+/// #         let v = v.extract::<Option<Vec<i32>>>(py).unwrap();
+/// #     });
+/// # }
 /// ```
 /// Python code will see this as any of the `int`, `string` or `None` objects.
 #[cfg_attr(docsrs, doc(alias = "IntoPyCallbackOutput"))]

@@ -8,6 +8,9 @@
         rustdoc::bare_urls
     )
 )]
+// Deny some lints in doctests.
+// Use `#[allow(...)]` locally to override.
+#![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -143,7 +146,6 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//!
 //! ```rust
 //! use pyo3::prelude::*;
 //!
@@ -165,7 +167,6 @@
 //! With those two files in place, now `maturin` needs to be installed. This can be done using
 //! Python's package manager `pip`. First, load up a new Python `virtualenv`, and install `maturin`
 //! into it:
-//!
 //! ```bash
 //! $ cd string_sum
 //! $ python -m venv .env
@@ -174,7 +175,6 @@
 //! ```
 //!
 //! Now build and execute the module:
-//!
 //! ```bash
 //! $ maturin develop
 //! # lots of progress output as maturin runs the compilation...
@@ -195,13 +195,11 @@
 //! some example code which runs an embedded Python interpreter.
 //!
 //! To install the Python shared library on Ubuntu:
-//!
 //! ```bash
 //! sudo apt install python3-dev
 //! ```
 //!
 //! Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like this:
-//!
 //! ```toml
 //! [dependencies.pyo3]
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
@@ -212,7 +210,6 @@
 //! ```
 //!
 //! Example program displaying the value of `sys.version` and the current user name:
-//!
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
@@ -220,7 +217,7 @@
 //! fn main() -> PyResult<()> {
 //!     Python::with_gil(|py| {
 //!         let sys = py.import("sys")?;
-//!         let version: String = sys.get("version")?.extract()?;
+//!         let version: String = sys.getattr("version")?.extract()?;
 //!
 //!         let locals = [("os", py.import("os")?)].into_py_dict(py);
 //!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
@@ -390,6 +387,7 @@ pub mod doc_test {
         "guide/src/conversions/tables.md",
         guide_conversions_tables_md
     );
+
     doctest!(
         "guide/src/conversions/traits.md",
         guide_conversions_traits_md
