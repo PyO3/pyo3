@@ -16,7 +16,8 @@ links = "python"
 
 [dependencies]
 cfg-if = { version = "1.0" }
-# must stay at 0.3.x for Rust 1.41 compatibility
+eyre = {version = ">= 0.4, < 0.7" , optional = true}
+# indoc must stay at 0.3.x for Rust 1.41 compatibility
 indoc = { version = "0.3.6", optional = true }
 inventory = { version = "0.1.4", optional = true }
 libc = "0.2.62"
@@ -126,5 +127,5 @@ members = [
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap"]
+features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre"]
 rustdoc-args = ["--cfg", "docsrs"]

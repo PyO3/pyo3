@@ -913,7 +913,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
             // Python 3.6 sysconfigdata without platform specifics
             Ok(f) if f.file_name() == "_sysconfigdata.py" => vec![f.path()],
             // Python 3.7+ sysconfigdata with platform specifics
-            Ok(f) if starts_with(f, "_sysconfigdata__") && ends_with(f, "py") => vec![f.path()],
+            Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
             Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();

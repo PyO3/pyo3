@@ -64,8 +64,8 @@ jobs:
             # TODO suppress linking using config file rather than extension-module feature
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module"
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
           done
 
   build:
@@ -101,6 +101,9 @@ jobs:
             },
           ]
         exclude:
+          # PyPy 3.6 is EOL and not working on macos-latest (now macos-11)
+          - python-version: pypy-3.6
+            platform: { os: "macos-latest", python-architecture: "x64" }
           # There is no 64-bit pypy on windows for pypy-3.6
           - python-version: pypy-3.6
             platform: { os: "windows-latest", python-architecture: "x64" }
@@ -108,6 +111,15 @@ jobs:
           - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
+          # PyPy3.6 still runs on macos-10.15
+          - rust: stable
+            python-version: pypy-3.6
+            platform:
+              {
+                os: "macos-10.15",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
           # Test minimal supported Rust version
           - rust: 1.41.1
             python-version: 3.9
@@ -163,7 +175,7 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)

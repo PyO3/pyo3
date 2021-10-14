@@ -1,5 +1,5 @@
 error[E0505]: cannot move out of `gil` because it is borrowed
- --> $DIR/wrong_aspyref_lifetimes.rs:7:10
+ --> tests/ui/wrong_aspyref_lifetimes.rs:7:10
   |
 6 |     let dict: &PyDict = dict.as_ref(gil.python());
   |                                     --- borrow of `gil` occurs here
