@@ -50,7 +50,7 @@ fn mymodule(py: Python, m: &PyModule) -> PyResult<()> {
 ## Raising an exception
 
 To raise an exception from `pyfunction`s and `pymethods`, you should return an `Err(PyErr)`.
-If returned to Python code, this [`PyErr`] will then be raised as a Python exception. Many PyO3 apis also return [`PyResult`].
+If returned to Python code, this [`PyErr`] will then be raised as a Python exception. Many PyO3 APIs also return [`PyResult`].
 
 If a Rust type exists for the exception, then it is possible to use the `new_err` method.
 For example, each standard exception defined in the `pyo3::exceptions` module
@@ -136,9 +136,11 @@ which is an alias for the type `Result<T, PyErr>`.
 A [`PyErr`] represents a Python exception. Errors within the PyO3 library are also exposed as
 Python exceptions.
 
-If your code has a custom error type e.g. `MyError`, adding an implementation of
-`std::convert::From<MyError> for PyErr` is usually enough. PyO3 will then automatically convert
-your error to a Python exception when needed.
+If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr` 
+is usually enough. PyO3 will then automatically convert your error to a Python exception when needed.
+
+The following code snippet defines a Rust error named `CustomIOError`. In its `From<CustomIOError> for PyErr`
+implementation it returns a `PyErr` representing Python's `OSError`.
 
 ```rust
 use pyo3::exceptions::PyOSError;
@@ -156,7 +158,13 @@ impl fmt::Display for CustomIOError {
     }
 }
 
-pub struct Connection{ /* ... */}
+impl std::convert::From<CustomIOError> for PyErr {
+    fn from(err: CustomIOError) -> PyErr {
+        PyOSError::new_err(err.to_string())
+    }
+}
+
+pub struct Connection { /* ... */}
 
 fn bind(addr: String) -> Result<Connection, CustomIOError> {
     if &addr == "0.0.0.0"{
@@ -166,77 +174,24 @@ fn bind(addr: String) -> Result<Connection, CustomIOError> {
     }
 }
 
-impl std::convert::From<CustomIOError> for PyErr {
-    fn from(err: CustomIOError) -> PyErr {
-        PyOSError::new_err(err.to_string())
-    }
-}
-
 #[pyfunction]
 fn connect(s: String) -> Result<(), CustomIOError> {
     bind(s)?;
     Ok(())
 }
-# 
-# fn main() {
-#     Python::with_gil(|py| {
-#         let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
-#         let err = fun.call1(("0.0.0.0",)).unwrap_err();
-#         assert!(err.is_instance::<PyOSError>(py));
-#     });
-# }
+
+fn main() {
+    Python::with_gil(|py| {
+        let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
+        let err = fun.call1(("0.0.0.0",)).unwrap_err();
+        assert!(err.is_instance::<PyOSError>(py));
+    });
+}
 ```
 
-This code snippet will raise an `OSError` in Python if `bind()` returns a `CustomIOError`:
-
-```rust
-# use pyo3::exceptions::PyOSError;
-# use pyo3::prelude::*;
-# use std::fmt;
-# #[derive(Debug)]
-# struct CustomIOError;
-# 
-# impl std::error::Error for CustomIOError {}
-# 
-# impl fmt::Display for CustomIOError {
-#     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-#         write!(f, "Oh no!")
-#     }
-# }
-# 
-# pub struct Connection{ /* ... */}
-# 
-# fn bind(addr: String) -> Result<Connection, CustomIOError> {
-#     if &addr == "0.0.0.0"{
-#         Err(CustomIOError)
-#     } else {
-#         Ok(Connection{ /* ... */})
-#     }
-# }
-# 
-# impl std::convert::From<CustomIOError> for PyErr {
-#     fn from(err: CustomIOError) -> PyErr {
-#         PyOSError::new_err(err.to_string())
-#     }
-# }
-# 
-# #[pyfunction]
-# fn connect(s: String) -> Result<(), CustomIOError> {
-#     bind(s)?;
-#     Ok(())
-# }
-# 
-# fn main() {
-Python::with_gil(|py| {
-    let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
-    let err = fun.call1(("0.0.0.0",)).unwrap_err();
-    assert!(err.is_instance::<PyOSError>(py));
-});
-# }
-```
-
-The `std::convert::From<T>` trait is implemented for most of the Rust standard library's error
-types so the `?` operator can be used.
+This has been implemented for most of Rust's standard library errors, so that you can use the `?`
+("try") operator with them. The following code snippet will raise a `ValueError` in Python if 
+`String::parse()` returns an error.
 
 ```rust
 use pyo3::prelude::*;
@@ -244,7 +199,7 @@ use pyo3::prelude::*;
 fn parse_int(s: String) -> PyResult<usize> {
     Ok(s.parse::<usize>()?)
 }
-
+#
 # use pyo3::exceptions::PyValueError;
 # 
 # fn main() {
@@ -264,8 +219,6 @@ fn parse_int(s: String) -> PyResult<usize> {
 #     })
 # }
 ```
-
-The code snippet above will raise a `ValueError` in Python if `String::parse()` returns an error.
 
 If lazy construction of the Python exception instance is desired, the
 [`PyErrArguments`]({{#PYO3_DOCS_URL}}/pyo3/trait.PyErrArguments.html)
