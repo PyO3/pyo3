@@ -77,6 +77,7 @@ pub use self::moduleobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::osmodule::*;
+#[cfg(not(Py_LIMITED_API))]
 pub use self::pyarena::*;
 pub use self::pycapsule::*;
 pub use self::pyerrors::*;
@@ -100,137 +101,106 @@ pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
 
-#[cfg(not(Py_LIMITED_API))]
-pub use self::cpython::*;
-
 mod abstract_;
 // skipped asdl.h
 // skipped ast.h
 mod bltinmodule;
-mod boolobject; // TODO supports PEP-384 only
+mod boolobject;
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h
-mod ceval; // TODO supports PEP-384 only
-
+mod ceval;
 // skipped classobject.h
 mod code;
-mod codecs; // TODO supports PEP-384 only
-mod compile; // TODO: incomplete
-mod complexobject; // TODO supports PEP-384 only
+mod codecs;
+mod compile;
+mod complexobject;
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 mod context; // It's actually 3.7.1, but no cfg for patches.
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
-mod descrobject; // TODO supports PEP-384 only
+mod descrobject;
 mod dictobject;
 // skipped dynamic_annotations.h
 mod enumobject;
 // skipped errcode.h
-mod eval; // TODO supports PEP-384 only
-
+mod eval;
 // skipped exports.h
-mod fileobject; // TODO: incomplete
-
+mod fileobject;
 mod fileutils;
-mod floatobject; // TODO supports PEP-384 only
-
+mod floatobject;
 // skipped empty frameobject.h
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod funcobject;
 // skipped genericaliasobject.h
 #[cfg(not(Py_LIMITED_API))]
-mod genobject; // TODO: incomplete
-mod import; // TODO: incomplete
-
+mod genobject;
+mod import;
 // skipped interpreteridobject.h
-mod intrcheck; // TODO supports PEP-384 only
+mod intrcheck;
 mod iterobject;
 mod listobject;
 // skipped longintrepr.h
 mod longobject;
 pub(crate) mod marshal;
 mod memoryobject;
-mod methodobject; // TODO: incomplete
-mod modsupport; // TODO: incomplete
-mod moduleobject; // TODO: incomplete
-
+mod methodobject;
+mod modsupport;
+mod moduleobject;
 // skipped namespaceobject.h
 mod object;
+mod objimpl;
 // skipped odictobject.h
 // skipped opcode.h
 // skipped osdefs.h
+mod osmodule;
 // skipped parser_interface.h
 // skipped patchlevel.h
 // skipped picklebufobject.h
 // skipped pyctype.h
 // skipped py_curses.h
+#[cfg(not(Py_LIMITED_API))]
+mod pyarena;
+mod pycapsule;
 // skipped pydecimal.h
 // skipped pydtrace.h
+mod pyerrors;
 // skipped pyexpat.h
 // skipped pyfpe.h
-mod pyframe; // TODO: incomplete
-
+mod pyframe;
+mod pyhash;
+mod pylifecycle;
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
-// skipped pystrcmp.h
+mod pymem;
+mod pyport;
+mod pystate;
+mod pythonrun;
 // skipped pystrhex.h
-// skipped Python-ast.h
-// this file is Python.h
+// skipped pystrcmp.h
+mod pystrtod;
 // skipped pythread.h
 // skipped pytime.h
-
-mod pyport;
-// mod pymacro; contains nothing of interest for Rust
-// mod pyatomic; contains nothing of interest for Rust
-// mod pymath; contains nothing of interest for Rust
-
-// [cfg(not(Py_LIMITED_API))]
-// mod pytime; contains nothing of interest
-
-mod objimpl;
-mod pyhash;
-mod pymem;
-mod typeslots;
-
-mod unicodeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                   // mod longintrepr; TODO excluded by PEP-384
-mod rangeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod tupleobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                 // mod odictobject; TODO new in 3.5
-mod setobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-               // mod classobject; TODO excluded by PEP-384
-mod pycapsule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod rangeobject;
+mod setobject;
 mod sliceobject;
 mod structseq;
-mod traceback; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-               // skipped tracemalloc.h
-mod warnings; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod pylifecycle;
-mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-#[cfg(Py_LIMITED_API)]
-mod pyarena {}
-#[cfg(not(Py_LIMITED_API))]
-mod pyarena; // TODO: incomplete
-mod pythonrun; // TODO some functions need to be moved to pylifecycle
-               //mod pylifecycle; // TODO new in 3.5
-mod osmodule;
-mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-// mod pyctype; TODO excluded by PEP-384
-mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-              // mod pystrcmp; TODO nothing interesting for Rust?
-              // mod dtoa; TODO excluded by PEP-384
-              // mod fileutils; TODO no public functions?
-              // mod pyfpe; TODO probably not interesting for rust
+mod sysmodule;
+mod traceback;
+// skipped tracemalloc.h
+mod tupleobject;
+mod typeslots;
+mod unicodeobject;
+mod warnings;
+mod weakrefobject;
 
 // Additional headers that are not exported by Python.h
-pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+pub mod structmember;
 
+// "Limited API" definitions matching Python's `include/cpython` directory.
 #[cfg(not(Py_LIMITED_API))]
 mod cpython;
+
+#[cfg(not(Py_LIMITED_API))]
+pub use self::cpython::*;
