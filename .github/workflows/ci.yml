@@ -64,8 +64,8 @@ jobs:
             # TODO suppress linking using config file rather than extension-module feature
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module"
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
           done
 
   build:
@@ -175,7 +175,7 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
@@ -293,7 +293,7 @@ jobs:
           cargo llvm-cov clean --workspace
           cargo llvm-cov --package $ALL_PACKAGES --no-report
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods
+          cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow
           cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
         env:
           ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros

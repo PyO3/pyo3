@@ -1,6 +1,5 @@
 //! This module contains conversions between various Rust object and their representation in Python.
 
-#[cfg(feature = "anyhow")]
 pub mod anyhow;
 mod array;
 pub mod eyre;

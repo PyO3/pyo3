@@ -44,7 +44,7 @@ jobs:
         # This adds the docs to gh-pages-build/doc
       - name: Build the doc
         run: |
-          cargo +nightly rustdoc --lib --no-default-features --features="macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre" -- --cfg docsrs
+          cargo +nightly rustdoc --lib --no-default-features --features="macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow" -- --cfg docsrs
           cp -r target/doc gh-pages-build/doc
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
 

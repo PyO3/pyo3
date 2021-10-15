@@ -1,6 +1,6 @@
 #![cfg(feature = "anyhow")]
 
-//! A conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
+//! A conversion from [anyhow]’s [`Error`] type to [`PyErr`].
 //!
 //! Use of an error handling library like [anyhow] is common in application code and when you just
 //! want error handling to be easy. If you are writing a library or you need more control over your
@@ -29,7 +29,7 @@
 //! Note that you must use compatible versions of anyhow and PyO3.
 //! The required anyhow version may vary based on the version of PyO3.
 //!
-//! # Example: Propagating a `PyErr` into [`anyhow::Error`]
+//! # Example: Propagating a `PyErr` into [`anyhow::Report`]
 //!
 //! ```rust
 //! use pyo3::prelude::*;
@@ -57,7 +57,7 @@
 //!
 //! # Example: Using `anyhow` in general
 //!
-//! Note that you don't need this feature to convert a [`PyErr`] into an [`anyhow::Error`], because
+//! Note that you don't need this feature to convert a [`PyErr`] into an [`anyhow::Report`], because
 //! it can already convert anything that implements [`Error`](std::error::Error):
 //!
 //! ```rust
@@ -99,66 +99,32 @@
 //! ```
 //!
 //! [anyhow]: https://docs.rs/anyhow/ "A trait object based error system for easy idiomatic error handling in Rust applications."
-//! [anyhow_error]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html "Anyhows `Error` type, a wrapper around a dynamic error type"
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
-use crate::exceptions::PyRuntimeError;
-use crate::PyErr;
+#[test]
+fn test_anyhow_py_function_ok_result() {
+    use pyo3::{py_run, pyfunction, wrap_pyfunction, Python};
 
-impl From<anyhow::Error> for PyErr {
-    fn from(err: anyhow::Error) -> Self {
-        PyRuntimeError::new_err(format!("{:?}", err))
-    }
-}
-
-#[cfg(test)]
-mod test_anyhow {
-    use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
-
-    use anyhow::{anyhow, bail, Result, Context};
-
-    fn f() -> Result<()> {
-        use std::io;
-        bail!(io::Error::new(io::ErrorKind::PermissionDenied, "oh no!"));
+    #[pyfunction]
+    fn produce_ok_result() -> anyhow::Result<String> {
+        Ok(String::from("OK buddy"))
     }
 
-    fn g() -> Result<()> {
-        f().context("f failed")
+    #[pyfunction]
+    fn produce_err_result() -> anyhow::Result<String> {
+        anyhow::bail!("error time")
     }
 
-    fn h() -> Result<()> {
-        g().context("g failed")
-    }
+    Python::with_gil(|py| {
+        let func = wrap_pyfunction!(produce_ok_result)(py).unwrap();
 
-    #[test]
-    fn test_pyo3_exception_contents() {
-        let err = h().unwrap_err();
-        let expected_contents = format!("{:?}", err);
-        let pyerr = PyErr::from(err);
-
-        Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.pvalue(py).to_string(), expected_contents);
-        })
-    }
-
-    fn k() -> Result<()> {
-        Err(anyhow!("Some sort of error"))
-    }
-
-    #[test]
-    fn test_pyo3_exception_contents2() {
-        let err = k().unwrap_err();
-        let expected_contents = format!("{:?}", err);
-        let pyerr = PyErr::from(err);
-
-        Python::with_gil(|py| {
-            let locals = [("err", pyerr)].into_py_dict(py);
-            let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.pvalue(py).to_string(), expected_contents);
-        })
-    }
+        py_run!(
+            py,
+            func,
+            r#"
+            func()
+            "#
+        );
+    });
 }
