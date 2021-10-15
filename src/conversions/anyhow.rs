@@ -23,7 +23,10 @@
 //! anyhow = "*"
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
 #![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"anyhow\"] }")))]
-#![cfg_attr(not(docsrs), doc = "pyo3 = { version = \"*\", features = [\"anyhow\"] }")]
+#![cfg_attr(
+    not(docsrs),
+    doc = "pyo3 = { version = \"*\", features = [\"anyhow\"] }"
+)]
 //! ```
 //!
 //! Note that you must use compatible versions of anyhow and PyO3.
@@ -117,7 +120,7 @@ mod test_anyhow {
     use pyo3::prelude::*;
     use pyo3::types::IntoPyDict;
 
-    use anyhow::{anyhow, bail, Result, Context};
+    use anyhow::{anyhow, bail, Context, Result};
 
     fn f() -> Result<()> {
         use std::io;
