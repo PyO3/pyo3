@@ -37,6 +37,37 @@ jobs:
           components: clippy
       - run: make clippy
 
+  check-target:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # If one platform fails, allow the rest to keep testing.
+      matrix:
+        target: [powerpc64le-unknown-linux-gnu, s390x-unknown-linux-gnu, wasm32-wasi]
+    name: check-${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+          default: true
+
+      - name: Run cargo checks
+        run: |
+          set -x
+          VERSIONS=("3.6" "3.7" "3.8" "3.9" "3.10")
+          for VERSION in ${VERSIONS[@]}; do
+            echo "version=$VERSION" > config.txt
+            # TODO suppress linking using config file rather than extension-module feature
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
+          done
+
   build:
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} ${{ matrix.msrv }}
@@ -70,6 +101,9 @@ jobs:
             },
           ]
         exclude:
+          # PyPy 3.6 is EOL and not working on macos-latest (now macos-11)
+          - python-version: pypy-3.6
+            platform: { os: "macos-latest", python-architecture: "x64" }
           # There is no 64-bit pypy on windows for pypy-3.6
           - python-version: pypy-3.6
             platform: { os: "windows-latest", python-architecture: "x64" }
@@ -77,6 +111,15 @@ jobs:
           - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
+          # PyPy3.6 still runs on macos-10.15
+          - rust: stable
+            python-version: pypy-3.6
+            platform:
+              {
+                os: "macos-10.15",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
           # Test minimal supported Rust version
           - rust: 1.41.1
             python-version: 3.9
@@ -121,6 +164,8 @@ jobs:
           target: ${{ matrix.platform.rust-target }}
           profile: minimal
           default: true
+          # needed to correctly format errors, see #1865
+          components: rust-src
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
@@ -130,7 +175,7 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods"
+          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
@@ -138,6 +183,7 @@ jobs:
           cargo update -p indexmap --precise 1.6.2
           cargo update -p hashbrown:0.11.2 --precise 0.9.1
           cargo update -p bitflags --precise 1.2.1
+          cargo update -p half --precise 1.7.1
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
@@ -145,10 +191,22 @@ jobs:
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
 
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Build pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo build --no-default-features
+
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
         run: cargo test --no-default-features
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Test pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo test --no-default-features
 
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
@@ -213,11 +271,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
-          # NB: doesn't include target dir so that the coverage stats are fresh
-          # each run.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
         continue-on-error: true
       - name: install cargo-llvm-cov
@@ -225,7 +282,7 @@ jobs:
           wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
           mv cargo-llvm-cov ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.0
+          CARGO_LLVM_COV_VERSION: 0.1.5
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -233,6 +290,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
       - run: |
+          cargo llvm-cov clean --workspace
           cargo llvm-cov --package $ALL_PACKAGES --no-report
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods

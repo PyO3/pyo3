@@ -4,7 +4,7 @@ use crate::attributes::TextSignatureAttribute;
 use crate::params::{accept_args_kwargs, impl_arg_params};
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
-use crate::utils;
+use crate::utils::{self, PythonDoc};
 use crate::{deprecations::Deprecations, pyfunction::Argument};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -93,22 +93,28 @@ pub enum FnType {
 }
 
 impl FnType {
-    pub fn self_conversion(&self, cls: Option<&syn::Type>) -> TokenStream {
+    pub fn self_conversion(
+        &self,
+        cls: Option<&syn::Type>,
+        error_mode: ExtractErrorMode,
+    ) -> TokenStream {
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnCall(st) => {
-                st.receiver(cls.expect("no class given for Fn with a \"self\" receiver"))
-            }
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) | FnType::FnCall(st) => st
+                .receiver(
+                    cls.expect("no class given for Fn with a \"self\" receiver"),
+                    error_mode,
+                ),
             FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
                 quote!()
             }
             FnType::FnClass => {
                 quote! {
-                    let _slf = pyo3::types::PyType::from_type_ptr(_py, _slf as *mut pyo3::ffi::PyTypeObject);
+                    let _slf = ::pyo3::types::PyType::from_type_ptr(_py, _slf as *mut ::pyo3::ffi::PyTypeObject);
                 }
             }
             FnType::FnModule => {
                 quote! {
-                    let _slf = _py.from_borrowed_ptr::<pyo3::types::PyModule>(_slf);
+                    let _slf = _py.from_borrowed_ptr::<::pyo3::types::PyModule>(_slf);
                 }
             }
         }
@@ -128,28 +134,47 @@ pub enum SelfType {
     TryFromPyCell(Span),
 }
 
+#[derive(Clone, Copy)]
+pub enum ExtractErrorMode {
+    NotImplemented,
+    Raise,
+}
+
 impl SelfType {
-    pub fn receiver(&self, cls: &syn::Type) -> TokenStream {
+    pub fn receiver(&self, cls: &syn::Type, error_mode: ExtractErrorMode) -> TokenStream {
+        let cell = match error_mode {
+            ExtractErrorMode::Raise => {
+                quote! { _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>()? }
+            }
+            ExtractErrorMode::NotImplemented => {
+                quote! {
+                    match _py.from_borrowed_ptr::<::pyo3::PyAny>(_slf).downcast::<::pyo3::PyCell<#cls>>() {
+                        ::std::result::Result::Ok(cell) => cell,
+                        ::std::result::Result::Err(_) => return ::pyo3::callback::convert(_py, _py.NotImplemented()),
+                    }
+                }
+            }
+        };
         match self {
             SelfType::Receiver { mutable: false } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     let _ref = _cell.try_borrow()?;
                     let _slf = &_ref;
                 }
             }
             SelfType::Receiver { mutable: true } => {
                 quote! {
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     let mut _ref = _cell.try_borrow_mut()?;
                     let _slf = &mut _ref;
                 }
             }
             SelfType::TryFromPyCell(span) => {
                 quote_spanned! { *span =>
-                    let _cell = _py.from_borrowed_ptr::<::pyo3::PyCell<#cls>>(_slf);
+                    let _cell = #cell;
                     #[allow(clippy::useless_conversion)]  // In case _slf is PyCell<Self>
-                    let _slf = std::convert::TryFrom::try_from(_cell)?;
+                    let _slf = ::std::convert::TryFrom::try_from(_cell)?;
                 }
             }
         }
@@ -202,7 +227,7 @@ pub struct FnSpec<'a> {
     pub attrs: Vec<Argument>,
     pub args: Vec<FnArg<'a>>,
     pub output: syn::Type,
-    pub doc: syn::LitStr,
+    pub doc: PythonDoc,
     pub deprecations: Deprecations,
     pub convention: CallingConvention,
 }
@@ -271,7 +296,7 @@ impl<'a> FnSpec<'a> {
                 .text_signature
                 .as_ref()
                 .map(|attr| (&python_name, attr)),
-        )?;
+        );
 
         let arguments: Vec<_> = if skip_first_arg {
             sig.inputs
@@ -442,7 +467,7 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
     ) -> Result<TokenStream> {
         let deprecations = &self.deprecations;
-        let self_conversion = self.tp.self_conversion(cls);
+        let self_conversion = self.tp.self_conversion(cls, ExtractErrorMode::Raise);
         let self_arg = self.tp.self_arg();
         let arg_names = (0..self.args.len())
             .map(|pos| syn::Ident::new(&format!("arg{}", pos), Span::call_site()))
@@ -455,17 +480,17 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
         let rust_call =
-            quote! { pyo3::callback::convert(#py, #rust_name(#self_arg #(#arg_names),*)) };
+            quote! { ::pyo3::callback::convert(#py, #rust_name(#self_arg #(#arg_names),*)) };
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                    ) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                    ) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
                             #rust_call
                         })
@@ -476,23 +501,23 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, true)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *const *mut pyo3::ffi::PyObject,
-                        _nargs: pyo3::ffi::Py_ssize_t,
-                        _kwnames: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *const *mut ::pyo3::ffi::PyObject,
+                        _nargs: ::pyo3::ffi::Py_ssize_t,
+                        _kwnames: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _kwnames: Option<&pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
+                            let _kwnames: ::std::option::Option<&::pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
                             // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
-                            let _args = _args as *const &pyo3::PyAny;
-                            let _kwargs = if let Some(kwnames) = _kwnames {
-                                std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
+                            let _args = _args as *const &::pyo3::PyAny;
+                            let _kwargs = if let ::std::option::Option::Some(kwnames) = _kwnames {
+                                ::std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
                             } else {
                                 &[]
                             };
-                            let _args = std::slice::from_raw_parts(_args, _nargs as usize);
+                            let _args = ::std::slice::from_raw_parts(_args, _nargs as usize);
 
                             #arg_convert_and_rust_call
                         })
@@ -503,15 +528,15 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut pyo3::ffi::PyObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                        _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                        _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        pyo3::callback::handle_panic(|#py| {
+                        ::pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                            let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                            let _args = #py.from_borrowed_ptr::<::pyo3::types::PyTuple>(_args);
+                            let _kwargs: ::std::option::Option<&::pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                             #arg_convert_and_rust_call
                         })
@@ -523,20 +548,20 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        subtype: *mut pyo3::ffi::PyTypeObject,
-                        _args: *mut pyo3::ffi::PyObject,
-                        _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+                        subtype: *mut ::pyo3::ffi::PyTypeObject,
+                        _args: *mut ::pyo3::ffi::PyObject,
+                        _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
                     {
                         #deprecations
-                        use pyo3::callback::IntoPyCallbackOutput;
-                        pyo3::callback::handle_panic(|#py| {
-                            let _args = #py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                            let _kwargs: Option<&pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
+                        use ::pyo3::callback::IntoPyCallbackOutput;
+                        ::pyo3::callback::handle_panic(|#py| {
+                            let _args = #py.from_borrowed_ptr::<::pyo3::types::PyTuple>(_args);
+                            let _kwargs: ::std::option::Option<&::pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
 
                             let result = #arg_convert_and_rust_call;
-                            let initializer: pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
+                            let initializer: ::pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
-                            Ok(cell as *mut pyo3::ffi::PyObject)
+                            ::std::result::Result::Ok(cell as *mut ::pyo3::ffi::PyObject)
                         })
                     }
                 }
@@ -551,23 +576,23 @@ impl<'a> FnSpec<'a> {
         let doc = &self.doc;
         match self.convention {
             CallingConvention::Noargs => quote! {
-                pyo3::class::methods::PyMethodDef::noargs(
+                ::pyo3::class::methods::PyMethodDef::noargs(
                     #python_name,
-                    pyo3::class::methods::PyCFunction(#wrapper),
+                    ::pyo3::class::methods::PyCFunction(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
-                pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
+                ::pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
+                    ::pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
-                pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                ::pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
+                    ::pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
                     #doc,
                 )
             },
@@ -601,8 +626,8 @@ fn parse_method_attributes(
     }
 
     for attr in attrs.drain(..) {
-        match attr.parse_meta()? {
-            syn::Meta::Path(name) => {
+        match attr.parse_meta() {
+            Ok(syn::Meta::Path(name)) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     set_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
@@ -630,9 +655,9 @@ fn parse_method_attributes(
                     new_attrs.push(attr)
                 }
             }
-            syn::Meta::List(syn::MetaList {
+            Ok(syn::Meta::List(syn::MetaList {
                 path, mut nested, ..
-            }) => {
+            })) => {
                 if path.is_ident("new") {
                     set_ty!(MethodTypeAttribute::New, path);
                 } else if path.is_ident("init") {
@@ -688,7 +713,7 @@ fn parse_method_attributes(
                     new_attrs.push(attr)
                 }
             }
-            syn::Meta::NameValue(_) => new_attrs.push(attr),
+            Ok(syn::Meta::NameValue(_)) | Err(_) => new_attrs.push(attr),
         }
     }
 

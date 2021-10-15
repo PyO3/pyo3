@@ -5,11 +5,11 @@ Thank you for your interest in contributing to PyO3! All are welcome - please co
 If you are searching for ideas how to contribute, proceed to the ["Getting started contributing"](#getting-started-contributing) section. If you have found a specific issue to contribute to and need information about the development process, you may find the section ["Writing pull requests"](#writing-pull-requests) helpful.
 
 If you want to become familiar with the codebase, see
-[Architecture.md](https://github.com/PyO3/pyo3/tree/master/Architecture.md).
+[Architecture.md](https://github.com/PyO3/pyo3/blob/main/Architecture.md).
 
 ## Getting started contributing
 
-Please join in with any part of PyO3 which interests you. We use Github issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
+Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
 
 The following sections also contain specific ideas on where to start contributing to PyO3.
 
@@ -17,7 +17,7 @@ The following sections also contain specific ideas on where to start contributin
 
 The [PyO3 Gitter channel](https://gitter.im/PyO3/Lobby) is very active with users who are new to PyO3, and often completely new to Rust. Helping them debug is a great way to get experience with the PyO3 codebase.
 
-Helping others often reveals bugs, documentation weaknesses, and missing APIs. It's a good idea to open Github issues for these immediately so the resolution can be designed and implemented!
+Helping others often reveals bugs, documentation weaknesses, and missing APIs. It's a good idea to open GitHub issues for these immediately so the resolution can be designed and implemented!
 
 ### Implement issues ready for development
 
@@ -63,7 +63,7 @@ Here are a few things to note when you are writing PRs.
 
 ### Continuous Integration
 
-The PyO3 repo uses Github Actions. PRs are blocked from merging if CI is not successful.
+The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful.
 
 Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
@@ -101,8 +101,8 @@ Second, there is a Python-based benchmark contained in the `pyo3-benchmarks` exa
 
 ## Sponsor this project
 
-At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on [Github](https://github.com/PyO3/pyo3/issues/new) or [Gitter](https://gitter.im/PyO3/Lobby) and we can discuss.
+At the moment there is no official organisation that accepts sponsorship on PyO3's behalf. If you're seeking to provide significant funding to the PyO3 ecosystem, please reach out to us on [GitHub](https://github.com/PyO3/pyo3/issues/new) or [Gitter](https://gitter.im/PyO3/Lobby) and we can discuss.
 
-In the meanwhile, some of our maintainers have personal Github sponsorship pages and would be grateful for your support:
+In the meanwhile, some of our maintainers have personal GitHub sponsorship pages and would be grateful for your support:
 
 - [davidhewitt](https://github.com/sponsors/davidhewitt)

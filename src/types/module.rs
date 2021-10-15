@@ -64,7 +64,6 @@ impl PyModule {
     ///  ```
     ///
     /// This is equivalent to the following Python expression:
-    ///
     /// ```python
     /// import antigravity
     /// ```
@@ -99,12 +98,7 @@ impl PyModule {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
-    ///    let module = PyModule::from_code(
-    ///         py,
-    ///         "print(__file__, __name__)",
-    ///         "my_file",
-    ///         "my_module"
-    ///     )?;
+    ///     let module = PyModule::from_code(py, "print(__file__, __name__)", "my_file", "my_module")?;
     ///     Ok(())
     /// })?;
     /// # Ok(())}
@@ -140,8 +134,7 @@ impl PyModule {
         unsafe {
             // PyModule_GetDict returns borrowed ptr; must make owned for safety (see #890).
             let ptr = ffi::PyModule_GetDict(self.as_ptr());
-            ffi::Py_INCREF(ptr);
-            self.py().from_owned_ptr(ptr)
+            self.py().from_owned_ptr(ffi::_Py_NewRef(ptr))
         }
     }
 
@@ -255,7 +248,6 @@ impl PyModule {
     ///  ```
     ///
     /// Python code can see this class as such:
-    ///
     /// ```python
     /// from my_module import Foo
     ///
@@ -263,7 +255,6 @@ impl PyModule {
     /// ```
     ///
     /// This will result in the following output:
-    ///
     /// ```text
     /// Foo is <class 'builtins.Foo'>
     /// ```

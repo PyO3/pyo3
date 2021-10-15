@@ -78,7 +78,9 @@ extern "C" {
     pub fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetItem")]
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject, v: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_DelItemString")]
     pub fn PyObject_DelItemString(o: *mut PyObject, key: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_DelItem")]
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int;
 }
 
@@ -110,7 +112,9 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
-    // skipped non-limited / 3.10 PyIter_Send
+    #[cfg(all(not(PyPy), Py_3_10))]
+    #[cfg_attr(docsrs, doc(cfg(all(not(PyPy), Py_3_10))))]
+    pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;
@@ -300,6 +304,7 @@ pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyString")]
     pub fn PyMapping_HasKeyString(o: *mut PyObject, key: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKey")]
     pub fn PyMapping_HasKey(o: *mut PyObject, key: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyMapping_Keys")]
     pub fn PyMapping_Keys(o: *mut PyObject) -> *mut PyObject;

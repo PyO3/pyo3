@@ -164,8 +164,7 @@ impl<'py> Iterator for PySetIterator<'py> {
             let mut hash: ffi::Py_hash_t = 0;
             if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
                 // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                ffi::Py_INCREF(key);
-                Some(self.set.py().from_owned_ptr(key))
+                Some(self.set.py().from_owned_ptr(ffi::_Py_NewRef(key)))
             } else {
                 None
             }
@@ -329,75 +328,6 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-#[cfg(feature = "hashbrown")]
-#[cfg_attr(docsrs, doc(cfg(feature = "hashbrown")))]
-mod hashbrown_hashset_conversion {
-    use super::*;
-    use crate::{FromPyObject, PyObject, PyResult, ToPyObject};
-
-    impl<T> ToPyObject for hashbrown::HashSet<T>
-    where
-        T: hash::Hash + Eq + ToPyObject,
-    {
-        fn to_object(&self, py: Python) -> PyObject {
-            let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
-            {
-                for val in self {
-                    set.add(val).expect("Failed to add to set");
-                }
-            }
-            set.into()
-        }
-    }
-
-    impl<K, S> IntoPy<PyObject> for hashbrown::HashSet<K, S>
-    where
-        K: IntoPy<PyObject> + Eq + hash::Hash,
-        S: hash::BuildHasher + Default,
-    {
-        fn into_py(self, py: Python) -> PyObject {
-            let set = PySet::empty(py).expect("Failed to construct empty set");
-            {
-                for val in self {
-                    set.add(val.into_py(py)).expect("Failed to add to set");
-                }
-            }
-            set.into()
-        }
-    }
-
-    impl<'source, K, S> FromPyObject<'source> for hashbrown::HashSet<K, S>
-    where
-        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-        S: hash::BuildHasher + Default,
-    {
-        fn extract(ob: &'source PyAny) -> PyResult<Self> {
-            let set: &PySet = ob.downcast()?;
-            set.iter().map(K::extract).collect()
-        }
-    }
-
-    #[test]
-    fn test_extract_hashbrown_hashset() {
-        Python::with_gil(|py| {
-            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
-            assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
-        });
-    }
-
-    #[test]
-    fn test_hashbrown_hashset_into_py() {
-        Python::with_gil(|py| {
-            let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-
-            let hso: PyObject = hs.clone().into_py(py);
-
-            assert_eq!(hs, hso.extract(py).unwrap());
-        });
     }
 }
 

@@ -7,6 +7,7 @@
     docsrs,
     doc(cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy)))))
 )]
+
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
 //! This is useful for converting Python integers when they may not fit in Rust's built-in integer types.
@@ -34,7 +35,6 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//!
 //! ```rust
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;

@@ -37,6 +37,7 @@ fn list_get_item(b: &mut Bencher) {
     });
 }
 
+#[cfg(not(Py_LIMITED_API))]
 fn list_get_item_unchecked(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -56,6 +57,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_list", iter_list);
     c.bench_function("list_new", list_new);
     c.bench_function("list_get_item", list_get_item);
+    #[cfg(not(Py_LIMITED_API))]
     c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
 }
 

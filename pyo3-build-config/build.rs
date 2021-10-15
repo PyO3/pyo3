@@ -67,6 +67,8 @@ pub fn abi3_config() -> Option<InterpreterConfig> {
                 pointer_width: None,
                 executable: None,
                 shared: true,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
             });
         }
     }
@@ -89,8 +91,12 @@ fn generate_build_configs() -> Result<()> {
 }
 
 fn main() {
-    if let Err(e) = generate_build_configs() {
-        eprintln!("error: {}", e.report());
-        std::process::exit(1)
+    if std::env::var("CARGO_FEATURE_RESOLVE_CONFIG").is_ok() {
+        if let Err(e) = generate_build_configs() {
+            eprintln!("error: {}", e.report());
+            std::process::exit(1)
+        }
+    } else {
+        eprintln!("resolve-config feature not enabled; build script in no-op mode");
     }
 }

@@ -17,38 +17,40 @@ pub use self::floatob::PyFloat;
 pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
+pub use self::mapping::PyMapping;
 pub use self::module::PyModule;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
 // Implementations core to all native types
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_base(
     ($name:ty $(;$generics:ident)* ) => {
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
 
-        impl<$($generics,)*> std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter)
-                   -> std::result::Result<(), std::fmt::Error>
+        impl<$($generics,)*> ::std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+                   -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.repr().map_err(|_| std::fmt::Error)?;
+                let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
 
-        impl<$($generics,)*> std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter)
-                   -> std::result::Result<(), std::fmt::Error>
+        impl<$($generics,)*> ::std::fmt::Display for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+                   -> ::std::result::Result<(), ::std::fmt::Error>
             {
-                let s = self.str().map_err(|_| std::fmt::Error)?;
+                let s = self.str().or(::std::result::Result::Err(::std::fmt::Error))?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -62,7 +64,7 @@ macro_rules! pyobject_native_type_base(
             }
         }
 
-        impl<$($generics,)*> PartialEq for $name {
+        impl<$($generics,)*> ::std::cmp::PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
                 use $crate::AsPyPointer;
@@ -75,19 +77,20 @@ macro_rules! pyobject_native_type_base(
 
 // Implementations core to all native types except for PyAny (because they don't
 // make sense on PyAny / have different implementations).
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name:ty $(;$generics:ident)*) => {
         $crate::pyobject_native_type_base!($name $(;$generics)*);
 
-        impl<$($generics,)*> std::convert::AsRef<$crate::PyAny> for $name {
+        impl<$($generics,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
             fn as_ref(&self) -> &$crate::PyAny {
                 &self.0
             }
         }
 
-        impl<$($generics,)*> std::ops::Deref for $name {
+        impl<$($generics,)*> ::std::ops::Deref for $name {
             type Target = $crate::PyAny;
 
             #[inline]
@@ -112,7 +115,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($generics,)*> From<&'_ $name> for $crate::Py<$name> {
+        impl<$($generics,)*> ::std::convert::From<&'_ $name> for $crate::Py<$name> {
             #[inline]
             fn from(other: &$name) -> Self {
                 use $crate::AsPyPointer;
@@ -121,7 +124,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<'a, $($generics,)*> std::convert::From<&'a $name> for &'a $crate::PyAny {
+        impl<'a, $($generics,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
@@ -129,6 +132,7 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
@@ -136,7 +140,7 @@ macro_rules! pyobject_native_type_info(
             type AsRefTarget = Self;
 
             const NAME: &'static str = stringify!($name);
-            const MODULE: Option<&'static str> = $module;
+            const MODULE: ::std::option::Option<&'static str> = $module;
 
             #[inline]
             fn type_object_raw(_py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
@@ -159,18 +163,20 @@ macro_rules! pyobject_native_type_info(
 
 // NOTE: This macro is not included in pyobject_native_type_base!
 // because rust-numpy has a special implementation.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
+                $crate::PyTryFrom::try_from(obj).map_err(::std::convert::Into::into)
             }
         }
     }
 }
 
 /// Declares all of the boilerplate for Python types.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
     ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
@@ -179,10 +185,11 @@ macro_rules! pyobject_native_type_core {
         $crate::pyobject_native_type_extract!($name $(;$generics)*);
     };
     ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
@@ -201,6 +208,7 @@ macro_rules! pyobject_native_type_sized {
 
 /// Declares all of the boilerplate for Python types which can be inherited from (because the exact
 /// Python layout is known).
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
@@ -224,6 +232,7 @@ mod floatob;
 mod function;
 mod iterator;
 mod list;
+mod mapping;
 mod module;
 mod num;
 mod sequence;

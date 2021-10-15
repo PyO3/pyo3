@@ -180,11 +180,14 @@ impl Python<'_> {
     /// # Examples
     /// ```
     /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let x: i32 = py.eval("5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
-    /// });
+    /// })
+    /// # }
     /// ```
     #[inline]
     pub fn with_gil<F, R>(f: F) -> R
@@ -250,18 +253,18 @@ impl<'p> Python<'p> {
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict;
     /// use pyo3::exceptions::PyRuntimeError;
-    /// use std::sync::Arc;
-    /// use std::thread;
+    ///
     /// #[pyfunction]
     /// fn parallel_count(py: Python<'_>, strings: Vec<String>, query: String) -> PyResult<usize> {
     ///     let query = query.chars().next().unwrap();
     ///     py.allow_threads(move || {
     ///         let threads: Vec<_> = strings
     ///             .into_iter()
-    ///             .map(|s| thread::spawn(move || s.chars().filter(|&c| c == query).count()))
+    ///             .map(|s| std::thread::spawn(move || s.chars().filter(|&c| c == query).count()))
     ///             .collect();
     ///         let mut sum = 0;
     ///         for t in threads {
@@ -273,12 +276,17 @@ impl<'p> Python<'p> {
     ///
     /// Python::with_gil(|py| {
     ///     let m = PyModule::new(py, "pcount").unwrap();
-    ///     m.add_function(wrap_pyfunction!(parallel_count, m).unwrap()).unwrap();
+    ///     m.add_function(wrap_pyfunction!(parallel_count, m).unwrap())
+    ///         .unwrap();
     ///     let locals = [("pcount", m)].into_py_dict(py);
-    ///     pyo3::py_run!(py, *locals, r#"
+    ///     pyo3::py_run!(
+    ///         py,
+    ///         *locals,
+    ///         r#"
     ///         s = ["Flow", "my", "tears", "the", "Policeman", "Said"]
     ///         assert pcount.parallel_count(s, "a") == 3
-    ///     "#);
+    ///     "#
+    ///     );
     /// });
     /// ```
     ///
@@ -341,8 +349,9 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     ///
     /// # Examples
+    ///
     /// ```
-    /// # use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// # use pyo3::prelude::*;
     /// # Python::with_gil(|py| {
     /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
@@ -365,7 +374,10 @@ impl<'p> Python<'p> {
     ///
     /// # Examples
     /// ```
-    /// use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// use pyo3::{
+    ///     prelude::*,
+    ///     types::{PyBytes, PyDict},
+    /// };
     /// Python::with_gil(|py| {
     ///     let locals = PyDict::new(py);
     ///     py.run(
@@ -374,8 +386,8 @@ impl<'p> Python<'p> {
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
     /// "#,
-    ///       None,
-    ///       Some(locals),
+    ///         None,
+    ///         Some(locals),
     ///     )
     ///     .unwrap();
     ///     let ret = locals.get_item("ret").unwrap();
@@ -631,7 +643,9 @@ impl<'p> Python<'p> {
     /// # Example
     ///
     /// ```rust
+    /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
+    ///
     /// # fn main(){
     /// #[pyfunction]
     /// fn loop_forever(py: Python) -> PyResult<()> {
@@ -699,7 +713,7 @@ impl<'p> Python<'p> {
     ///
     ///         // It is recommended to *always* immediately set py to the pool's Python, to help
     ///         // avoid creating references with invalid lifetimes.
-    ///         let py = unsafe { pool.python() };
+    ///         let py = pool.python();
     ///
     ///         // do stuff...
     /// #       break;  // Exit the loop so that doctest terminates!

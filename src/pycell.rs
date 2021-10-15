@@ -1,4 +1,179 @@
-//! Includes `PyCell` implementation.
+//! PyO3's interior mutability primitive.
+//!
+//! Rust has strict aliasing rules - you can either have any number of immutable (shared) references or one mutable
+//! reference. Python's ownership model is the complete opposite of that - any Python object
+//! can be referenced any number of times, and mutation is allowed from any reference.
+//!
+//! PyO3 deals with these differences by employing the [Interior Mutability]
+//! pattern. This requires that PyO3 enforces the borrowing rules and it has two mechanisms for
+//! doing so:
+//! - Statically it can enforce threadsafe access with the [`Python<'py>`](crate::Python) token.
+//! All Rust code holding that token, or anything derived from it, can assume that they have
+//! safe access to the Python interpreter's state. For this reason all the native Python objects
+//! can be mutated through shared references.
+//! - However, methods and functions in Rust usually *do* need `&mut` references. While PyO3 can
+//! use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
+//! statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
+//! dynamically at runtime, using [`PyCell`] and the other types defined in this module. This works
+//! similar to std's [`RefCell`](std::cell::RefCell) type.
+//!
+//! # When *not* to use PyCell
+//!
+//! Usually you can use `&mut` references as method and function receivers and arguments, and you
+//! won't need to use [`PyCell`] directly:
+//!
+//! ```rust
+//! use pyo3::prelude::*;
+//!
+//! #[pyclass]
+//! struct Number {
+//!     inner: u32,
+//! }
+//!
+//! #[pymethods]
+//! impl Number {
+//!     fn increment(&mut self) {
+//!         self.inner += 1;
+//!     }
+//! }
+//! ```
+//!
+//! The [`#[pymethods]`](crate::pymethods) proc macro will generate this wrapper function (and more),
+//! using [`PyCell`] under the hood:
+//!
+//! ```ignore
+//! // This function is exported to Python.
+//! unsafe extern "C" fn __wrap(slf: *mut PyObject, _args: *mut PyObject) -> *mut PyObject {
+//!     pyo3::callback::handle_panic(|py| {
+//!         let cell: &PyCell<Number> = py.from_borrowed_ptr(slf);
+//!         let mut _ref: PyRefMut<Number> = cell.try_borrow_mut()?;
+//!         let slf: &mut Number = &mut _ref;
+//!         pyo3::callback::convert(py, Number::increment(slf))
+//!     })
+//! }
+//!  ```
+//!
+//! # When to use PyCell
+//! ## Using pyclasses from Rust
+//!
+//! However, we *do* need [`PyCell`] if we want to call its methods from Rust:
+//! ```rust
+//! # use pyo3::prelude::*;
+//! #
+//! # #[pyclass]
+//! # struct Number {
+//! #     inner: u32,
+//! # }
+//! #
+//! # #[pymethods]
+//! # impl Number {
+//! #     fn increment(&mut self) {
+//! #         self.inner += 1;
+//! #     }
+//! # }
+//! # fn main() -> PyResult<()> {
+//! Python::with_gil(|py| {
+//!     let n = Py::new(py, Number { inner: 0 })?;
+//!
+//!     // We borrow the guard and then dereference
+//!     // it to get a mutable reference to Number
+//!     let mut guard: PyRefMut<'_, Number> = n.as_ref(py).borrow_mut();
+//!     let n_mutable: &mut Number = &mut *guard;
+//!
+//!     n_mutable.increment();
+//!
+//!     // To avoid panics we must dispose of the
+//!     // `PyRefMut` before borrowing again.
+//!     drop(guard);
+//!
+//!     let n_immutable : &Number = &n.as_ref(py).borrow();
+//!     assert_eq!(n_immutable.inner, 1);
+//!
+//!     Ok(())
+//! })
+//! # }
+//! ```
+//! ## Dealing with possibly overlapping mutable references
+//!
+//! It is also necessary to use [`PyCell`] if you can receive mutable arguments that may overlap.
+//! Suppose the following function that swaps the values of two `Number`s:
+//! ```
+//! # use pyo3::prelude::*;
+//! # #[pyclass]
+//! # pub struct Number {
+//! #     inner: u32,
+//! # }
+//! #[pyfunction]
+//! fn swap_numbers(a: &mut Number, b: &mut Number) {
+//!     std::mem::swap(&mut a.inner, &mut b.inner);
+//! }
+//! # use pyo3::AsPyPointer;
+//! # fn main() {
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = n.clone_ref(py);
+//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
+//! #     });
+//! # }
+//! ```
+//! When users pass in the same `Number` as both arguments, one of the mutable borrows will
+//! fail and raise a `RuntimeError`:
+//! ```text
+//! >>> a = Number()
+//! >>> swap_numbers(a, a)
+//! Traceback (most recent call last):
+//!   File "<stdin>", line 1, in <module>
+//!   RuntimeError: Already borrowed
+//! ```
+//!
+//! It is better to write that function like this:
+//! ```rust
+//! # use pyo3::prelude::*;
+//! # #[pyclass]
+//! # pub struct Number {
+//! #     inner: u32,
+//! # }
+//! #[pyfunction]
+//! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
+//!     // Check that the pointers are unequal
+//!     if a.as_ptr() != b.as_ptr() {
+//!         std::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
+//!     } else {
+//!         // Do nothing - they are the same object, so don't need swapping.
+//!     }
+//! }
+//! # use pyo3::AsPyPointer;
+//! # fn main() {
+//! #     // With duplicate numbers
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = n.clone_ref(py);
+//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((n, n2)).unwrap();
+//! #     });
+//! #
+//! #     // With two different numbers
+//! #     Python::with_gil(|py|{
+//! #         let n = Py::new(py, Number{inner: 35}).unwrap();
+//! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
+//! #         assert_ne!(n.as_ptr(), n2.as_ptr());
+//! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
+//! #         fun.call1((&n, &n2)).unwrap();
+//! #         let n: u32 = n.borrow(py).inner;
+//! #         let n2: u32 = n2.borrow(py).inner;
+//! #         assert_eq!(n, 42);
+//! #         assert_eq!(n2, 35);
+//! #     });
+//! # }
+//! ```
+//! See the [guide] for more information.
+//!
+//! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
+//! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
+
 use crate::exceptions::PyRuntimeError;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
@@ -29,71 +204,41 @@ pub struct PyCellBase<T> {
 
 unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 
-/// `PyCell` is the container type for [`PyClass`](../pyclass/trait.PyClass.html) values.
+/// A container type for (mutably) accessing [`PyClass`] values
 ///
-/// From the Python side, `PyCell<T>` is the concrete layout of `T: PyClass` in the Python heap,
-/// which means we can convert `*const PyClass<T>` to `*mut ffi::PyObject`.
-///
-/// From the Rust side, `PyCell<T>` is the mutable container of `T`.
-/// Since `PyCell<T: PyClass>` is always on the Python heap, we don't have the ownership of it.
-/// Thus, to mutate the data behind `&PyCell<T>` safely, we employ the
-/// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
-/// like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
-///
-/// `PyCell` implements `Deref<Target = PyAny>`, so you can also call methods from `PyAny`
-/// when you have a `PyCell<T>`.
+/// `PyCell` autodereferences to [`PyAny`], so you can call `PyAny`'s methods on a `PyCell<T>`.
 ///
 /// # Examples
 ///
-/// In most cases, `PyCell` is hidden behind `#[pymethods]`.
-/// However, you can construct a `&PyCell` directly to test your pyclass in Rust code.
+/// This example demonstrates getting a mutable reference of the contained `PyClass`.
+/// ```rust
+/// use pyo3::prelude::*;
 ///
-/// ```
-/// # use pyo3::prelude::*;
 /// #[pyclass]
-/// struct Book {
-///     #[pyo3(get)]
-///     name: &'static str,
-///     author: &'static str,
+/// struct Number {
+///     inner: u32,
 /// }
-/// let book = Book {
-///     name: "The Man in the High Castle",
-///     author: "Philip Kindred Dick",
-/// };
-/// Python::with_gil(|py| {
-///     let book_cell = PyCell::new(py, book).unwrap();
-///     // `&PyCell` implements `ToPyObject`, so you can use it in a Python snippet
-///     pyo3::py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
-/// });
-/// ```
-/// You can use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`,
-/// though you'll rarely need it.
-/// ```
-/// # use pyo3::prelude::*;
-/// use std::collections::HashMap;
-/// #[pyclass]
-/// #[derive(Default)]
-/// struct Counter {
-///     counter: HashMap<String, usize>
-/// }
+///
 /// #[pymethods]
-/// impl Counter {
-///     // You can use &mut self here, but now we use &PyCell for demonstration
-///     fn increment(slf: &PyCell<Self>, name: String) -> PyResult<usize> {
-///         let mut slf_mut = slf.try_borrow_mut()?;
-///         // Now a mutable reference exists so we cannot get another one
-///         assert!(slf.try_borrow().is_err());
-///         assert!(slf.try_borrow_mut().is_err());
-///         let counter = slf_mut.counter.entry(name).or_insert(0);
-///         *counter += 1;
-///         Ok(*counter)
+/// impl Number {
+///     fn increment(&mut self) {
+///         self.inner += 1;
 ///     }
 /// }
-/// # Python::with_gil(|py| {
-/// #     let counter = PyCell::new(py, Counter::default()).unwrap();
-/// #     pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
-/// # });
+///
+/// # fn main() -> PyResult<()> {
+/// Python::with_gil(|py| {
+///     let n = PyCell::new(py, Number { inner: 0 })?;
+///
+///     let n_mutable: &mut Number = &mut n.borrow_mut();
+///     n_mutable.increment();
+///
+///     Ok(())
+/// })
+/// # }
 /// ```
+/// For more information on how, when and why (not) to use `PyCell` please see the
+/// [module-level documentation](self).
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
@@ -192,8 +337,7 @@ impl<T: PyClass> PyCell<T> {
     /// Makes a new `PyCell` on the Python heap and return the reference to it.
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
-    /// creation, consider [`Py::new`](../instance/struct.Py.html#method.new) as a more efficient
-    /// alternative.
+    /// creation, consider [`Py::new`](crate::Py::new) as a more efficient alternative.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
         unsafe {
             let initializer = value.into();
@@ -216,7 +360,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     pub fn borrow_mut(&self) -> PyRefMut<'_, T> {
         self.try_borrow_mut().expect("Already borrowed")
@@ -233,6 +377,7 @@ impl<T: PyClass> PyCell<T> {
     /// # use pyo3::prelude::*;
     /// #[pyclass]
     /// struct Class {}
+    ///
     /// Python::with_gil(|py| {
     ///     let c = PyCell::new(py, Class {}).unwrap();
     ///     {
@@ -407,9 +552,9 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
     }
 }
 
-/// Wraps a borrowed reference to a value in a `PyCell<T>`.
+/// A wrapper type for an immutably borrowed value from a [`PyCell`]`<T>`.
 ///
-/// See the [`PyCell`](struct.PyCell.html) documentation for more.
+/// See the [`PyCell`] documentation for more information.
 ///
 /// # Examples
 ///
@@ -422,16 +567,19 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// struct Parent {
 ///     basename: &'static str,
 /// }
+///
 /// #[pyclass(extends=Parent)]
 /// struct Child {
 ///     name: &'static str,
 ///  }
+///
 /// #[pymethods]
 /// impl Child {
 ///     #[new]
 ///     fn new() -> (Self, Parent) {
 ///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
 ///     }
+///
 ///     fn format(slf: PyRef<Self>) -> String {
 ///         // We can get *mut ffi::PyObject from PyRef
 ///         use pyo3::AsPyPointer;
@@ -446,13 +594,14 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// #     pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
 /// # });
 /// ```
+///
+/// See the [module-level documentation](self) for more information.
 pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCell<T>,
 }
 
 impl<'p, T: PyClass> PyRef<'p, T> {
-    /// Returns a `Python` token.
-    /// This function is safe since `PyRef` has the same lifetime as a `GILGuard`.
+    /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -488,19 +637,22 @@ where
     /// struct Base1 {
     ///     name1: &'static str,
     /// }
+    ///
     /// #[pyclass(extends=Base1, subclass)]
     /// struct Base2 {
     ///     name2: &'static str,
-    ///  }
+    /// }
+    ///
     /// #[pyclass(extends=Base2)]
     /// struct Sub {
     ///     name3: &'static str,
-    ///  }
+    /// }
+    ///
     /// #[pymethods]
     /// impl Sub {
     ///     #[new]
     ///     fn new() -> PyClassInitializer<Self> {
-    ///         PyClassInitializer::from(Base1{ name1: "base1" })
+    ///         PyClassInitializer::from(Base1 { name1: "base1" })
     ///             .add_subclass(Base2 { name2: "base2" })
     ///             .add_subclass(Self { name3: "sub" })
     ///     }
@@ -565,16 +717,15 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
     }
 }
 
-/// Wraps a mutable borrowed reference to a value in a `PyCell<T>`.
+/// A wrapper type for a mutably borrowed value from a[`PyCell`]`<T>`.
 ///
-/// See the [`PyCell`](struct.PyCell.html) and [`PyRef`](struct.PyRef.html) documentation for more.
+/// See the [module-level documentation](self) for more information.
 pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCell<T>,
 }
 
 impl<'p, T: PyClass> PyRefMut<'p, T> {
-    /// Returns a `Python` token.
-    /// This function is safe since `PyRefMut` has the same lifetime as a `GILGuard`.
+    /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -606,7 +757,8 @@ where
     U: PyClass,
 {
     /// Gets a `PyRef<T::BaseType>`.
-    /// See [`PyRef::into_super`](struct.PyRef.html#method.into_super) for more.
+    ///
+    /// See [`PyRef::into_super`] for more.
     pub fn into_super(self) -> PyRefMut<'p, U> {
         let PyRefMut { inner } = self;
         std::mem::forget(self);
@@ -678,9 +830,9 @@ impl BorrowFlag {
     }
 }
 
-/// An error returned by [`PyCell::try_borrow`](struct.PyCell.html#method.try_borrow).
+/// An error type returned by [`PyCell::try_borrow`].
 ///
-/// In Python, you can catch this error using `except RuntimeError`.
+/// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
 pub struct PyBorrowError {
     _private: (),
 }
@@ -703,9 +855,9 @@ impl From<PyBorrowError> for PyErr {
     }
 }
 
-/// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
+/// An error type returned by [`PyCell::try_borrow_mut`].
 ///
-/// In Python, you can catch this error using `except RuntimeError`.
+/// If this error is allowed to bubble up into Python code it will raise a `RuntimeError`.
 pub struct PyBorrowMutError {
     _private: (),
 }

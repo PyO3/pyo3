@@ -1,16 +1,16 @@
 error[E0495]: cannot infer an appropriate lifetime for lifetime parameter `'p` due to conflicting requirements
- --> $DIR/static_ref.rs:4:1
+ --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
   |
 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the body at 4:1...
- --> $DIR/static_ref.rs:4:1
+ --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
 note: ...so that the types are compatible
- --> $DIR/static_ref.rs:4:1
+ --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
@@ -18,7 +18,7 @@ note: ...so that the types are compatible
              found `pyo3::Python<'_>`
   = note: but, the lifetime must be valid for the static lifetime...
 note: ...so that reference does not outlive borrowed content
- --> $DIR/static_ref.rs:4:1
+ --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^

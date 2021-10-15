@@ -12,6 +12,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
 
+use super::PyMapping;
+
 /// Represents a Python `dict`.
 #[repr(transparent)]
 pub struct PyDict(PyAny);
@@ -105,8 +107,7 @@ impl PyDict {
             let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
             NonNull::new(ptr).map(|p| {
                 // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
-                ffi::Py_INCREF(p.as_ptr());
-                self.py().from_owned_ptr(p.as_ptr())
+                self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))
             })
         })
     }
@@ -178,6 +179,11 @@ impl PyDict {
             pos: 0,
         }
     }
+
+    /// Returns `self` cast as a `PyMapping`.
+    pub fn as_mapping(&self) -> &PyMapping {
+        unsafe { PyMapping::try_from_unchecked(self) }
+    }
 }
 
 pub struct PyDictIterator<'py> {
@@ -196,9 +202,10 @@ impl<'py> Iterator for PyDictIterator<'py> {
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.dict.py();
                 // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
-                ffi::Py_INCREF(key);
-                ffi::Py_INCREF(value);
-                Some((py.from_owned_ptr(key), py.from_owned_ptr(value)))
+                Some((
+                    py.from_owned_ptr(ffi::_Py_NewRef(key)),
+                    py.from_owned_ptr(ffi::_Py_NewRef(value)),
+                ))
             } else {
                 None
             }
@@ -361,94 +368,6 @@ where
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)
-    }
-}
-
-#[cfg(feature = "hashbrown")]
-mod hashbrown_hashmap_conversion {
-    use super::*;
-    use crate::{FromPyObject, PyErr, PyObject, ToPyObject};
-
-    impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
-    where
-        K: hash::Hash + cmp::Eq + ToPyObject,
-        V: ToPyObject,
-        H: hash::BuildHasher,
-    {
-        fn to_object(&self, py: Python) -> PyObject {
-            IntoPyDict::into_py_dict(self, py).into()
-        }
-    }
-
-    impl<K, V, H> IntoPy<PyObject> for hashbrown::HashMap<K, V, H>
-    where
-        K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-        V: IntoPy<PyObject>,
-        H: hash::BuildHasher,
-    {
-        fn into_py(self, py: Python) -> PyObject {
-            let iter = self
-                .into_iter()
-                .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-            IntoPyDict::into_py_dict(iter, py).into()
-        }
-    }
-
-    impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
-    where
-        K: FromPyObject<'source> + cmp::Eq + hash::Hash,
-        V: FromPyObject<'source>,
-        S: hash::BuildHasher + Default,
-    {
-        fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-            let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-            let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-            for (k, v) in dict.iter() {
-                ret.insert(K::extract(k)?, V::extract(v)?);
-            }
-            Ok(ret)
-        }
-    }
-
-    #[test]
-    fn test_hashbrown_hashmap_to_python() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-            assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-            assert_eq!(map, py_map.extract().unwrap());
-        });
-    }
-    #[test]
-    fn test_hashbrown_hashmap_into_python() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
-
-            assert!(py_map.len() == 1);
-            assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
-        });
-    }
-
-    #[test]
-    fn test_hashbrown_hashmap_into_dict() {
-        Python::with_gil(|py| {
-            let mut map = hashbrown::HashMap::<i32, i32>::new();
-            map.insert(1, 1);
-
-            let py_map = map.into_py_dict(py);
-
-            assert_eq!(py_map.len(), 1);
-            assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
-        });
     }
 }
 
@@ -848,6 +767,27 @@ mod tests {
 
             assert_eq!(py_map.len(), 3);
             assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn dict_as_mapping() {
+        Python::with_gil(|py| {
+            let mut map = HashMap::<i32, i32>::new();
+            map.insert(1, 1);
+
+            let py_map = map.into_py_dict(py);
+
+            assert_eq!(py_map.as_mapping().len().unwrap(), 1);
+            assert_eq!(
+                py_map
+                    .as_mapping()
+                    .get_item(1)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap(),
+                1
+            );
         });
     }
 }

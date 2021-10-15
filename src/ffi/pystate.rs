@@ -23,15 +23,15 @@ extern "C" {
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState);
 
     #[cfg(all(Py_3_9, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(all(Py_3_9, not(PyPy))))]
+    #[cfg_attr(docsrs, doc(cfg(all(Py_3_9, not(PyPy)))))]
     pub fn PyInterpreterState_Get() -> *mut PyInterpreterState;
 
     #[cfg(all(Py_3_8, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(all(Py_3_8, not(PyPy))))]
+    #[cfg_attr(docsrs, doc(cfg(all(Py_3_8, not(PyPy)))))]
     pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
     #[cfg(all(Py_3_7, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(all(Py_3_7, not(PyPy))))]
+    #[cfg_attr(docsrs, doc(cfg(all(Py_3_7, not(PyPy)))))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
     #[cfg(not(PyPy))]

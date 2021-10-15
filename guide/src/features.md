@@ -22,9 +22,11 @@ It restricts PyO3's API to a subset of the full Python API which is guaranteed b
 
 See the [building and distribution](building_and_distribution.md#py_limited_apiabi3) section for further detail.
 
-### `abi3-py36` / `abi3-py37` / `abi3-py38` / `abi3-py39`
+### The `abi3-pyXY` features
 
-These features are an extension of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
+(`abi3-py36`, `abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
+
+These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
 See the [building and distribution](building_and_distribution.md#minimum-python-version-for-abi3) section for further detail.
 
@@ -69,9 +71,21 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 - `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
 - `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
 
+### `resolve-config`
+
+The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's
+build script automatically resolves a Python interpreter / build configuration. Disabling
+this feature enables this crate to be used in *library mode*. This may be desirable for
+use cases where you want to read or write PyO3 build configuration files or resolve
+metadata about a Python interpreter.
+
 ## Optional Dependencies
 
 These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.
+
+### `eyre`
+
+Adds a dependency on [eyre](https://docs.rs/eyre). Enables a conversion from [eyre](https://docs.rs/eyre)’s [`Report`](https://docs.rs/eyre/latest/eyre/struct.Report.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `hashbrown`
 

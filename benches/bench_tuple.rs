@@ -37,6 +37,7 @@ fn tuple_get_item(b: &mut Bencher) {
     });
 }
 
+#[cfg(not(Py_LIMITED_API))]
 fn tuple_get_item_unchecked(b: &mut Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -56,6 +57,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("iter_tuple", iter_tuple);
     c.bench_function("tuple_new", tuple_new);
     c.bench_function("tuple_get_item", tuple_get_item);
+    #[cfg(not(Py_LIMITED_API))]
     c.bench_function("tuple_get_item_unchecked", tuple_get_item_unchecked);
 }
 

@@ -53,21 +53,30 @@ extern "C" {
     // skipped non-limited _PyArg_UnpackKeywords
     // skipped non-limited _PyArg_Fini
 
-    // skipped PyModule_AddObjectRef
+    #[cfg(Py_3_10)]
+    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
+    pub fn PyModule_AddObjectRef(
+        module: *mut PyObject,
+        name: *const c_char,
+        value: *mut PyObject,
+    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddObject")]
     pub fn PyModule_AddObject(
-        arg1: *mut PyObject,
-        arg2: *const c_char,
-        arg3: *mut PyObject,
+        module: *mut PyObject,
+        name: *const c_char,
+        value: *mut PyObject,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddIntConstant")]
-    pub fn PyModule_AddIntConstant(arg1: *mut PyObject, arg2: *const c_char, arg3: c_long)
-        -> c_int;
+    pub fn PyModule_AddIntConstant(
+        module: *mut PyObject,
+        name: *const c_char,
+        value: c_long,
+    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddStringConstant")]
     pub fn PyModule_AddStringConstant(
-        arg1: *mut PyObject,
-        arg2: *const c_char,
-        arg3: *const c_char,
+        module: *mut PyObject,
+        name: *const c_char,
+        value: *const c_char,
     ) -> c_int;
     // skipped non-limited / 3.9 PyModule_AddType
     // skipped PyModule_AddIntMacro

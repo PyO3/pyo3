@@ -1,47 +1,47 @@
 error: getter function can only have one argument (of type pyo3::Python)
- --> $DIR/invalid_property_args.rs:9:50
+ --> tests/ui/invalid_property_args.rs:9:50
   |
 9 |     fn getter_with_arg(&self, py: Python, index: u32) {}
   |                                                  ^^^
 
 error: setter function expected to have one argument
-  --> $DIR/invalid_property_args.rs:18:8
+  --> tests/ui/invalid_property_args.rs:18:8
    |
 18 |     fn setter_with_no_arg(&mut self, py: Python) {}
    |        ^^^^^^^^^^^^^^^^^^
 
 error: setter function can have at most two arguments ([pyo3::Python,] and value)
-  --> $DIR/invalid_property_args.rs:24:72
+  --> tests/ui/invalid_property_args.rs:24:72
    |
 24 |     fn setter_with_too_many_args(&mut self, py: Python, foo: u32, bar: u32) {}
    |                                                                        ^^^
 
 error: `get` and `set` with tuple struct fields require `name`
-  --> $DIR/invalid_property_args.rs:28:50
+  --> tests/ui/invalid_property_args.rs:28:50
    |
 28 | struct TupleGetterSetterNoName(#[pyo3(get, set)] i32);
    |                                                  ^^^
 
 error: `get` may only be specified once
-  --> $DIR/invalid_property_args.rs:31:32
+  --> tests/ui/invalid_property_args.rs:31:32
    |
 31 | struct MultipleGet(#[pyo3(get, get)] i32);
    |                                ^^^
 
 error: `set` may only be specified once
-  --> $DIR/invalid_property_args.rs:34:32
+  --> tests/ui/invalid_property_args.rs:34:32
    |
 34 | struct MultipleSet(#[pyo3(set, set)] i32);
    |                                ^^^
 
 error: `name` may only be specified once
-  --> $DIR/invalid_property_args.rs:37:49
+  --> tests/ui/invalid_property_args.rs:37:49
    |
 37 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
    |                                                 ^^^^^
 
 error: `name` is useless without `get` or `set`
-  --> $DIR/invalid_property_args.rs:40:40
+  --> tests/ui/invalid_property_args.rs:40:40
    |
 40 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
    |                                        ^^^^^^^

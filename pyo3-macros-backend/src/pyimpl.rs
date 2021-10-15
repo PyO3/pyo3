@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::collections::HashSet;
+
 use crate::{
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
@@ -37,9 +39,12 @@ pub fn impl_methods(
     impls: &mut Vec<syn::ImplItem>,
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
-    let mut new_impls = Vec::new();
-    let mut call_impls = Vec::new();
+    let mut trait_impls = Vec::new();
+    let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
+
+    let mut implemented_proto_fragments = HashSet::new();
+
     for iimpl in impls.iter_mut() {
         match iimpl {
             syn::ImplItem::Method(meth) => {
@@ -49,13 +54,18 @@ pub fn impl_methods(
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::New(token_stream) => {
+                    GeneratedPyMethod::TraitImpl(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        new_impls.push(quote!(#(#attrs)* #token_stream));
+                        trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::Call(token_stream) => {
+                    GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                        implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        call_impls.push(quote!(#(#attrs)* #token_stream));
+                        trait_impls.push(quote!(#(#attrs)* #token_stream));
+                    }
+                    GeneratedPyMethod::Proto(token_stream) => {
+                        let attrs = get_cfg_attributes(&meth.attrs);
+                        proto_impls.push(quote!(#(#attrs)* #token_stream))
                     }
                 }
             }
@@ -80,10 +90,25 @@ pub fn impl_methods(
         PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods),
     };
 
-    Ok(quote! {
-        #(#new_impls)*
+    let protos_registration = match methods_type {
+        PyClassMethodsType::Specialization => {
+            Some(impl_protos(ty, proto_impls, implemented_proto_fragments))
+        }
+        PyClassMethodsType::Inventory => {
+            if proto_impls.is_empty() {
+                None
+            } else {
+                panic!(
+                    "cannot implement protos in #[pymethods] using `multiple-pymethods` feature"
+                );
+            }
+        }
+    };
 
-        #(#call_impls)*
+    Ok(quote! {
+        #(#trait_impls)*
+
+        #protos_registration
 
         #methods_registration
     })
@@ -94,13 +119,13 @@ fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
     quote! {
-        pyo3::class::PyMethodDefType::ClassAttribute({
-            pyo3::class::PyClassAttributeDef::new(
+        ::pyo3::class::PyMethodDefType::ClassAttribute({
+            ::pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                pyo3::class::methods::PyClassAttributeFactory({
-                    fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+                ::pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: ::pyo3::Python<'_>) -> ::pyo3::PyObject {
                         #deprecations
-                        pyo3::IntoPy::into_py(#cls::#member, py)
+                        ::pyo3::IntoPy::into_py(#cls::#member, py)
                     }
                     __wrap
                 })
@@ -111,12 +136,54 @@ fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
 
 fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
     quote! {
-        impl pyo3::class::impl_::PyMethods<#ty>
-            for pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl ::pyo3::class::impl_::PyMethods<#ty>
+            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static [pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
+            fn py_methods(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
                 METHODS
+            }
+        }
+    }
+}
+
+fn impl_protos(
+    ty: &syn::Type,
+    mut proto_impls: Vec<TokenStream>,
+    mut implemented_proto_fragments: HashSet<String>,
+) -> TokenStream {
+    macro_rules! try_add_shared_slot {
+        ($first:literal, $second:literal, $slot:ident) => {{
+            let first_implemented = implemented_proto_fragments.remove($first);
+            let second_implemented = implemented_proto_fragments.remove($second);
+            if first_implemented || second_implemented {
+                proto_impls.push(quote! { ::pyo3::$slot!(#ty) })
+            }
+        }};
+    }
+
+    try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
+    try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
+    try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);
+    try_add_shared_slot!("__add__", "__radd__", generate_pyclass_add_slot);
+    try_add_shared_slot!("__sub__", "__rsub__", generate_pyclass_sub_slot);
+    try_add_shared_slot!("__mul__", "__rmul__", generate_pyclass_mul_slot);
+    try_add_shared_slot!("__mod__", "__rmod__", generate_pyclass_mod_slot);
+    try_add_shared_slot!("__divmod__", "__rdivmod__", generate_pyclass_divmod_slot);
+    try_add_shared_slot!("__lshift__", "__rlshift__", generate_pyclass_lshift_slot);
+    try_add_shared_slot!("__rshift__", "__rrshift__", generate_pyclass_rshift_slot);
+    try_add_shared_slot!("__and__", "__rand__", generate_pyclass_and_slot);
+    try_add_shared_slot!("__or__", "__ror__", generate_pyclass_or_slot);
+    try_add_shared_slot!("__xor__", "__rxor__", generate_pyclass_xor_slot);
+    try_add_shared_slot!("__matmul__", "__rmatmul__", generate_pyclass_matmul_slot);
+    try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
+
+    quote! {
+        impl ::pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
+            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        {
+            fn methods_protocol_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
+                &[#(#proto_impls),*]
             }
         }
     }
@@ -128,10 +195,10 @@ fn submit_methods_inventory(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenS
     }
 
     quote! {
-        pyo3::inventory::submit! {
-            #![crate = pyo3] {
-                type Inventory = <#ty as pyo3::class::impl_::HasMethodsInventory>::Methods;
-                <Inventory as pyo3::class::impl_::PyMethodsInventory>::new(vec![#(#methods),*])
+        ::pyo3::inventory::submit! {
+            #![crate = ::pyo3] {
+                type Inventory = <#ty as ::pyo3::class::impl_::HasMethodsInventory>::Methods;
+                <Inventory as ::pyo3::class::impl_::PyMethodsInventory>::new(::std::vec![#(#methods),*])
             }
         }
     }

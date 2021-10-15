@@ -20,38 +20,43 @@ Both of these APIs take `args` and `kwargs` arguments (for positional and keywor
 
 For convenience the [`Py<T>`](types.html#pyt-and-pyobject) smart pointer also exposes these same six API methods, but needs a `Python` token as an additional first argument to prove the GIL is held.
 
-The example below shows a calling Python functions behind a `PyObject` (aka `Py<PyAny>`) reference:
+The example below calls a Python function behind a `PyObject` (aka `Py<PyAny>`) reference:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::PyTuple;
 
-struct SomeObject;
-impl SomeObject {
-    fn new(py: Python) -> PyObject {
-        PyDict::new(py).to_object(py)
-    }
-}
-
-fn main() {
+fn main() -> PyResult<()> {
     let arg1 = "arg1";
     let arg2 = "arg2";
     let arg3 = "arg3";
 
     Python::with_gil(|py| {
-        let obj = SomeObject::new(py);
+        let fun: Py<PyAny> = PyModule::from_code(
+            py,
+            "def example(*args, **kwargs):
+                if args != ():
+                    print('called with args', args)
+                if kwargs != {}:
+                    print('called with kwargs', kwargs)
+                if args == () and kwargs == {}:
+                    print('called with no arguments')",
+            "",
+            "",
+        )?.getattr("example")?.into();
 
         // call object without empty arguments
-        obj.call0(py);
+        fun.call0(py)?;
 
         // call object with PyTuple
         let args = PyTuple::new(py, &[arg1, arg2, arg3]);
-        obj.call1(py, args);
+        fun.call1(py, args)?;
 
         // pass arguments as rust tuple
         let args = (arg1, arg2, arg3);
-        obj.call1(py, args);
-    });
+        fun.call1(py, args)?;
+        Ok(())
+    })
 }
 ```
 
@@ -61,39 +66,45 @@ For the `call` and `call_method` APIs, `kwargs` can be `None` or `Some(&PyDict)`
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::IntoPyDict;
 use std::collections::HashMap;
 
-struct SomeObject;
-
-impl SomeObject {
-    fn new(py: Python) -> PyObject {
-        PyDict::new(py).to_object(py)
-    }
-}
-
-fn main() {
+fn main() -> PyResult<()> {
     let key1 = "key1";
     let val1 = 1;
     let key2 = "key2";
     let val2 = 2;
 
     Python::with_gil(|py| {
-        let obj = SomeObject::new(py);
+        let fun: Py<PyAny> = PyModule::from_code(
+            py,
+            "def example(*args, **kwargs):
+                if args != ():
+                    print('called with args', args)
+                if kwargs != {}:
+                    print('called with kwargs', kwargs)
+                if args == () and kwargs == {}:
+                    print('called with no arguments')",
+            "",
+            "",
+        )?.getattr("example")?.into();
+
 
         // call object with PyDict
         let kwargs = [(key1, val1)].into_py_dict(py);
-        obj.call(py, (), Some(kwargs));
+        fun.call(py, (), Some(kwargs))?;
 
         // pass arguments as Vec
         let kwargs = vec![(key1, val1), (key2, val2)];
-        obj.call(py, (), Some(kwargs.into_py_dict(py)));
+        fun.call(py, (), Some(kwargs.into_py_dict(py)))?;
 
         // pass arguments as HashMap
         let mut kwargs = HashMap::<&str, i32>::new();
         kwargs.insert(key1, 1);
-        obj.call(py, (), Some(kwargs.into_py_dict(py)));
-   });
+        fun.call(py, (), Some(kwargs.into_py_dict(py)))?;
+
+        Ok(())
+   })
 }
 ```
 
@@ -128,7 +139,6 @@ and return the evaluated value as a `&PyAny` object.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {

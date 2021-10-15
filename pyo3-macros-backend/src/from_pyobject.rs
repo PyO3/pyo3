@@ -55,39 +55,34 @@ impl<'a> Enum<'a> {
         for (i, var) in self.variants.iter().enumerate() {
             let struct_derive = var.build();
             let ext = quote!(
-                let maybe_ret = || -> pyo3::PyResult<Self> {
+                let maybe_ret = || -> ::pyo3::PyResult<Self> {
                     #struct_derive
                 }();
 
                 match maybe_ret {
-                    ok @ Ok(_) => return ok,
-                    Err(inner) => {
-                        let py = pyo3::PyNativeType::py(obj);
-                        err_reasons.push_str(&format!("{}\n", inner.instance(py).str().unwrap()));
+                    ok @ ::std::result::Result::Ok(_) => return ok,
+                    ::std::result::Result::Err(inner) => {
+                        let py = ::pyo3::PyNativeType::py(obj);
+                        err_reasons.push_str(&::std::format!("{}\n", inner.instance(py).str()?));
                     }
                 }
             );
 
             var_extracts.push(ext);
-            error_names.push_str(&var.err_name);
-            if i < self.variants.len() - 1 {
-                error_names.push_str(", ");
+            if i > 0 {
+                error_names.push_str(" | ");
             }
+            error_names.push_str(&var.err_name);
         }
-        let error_names = if self.variants.len() > 1 {
-            format!("Union[{}]", error_names)
-        } else {
-            error_names
-        };
         let ty_name = self.enum_ident.to_string();
         quote!(
-            let mut err_reasons = String::new();
+            let mut err_reasons = ::std::string::String::new();
             #(#var_extracts)*
-            let err_msg = format!("failed to extract enum {} ('{}')\n{}",
+            let err_msg = ::std::format!("failed to extract enum {} ('{}')\n{}",
                 #ty_name,
                 #error_names,
                 &err_reasons);
-            Err(pyo3::exceptions::PyTypeError::new_err(err_msg))
+            ::std::result::Result::Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
 }
@@ -211,10 +206,10 @@ impl<'a> Container<'a> {
                 quote!(#ident)
             );
             quote!(
-                Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
-                    let py = pyo3::PyNativeType::py(obj);
-                    let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                    new_err.set_cause(py, Some(inner));
+                ::std::result::Result::Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
+                    let py = ::pyo3::PyNativeType::py(obj);
+                    let new_err = ::pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                    new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?})
             )
@@ -226,12 +221,12 @@ impl<'a> Container<'a> {
                 format!("failed to extract inner field of {}", quote!(#self_ty))
             };
             quote!(
-                Ok(#self_ty(obj.extract().map_err(|inner| {
-                    let py = pyo3::PyNativeType::py(obj);
-                    let err_msg = format!("{}: {}",
+                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|inner| {
+                    let py = ::pyo3::PyNativeType::py(obj);
+                    let err_msg = ::std::format!("{}: {}",
                         #error_msg,
                         inner.instance(py).str().unwrap());
-                    pyo3::exceptions::PyTypeError::new_err(err_msg)
+                    ::pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?))
             )
         }
@@ -243,15 +238,15 @@ impl<'a> Container<'a> {
         for i in 0..len {
             let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
             fields.push(quote!(
-                s.get_item(#i).and_then(PyAny::extract).map_err(|inner| {
-                let py = pyo3::PyNativeType::py(obj);
-                let new_err = pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                new_err.set_cause(py, Some(inner));
+                s.get_item(#i).and_then(::pyo3::types::PyAny::extract).map_err(|inner| {
+                let py = ::pyo3::PyNativeType::py(obj);
+                let new_err = ::pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                new_err.set_cause(py, ::std::option::Option::Some(inner));
                 new_err
                 })?));
         }
         let msg = if self.is_enum_variant {
-            quote!(format!(
+            quote!(::std::format!(
                 "expected tuple of length {}, but got length {}",
                 #len,
                 s.len()
@@ -260,11 +255,11 @@ impl<'a> Container<'a> {
             quote!("")
         };
         quote!(
-            let s = <pyo3::types::PyTuple as pyo3::conversion::PyTryFrom>::try_from(obj)?;
+            let s = <::pyo3::types::PyTuple as ::pyo3::conversion::PyTryFrom>::try_from(obj)?;
             if s.len() != #len {
-                return Err(pyo3::exceptions::PyValueError::new_err(#msg))
+                return ::std::result::Result::Err(::pyo3::exceptions::PyValueError::new_err(#msg))
             }
-            Ok(#self_ty(#fields))
+            ::std::result::Result::Ok(#self_ty(#fields))
         )
     }
 
@@ -284,16 +279,16 @@ impl<'a> Container<'a> {
             let extractor = match &attrs.from_py_with {
                 None => quote!(
                     #get_field.extract().map_err(|inner| {
-                    let py = pyo3::PyNativeType::py(obj);
-                    let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
-                    new_err.set_cause(py, Some(inner));
+                    let py = ::pyo3::PyNativeType::py(obj);
+                    let new_err = ::pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                    new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?),
                 Some(FromPyWithAttribute(expr_path)) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
-                        let py = pyo3::PyNativeType::py(obj);
-                        let new_err = pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
-                        new_err.set_cause(py, Some(inner));
+                        let py = ::pyo3::PyNativeType::py(obj);
+                        let new_err = ::pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                        new_err.set_cause(py, ::std::option::Option::Some(inner));
                         new_err
                     })?
                 ),
@@ -301,7 +296,7 @@ impl<'a> Container<'a> {
 
             fields.push(quote!(#ident: #extractor));
         }
-        quote!(Ok(#self_ty{#fields}))
+        quote!(::std::result::Result::Ok(#self_ty{#fields}))
     }
 }
 
@@ -436,7 +431,6 @@ impl Parse for FieldPyO3Attribute {
 
 impl FieldPyO3Attributes {
     /// Extract the field attributes.
-    ///
     fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
         let mut getter = None;
         let mut from_py_with = None;
@@ -527,8 +521,8 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl#trait_generics pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
-            fn extract(obj: &#lt_param pyo3::PyAny) -> pyo3::PyResult<Self>  {
+        impl#trait_generics ::pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
+            fn extract(obj: &#lt_param ::pyo3::PyAny) -> ::pyo3::PyResult<Self>  {
                 #derives
             }
         }

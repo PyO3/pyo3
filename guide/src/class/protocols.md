@@ -300,7 +300,7 @@ use pyo3::PyIterProtocol;
 
 #[pyclass]
 struct MyIterator {
-    iter: Box<Iterator<Item = PyObject> + Send>,
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
 }
 
 #[pyproto]

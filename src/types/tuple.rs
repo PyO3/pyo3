@@ -2,9 +2,10 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
+use crate::types::PySequence;
 use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
-    PyResult, PyTryFrom, Python, ToPyObject,
+    PyResult, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
 };
 
 /// Represents a Python `tuple` object.
@@ -58,6 +59,11 @@ impl PyTuple {
         self.len() == 0
     }
 
+    /// Returns `self` cast as a `PySequence`.
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+
     /// Takes the slice `self[low:high]` and returns it as a new tuple.
     ///
     /// Indices must be nonnegative, and out-of-range indices are clipped to
@@ -104,13 +110,16 @@ impl PyTuple {
     /// # Example
     /// ```
     /// use pyo3::{prelude::*, types::PyTuple};
+    ///
+    /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
     ///     let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
-    /// });
+    /// })
+    /// # }
     /// ```
     pub fn get_item(&self, index: usize) -> PyResult<&PyAny> {
         unsafe {
@@ -142,6 +151,28 @@ impl PyTuple {
             let slice = std::slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
             &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
         }
+    }
+
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    #[inline]
+    pub fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToBorrowedObject,
+    {
+        self.as_sequence().contains(value)
+    }
+
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
+    #[inline]
+    pub fn index<V>(&self, value: V) -> PyResult<usize>
+    where
+        V: ToBorrowedObject,
+    {
+        self.as_sequence().index(value)
     }
 
     /// Returns an iterator over the tuple items.
@@ -634,5 +665,37 @@ mod tests {
             let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             tuple[8..].extract::<Vec<i32>>().unwrap();
         })
+    }
+
+    #[test]
+    fn test_tuple_contains() {
+        Python::with_gil(|py| {
+            let ob = (1, 1, 2, 3, 5, 8).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(6, tuple.len());
+
+            let bad_needle = 7i32.to_object(py);
+            assert!(!tuple.contains(&bad_needle).unwrap());
+
+            let good_needle = 8i32.to_object(py);
+            assert!(tuple.contains(&good_needle).unwrap());
+
+            let type_coerced_needle = 8f32.to_object(py);
+            assert!(tuple.contains(&type_coerced_needle).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_tuple_index() {
+        Python::with_gil(|py| {
+            let ob = (1, 1, 2, 3, 5, 8).to_object(py);
+            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(0, tuple.index(1i32).unwrap());
+            assert_eq!(2, tuple.index(2i32).unwrap());
+            assert_eq!(3, tuple.index(3i32).unwrap());
+            assert_eq!(4, tuple.index(5i32).unwrap());
+            assert_eq!(5, tuple.index(8i32).unwrap());
+            assert!(tuple.index(42i32).is_err());
+        });
     }
 }

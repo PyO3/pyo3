@@ -1,10 +1,13 @@
 //! This module contains conversions between various Rust object and their representation in Python.
 
-mod array;
-#[cfg(feature = "indexmap")]
-#[cfg_attr(docsrs, doc(cfg(feature = "indexmap")))]
-pub mod indexmap;
-mod osstr;
-mod path;
 #[cfg(feature = "anyhow")]
 pub mod anyhow;
+mod array;
+pub mod eyre;
+pub mod hashbrown;
+pub mod indexmap;
+pub mod num_bigint;
+pub mod num_complex;
+mod osstr;
+mod path;
+pub mod serde;

@@ -80,7 +80,7 @@ mod bufferinfo {
     /* Flags for getting buffers */
     pub const PyBUF_SIMPLE: c_int = 0;
     pub const PyBUF_WRITABLE: c_int = 0x0001;
-    /*  we used to include an E, backwards compatible alias  */
+    /* we used to include an E, backwards compatible alias */
     pub const PyBUF_WRITEABLE: c_int = PyBUF_WRITABLE;
     pub const PyBUF_FORMAT: c_int = 0x0004;
     pub const PyBUF_ND: c_int = 0x0008;

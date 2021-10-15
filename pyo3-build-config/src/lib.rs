@@ -9,15 +9,13 @@
 mod errors;
 mod impl_;
 
+#[cfg(feature = "resolve-config")]
 use std::io::Cursor;
 
+#[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
-use impl_::InterpreterConfig;
-
-// Used in `pyo3-macros-backend`; may expose this in a future release.
-#[doc(hidden)]
-pub use impl_::PythonVersion;
+pub use impl_::{BuildFlag, BuildFlags, InterpreterConfig, PythonImplementation, PythonVersion};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
@@ -32,6 +30,7 @@ pub use impl_::PythonVersion;
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 ///
 /// For examples of how to use these attributes, [see PyO3's guide](https://pyo3.rs/latest/building_and_distribution/multiple_python_versions.html).
+#[cfg(feature = "resolve-config")]
 pub fn use_pyo3_cfgs() {
     get().emit_pyo3_cfgs();
 }
@@ -60,6 +59,7 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 ///
 /// Because this will never change in a given compilation run, this is cached in a `once_cell`.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
@@ -78,23 +78,28 @@ pub fn get() -> &'static InterpreterConfig {
 
 /// Path where PyO3's build.rs will write configuration by default.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 const DEFAULT_CROSS_COMPILE_CONFIG_PATH: &str =
     concat!(env!("OUT_DIR"), "/pyo3-cross-compile-config.txt");
 
 /// Build configuration provided by `PYO3_CONFIG_FILE`. May be empty if env var not set.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 const CONFIG_FILE: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-file.txt"));
 
 /// Build configuration set if abi3 features enabled and `PYO3_NO_PYTHON` env var present. Empty if
 /// not both present.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 const ABI3_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-abi3.txt"));
 
 /// Build configuration discovered by `pyo3-build-config` build script. Not aware of
 /// cross-compilation settings.
 #[doc(hidden)]
+#[cfg(feature = "resolve-config")]
 const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config.txt"));
 
+#[cfg(feature = "resolve-config")]
 fn abi3_config() -> InterpreterConfig {
     let mut interpreter_config = InterpreterConfig::from_reader(Cursor::new(ABI3_CONFIG))
         .expect("failed to parse hardcoded PyO3 abi3 config");
@@ -113,9 +118,12 @@ fn abi3_config() -> InterpreterConfig {
 /// Please don't use these - they could change at any time.
 #[doc(hidden)]
 pub mod pyo3_build_script_impl {
+    #[cfg(feature = "resolve-config")]
     use crate::errors::{Context, Result};
+    #[cfg(feature = "resolve-config")]
     use std::path::Path;
 
+    #[cfg(feature = "resolve-config")]
     use super::*;
 
     pub mod errors {
@@ -130,6 +138,7 @@ pub mod pyo3_build_script_impl {
     /// Differs from .get() above only in the cross-compile case, where PyO3's build script is
     /// required to generate a new config (as it's the first build script which has access to the
     /// correct value for CARGO_CFG_TARGET_OS).
+    #[cfg(feature = "resolve-config")]
     pub fn resolve_interpreter_config() -> Result<InterpreterConfig> {
         if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
