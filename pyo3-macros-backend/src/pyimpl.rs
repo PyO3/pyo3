@@ -176,6 +176,12 @@ fn impl_protos(
     try_add_shared_slot!("__or__", "__ror__", generate_pyclass_or_slot);
     try_add_shared_slot!("__xor__", "__rxor__", generate_pyclass_xor_slot);
     try_add_shared_slot!("__matmul__", "__rmatmul__", generate_pyclass_matmul_slot);
+    try_add_shared_slot!("__truediv__", "__rtruediv__", generate_pyclass_truediv_slot);
+    try_add_shared_slot!(
+        "__floordiv__",
+        "__rfloordiv__",
+        generate_pyclass_floordiv_slot
+    );
     try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
 
     quote! {

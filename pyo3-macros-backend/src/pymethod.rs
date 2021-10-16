@@ -439,13 +439,6 @@ const __INT__: SlotDef = SlotDef::new("Py_nb_int", "unaryfunc");
 const __FLOAT__: SlotDef = SlotDef::new("Py_nb_float", "unaryfunc");
 const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
 
-const __TRUEDIV__: SlotDef = SlotDef::new("Py_nb_true_divide", "binaryfunc")
-    .arguments(&[Ty::ObjectOrNotImplemented])
-    .extract_error_mode(ExtractErrorMode::NotImplemented);
-const __FLOORDIV__: SlotDef = SlotDef::new("Py_nb_floor_divide", "binaryfunc")
-    .arguments(&[Ty::ObjectOrNotImplemented])
-    .extract_error_mode(ExtractErrorMode::NotImplemented);
-
 const __IADD__: SlotDef = SlotDef::new("Py_nb_inplace_add", "binaryfunc")
     .arguments(&[Ty::ObjectOrNotImplemented])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -523,8 +516,6 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__int__" => Some(&__INT__),
         "__float__" => Some(&__FLOAT__),
         "__bool__" => Some(&__BOOL__),
-        "__truediv__" => Some(&__TRUEDIV__),
-        "__floordiv__" => Some(&__FLOORDIV__),
         "__iadd__" => Some(&__IADD__),
         "__isub__" => Some(&__ISUB__),
         "__imul__" => Some(&__IMUL__),
@@ -894,6 +885,10 @@ binary_num_slot_fragment_def!(__MUL__, "__mul__");
 binary_num_slot_fragment_def!(__RMUL__, "__rmul__");
 binary_num_slot_fragment_def!(__MATMUL__, "__matmul__");
 binary_num_slot_fragment_def!(__RMATMUL__, "__rmatmul__");
+binary_num_slot_fragment_def!(__FLOORDIV__, "__floordiv__");
+binary_num_slot_fragment_def!(__RFLOORDIV__, "__rfloordiv__");
+binary_num_slot_fragment_def!(__TRUEDIV__, "__truediv__");
+binary_num_slot_fragment_def!(__RTRUEDIV__, "__rtruediv__");
 binary_num_slot_fragment_def!(__DIVMOD__, "__divmod__");
 binary_num_slot_fragment_def!(__RDIVMOD__, "__rdivmod__");
 binary_num_slot_fragment_def!(__MOD__, "__mod__");
@@ -938,6 +933,10 @@ fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
         "__rmul__" => Some(&__RMUL__),
         "__matmul__" => Some(&__MATMUL__),
         "__rmatmul__" => Some(&__RMATMUL__),
+        "__floordiv__" => Some(&__FLOORDIV__),
+        "__rfloordiv__" => Some(&__RFLOORDIV__),
+        "__truediv__" => Some(&__TRUEDIV__),
+        "__rtruediv__" => Some(&__RTRUEDIV__),
         "__divmod__" => Some(&__DIVMOD__),
         "__rdivmod__" => Some(&__RDIVMOD__),
         "__mod__" => Some(&__MOD__),
