@@ -85,7 +85,7 @@ These features enable conversions between Python types and types from other Rust
 
 ### `anyhow`
 
-This feature makes it possible to return [`anyhow::Result<T>`](https://docs.rs/anyhow/1.0.43/anyhow/type.Result.html) from functions and methods exposed to Python. It does so by adding `impl From<anyhow::Error> for PyErr`. Currently, the conversion simply stringifies the `anyhow::Error` and shoves it into a `PyRuntimeError`. As a consequence, there is no way to convert a `PyErr` back to the original `anyhow::Error`. It is mostly intended as a developer convenience.
+Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`]https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `eyre`
 
