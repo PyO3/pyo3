@@ -4,9 +4,9 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5   | #[pyclass(extends=PyDict)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
     |
-   ::: src/class/impl_.rs:755:1
+   ::: src/class/impl_.rs:775:1
     |
-755 | pub trait PyClassBaseType: Sized {
+775 | pub trait PyClassBaseType: Sized {
     | -------------------------------- required by this bound in `PyClassBaseType`
     |
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
@@ -18,9 +18,9 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5   | #[pyclass(extends=PyDict)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
     |
-   ::: src/class/impl_.rs:742:47
+   ::: src/class/impl_.rs:762:47
     |
-742 | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
+762 | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
     |                                               --------------- required by this bound in `ThreadCheckerInherited`
     |
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
