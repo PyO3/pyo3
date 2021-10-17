@@ -71,9 +71,6 @@ pub trait PyClassImpl: Sized {
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
-    fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
-        None
-    }
     fn get_alloc() -> Option<ffi::allocfunc> {
         None
     }
@@ -94,16 +91,6 @@ pub trait PyClassNewImpl<T> {
 
 impl<T> PyClassNewImpl<T> for &'_ PyClassImplCollector<T> {
     fn new_impl(self) -> Option<ffi::newfunc> {
-        None
-    }
-}
-
-pub trait PyClassCallImpl<T> {
-    fn call_impl(self) -> Option<ffi::PyCFunctionWithKeywords>;
-}
-
-impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
-    fn call_impl(self) -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
 }

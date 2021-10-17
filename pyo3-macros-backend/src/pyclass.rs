@@ -579,11 +579,6 @@ fn impl_class(
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.free_impl()
             }
-            fn get_call() -> ::std::option::Option<::pyo3::ffi::PyCFunctionWithKeywords> {
-                use ::pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<Self>::new();
-                collector.call_impl()
-            }
 
             fn for_each_proto_slot(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::ffi::PyType_Slot])) {
                 // Implementation which uses dtolnay specialization to load all slots.

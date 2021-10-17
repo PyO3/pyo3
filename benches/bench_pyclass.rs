@@ -16,8 +16,7 @@ impl MyClass {
         Self { elements }
     }
 
-    #[call]
-    fn call(&mut self, new_element: i32) -> usize {
+    fn __call__(&mut self, new_element: i32) -> usize {
         self.elements.push(new_element);
         self.elements.len()
     }

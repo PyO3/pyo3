@@ -1,4 +1,4 @@
-## Class customizations
+# Class customizations
 
 PyO3 uses the `#[pyproto]` attribute in combination with special traits to implement certain protocol (aka `__dunder__`) methods of Python classes. The special traits are listed in this chapter of the guide. See also the [documentation for the `pyo3::class` module]({{#PYO3_DOCS_URL}}/pyo3/class/index.html).
 
@@ -10,11 +10,11 @@ All `#[pyproto]` methods can return `T` instead of `PyResult<T>` if the method i
 
 There are many "dunder" methods which are not included in any of PyO3's protocol traits, such as `__dir__`. These methods can be implemented in `#[pymethods]` as already covered in the previous section.
 
-### Basic object customization
+## Basic object customization
 
 The [`PyObjectProtocol`] trait provides several basic customizations.
 
-#### Attribute access
+### Attribute access
 
 To customize object attribute access, define the following methods:
 
@@ -24,14 +24,14 @@ To customize object attribute access, define the following methods:
 
 Each method corresponds to Python's `self.attr`, `self.attr = value` and `del self.attr` code.
 
-#### String Conversions
+### String Conversions
 
   * `fn __repr__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
   * `fn __str__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
 
     Possible return types for `__str__` and `__repr__` are `PyResult<String>` or `PyResult<PyString>`.
 
-#### Comparison operators
+### Comparison operators
 
   * `fn __richcmp__(&self, other: impl FromPyObject, op: CompareOp) -> PyResult<impl ToPyObject>`
 
@@ -46,13 +46,78 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
     Objects that compare equal must have the same hash value.
     The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
 
-#### Other methods
+### Other methods
 
   * `fn __bool__(&self) -> PyResult<bool>`
 
     Determines the "truthyness" of the object.
 
-### Emulating numeric types
+## Callable objects
+
+Custom classes can be callable if they have a `#[pymethod]` named `__call__`.
+
+The following pyclass is a basic decorator - its constructor takes a Python object
+as argument and calls that object when called.
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, PyTuple};
+#
+#[pyclass(name = "counter")]
+struct PyCounter {
+    count: u64,
+    wraps: Py<PyAny>,
+}
+
+#[pymethods]
+impl PyCounter {
+    #[new]
+    fn __new__(wraps: Py<PyAny>) -> Self {
+        PyCounter { count: 0, wraps }
+    }
+
+    fn __call__(
+        &mut self,
+        py: Python,
+        args: &PyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        self.count += 1;
+        let name = self.wraps.getattr(py, "__name__").unwrap();
+
+        println!("{} has been called {} time(s).", name, self.count);
+        self.wraps.call(py, args, kwargs)
+    }
+}
+```
+
+Python code:
+
+```python
+@counter
+def say_hello():
+    print("hello")
+
+say_hello()
+say_hello()
+say_hello()
+say_hello()
+```
+
+Output:
+
+```text
+say_hello has been called 1 time(s).
+hello
+say_hello has been called 2 time(s).
+hello
+say_hello has been called 3 time(s).
+hello
+say_hello has been called 4 time(s).
+hello
+```
+
+## Emulating numeric types
 
 The [`PyNumberProtocol`] trait can be implemented to emulate [numeric types](https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types).
 
@@ -132,7 +197,7 @@ Other:
 
   * `fn __index__(&'p self) -> PyResult<impl ToPyObject>`
 
-### Emulating sequential containers (such as lists or tuples)
+## Emulating sequential containers (such as lists or tuples)
 
 The [`PySequenceProtocol`] trait can be implemented to emulate
 [sequential container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
@@ -195,7 +260,7 @@ where _N_ is the length of the sequence.
     Used by the `*=` operator, after trying the numeric in place multiplication via
     the `PyNumberProtocol` trait method.
 
-### Emulating mapping containers (such as dictionaries)
+## Emulating mapping containers (such as dictionaries)
 
 The [`PyMappingProtocol`] trait allows to emulate
 [mapping container types](https://docs.python.org/3/reference/datamodel.html#emulating-container-types).
@@ -228,7 +293,7 @@ For a mapping, the keys may be Python objects of arbitrary type.
     The same exceptions should be raised for improper key values as
     for the `__getitem__()` method.
 
-### Garbage Collector Integration
+## Garbage Collector Integration
 
 If your type owns references to other Python objects, you will need to
 integrate with Python's garbage collector so that the GC is aware of
@@ -280,7 +345,7 @@ at compile time:
 struct GCTracked {} // Fails because it does not implement PyGCProtocol
 ```
 
-### Iterator Types
+## Iterator Types
 
 Iterators can be defined using the
 [`PyIterProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/iter/trait.PyIterProtocol.html) trait.
@@ -365,7 +430,7 @@ impl PyIterProtocol for Container {
 For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
 documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
 
-#### Returning a value from iteration
+### Returning a value from iteration
 
 This guide has so far shown how to use `Option<T>` to implement yielding values during iteration.
 In Python a generator can also return a value. To express this in Rust, PyO3 provides the

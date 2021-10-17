@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move Py_DecodeLocale from sysmodule to fileutils. [#1887](https://github.com/PyO3/pyo3/pull/1887)
 - Deprecate `PySys_AddWarnOption`, `PySys_AddWarnOptionUnicode` and `PySys_HasWarnOptions`. [#1887](https://github.com/PyO3/pyo3/pull/1887)
 - Remove function PyTuple_ClearFreeList from python 3.9 above. [#1887](https://github.com/PyO3/pyo3/pull/1887)
+- Deprecate `#[call]` attribute in favor of using `fn __call__`. [#1929](https://github.com/PyO3/pyo3/pull/1929)
 
 ### Fixed
 

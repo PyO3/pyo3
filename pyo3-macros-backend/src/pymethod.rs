@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
-use crate::method::ExtractErrorMode;
+use crate::method::{CallingConvention, ExtractErrorMode};
 use crate::utils::{ensure_not_async_fn, unwrap_ty_group, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
@@ -38,6 +38,8 @@ pub fn gen_py_method(
     if let Some(slot_def) = pyproto(&method_name) {
         let slot = slot_def.generate_type_slot(cls, &spec)?;
         return Ok(GeneratedPyMethod::Proto(slot));
+    } else if method_name == "__call__" {
+        return Ok(GeneratedPyMethod::Proto(impl_call_slot(cls, spec)?));
     }
 
     if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
@@ -60,7 +62,6 @@ pub fn gen_py_method(
         )?),
         // special prototypes
         FnType::FnNew => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, &spec)?),
-        FnType::FnCall(_) => GeneratedPyMethod::TraitImpl(impl_py_method_def_call(cls, &spec)?),
         FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_class_attribute(cls, &spec)),
         FnType::Getter(self_type) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
@@ -136,19 +137,20 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     })
 }
 
-fn impl_py_method_def_call(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
+    // HACK: __call__ proto slot must always use varargs calling convention, so change the spec.
+    // Probably indicates there's a refactoring opportunity somewhere.
+    spec.convention = CallingConvention::Varargs;
+
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
-    Ok(quote! {
-        impl ::pyo3::class::impl_::PyClassCallImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-            fn call_impl(self) -> ::std::option::Option<::pyo3::ffi::PyCFunctionWithKeywords> {
-                ::std::option::Option::Some({
-                    #wrapper
-                    #wrapper_ident
-                })
-            }
+    Ok(quote! {{
+        #wrapper
+        ::pyo3::ffi::PyType_Slot {
+            slot: ::pyo3::ffi::Py_tp_call,
+            pfunc: __wrap as ::pyo3::ffi::ternaryfunc as _
         }
-    })
+    }})
 }
 
 fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {

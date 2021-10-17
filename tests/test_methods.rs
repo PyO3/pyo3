@@ -868,8 +868,7 @@ impl r#RawIdents {
         self.r#subsubtype = r#subsubtype;
     }
 
-    #[call]
-    pub fn r#call(&mut self, r#type: PyObject) {
+    pub fn r#__call__(&mut self, r#type: PyObject) {
         self.r#type = r#type;
     }
 

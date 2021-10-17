@@ -23,3 +23,6 @@ pub const PYMODULE_NAME_ARGUMENT: () = ();
     note = "use `#[pyo3(text_signature = \"...\")]` instead of `#[text_signature = \"...\"]`"
 )]
 pub const TEXT_SIGNATURE_ATTRIBUTE: () = ();
+
+#[deprecated(since = "0.15.0", note = "use `fn __call__` instead of `#[call]`")]
+pub const CALL_ATTRIBUTE: () = ();

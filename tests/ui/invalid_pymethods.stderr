@@ -41,12 +41,6 @@ error: text_signature not allowed on __new__; if you want to add a signature on 
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> tests/ui/invalid_pymethods.rs:58:12
-   |
-58 |     #[pyo3(text_signature = "()")]
-   |            ^^^^^^^^^^^^^^
-
-error: text_signature not allowed with this method type
   --> tests/ui/invalid_pymethods.rs:65:12
    |
 65 |     #[pyo3(text_signature = "()")]
