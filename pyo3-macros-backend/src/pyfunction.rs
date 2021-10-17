@@ -22,9 +22,11 @@ use syn::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
+    PosOnlyArgsSeparator,
     VarArgsSeparator,
     VarArgs(syn::Path),
     KeywordArgs(syn::Path),
+    PosOnlyArg(syn::Path, Option<String>),
     Arg(syn::Path, Option<String>),
     Kwarg(syn::Path, Option<String>),
 }
@@ -34,6 +36,7 @@ pub enum Argument {
 pub struct PyFunctionSignature {
     pub arguments: Vec<Argument>,
     has_kw: bool,
+    has_posonly_args: bool,
     has_varargs: bool,
     has_kwargs: bool,
 }
@@ -126,7 +129,20 @@ impl PyFunctionSignature {
                 self.arguments.push(Argument::VarArgsSeparator);
                 Ok(())
             }
-            _ => bail_spanned!(item.span() => "expected \"*\""),
+            syn::Lit::Str(lits) if lits.value() == "/" => {
+                // "/"
+                self.posonly_arg_is_ok(item)?;
+                self.has_posonly_args = true;
+                // any arguments _before_ this become positional-only
+                self.arguments.iter_mut().for_each(|a|
+                    if let Argument::Arg(path, name) = a {
+                        *a = Argument::PosOnlyArg(path.clone(), name.clone());
+                    }
+                );
+                self.arguments.push(Argument::PosOnlyArgsSeparator);
+                Ok(())
+            }
+            _ => bail_spanned!(item.span() => "expected \"/\" or \"*\""),
         }
     }
 
@@ -140,6 +156,14 @@ impl PyFunctionSignature {
         } else {
             self.arguments.push(Argument::Arg(path.clone(), None));
         }
+        Ok(())
+    }
+
+    fn posonly_arg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
+        ensure_spanned!(
+            !(self.has_posonly_args || self.has_kwargs || self.has_varargs),
+            item.span() => "/ is not allowed after /, varargs(*), or kwargs(**)"
+        );
         Ok(())
     }
 

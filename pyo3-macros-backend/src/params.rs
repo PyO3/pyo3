@@ -78,6 +78,7 @@ pub fn impl_arg_params(
     };
 
     let mut positional_parameter_names = Vec::new();
+    let mut positional_only_parameters = 0usize;
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
 
@@ -86,6 +87,7 @@ pub fn impl_arg_params(
             continue;
         }
         let name = arg.name.unraw().to_string();
+        let posonly = spec.is_pos_only(arg.name);
         let kwonly = spec.is_kw_only(arg.name);
         let required = !(arg.optional.is_some() || spec.default_value(arg.name).is_some());
 
@@ -99,6 +101,9 @@ pub fn impl_arg_params(
         } else {
             if required {
                 required_positional_parameters += 1;
+            }
+            if posonly {
+                positional_only_parameters += 1;
             }
             positional_parameter_names.push(name);
         }
@@ -154,8 +159,7 @@ pub fn impl_arg_params(
                 cls_name: #cls_name,
                 func_name: stringify!(#python_name),
                 positional_parameter_names: &[#(#positional_parameter_names),*],
-                // TODO: https://github.com/PyO3/pyo3/issues/1439 - support specifying these
-                positional_only_parameters: 0,
+                positional_only_parameters: #positional_only_parameters,
                 required_positional_parameters: #required_positional_parameters,
                 keyword_only_parameters: &[#(#keyword_only_parameters),*],
                 accept_varargs: #accept_args,
