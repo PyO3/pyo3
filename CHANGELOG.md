@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add commonly-used sequence methods to `PyList` and `PyTuple`. [#1849](https://github.com/PyO3/pyo3/pull/1849)
 - Add `as_sequence` methods to `PyList` and `PyTuple`. [#1860](https://github.com/PyO3/pyo3/pull/1860)
 - Add `abi3-py310` feature. [#1889](https://github.com/PyO3/pyo3/pull/1889)
-- Add support for positional-only arguments in `#[pyfunction]` [#1439](https://github.com/PyO3/pyo3/issues/1439)
+- Add support for positional-only arguments in `#[pyfunction]` [#1925](https://github.com/PyO3/pyo3/pull/1925)
 
 ### Changed
 
