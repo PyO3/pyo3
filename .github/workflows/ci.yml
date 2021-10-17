@@ -61,11 +61,11 @@ jobs:
           VERSIONS=("3.6" "3.7" "3.8" "3.9" "3.10")
           for VERSION in ${VERSIONS[@]}; do
             echo "version=$VERSION" > config.txt
-            # TODO suppress linking using config file rather than extension-module feature
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "extension-module abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
+            echo "suppress_build_script_link_lines=true" >> config.txt
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
           done
 
   build:
