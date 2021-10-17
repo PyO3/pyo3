@@ -134,11 +134,11 @@ impl PyFunctionSignature {
                 self.posonly_arg_is_ok(item)?;
                 self.has_posonly_args = true;
                 // any arguments _before_ this become positional-only
-                self.arguments.iter_mut().for_each(|a|
+                self.arguments.iter_mut().for_each(|a| {
                     if let Argument::Arg(path, name) = a {
                         *a = Argument::PosOnlyArg(path.clone(), name.clone());
                     }
-                );
+                });
                 self.arguments.push(Argument::PosOnlyArgsSeparator);
                 Ok(())
             }
