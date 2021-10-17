@@ -79,10 +79,11 @@
 //! crate, which is not supported on all platforms.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
+//! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
-//! - [`indexmap`]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
+//! - [`indexmap`][indexmap_feature]: Enables conversions between Python dictionary and [indexmap]'s [`IndexMap`].
 //! - [`num-bigint`]: Enables conversions between Python objects and [num-bigint]'s [`BigInt`] and
 //! [`BigUint`] types.
 //! - [`num-complex`]: Enables conversions between Python objects and [num-complex]'s [`Complex`]
@@ -242,6 +243,9 @@
 //! There are many projects using PyO3 - see a list of some at
 //! <https://github.com/PyO3/pyo3#examples>.
 //!
+//! [anyhow]: https://docs.rs/anyhow/ "A trait object based error system for easy idiomatic error handling in Rust applications."
+//! [anyhow_error]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html "Anyhows `Error` type, a wrapper around a dynamic error type"
+//! [`anyhow`]: ./anyhow/index.html "Documentation about the `anyhow` feature."
 //! [inventory]: https://docs.rs/inventory
 //! [`HashMap`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html
 //! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
@@ -253,14 +257,14 @@
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 //! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
 //! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
-//! [`eyre`]: ./eyre/index.html
-//! [`hashbrown`]: ./hashbrown/index.html
-//! [`indexmap`]: <./indexmap/index.html>
+//! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
+//! [`hashbrown`]: ./hashbrown/index.html "Documentation about the `hashbrown` feature."
+//! [indexmap_feature]: ./indexmap/index.html "Documentation about the `indexmap` feature."
 //! [`maturin`]: https://github.com/PyO3/maturin "Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages"
-//! [`num-bigint`]: ./num_bigint/index.html
-//! [`num-complex`]: ./num_complex/index.html
+//! [`num-bigint`]: ./num_bigint/index.html "Documentation about the `num-bigint` feature."
+//! [`num-complex`]: ./num_complex/index.html "Documentation about the `num-complex` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
-//! [`serde`]: <./serde/index.html>
+//! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 //! [calling_rust]: https://pyo3.rs/latest/python_from_rust.html "Calling Python from Rust - PyO3 user guide"
 //! [examples subdirectory]: https://github.com/PyO3/pyo3/tree/main/examples
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/features.html "Features - The Cargo Book"
