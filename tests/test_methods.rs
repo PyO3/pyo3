@@ -388,12 +388,12 @@ fn meth_args() {
     py_run!(
         py,
         inst,
-        "assert inst.get_all_arg_types_together(1, 2, c = 3, d = 3) == 12"
+        "assert inst.get_all_arg_types_together(1, 2, c = 3, d = 3) == 9"
     );
     py_run!(
         py,
         inst,
-        "assert inst.get_all_arg_types_together(1, 2, d = 3) == 16"
+        "assert inst.get_all_arg_types_together(1, 2, c = 3) == 11"
     );
     py_expect_exception!(
         py,
