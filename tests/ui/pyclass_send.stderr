@@ -4,9 +4,9 @@ error[E0277]: `Rc<i32>` cannot be sent between threads safely
 4   | #[pyclass]
     | ^^^^^^^^^^ `Rc<i32>` cannot be sent between threads safely
     |
-   ::: src/class/impl_.rs:699:33
+   ::: src/class/impl_.rs:719:33
     |
-699 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
+719 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
     |                                 ---- required by this bound in `ThreadCheckerStub`
     |
     = help: within `NotThreadSafe`, the trait `Send` is not implemented for `Rc<i32>`

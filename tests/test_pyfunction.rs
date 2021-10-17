@@ -1,7 +1,7 @@
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
-use pyo3::types::PyCFunction;
+use pyo3::types::{self, PyCFunction};
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::{PyDateTime, PyFunction};
 
@@ -212,4 +212,58 @@ fn test_conversion_error() {
         PyTypeError,
         "argument 'option_arg': 'str' object cannot be interpreted as an integer"
     );
+}
+
+#[test]
+fn test_closure() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let f = |args: &types::PyTuple, _kwargs: Option<&types::PyDict>| -> PyResult<_> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let res: Vec<_> = args
+            .iter()
+            .map(|elem| {
+                if let Ok(i) = elem.extract::<i64>() {
+                    (i + 1).into_py(py)
+                } else if let Ok(f) = elem.extract::<f64>() {
+                    (2. * f).into_py(py)
+                } else if let Ok(mut s) = elem.extract::<String>() {
+                    s.push_str("-py");
+                    s.into_py(py)
+                } else {
+                    panic!("unexpected argument type for {:?}", elem)
+                }
+            })
+            .collect();
+        Ok(res)
+    };
+    let closure_py = PyCFunction::new_closure(f, py).unwrap();
+
+    py_assert!(py, closure_py, "closure_py(42) == [43]");
+    py_assert!(
+        py,
+        closure_py,
+        "closure_py(42, 3.14, 'foo') == [43, 6.28, 'foo-py']"
+    );
+}
+
+#[test]
+fn test_closure_counter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let counter = std::cell::RefCell::new(0);
+    let counter_fn =
+        move |_args: &types::PyTuple, _kwargs: Option<&types::PyDict>| -> PyResult<i32> {
+            let mut counter = counter.borrow_mut();
+            *counter += 1;
+            Ok(*counter)
+        };
+    let counter_py = PyCFunction::new_closure(counter_fn, py).unwrap();
+
+    py_assert!(py, counter_py, "counter_py() == 1");
+    py_assert!(py, counter_py, "counter_py() == 2");
+    py_assert!(py, counter_py, "counter_py() == 3");
 }
