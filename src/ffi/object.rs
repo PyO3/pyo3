@@ -353,11 +353,9 @@ extern "C" {
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
 #[cfg(Py_3_10)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 pub const Py_TPFLAGS_DISALLOW_INSTANTIATION: c_ulong = 1 << 7;
 
 #[cfg(Py_3_10)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 pub const Py_TPFLAGS_IMMUTABLETYPE: c_ulong = 1 << 8;
 
 /// Set if the type object is dynamically allocated
@@ -468,10 +466,8 @@ extern "C" {
     pub fn Py_DecRef(o: *mut PyObject);
 
     #[cfg(Py_3_10)]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
     #[cfg(Py_3_10)]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
 }
 

@@ -69,7 +69,6 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// # }
 /// ```
 #[cfg(not(PyPy))]
-#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 #[allow(clippy::collapsible_if)] // for if cfg!
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
@@ -135,7 +134,6 @@ pub fn prepare_freethreaded_python() {
 /// # }
 /// ```
 #[cfg(not(PyPy))]
-#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 #[allow(clippy::collapsible_if)] // for if cfg!
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where

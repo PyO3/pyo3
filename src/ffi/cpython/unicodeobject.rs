@@ -252,7 +252,6 @@ extern "C" {
     // skipped _PyUnicode_Copy
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyUnicode_CopyCharacters(
         to: *mut PyObject,
         to_start: Py_ssize_t,
@@ -264,7 +263,6 @@ extern "C" {
     // skipped _PyUnicode_FastCopyCharacters
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyUnicode_Fill(
         unicode: *mut PyObject,
         start: Py_ssize_t,

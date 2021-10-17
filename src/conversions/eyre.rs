@@ -1,5 +1,5 @@
 #![cfg(feature = "eyre")]
-#![cfg_attr(docsrs, doc(cfg(feature = "eyre")))]
+
 //! A conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //!
 //! Use of an error handling library like [eyre] is common in application code and when you just

@@ -16,7 +16,6 @@ use std::str;
 /// Python internally stores strings in various representations. This enumeration
 /// represents those variations.
 #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
-#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PyStringData<'a> {
     /// UCS1 representation.
@@ -225,7 +224,6 @@ impl PyString {
     ///
     /// For example, it is known not to work on big-endian platforms.
     #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
-    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         let ptr = self.as_ptr();
 

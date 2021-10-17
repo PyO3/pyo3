@@ -3,11 +3,6 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 #![cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
-#![cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy)))))
-)]
-
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
 //! This is useful for converting Python integers when they may not fit in Rust's built-in integer types.

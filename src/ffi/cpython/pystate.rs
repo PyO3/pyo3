@@ -43,17 +43,14 @@ extern "C" {
     // skipped _PyThread_CurrentExceptions
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_Main() -> *mut PyInterpreterState;
     #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Head")]
     pub fn PyInterpreterState_Head() -> *mut PyInterpreterState;
     #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Next")]
     pub fn PyInterpreterState_Next(interp: *mut PyInterpreterState) -> *mut PyInterpreterState;
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_ThreadHead(interp: *mut PyInterpreterState) -> *mut PyThreadState;
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyThreadState_Next(tstate: *mut PyThreadState) -> *mut PyThreadState;
 
     #[cfg(py_sys_config = "WITH_THREAD")]
@@ -62,7 +59,6 @@ extern "C" {
 }
 
 #[cfg(Py_3_9)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_9)))]
 pub type _PyFrameEvalFunction = extern "C" fn(
     *mut crate::ffi::PyThreadState,
     *mut crate::ffi::PyFrameObject,
@@ -72,13 +68,11 @@ pub type _PyFrameEvalFunction = extern "C" fn(
 #[cfg(Py_3_9)]
 extern "C" {
     /// Get the frame evaluation function.
-    #[cfg_attr(docsrs, doc(cfg(Py_3_9)))]
     pub fn _PyInterpreterState_GetEvalFrameFunc(
         interp: *mut PyInterpreterState,
     ) -> _PyFrameEvalFunction;
 
     ///Set the frame evaluation function.
-    #[cfg_attr(docsrs, doc(cfg(Py_3_9)))]
     pub fn _PyInterpreterState_SetEvalFrameFunc(
         interp: *mut PyInterpreterState,
         eval_frame: _PyFrameEvalFunction,

@@ -166,11 +166,9 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8String")]
     pub fn PyUnicode_AsUTF8String(unicode: *mut PyObject) -> *mut PyObject;
     #[cfg(any(Py_3_10, all(Py_3_7, not(Py_LIMITED_API))))]
-    #[cfg_attr(docsrs, doc(cfg(any(Py_3_10, not(Py_LIMITED_API)))))]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8AndSize")]
     pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *const c_char;
     #[cfg(not(any(Py_3_7, Py_LIMITED_API)))]
-    #[cfg_attr(docsrs, doc(cfg(any(Py_3_10, not(Py_LIMITED_API)))))]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8AndSize")]
     pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *mut c_char;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_DecodeUTF32")]

@@ -37,7 +37,6 @@ impl PyComplex {
 }
 
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
 mod not_limited_impls {
     use super::*;
     use std::ops::{Add, Div, Mul, Neg, Sub};

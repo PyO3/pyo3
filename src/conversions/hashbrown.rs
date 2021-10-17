@@ -1,5 +1,4 @@
 #![cfg(feature = "hashbrown")]
-#![cfg_attr(docsrs, doc(cfg(feature = "hashbrown")))]
 
 //!  Conversions to and from [hashbrown](https://docs.rs/hashbrown/)’s
 //! `HashMap` and `HashSet`.

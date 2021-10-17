@@ -1,5 +1,5 @@
 #![cfg(feature = "num-complex")]
-#![cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
+
 //!  Conversions to and from [num-complex](https://docs.rs/num-complex)’
 //! [`Complex`]`<`[`f32`]`>` and [`Complex`]`<`[`f64`]`>`.
 //!
