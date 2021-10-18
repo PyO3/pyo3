@@ -137,6 +137,8 @@ impl PyFunctionSignature {
                 self.arguments.iter_mut().for_each(|a| {
                     if let Argument::Arg(path, name) = a {
                         *a = Argument::PosOnlyArg(path.clone(), name.clone());
+                    } else {
+                        unreachable!();
                     }
                 });
                 self.arguments.push(Argument::PosOnlyArgsSeparator);
