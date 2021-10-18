@@ -415,6 +415,26 @@ define_pyclass_binary_operator_slot! {
     binaryfunc,
 }
 
+define_pyclass_binary_operator_slot! {
+    PyClass__truediv__SlotFragment,
+    PyClass__rtruediv__SlotFragment,
+    __truediv__,
+    __rtruediv__,
+    generate_pyclass_truediv_slot,
+    Py_nb_true_divide,
+    binaryfunc,
+}
+
+define_pyclass_binary_operator_slot! {
+    PyClass__floordiv__SlotFragment,
+    PyClass__rfloordiv__SlotFragment,
+    __floordiv__,
+    __rfloordiv__,
+    generate_pyclass_floordiv_slot,
+    Py_nb_floor_divide,
+    binaryfunc,
+}
+
 slot_fragment_trait! {
     PyClass__pow__SlotFragment,
 
