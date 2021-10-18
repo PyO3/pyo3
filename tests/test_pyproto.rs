@@ -211,30 +211,6 @@ fn sequence() {
 }
 
 #[pyclass]
-struct Callable {}
-
-#[pymethods]
-impl Callable {
-    #[__call__]
-    fn __call__(&self, arg: i32) -> i32 {
-        arg * 6
-    }
-}
-
-#[test]
-fn callable() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Callable {}).unwrap();
-    py_assert!(py, c, "callable(c)");
-    py_assert!(py, c, "c(7) == 42");
-
-    let nc = Py::new(py, Comparisons { val: 0 }).unwrap();
-    py_assert!(py, nc, "not callable(nc)");
-}
-
-#[pyclass]
 #[derive(Debug)]
 struct SetItem {
     key: i32,
