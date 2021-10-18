@@ -691,6 +691,9 @@ the form of `attr_name="default value"`. Each parameter has to match the method 
 
 Each parameter can be one of the following types:
 
+ * `"/"`: positional-only arguments separator, each parameter defined before `"/"` is a
+   positional-only parameter.
+   Corresponds to python's `def meth(arg1, arg2, ..., /, argN..)`.
  * `"*"`: var arguments separator, each parameter defined after `"*"` is a keyword-only parameter.
    Corresponds to python's `def meth(*, arg1.., arg2=..)`.
  * `args="*"`: "args" is var args, corresponds to Python's `def meth(*args)`. Type of the `args`
@@ -745,7 +748,7 @@ impl MyClass {
     }
 }
 ```
-N.B. the position of the `"*"` argument (if included) controls the system of handling positional and keyword arguments. In Python:
+N.B. the position of the `"/"` and `"*"` arguments (if included) control the system of handling positional and keyword arguments. In Python:
 ```python
 import mymodule
 
