@@ -614,7 +614,14 @@ py_binary_fallback_num_func!(
 );
 py_binary_num_func!(mul, PyNumberMulProtocol, T::__mul__);
 py_binary_reversed_num_func!(rmul, PyNumberRMulProtocol, T::__rmul__);
+py_binary_fallback_num_func!(
+    mod_rmod,
+    T,
+    PyNumberModProtocol::__mod__,
+    PyNumberRModProtocol::__rmod__
+);
 py_binary_num_func!(mod_, PyNumberModProtocol, T::__mod__);
+py_binary_reversed_num_func!(rmod, PyNumberRModProtocol, T::__rmod__);
 py_binary_fallback_num_func!(
     divmod_rdivmod,
     T,
