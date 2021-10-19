@@ -10,4 +10,24 @@ fn kw_after_kwargs(py: Python, kwargs: &PyDict, a: i32) -> PyObject {
     [a.to_object(py), vararg.into()].to_object(py)
 }
 
+#[pyfunction(a, "*", b, "/", c)]
+fn pos_only_after_kw_only(py: Python, a: i32, b: i32, c: i32) -> i32 {
+    a + b + c
+}
+
+#[pyfunction(a, args="*", "/", b)]
+fn pos_only_after_args(py: Python, a: i32, args: Vec<i32>, b: i32) -> i32 {
+    a + b + c
+}
+
+#[pyfunction(a, kwargs="**", "/", b)]
+fn pos_only_after_kwargs(py: Python, a: i32, args: Vec<i32>, b: i32) -> i32 {
+    a + b
+}
+
+#[pyfunction(kwargs = "**", "*", a)]
+fn kw_only_after_kwargs(py: Python, kwargs: &PyDict, a: i32) -> PyObject {
+    [a.to_object(py), vararg.into()].to_object(py)
+}
+
 fn main() {}

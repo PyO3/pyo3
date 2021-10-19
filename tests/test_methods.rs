@@ -246,17 +246,12 @@ impl MethArgs {
     }
 
     #[args(a, "/", args = "*")]
-    fn get_pos_only_with_starargs(&self, a: i32, args: Vec<i32>) -> i32 {
+    fn get_pos_only_with_varargs(&self, a: i32, args: Vec<i32>) -> i32 {
         a + args.iter().sum::<i32>()
     }
 
     #[args(a, "/", kwargs = "**")]
-    fn get_pos_only_with_starstarkwargs(
-        &self,
-        py: Python,
-        a: i32,
-        kwargs: Option<&PyDict>,
-    ) -> PyObject {
+    fn get_pos_only_with_kwargs(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
@@ -383,7 +378,7 @@ fn meth_args() {
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_and_pos_and_kw(10, b, c = 0) == 21"
+        "assert inst.get_pos_only_and_pos_and_kw(10, 11, c = 0) == 21"
     );
     py_run!(
         py,
@@ -446,12 +441,12 @@ fn meth_args() {
     py_run!(
         py,
         inst,
-        "assert inst.get_all_arg_types_together(10, 10, c = 10, d = 10) == 50"
+        "assert inst.get_all_arg_types_together(10, 10, c = 10, d = 10) == 40"
     );
     py_run!(
         py,
         inst,
-        "assert inst.get_all_arg_types_together(10, b = 10, c = 10, d = 10) == 50"
+        "assert inst.get_all_arg_types_together(10, b = 10, c = 10, d = 10) == 40"
     );
     py_expect_exception!(
         py,
@@ -466,49 +461,49 @@ fn meth_args() {
         PyTypeError
     );
 
-    py_run!(py, inst, "assert inst.get_pos_only_with_starargs(10) == 10");
+    py_run!(py, inst, "assert inst.get_pos_only_with_varargs(10) == 10");
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_with_starargs(10, 10) == 20"
+        "assert inst.get_pos_only_with_varargs(10, 10) == 20"
     );
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_with_starargs(10, 10, 10, 10, 10) == 50"
+        "assert inst.get_pos_only_with_varargs(10, 10, 10, 10, 10) == 50"
     );
     py_expect_exception!(
         py,
         inst,
-        "inst.get_pos_only_with_starargs(a = 10)",
+        "inst.get_pos_only_with_varargs(a = 10)",
         PyTypeError
     );
 
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_with_starstarkwargs(10) == [10, {}]"
+        "assert inst.get_pos_only_with_kwargs(10) == [10, None]"
     );
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_with_starstarkwargs(10, b = 10) == [10, {'b': 10}]"
+        "assert inst.get_pos_only_with_kwargs(10, b = 10) == [10, {'b': 10}]"
     );
     py_run!(
         py,
         inst,
-        "assert inst.get_pos_only_with_starstarkwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
+        "assert inst.get_pos_only_with_kwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
     );
     py_expect_exception!(
         py,
         inst,
-        "inst.get_pos_only_with_starstarkwargs(a = 10)",
+        "inst.get_pos_only_with_kwargs(a = 10)",
         PyTypeError
     );
     py_expect_exception!(
         py,
         inst,
-        "inst.get_pos_only_with_starstarkwargs(a = 10, b = 10)",
+        "inst.get_pos_only_with_kwargs(a = 10, b = 10)",
         PyTypeError
     );
 
