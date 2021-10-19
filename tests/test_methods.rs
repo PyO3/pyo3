@@ -215,6 +215,46 @@ impl MethArgs {
         [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
     }
 
+    #[args(a, b, "/")]
+    fn get_pos_only(&self, a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    #[args(a, "/", b)]
+    fn get_pos_only_and_pos(&self, a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    #[args(a, "/", b, c = 5)]
+    fn get_pos_only_and_pos_and_kw(&self, a: i32, b: i32, c: i32) -> i32 {
+        a + b + c
+    }
+
+    #[args(a, "/", "*", b)]
+    fn get_pos_only_and_kw_only(&self, a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    #[args(a, "/", "*", b = 3)]
+    fn get_pos_only_and_kw_only_with_default(&self, a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    #[args(a, "/", b, "*", c, d = 5)]
+    fn get_all_arg_types_together(&self, a: i32, b: i32, c: i32, d: i32) -> i32 {
+        a + b + c + d
+    }
+
+    #[args(a, "/", args = "*")]
+    fn get_pos_only_with_varargs(&self, a: i32, args: Vec<i32>) -> i32 {
+        a + args.iter().sum::<i32>()
+    }
+
+    #[args(a, "/", kwargs = "**")]
+    fn get_pos_only_with_kwargs(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    }
+
     #[args("*", a = 2, b = 3)]
     fn get_kwargs_only_with_defaults(&self, a: i32, b: i32) -> i32 {
         a + b
@@ -307,6 +347,165 @@ fn meth_args() {
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw()", PyTypeError);
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", PyTypeError);
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", PyTypeError);
+
+    py_run!(py, inst, "assert inst.get_pos_only(10, 11) == 21");
+    py_expect_exception!(py, inst, "inst.get_pos_only(10, b = 11)", PyTypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_only(a = 10, b = 11)", PyTypeError);
+
+    py_run!(py, inst, "assert inst.get_pos_only_and_pos(10, 11) == 21");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_pos(10, b = 11) == 21"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_pos(a = 10, b = 11)",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_pos_and_kw(10, 11) == 26"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_pos_and_kw(10, b = 11) == 26"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_pos_and_kw(10, 11, c = 0) == 21"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_pos_and_kw(10, b = 11, c = 0) == 21"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_pos_and_kw(a = 10, b = 11)",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_kw_only(10, b = 11) == 21"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_kw_only(10, 11)",
+        PyTypeError
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_kw_only(a = 10, b = 11)",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_kw_only_with_default(10) == 13"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_and_kw_only_with_default(10, b = 11) == 21"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_kw_only_with_default(10, 11)",
+        PyTypeError
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_and_kw_only_with_default(a = 10, b = 11)",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_all_arg_types_together(10, 10, c = 10) == 35"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_all_arg_types_together(10, 10, c = 10, d = 10) == 40"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_all_arg_types_together(10, b = 10, c = 10, d = 10) == 40"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_all_arg_types_together(10, 10, 10)",
+        PyTypeError
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_all_arg_types_together(a = 10, b = 10, c = 10)",
+        PyTypeError
+    );
+
+    py_run!(py, inst, "assert inst.get_pos_only_with_varargs(10) == 10");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_with_varargs(10, 10) == 20"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_with_varargs(10, 10, 10, 10, 10) == 50"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_with_varargs(a = 10)",
+        PyTypeError
+    );
+
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_with_kwargs(10) == [10, None]"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_with_kwargs(10, b = 10) == [10, {'b': 10}]"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_only_with_kwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_with_kwargs(a = 10)",
+        PyTypeError
+    );
+    py_expect_exception!(
+        py,
+        inst,
+        "inst.get_pos_only_with_kwargs(a = 10, b = 10)",
+        PyTypeError
+    );
 
     py_run!(py, inst, "assert inst.get_kwargs_only_with_defaults() == 5");
     py_run!(

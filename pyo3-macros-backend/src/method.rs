@@ -449,6 +449,17 @@ impl<'a> FnSpec<'a> {
         None
     }
 
+    pub fn is_pos_only(&self, name: &syn::Ident) -> bool {
+        for s in self.attrs.iter() {
+            if let Argument::PosOnlyArg(path, _) = s {
+                if path.is_ident(name) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
             if let Argument::Kwarg(path, _) = s {

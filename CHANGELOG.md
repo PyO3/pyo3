@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `as_sequence` methods to `PyList` and `PyTuple`. [#1860](https://github.com/PyO3/pyo3/pull/1860)
 - Add `abi3-py310` feature. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 - Add `PyCFunction::new_closure` to create a Python function from a Rust closure. [#1901](https://github.com/PyO3/pyo3/pull/1901)
+- Add support for positional-only arguments in `#[pyfunction]` [#1925](https://github.com/PyO3/pyo3/pull/1925)
 
 ### Changed
 
