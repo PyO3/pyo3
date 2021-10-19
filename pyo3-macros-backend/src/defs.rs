@@ -528,7 +528,9 @@ pub const NUM: Proto = Proto {
         SlotDef::new(&["__mul__", "__rmul__"], "Py_nb_multiply", "mul_rmul"),
         SlotDef::new(&["__mul__"], "Py_nb_multiply", "mul"),
         SlotDef::new(&["__rmul__"], "Py_nb_multiply", "rmul"),
+        SlotDef::new(&["__mod__", "__rmod__"], "Py_nb_remainder", "mod_rmod"),
         SlotDef::new(&["__mod__"], "Py_nb_remainder", "mod_"),
+        SlotDef::new(&["__rmod__"], "Py_nb_remainder", "rmod"),
         SlotDef::new(
             &["__divmod__", "__rdivmod__"],
             "Py_nb_divmod",

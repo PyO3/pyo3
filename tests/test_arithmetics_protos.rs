@@ -152,6 +152,10 @@ impl PyNumberProtocol for BinaryArithmetic {
         format!("{:?} - {:?}", lhs, rhs)
     }
 
+    fn __mod__(lhs: &PyAny, rhs: &PyAny) -> String {
+        format!("{:?} % {:?}", lhs, rhs)
+    }
+
     fn __mul__(lhs: &PyAny, rhs: &PyAny) -> String {
         format!("{:?} * {:?}", lhs, rhs)
     }
@@ -195,6 +199,8 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 - c == '1 - BA'");
     py_run!(py, c, "assert c * 1 == 'BA * 1'");
     py_run!(py, c, "assert 1 * c == '1 * BA'");
+    py_run!(py, c, "assert c % 1 == 'BA % 1'");
+    py_run!(py, c, "assert 1 % c == '1 % BA'");
 
     py_run!(py, c, "assert c << 1 == 'BA << 1'");
     py_run!(py, c, "assert 1 << c == '1 << BA'");
@@ -223,6 +229,10 @@ impl PyNumberProtocol for RhsArithmetic {
 
     fn __rsub__(&self, other: &PyAny) -> String {
         format!("{:?} - RA", other)
+    }
+
+    fn __rmod__(&self, other: &PyAny) -> String {
+        format!("{:?} % RA", other)
     }
 
     fn __rmul__(&self, other: &PyAny) -> String {
@@ -264,6 +274,8 @@ fn rhs_arithmetic() {
     py_run!(py, c, "assert 1 + c == '1 + RA'");
     py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
     py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert c.__rmod__(1) == '1 % RA'");
+    py_run!(py, c, "assert 1 % c == '1 % RA'");
     py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
     py_run!(py, c, "assert 1 * c == '1 * RA'");
     py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
@@ -297,6 +309,10 @@ impl PyNumberProtocol for LhsAndRhs {
 
     fn __sub__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
         format!("{:?} - {:?}", lhs, rhs)
+    }
+
+    fn __mod__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
+        format!("{:?} % {:?}", lhs, rhs)
     }
 
     fn __mul__(lhs: PyRef<Self>, rhs: &PyAny) -> String {
@@ -337,6 +353,10 @@ impl PyNumberProtocol for LhsAndRhs {
 
     fn __rsub__(&self, other: &PyAny) -> String {
         format!("{:?} - RA", other)
+    }
+
+    fn __rmod__(&self, other: &PyAny) -> String {
+        format!("{:?} % RA", other)
     }
 
     fn __rmul__(&self, other: &PyAny) -> String {
@@ -388,6 +408,7 @@ fn lhs_fellback_to_rhs() {
     // If the light hand value is `LhsAndRhs`, LHS is used.
     py_run!(py, c, "assert c + 1 == 'LR + 1'");
     py_run!(py, c, "assert c - 1 == 'LR - 1'");
+    py_run!(py, c, "assert c % 1 == 'LR % 1'");
     py_run!(py, c, "assert c * 1 == 'LR * 1'");
     py_run!(py, c, "assert c << 1 == 'LR << 1'");
     py_run!(py, c, "assert c >> 1 == 'LR >> 1'");
@@ -399,6 +420,7 @@ fn lhs_fellback_to_rhs() {
     // Fellback to RHS because of type mismatching
     py_run!(py, c, "assert 1 + c == '1 + RA'");
     py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert 1 % c == '1 % RA'");
     py_run!(py, c, "assert 1 * c == '1 * RA'");
     py_run!(py, c, "assert 1 << c == '1 << RA'");
     py_run!(py, c, "assert 1 >> c == '1 >> RA'");
