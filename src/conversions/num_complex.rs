@@ -117,12 +117,15 @@ impl PyComplex {
 
 macro_rules! complex_conversion {
     ($float: ty) => {
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl ToPyObject for Complex<$float> {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
                 crate::IntoPy::<PyObject>::into_py(self.to_owned(), py)
             }
         }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl crate::IntoPy<PyObject> for Complex<$float> {
             fn into_py(self, py: Python) -> PyObject {
                 unsafe {
@@ -132,10 +135,12 @@ macro_rules! complex_conversion {
                 }
             }
         }
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         #[allow(clippy::float_cmp)] // The comparison is for an error value
         impl<'source> FromPyObject<'source> for Complex<$float> {
             fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
+                #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
                     if val.real == -1.0 && PyErr::occurred(obj.py()) {
@@ -144,12 +149,8 @@ macro_rules! complex_conversion {
                         Ok(Complex::new(val.real as $float, val.imag as $float))
                     }
                 }
-            }
-        }
-        #[cfg(any(Py_LIMITED_API, PyPy))]
-        #[allow(clippy::float_cmp)] // The comparison is for an error value
-        impl<'source> FromPyObject<'source> for Complex<$float> {
-            fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
+
+                #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
                     let ptr = obj.as_ptr();
                     let real = ffi::PyComplex_RealAsDouble(ptr);

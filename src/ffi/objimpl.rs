@@ -32,8 +32,10 @@ extern "C" {
     #[cfg(Py_3_10)]
     pub fn PyGC_Enable() -> c_int;
 
+    #[cfg(Py_3_10)]
     pub fn PyGC_Disable() -> c_int;
 
+    #[cfg(Py_3_10)]
     pub fn PyGC_IsEnabled() -> c_int;
 }
 

@@ -80,6 +80,7 @@ unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyRe
 
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: expr, $to_bytes: path, $from_bytes: path) => {
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl ToPyObject for $rust_ty {
             fn to_object(&self, py: Python) -> PyObject {
                 unsafe {
@@ -94,11 +95,15 @@ macro_rules! bigint_conversion {
                 }
             }
         }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl IntoPy<PyObject> for $rust_ty {
             fn into_py(self, py: Python) -> PyObject {
                 self.to_object(py)
             }
         }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'source> FromPyObject<'source> for $rust_ty {
             fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
                 let py = ob.py();
