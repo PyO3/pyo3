@@ -1,0 +1,81 @@
+name: 🐛 Bug Report
+description: Create a bug report
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to fill out this bug report!
+        Please fill out the form below...
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Please provide a clear and concise description of what the bug is.
+      placeholder: The bug is...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide steps to reproduce this bug.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: Backtrace
+      description: If your bug produces a backtrace, please include it here.
+      render: shell
+
+  - type: input
+    id: os_version
+    attributes:
+      label: Your operating system and version
+    validations:
+      required: true
+  - type: input
+    id: py_version
+    attributes:
+      label: Your Python version (`python --version`)
+      placeholder: ex. Python 3.10.0
+    validations:
+      required: true
+  - type: input
+    id: rust_version
+    attributes:
+      label: Your Rust version (`rustc --version`)
+      placeholder: ex. rustc 1.55.0 (c8dfcfe04 2021-09-06)
+    validations:
+      required: true
+  - type: input
+    id: pyo3_version
+    attributes:
+      label: Your PyO3 version
+      placeholder: ex. 0.14.0
+    validations:
+      required: true
+  - type: textarea
+    id: install_method
+    attributes:
+      label: How did you install python? Did you use a virtualenv?
+      placeholder: |
+        apt
+        pyenv
+        pacman
+        brew
+        python.org installer
+        microsoft store
+        etc...
+    validations:
+      required: true
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Info
+      description: Any additional info that you think might be useful or relevant to this bug
