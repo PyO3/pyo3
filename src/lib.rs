@@ -289,7 +289,6 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(not(PyPy))]
-#[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
@@ -355,7 +354,6 @@ pub mod proc_macro {
     pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto};
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
 

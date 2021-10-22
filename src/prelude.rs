@@ -22,6 +22,5 @@ pub use crate::python::Python;
 pub use crate::types::{PyAny, PyModule};
 pub use crate::wrap_pyfunction;
 
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};

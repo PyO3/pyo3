@@ -13,37 +13,28 @@ opaque_struct!(PyInterpreterState);
 
 extern "C" {
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_Clear(arg1: *mut PyInterpreterState);
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState);
 
     #[cfg(all(Py_3_9, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(all(Py_3_9, not(PyPy)))))]
     pub fn PyInterpreterState_Get() -> *mut PyInterpreterState;
 
     #[cfg(all(Py_3_8, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(all(Py_3_8, not(PyPy)))))]
     pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
     #[cfg(all(Py_3_7, not(PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(all(Py_3_7, not(PyPy)))))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyState_AddModule(arg1: *mut PyObject, arg2: *mut PyModuleDef) -> c_int;
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyState_RemoveModule(arg1: *mut PyModuleDef) -> c_int;
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]
@@ -68,7 +59,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
     pub fn PyThreadState_GetDict() -> *mut PyObject;
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
 }
 
@@ -89,6 +79,5 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
 }

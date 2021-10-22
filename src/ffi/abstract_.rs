@@ -113,7 +113,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
-    #[cfg_attr(docsrs, doc(cfg(all(not(PyPy), Py_3_10))))]
     pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]

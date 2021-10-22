@@ -1,4 +1,3 @@
-#![cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 #![cfg(feature = "serde")]
 
 //! Enables (de)serialization of [`Py`]`<T>` objects via [serde](https://docs.rs/serde).

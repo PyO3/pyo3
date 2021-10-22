@@ -119,7 +119,6 @@ pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
 
 #[inline]
 #[cfg(Py_3_10)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
     crate::ffi::Py_IS_TYPE(op, &mut PySet_Type)
 }

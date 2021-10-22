@@ -98,7 +98,6 @@ impl PyList {
     ///
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
         let item = ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
         // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).

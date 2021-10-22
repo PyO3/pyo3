@@ -71,7 +71,6 @@ impl<'p> Iterator for &'p PyIterator {
 
 // PyIter_Check does not exist in the limited API until 3.8
 #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-#[cfg_attr(docsrs, doc(cfg(any(not(Py_LIMITED_API), Py_3_8))))]
 impl<'v> PyTryFrom<'v> for PyIterator {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
         let value = value.into();

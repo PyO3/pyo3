@@ -8,7 +8,6 @@ pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 pub use self::datetime::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
 };
@@ -24,7 +23,7 @@ pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::tuple::PyTuple;
@@ -225,7 +224,6 @@ mod bytearray;
 mod bytes;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 mod datetime;
 mod dict;
 mod floatob;

@@ -1,5 +1,4 @@
 #![cfg(not(Py_LIMITED_API))]
-#![cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
 // Copyright (c) 2017 Daniel Grunwald
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this

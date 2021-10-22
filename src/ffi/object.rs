@@ -14,36 +14,13 @@ pub use crate::ffi::cpython::object::PyTypeObject;
 // _PyObject_HEAD_EXTRA: conditionally defined in PyObject_HEAD_INIT
 // _PyObject_EXTRA_INIT: conditionally defined in PyObject_HEAD_INIT
 
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_next: std::ptr::null_mut(),
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
     ob_refcnt: 1,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
-#[cfg(not(PyPy))]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    ob_refcnt: 1,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[cfg(PyPy)]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: std::ptr::null_mut(),
-    _ob_prev: std::ptr::null_mut(),
-    ob_refcnt: 1,
-    ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
-};
-
-#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
-#[cfg(PyPy)]
-pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    ob_refcnt: 1,
+    #[cfg(PyPy)]
     ob_pypy_link: 0,
     ob_type: std::ptr::null_mut(),
 };
@@ -53,21 +30,13 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-#[cfg(not(PyPy))]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_next: *mut PyObject,
+    pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_prev: *mut PyObject,
+    pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
-    pub ob_type: *mut PyTypeObject,
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-#[cfg(PyPy)]
-pub struct PyObject {
-    pub ob_refcnt: Py_ssize_t,
+    #[cfg(PyPy)]
     pub ob_pypy_link: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
 }
@@ -353,11 +322,9 @@ extern "C" {
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
 #[cfg(Py_3_10)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 pub const Py_TPFLAGS_DISALLOW_INSTANTIATION: c_ulong = 1 << 7;
 
 #[cfg(Py_3_10)]
-#[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 pub const Py_TPFLAGS_IMMUTABLETYPE: c_ulong = 1 << 8;
 
 /// Set if the type object is dynamically allocated
@@ -468,10 +435,8 @@ extern "C" {
     pub fn Py_DecRef(o: *mut PyObject);
 
     #[cfg(Py_3_10)]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
     #[cfg(Py_3_10)]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
 }
 

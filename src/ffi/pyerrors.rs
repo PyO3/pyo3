@@ -375,7 +375,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
     pub fn PyErr_SetInterrupt();
     #[cfg(Py_3_10)]
-    #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn PyErr_SetInterruptEx(signum: c_int);
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);

@@ -134,7 +134,6 @@ impl PyTuple {
     ///
     /// Caller must verify that the index is within the bounds of the tuple.
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, PyPy)))))]
     pub unsafe fn get_item_unchecked(&self, index: usize) -> &PyAny {
         let item = ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t);
         self.py().from_borrowed_ptr(item)
@@ -142,7 +141,6 @@ impl PyTuple {
 
     /// Returns `self` as a slice of objects.
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(docsrs, doc(cfg(not(Py_LIMITED_API))))]
     pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because &PyAny has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.

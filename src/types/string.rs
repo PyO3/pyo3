@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{
@@ -15,8 +15,7 @@ use std::str;
 ///
 /// Python internally stores strings in various representations. This enumeration
 /// represents those variations.
-#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
-#[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
+#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PyStringData<'a> {
     /// UCS1 representation.
@@ -29,7 +28,7 @@ pub enum PyStringData<'a> {
     Ucs4(&'a [u32]),
 }
 
-#[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 impl<'a> PyStringData<'a> {
     /// Obtain the raw bytes backing this instance as a [u8] slice.
     pub fn as_bytes(&self) -> &[u8] {
@@ -224,8 +223,7 @@ impl PyString {
     /// expected on the targets where you plan to distribute your software.
     ///
     /// For example, it is known not to work on big-endian platforms.
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
-    #[cfg_attr(docsrs, doc(cfg(not(any(Py_LIMITED_API, target_endian = "big")))))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         let ptr = self.as_ptr();
 
@@ -365,11 +363,11 @@ impl FromPyObject<'_> for char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     use crate::type_object::PyTypeObject;
     use crate::Python;
     use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     use std::borrow::Cow;
 
     #[test]
@@ -475,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs1() {
         Python::with_gil(|py| {
             let s = PyString::new(py, "hello, world");
@@ -488,7 +486,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs1_invalid() {
         Python::with_gil(|py| {
             // 0xfe is not allowed in UTF-8.
@@ -514,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
             let s = py.eval("'foo\\ud800'", None, None).unwrap();
@@ -530,7 +528,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs2_invalid() {
         Python::with_gil(|py| {
             // U+FF22 (valid) & U+d800 (never valid)
@@ -556,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs4() {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
@@ -569,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, target_endian = "big")))]
+    #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     fn test_string_data_ucs4_invalid() {
         Python::with_gil(|py| {
             // U+20000 (valid) & U+d800 (never valid)

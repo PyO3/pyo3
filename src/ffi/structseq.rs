@@ -34,7 +34,6 @@ extern "C" {
     ) -> c_int;
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc) -> *mut PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyStructSequence_New")]
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;
@@ -57,10 +56,8 @@ pub unsafe fn PyStructSequence_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mu
 
 extern "C" {
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyStructSequence_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
 
     #[cfg(not(PyPy))]
-    #[cfg_attr(docsrs, doc(cfg(not(PyPy))))]
     pub fn PyStructSequence_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
 }
