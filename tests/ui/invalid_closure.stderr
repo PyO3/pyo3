@@ -25,4 +25,4 @@ note: function requires argument type to outlive `'static`
 help: to force the closure to take ownership of `ref_` (and any other referenced variables), use the `move` keyword
    |
 9  |         let closure_fn = move |_args: &PyTuple, _kwargs: Option<&PyDict>| -> PyResult<()> {
-   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                          ++++
