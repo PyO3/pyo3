@@ -14,11 +14,12 @@ use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
 use crate::once_cell::GILOnceCell;
 use crate::Python;
 use std::ops::Deref;
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::{c_char, c_int};
 #[cfg(not(PyPy))]
 use {
     crate::ffi::{PyCapsule_Import, Py_hash_t},
     std::ffi::CString,
+    std::os::raw::c_uchar,
 };
 
 // Type struct wrappers
@@ -64,7 +65,9 @@ pub struct PyDateTime_Date {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
+    #[cfg(not(PyPy))]
     pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
@@ -361,7 +364,7 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    #[cfg(all(Py_3_7, not(PyPy)))]
+    #[cfg(Py_3_7)]
     pub TimeZone_UTC: *mut PyObject,
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
@@ -395,7 +398,7 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(all(Py_3_7, not(PyPy)))]
+    #[cfg(Py_3_7)]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
@@ -451,7 +454,7 @@ pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
 ///
 /// The type obtained by dereferencing this object is `&'static PyObject`. This may change in the
 /// future to be a more specific type representing that this is a `datetime.timezone` object.
-#[cfg(all(Py_3_7, not(PyPy)))]
+#[cfg(Py_3_7)]
 pub static PyDateTime_TimeZone_UTC: _PyDateTime_TimeZone_UTC_impl = _PyDateTime_TimeZone_UTC_impl {
     inner: &PyDateTimeAPI,
 };
@@ -609,12 +612,12 @@ impl Deref for _PyDateTimeAPI_impl {
 }
 
 #[doc(hidden)]
-#[cfg(all(Py_3_7, not(PyPy)))]
+#[cfg(Py_3_7)]
 pub struct _PyDateTime_TimeZone_UTC_impl {
     inner: &'static _PyDateTimeAPI_impl,
 }
 
-#[cfg(all(Py_3_7, not(PyPy)))]
+#[cfg(Py_3_7)]
 impl Deref for _PyDateTime_TimeZone_UTC_impl {
     type Target = crate::PyObject;
 
@@ -661,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_7, not(PyPy)))]
+    #[cfg(Py_3_7)]
     fn test_utc_timezone() {
         Python::with_gil(|py| {
             let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);
