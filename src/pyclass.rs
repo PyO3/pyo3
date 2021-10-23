@@ -83,10 +83,6 @@ where
         slots.push(ffi::Py_tp_free, free as _);
     }
 
-    if let Some(call_meth) = T::get_call() {
-        slots.push(ffi::Py_tp_call, call_meth as _);
-    }
-
     if cfg!(Py_3_9) {
         let members = py_class_members::<T>();
         if !members.is_empty() {

@@ -363,7 +363,6 @@ impl Dummy {
     fn staticmethod() {}
     #[classmethod]
     fn clsmethod(_: &::pyo3::types::PyType) {}
-    #[call]
     #[args(args = "*", kwds = "**")]
     fn __call__(
         &self,

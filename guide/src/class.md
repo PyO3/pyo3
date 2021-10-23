@@ -14,7 +14,6 @@ This chapter will discuss the functionality and configuration these attributes o
   - [`#[setter]`](#object-properties-using-getter-and-setter)
   - [`#[staticmethod]`](#static-methods)
   - [`#[classmethod]`](#class-methods)
-  - [`#[call]`](#callable-objects)
   - [`#[classattr]`](#class-attributes)
   - [`#[args]`](#method-arguments)
 - [`#[pyproto]`](class/protocols.html)
@@ -46,7 +45,7 @@ Custom Python classes can then be added to a module using `add_class()`.
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
-#    #[allow(dead_code)] 
+#    #[allow(dead_code)]
 #    num: i32,
 # }
 #[pymodule]
@@ -613,74 +612,6 @@ impl MyClass {
 }
 ```
 
-## Callable objects
-
-To specify a custom `__call__` method for a custom class, the method needs to be annotated with
-the `#[call]` attribute. Arguments of the method are specified as for instance methods.
-
-The following pyclass is a basic decorator - its constructor takes a Python object
-as argument and calls that object when called.
-
-```rust
-# use pyo3::prelude::*;
-# use pyo3::types::{PyDict, PyTuple};
-#
-#[pyclass(name = "counter")]
-struct PyCounter {
-    count: u64,
-    wraps: Py<PyAny>,
-}
-
-#[pymethods]
-impl PyCounter {
-    #[new]
-    fn __new__(wraps: Py<PyAny>) -> Self {
-        PyCounter { count: 0, wraps }
-    }
-
-    #[call]
-    #[args(args = "*", kwargs = "**")]
-    fn __call__(
-        &mut self,
-        py: Python,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<Py<PyAny>> {
-        self.count += 1;
-        let name = self.wraps.getattr(py, "__name__").unwrap();
-
-        println!("{} has been called {} time(s).", name, self.count);
-        self.wraps.call(py, args, kwargs)
-    }
-}
-```
-
-Python code:
-
-```python
-@counter
-def say_hello():
-    print("hello")
-
-say_hello()
-say_hello()
-say_hello()
-say_hello()
-```
-
-Output:
-
-```text
-say_hello has been called 1 time(s).
-hello
-say_hello has been called 2 time(s).
-hello
-say_hello has been called 3 time(s).
-hello
-say_hello has been called 4 time(s).
-hello
-```
-
 ## Method arguments
 
 By default, PyO3 uses function signatures to determine which arguments are required. Then it scans
@@ -847,11 +778,6 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         use pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.free_impl()
-    }
-    fn get_call() -> Option<pyo3::ffi::PyCFunctionWithKeywords> {
-        use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.call_impl()
     }
     fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
         // Implementation which uses dtolnay specialization to load all slots.

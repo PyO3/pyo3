@@ -71,9 +71,6 @@ pub trait PyClassImpl: Sized {
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
-    fn get_call() -> Option<ffi::PyCFunctionWithKeywords> {
-        None
-    }
     fn get_alloc() -> Option<ffi::allocfunc> {
         None
     }
@@ -94,16 +91,6 @@ pub trait PyClassNewImpl<T> {
 
 impl<T> PyClassNewImpl<T> for &'_ PyClassImplCollector<T> {
     fn new_impl(self) -> Option<ffi::newfunc> {
-        None
-    }
-}
-
-pub trait PyClassCallImpl<T> {
-    fn call_impl(self) -> Option<ffi::PyCFunctionWithKeywords>;
-}
-
-impl<T> PyClassCallImpl<T> for &'_ PyClassImplCollector<T> {
-    fn call_impl(self) -> Option<ffi::PyCFunctionWithKeywords> {
         None
     }
 }
@@ -625,10 +612,13 @@ macro_rules! methods_trait {
 #[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
 pub trait PyMethodsInventory: inventory::Collect {
     /// Create a new instance
-    fn new(methods: Vec<PyMethodDefType>) -> Self;
+    fn new(methods: Vec<PyMethodDefType>, slots: Vec<ffi::PyType_Slot>) -> Self;
 
     /// Returns the methods for a single `#[pymethods] impl` block
-    fn get(&'static self) -> &'static [PyMethodDefType];
+    fn methods(&'static self) -> &'static [PyMethodDefType];
+
+    /// Returns the slots for a single `#[pymethods] impl` block
+    fn slots(&'static self) -> &'static [ffi::PyType_Slot];
 }
 
 /// Implemented for `#[pyclass]` in our proc macro code.
@@ -676,6 +666,7 @@ slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
 slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
 slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
 
+// Protocol slots from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
 slots_trait!(PyMethodsProtocolSlots, methods_protocol_slots);
 

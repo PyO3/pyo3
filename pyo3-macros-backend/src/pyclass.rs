@@ -346,13 +346,20 @@ fn impl_methods_inventory(cls: &syn::Ident) -> TokenStream {
         #[doc(hidden)]
         pub struct #inventory_cls {
             methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>,
+            slots: ::std::vec::Vec<::pyo3::ffi::PyType_Slot>,
         }
         impl ::pyo3::class::impl_::PyMethodsInventory for #inventory_cls {
-            fn new(methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>) -> Self {
-                Self { methods }
+            fn new(
+                methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>,
+                slots: ::std::vec::Vec<::pyo3::ffi::PyType_Slot>,
+            ) -> Self {
+                Self { methods, slots }
             }
-            fn get(&'static self) -> &'static [::pyo3::class::PyMethodDefType] {
+            fn methods(&'static self) -> &'static [::pyo3::class::PyMethodDefType] {
                 &self.methods
+            }
+            fn slots(&'static self) -> &'static [::pyo3::ffi::PyType_Slot] {
+                &self.slots
             }
         }
 
@@ -450,15 +457,12 @@ fn impl_class(
     };
 
     let (impl_inventory, for_each_py_method) = match methods_type {
-        PyClassMethodsType::Specialization => (
-            ::std::option::Option::None,
-            quote! { visitor(collector.py_methods()); },
-        ),
+        PyClassMethodsType::Specialization => (None, quote! { visitor(collector.py_methods()); }),
         PyClassMethodsType::Inventory => (
             Some(impl_methods_inventory(cls)),
             quote! {
                 for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::HasMethodsInventory>::Methods>() {
-                    visitor(::pyo3::class::impl_::PyMethodsInventory::get(inventory));
+                    visitor(::pyo3::class::impl_::PyMethodsInventory::methods(inventory));
                 }
             },
         ),
@@ -466,9 +470,15 @@ fn impl_class(
 
     let methods_protos = match methods_type {
         PyClassMethodsType::Specialization => {
-            Some(quote! { visitor(collector.methods_protocol_slots()); })
+            quote! { visitor(collector.methods_protocol_slots()); }
         }
-        PyClassMethodsType::Inventory => None,
+        PyClassMethodsType::Inventory => {
+            quote! {
+                for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::HasMethodsInventory>::Methods>() {
+                    visitor(::pyo3::class::impl_::PyMethodsInventory::slots(inventory));
+                }
+            }
+        }
     };
 
     let base = &attr.base;
@@ -578,11 +588,6 @@ fn impl_class(
                 use ::pyo3::class::impl_::*;
                 let collector = PyClassImplCollector::<Self>::new();
                 collector.free_impl()
-            }
-            fn get_call() -> ::std::option::Option<::pyo3::ffi::PyCFunctionWithKeywords> {
-                use ::pyo3::class::impl_::*;
-                let collector = PyClassImplCollector::<Self>::new();
-                collector.call_impl()
             }
 
             fn for_each_proto_slot(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::ffi::PyType_Slot])) {

@@ -20,8 +20,7 @@ impl PyClassWithMultiplePyMethods {
 
 #[pymethods]
 impl PyClassWithMultiplePyMethods {
-    #[call]
-    fn call(&self) -> &'static str {
+    fn __call__(&self) -> &'static str {
         "call"
     }
 }

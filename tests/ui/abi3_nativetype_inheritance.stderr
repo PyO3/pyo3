@@ -6,15 +6,15 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
     |
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
 note: required by a bound in `PyClassBaseType`
-   --> src/class/impl_.rs:775:1
+   --> src/class/impl_.rs:766:1
     |
-775 | / pub trait PyClassBaseType: Sized {
-776 | |     type Dict;
-777 | |     type WeakRef;
-778 | |     type LayoutAsBase: PyCellLayout<Self>;
+766 | / pub trait PyClassBaseType: Sized {
+767 | |     type Dict;
+768 | |     type WeakRef;
+769 | |     type LayoutAsBase: PyCellLayout<Self>;
 ...   |
-781 | |     type Initializer: PyObjectInit<Self>;
-782 | | }
+772 | |     type Initializer: PyObjectInit<Self>;
+773 | | }
     | |_^ required by this bound in `PyClassBaseType`
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -26,8 +26,8 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
     |
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
 note: required by a bound in `ThreadCheckerInherited`
-   --> src/class/impl_.rs:762:47
+   --> src/class/impl_.rs:753:47
     |
-762 | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
+753 | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
     |                                               ^^^^^^^^^^^^^^^ required by this bound in `ThreadCheckerInherited`
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

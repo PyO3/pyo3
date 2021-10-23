@@ -6,6 +6,7 @@ pub enum Deprecation {
     PyfnNameArgument,
     PyModuleNameArgument,
     TextSignatureAttribute,
+    CallAttribute,
 }
 
 impl Deprecation {
@@ -15,6 +16,7 @@ impl Deprecation {
             Deprecation::PyfnNameArgument => "PYFN_NAME_ARGUMENT",
             Deprecation::PyModuleNameArgument => "PYMODULE_NAME_ARGUMENT",
             Deprecation::TextSignatureAttribute => "TEXT_SIGNATURE_ATTRIBUTE",
+            Deprecation::CallAttribute => "CALL_ATTRIBUTE",
         };
         syn::Ident::new(string, span)
     }

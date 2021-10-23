@@ -133,7 +133,6 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[getter]`][5] and [`#[setter]`][5] | These define getters and setters, similar to Python's `@property` decorator. This is useful for getters/setters that require computation or side effects; if that is not the case consider using [`#[pyo3(get, set)]`][11] on the struct's field(s).|
 /// | [`#[staticmethod]`][6]| Defines the method as a staticmethod, like Python's `@staticmethod` decorator.|
 /// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
-/// | [`#[call]`][8]  | Allows Python code to call a class instance as a function, like Python's `__call__` method. |
 /// | [`#[classattr]`][9]  | Defines a class variable. |
 /// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
 ///
