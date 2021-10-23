@@ -21,7 +21,7 @@ Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` t
 
 ```toml
 [dependencies.pyo3]
-version = "{{#PYO3_CRATE_VERSION}}"
+{{#PYO3_CRATE_VERSION}}
 
 [features]
 extension-module = ["pyo3/extension-module"]
