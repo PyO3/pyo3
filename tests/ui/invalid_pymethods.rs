@@ -52,12 +52,11 @@ impl MyClass {
     fn text_signature_on_new() {}
 }
 
-// FIXME: this doesn't fail - should refuse text signature on protocol methods in general?
-// #[pymethods]
-// impl MyClass {
-//     #[pyo3(text_signature = "()")]
-//     fn __call__(&self) {}
-// }
+#[pymethods]
+impl MyClass {
+    #[pyo3(text_signature = "()")]
+    fn __call__(&self) {}
+}
 
 #[pymethods]
 impl MyClass {

@@ -227,6 +227,7 @@ pub struct FnSpec<'a> {
     pub doc: PythonDoc,
     pub deprecations: Deprecations,
     pub convention: CallingConvention,
+    pub text_signature: Option<TextSignatureAttribute>,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -309,6 +310,7 @@ impl<'a> FnSpec<'a> {
             output: ty,
             doc,
             deprecations,
+            text_signature,
         })
     }
 
