@@ -62,10 +62,10 @@ jobs:
           for VERSION in ${VERSIONS[@]}; do
             echo "version=$VERSION" > config.txt
             echo "suppress_build_script_link_lines=true" >> config.txt
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "$(make list_all_additive_features)"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3 $(make list_all_additive_features)"
           done
 
   build:
@@ -175,7 +175,7 @@ jobs:
         id: settings
         shell: bash
         run: |
-          echo "::set-output name=all_additive_features::macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow"
+          echo "::set-output name=all_additive_features::$(make list_all_additive_features)"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
@@ -291,7 +291,8 @@ jobs:
           cargo llvm-cov clean --workspace
           cargo llvm-cov --package $ALL_PACKAGES --no-report
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features macros num-bigint num-complex hashbrown indexmap serde multiple-pymethods eyre anyhow
+          cargo llvm-cov --package $ALL_PACKAGES --no-report --features $(make list_all_additive_features)
+          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3 $(make list_all_additive_features)
           cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
         env:
           ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
