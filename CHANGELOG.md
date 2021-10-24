@@ -6,13 +6,14 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.15.0] - 2021-11-03
 
 ### Packaging
 
+- `pyo3`'s `Cargo.toml` now advertises `links = "python"` to inform Cargo that it links against *libpython*. [#1819](https://github.com/PyO3/pyo3/pull/1819)
+- Added optional `anyhow` feature to convert `anyhow::Error` into `PyErr`. [#1822](https://github.com/PyO3/pyo3/pull/1822)
 - Support Python 3.10. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 - Added optional `eyre` feature to convert `eyre::Report` into `PyErr`. [#1893](https://github.com/PyO3/pyo3/pull/1893)
-- Added optional `anyhow` feature to convert `anyhow::Error` into `PyErr`. [#1822](https://github.com/PyO3/pyo3/pull/1822)
 - Support PyPy 3.8. [#1948](https://github.com/PyO3/pyo3/pull/1948)
 
 ### Added
@@ -25,9 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PyMapping` type to represent the Python mapping protocol. [#1844](https://github.com/PyO3/pyo3/pull/1844)
 - Add commonly-used sequence methods to `PyList` and `PyTuple`. [#1849](https://github.com/PyO3/pyo3/pull/1849)
 - Add `as_sequence` methods to `PyList` and `PyTuple`. [#1860](https://github.com/PyO3/pyo3/pull/1860)
+- Add support for magic methods in `#[pymethods]`, intended as a replacement for `#[pyproto]`. [#1864](https://github.com/PyO3/pyo3/pull/1864)
 - Add `abi3-py310` feature. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 - Add `PyCFunction::new_closure` to create a Python function from a Rust closure. [#1901](https://github.com/PyO3/pyo3/pull/1901)
-- Add support for positional-only arguments in `#[pyfunction]` [#1925](https://github.com/PyO3/pyo3/pull/1925)
+- Add support for positional-only arguments in `#[pyfunction]`. [#1925](https://github.com/PyO3/pyo3/pull/1925)
 - Add `PyErr::take` to attempt to fetch a Python exception if present. [#1957](https://github.com/PyO3/pyo3/pull/1957)
 
 ### Changed
@@ -42,10 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `PyTuple::slice`, new method `PyTuple::get_slice` added with `usize` indices. [#1828](https://github.com/PyO3/pyo3/pull/1828)
 - Deprecate FFI definitions `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags` when building for Python 3.9. [#1830](https://github.com/PyO3/pyo3/pull/1830)
 - Mark FFI definitions removed in Python 3.10 `PyParser_ASTFromString`, `PyParser_ASTFromStringObject`, `PyParser_ASTFromFile`, `PyParser_ASTFromFileObject`, `PyParser_SimpleParseStringFlags`, `PyParser_SimpleParseStringFlagsFilename`, `PyParser_SimpleParseFileFlags`, `PyParser_SimpleParseString`, `PyParser_SimpleParseFile`, `Py_SymtableString`, and `Py_SymtableStringObject`. [#1830](https://github.com/PyO3/pyo3/pull/1830)
-- `pyo3`'s `Cargo.toml` now advertises `links = "python"` to inform Cargo that it links against *libpython*. [#1819](https://github.com/PyO3/pyo3/pull/1819)
-- Move Py_DecodeLocale from sysmodule to fileutils. [#1887](https://github.com/PyO3/pyo3/pull/1887)
-- Deprecate `PySys_AddWarnOption`, `PySys_AddWarnOptionUnicode` and `PySys_HasWarnOptions`. [#1887](https://github.com/PyO3/pyo3/pull/1887)
-- Remove function PyTuple_ClearFreeList from python 3.9 above. [#1887](https://github.com/PyO3/pyo3/pull/1887)
+- `#[pymethods]` now handles magic methods similarly to `#[pyproto]`. In the future, `#[pyproto]` may be deprecated. [#1864](https://github.com/PyO3/pyo3/pull/1864)
+- Deprecate FFI definitions `PySys_AddWarnOption`, `PySys_AddWarnOptionUnicode` and `PySys_HasWarnOptions`. [#1887](https://github.com/PyO3/pyo3/pull/1887)
 - Deprecate `#[call]` attribute in favor of using `fn __call__`. [#1929](https://github.com/PyO3/pyo3/pull/1929)
 - Fix missing FFI definition `_PyImport_FindExtensionObject` on Python 3.10. [#1942](https://github.com/PyO3/pyo3/pull/1942)
 - Change `PyErr::fetch` to panic in debug mode if no exception is present. [#1957](https://github.com/PyO3/pyo3/pull/1957)
@@ -55,9 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix building with a conda environment on Windows. [#1873](https://github.com/PyO3/pyo3/pull/1873)
 - Fix panic on Python 3.6 when calling `Python::with_gil` with Python initialized but threading not initialized. [#1874](https://github.com/PyO3/pyo3/pull/1874)
 - Fix incorrect linking to version-specific DLL instead of `python3.dll` when cross-compiling to Windows with `abi3`. [#1880](https://github.com/PyO3/pyo3/pull/1880)
+- Fix FFI definition for `PyTuple_ClearFreeList` incorrectly being present for Python 3.9 and up. [#1887](https://github.com/PyO3/pyo3/pull/1887)
 - Fix panic in generated `#[derive(FromPyObject)]` for enums. [#1888](https://github.com/PyO3/pyo3/pull/1888)
 - Fix cross-compiling to Python 3.7 builds with the "m" abi flag. [#1908](https://github.com/PyO3/pyo3/pull/1908)
 - Fix `__mod__` magic method fallback to `__rmod__`. [#1934](https://github.com/PyO3/pyo3/pull/1934).
+- Fix missing FFI definition `_PyImport_FindExtensionObject` on Python 3.10. [#1942](https://github.com/PyO3/pyo3/pull/1942)
 
 ## [0.14.5] - 2021-09-05
 
@@ -966,7 +968,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.14.5...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/pyo3/pyo3/compare/v0.14.5...v0.15.0
 [0.14.5]: https://github.com/pyo3/pyo3/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/pyo3/pyo3/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pyo3/pyo3/compare/v0.14.2...v0.14.3
