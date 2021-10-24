@@ -40,58 +40,64 @@ error: text_signature not allowed on __new__; if you want to add a signature on 
 51 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
-error: text_signature not allowed with this method type
-  --> tests/ui/invalid_pymethods.rs:65:12
+error: `text_signature` cannot be used with `__call__`
+  --> tests/ui/invalid_pymethods.rs:57:12
    |
-65 |     #[pyo3(text_signature = "()")]
+57 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> tests/ui/invalid_pymethods.rs:72:12
+  --> tests/ui/invalid_pymethods.rs:64:12
    |
-72 |     #[pyo3(text_signature = "()")]
+64 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: text_signature not allowed with this method type
-  --> tests/ui/invalid_pymethods.rs:79:12
+  --> tests/ui/invalid_pymethods.rs:71:12
    |
-79 |     #[pyo3(text_signature = "()")]
+71 |     #[pyo3(text_signature = "()")]
+   |            ^^^^^^^^^^^^^^
+
+error: text_signature not allowed with this method type
+  --> tests/ui/invalid_pymethods.rs:78:12
+   |
+78 |     #[pyo3(text_signature = "()")]
    |            ^^^^^^^^^^^^^^
 
 error: cannot specify a second method type
-  --> tests/ui/invalid_pymethods.rs:86:7
+  --> tests/ui/invalid_pymethods.rs:85:7
    |
-86 |     #[staticmethod]
+85 |     #[staticmethod]
    |       ^^^^^^^^^^^^
 
 error: Python functions cannot have generic type parameters
-  --> tests/ui/invalid_pymethods.rs:92:23
+  --> tests/ui/invalid_pymethods.rs:91:23
    |
-92 |     fn generic_method<T>(value: T) {}
+91 |     fn generic_method<T>(value: T) {}
    |                       ^
 
 error: Python functions cannot have `impl Trait` arguments
-  --> tests/ui/invalid_pymethods.rs:98:48
+  --> tests/ui/invalid_pymethods.rs:97:48
    |
-98 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
+97 |     fn impl_trait_method_first_arg(impl_trait: impl AsRef<PyAny>) {}
    |                                                ^^^^
 
 error: Python functions cannot have `impl Trait` arguments
-   --> tests/ui/invalid_pymethods.rs:103:56
+   --> tests/ui/invalid_pymethods.rs:102:56
     |
-103 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
+102 |     fn impl_trait_method_second_arg(&self, impl_trait: impl AsRef<PyAny>) {}
     |                                                        ^^^^
 
 error: `async fn` is not yet supported for Python functions.
 
 Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and Python. For more information, see https://github.com/PyO3/pyo3/issues/1632
-   --> tests/ui/invalid_pymethods.rs:108:5
+   --> tests/ui/invalid_pymethods.rs:107:5
     |
-108 |     async fn async_method(&self) {}
+107 |     async fn async_method(&self) {}
     |     ^^^^^
 
 error: `pass_module` cannot be used on Python methods
-   --> tests/ui/invalid_pymethods.rs:113:12
+   --> tests/ui/invalid_pymethods.rs:112:12
     |
-113 |     #[pyo3(pass_module)]
+112 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^

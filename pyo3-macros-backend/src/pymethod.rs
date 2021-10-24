@@ -36,13 +36,16 @@ pub fn gen_py_method(
     let method_name = spec.python_name.to_string();
 
     if let Some(slot_def) = pyproto(&method_name) {
+        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
         let slot = slot_def.generate_type_slot(cls, &spec)?;
         return Ok(GeneratedPyMethod::Proto(slot));
     } else if method_name == "__call__" {
+        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
         return Ok(GeneratedPyMethod::Proto(impl_call_slot(cls, spec)?));
     }
 
     if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
+        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
         let proto = slot_fragment_def.generate_pyproto_fragment(cls, &spec)?;
         return Ok(GeneratedPyMethod::SlotTraitImpl(method_name, proto));
     }
@@ -98,6 +101,13 @@ pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
 fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()> {
     if let Some(pass_module) = &options.pass_module {
         bail_spanned!(pass_module.span() => "`pass_module` cannot be used on Python methods");
+    }
+    Ok(())
+}
+
+fn ensure_no_forbidden_protocol_attributes(spec: &FnSpec, method_name: &str) -> syn::Result<()> {
+    if let Some(text_signature) = &spec.text_signature {
+        bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with `{}`", method_name));
     }
     Ok(())
 }
