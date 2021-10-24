@@ -280,7 +280,7 @@ jobs:
           wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
           mv cargo-llvm-cov ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.5
+          CARGO_LLVM_COV_VERSION: 0.1.10
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -295,6 +295,6 @@ jobs:
           cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
         env:
           ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov
