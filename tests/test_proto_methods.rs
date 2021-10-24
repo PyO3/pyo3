@@ -517,7 +517,7 @@ impl DescrCounter {
     fn new() -> Self {
         DescrCounter { count: 0 }
     }
-
+    /// Each access will increase the count
     fn __get__<'a>(
         mut slf: PyRefMut<'a, Self>,
         _instance: &PyAny,
@@ -526,8 +526,13 @@ impl DescrCounter {
         slf.count += 1;
         slf
     }
-    fn __set__(_slf: PyRef<Self>, _instance: &PyAny, mut new_value: PyRefMut<Self>) {
-        new_value.count = _slf.count;
+    /// Allow assigning a new counter to the descriptor, copying the count across
+    fn __set__(&self, _instance: &PyAny, new_value: &mut Self) {
+        new_value.count = self.count;
+    }
+    /// Delete to reset the counter
+    fn __delete__(&mut self, _instance: &PyAny) {
+        self.count = 0;
     }
 }
 
@@ -545,6 +550,8 @@ c.counter # count += 1
 assert c.counter.count == 2
 c.counter = Counter()
 assert c.counter.count == 3
+del c.counter
+assert c.counter.count == 1
 "#
     );
     let globals = PyModule::import(py, "__main__").unwrap().dict();
