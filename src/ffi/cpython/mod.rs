@@ -20,6 +20,7 @@ pub(crate) mod object;
 pub(crate) mod pydebug;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod pylifecycle;
+pub(crate) mod pymem;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
 // skipped sysmodule.h
@@ -44,6 +45,7 @@ pub use self::object::*;
 pub use self::pydebug::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
+pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
 pub use self::tupleobject::*;
