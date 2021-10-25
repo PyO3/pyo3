@@ -38,7 +38,7 @@ assert_approx_eq = "1.1.0"
 # O.3.5 uses the matches! macro, which isn't compatible with Rust 1.41
 criterion = "=0.3.4"
 # half and bitflags use if/match in const fn, which isn't compatible with Rust 1.41
-half = "=1.7.1"
+half = "=1.8.2"
 bitflags = "=1.2.1"
 trybuild = "1.0.49"
 rustversion = "1.0"
