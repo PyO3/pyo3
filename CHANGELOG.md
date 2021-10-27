@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support Python 3.10. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 - Added optional `eyre` feature to convert `eyre::Report` into `PyErr`. [#1893](https://github.com/PyO3/pyo3/pull/1893)
 - Added optional `anyhow` feature to convert `anyhow::Error` into `PyErr`. [#1822](https://github.com/PyO3/pyo3/pull/1822)
+- Support PyPy 3.8. [#1948](https://github.com/PyO3/pyo3/pull/1948)
 
 ### Added
 
