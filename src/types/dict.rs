@@ -88,7 +88,7 @@ impl PyDict {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::api_call_failed(self.py())),
+                _ => Err(PyErr::fetch(self.py())),
             }
         })
     }

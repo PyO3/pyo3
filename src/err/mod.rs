@@ -7,9 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{
-    AsPyPointer, FromPyPointer, IntoPy, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::{AsPyPointer, IntoPy, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -137,15 +135,13 @@ impl PyErr {
 
         let state = if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
             PyErrState::Normalized(PyErrStateNormalized {
-                ptype: unsafe {
-                    Py::from_borrowed_ptr(obj.py(), ffi::PyExceptionInstance_Class(ptr))
-                },
+                ptype: obj.get_type().into(),
                 pvalue: unsafe { Py::from_borrowed_ptr(obj.py(), obj.as_ptr()) },
                 ptraceback: None,
             })
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErrState::FfiTuple {
-                ptype: unsafe { Some(Py::from_borrowed_ptr(obj.py(), ptr)) },
+                ptype: obj.into(),
                 pvalue: None,
                 ptraceback: None,
             }
@@ -218,61 +214,95 @@ impl PyErr {
         unsafe { !ffi::PyErr_Occurred().is_null() }
     }
 
-    /// Retrieves the current error from the Python interpreter's global state.
+    /// Takes the current error from the Python interpreter's global state and clears the global
+    /// state. If no error is set, returns `None`.
     ///
-    /// The error is cleared from the Python interpreter.
-    /// If no error is set, returns a `None`.
+    /// If the error is a `PanicException` (which would have originated from a panic in a pyo3
+    /// callback) then this function will resume the panic.
     ///
-    /// If the error fetched is a `PanicException` (which would have originated from a panic in a
-    /// pyo3 callback) then this function will resume the panic.
-    pub fn fetch(py: Python) -> Option<PyErr> {
-        unsafe {
+    /// Use this function when it is not known if an error should be present. If the error is
+    /// expected to have been set, for example from [PyErr::occurred] or by an error return value
+    /// from a C FFI function, use [PyErr::fetch].
+    pub fn take(py: Python) -> Option<PyErr> {
+        let (ptype, pvalue, ptraceback) = unsafe {
             let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
             let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
             let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
 
-            // If the error indicator is not set, all three variables are set to NULL
-            if ptype.is_null() && pvalue.is_null() && ptraceback.is_null() {
-                return None;
+            // Convert to Py immediately so that any references are freed by early return.
+            let ptype = Py::from_owned_ptr_or_opt(py, ptype);
+            let pvalue = Py::from_owned_ptr_or_opt(py, pvalue);
+            let ptraceback = Py::from_owned_ptr_or_opt(py, ptraceback);
+
+            // A valid exception state should always have a non-null ptype, but the other two may be
+            // null.
+            let ptype = match ptype {
+                Some(ptype) => ptype,
+                None => {
+                    debug_assert!(
+                        pvalue.is_none(),
+                        "Exception type was null but value was not null"
+                    );
+                    debug_assert!(
+                        ptraceback.is_none(),
+                        "Exception type was null but traceback was not null"
+                    );
+                    return None;
+                }
+            };
+
+            (ptype, pvalue, ptraceback)
+        };
+
+        if ptype.as_ptr() == PanicException::type_object(py).as_ptr() {
+            let msg: String = pvalue
+                .as_ref()
+                .and_then(|obj| obj.extract(py).ok())
+                .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
+
+            eprintln!(
+                "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
+            );
+            eprintln!("Python stack trace below:");
+
+            unsafe {
+                use crate::conversion::IntoPyPointer;
+                ffi::PyErr_Restore(ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr());
+                ffi::PyErr_PrintEx(0);
             }
 
-            let err = PyErr::new_from_ffi_tuple(py, ptype, pvalue, ptraceback);
-
-            if ptype == PanicException::type_object(py).as_ptr() {
-                let msg: String = PyAny::from_borrowed_ptr_or_opt(py, pvalue)
-                    .and_then(|obj| obj.extract().ok())
-                    .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
-
-                eprintln!(
-                    "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
-                );
-                eprintln!("Python stack trace below:");
-                err.print(py);
-
-                std::panic::resume_unwind(Box::new(msg))
-            }
-
-            Some(err)
+            std::panic::resume_unwind(Box::new(msg))
         }
+
+        Some(PyErr::from_state(PyErrState::FfiTuple {
+            ptype,
+            pvalue,
+            ptraceback,
+        }))
     }
 
-    /// Retrieves the current error from the Python interpreter's global state.
+    /// Equivalent to [PyErr::take], but when no error is set:
+    ///  - Panics in debug mode.
+    ///  - Returns a `SystemError` in release mode.
     ///
-    /// The error is cleared from the Python interpreter.
-    /// If no error is set, returns a `SystemError` in release mode,
-    /// panics in debug mode.
-    pub(crate) fn api_call_failed(py: Python) -> PyErr {
-        #[cfg(debug_assertions)]
-        {
-            PyErr::fetch(py).expect("error return without exception set")
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            use crate::exceptions::PySystemError;
-
-            PyErr::fetch(py)
-                .unwrap_or_else(|| PySystemError::new_err("error return without exception set"))
+    /// This behavior is consistent with Python's internal handling of what happens when a C return
+    /// value indicates an error occurred but the global error state is empty. (A lack of exception
+    /// should be treated as a bug in the code which returned an error code but did not set an
+    /// exception.)
+    ///
+    /// Use this function when the error is expected to have been set, for example from
+    /// [PyErr::occurred] or by an error return value from a C FFI function.
+    #[cfg_attr(all(debug_assertions, track_caller), track_caller)]
+    #[inline]
+    pub fn fetch(py: Python) -> PyErr {
+        const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
+        match PyErr::take(py) {
+            Some(err) => err,
+            #[cfg(debug_assertions)]
+            None => panic!("{}", FAILED_TO_FETCH),
+            #[cfg(not(debug_assertions))]
+            None => exceptions::PySystemError::new_err(FAILED_TO_FETCH),
         }
     }
 
@@ -307,27 +337,6 @@ impl PyErr {
                 dict,
             ) as *mut ffi::PyTypeObject)
         }
-    }
-
-    /// Create a PyErr from an ffi tuple
-    ///
-    /// # Safety
-    /// - `ptype` must be a pointer to valid Python exception type object.
-    /// - `pvalue` must be a pointer to a valid Python object, or NULL.
-    /// - `ptraceback` must be a pointer to a valid Python traceback object, or NULL.
-    unsafe fn new_from_ffi_tuple(
-        py: Python,
-        ptype: *mut ffi::PyObject,
-        pvalue: *mut ffi::PyObject,
-        ptraceback: *mut ffi::PyObject,
-    ) -> PyErr {
-        // Note: must not panic to ensure all owned pointers get acquired correctly,
-        // and because we mustn't panic in normalize().
-        PyErr::from_state(PyErrState::FfiTuple {
-            ptype: Py::from_owned_ptr_or_opt(py, ptype),
-            pvalue: Py::from_owned_ptr_or_opt(py, pvalue),
-            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
-        })
     }
 
     /// Prints a standard traceback to `sys.stderr`.
@@ -579,7 +588,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {
-        Err(PyErr::api_call_failed(py))
+        Err(PyErr::fetch(py))
     }
 }
 
@@ -596,9 +605,7 @@ mod tests {
 
     #[test]
     fn no_error() {
-        Python::with_gil(|py| {
-            assert!(PyErr::fetch(py).is_none());
-        });
+        assert!(Python::with_gil(PyErr::take).is_none());
     }
 
     #[test]
@@ -608,7 +615,7 @@ mod tests {
             assert!(err.is_instance::<exceptions::PyValueError>(py));
             err.restore(py);
             assert!(PyErr::occurred(py));
-            let err = PyErr::fetch(py).unwrap();
+            let err = PyErr::fetch(py);
             assert!(err.is_instance::<exceptions::PyValueError>(py));
             assert_eq!(err.to_string(), "ValueError: some exception message");
         })
@@ -620,7 +627,7 @@ mod tests {
             let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
             assert!(err.is_instance::<exceptions::PyTypeError>(py));
             err.restore(py);
-            let err = PyErr::fetch(py).unwrap();
+            let err = PyErr::fetch(py);
             assert!(err.is_instance::<exceptions::PyTypeError>(py));
             assert_eq!(
                 err.to_string(),

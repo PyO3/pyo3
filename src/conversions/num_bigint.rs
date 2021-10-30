@@ -108,19 +108,16 @@ macro_rules! bigint_conversion {
             fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
                 let py = ob.py();
                 unsafe {
-                    let num = ffi::PyNumber_Index(ob.as_ptr());
-                    if num.is_null() {
-                        return Err(PyErr::api_call_failed(py));
-                    }
-                    let n_bits = ffi::_PyLong_NumBits(num);
-                    let n_bytes = if n_bits < 0 {
-                        return Err(PyErr::api_call_failed(py));
+                    let num: Py<PyLong> =
+                        Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))?;
+                    let n_bits = ffi::_PyLong_NumBits(num.as_ptr());
+                    let n_bytes = if n_bits == -1 {
+                        return Err(PyErr::fetch(py));
                     } else if n_bits == 0 {
                         0
                     } else {
                         (n_bits as usize - 1 + $is_signed) / 8 + 1
                     };
-                    let num: Py<PyLong> = Py::from_owned_ptr(py, num);
                     if n_bytes <= 128 {
                         let mut buffer = [0; 128];
                         extract(num.as_ref(py), &mut buffer[..n_bytes], $is_signed)?;
