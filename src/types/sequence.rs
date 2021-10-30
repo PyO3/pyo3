@@ -279,7 +279,7 @@ where
     }
 }
 
-#[cfg(feature = "nightly")]
+#[cfg(all(feature = "nightly", not(Py_LIMITED_API)))]
 impl<'source, T> FromPyObject<'source> for Vec<T>
 where
     for<'a> T: FromPyObject<'a> + crate::buffer::Element,
