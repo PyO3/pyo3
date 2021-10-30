@@ -29,7 +29,7 @@ mod min_const_generics {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(all(feature = "nightly", not(Py_LIMITED_API)))]
     impl<'source, T, const N: usize> FromPyObject<'source> for [T; N]
     where
         for<'a> T: Default + FromPyObject<'a> + crate::buffer::Element,
