@@ -21,7 +21,7 @@ impl PySequence {
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch_last_error(self.py()))
         } else {
             Ok(v as usize)
         }
@@ -191,7 +191,7 @@ impl PySequence {
             ffi::PySequence_Count(self.as_ptr(), ptr)
         });
         if r == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch_last_error(self.py()))
         } else {
             Ok(r as usize)
         }
@@ -211,7 +211,7 @@ impl PySequence {
         match r {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(PyErr::api_call_failed(self.py())),
+            _ => Err(PyErr::fetch_last_error(self.py())),
         }
     }
 
@@ -227,7 +227,7 @@ impl PySequence {
             ffi::PySequence_Index(self.as_ptr(), ptr)
         });
         if r == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch_last_error(self.py()))
         } else {
             Ok(r as usize)
         }

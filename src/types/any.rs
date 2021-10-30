@@ -418,7 +418,7 @@ impl PyAny {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
-                return Err(PyErr::api_call_failed(py));
+                return Err(PyErr::fetch_last_error(py));
             }
             let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
@@ -639,7 +639,7 @@ impl PyAny {
     pub fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch_last_error(self.py()))
         } else {
             Ok(v)
         }
@@ -652,7 +652,7 @@ impl PyAny {
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch_last_error(self.py()))
         } else {
             Ok(v as usize)
         }

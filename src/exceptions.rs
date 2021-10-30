@@ -829,7 +829,7 @@ mod tests {
             e.restore(py);
 
             assert_eq!(
-                PyErr::api_call_failed(py).to_string(),
+                PyErr::fetch_last_error(py).to_string(),
                 "UnicodeDecodeError: \'utf-8\' codec can\'t decode byte 0xd8 in position 2: invalid utf-8"
             );
         });

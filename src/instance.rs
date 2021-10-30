@@ -589,7 +589,7 @@ impl<T> Py<T> {
             let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
-                return Err(PyErr::api_call_failed(py));
+                return Err(PyErr::fetch_last_error(py));
             }
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
@@ -656,7 +656,7 @@ impl<T> Py<T> {
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
-            None => Err(PyErr::api_call_failed(py)),
+            None => Err(PyErr::fetch_last_error(py)),
         }
     }
 
@@ -694,7 +694,7 @@ impl<T> Py<T> {
     /// `ptr` must be a pointer to a Python object of type T.
     #[inline]
     pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Self> {
-        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::api_call_failed(py))
+        Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch_last_error(py))
     }
 
     /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.

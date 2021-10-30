@@ -53,7 +53,7 @@ impl<'source> FromPyObject<'source> for f64 {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
         if v == -1.0 && PyErr::occurred(obj.py()) {
-            Err(PyErr::api_call_failed(obj.py()))
+            Err(PyErr::fetch_last_error(obj.py()))
         } else {
             Ok(v)
         }

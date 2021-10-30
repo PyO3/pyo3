@@ -60,7 +60,7 @@ impl<'p> Iterator for &'p PyIterator {
             Some(obj) => Some(Ok(obj)),
             None => {
                 if PyErr::occurred(py) {
-                    Some(Err(PyErr::api_call_failed(py)))
+                    Some(Err(PyErr::fetch_last_error(py)))
                 } else {
                     None
                 }

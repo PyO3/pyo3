@@ -34,6 +34,30 @@ Python::with_gil(|py| {
 });
 ```
 
+### Changes to `PyErr::fetch`
+
+[`PyErr::fetch`] has been changed to return `Option<PyErr>`, to reflect the fact that there may not be any Python exception to fetch.
+
+In many cases an FFI call will return a value which signifies that an exception has occured. Uses of [`PyErr::fetch`] in this case should be replaced with the new API [`PyErr::fetch_last_error`], which assumes an error has occurred and that it is a bug if no error is fetched.
+
+Before:
+
+```rust,ignore
+let ptr = unsafe { ffi::PyObject_GetAttr(obj.as_ptr(), name) };
+if ptr.is_null() {
+    return Err(PyErr::fetch(py));
+}
+```
+
+After:
+
+```rust,ignore
+let ptr = unsafe { ffi::PyObject_GetAttr(obj.as_ptr(), name) };
+if ptr.is_null() {
+    return Err(PyErr::fetch_last_error(py));
+}
+```
+
 ## from 0.13.* to 0.14
 
 ### `auto-initialize` feature is now opt-in
@@ -582,3 +606,5 @@ impl PySequenceProtocol for ByteSequence {
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+[`PyErr::fetch`]: {{#PYO3_DOCS_URL}}/pyo3/err/struct.PyErr.html#method.fetch
+[`PyErr::fetch_last_error`]: {{#PYO3_DOCS_URL}}/pyo3/err/struct.PyErr.html#method.fetch_last_error
