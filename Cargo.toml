@@ -15,23 +15,29 @@ edition = "2018"
 links = "python"
 
 [dependencies]
-cfg-if = { version = "1.0" }
-eyre = {version = ">= 0.4, < 0.7" , optional = true}
-# indoc must stay at 0.3.x for Rust 1.41 compatibility
-indoc = { version = "0.3.6", optional = true }
-inventory = { version = "0.1.4", optional = true }
+cfg-if = "1.0"
 libc = "0.2.62"
 parking_lot = "0.11.0"
-num-bigint = { version = "0.4", optional = true }
-num-complex = { version = ">= 0.2, < 0.5", optional = true }
-# must stay at 0.1.x for Rust 1.41 compatibility
-paste = { version = "0.1.18", optional = true }
+
+# support crates for macros feature
 pyo3-macros = { path = "pyo3-macros", version = "=0.14.5", optional = true }
+# indoc must stay at 0.3.x for Rust 1.41 compatibility
+indoc = { version = "0.3.6", optional = true }
+paste = { version = "0.1.18", optional = true }
 unindent = { version = "0.1.4", optional = true }
+
+# support crate for multiple-pymethods feature
+# must stay at 0.1.x for Rust 1.41 compatibility
+inventory = { version = "0.1.4", optional = true }
+
+# crate integrations that can be added using the eponymous features
+anyhow = { version = "1.0", optional = true }
+eyre = { version = ">= 0.4, < 0.7" , optional = true }
 hashbrown = { version = ">= 0.9, < 0.12", optional = true }
 indexmap = { version = ">= 1.6, < 1.8", optional = true }
-serde = {version = "1.0", optional = true}
-anyhow = { version = "1.0", optional = true }
+num-bigint = { version = "0.4", optional = true }
+num-complex = { version = ">= 0.2, < 0.5", optional = true }
+serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
