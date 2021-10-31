@@ -173,3 +173,25 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     }
     ty
 }
+
+/// Remove lifetime from reference
+pub(crate) fn remove_lifetime(tref: &syn::TypeReference) -> syn::TypeReference {
+    let mut tref = tref.to_owned();
+    tref.lifetime = None;
+    tref
+}
+
+/// Replace `Self` keyword in type with `cls`
+pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
+    match ty {
+        syn::Type::Reference(tref) => replace_self(&mut tref.elem, cls),
+        syn::Type::Path(tpath) => {
+            if let Some(ident) = tpath.path.get_ident() {
+                if ident == "Self" {
+                    *ty = cls.to_owned();
+                }
+            }
+        }
+        _ => {}
+    }
+}
