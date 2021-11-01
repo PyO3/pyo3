@@ -273,8 +273,7 @@ impl<'py> Python<'py> {
     /// The return type from this function, [`GILGuard`], is implemented as a RAII guard
     /// around [`PyGILState_Ensure`]. This means that multiple `acquire_gil()` calls are
     /// allowed, and will not deadlock. However, [`GILGuard`]s must be dropped in the reverse order
-    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
-    /// a panic.
+    /// to acquisition. If PyO3 detects this order is not maintained, it will panic when the out-of-order drop occurs.
     ///
     /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
