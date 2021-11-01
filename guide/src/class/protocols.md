@@ -21,22 +21,40 @@ The magic methods handled by PyO3 are very similar to the standard Python ones o
  - Magic methods for the sequence protocol
 
 When PyO3 handles a magic method, a couple of changes apply compared to other `#[pymethods]`:
-  - The `#[pyo3(text_signature = "...")]` attribute is not allowed
-  - The types of the arguments are fixed according to the magic method
+ - The `#[pyo3(text_signature = "...")]` attribute is not allowed
+ - The signature is restricted to match the magic method
 
-The following sections list of all magic methods PyO3 currently handles:
+The following sections list of all magic methods PyO3 currently handles.  The
+given signatures should be interpreted as follows:
+ - All methods take a receiver as first argument, shown as `<self>`. It can be
+   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<Self>` and
+   `self_: PyRefMut<Self>`, as described [here](../class.md#inheritance).
+ - An optional `Python<'py>` argument is always allowed as the first argument.
+ - Return values can be optionally wrapped in `PyResult`.
+ - `object` means that any type is allowed that can be extracted from a Python
+   object (if argument) or converted to a Python object (if return value).
+ - Other types must match what's given, e.g. `pyo3::basic::CompareOp` for
+   `__richcmp__`'s second argument.
+ - For the comparison and arithmetic methods, extraction errors are not
+   propagated as exceptions, but lead to a return of `NotImplemented`.
+ - For some magic methods, the return values are not restricted by PyO3, but
+   checked by the Python interpreter. For example, `__str__` needs to return a
+   string object.  This is indicated by `object (Python type)`.
+
 
 #### Basic object customization
 
-  - `__str__`
-  - `__repr__`
-  - `__hash__`
-  - `__richcmp__`
-  - `__getattr__`
-  - `__setattr__`
-  - `__delattr__`
-  - `__bool__`
-  - `__call__`
+  - `__str__(<self>) -> object (str)`
+  - `__repr__(<self>) -> object (str)`
+  - `__hash__(<self>) -> isize`
+  - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
+  - `__getattr__(<self>, object) -> object`
+  - `__setattr__(<self>, object, object) -> ()`
+  - `__delattr__(<self>, object) -> ()`
+  - `__bool__(<self>) -> bool`
+
+  - `__call__(<self>, ...) -> object` - here, any argument list can be defined
+    as for normal `pymethods`
 
 ##### Example: Callable objects
 
@@ -105,14 +123,14 @@ hello
 
 #### Iterable objects
 
-  - `__iter__`
-  - `__next__`
+  - `__iter__(<self>) -> object`
+  - `__next__(<self>) -> Option<object> or IterNextOutput` ([see details](#returning-a-value-from-iteration))
 
 #### Awaitable objects
 
-  - `__await__`
-  - `__aiter__`
-  - `__anext__`
+  - `__await__(<self>) -> object`
+  - `__aiter__(<self>) -> object`
+  - `__anext__(<self>) -> Option<object> or IterANextOutput`
 
 #### Sequence types
 
@@ -120,68 +138,68 @@ TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
 
 #### Mapping types
 
-  - `__len__`
-  - `__contains__`
-  - `__getitem__`
-  - `__setitem__`
-  - `__delitem__`
+  - `__len__(<self>) -> usize`
+  - `__contains__(<self>, object) -> bool`
+  - `__getitem__(<self>, object) -> object`
+  - `__setitem__(<self>, object, object) -> ()`
+  - `__delitem__(<self>, object) -> ()`
 
 #### Descriptors
 
-  - `__get__`
-  - `__set__`
-  - `__delete__`
+  - `__get__(<self>, object, object) -> object`
+  - `__set__(<self>, object, object) -> ()`
+  - `__delete__(<self>, object) -> ()`
 
 #### Numeric types
 
-  - `__pos__`
-  - `__neg__`
-  - `__abs__`
-  - `__invert__`
-  - `__index__`
-  - `__int__`
-  - `__float__`
-  - `__iadd__`
-  - `__isub__`
-  - `__imul__`
-  - `__imatmul__`
-  - `__itruediv__`
-  - `__ifloordiv__`
-  - `__imod__`
-  - `__ipow__`
-  - `__ilshift__`
-  - `__irshift__`
-  - `__iand__`
-  - `__ixor__`
-  - `__ior__`
-  - `__add__`
-  - `__radd__`
-  - `__sub__`
-  - `__rsub__`
-  - `__mul__`
-  - `__rmul__`
-  - `__matmul__`
-  - `__rmatmul__`
-  - `__floordiv__`
-  - `__rfloordiv__`
-  - `__truediv__`
-  - `__rtruediv__`
-  - `__divmod__`
-  - `__rdivmod__`
-  - `__mod__`
-  - `__rmod__`
-  - `__lshift__`
-  - `__rlshift__`
-  - `__rshift__`
-  - `__rrshift__`
-  - `__and__`
-  - `__rand__`
-  - `__xor__`
-  - `__rxor__`
-  - `__or__`
-  - `__ror__`
-  - `__pow__`
-  - `__rpow__`
+  - `__pos__(<self>) -> object`
+  - `__neg__(<self>) -> object`
+  - `__abs__(<self>) -> object`
+  - `__invert__(<self>) -> object`
+  - `__index__(<self>) -> object (int)`
+  - `__int__(<self>) -> object (int)`
+  - `__float__(<self>) -> object (float)`
+  - `__iadd__(<self>, object) -> ()`
+  - `__isub__(<self>, object) -> ()`
+  - `__imul__(<self>, object) -> ()`
+  - `__imatmul__(<self>, object) -> ()`
+  - `__itruediv__(<self>, object) -> ()`
+  - `__ifloordiv__(<self>, object) -> ()`
+  - `__imod__(<self>, object) -> ()`
+  - `__ipow__(<self>, object, object) -> ()`
+  - `__ilshift__(<self>, object) -> ()`
+  - `__irshift__(<self>, object) -> ()`
+  - `__iand__(<self>, object) -> ()`
+  - `__ixor__(<self>, object) -> ()`
+  - `__ior__(<self>, object) -> ()`
+  - `__add__(<self>, object) -> object`
+  - `__radd__(<self>, object) -> object`
+  - `__sub__(<self>, object) -> object`
+  - `__rsub__(<self>, object) -> object`
+  - `__mul__(<self>, object) -> object`
+  - `__rmul__(<self>, object) -> object`
+  - `__matmul__(<self>, object) -> object`
+  - `__rmatmul__(<self>, object) -> object`
+  - `__floordiv__(<self>, object) -> object`
+  - `__rfloordiv__(<self>, object) -> object`
+  - `__truediv__(<self>, object) -> object`
+  - `__rtruediv__(<self>, object) -> object`
+  - `__divmod__(<self>, object) -> object`
+  - `__rdivmod__(<self>, object) -> object`
+  - `__mod__(<self>, object) -> object`
+  - `__rmod__(<self>, object) -> object`
+  - `__lshift__(<self>, object) -> object`
+  - `__rlshift__(<self>, object) -> object`
+  - `__rshift__(<self>, object) -> object`
+  - `__rrshift__(<self>, object) -> object`
+  - `__and__(<self>, object) -> object`
+  - `__rand__(<self>, object) -> object`
+  - `__xor__(<self>, object) -> object`
+  - `__rxor__(<self>, object) -> object`
+  - `__or__(<self>, object) -> object`
+  - `__ror__(<self>, object) -> object`
+  - `__pow__(<self>, object, object) -> object`
+  - `__rpow__(<self>, object, object) -> object`
 
 #### Buffer objects
 
