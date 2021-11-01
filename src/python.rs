@@ -15,7 +15,7 @@ use std::os::raw::{c_char, c_int};
 ///
 /// See [Python::version].
 #[derive(Debug)]
-pub struct PythonVersionInfo<'p> {
+pub struct PythonVersionInfo<'py> {
     /// Python major version (e.g. `3`).
     pub major: u8,
     /// Python minor version (e.g. `11`).
@@ -23,14 +23,14 @@ pub struct PythonVersionInfo<'p> {
     /// Python patch version (e.g. `0`).
     pub patch: u8,
     /// Python version suffix, if applicable (e.g. `a0`).
-    pub suffix: Option<&'p str>,
+    pub suffix: Option<&'py str>,
 }
 
-impl<'p> PythonVersionInfo<'p> {
+impl<'py> PythonVersionInfo<'py> {
     /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
     ///
     /// Panics if the string is ill-formatted.
-    fn from_str(version_number_str: &'p str) -> Self {
+    fn from_str(version_number_str: &'py str) -> Self {
         fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
             match version_part.find(|c: char| !c.is_ascii_digit()) {
                 None => (version_part.parse().unwrap(), None),
@@ -99,17 +99,34 @@ impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
     }
 }
 
-/// Marker type that indicates that the GIL is currently held.
+/// A marker token that represents holding the GIL.
 ///
-/// The `Python` struct is a zero-sized marker struct that is required for most Python operations.
-/// This is used to indicate that the operation accesses/modifies the Python interpreter state,
-/// and thus can only be called if the Python interpreter is initialized and the
-/// Python global interpreter lock (GIL) is acquired. The lifetime `'p` represents the lifetime of
-/// holding the lock.
+/// It serves three main purposes:
+/// - It provides a global API for the Python interpreter, such as [`Python::eval`].
+/// - It can be passed to functions that require a proof of holding the GIL, such as
+/// [`Py::clone_ref`].
+/// - Its lifetime represents the scope of holding the GIL which can be used to create Rust
+/// references that are bound to it, such as `&`[`PyAny`].
+///
+/// Note that there are some caveats to using it that you might need to be aware of. See the
+/// [Deadlocks](#deadlocks) and [Releasing and freeing memory](#releasing-and-freeing-memory)
+/// paragraphs for more information about that.
+///
+/// # Obtaining a Python token
+///
+/// The following are the recommended ways to obtain a [`Python`] token, in order of preference:
+/// - In a function or method annotated with [`#[pyfunction]`](crate::pyfunction) or [`#[pymethods]`](crate::pymethods) you can declare it
+/// as a parameter, and PyO3 will pass in the token when Python code calls it.
+/// - If you already have something with a lifetime bound to the GIL, such as `&`[`PyAny`], you can
+/// use its [`.py()`][PyAny::py] method to get a token.
+/// - When you need to acquire the GIL yourself, such as when calling Python code from Rust, you
+/// should call [`Python::with_gil`] to do that and pass your code as a closure to it.
+///
+/// # Deadlocks
 ///
 /// Note that the GIL can be temporarily released by the Python interpreter during a function call
-/// (e.g. importing a module), even when you're holding a GILGuard. In general, you don't need to
-/// worry about this because the GIL is reacquired before returning to the Rust code:
+/// (e.g. importing a module). In general, you don't need to worry about this because the GIL is
+/// reacquired before returning to the Rust code:
 ///
 /// ```text
 /// `Python` exists   |=====================================|
@@ -117,8 +134,7 @@ impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
 /// Rust code running |=======|                |==|  |======|
 /// ```
 ///
-/// This behaviour can cause deadlocks when trying to lock a Rust mutex while
-/// holding the GIL:
+/// This behaviour can cause deadlocks when trying to lock a Rust mutex while holding the GIL:
 ///
 ///  * Thread 1 acquires the GIL
 ///  * Thread 1 locks a mutex
@@ -127,57 +143,63 @@ impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
 ///  * Thread 2 tries to locks the mutex, blocks
 ///  * Thread 1's Python interpreter call blocks trying to reacquire the GIL held by thread 2
 ///
-/// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with
-/// [Python::allow_threads].
+/// To avoid deadlocking, you should release the GIL before trying to lock a mutex or `await`ing in
+/// asynchronous code, e.g. with [`Python::allow_threads`].
 ///
-/// # A note on Python reference counts
+/// # Releasing and freeing memory
 ///
-/// The [`Python`] type can be used to generate references to variables in
-/// Python's memory e.g. using [`Python::eval()`] and indirectly e.g.
-/// using [`PyModule::import()`], which takes a [`Python`] token
-/// as one if its arguments to prove the GIL is held.  The lifetime of these
-/// references is bound to the GIL (more precisely the [`GILPool`], see
-/// [`Python::new_pool()`]), which can cause surprising results with respect to
-/// when a variable's reference count is decreased so that it can be released to
-/// the Python garbage collector.  For example:
+/// The [`Python`] type can be used to create references to variables owned by the Python
+/// interpreter, using functions such as [`Python::eval`] and [`PyModule::import`]. These
+/// references are tied to a [`GILPool`] whose references are not cleared until it is dropped.
+/// This can cause apparent "memory leaks" if it is kept around for a long time.
 ///
 /// ```rust
-/// # use pyo3::prelude::*;
-/// # use pyo3::types::PyString;
+/// use pyo3::prelude::*;
+/// use pyo3::types::PyString;
+///
 /// # fn main () -> PyResult<()> {
 /// Python::with_gil(|py| -> PyResult<()> {
 ///     for _ in 0..10 {
 ///         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
 ///         println!("Python says: {}", hello.to_str()?);
+///         // Normally variables in a loop scope are dropped here, but `hello` is a reference to
+///         // something owned by the Python interpreter. Dropping this reference does nothing.
 ///     }
 ///     Ok(())
 /// })
+/// // This is where the `hello`'s reference counts start getting decremented.
 /// # }
 /// ```
 ///
-/// The variable `hello` is dropped at the end of each loop iteration, but the
-/// lifetime of the pointed-to memory is bound to the [`GILPool`] and will not
-/// be dropped until the [`GILPool`] is dropped at the end of
-/// [`Python::with_gil()`].  Only then is each `hello` variable's Python
-/// reference count decreased.  This means at the last line of the example there
-/// are 10 copies of `hello` in Python's memory, not just one as we might expect
-/// from typical Rust lifetimes.
+/// The variable `hello` is dropped at the end of each loop iteration, but the lifetime of the
+/// pointed-to memory is bound to [`Python::with_gil`]'s [`GILPool`] which will not be dropped until
+/// the end of [`Python::with_gil`]'s scope. Only then is each `hello`'s Python reference count
+/// decreased. This means that at the last line of the example there are 10 copies of `hello` in
+/// Python's memory, not just one at a time as we might expect from Rust's [scoping rules].
+///
+/// See the [Memory Management] chapter of the guide for more information about how PyO3 uses
+/// [`GILPool`] to manage memory.
+///
+/// [scoping rules]: https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html#ownership-rules
+/// [`Py::clone_ref`]: crate::Py::clone_ref
+/// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
-pub struct Python<'p>(PhantomData<&'p GILGuard>);
+pub struct Python<'py>(PhantomData<&'py GILGuard>);
 
 impl Python<'_> {
-    /// Acquires the global interpreter lock, which allows access to the Python runtime. The
-    /// provided closure F will be executed with the acquired `Python` marker token.
+    /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
+    /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
-    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See
-    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
+    /// initialized, this function will initialize it. See [`prepare_freethreaded_python`] for details.
     ///
     /// # Panics
-    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
+    ///
+    /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
     ///
     /// # Examples
+    ///
     /// ```
     /// use pyo3::prelude::*;
     ///
@@ -189,15 +211,18 @@ impl Python<'_> {
     /// })
     /// # }
     /// ```
+    ///
+    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [`prepare_freethreaded_python`]: crate::prepare_freethreaded_python
     #[inline]
     pub fn with_gil<F, R>(f: F) -> R
     where
-        F: for<'p> FnOnce(Python<'p>) -> R,
+        F: for<'py> FnOnce(Python<'py>) -> R,
     {
         f(unsafe { gil::ensure_gil().python() })
     }
 
-    /// Like [Python::with_gil] except Python interpreter state checking is skipped.
+    /// Like [`Python::with_gil`] except Python interpreter state checking is skipped.
     ///
     /// Normally when the GIL is acquired, we check that the Python interpreter is an
     /// appropriate state (e.g. it is fully initialized). This function skips those
@@ -205,117 +230,116 @@ impl Python<'_> {
     ///
     /// # Safety
     ///
-    /// If [Python::with_gil] would succeed, it is safe to call this function.
+    /// If [`Python::with_gil`] would succeed, it is safe to call this function.
     ///
-    /// In most cases, you should use [Python::with_gil].
+    /// In most cases, you should use [`Python::with_gil`].
     ///
     /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [Python::with_gil] would fail before `_Py_InitializeMain()`
+    /// initialization when [`Python::with_gil`] would fail before [`_Py_InitializeMain`]
     /// is called because the interpreter is only partially initialized.
     ///
     /// Behavior in other scenarios is not documented.
+    ///
+    /// [`_Py_InitializeMain`]: crate::ffi::_Py_InitializeMain
     #[inline]
     pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
     where
-        F: for<'p> FnOnce(Python<'p>) -> R,
+        F: for<'py> FnOnce(Python<'py>) -> R,
     {
         f(gil::ensure_gil_unchecked().python())
     }
 }
 
-impl<'p> Python<'p> {
-    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+impl<'py> Python<'py> {
+    /// Acquires the global interpreter lock, allowing access to the Python interpreter.
     ///
-    /// If the `auto-initialize` feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See
-    /// [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
+    /// initialized, this function will initialize it. See [`prepare_freethreaded_python`] for details.
     ///
     /// Most users should not need to use this API directly, and should prefer one of two options:
-    /// 1. When implementing `#[pymethods]` or `#[pyfunction]` add a function argument
-    ///    `py: Python` to receive access to the GIL context in which the function is running.
-    /// 2. Use [`Python::with_gil`](#method.with_gil) to run a closure with the GIL, acquiring
-    ///    only if needed.
-    ///
-    /// **Note:** This return type from this function, `GILGuard`, is implemented as a RAII guard
-    /// around the C-API Python_EnsureGIL. This means that multiple `acquire_gil()` calls are
-    /// allowed, and will not deadlock. However, `GILGuard`s must be dropped in the reverse order
-    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
-    /// an irrecoverable panic.
+    /// 1. If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),  declare `py: Python` as an argument.
+    /// PyO3 will pass in the token to grant access to the GIL context in which the function is running.
+    /// 2. Use [`Python::with_gil`] to run a closure with the GIL, acquiring only if needed.
     ///
     /// # Panics
-    /// - If the `auto-initialize` feature is not enabled and the Python interpreter is not
-    ///   initialized.
+    ///
+    /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
+    /// initialized.
+    /// - If multiple [`GILGuard`]s are not dropped in in the reverse order of acquisition, PyO3
+    /// may panic. It is recommended to use [`Python::with_gil`] instead to avoid this.
+    ///
+    /// # Notes
+    ///
+    /// The return type from this function, [`GILGuard`], is implemented as a RAII guard
+    /// around [`PyGILState_Ensure`]. This means that multiple `acquire_gil()` calls are
+    /// allowed, and will not deadlock. However, [`GILGuard`]s must be dropped in the reverse order
+    /// to acquisition. If PyO3 detects this order is not maintained, it may be forced to begin
+    /// a panic.
+    ///
+    /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
+    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [`prepare_freethreaded_python`]: crate::prepare_freethreaded_python
     #[inline]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()
     }
 
-    /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
+    /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
+    /// reacquired when `F`'s scope ends.
     ///
-    /// # Examples
+    /// If you don't need to touch the Python
+    /// interpreter for some time and have other Python threads around, this will let you run
+    /// Rust-only code while letting those other Python threads make progress.
+    ///
+    /// The closure is impermeable to types that are tied to holding the GIL, such as `&`[`PyAny`]
+    /// and its concrete-typed siblings like `&`[`PyString`]. This is achieved via the [`Send`]
+    /// bound on the closure and the return type. This is slightly
+    /// more restrictive than necessary, but it's the most fitting solution available in stable
+    /// Rust. In the future this bound may be relaxed by using an "auto-trait" instead, if
+    /// [auto-traits] ever become a stable feature of the Rust language.
+    ///
+    /// If you need to pass Python objects into the closure you can use [`Py`]`<T>`to create a
+    /// reference independent of the GIL lifetime. However, you cannot do much with those without a
+    /// [`Python`] token, for which you'd need to reacquire the GIL.
+    ///
+    /// # Example: Releasing the GIL while running a computation in Rust-only code
     ///
     /// ```
-    /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict;
-    /// use pyo3::exceptions::PyRuntimeError;
+    /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
-    /// fn parallel_count(py: Python<'_>, strings: Vec<String>, query: String) -> PyResult<usize> {
-    ///     let query = query.chars().next().unwrap();
+    /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<usize> {
+    ///     // We release the GIL here so any other Python threads get a chance to run.
     ///     py.allow_threads(move || {
-    ///         let threads: Vec<_> = strings
-    ///             .into_iter()
-    ///             .map(|s| std::thread::spawn(move || s.chars().filter(|&c| c == query).count()))
-    ///             .collect();
-    ///         let mut sum = 0;
-    ///         for t in threads {
-    ///             sum += t.join().map_err(|_| PyRuntimeError::new_err(()))?;
-    ///         }
+    ///         // An example of an "expensive" Rust calculation
+    ///         let sum = numbers.iter().sum();
+    ///   
     ///         Ok(sum)
     ///     })
     /// }
-    ///
-    /// Python::with_gil(|py| {
-    ///     let m = PyModule::new(py, "pcount").unwrap();
-    ///     m.add_function(wrap_pyfunction!(parallel_count, m).unwrap())
-    ///         .unwrap();
-    ///     let locals = [("pcount", m)].into_py_dict(py);
-    ///     pyo3::py_run!(
-    ///         py,
-    ///         *locals,
-    ///         r#"
-    ///         s = ["Flow", "my", "tears", "the", "Policeman", "Said"]
-    ///         assert pcount.parallel_count(s, "a") == 3
-    ///     "#
-    ///     );
-    /// });
     /// ```
     ///
-    /// **Note:**
-    /// PyO3 types that represent objects with a lifetime tied to holding the GIL
-    /// cannot be used in the closure.  This includes `&PyAny` and all the
-    /// concrete-typed siblings, like `&PyString`.
+    /// Please see the [Parallelism] chapter of the guide for a thorough discussion of using
+    /// [`Python::allow_threads`] in this manner.
     ///
-    /// This is achieved via the `Send` bound on the closure and the return type. This is slightly
-    /// more restrictive than necessary, but it's the most fitting solution available in stable
-    /// Rust. In the future this bound may be relaxed by a new "auto-trait", if auto-traits
-    /// become a stable feature of the Rust language.
+    /// # Example: Passing borrowed Python references into the closure is not allowed
     ///
-    /// You can convert such references to e.g. `PyObject` or `Py<PyString>`,
-    /// which makes them independent of the GIL lifetime.  However, you cannot
-    /// do much with those without a `Python<'p>` token, for which you'd need to
-    /// reacquire the GIL.
-    ///
-    /// # Examples
     /// ```compile_fail
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyString;
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyString;
+    ///
     /// fn parallel_print(py: Python<'_>) {
-    ///     let s = PyString::new(py, "This object should not be shared >_<");
+    ///     let s = PyString::new(py, "This object cannot be accessed without holding the GIL >_<");
     ///     py.allow_threads(move || {
     ///         println!("{:?}", s); // This causes a compile error.
     ///     });
     /// }
     /// ```
+    ///
+    /// [`Py`]: crate::Py
+    /// [`PyString`]: crate::types::PyString
+    /// [auto-traits]: https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
+    /// [Parallelism]: https://pyo3.rs/main/parallelism.html
     pub fn allow_threads<T, F>(self, f: F) -> T
     where
         F: Send + FnOnce() -> T,
@@ -363,7 +387,7 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'py PyAny> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -423,7 +447,7 @@ impl<'p> Python<'p> {
         start: c_int,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'py PyAny> {
         let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -448,7 +472,7 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type `T`.
-    pub fn get_type<T>(self) -> &'p PyType
+    pub fn get_type<T>(self) -> &'py PyType
     where
         T: PyTypeObject,
     {
@@ -456,7 +480,7 @@ impl<'p> Python<'p> {
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import(self, name: &str) -> PyResult<&'p PyModule> {
+    pub fn import(self, name: &str) -> PyResult<&'py PyModule> {
         PyModule::import(self, name)
     }
 
@@ -476,8 +500,6 @@ impl<'p> Python<'p> {
 
     /// Gets the running Python interpreter version as a string.
     ///
-    /// This is a wrapper around the ffi call Py_GetVersion.
-    ///
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
@@ -487,7 +509,7 @@ impl<'p> Python<'p> {
     ///     assert!(py.version().starts_with("3."));
     /// });
     /// ```
-    pub fn version(self) -> &'p str {
+    pub fn version(self) -> &'py str {
         unsafe {
             CStr::from_ptr(ffi::Py_GetVersion() as *const c_char)
                 .to_str()
@@ -507,7 +529,7 @@ impl<'p> Python<'p> {
     ///     assert!(py.version_info() >= (3, 6, 0));
     /// });
     /// ```
-    pub fn version_info(self) -> PythonVersionInfo<'p> {
+    pub fn version_info(self) -> PythonVersionInfo<'py> {
         let version_str = self.version();
 
         // Portion of the version string returned by Py_GetVersion up to the first space is the
@@ -518,9 +540,9 @@ impl<'p> Python<'p> {
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
+    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'py T, PyDowncastError<'py>>
     where
-        T: PyTryFrom<'p>,
+        T: PyTryFrom<'py>,
     {
         let any: &PyAny = unsafe { self.from_owned_ptr(obj.into_ptr()) };
         <T as PyTryFrom>::try_from(any)
@@ -532,7 +554,7 @@ impl<'p> Python<'p> {
     /// # Safety
     ///
     /// Callers must ensure that ensure that the cast is valid.
-    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
+    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'py T
     where
         T: PyNativeType + PyTypeInfo,
     {
@@ -547,9 +569,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
+    pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_owned_ptr(self, ptr)
     }
@@ -563,9 +585,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
+    pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
@@ -579,9 +601,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
+    pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
@@ -594,9 +616,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
+    pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'py T
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_borrowed_ptr(self, ptr)
     }
@@ -609,9 +631,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
+    pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'py T>
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_borrowed_ptr_or_err(self, ptr)
     }
@@ -624,9 +646,9 @@ impl<'p> Python<'p> {
     ///
     /// Callers must ensure that ensure that the cast is valid.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
+    pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'py T>
     where
-        T: FromPyPointer<'p>,
+        T: FromPyPointer<'py>,
     {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
@@ -634,7 +656,7 @@ impl<'p> Python<'p> {
     /// Lets the Python interpreter check and handle any pending signals. This will invoke the
     /// corresponding signal handlers registered in Python (if any).
     ///
-    /// Returns `Err(PyErr)` if any signal handler raises an exception.
+    /// Returns `Err(`[`PyErr`]`)` if any signal handler raises an exception.
     ///
     /// These signals include `SIGINT` (normally raised by CTRL + C), which by default raises
     /// `KeyboardInterrupt`. For this reason it is good practice to call this function regularly
@@ -651,7 +673,8 @@ impl<'p> Python<'p> {
     /// fn loop_forever(py: Python) -> PyResult<()> {
     ///     loop {
     ///         // As this loop is infinite it should check for signals every once in a while.
-    ///         // Using `?` causes any `PyErr` (potentially containing `KeyboardInterrupt`) to break out of the loop.
+    ///         // Using `?` causes any `PyErr` (potentially containing `KeyboardInterrupt`)
+    ///         // to break out of the loop.
     ///         py.check_signals()?;
     ///
     ///         // do work here
@@ -662,6 +685,7 @@ impl<'p> Python<'p> {
     /// ```
     ///
     /// # Note
+    ///
     /// This function calls [`PyErr_CheckSignals()`][1] which in turn may call signal handlers.
     /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
     /// function allows arbitary Python code inside signal handlers to run.
@@ -674,17 +698,18 @@ impl<'p> Python<'p> {
     }
 
     /// Retrieves a Python instance under the assumption that the GIL is already
-    /// acquired at this point, and stays acquired for the lifetime `'p`.
+    /// acquired at this point, and stays acquired for the lifetime `'py`.
     ///
-    /// Because the output lifetime `'p` is not connected to any input parameter,
-    /// care must be taken that the compiler infers an appropriate lifetime for `'p`
+    /// Because the output lifetime `'py` is not connected to any input parameter,
+    /// care must be taken that the compiler infers an appropriate lifetime for `'py`
     /// when calling this function.
     ///
     /// # Safety
-    /// The lifetime `'p` must be shorter than the period you *assume* that you have GIL.
+    ///
+    /// The lifetime `'py` must be shorter than the period you *assume* that you have GIL.
     /// I.e., `Python<'static>` is always *really* unsafe.
     #[inline]
-    pub unsafe fn assume_gil_acquired() -> Python<'p> {
+    pub unsafe fn assume_gil_acquired() -> Python<'py> {
         Python(PhantomData)
     }
 
@@ -694,8 +719,8 @@ impl<'p> Python<'p> {
     /// all have their Python reference counts decremented, potentially allowing Python to drop
     /// the corresponding Python objects.
     ///
-    /// Typical usage of PyO3 will not need this API, as `Python::acquire_gil` automatically
-    /// creates a `GILPool` where appropriate.
+    /// Typical usage of PyO3 will not need this API, as [`Python::with_gil`] and
+    /// [`Python::acquire_gil`] automatically create a `GILPool` where appropriate.
     ///
     /// Advanced uses of PyO3 which perform long-running tasks which never free the GIL may need
     /// to use this API to clear memory, as PyO3 usually does not clear memory until the GIL is
@@ -729,7 +754,7 @@ impl<'p> Python<'p> {
     ///
     /// Two best practices are required when using this API:
     /// - From the moment `new_pool()` is called, only the `Python` token from the returned
-    ///   `GILPool` (accessible using `.python()`) should be used in PyO3 APIs. All other older
+    ///   `GILPool` (accessible using [`.python()`]) should be used in PyO3 APIs. All other older
     ///   `Python` tokens with longer lifetimes are unsafe to use until the `GILPool` is dropped,
     ///   because they can be used to create PyO3 owned references which have lifetimes which
     ///   outlive the `GILPool`.
@@ -740,6 +765,8 @@ impl<'p> Python<'p> {
     ///   safe for reasons discussed above. Care must be taken to never access these return values
     ///   after the `GILPool` is dropped, unless they are converted to `Py<T>` *before* the pool
     ///   is dropped.
+    ///
+    /// [`.python()`]: crate::GILPool::python
     #[inline]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()

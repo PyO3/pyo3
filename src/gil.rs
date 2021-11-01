@@ -357,6 +357,12 @@ unsafe impl Sync for ReferencePool {}
 static POOL: ReferencePool = ReferencePool::new();
 
 /// A RAII pool which PyO3 uses to store owned Python references.
+///
+/// See the [Memory Management] chapter of the guide for more information about how PyO3 uses
+/// [`GILPool`] to manage memory.
+
+///
+/// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[allow(clippy::upper_case_acronyms)]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
@@ -366,13 +372,14 @@ pub struct GILPool {
 }
 
 impl GILPool {
-    /// Creates a new `GILPool`. This function should only ever be called with the GIL held.
+    /// Creates a new [`GILPool`]. This function should only ever be called with the GIL held.
     ///
-    /// It is recommended not to use this API directly, but instead to use `Python::new_pool`, as
+    /// It is recommended not to use this API directly, but instead to use [`Python::new_pool`], as
     /// that guarantees the GIL is held.
     ///
     /// # Safety
-    /// As well as requiring the GIL, see the notes on `Python::new_pool`.
+    ///
+    /// As well as requiring the GIL, see the safety notes on [`Python::new_pool`].
     #[inline]
     pub unsafe fn new() -> GILPool {
         increment_gil_count();
@@ -384,7 +391,7 @@ impl GILPool {
         }
     }
 
-    /// Get the Python token associated with this `GILPool`.
+    /// Gets the Python token associated with this [`GILPool`].
     pub fn python(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
