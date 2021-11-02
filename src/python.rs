@@ -263,7 +263,13 @@ impl<'py> Python<'py> {
     /// Acquires the global interpreter lock, allowing access to the Python interpreter.
     ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See [`prepare_freethreaded_python`] for details.
+    /// initialized, this function will initialize it. See
+    #[cfg_attr(
+        not(PyPy),
+        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
+    )]
+    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
+    /// for details.
     ///
     /// Most users should not need to use this API directly, and should prefer one of two options:
     /// 1. If implementing [`#[pymethods]`](crate::pymethods) or [`#[pyfunction]`](crate::pyfunction),  declare `py: Python` as an argument.
@@ -286,7 +292,6 @@ impl<'py> Python<'py> {
     ///
     /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
-    /// [`prepare_freethreaded_python`]: crate::prepare_freethreaded_python
     #[inline]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()
