@@ -191,7 +191,13 @@ impl Python<'_> {
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
     /// If the [`auto-initialize`] feature is enabled and the Python runtime is not already
-    /// initialized, this function will initialize it. See [`prepare_freethreaded_python`] for details.
+    /// initialized, this function will initialize it. See
+    #[cfg_attr(
+        not(PyPy),
+        doc = "[`prepare_freethreaded_python`](crate::prepare_freethreaded_python)"
+    )]
+    #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
+    /// for details.
     ///
     /// # Panics
     ///
@@ -213,7 +219,6 @@ impl Python<'_> {
     /// ```
     ///
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
-    /// [`prepare_freethreaded_python`]: crate::prepare_freethreaded_python
     #[inline]
     pub fn with_gil<F, R>(f: F) -> R
     where
@@ -235,12 +240,16 @@ impl Python<'_> {
     /// In most cases, you should use [`Python::with_gil`].
     ///
     /// A justified scenario for calling this function is during multi-phase interpreter
-    /// initialization when [`Python::with_gil`] would fail before [`_Py_InitializeMain`]
+    /// initialization when [`Python::with_gil`] would fail before
+    // this link is only valid on 3.8+not pypy and up.
+    #[cfg_attr(
+        all(Py_3_8, not(PyPy)),
+        doc = "[`_Py_InitializeMain`](crate::ffi::_Py_InitializeMain)"
+    )]
+    #[cfg_attr(any(not(Py_3_8), PyPy), doc = "`_Py_InitializeMain`")]
     /// is called because the interpreter is only partially initialized.
     ///
     /// Behavior in other scenarios is not documented.
-    ///
-    /// [`_Py_InitializeMain`]: crate::ffi::_Py_InitializeMain
     #[inline]
     pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
     where
@@ -307,7 +316,7 @@ impl<'py> Python<'py> {
     /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
-    /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<usize> {
+    /// fn sum_numbers(py: Python<'_>, numbers: Vec<u32>) -> PyResult<u32> {
     ///     // We release the GIL here so any other Python threads get a chance to run.
     ///     py.allow_threads(move || {
     ///         // An example of an "expensive" Rust calculation
@@ -316,6 +325,15 @@ impl<'py> Python<'py> {
     ///         Ok(sum)
     ///     })
     /// }
+    /// #
+    /// # fn main() -> PyResult<()> {
+    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #         let fun = pyo3::wrap_pyfunction!(sum_numbers, py)?;
+    /// #         let res = fun.call1((vec![1_u32, 2, 3],))?;
+    /// #         assert_eq!(res.extract::<u32>()?, 6_u32);
+    /// #         Ok(())
+    /// #     })
+    /// # }
     /// ```
     ///
     /// Please see the [Parallelism] chapter of the guide for a thorough discussion of using
