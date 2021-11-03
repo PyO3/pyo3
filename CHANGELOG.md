@@ -28,10 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `abi3-py310` feature. [#1889](https://github.com/PyO3/pyo3/pull/1889)
 - Add `PyCFunction::new_closure` to create a Python function from a Rust closure. [#1901](https://github.com/PyO3/pyo3/pull/1901)
 - Add support for positional-only arguments in `#[pyfunction]` [#1925](https://github.com/PyO3/pyo3/pull/1925)
+- Add `PyErr::take` to attempt to fetch a Python exception if present. [#1957](https://github.com/PyO3/pyo3/pull/1957)
 
 ### Changed
 
-- Change `PyErr::fetch` to return `Option<PyErr>`. [#1717](https://github.com/PyO3/pyo3/pull/1717)
 - `PyList`, `PyTuple` and `PySequence`'s APIs now accepts only `usize` indices instead of `isize`.
   [#1733](https://github.com/PyO3/pyo3/pull/1733), [#1802](https://github.com/PyO3/pyo3/pull/1802),
   [#1803](https://github.com/PyO3/pyo3/pull/1803)
@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove function PyTuple_ClearFreeList from python 3.9 above. [#1887](https://github.com/PyO3/pyo3/pull/1887)
 - Deprecate `#[call]` attribute in favor of using `fn __call__`. [#1929](https://github.com/PyO3/pyo3/pull/1929)
 - Fix missing FFI definition `_PyImport_FindExtensionObject` on Python 3.10. [#1942](https://github.com/PyO3/pyo3/pull/1942)
+- Change `PyErr::fetch` to panic in debug mode if no exception is present. [#1957](https://github.com/PyO3/pyo3/pull/1957)
 
 ### Fixed
 

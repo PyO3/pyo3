@@ -116,13 +116,13 @@ impl PyModule {
         unsafe {
             let cptr = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
             if cptr.is_null() {
-                return Err(PyErr::api_call_failed(py));
+                return Err(PyErr::fetch(py));
             }
 
             let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
             ffi::Py_DECREF(cptr);
             if mptr.is_null() {
-                return Err(PyErr::api_call_failed(py));
+                return Err(PyErr::fetch(py));
             }
 
             <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
@@ -163,7 +163,7 @@ impl PyModule {
     pub fn name(&self) -> PyResult<&str> {
         let ptr = unsafe { ffi::PyModule_GetName(self.as_ptr()) };
         if ptr.is_null() {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch(self.py()))
         } else {
             let name = unsafe { CStr::from_ptr(ptr) }
                 .to_str()

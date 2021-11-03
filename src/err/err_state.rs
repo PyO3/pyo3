@@ -23,7 +23,7 @@ pub(crate) enum PyErrState {
         pvalue: Box<dyn FnOnce(Python) -> PyObject + Send + Sync>,
     },
     FfiTuple {
-        ptype: Option<PyObject>,
+        ptype: PyObject,
         pvalue: Option<PyObject>,
         ptraceback: Option<PyObject>,
     },

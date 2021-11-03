@@ -143,19 +143,22 @@ macro_rules! complex_conversion {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
-                    if val.real == -1.0 && PyErr::occurred(obj.py()) {
-                        Err(PyErr::api_call_failed(obj.py()))
-                    } else {
-                        Ok(Complex::new(val.real as $float, val.imag as $float))
+                    if val.real == -1.0 {
+                        if let Some(err) = PyErr::take(obj.py()) {
+                            return Err(err);
+                        }
                     }
+                    Ok(Complex::new(val.real as $float, val.imag as $float))
                 }
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 unsafe {
                     let ptr = obj.as_ptr();
                     let real = ffi::PyComplex_RealAsDouble(ptr);
-                    if real == -1.0 && PyErr::occurred(obj.py()) {
-                        return Err(PyErr::api_call_failed(obj.py()));
+                    if real == -1.0 {
+                        if let Some(err) = PyErr::take(obj.py()) {
+                            return Err(err);
+                        }
                     }
                     let imag = ffi::PyComplex_ImagAsDouble(ptr);
                     Ok(Complex::new(real as $float, imag as $float))

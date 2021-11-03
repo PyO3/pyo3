@@ -474,7 +474,7 @@ impl<'py> Python<'py> {
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
             if mptr.is_null() {
-                return Err(PyErr::api_call_failed(self));
+                return Err(PyErr::fetch(self));
             }
 
             let globals = globals
@@ -484,7 +484,7 @@ impl<'py> Python<'py> {
 
             let code_obj = ffi::Py_CompileString(code.as_ptr(), "<string>\0".as_ptr() as _, start);
             if code_obj.is_null() {
-                return Err(PyErr::api_call_failed(self));
+                return Err(PyErr::fetch(self));
             }
             let res_ptr = ffi::PyEval_EvalCode(code_obj, globals, locals);
             ffi::Py_DECREF(code_obj);

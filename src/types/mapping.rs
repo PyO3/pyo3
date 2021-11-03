@@ -20,7 +20,7 @@ impl PyMapping {
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::api_call_failed(self.py()))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(v as usize)
         }
