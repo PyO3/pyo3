@@ -5,9 +5,39 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.15.* to 0.16
 
-### Drop support for older technogies
+### Drop support for older technologies
 
 PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables ore use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+
+### Container magic methods now match Python behavior
+
+In PyO3 0.15, `__getitem__`, `__setitem__` and `__delitem__` in `#[pymethods]` would generate only the _mapping_ implementation for a `#[pyclass]`. To match the Python behavior, these methods now generate both the _mapping_ **and** _sequence_ implementations.
+
+This means that classes implementing these `#[pymethods]` will now also be treated as sequences, same as a Python `class` would be. Small differences in behavior may result:
+ - PyO3 will allow instances of these classes to be cast to `PySequence` as well as `PyMapping`.
+ - Python will provide a default implementation of `__iter__` (if the class did not have one) which repeatedly calls `__getitem__` with integers (starting at 0) until an `IndexError` is raised.
+
+To explain this in detail, consider the following Python class:
+
+```python
+class ExampleContainer:
+
+    def __len__(self):
+        return 5
+
+    def __getitem__(self, idx: int) -> int:
+        if idx < 0 or idx > 5:
+            raise IndexError()
+        return idx
+```
+
+This class implements a Python [sequence](https://docs.python.org/3/glossary.html#term-sequence).
+
+The `__len__` and `__getitem__` methods are also used to implement a Python [mapping](https://docs.python.org/3/glossary.html#term-mapping). In the Python C-API, these methods are not shared: the sequence `__len__` and `__getitem__` are defined by the `sq_len` and `sq_item` slots, and the mapping equivalents are `mp_len` and `mp_subscript`. There are similar distinctions for `__setitem__` and `__delitem__`.
+
+Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_len` and `mp_len` slots filled.
+
+The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
 
 ## from 0.14.* to 0.15
 

@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PyErr::new_type` now takes an optional docstring and now returns `PyResult<Py<PyType>>` rather than a `ffi::PyTypeObject` pointer.
 - The `create_exception!` macro can now take an optional docstring. This docstring, if supplied, is visible to users (with `.__doc__` and `help()`) and
   accompanies your error type in your crate's documentation.
+- `__getitem__`, `__setitem__` and `__delitem__` in `#[pymethods]` now implement both a Python mapping and sequence by default. [#2065](https://github.com/PyO3/pyo3/pull/2065)
 - Improve performance and error messages for `#[derive(FromPyObject)]` for enums. [#2068](https://github.com/PyO3/pyo3/pull/2068)
 - Reduce generated LLVM code size (to improve compile times) for:
   - internal `handle_panic` helper [#2074](https://github.com/PyO3/pyo3/pull/2074)

@@ -9,7 +9,12 @@ use crate::{
     type_object::{PyLayout, PyTypeObject},
     PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
-use std::{marker::PhantomData, os::raw::c_void, ptr::NonNull, thread};
+use std::{
+    marker::PhantomData,
+    os::raw::{c_int, c_void},
+    ptr::NonNull,
+    thread,
+};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
 /// applied to apply implementations from `#[pymethods]` & `#[pyproto]`
@@ -779,4 +784,35 @@ pub(crate) unsafe extern "C" fn fallback_new(
 /// Implementation of tp_dealloc for all pyclasses
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
     crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
+}
+
+pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(
+    obj: *mut ffi::PyObject,
+    index: ffi::Py_ssize_t,
+) -> *mut ffi::PyObject {
+    let index = ffi::PyLong_FromSsize_t(index);
+    if index.is_null() {
+        return std::ptr::null_mut();
+    }
+    let result = ffi::PyObject_GetItem(obj, index);
+    ffi::Py_DECREF(index);
+    result
+}
+
+pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
+    obj: *mut ffi::PyObject,
+    index: ffi::Py_ssize_t,
+    value: *mut ffi::PyObject,
+) -> c_int {
+    let index = ffi::PyLong_FromSsize_t(index);
+    if index.is_null() {
+        return -1;
+    }
+    let result = if value.is_null() {
+        ffi::PyObject_DelItem(obj, index)
+    } else {
+        ffi::PyObject_SetItem(obj, index, value)
+    };
+    ffi::Py_DECREF(index);
+    result
 }

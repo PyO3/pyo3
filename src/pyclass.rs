@@ -1,6 +1,9 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
+    class::impl_::{
+        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
+        tp_dealloc, PyClassImpl,
+    },
     ffi,
     impl_::pyclass::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -114,28 +117,35 @@ unsafe fn create_type_object_impl(
         }
     }
 
+    let PyClassInfo {
+        method_defs,
+        property_defs,
+    } = method_defs_to_pyclass_info(for_each_method_def, dict_offset.is_none());
+
     // normal methods
-    let methods = py_class_method_defs(for_each_method_def);
-    if !methods.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(methods));
+    if !method_defs.is_empty() {
+        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(method_defs));
     }
 
     // properties
-    let props = py_class_properties(dict_offset.is_none(), for_each_method_def);
-    if !props.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(props));
+    if !property_defs.is_empty() {
+        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(property_defs));
     }
 
     // protocol methods
+    let mut has_getitem = false;
+    let mut has_setitem = false;
     let mut has_gc_methods = false;
+
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
     let mut buffer_procs: ffi::PyBufferProcs = Default::default();
 
     for_each_proto_slot(&mut |proto_slots| {
         for slot in proto_slots {
+            has_getitem |= slot.slot == ffi::Py_mp_subscript;
+            has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
             has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
-
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             if slot.slot == ffi::Py_bf_getbuffer {
                 // Safety: slot.pfunc is a valid function pointer
@@ -151,7 +161,31 @@ unsafe fn create_type_object_impl(
         slots.extend_from_slice(proto_slots);
     });
 
+    // If mapping methods implemented, define sequence methods get implemented too.
+    // CPython does the same for Python `class` statements.
+
+    // NB we don't implement sq_length to avoid annoying CPython behaviour of automatically adding
+    // the length to negative indices.
+
+    if has_getitem {
+        push_slot(
+            &mut slots,
+            ffi::Py_sq_item,
+            get_sequence_item_from_mapping as _,
+        );
+    }
+
+    if has_setitem {
+        push_slot(
+            &mut slots,
+            ffi::Py_sq_ass_item,
+            assign_sequence_item_from_mapping as _,
+        );
+    }
+
+    // Add empty sentinel at the end
     push_slot(&mut slots, 0, ptr::null_mut());
+
     let mut spec = ffi::PyType_Spec {
         name: py_class_qualified_name(module_name, name)?,
         basicsize: basicsize as c_int,
@@ -282,26 +316,76 @@ fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uin
     flags.try_into().unwrap()
 }
 
-fn py_class_method_defs(
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-) -> Vec<ffi::PyMethodDef> {
-    let mut defs = Vec::new();
+struct PyClassInfo {
+    method_defs: Vec<ffi::PyMethodDef>,
+    property_defs: Vec<ffi::PyGetSetDef>,
+}
 
-    for_each_method_def(&mut |method_defs| {
-        defs.extend(method_defs.iter().filter_map(|def| match def {
-            PyMethodDefType::Method(def)
-            | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => Some(def.as_method_def().unwrap()),
-            _ => None,
-        }));
+fn method_defs_to_pyclass_info(
+    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+    has_dict: bool,
+) -> PyClassInfo {
+    let mut method_defs = Vec::new();
+    let mut property_defs_map = std::collections::HashMap::new();
+
+    for_each_method_def(&mut |class_method_defs| {
+        for def in class_method_defs {
+            match def {
+                PyMethodDefType::Getter(getter) => {
+                    getter.copy_to(
+                        property_defs_map
+                            .entry(getter.name)
+                            .or_insert(PY_GET_SET_DEF_INIT),
+                    );
+                }
+                PyMethodDefType::Setter(setter) => {
+                    setter.copy_to(
+                        property_defs_map
+                            .entry(setter.name)
+                            .or_insert(PY_GET_SET_DEF_INIT),
+                    );
+                }
+                PyMethodDefType::Method(def)
+                | PyMethodDefType::Class(def)
+                | PyMethodDefType::Static(def) => method_defs.push(def.as_method_def().unwrap()),
+                PyMethodDefType::ClassAttribute(_) => {}
+            }
+        }
     });
 
-    if !defs.is_empty() {
+    // TODO: use into_values when on MSRV Rust >= 1.54
+    let mut property_defs: Vec<_> = property_defs_map
+        .into_iter()
+        .map(|(_, value)| value)
+        .collect();
+
+    if !method_defs.is_empty() {
         // Safety: Python expects a zeroed entry to mark the end of the defs
-        defs.push(unsafe { std::mem::zeroed() });
+        method_defs.push(unsafe { std::mem::zeroed() });
     }
 
-    defs
+    // PyPy doesn't automatically add __dict__ getter / setter.
+    // PyObject_GenericGetDict not in the limited API until Python 3.10.
+    if !has_dict {
+        #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+        property_defs.push(ffi::PyGetSetDef {
+            name: "__dict__\0".as_ptr() as *mut c_char,
+            get: Some(ffi::PyObject_GenericGetDict),
+            set: Some(ffi::PyObject_GenericSetDict),
+            doc: ptr::null_mut(),
+            closure: ptr::null_mut(),
+        });
+    }
+
+    if !property_defs.is_empty() {
+        // Safety: Python expects a zeroed entry to mark the end of the defs
+        property_defs.push(unsafe { std::mem::zeroed() });
+    }
+
+    PyClassInfo {
+        method_defs,
+        property_defs,
+    }
 }
 
 /// Generates the __dictoffset__ and __weaklistoffset__ members, to set tp_dictoffset and
@@ -351,52 +435,3 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     doc: ptr::null_mut(),
     closure: ptr::null_mut(),
 };
-
-fn py_class_properties(
-    is_dummy: bool,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-) -> Vec<ffi::PyGetSetDef> {
-    let mut defs = std::collections::HashMap::new();
-
-    for_each_method_def(&mut |method_defs| {
-        for def in method_defs {
-            match def {
-                PyMethodDefType::Getter(getter) => {
-                    getter.copy_to(defs.entry(getter.name).or_insert(PY_GET_SET_DEF_INIT));
-                }
-                PyMethodDefType::Setter(setter) => {
-                    setter.copy_to(defs.entry(setter.name).or_insert(PY_GET_SET_DEF_INIT));
-                }
-                _ => (),
-            }
-        }
-    });
-
-    let mut props: Vec<_> = defs.values().cloned().collect();
-
-    // PyPy doesn't automatically adds __dict__ getter / setter.
-    // PyObject_GenericGetDict not in the limited API until Python 3.10.
-    push_dict_getset(&mut props, is_dummy);
-
-    if !props.is_empty() {
-        // Safety: Python expects a zeroed entry to mark the end of the defs
-        props.push(unsafe { std::mem::zeroed() });
-    }
-    props
-}
-
-#[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
-fn push_dict_getset(props: &mut Vec<ffi::PyGetSetDef>, is_dummy: bool) {
-    if !is_dummy {
-        props.push(ffi::PyGetSetDef {
-            name: "__dict__\0".as_ptr() as *mut c_char,
-            get: Some(ffi::PyObject_GenericGetDict),
-            set: Some(ffi::PyObject_GenericSetDict),
-            doc: ptr::null_mut(),
-            closure: ptr::null_mut(),
-        });
-    }
-}
-
-#[cfg(any(PyPy, all(Py_LIMITED_API, not(Py_3_10))))]
-fn push_dict_getset(_: &mut Vec<ffi::PyGetSetDef>, _is_dummy: bool) {}

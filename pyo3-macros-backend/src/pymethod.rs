@@ -704,8 +704,21 @@ impl Ty {
                     let #ident = #extract;
                 }
             }
+            Ty::PySsizeT => {
+                let ty = arg.ty;
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
+                    },
+                );
+                quote! {
+                    let #ident = #extract;
+                }
+            }
             // Just pass other types through unmodified
-            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => quote! {},
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => quote! {},
         }
     }
 }
