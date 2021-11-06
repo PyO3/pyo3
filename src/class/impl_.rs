@@ -9,7 +9,12 @@ use crate::{
     type_object::{PyLayout, PyTypeObject},
     PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
-use std::{marker::PhantomData, os::raw::c_void, ptr::NonNull, thread};
+use std::{
+    marker::PhantomData,
+    os::raw::{c_int, c_void},
+    ptr::NonNull,
+    thread,
+};
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
 /// applied to apply implementations from `#[pymethods]` & `#[pyproto]`
@@ -51,6 +56,9 @@ pub trait PyClassImpl: Sized {
 
     /// #[pyclass(extends=...)]
     const IS_SUBCLASS: bool = false;
+
+    /// #[pyclass(true_mapping)]
+    const TRUE_MAPPING: bool = false;
 
     /// Layout
     type Layout: PyLayout<Self>;
@@ -222,6 +230,66 @@ define_pyclass_setattr_slot! {
     Py_mp_ass_subscript,
     objobjargproc,
 }
+
+slot_fragment_trait! {
+    PyClass__setseqitem__SlotFragment,
+
+    /// # Safety: _slf and _attr must be valid non-null Python objects
+    #[inline]
+    unsafe fn __setseqitem__(
+        self,
+        _py: Python,
+        _slf: *mut ffi::PyObject,
+        _index: ffi::Py_ssize_t,
+        _value: NonNull<ffi::PyObject>,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't set item"))
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__delseqitem__SlotFragment,
+
+    /// # Safety: _slf and _attr must be valid non-null Python objects
+    #[inline]
+    unsafe fn __delseqitem__(
+        self,
+        _py: Python,
+        _slf: *mut ffi::PyObject,
+        _index: ffi::Py_ssize_t,
+    ) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err("can't delete item"))
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_pyclass_setseqitem_slot {
+    ($cls:ty) => {{
+        unsafe extern "C" fn __wrap(
+            _slf: *mut $crate::ffi::PyObject,
+            index: ffi::Py_ssize_t,
+            value: *mut $crate::ffi::PyObject,
+        ) -> ::std::os::raw::c_int {
+            use ::std::option::Option::*;
+            use $crate::callback::IntoPyCallbackOutput;
+            use $crate::class::impl_::*;
+            $crate::callback::handle_panic(|py| {
+                let collector = PyClassImplCollector::<$cls>::new();
+                if let Some(value) = ::std::ptr::NonNull::new(value) {
+                    collector.__setseqitem__(py, _slf, index, value).convert(py)
+                } else {
+                    collector.__delseqitem__(py, _slf, index).convert(py)
+                }
+            })
+        }
+        $crate::ffi::PyType_Slot {
+            slot: $crate::ffi::Py_sq_ass_item,
+            pfunc: __wrap as $crate::ffi::ssizeobjargproc as _,
+        }
+    }};
+}
+pub use generate_pyclass_setseqitem_slot;
 
 /// Macro which expands to three items
 /// - Trait for a lhs dunder e.g. __add__
@@ -794,4 +862,39 @@ pub(crate) unsafe extern "C" fn fallback_new(
 /// Implementation of tp_dealloc for all pyclasses
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
     crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
+}
+
+pub(crate) unsafe extern "C" fn sq_length_from_mapping(obj: *mut ffi::PyObject) -> ffi::Py_ssize_t {
+    ffi::PyMapping_Length(obj)
+}
+
+pub(crate) unsafe extern "C" fn sq_item_from_mapping(
+    obj: *mut ffi::PyObject,
+    index: ffi::Py_ssize_t,
+) -> *mut ffi::PyObject {
+    let index = ffi::PyLong_FromSsize_t(index);
+    if index.is_null() {
+        return std::ptr::null_mut();
+    }
+    let result = ffi::PyObject_GetItem(obj, index);
+    ffi::Py_DECREF(index);
+    result
+}
+
+pub(crate) unsafe extern "C" fn sq_ass_item_from_mapping(
+    obj: *mut ffi::PyObject,
+    index: ffi::Py_ssize_t,
+    value: *mut ffi::PyObject,
+) -> c_int {
+    let index = ffi::PyLong_FromSsize_t(index);
+    if index.is_null() {
+        return -1;
+    }
+    let result = if value.is_null() {
+        ffi::PyObject_DelItem(obj, index)
+    } else {
+        ffi::PyObject_SetItem(obj, index, value)
+    };
+    ffi::Py_DECREF(index);
+    result
 }

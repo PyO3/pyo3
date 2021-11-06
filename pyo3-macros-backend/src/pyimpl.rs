@@ -274,6 +274,11 @@ fn add_shared_proto_slots(
     try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
     try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
     try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);
+    try_add_shared_slot!(
+        "__setseqitem__",
+        "__delseqitem__",
+        generate_pyclass_setseqitem_slot
+    );
     try_add_shared_slot!("__add__", "__radd__", generate_pyclass_add_slot);
     try_add_shared_slot!("__sub__", "__rsub__", generate_pyclass_sub_slot);
     try_add_shared_slot!("__mul__", "__rmul__", generate_pyclass_mul_slot);
@@ -293,6 +298,8 @@ fn add_shared_proto_slots(
     );
     try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
 
+    // if this assertion trips, a slot fragment has been implemented which has not been added in the
+    // list above
     assert!(implemented_proto_fragments.is_empty());
 }
 

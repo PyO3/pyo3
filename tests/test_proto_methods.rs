@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
-use pyo3::exceptions::PyValueError;
-use pyo3::types::{PyList, PySlice, PyType};
+use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{exceptions::PyAttributeError, prelude::*};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::{isize, iter};
@@ -166,37 +166,438 @@ fn test_bool() {
 }
 
 #[pyclass]
-pub struct Len {
-    l: usize,
-}
+pub struct LenOverflow;
 
 #[pymethods]
-impl Len {
+impl LenOverflow {
     fn __len__(&self) -> usize {
-        self.l
+        (isize::MAX as usize) + 1
     }
 }
 
 #[test]
-fn len() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+fn len_overflow() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, LenOverflow).unwrap();
+        py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+    });
+}
 
-    let inst = Py::new(py, Len { l: 10 }).unwrap();
-    py_assert!(py, inst, "len(inst) == 10");
-    unsafe {
-        assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
-        assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
+#[pyclass]
+pub struct MappingWithSeqDefaults {
+    values: Py<PyDict>,
+}
+
+#[pymethods]
+impl MappingWithSeqDefaults {
+    fn __len__(&self, py: Python) -> usize {
+        self.values.as_ref(py).len()
     }
 
-    let inst = Py::new(
-        py,
-        Len {
-            l: (isize::MAX as usize) + 1,
-        },
-    )
-    .unwrap();
-    py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {
+        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+        any.get_item(key)
+    }
+
+    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).set_item(key, value)
+    }
+
+    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).del_item(key)
+    }
+}
+
+#[test]
+fn mapping_with_seq_defaults() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            MappingWithSeqDefaults {
+                values: PyDict::new(py).into(),
+            },
+        )
+        .unwrap();
+
+        //
+        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+
+        py_assert!(py, inst, "len(inst) == 0");
+
+        py_run!(py, inst, "inst['foo'] = 'foo'");
+        py_assert!(py, inst, "inst['foo'] == 'foo'");
+        py_run!(py, inst, "del inst['foo']");
+        py_expect_exception!(py, inst, "inst['foo']", PyKeyError);
+
+        // Default iteration will go through __getseqitem__, which then defaults to call __getitem__
+        // which fails with a KeyError
+        py_expect_exception!(py, inst, "[*inst] == []", PyKeyError, "0");
+
+        // check mapping protocol
+        assert_eq!(mapping.len().unwrap(), 0);
+
+        mapping.set_item(0, 5).unwrap();
+        assert_eq!(mapping.len().unwrap(), 1);
+
+        assert_eq!(mapping.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+
+        mapping.del_item(0).unwrap();
+        assert_eq!(mapping.len().unwrap(), 0);
+
+        // check sequence protocol
+        assert_eq!(sequence.len().unwrap(), 0);
+
+        sequence.set_item(0, 5).unwrap();
+        assert_eq!(sequence.len().unwrap(), 1);
+
+        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        sequence.del_item(0).unwrap();
+
+        assert_eq!(sequence.len().unwrap(), 0);
+    });
+}
+
+#[pyclass]
+pub struct MappingAndSeq {
+    values: Py<PyDict>,
+    last_access: String,
+}
+
+#[pymethods]
+impl MappingAndSeq {
+    fn __len__(&mut self, py: Python) -> usize {
+        self.last_access = "__len__()".into();
+        self.values.as_ref(py).len()
+    }
+
+    fn __getitem__<'a>(&'a mut self, key: &'a PyAny) -> PyResult<&'a PyAny> {
+        self.last_access = format!("__getitem__({:?})", key);
+        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+        any.get_item(key)
+    }
+
+    fn __setitem__(&mut self, key: &PyAny, value: &PyAny) -> PyResult<()> {
+        self.last_access = format!("__setitem__({:?}, {:?})", key, value);
+        self.values.as_ref(key.py()).set_item(key, value)
+    }
+
+    fn __delitem__(&mut self, key: &PyAny) -> PyResult<()> {
+        self.last_access = format!("__delitem__({:?})", key);
+        self.values.as_ref(key.py()).del_item(key)
+    }
+
+    fn __seqlen__(&mut self, py: Python) -> usize {
+        self.last_access = "__seqlen__()".into();
+        self.values.as_ref(py).len()
+    }
+
+    fn __getseqitem__<'a>(&'a mut self, py: Python<'a>, index: isize) -> PyResult<&PyAny> {
+        self.last_access = format!("__getseqitem__({:?})", index);
+        self.values
+            .as_ref(py)
+            .get_item(index)
+            .ok_or_else(|| PyIndexError::new_err(index))
+    }
+
+    fn __setseqitem__(&mut self, index: isize, value: &PyAny) -> PyResult<()> {
+        self.last_access = format!("__setseqitem__({:?}, {:?})", index, value);
+        self.values.as_ref(value.py()).set_item(index, value)
+    }
+
+    fn __delseqitem__(&mut self, py: Python, index: isize) -> PyResult<()> {
+        self.last_access = format!("__delseqitem__({:?})", index);
+        self.values.as_ref(py).del_item(index)
+    }
+}
+
+#[test]
+fn mapping_and_seq() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            MappingAndSeq {
+                values: PyDict::new(py).into(),
+                last_access: String::new(),
+            },
+        )
+        .unwrap();
+
+        macro_rules! assert_last_access {
+            ($string:literal) => {
+                assert_eq!(inst.borrow(py).last_access, $string);
+            };
+        }
+
+        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+
+        // Python len() goes through __seqlen__ first
+        py_assert!(py, inst, "len(inst) == 0");
+        assert_last_access!("__seqlen__()");
+
+        // Python indexing prefers mapping protocol to sequence protocol
+        py_run!(py, inst, "inst['foo'] = 'foo'");
+        assert_last_access!("__setitem__('foo', 'foo')");
+        py_run!(py, inst, "inst[-5] = -5");
+        assert_last_access!("__setitem__(-5, -5)");
+
+        py_assert!(py, inst, "inst['foo'] == 'foo'");
+        assert_last_access!("__getitem__('foo')");
+        py_assert!(py, inst, "inst[-5] == -5");
+        assert_last_access!("__getitem__(-5)");
+
+        py_run!(py, inst, "del inst['foo']");
+        assert_last_access!("__delitem__('foo')");
+        py_run!(py, inst, "del inst[-5]");
+        assert_last_access!("__delitem__(-5)");
+
+        py_expect_exception!(py, inst, "inst['foo']", PyKeyError);
+        assert_last_access!("__getitem__('foo')");
+
+        // Default iteration will go through __getseqitem__
+        py_assert!(py, inst, "[*inst] == []");
+        assert_last_access!("__getseqitem__(0)");
+        py_run!(py, inst, "inst[0] = 'hi'");
+        assert_last_access!("__setitem__(0, 'hi')");
+        py_assert!(py, inst, "[*inst] == ['hi']");
+        assert_last_access!("__getseqitem__(1)");
+        py_run!(py, inst, "del inst[0]");
+        assert_last_access!("__delitem__(0)");
+
+        // check mapping protocol
+        assert_eq!(mapping.len().unwrap(), 0);
+        assert_last_access!("__len__()");
+
+        mapping.set_item(0, 5).unwrap();
+        assert_last_access!("__setitem__(0, 5)");
+
+        assert_eq!(mapping.len().unwrap(), 1);
+        assert_last_access!("__len__()");
+
+        assert_eq!(mapping.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        assert_last_access!("__getitem__(0)");
+
+        mapping.del_item(0).unwrap();
+        assert_last_access!("__delitem__(0)");
+
+        assert_eq!(mapping.len().unwrap(), 0);
+        assert_last_access!("__len__()");
+
+        // check sequence protocol
+        assert_eq!(sequence.len().unwrap(), 0);
+        assert_last_access!("__seqlen__()");
+
+        sequence.set_item(0, 5).unwrap();
+        assert_last_access!("__setseqitem__(0, 5)");
+
+        assert_eq!(sequence.len().unwrap(), 1);
+        assert_last_access!("__seqlen__()");
+
+        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        assert_last_access!("__getseqitem__(0)");
+
+        sequence.del_item(0).unwrap();
+        assert_last_access!("__delseqitem__(0)");
+
+        assert_eq!(sequence.len().unwrap(), 0);
+        assert_last_access!("__seqlen__()");
+
+        // FIXME: add an example & guide for sequence
+        // FIXME: add an example & guide for mapping
+    });
+}
+
+#[pyclass(true_mapping)]
+pub struct MappingOnly {
+    values: Py<PyDict>,
+}
+
+#[pymethods]
+impl MappingOnly {
+    fn __len__(&self, py: Python) -> usize {
+        self.values.as_ref(py).len()
+    }
+
+    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {
+        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+        any.get_item(key)
+    }
+
+    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).set_item(key, value)
+    }
+
+    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).del_item(key)
+    }
+}
+
+#[test]
+fn mapping_only() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            MappingOnly {
+                values: PyDict::new(py).into(),
+            },
+        )
+        .unwrap();
+
+        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+        assert!(inst.as_ref(py).downcast::<PySequence>().is_err());
+
+        py_assert!(py, inst, "len(inst) == 0");
+
+        unsafe {
+            assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 0);
+            assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 0);
+            // Not a sequence; ffi call should fail
+            assert_eq!(ffi::PySequence_Size(inst.as_ptr()), -1);
+            let _ = PyErr::fetch(py);
+        }
+
+        py_run!(py, inst, "inst['foo'] = 'foo'");
+        py_assert!(py, inst, "inst['foo'] == 'foo'");
+        py_run!(py, inst, "del inst['foo']");
+
+        py_expect_exception!(py, inst, "inst['foo']", PyKeyError);
+
+        // Not a sequence => no default iteration
+        py_expect_exception!(
+            py,
+            inst,
+            "[*inst]",
+            PyTypeError,
+            "'builtins.MappingOnly' object is not iterable"
+        );
+
+        // check mapping protocol
+        assert_eq!(mapping.len().unwrap(), 0);
+
+        mapping.set_item(0, 5).unwrap();
+        assert_eq!(mapping.len().unwrap(), 1);
+
+        assert_eq!(mapping.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        mapping.del_item(0).unwrap();
+
+        assert_eq!(mapping.len().unwrap(), 0);
+    });
+}
+
+#[pyclass]
+pub struct SequenceOnly {
+    values: Vec<PyObject>,
+}
+
+#[pymethods]
+impl SequenceOnly {
+    fn __seqlen__(&self) -> usize {
+        self.values.len()
+    }
+
+    fn __getseqitem__(&self, index: isize) -> PyResult<PyObject> {
+        let uindex = self.usize_index(index)?;
+        self.values
+            .get(uindex)
+            .map(Clone::clone)
+            .ok_or_else(|| PyIndexError::new_err("sequence index out of range"))
+    }
+
+    fn __setseqitem__(&mut self, index: isize, value: PyObject) -> PyResult<()> {
+        let uindex = self.usize_index(index)?;
+        self.values
+            .get_mut(uindex)
+            .map(|place| *place = value)
+            .ok_or_else(|| PyIndexError::new_err("sequence index out of range"))
+    }
+
+    fn __delseqitem__(&mut self, index: isize) -> PyResult<()> {
+        let uindex = self.usize_index(index)?;
+        if uindex >= self.values.len() {
+            Err(PyIndexError::new_err("sequence index out of range"))
+        } else {
+            self.values.remove(uindex);
+            Ok(())
+        }
+    }
+
+    fn append(&mut self, value: PyObject) {
+        self.values.push(value);
+    }
+}
+
+impl SequenceOnly {
+    fn usize_index(&self, index: isize) -> PyResult<usize> {
+        if index < 0 {
+            // NB don't need to subtract index from length because CPython already does this
+            // for us because __seqlen__ is defined.
+            Err(PyIndexError::new_err("sequence index out of range"))
+        } else {
+            Ok(index as usize)
+        }
+    }
+}
+
+#[test]
+fn sequence_only() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, SequenceOnly { values: vec![] }).unwrap();
+
+        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+
+        py_assert!(py, inst, "len(inst) == 0");
+
+        unsafe {
+            assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 0);
+            // Not a mapping; ffi call should fail
+            assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), -1);
+            let _ = PyErr::fetch(py);
+            assert_eq!(ffi::PySequence_Size(inst.as_ptr()), 0);
+        }
+
+        py_expect_exception!(py, inst, "inst[0]", PyIndexError);
+        py_run!(py, inst, "inst.append('foo')");
+
+        py_assert!(py, inst, "inst[0] == 'foo'");
+        py_assert!(py, inst, "inst[-1] == 'foo'");
+
+        py_expect_exception!(py, inst, "inst[1]", PyIndexError);
+        py_expect_exception!(py, inst, "inst[-2]", PyIndexError);
+
+        py_assert!(py, inst, "[*inst] == ['foo']");
+
+        py_run!(py, inst, "del inst[0]");
+
+        py_expect_exception!(
+            py,
+            inst,
+            "inst['foo']",
+            PyTypeError,
+            "sequence index must be integer, not 'str'"
+        );
+
+        // slicing needs to be implemented through __getitem__ (not __getseqitem__)
+        py_expect_exception!(
+            py,
+            inst,
+            "inst[0:2]",
+            PyTypeError,
+            "sequence index must be integer, not 'slice'"
+        );
+
+        // check sequence protocol
+        assert_eq!(sequence.len().unwrap(), 0);
+
+        py_run!(py, inst, "inst.append(0)");
+        sequence.set_item(0, 5).unwrap();
+        assert_eq!(sequence.len().unwrap(), 1);
+
+        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        sequence.del_item(0).unwrap();
+
+        assert_eq!(sequence.len().unwrap(), 0);
+    });
 }
 
 #[pyclass]

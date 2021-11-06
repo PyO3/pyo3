@@ -34,7 +34,7 @@ error: expected string literal (e.g., "my_mod")
 18 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of gc/weakref/subclass/dict/unsendable
+error: expected one of gc/weakref/subclass/dict/unsendable/true_mapping
   --> tests/ui/invalid_pyclass_args.rs:21:11
    |
 21 | #[pyclass(weakrev)]

@@ -35,6 +35,7 @@ pub struct PyClassArgs {
     pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
     pub class_kind: PyClassKind,
+    pub true_mapping: bool,
 }
 
 impl PyClassArgs {
@@ -68,6 +69,7 @@ impl PyClassArgs {
             has_extends: false,
             has_unsendable: false,
             class_kind,
+            true_mapping: false,
         }
     }
 
@@ -176,8 +178,11 @@ impl PyClassArgs {
             "unsendable" => {
                 self.has_unsendable = true;
             }
+            "true_mapping" => {
+                self.true_mapping = true;
+            }
             _ => bail_spanned!(
-                exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable"
+                exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable/true_mapping"
             ),
         };
         Ok(())
@@ -730,6 +735,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let is_basetype = self.attr.is_basetype;
         let base = &self.attr.base;
         let is_subclass = self.attr.has_extends;
+        let true_mapping = self.attr.true_mapping;
 
         let thread_checker = if self.attr.has_unsendable {
             quote! { _pyo3::class::impl_::ThreadCheckerImpl<#cls> }
@@ -778,6 +784,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const IS_GC: bool = #is_gc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
+                const TRUE_MAPPING: bool = #true_mapping;
 
                 type Layout = _pyo3::PyCell<Self>;
                 type BaseType = #base;

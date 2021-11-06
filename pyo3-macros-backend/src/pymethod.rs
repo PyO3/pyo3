@@ -490,10 +490,13 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conve
     TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _> }),
 );
 const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
+const __SEQLEN__: SlotDef = SlotDef::new("Py_sq_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
 const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+const __GETSEQITEM__: SlotDef =
+    SlotDef::new("Py_sq_item", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
@@ -571,8 +574,10 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__aiter__" => Some(&__AITER__),
         "__anext__" => Some(&__ANEXT__),
         "__len__" => Some(&__LEN__),
+        "__seqlen__" => Some(&__SEQLEN__),
         "__contains__" => Some(&__CONTAINS__),
         "__getitem__" => Some(&__GETITEM__),
+        "__getseqitem__" => Some(&__GETSEQITEM__),
         "__pos__" => Some(&__POS__),
         "__neg__" => Some(&__NEG__),
         "__abs__" => Some(&__ABS__),
@@ -680,7 +685,22 @@ impl Ty {
                     let #ident = #extract;
                 }
             }
-            Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => todo!(),
+            Ty::PySsizeT => {
+                let ty = arg.ty;
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
+                    },
+                );
+                quote! {
+                    let #ident = #extract;
+                }
+            }
+            Ty::Int | Ty::PyHashT | Ty::Void => {
+                unimplemented!("not used as magic method arguments")
+            }
         }
     }
 }
@@ -937,6 +957,9 @@ const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Obj
 const __SETITEM__: SlotFragmentDef =
     SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]);
 const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object]);
+const __SETSEQITEM__: SlotFragmentDef =
+    SlotFragmentDef::new("__setseqitem__", &[Ty::PySsizeT, Ty::NonNullObject]);
+const __DELSEQITEM__: SlotFragmentDef = SlotFragmentDef::new("__delseqitem__", &[Ty::PySsizeT]);
 
 macro_rules! binary_num_slot_fragment_def {
     ($ident:ident, $name:literal) => {
@@ -988,6 +1011,8 @@ fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
         "__delete__" => Some(&__DELETE__),
         "__setitem__" => Some(&__SETITEM__),
         "__delitem__" => Some(&__DELITEM__),
+        "__setseqitem__" => Some(&__SETSEQITEM__),
+        "__delseqitem__" => Some(&__DELSEQITEM__),
         "__add__" => Some(&__ADD__),
         "__radd__" => Some(&__RADD__),
         "__sub__" => Some(&__SUB__),
