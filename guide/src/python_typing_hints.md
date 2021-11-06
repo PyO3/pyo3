@@ -1,5 +1,5 @@
-
 # Typing and IDE hints for you Python package
+
 PyO3 provides an easy to use interface to code native Python libraries in Rust. The accompanying Maturin allows you to build and publish them as a package. Yet, for the better user experience, Python libraries should provide typing hints and documentation for all public entities, so that IDEs can show them during development and type analyzing tools such as `mypy` can use them to properly verify the code.
 
 Currently the best solution for the problem is to maintain manually the `*.pyi` files and ship them along with the package.
@@ -7,6 +7,7 @@ Currently the best solution for the problem is to maintain manually the `*.pyi` 
 ## The `pyi` files introduction
 
 `pyi` (an abbreviation for `Python Interface`) is called a `Stub File` in most of the documentations related to them. Very good definition of what it is can be found in [old MyPy documentation](https://github.com/python/mypy/wiki/Creating-Stubs-For-Python-Modules):
+
 > A stubs file only contains a description of the public interface of the module without any implementations.
 
 Probably most Python developers encountered them already when trying to use the IDE "Go to Definition" function on any builtin type. For example the definitions of few standard exceptions look like this:
@@ -43,6 +44,7 @@ As of the time of writing this documentation the `pyi` files are referenced in t
 > (...) it is expected that users of third party library packages may want to run type checkers over those packages. For this purpose [PEP 484](https://www.python.org/dev/peps/pep-0484) recommends the use of stub files: .pyi files that are read by the type checker in preference of the corresponding .py files. (...)
 
 [PEP484 - Type Hints - #Stub Files](https://www.python.org/dev/peps/pep-0484/#stub-files) defines stub files as follows.
+
 > Stub files are files containing type hints that are only for use by the type checker, not at runtime.
 
 It contains a specification for them (highly recommended reading, since it contains at least one thing that is not used in normal Python code) and also some general information about where to store the stub files.
@@ -67,9 +69,24 @@ The third way is described below.
 
 When source files are in the same package as stub files, they should be placed next to each other. We need a way to do that with Maturin. Also, in order to mark our package as typing-enabled we need to add an empty file named `py.typed` to the package.
 
-#### Your custom Python package files
+#### If you do not have other Python files
 
- Fortunately the Maturin provides easy way to add files to package ([documentation](https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects)). You just need to create a folder with the name of your module next to the `Cargo.toml` file (for customization see documentation linked above).
+If you do not need to add any other Python files apart from `pyi` to the package, the Maturin provides a way to do most of the work for you. As documented in [Maturin Guide](https://github.com/PyO3/maturin/blob/084cfaced651b28616aeea1f818bdc933a536bfe/guide/src/project_layout.md#adding-python-type-information) the only thing you need to do is create a stub file for your module named `<module_name>.pyi` in your project root and Maturin will do the rest.
+
+```text
+my-rust-project/
+├── Cargo.toml
+├── my_project.pyi  # <<< add type stubs for Rust functions in the my_project module here
+├── pyproject.toml
+└── src
+    └── lib.rs
+```
+
+For example of `pyi` file see [`my_project.pyi` content](#my_projectpyi-content) section.
+
+#### If you need other Python files
+
+If you need to add other Python files apart from `pyi` to the package, you can do it also, but that requires some more work. Maturin provides easy way to add files to package ([documentation](https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects)). You just need to create a folder with the name of your module next to the `Cargo.toml` file (for customization see documentation linked above).
 
 The folder structure would be:
 
@@ -79,6 +96,7 @@ my-project
 ├── my_project
 │   ├── __init__.py
 │   ├── my_project.pyi
+│   ├── other_python_file.py
 │   └── py.typed
 ├── pyproject.toml
 ├── Readme.md
@@ -88,7 +106,7 @@ my-project
 
 Let's go a little bit more into details on the files inside the package folder.
 
-#### `__init__.py` content
+##### `__init__.py` content
 
 As we now specify our own package content, we have to provide the `__init__.py` file, so the folder is treated as a package and we can import things from it. We can always use the same content that the Maturin creates for us if we do not specify a python source folder. For PyO3 bindings it would be:
 
@@ -98,7 +116,7 @@ from .my_project import *
 
 That way everything that is exposed by our native module can be imported directly from the package.
 
-#### `py.typed` requirement
+##### `py.typed` requirement
 
 As stated in [PEP561](https://www.python.org/dev/peps/pep-0561/):
 > Package maintainers who wish to support type checking of their code MUST add a marker file named py.typed to their package supporting typing. This marker applies recursively: if a top-level package includes it, all its sub-packages MUST support type checking as well.
@@ -111,7 +129,7 @@ error: Skipping analyzing "my_project": found module but no type hints or librar
 
 The file is just a marker file, so it should be empty.
 
-#### `my_project.pyi` content
+##### `my_project.pyi` content
 
 Our module stub file. This document does not aim at describing how to write them, since you can find a lot of documentation on it, starting from already quoted [PEP484](https://www.python.org/dev/peps/pep-0484/#stub-files).
 
