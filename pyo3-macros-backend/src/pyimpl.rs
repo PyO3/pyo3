@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::{
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
-    pymethod,
+    pymethod::{self, is_proto_method},
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
@@ -79,6 +79,13 @@ pub fn impl_methods(
                     let attrs = get_cfg_attributes(&konst.attrs);
                     let meth = gen_py_const(ty, &spec);
                     methods.push(quote!(#(#attrs)* #meth));
+                    if is_proto_method(&spec.python_name().to_string()) {
+                        // If this is a known protocol method e.g. __contains__, then allow this
+                        // symbol even though it's not an uppercase constant.
+                        konst
+                            .attrs
+                            .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
+                    }
                 }
             }
             _ => (),
