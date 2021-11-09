@@ -334,6 +334,7 @@ pub mod marshal;
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;
+pub mod pycapsule;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
