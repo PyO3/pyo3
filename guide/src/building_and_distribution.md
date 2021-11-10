@@ -44,7 +44,11 @@ Caused by:
   build_flags=WITH_THREAD
 ```
 
-> Note: if you save the output config to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var. For now, this is an advanced feature that should not be needed for most users. The format of the config file and its contents are deliberately unstable and undocumented. If you have a production use-case for this config file, please file an issue and help us stabilize it!
+### Advanced: config files
+
+If you save the above output config from `PYO3_PRINT_CONFIG` to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var.
+
+If your build environment is unusual enough that PyO3's regular configuration detection doesn't work, using a config file like this will give you the flexibility to make PyO3 work for you. To see the full set of options supported, see the documentation for the [`InterpreterConfig` struct](https://docs.rs/pyo3-build-config/{{#PYO3_DOCS_VERSION}}/pyo3_build_config/struct.InterpreterConfig.html).
 
 ## Building Python extension modules
 
