@@ -5,7 +5,7 @@ use pyo3::types::IntoPyDict;
 
 mod common;
 
-#[pyclass(subclass)]
+#[pyclass(subclass, mutable)]
 struct BaseClass {
     #[pyo3(get)]
     val1: usize,
@@ -45,7 +45,7 @@ impl BaseClass {
     }
 }
 
-#[pyclass(extends=BaseClass)]
+#[pyclass(extends=BaseClass, mutable)]
 struct SubClass {
     #[pyo3(get)]
     val2: usize,

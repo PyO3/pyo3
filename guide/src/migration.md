@@ -436,7 +436,7 @@ Here is an example.
 ```rust
 # use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct Names {
     names: Vec<String>
 }
@@ -514,7 +514,7 @@ After:
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::IntoPyDict;
-# #[pyclass] #[derive(Clone)] struct MyClass {}
+# #[pyclass(mutable)] #[derive(Clone)] struct MyClass {}
 # #[pymethods] impl MyClass { #[new]fn new() -> Self { MyClass {} }}
 # Python::with_gil(|py| {
 # let typeobj = py.get_type::<MyClass>();

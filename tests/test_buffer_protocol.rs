@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 mod common;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct TestBufferClass {
     vec: Vec<u8>,
     drop_called: Arc<AtomicBool>,

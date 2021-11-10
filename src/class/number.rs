@@ -4,6 +4,7 @@
 //! Trait and support implementation for implementing number protocol
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyErr;
+use crate::pyclass::MutablePyClass;
 use crate::{ffi, FromPyObject, PyClass, PyObject};
 
 /// Number interface
@@ -481,74 +482,74 @@ pub trait PyNumberROrProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PyNumberIAddProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIAddProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberISubProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberISubProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIMulProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIMulProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIMatmulProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIMatmulProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberITruedivProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberITruedivProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIFloordivProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIFloordivProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIModProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIModProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
-    type Other: FromPyObject<'p>;
-    type Result: IntoPyCallbackOutput<()>;
-}
-
-#[allow(clippy::upper_case_acronyms)]
-pub trait PyNumberILShiftProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
 #[allow(clippy::upper_case_acronyms)]
-pub trait PyNumberIRShiftProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberILShiftProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIAndProtocol<'p>: PyNumberProtocol<'p> {
+#[allow(clippy::upper_case_acronyms)]
+pub trait PyNumberIRShiftProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIXorProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIAndProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyNumberIOrProtocol<'p>: PyNumberProtocol<'p> {
+pub trait PyNumberIXorProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
+    type Other: FromPyObject<'p>;
+    type Result: IntoPyCallbackOutput<()>;
+}
+
+pub trait PyNumberIOrProtocol<'p>: PyNumberProtocol<'p> + MutablePyClass {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
@@ -750,7 +751,7 @@ pub unsafe extern "C" fn ipow<T>(
     _modulo: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject
 where
-    T: for<'p> PyNumberIPowProtocol<'p>,
+    T: for<'p> PyNumberIPowProtocol<'p> + MutablePyClass,
 {
     // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
     // so we ignore it. It's the same as what CPython does.

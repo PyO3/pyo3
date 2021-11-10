@@ -21,7 +21,7 @@ enum TestGetBufferError {
     IncorrectAlignment,
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct TestBufferErrors {
     buf: Vec<u32>,
     error: Option<TestGetBufferError>,

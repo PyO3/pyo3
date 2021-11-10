@@ -127,7 +127,7 @@ Let's add the PyO3 annotations and add a constructor:
 # use pyo3::prelude::*;
 # use pyo3::types::PyAny;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct UserModel {
     model: Py<PyAny>,
 }
@@ -173,7 +173,7 @@ This wrapper will also perform the type conversions between Python and Rust.
 #   fn get_results(&self) -> Vec<f64>;
 # }
 #
-# #[pyclass]
+# #[pyclass(mutable)]
 # struct UserModel {
 #     model: Py<PyAny>,
 # }
@@ -342,7 +342,7 @@ We used in our `get_results` method the following call that performs the type co
 #   fn get_results(&self) -> Vec<f64>;
 # }
 #
-# #[pyclass]
+# #[pyclass(mutable)]
 # struct UserModel {
 #     model: Py<PyAny>,
 # }
@@ -395,7 +395,7 @@ Let's break it down in order to perform better error handling:
 #   fn get_results(&self) -> Vec<f64>;
 # }
 #
-# #[pyclass]
+# #[pyclass(mutable)]
 # struct UserModel {
 #     model: Py<PyAny>,
 # }
@@ -481,7 +481,7 @@ pub fn solve_wrapper(model: &mut UserModel) {
     solve(model);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 pub struct UserModel {
     model: Py<PyAny>,
 }

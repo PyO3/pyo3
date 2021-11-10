@@ -67,7 +67,7 @@ impl PyObjectProtocol for BinaryArithmetic {
     }
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct InPlaceOperations {
     value: u32,
 }
@@ -527,7 +527,7 @@ fn rich_comparisons_python_3_type_error() {
 mod return_not_implemented {
     use super::*;
 
-    #[pyclass]
+    #[pyclass(mutable)]
     struct RichComparisonToSelf {}
 
     #[pyproto]

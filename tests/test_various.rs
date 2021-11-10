@@ -6,7 +6,7 @@ use std::fmt;
 
 mod common;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct MutRefArg {
     n: i32,
 }

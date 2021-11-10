@@ -67,7 +67,7 @@ as argument and calls that object when called.
 # use pyo3::prelude::*;
 # use pyo3::types::{PyDict, PyTuple};
 #
-#[pyclass(name = "counter")]
+#[pyclass(name = "counter", mutable)]
 struct PyCounter {
     count: u64,
     wraps: Py<PyAny>,
@@ -453,7 +453,7 @@ use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::gc::{PyGCProtocol, PyVisit};
 
-#[pyclass]
+#[pyclass(mutable)]
 struct ClassWithGCSupport {
     obj: Option<PyObject>,
 }
@@ -505,7 +505,7 @@ Example:
 use pyo3::prelude::*;
 use pyo3::PyIterProtocol;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct MyIterator {
     iter: Box<dyn Iterator<Item = PyObject> + Send>,
 }
@@ -530,7 +530,7 @@ implementations in `PyIterProtocol` will ensure that the objects behave correctl
 # use pyo3::prelude::*;
 # use pyo3::PyIterProtocol;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct Iter {
     inner: std::vec::IntoIter<usize>,
 }

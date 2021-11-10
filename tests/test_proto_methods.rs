@@ -6,7 +6,7 @@ use std::{isize, iter};
 
 mod common;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct ExampleClass {
     #[pyo3(get, set)]
     value: i32,
@@ -194,7 +194,7 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct Iterator {
     iter: Box<dyn iter::Iterator<Item = i32> + Send>,
 }
@@ -278,7 +278,7 @@ mod deprecated {
     }
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 #[derive(Debug)]
 struct SetItem {
     key: i32,
@@ -308,7 +308,7 @@ fn setitem() {
     py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct DelItem {
     key: i32,
 }
@@ -334,7 +334,7 @@ fn delitem() {
     py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct SetDelItem {
     val: Option<i32>,
 }
@@ -418,7 +418,7 @@ fn test_getitem() {
     py_assert!(py, ob, "ob[100:200:1] == 'slice'");
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct ClassWithGetAttr {
     #[pyo3(get, set)]
     data: u32,
@@ -441,7 +441,7 @@ fn getattr_doesnt_override_member() {
 }
 
 /// Wraps a Python future and yield it once.
-#[pyclass]
+#[pyclass(mutable)]
 struct OnceFuture {
     future: PyObject,
     polled: bool,
@@ -505,7 +505,7 @@ loop.close()
 }
 
 /// Increment the count when `__get__` is called.
-#[pyclass]
+#[pyclass(mutable)]
 struct DescrCounter {
     #[pyo3(get)]
     count: usize,

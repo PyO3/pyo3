@@ -87,7 +87,7 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::{Py, Python, PyAny, PyResult};
-# #[pyclass] #[derive(Clone)] struct MyClass { }
+# #[pyclass(mutable)] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let obj: &PyAny = Py::new(py, MyClass { })?.into_ref(py);
 
@@ -191,7 +191,7 @@ For a `#[pyclass] struct MyClass`, the conversions for `Py<MyClass>` are below:
 ```rust
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
-# #[pyclass] struct MyClass { }
+# #[pyclass(mutable)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let my_class: Py<MyClass> = Py::new(py, MyClass { })?;
 
@@ -236,7 +236,7 @@ so it also exposes all of the methods on `PyAny`.
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass] struct MyClass { }
+# #[pyclass(mutable)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
 

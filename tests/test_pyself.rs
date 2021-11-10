@@ -8,7 +8,7 @@ mod common;
 
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
-#[pyclass]
+#[pyclass(mutable)]
 #[derive(Clone, Debug)]
 struct Reader {
     inner: HashMap<u8, String>,
@@ -44,7 +44,7 @@ impl Reader {
     }
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 #[derive(Debug)]
 struct Iter {
     reader: Py<Reader>,

@@ -2,6 +2,7 @@
 
 //! Defines conversions between Rust and Python types.
 use crate::err::{self, PyDowncastError, PyResult};
+use crate::pyclass::MutablePyClass;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{
@@ -145,7 +146,7 @@ where
 /// ```rust
 /// use pyo3::prelude::*;
 ///
-/// #[pyclass]
+/// #[pyclass(mutable)]
 /// struct Number {
 ///     #[pyo3(get, set)]
 ///     value: i32,
@@ -329,7 +330,7 @@ where
 
 impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
 where
-    T: PyClass,
+    T: MutablePyClass,
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;

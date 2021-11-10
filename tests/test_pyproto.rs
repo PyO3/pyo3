@@ -47,7 +47,7 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct Iterator {
     iter: Box<dyn iter::Iterator<Item = i32> + Send>,
 }
@@ -149,7 +149,7 @@ fn comparisons() {
     py_assert!(py, zero, "not zero");
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 #[derive(Debug)]
 struct Sequence {
     fields: Vec<String>,
@@ -210,7 +210,7 @@ fn sequence() {
     py_expect_exception!(py, c, "c['abc']", PyTypeError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 #[derive(Debug)]
 struct SetItem {
     key: i32,
@@ -240,7 +240,7 @@ fn setitem() {
     py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct DelItem {
     key: i32,
 }
@@ -266,7 +266,7 @@ fn delitem() {
     py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct SetDelItem {
     val: Option<i32>,
 }
@@ -338,7 +338,7 @@ fn contains() {
     py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct ContextManager {
     exit_called: bool,
 }
@@ -507,7 +507,7 @@ fn weakref_dunder_dict_support() {
     );
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct ClassWithGetAttr {
     #[pyo3(get, set)]
     data: u32,
@@ -530,7 +530,7 @@ fn getattr_doesnt_override_member() {
 }
 
 /// Wraps a Python future and yield it once.
-#[pyclass]
+#[pyclass(mutable)]
 struct OnceFuture {
     future: PyObject,
     polled: bool,
@@ -600,7 +600,7 @@ loop.close()
 }
 
 /// Increment the count when `__get__` is called.
-#[pyclass]
+#[pyclass(mutable)]
 struct DescrCounter {
     #[pyo3(get)]
     count: usize,

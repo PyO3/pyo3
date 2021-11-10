@@ -11,7 +11,7 @@ use pyo3::PyMappingProtocol;
 
 mod common;
 
-#[pyclass]
+#[pyclass(mutable)]
 struct Mapping {
     index: HashMap<String, usize>,
 }

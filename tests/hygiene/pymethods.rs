@@ -1,10 +1,10 @@
 #![no_implicit_prelude]
 #![allow(unused_variables)]
 
-#[::pyo3::pyclass]
+#[::pyo3::pyclass(mutable)]
 pub struct Dummy;
 
-#[::pyo3::pyclass]
+#[::pyo3::pyclass(mutable)]
 pub struct DummyIter;
 
 #[::pyo3::pymethods]

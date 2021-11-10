@@ -50,7 +50,7 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
 }
 
-#[pyclass]
+#[pyclass(mutable)]
 struct InPlaceOperations {
     value: u32,
 }
@@ -500,7 +500,7 @@ fn rich_comparisons_python_3_type_error() {
 mod return_not_implemented {
     use super::*;
 
-    #[pyclass]
+    #[pyclass(mutable)]
     struct RichComparisonToSelf {}
 
     #[pymethods]
