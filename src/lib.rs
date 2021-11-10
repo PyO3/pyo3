@@ -1,5 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
     docsrs, // rustdoc:: is not supported on msrv
     deny(
