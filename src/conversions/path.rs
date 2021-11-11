@@ -20,7 +20,7 @@ impl FromPyObject<'_> for PathBuf {
                 let py = ob.py();
                 let pathlib = py.import("pathlib")?;
                 let pathlib_path: &PyType = pathlib.getattr("Path")?.downcast()?;
-                if pathlib_path.is_instance(ob)? {
+                if ob.is_instance_of(pathlib_path)? {
                     let path_str = ob.call_method0("__str__")?;
                     OsString::extract(path_str)?
                 } else {

@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add implementations for `Py::as_ref()` and `Py::into_ref()` for `Py<PySequence>`, `Py<PyIterator>` and `Py<PyMapping>`. [#1682](https://github.com/PyO3/pyo3/pull/1682)
 - Add `PyTraceback` type to represent and format Python tracebacks. [#1977](https://github.com/PyO3/pyo3/pull/1977)
 
+### Added
+
+- Add `PyType::is_subclass_of` and `PyAny::is_instance_of` which operate not on
+  a type known at compile-time but a run-time type object. [#1985](https://github.com/PyO3/pyo3/pull/1985)
+
 ### Changed
 
 - `#[classattr]` constants with a known magic method name (which is lowercase) no longer trigger lint warnings expecting constants to be uppercase. [#1969](https://github.com/PyO3/pyo3/pull/1969)
@@ -41,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
 - Fix panic in `__get__` implementation when accessing descriptor on type object. [#1997](https://github.com/PyO3/pyo3/pull/1997)
+
+### Removed
+
+- Remove `PyType::is_instance`, which is unintuitive; instead of `typ.is_instance(obj)`, you should
+  now use `obj.is_instance_of(typ)`. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 
 ## [0.15.0] - 2021-11-03
 

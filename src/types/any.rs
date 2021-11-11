@@ -667,9 +667,19 @@ impl PyAny {
 
     /// Checks whether this object is an instance of type `T`.
     ///
-    /// This is equivalent to the Python expression `isinstance(self, T)`.
+    /// This is equivalent to the Python expression `isinstance(self, T)`,
+    /// if the type `T` is known at compile time.
     pub fn is_instance<T: PyTypeObject>(&self) -> PyResult<bool> {
-        T::type_object(self.py()).is_instance(self)
+        self.is_instance_of(T::type_object(self.py()))
+    }
+
+    /// Checks whether this object is an instance of type `typ`.
+    ///
+    /// This is equivalent to the Python expression `isinstance(self, typ)`.
+    pub fn is_instance_of(&self, typ: &PyType) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), typ.as_ptr()) };
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
     }
 
     /// Returns a GIL marker constrained to the lifetime of this type.
@@ -682,6 +692,7 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
+        type_object::PyTypeObject,
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };
@@ -780,6 +791,14 @@ mod tests {
 
             let l = vec![x, x].to_object(py).into_ref(py);
             assert!(l.is_instance::<PyList>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_any_isinstance_of() {
+        Python::with_gil(|py| {
+            let l = vec![1u8, 2].to_object(py).into_ref(py);
+            assert!(l.is_instance_of(PyList::type_object(py)).unwrap());
         });
     }
 }
