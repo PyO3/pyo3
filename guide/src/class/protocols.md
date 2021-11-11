@@ -47,6 +47,25 @@ given signatures should be interpreted as follows:
   - `__str__(<self>) -> object (str)`
   - `__repr__(<self>) -> object (str)`
   - `__hash__(<self>) -> isize`
+    <details>
+    <summary>Disabling Python's default hash</summary>
+
+    By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
+
+    ```rust
+    # use pyo3::prelude::*;
+    #
+    #[pyclass]
+    struct NotHashable { }
+
+    #[pymethods]
+    impl NotHashable {
+        #[classattr]
+        const __hash__: Option<PyObject> = None;
+    }
+    ```
+    </details>
+
   - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
   - `__getattr__(<self>, object) -> object`
   - `__setattr__(<self>, object, object) -> ()`
@@ -140,6 +159,24 @@ TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
 
   - `__len__(<self>) -> usize`
   - `__contains__(<self>, object) -> bool`
+    <details>
+    <summary>Disabling Python's default contains</summary>
+
+    By default, all `#[pyclass]` types with an `__iter__` method support a default implementation of the `in` operator. Types which do not want this can override this by setting `__contains__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
+
+    ```rust
+    # use pyo3::prelude::*;
+    #
+    #[pyclass]
+    struct NoContains { }
+
+    #[pymethods]
+    impl NoContains {
+        #[classattr]
+        const __contains__: Option<PyObject> = None;
+    }
+    ```
+    </details>
   - `__getitem__(<self>, object) -> object`
   - `__setitem__(<self>, object, object) -> ()`
   - `__delitem__(<self>, object) -> ()`

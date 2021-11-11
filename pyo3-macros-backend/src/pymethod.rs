@@ -24,6 +24,63 @@ pub enum GeneratedPyMethod {
     SlotTraitImpl(String, TokenStream),
 }
 
+pub struct PyMethod<'a> {
+    kind: PyMethodKind,
+    method_name: String,
+    spec: FnSpec<'a>,
+}
+
+enum PyMethodKind {
+    Fn,
+    Proto(PyMethodProtoKind),
+}
+
+impl PyMethodKind {
+    fn from_name(name: &str) -> Self {
+        if let Some(slot_def) = pyproto(name) {
+            PyMethodKind::Proto(PyMethodProtoKind::Slot(slot_def))
+        } else if name == "__call__" {
+            PyMethodKind::Proto(PyMethodProtoKind::Call)
+        } else if let Some(slot_fragment_def) = pyproto_fragment(name) {
+            PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(slot_fragment_def))
+        } else {
+            PyMethodKind::Fn
+        }
+    }
+}
+
+enum PyMethodProtoKind {
+    Slot(&'static SlotDef),
+    Call,
+    SlotFragment(&'static SlotFragmentDef),
+}
+
+impl<'a> PyMethod<'a> {
+    fn parse(
+        sig: &'a mut syn::Signature,
+        meth_attrs: &mut Vec<syn::Attribute>,
+        options: PyFunctionOptions,
+    ) -> Result<Self> {
+        let spec = FnSpec::parse(sig, meth_attrs, options)?;
+
+        let method_name = spec.python_name.to_string();
+        let kind = PyMethodKind::from_name(&method_name);
+
+        Ok(Self {
+            kind,
+            method_name,
+            spec,
+        })
+    }
+}
+
+pub fn is_proto_method(name: &str) -> bool {
+    match PyMethodKind::from_name(name) {
+        PyMethodKind::Fn => false,
+        PyMethodKind::Proto(_) => true,
+    }
+}
+
 pub fn gen_py_method(
     cls: &syn::Type,
     sig: &mut syn::Signature,
@@ -33,56 +90,55 @@ pub fn gen_py_method(
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
-    let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
+    let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
+    let spec = &method.spec;
 
-    let method_name = spec.python_name.to_string();
-
-    if let Some(slot_def) = pyproto(&method_name) {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        let slot = slot_def.generate_type_slot(cls, &spec)?;
-        return Ok(GeneratedPyMethod::Proto(slot));
-    } else if method_name == "__call__" {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        return Ok(GeneratedPyMethod::Proto(impl_call_slot(cls, spec)?));
-    }
-
-    if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        let proto = slot_fragment_def.generate_pyproto_fragment(cls, &spec)?;
-        return Ok(GeneratedPyMethod::SlotTraitImpl(method_name, proto));
-    }
-
-    Ok(match &spec.tp {
+    Ok(match (method.kind, &spec.tp) {
+        // Class attributes go before protos so that class attributes can be used to set proto
+        // method to None.
+        (_, FnType::ClassAttribute) => {
+            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec))
+        }
+        (PyMethodKind::Proto(proto_kind), _) => {
+            ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
+            match proto_kind {
+                PyMethodProtoKind::Slot(slot_def) => {
+                    let slot = slot_def.generate_type_slot(cls, spec)?;
+                    GeneratedPyMethod::Proto(slot)
+                }
+                PyMethodProtoKind::Call => {
+                    GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
+                }
+                PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
+                    let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
+                    GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
+                }
+            }
+        }
         // ordinary functions (with some specialties)
-        FnType::Fn(_) => GeneratedPyMethod::Method(impl_py_method_def(cls, &spec, None)?),
-        FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?),
+        (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
-            &spec,
+            spec,
             Some(quote!(::pyo3::ffi::METH_CLASS)),
         )?),
-        FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
-            &spec,
+            spec,
             Some(quote!(::pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        FnType::FnNew => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, &spec)?),
-        FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_class_attribute(cls, &spec)),
-        FnType::Getter(self_type) => GeneratedPyMethod::Method(impl_py_getter_def(
+        (_, FnType::FnNew) => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, spec)?),
+
+        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
-            PropertyType::Function {
-                self_type,
-                spec: &spec,
-            },
+            PropertyType::Function { self_type, spec },
         )?),
-        FnType::Setter(self_type) => GeneratedPyMethod::Method(impl_py_setter_def(
+        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
-            PropertyType::Function {
-                self_type,
-                spec: &spec,
-            },
+            PropertyType::Function { self_type, spec },
         )?),
-        FnType::FnModule => {
+        (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
     })

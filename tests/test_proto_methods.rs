@@ -1,10 +1,13 @@
 use pyo3::exceptions::PyValueError;
-use pyo3::types::{PySlice, PyType};
+use pyo3::types::{PyList, PySlice, PyType};
 use pyo3::{exceptions::PyAttributeError, prelude::*};
 use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::{isize, iter};
 
 mod common;
+
+#[pyclass]
+struct EmptyClass;
 
 #[pyclass]
 struct ExampleClass {
@@ -559,4 +562,73 @@ assert c.counter.count == 1
     py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();
+}
+
+#[pyclass]
+struct NotHashable;
+
+#[pymethods]
+impl NotHashable {
+    #[classattr]
+    const __hash__: Option<PyObject> = None;
+}
+
+#[test]
+fn test_hash_opt_out() {
+    // By default Python provides a hash implementation, which can be disabled by setting __hash__
+    // to None.
+    Python::with_gil(|py| {
+        let empty = Py::new(py, EmptyClass).unwrap();
+        py_assert!(py, empty, "hash(empty) is not None");
+
+        let not_hashable = Py::new(py, NotHashable).unwrap();
+        py_expect_exception!(py, not_hashable, "hash(not_hashable)", PyTypeError);
+    })
+}
+
+/// Class with __iter__ gets default contains from CPython.
+#[pyclass]
+struct DefaultedContains;
+
+#[pymethods]
+impl DefaultedContains {
+    fn __iter__(&self, py: Python) -> PyObject {
+        PyList::new(py, &["a", "b", "c"])
+            .as_ref()
+            .iter()
+            .unwrap()
+            .into()
+    }
+}
+
+#[pyclass]
+struct NoContains;
+
+#[pymethods]
+impl NoContains {
+    fn __iter__(&self, py: Python) -> PyObject {
+        PyList::new(py, &["a", "b", "c"])
+            .as_ref()
+            .iter()
+            .unwrap()
+            .into()
+    }
+
+    // Equivalent to the opt-out const form in NotHashable above, just more verbose, to confirm this
+    // also works.
+    #[classattr]
+    fn __contains__() -> Option<PyObject> {
+        None
+    }
+}
+
+#[test]
+fn test_contains_opt_out() {
+    Python::with_gil(|py| {
+        let defaulted_contains = Py::new(py, DefaultedContains).unwrap();
+        py_assert!(py, defaulted_contains, "'a' in defaulted_contains");
+
+        let no_contains = Py::new(py, NoContains).unwrap();
+        py_expect_exception!(py, no_contains, "'a' in no_contains", PyTypeError);
+    })
 }
