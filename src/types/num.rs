@@ -10,18 +10,6 @@ use std::convert::TryFrom;
 use std::i64;
 use std::os::raw::c_long;
 
-fn err_if_invalid_value<T: PartialEq>(
-    py: Python,
-    invalid_value: T,
-    actual_value: T,
-) -> PyResult<T> {
-    if actual_value == invalid_value && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(actual_value)
-    }
-}
-
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
         impl ToPyObject for $rust_type {
@@ -271,6 +259,20 @@ mod slow_128bit_int_conversion {
 
     int_convert_128!(i128, i64);
     int_convert_128!(u128, u64);
+}
+
+fn err_if_invalid_value<T: PartialEq>(
+    py: Python,
+    invalid_value: T,
+    actual_value: T,
+) -> PyResult<T> {
+    if actual_value == invalid_value {
+        if let Some(err) = PyErr::take(py) {
+            return Err(err);
+        }
+    }
+
+    Ok(actual_value)
 }
 
 #[cfg(test)]
