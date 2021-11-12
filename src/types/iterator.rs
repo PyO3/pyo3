@@ -206,7 +206,7 @@ mod tests {
             let x = 5.to_object(py);
             let err = PyIterator::from_object(py, &x).unwrap_err();
 
-            assert!(err.is_instance::<PyTypeError>(py));
+            assert!(err.is_instance_of::<PyTypeError>(py));
         });
     }
 

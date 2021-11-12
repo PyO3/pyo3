@@ -267,7 +267,7 @@ fn always_throws() -> PyResult<()> {
 # Python::with_gil(|py| {
 #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
 #     let err = fun.call0().expect_err(\"called a function that should always return an error but the return value was Ok\");
-#     assert!(err.is_instance::<Py", $name, ">(py))
+#     assert!(err.is_instance_of::<Py", $name, ">(py))
 # });
 ```
 
@@ -292,7 +292,7 @@ Python::with_gil(|py| {
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
-        Err(error) if error.is_instance::<Py", $name, ">(py) => \"" , $name, "\",
+        Err(error) if error.is_instance_of::<Py", $name, ">(py) => \"" , $name, "\",
         Err(_) => \"Some other error\",
     };
 
@@ -611,7 +611,7 @@ macro_rules! test_exception {
                         .unwrap_or($exc_ty::new_err("a test exception"))
                 };
 
-                assert!(err.is_instance::<$exc_ty>(py));
+                assert!(err.is_instance_of::<$exc_ty>(py));
 
                 let value: &$exc_ty = err.instance(py).downcast().unwrap();
                 assert!(value.source().is_none());
@@ -619,7 +619,7 @@ macro_rules! test_exception {
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
                 assert!(value.source().is_some());
 
-                assert!($crate::PyErr::from(value).is_instance::<$exc_ty>(py));
+                assert!($crate::PyErr::from(value).is_instance_of::<$exc_ty>(py));
             })
         }
     };

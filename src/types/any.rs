@@ -74,7 +74,7 @@ impl PyAny {
     ///
     /// Python::with_gil(|py| {
     ///     let dict = PyDict::new(py);
-    ///     assert!(dict.is_instance::<PyAny>().unwrap());
+    ///     assert!(dict.is_instance_of::<PyAny>().unwrap());
     ///     let any: &PyAny = dict.as_ref();
     ///     assert!(any.downcast::<PyDict>().is_ok());
     ///     assert!(any.downcast::<PyList>().is_err());
@@ -665,21 +665,21 @@ impl PyAny {
         unsafe { self.py().from_owned_ptr(ffi::PyObject_Dir(self.as_ptr())) }
     }
 
+    /// Checks whether this object is an instance of type `typ`.
+    ///
+    /// This is equivalent to the Python expression `isinstance(self, typ)`.
+    pub fn is_instance(&self, typ: &PyType) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), typ.as_ptr()) };
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
+    }
+
     /// Checks whether this object is an instance of type `T`.
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    pub fn is_instance<T: PyTypeObject>(&self) -> PyResult<bool> {
-        self.is_instance_of(T::type_object(self.py()))
-    }
-
-    /// Checks whether this object is an instance of type `typ`.
-    ///
-    /// This is equivalent to the Python expression `isinstance(self, typ)`.
-    pub fn is_instance_of(&self, typ: &PyType) -> PyResult<bool> {
-        let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), typ.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
-        Ok(result == 1)
+    pub fn is_instance_of<T: PyTypeObject>(&self) -> PyResult<bool> {
+        self.is_instance(T::type_object(self.py()))
     }
 
     /// Returns a GIL marker constrained to the lifetime of this type.
@@ -787,10 +787,10 @@ mod tests {
     fn test_any_isinstance() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_ref(py);
-            assert!(x.is_instance::<PyLong>().unwrap());
+            assert!(x.is_instance_of::<PyLong>().unwrap());
 
             let l = vec![x, x].to_object(py).into_ref(py);
-            assert!(l.is_instance::<PyList>().unwrap());
+            assert!(l.is_instance_of::<PyList>().unwrap());
         });
     }
 
@@ -798,7 +798,7 @@ mod tests {
     fn test_any_isinstance_of() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
-            assert!(l.is_instance_of(PyList::type_object(py)).unwrap());
+            assert!(l.is_instance(PyList::type_object(py)).unwrap());
         });
     }
 }

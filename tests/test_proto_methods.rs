@@ -97,7 +97,7 @@ fn test_getattr() {
         assert!(example_py
             .getattr("other_attr")
             .unwrap_err()
-            .is_instance::<PyAttributeError>(py));
+            .is_instance_of::<PyAttributeError>(py));
     })
 }
 

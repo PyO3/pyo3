@@ -19,8 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Py::setattr` method. [#2009](https://github.com/PyO3/pyo3/pull/2009)
 
-## Removed
+### Changed
 
+- `PyType::is_subclass`, `PyErr::is_instance` and `PyAny::is_instance` now operate run-time type object instead of a type known at compile-time. The old behavior is still available as `PyType::is_subclass_of`, `PyErr::is_instance_of` and `PyAny::is_instance_of`.  [#1985](https://github.com/PyO3/pyo3/pull/1985)
+
+### Removed
+
+- Remove `PyType::is_instance`, which is unintuitive; instead of `typ.is_instance(obj)`, use `obj.is_instance(typ)`. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
 
 ## [0.15.1] - 2021-11-19
@@ -29,11 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add implementations for `Py::as_ref()` and `Py::into_ref()` for `Py<PySequence>`, `Py<PyIterator>` and `Py<PyMapping>`. [#1682](https://github.com/PyO3/pyo3/pull/1682)
 - Add `PyTraceback` type to represent and format Python tracebacks. [#1977](https://github.com/PyO3/pyo3/pull/1977)
-
-### Added
-
-- Add `PyType::is_subclass_of` and `PyAny::is_instance_of` which operate not on
-  a type known at compile-time but a run-time type object. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 
 ### Changed
 
@@ -46,11 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
 - Fix panic in `__get__` implementation when accessing descriptor on type object. [#1997](https://github.com/PyO3/pyo3/pull/1997)
-
-### Removed
-
-- Remove `PyType::is_instance`, which is unintuitive; instead of `typ.is_instance(obj)`, you should
-  now use `obj.is_instance_of(typ)`. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 
 ## [0.15.0] - 2021-11-03
 

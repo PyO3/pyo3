@@ -40,24 +40,24 @@ impl PyType {
         self.getattr("__qualname__")?.extract()
     }
 
+    /// Checks whether `self` is a subclass of `other`.
+    ///
+    /// Equivalent to the Python expression `issubclass(self, other)`.
+    pub fn is_subclass(&self, other: &PyType) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
+        err::error_on_minusone(self.py(), result)?;
+        Ok(result == 1)
+    }
+
     /// Checks whether `self` is a subclass of type `T`.
     ///
     /// Equivalent to the Python expression `issubclass(self, T)`, if the type
     /// `T` is known at compile time.
-    pub fn is_subclass<T>(&self) -> PyResult<bool>
+    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
     where
         T: PyTypeObject,
     {
-        self.is_subclass_of(T::type_object(self.py()))
-    }
-
-    /// Checks whether `self` is a subclass of `other`.
-    ///
-    /// Equivalent to the Python expression `issubclass(self, other)`.
-    pub fn is_subclass_of(&self, other: &PyType) -> PyResult<bool> {
-        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
-        Ok(result == 1)
+        self.is_subclass(T::type_object(self.py()))
     }
 }
 
@@ -72,16 +72,16 @@ mod tests {
     #[test]
     fn test_type_is_subclass() {
         Python::with_gil(|py| {
-            assert!(PyBool::type_object(py).is_subclass::<PyLong>().unwrap());
+            let bool_type = PyBool::type_object(py);
+            let long_type = PyLong::type_object(py);
+            assert!(bool_type.is_subclass(long_type).unwrap());
         });
     }
 
     #[test]
     fn test_type_is_subclass_of() {
         Python::with_gil(|py| {
-            let bool_type = PyBool::type_object(py);
-            let long_type = PyLong::type_object(py);
-            assert!(bool_type.is_subclass_of(long_type).unwrap());
+            assert!(PyBool::type_object(py).is_subclass_of::<PyLong>().unwrap());
         });
     }
 }
