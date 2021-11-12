@@ -52,11 +52,13 @@ impl<'source> FromPyObject<'source> for f64 {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
-        if v == -1.0 && PyErr::occurred(obj.py()) {
-            Err(PyErr::fetch(obj.py()))
-        } else {
-            Ok(v)
+        if v == -1.0 {
+            if let Some(err) = PyErr::take(obj.py()) {
+                return Err(err);
+            }
         }
+
+        Ok(v)
     }
 }
 

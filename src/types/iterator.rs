@@ -58,13 +58,7 @@ impl<'p> Iterator for &'p PyIterator {
 
         match unsafe { py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) } {
             Some(obj) => Some(Ok(obj)),
-            None => {
-                if PyErr::occurred(py) {
-                    Some(Err(PyErr::fetch(py)))
-                } else {
-                    None
-                }
-            }
+            None => PyErr::take(py).map(Err),
         }
     }
 }
