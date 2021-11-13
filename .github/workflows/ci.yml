@@ -266,7 +266,11 @@ jobs:
 
   coverage:
     needs: [fmt]
-    runs-on: ubuntu-latest
+    name: coverage-${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["windows", "macos", "ubuntu"]
+    runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -280,12 +284,19 @@ jobs:
             target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
         continue-on-error: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+          components: llvm-tools-preview
       - name: install cargo-llvm-cov
+        shell: bash
         run: |
-          wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
-          mv cargo-llvm-cov ~/.cargo/bin
+          host=$(rustc -Vv | grep host | sed 's/host: //')
+          curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.10
+          CARGO_LLVM_COV_VERSION: 0.1.11
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -299,8 +310,10 @@ jobs:
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features $(make list_all_additive_features)
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3 $(make list_all_additive_features)
           cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
+        shell: bash
         env:
           ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov
+          name: ${{ matrix.os }}
