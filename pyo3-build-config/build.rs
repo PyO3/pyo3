@@ -61,6 +61,9 @@ pub fn abi3_config() -> Option<InterpreterConfig> {
                 // NB PyPy doesn't support abi3 yet
                 implementation: PythonImplementation::CPython,
                 abi3: true,
+                abi_flags: None,
+                abi_tag: None,
+                ext_suffix: Some(".abi3.so".to_string()),
                 lib_name: None,
                 lib_dir: None,
                 build_flags: BuildFlags::abi3(),

@@ -15,7 +15,12 @@ use std::io::Cursor;
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
-pub use impl_::{BuildFlag, BuildFlags, InterpreterConfig, PythonImplementation, PythonVersion};
+pub use impl_::{
+    BuildFlag, BuildFlags, CrossCompileConfig, InterpreterConfig, PythonImplementation,
+    PythonVersion,
+};
+
+pub use impl_::{cross_compiling, find_sysconfigdata, parse_sysconfigdata};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///

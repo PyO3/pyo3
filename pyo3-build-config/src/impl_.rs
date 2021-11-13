@@ -65,6 +65,21 @@ pub struct InterpreterConfig {
     /// Serialized to `abi3`.
     pub abi3: bool,
 
+    /// ABI flags as specified by [PEP 3149](https://www.python.org/dev/peps/pep-3149/).
+    ///
+    /// Serialized to `abi_flags`.
+    pub abi_flags: Option<String>,
+
+    /// Python abi tag - typically '{major}{minor}{abi_flags}' (e.g. '39m').
+    ///
+    /// Serialized to `abi_tag`.
+    pub abi_tag: Option<String>,
+
+    /// Platform-dependent extension module suffix (e.g. '.cpython-39-darwin.so').
+    ///
+    /// Serialized to `ext_suffix`.
+    pub ext_suffix: Option<String>,
+
     /// The name of the link library defining Python.
     ///
     /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
@@ -196,6 +211,9 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
+print("abiflags", get_config_var("ABIFLAGS"))
+print("soabi", get_config_var("SOABI"))
+print("ext_suffix", get_config_var("EXT_SUFFIX"))
 print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("libdir", get_config_var("LIBDIR"))
@@ -218,6 +236,15 @@ print("mingw", get_platform() == "mingw")
         };
 
         let abi3 = is_abi3();
+        let abi_flags = map["abiflags"].to_string();
+        let soabi = map["soabi"].as_str();
+        let abi_tag = soabi
+            .split('-')
+            .nth(1)
+            .map(ToString::to_string)
+            .expect("unable to parse ABI tag from SOABI");
+        let ext_suffix = map["ext_suffix"].to_string();
+
         let implementation = map["implementation"].parse()?;
 
         let lib_name = if cfg!(windows) {
@@ -251,6 +278,9 @@ print("mingw", get_platform() == "mingw")
             implementation,
             shared,
             abi3,
+            abi_flags: Some(abi_flags),
+            abi_tag: Some(abi_tag),
+            ext_suffix: Some(ext_suffix),
             lib_name: Some(lib_name),
             lib_dir,
             executable: map.get("executable").cloned(),
@@ -292,6 +322,9 @@ print("mingw", get_platform() == "mingw")
         let mut version = None;
         let mut shared = None;
         let mut abi3 = None;
+        let mut abi_flags = None;
+        let mut abi_tag = None;
+        let mut ext_suffix = None;
         let mut lib_name = None;
         let mut lib_dir = None;
         let mut executable = None;
@@ -316,6 +349,9 @@ print("mingw", get_platform() == "mingw")
                 "version" => parse_value!(version, value),
                 "shared" => parse_value!(shared, value),
                 "abi3" => parse_value!(abi3, value),
+                "abi_flags" => parse_value!(abi_flags, value),
+                "abi_tag" => parse_value!(abi_tag, value),
+                "ext_suffix" => parse_value!(ext_suffix, value),
                 "lib_name" => parse_value!(lib_name, value),
                 "lib_dir" => parse_value!(lib_dir, value),
                 "executable" => parse_value!(executable, value),
@@ -340,6 +376,9 @@ print("mingw", get_platform() == "mingw")
             version,
             shared: shared.unwrap_or(true),
             abi3,
+            abi_flags,
+            abi_tag,
+            ext_suffix,
             lib_name,
             lib_dir,
             executable,
@@ -387,6 +426,9 @@ print("mingw", get_platform() == "mingw")
         write_line!(version)?;
         write_line!(shared)?;
         write_line!(abi3)?;
+        write_option_line!(abi_flags)?;
+        write_option_line!(abi_tag)?;
+        write_option_line!(ext_suffix)?;
         write_option_line!(lib_name)?;
         write_option_line!(lib_dir)?;
         write_option_line!(executable)?;
@@ -472,8 +514,13 @@ fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
 }
 
-struct CrossCompileConfig {
-    lib_dir: PathBuf,
+/// Configuration needed by PyO3 to cross-compile for a target platform.
+///
+/// Usually this is collected from the environment (i.e. `PYO3_CROSS_*` and `CARGO_CFG_TARGET_*`)
+/// when a cross-compilation configuration is detected.
+#[derive(Debug)]
+pub struct CrossCompileConfig {
+    pub lib_dir: PathBuf,
     version: Option<PythonVersion>,
     os: String,
     arch: String,
@@ -486,47 +533,60 @@ pub fn any_cross_compiling_env_vars_set() -> bool {
         || env::var_os("PYO3_CROSS_PYTHON_VERSION").is_some()
 }
 
-fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
+fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
+    let host = cargo_env_var("HOST").unwrap();
+    let target = cargo_env_var("TARGET").unwrap();
+
+    if host == target {
+        // definitely not cross compiling
+        return Ok(None);
+    }
+
+    let target_arch = cargo_env_var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR").unwrap();
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+
+    cross_compiling(
+        &host,
+        &format!("{}-{}-{}", target_arch, target_vendor, target_os),
+        &target_arch,
+        &target_os,
+    )
+}
+
+/// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
+pub fn cross_compiling(
+    host: &str,
+    target_triple: &str,
+    target_arch: &str,
+    target_os: &str,
+) -> Result<Option<CrossCompileConfig>> {
     let cross = env_var("PYO3_CROSS");
     let cross_lib_dir = env_var("PYO3_CROSS_LIB_DIR");
     let cross_python_version = env_var("PYO3_CROSS_PYTHON_VERSION");
 
-    let target_arch = cargo_env_var("CARGO_CFG_TARGET_ARCH");
-    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR");
-    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS");
-
     if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
         // No cross-compiling environment variables set; try to determine if this is a known case
         // which is not cross-compilation.
-
-        let target = cargo_env_var("TARGET").unwrap();
-        let host = cargo_env_var("HOST").unwrap();
-        if target == host {
-            // Not cross-compiling
+        if host.starts_with(target_triple) {
+            // Not cross-compiling if arch-vendor-os is all the same
+            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
             return Ok(None);
         }
 
-        if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
+        if target_triple == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
             // Not cross-compiling to compile for 32-bit Python from windows 64-bit
             return Ok(None);
         }
 
-        if target == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
+        if target_triple == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
             // Not cross-compiling to compile for x86-64 Python from macOS arm64
             return Ok(None);
         }
 
-        if target == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
+        if target_triple == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
             // Not cross-compiling to compile for arm64 Python from macOS x86_64
             return Ok(None);
-        }
-
-        if let (Some(arch), Some(vendor), Some(os)) = (&target_arch, &target_vendor, &target_os) {
-            if host.starts_with(&format!("{}-{}-{}", arch, vendor, os)) {
-                // Not cross-compiling if arch-vendor-os is all the same
-                // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
-                return Ok(None);
-            }
         }
     }
 
@@ -536,8 +596,8 @@ fn cross_compiling() -> Result<Option<CrossCompileConfig>> {
         lib_dir: cross_lib_dir
             .ok_or("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")?
             .into(),
-        os: target_os.unwrap(),
-        arch: target_arch.unwrap(),
+        os: target_os.to_string(),
+        arch: target_arch.to_string(),
         version: cross_python_version
             .map(|os_string| {
                 let utf8_str = os_string
@@ -736,7 +796,7 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 /// The sysconfigdata is simply a dictionary containing all the build time variables used for the
 /// python executable and library. Here it is read and added to a script to extract only what is
 /// necessary. This necessitates a python interpreter for the host machine to work.
-fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<InterpreterConfig> {
+pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<InterpreterConfig> {
     let sysconfigdata_path = sysconfigdata_path.as_ref();
     let mut script = fs::read_to_string(&sysconfigdata_path).with_context(|| {
         format!(
@@ -747,6 +807,8 @@ fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Interpret
     script += r#"
 print("version", build_time_vars["VERSION"])
 print("SOABI", build_time_vars.get("SOABI", ""))
+print("ABIFLAGS", build_time_vars.get("ABIFLAGS", ""))
+print("EXT_SUFFIX", build_time_vars.get("EXT_SUFFIX", ""))
 if "LIBDIR" in build_time_vars:
     print("LIBDIR", build_time_vars["LIBDIR"])
 KEYS = [
@@ -805,11 +867,22 @@ for key in KEYS:
         _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
     };
 
+    let abi_flags = get_key!(sysconfigdata, "ABIFLAGS")?.to_string();
+    let abi_tag = soabi
+        .split('-')
+        .nth(1)
+        .map(ToString::to_string)
+        .expect("unable to parse ABI tag from SOABI");
+    let ext_suffix = get_key!(sysconfigdata, "EXT_SUFFIX")?.to_string();
+
     Ok(InterpreterConfig {
         implementation,
         version,
         shared,
         abi3: is_abi3(),
+        abi_flags: Some(abi_flags),
+        abi_tag: Some(abi_tag),
+        ext_suffix: Some(ext_suffix),
         lib_dir: get_key!(sysconfigdata, "LIBDIR").ok().cloned(),
         lib_name: Some(default_lib_name_unix(
             version,
@@ -864,7 +937,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// ```
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
-fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+pub fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
     let sysconfig_paths = search_lib_dir(&cross.lib_dir, cross);
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
@@ -983,12 +1056,16 @@ fn windows_hardcoded_cross_compile(
         .ok_or("PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified when cross-compiling for Windows.")?;
 
     let abi3 = is_abi3();
+    let implementation = PythonImplementation::CPython;
 
     Ok(InterpreterConfig {
-        implementation: PythonImplementation::CPython,
+        implementation,
         version,
         shared: true,
         abi3,
+        abi_flags: Some("".to_string()),
+        abi_tag: None,
+        ext_suffix: Some(".pyd".to_string()),
         lib_name: Some(default_lib_name_windows(version, abi3, false)),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
@@ -1175,7 +1252,7 @@ fn fixup_config_for_abi3(
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
-    let mut interpreter_config = if let Some(paths) = cross_compiling()? {
+    let mut interpreter_config = if let Some(paths) = cross_compiling_from_cargo_env()? {
         load_cross_compile_config(paths)?
     } else {
         return Ok(None);
@@ -1203,6 +1280,9 @@ mod tests {
     fn test_config_file_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
+            abi_flags: None,
+            abi_tag: None,
+            ext_suffix: None,
             build_flags: BuildFlags::abi3(),
             pointer_width: Some(32),
             executable: Some("executable".into()),
@@ -1226,6 +1306,9 @@ mod tests {
 
         let config = InterpreterConfig {
             abi3: false,
+            abi_flags: Some("".to_string()),
+            abi_tag: Some("310".to_string()),
+            ext_suffix: Some(".cpython-310-darwin.so".to_string()),
             build_flags: {
                 let mut flags = HashSet::new();
                 flags.insert(BuildFlag::Py_DEBUG);
@@ -1264,6 +1347,9 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 shared: true,
                 abi3: false,
+                abi_flags: None,
+                abi_tag: None,
+                ext_suffix: None,
                 lib_name: None,
                 lib_dir: None,
                 executable: None,
@@ -1376,6 +1462,9 @@ mod tests {
                 version: PythonVersion { major: 3, minor: 6 },
                 shared: true,
                 abi3: false,
+                abi_flags: Some("".to_string()),
+                abi_tag: None,
+                ext_suffix: Some(".pyd".to_string()),
                 lib_name: Some("python36".into()),
                 lib_dir: Some("C:\\some\\path".into()),
                 executable: None,
@@ -1440,6 +1529,9 @@ mod tests {
     fn interpreter_version_reduced_to_abi3() {
         let mut config = InterpreterConfig {
             abi3: true,
+            abi_flags: None,
+            abi_tag: None,
+            ext_suffix: Some(".abi3.so".to_string()),
             build_flags: BuildFlags::new(),
             pointer_width: None,
             executable: None,
@@ -1460,6 +1552,9 @@ mod tests {
     fn abi3_version_cannot_be_higher_than_interpreter() {
         let mut config = InterpreterConfig {
             abi3: true,
+            abi_flags: None,
+            abi_tag: Some("36".to_string()),
+            ext_suffix: Some(".abi3.so".to_string()),
             build_flags: BuildFlags::new(),
             pointer_width: None,
             executable: None,
@@ -1517,6 +1612,9 @@ mod tests {
             parsed_config,
             InterpreterConfig {
                 abi3: false,
+                abi_flags: Some("m".to_string()),
+                abi_tag: Some("37m".to_string()),
+                ext_suffix: Some(".cpython-37m-x86_64-linux-gnu.so".to_string()),
                 build_flags: BuildFlags(interpreter_config.build_flags.0.clone()),
                 pointer_width: Some(64),
                 executable: None,
