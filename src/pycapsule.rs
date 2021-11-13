@@ -156,7 +156,7 @@ impl PyCapsule {
 #[cfg(test)]
 mod tests {
     use crate::prelude::PyModule;
-    use crate::{ffi, pycapsule::PyCapsule, PyResult, Python, Py};
+    use crate::{ffi, pycapsule::PyCapsule, Py, PyResult, Python};
     use std::ffi::{c_void, CString};
     use std::sync::mpsc::{channel, Sender};
 
@@ -189,19 +189,21 @@ mod tests {
     }
 
     #[test]
-    fn test_pycapsule_func() -> PyResult<()> {
-        extern "C" fn foo(x: u32) -> u32 {
-            x
-        }
+    fn test_pycapsule_func() {
+        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+            extern "C" fn foo(x: u32) -> u32 {
+                x
+            }
+
+            let name = CString::new("foo").unwrap();
+            let cap = PyCapsule::new(py, foo as *const c_void, &name, None).unwrap();
+            cap.into()
+        });
 
         Python::with_gil(|py| {
-            let name = CString::new("foo").unwrap();
-
-            let cap = PyCapsule::new(py, foo as *const c_void, &name, None)?;
-            let f = unsafe { cap.reference::<fn(u32) -> u32>() };
+            let f = unsafe { cap.as_ref(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
-            Ok(())
-        })
+        });
     }
 
     #[test]
@@ -278,13 +280,13 @@ mod tests {
     fn test_vec_storage() {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            
+
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
             let cap = PyCapsule::new(py, stuff, &name, None).unwrap();
-    
+
             cap.into()
         });
-    
+
         Python::with_gil(|py| {
             let ctx: &Vec<u8> = unsafe { cap.as_ref(py).reference() };
             assert_eq!(ctx, &[1, 2, 3, 4]);
@@ -296,13 +298,13 @@ mod tests {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, (), &name, None).unwrap();
-    
+
             let ctx: Vec<u8> = vec![1, 2, 3, 4];
             cap.set_context(py, ctx).unwrap();
-    
+
             cap.into()
         });
-    
+
         Python::with_gil(|py| {
             let ctx: Option<&Vec<u8>> = cap.as_ref(py).get_context(py).unwrap();
             assert_eq!(ctx, Some(&vec![1_u8, 2, 3, 4]));
