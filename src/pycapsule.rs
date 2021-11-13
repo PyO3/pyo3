@@ -48,7 +48,7 @@ impl PyCapsule {
     /// Constructs a new capsule of whose contents are `T` associated with `name`.
     /// Can optionally provide a deconstructor for when `PyCapsule` is destroyed
     /// it will be passed the capsule.
-    pub fn new<'py, T>(
+    pub fn new<'py, T: 'static>(
         py: Python<'py>,
         value: T,
         name: &CStr,
@@ -84,7 +84,7 @@ impl PyCapsule {
     }
 
     /// Set a context pointer in the capsule to `T`
-    pub fn set_context<T>(&self, py: Python, context: T) -> PyResult<()> {
+    pub fn set_context<'py, T: 'static>(&self, py: Python<'py>, context: T) -> PyResult<()> {
         let ctx = Box::new(context);
         let result =
             unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), Box::into_raw(ctx) as _) as u8 };
@@ -156,7 +156,7 @@ impl PyCapsule {
 #[cfg(test)]
 mod tests {
     use crate::prelude::PyModule;
-    use crate::{ffi, pycapsule::PyCapsule, PyResult, Python};
+    use crate::{ffi, pycapsule::PyCapsule, PyResult, Python, Py};
     use std::ffi::{c_void, CString};
     use std::sync::mpsc::{channel, Sender};
 
@@ -272,5 +272,40 @@ mod tests {
 
         // Indeed it was
         assert_eq!(rx.recv(), Ok(true));
+    }
+
+    #[test]
+    fn test_vec_storage() {
+        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+            let name = CString::new("foo").unwrap();
+            
+            let stuff: Vec<u8> = vec![1, 2, 3, 4];
+            let cap = PyCapsule::new(py, stuff, &name, None).unwrap();
+    
+            cap.into()
+        });
+    
+        Python::with_gil(|py| {
+            let ctx: &Vec<u8> = unsafe { cap.as_ref(py).reference() };
+            assert_eq!(ctx, &[1, 2, 3, 4]);
+        })
+    }
+
+    #[test]
+    fn test_vec_context() {
+        let cap: Py<PyCapsule> = Python::with_gil(|py| {
+            let name = CString::new("foo").unwrap();
+            let cap = PyCapsule::new(py, (), &name, None).unwrap();
+    
+            let ctx: Vec<u8> = vec![1, 2, 3, 4];
+            cap.set_context(py, ctx).unwrap();
+    
+            cap.into()
+        });
+    
+        Python::with_gil(|py| {
+            let ctx: Option<&Vec<u8>> = cap.as_ref(py).get_context(py).unwrap();
+            assert_eq!(ctx, Some(&vec![1_u8, 2, 3, 4]));
+        })
     }
 }
