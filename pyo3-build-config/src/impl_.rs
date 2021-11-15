@@ -135,10 +135,6 @@ impl InterpreterConfig {
             println!("cargo:rustc-cfg=Py_3_{}", i);
         }
 
-        if self.abi3 {
-            println!("cargo:rustc-cfg=Py_LIMITED_API");
-        }
-
         if self.implementation.is_pypy() {
             println!("cargo:rustc-cfg=PyPy");
             if self.abi3 {
@@ -147,7 +143,9 @@ impl InterpreterConfig {
                     See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
                 );
             }
-        };
+        } else if self.abi3 {
+            println!("cargo:rustc-cfg=Py_LIMITED_API");
+        }
 
         for flag in &self.build_flags.0 {
             println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)
