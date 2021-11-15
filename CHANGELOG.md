@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix use of `catch_unwind` in `allow_threads` which can cause fatal crashes. [#1989](https://github.com/PyO3/pyo3/pull/1989)
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
+- Fix panic in `__get__` implementation when accessing descriptor on type object. [#1997](https://github.com/PyO3/pyo3/pull/1997)
 
 ## [0.15.0] - 2021-11-03
 

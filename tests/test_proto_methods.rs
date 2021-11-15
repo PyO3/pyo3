@@ -548,11 +548,23 @@ fn descr_getset() {
         r#"
 class Class:
     counter = Counter()
+
+# access via type
+counter = Class.counter
+assert counter.count == 1
+
+# access with instance directly
+assert Counter.__get__(counter, Class()).count == 2
+
+# access via instance
 c = Class()
-c.counter # count += 1
-assert c.counter.count == 2
-c.counter = Counter()
 assert c.counter.count == 3
+
+# __set__
+c.counter = Counter()
+assert c.counter.count == 4
+
+# __delete__
 del c.counter
 assert c.counter.count == 1
 "#
