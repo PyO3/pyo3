@@ -211,6 +211,10 @@ jobs:
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
+      - if: ${{ startsWith(matrix.python-version, 'pypy') }}
+        name: Build PyPy (abi3-py36)
+        run: cargo build --lib --tests --no-default-features --features "abi3-py36 ${{ steps.settings.outputs.all_additive_features }}"
+
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
