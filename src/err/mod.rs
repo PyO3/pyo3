@@ -2,7 +2,7 @@
 
 use crate::panic::PanicException;
 use crate::type_object::PyTypeObject;
-use crate::types::PyType;
+use crate::types::{PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -201,7 +201,7 @@ impl PyErr {
     ///     assert_eq!(err.ptraceback(py), None);
     /// });
     /// ```
-    pub fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyAny> {
+    pub fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
         self.normalized(py)
             .ptraceback
             .as_ref()
@@ -497,7 +497,7 @@ impl PyErr {
             *self_state = Some(PyErrState::Normalized(PyErrStateNormalized {
                 ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
                 pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-                ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback),
+                ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
             }));
 
             match self_state {
