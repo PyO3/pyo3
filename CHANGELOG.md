@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix creating `#[classattr]` by functions with the name of a known magic method. [#1969](https://github.com/PyO3/pyo3/pull/1969)
+- Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
 
 ## [0.15.0] - 2021-11-03

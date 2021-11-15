@@ -135,10 +135,6 @@ impl InterpreterConfig {
             println!("cargo:rustc-cfg=Py_3_{}", i);
         }
 
-        if self.abi3 {
-            println!("cargo:rustc-cfg=Py_LIMITED_API");
-        }
-
         if self.implementation.is_pypy() {
             println!("cargo:rustc-cfg=PyPy");
             if self.abi3 {
@@ -147,7 +143,9 @@ impl InterpreterConfig {
                     See https://foss.heptapod.net/pypy/pypy/-/issues/3397 for more information."
                 );
             }
-        };
+        } else if self.abi3 {
+            println!("cargo:rustc-cfg=Py_LIMITED_API");
+        }
 
         for flag in &self.build_flags.0 {
             println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)
@@ -221,7 +219,12 @@ print("mingw", get_platform().startswith("mingw"))
         let implementation = map["implementation"].parse()?;
 
         let lib_name = if cfg!(windows) {
-            default_lib_name_windows(version, abi3, map["mingw"].as_str() == "True")
+            default_lib_name_windows(
+                version,
+                implementation,
+                abi3,
+                map["mingw"].as_str() == "True",
+            )
         } else {
             default_lib_name_unix(
                 version,
@@ -989,7 +992,12 @@ fn windows_hardcoded_cross_compile(
         version,
         shared: true,
         abi3,
-        lib_name: Some(default_lib_name_windows(version, abi3, false)),
+        lib_name: Some(default_lib_name_windows(
+            version,
+            PythonImplementation::CPython,
+            abi3,
+            false,
+        )),
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
         pointer_width: None,
@@ -1028,8 +1036,13 @@ fn load_cross_compile_config(
 // This contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 
-fn default_lib_name_windows(version: PythonVersion, abi3: bool, mingw: bool) -> String {
-    if abi3 {
+fn default_lib_name_windows(
+    version: PythonVersion,
+    implementation: PythonImplementation,
+    abi3: bool,
+    mingw: bool,
+) -> String {
+    if abi3 && !implementation.is_pypy() {
         WINDOWS_ABI3_LIB_NAME.to_owned()
     } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
@@ -1389,21 +1402,51 @@ mod tests {
 
     #[test]
     fn default_lib_name_windows() {
+        use PythonImplementation::*;
         assert_eq!(
-            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, false, false),
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 6 },
+                CPython,
+                false,
+                false
+            ),
             "python36",
         );
         assert_eq!(
-            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, true, false),
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 6 },
+                CPython,
+                true,
+                false
+            ),
             "python3",
         );
         assert_eq!(
-            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, false, true),
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 6 },
+                CPython,
+                false,
+                true
+            ),
             "python3.6",
         );
         assert_eq!(
-            super::default_lib_name_windows(PythonVersion { major: 3, minor: 6 }, true, true),
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 6 },
+                CPython,
+                true,
+                true
+            ),
             "python3",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion { major: 3, minor: 6 },
+                PyPy,
+                true,
+                false
+            ),
+            "python36",
         );
     }
 
