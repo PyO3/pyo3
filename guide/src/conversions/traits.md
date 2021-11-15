@@ -17,7 +17,7 @@ variety of Rust types, which you can check out in the implementor list of
 [`FromPyObject`].
 
 [`FromPyObject`] is also implemented for your own Rust types wrapped as Python
-objects (see [the chapter about classes](class.md)).  There, in order to both be
+objects (see [the chapter about classes](../class.md)).  There, in order to both be
 able to operate on mutable references *and* satisfy Rust's rules of non-aliasing
 mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
 and [`PyRefMut`].  They work like the reference wrappers of
