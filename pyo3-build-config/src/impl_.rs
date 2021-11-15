@@ -65,7 +65,7 @@ pub struct InterpreterConfig {
     /// Serialized to `abi3`.
     pub abi3: bool,
 
-    /// ABI flags as specified by [PEP 3149](https://www.python.org/dev/peps/pep-3149/).
+    /// ABI flags as specified in [PEP 3149](https://www.python.org/dev/peps/pep-3149/).
     ///
     /// Serialized to `abi_flags`.
     pub abi_flags: Option<String>,
@@ -520,10 +520,26 @@ fn is_abi3() -> bool {
 /// when a cross-compilation configuration is detected.
 #[derive(Debug)]
 pub struct CrossCompileConfig {
+    /// The directory containing the Python library to link against.
     pub lib_dir: PathBuf,
+
+    /// The version of the Python library to link against.
     version: Option<PythonVersion>,
-    os: String,
+
+    /// The `arch` component of the compilaton target triple.
+    ///
+    /// e.g. x86_64, i386, arm, thumb, mips, etc.
     arch: String,
+
+    /// The `vendor` component of the compilaton target triple.
+    ///
+    /// e.g. apple, pc, unknown, etc.
+    vendor: String,
+
+    /// The `os` component of the compilaton target triple.
+    ///
+    /// e.g. darwin, freebsd, linux, windows, etc.
+    os: String,
 }
 
 #[allow(unused)]
@@ -546,33 +562,25 @@ fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR").unwrap();
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
 
-    cross_compiling(
-        &host,
-        &format!("{}-{}-{}", target_arch, target_vendor, target_os),
-        &target_arch,
-        &target_os,
-    )
+    cross_compiling(&host, &target_vendor, &target_arch, &target_os)
 }
 
 /// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
 pub fn cross_compiling(
     host: &str,
-    target_triple: &str,
     target_arch: &str,
+    target_vendor: &str,
     target_os: &str,
 ) -> Result<Option<CrossCompileConfig>> {
     let cross = env_var("PYO3_CROSS");
     let cross_lib_dir = env_var("PYO3_CROSS_LIB_DIR");
     let cross_python_version = env_var("PYO3_CROSS_PYTHON_VERSION");
 
+    let target_triple = format!("{}-{}-{}", target_arch, target_vendor, target_os);
+
     if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
         // No cross-compiling environment variables set; try to determine if this is a known case
         // which is not cross-compilation.
-        if host.starts_with(target_triple) {
-            // Not cross-compiling if arch-vendor-os is all the same
-            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
-            return Ok(None);
-        }
 
         if target_triple == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
             // Not cross-compiling to compile for 32-bit Python from windows 64-bit
@@ -588,6 +596,12 @@ pub fn cross_compiling(
             // Not cross-compiling to compile for arm64 Python from macOS x86_64
             return Ok(None);
         }
+
+        if host.starts_with(&target_triple) {
+            // Not cross-compiling if arch-vendor-os is all the same
+            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
+            return Ok(None);
+        }
     }
 
     // At this point we assume that we are cross compiling.
@@ -596,8 +610,9 @@ pub fn cross_compiling(
         lib_dir: cross_lib_dir
             .ok_or("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")?
             .into(),
-        os: target_os.to_string(),
         arch: target_arch.to_string(),
+        vendor: target_vendor.to_string(),
+        os: target_os.to_string(),
         version: cross_python_version
             .map(|os_string| {
                 let utf8_str = os_string
@@ -1451,8 +1466,9 @@ mod tests {
         let cross_config = CrossCompileConfig {
             lib_dir: "C:\\some\\path".into(),
             version: Some(PythonVersion { major: 3, minor: 6 }),
-            os: "os".into(),
             arch: "arch".into(),
+            vendor: "vendor".into(),
+            os: "os".into(),
         };
 
         assert_eq!(
@@ -1597,8 +1613,9 @@ mod tests {
         let cross = CrossCompileConfig {
             lib_dir: lib_dir.into(),
             version: Some(interpreter_config.version),
-            os: "linux".into(),
             arch: "x86_64".into(),
+            vendor: "unknown".into(),
+            os: "linux".into(),
         };
 
         let sysconfigdata_path = match find_sysconfigdata(&cross) {
