@@ -202,7 +202,7 @@ print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
-print("mingw", get_platform() == "mingw")
+print("mingw", get_platform().startswith("mingw"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
