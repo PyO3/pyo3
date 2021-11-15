@@ -483,8 +483,8 @@ const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
 const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .arguments(&[Ty::Object, Ty::CompareOp]);
-const __GET__: SlotDef =
-    SlotDef::new("Py_tp_descr_get", "descrgetfunc").arguments(&[Ty::Object, Ty::Object]);
+const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
+    .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
     TokenGenerator(|| quote! { ::pyo3::class::iter::IterNextOutput::<_, _> }),
@@ -606,6 +606,7 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
 #[derive(Clone, Copy)]
 enum Ty {
     Object,
+    MaybeNullObject,
     NonNullObject,
     CompareOp,
     Int,
@@ -617,7 +618,7 @@ enum Ty {
 impl Ty {
     fn ffi_type(self) -> TokenStream {
         match self {
-            Ty::Object => quote! { *mut ::pyo3::ffi::PyObject },
+            Ty::Object | Ty::MaybeNullObject => quote! { *mut ::pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
@@ -641,6 +642,22 @@ impl Ty {
                     py,
                     quote! {
                         #py.from_borrowed_ptr::<::pyo3::PyAny>(#ident).extract()
+                    },
+                );
+                extract_object(cls, arg.ty, ident, extract)
+            }
+            Ty::MaybeNullObject => {
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                        #py.from_borrowed_ptr::<::pyo3::PyAny>(
+                            if #ident.is_null() {
+                                ::pyo3::ffi::Py_None()
+                            } else {
+                                #ident
+                            }
+                        ).extract()
                     },
                 );
                 extract_object(cls, arg.ty, ident, extract)
