@@ -554,7 +554,12 @@ fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let target = cargo_env_var("TARGET").unwrap();
 
     if host == target {
-        // definitely not cross compiling
+        // Definitely not cross compiling if the host matches the target
+        return Ok(None);
+    }
+
+    if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
+        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
         return Ok(None);
     }
 
@@ -581,11 +586,6 @@ pub fn cross_compiling(
     if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
         // No cross-compiling environment variables set; try to determine if this is a known case
         // which is not cross-compilation.
-
-        if target_triple == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
-            // Not cross-compiling to compile for 32-bit Python from windows 64-bit
-            return Ok(None);
-        }
 
         if target_triple == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
             // Not cross-compiling to compile for x86-64 Python from macOS arm64
@@ -921,7 +921,30 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
     name.to_string_lossy().ends_with(pat)
 }
 
-/// Finds the `_sysconfigdata*.py` file in the library path.
+fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+    let mut sysconfig_paths = find_all_sysconfigdata(cross);
+    if sysconfig_paths.is_empty() {
+        bail!(
+            "Could not find either libpython.so or _sysconfigdata*.py in {}",
+            cross.lib_dir.display()
+        );
+    } else if sysconfig_paths.len() > 1 {
+        let mut error_msg = String::from(
+            "Detected multiple possible Python versions. Please set either the \
+            PYO3_CROSS_PYTHON_VERSION variable to the wanted version or the \
+            _PYTHON_SYSCONFIGDATA_NAME variable to the wanted sysconfigdata file name.\n\n\
+            sysconfigdata files found:",
+        );
+        for path in sysconfig_paths {
+            error_msg += &format!("\n\t{}", path.display());
+        }
+        bail!("{}\n", error_msg);
+    }
+
+    Ok(sysconfig_paths.remove(0))
+}
+
+/// Finds `_sysconfigdata*.py` files for detected Python interpreters.
 ///
 /// From the python source for `_sysconfigdata*.py` is always going to be located at
 /// `build/lib.{PLATFORM}-{PY_MINOR_VERSION}` when built from source. The [exact line][1] is defined as:
@@ -952,7 +975,7 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 /// ```
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
-pub fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
     let sysconfig_paths = search_lib_dir(&cross.lib_dir, cross);
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
@@ -965,27 +988,11 @@ pub fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
             }
         })
         .collect::<Vec<PathBuf>>();
+
     sysconfig_paths.sort();
     sysconfig_paths.dedup();
-    if sysconfig_paths.is_empty() {
-        bail!(
-            "Could not find either libpython.so or _sysconfigdata*.py in {}",
-            cross.lib_dir.display()
-        );
-    } else if sysconfig_paths.len() > 1 {
-        let mut error_msg = String::from(
-            "Detected multiple possible Python versions. Please set either the \
-            PYO3_CROSS_PYTHON_VERSION variable to the wanted version or the \
-            _PYTHON_SYSCONFIGDATA_NAME variable to the wanted sysconfigdata file name.\n\n\
-            sysconfigdata files found:",
-        );
-        for path in sysconfig_paths {
-            error_msg += &format!("\n\t{}", path.display());
-        }
-        bail!("{}\n", error_msg);
-    }
 
-    Ok(sysconfig_paths.remove(0))
+    sysconfig_paths
 }
 
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
