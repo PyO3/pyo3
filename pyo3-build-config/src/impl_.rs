@@ -236,11 +236,7 @@ print("mingw", get_platform().startswith("mingw"))
         let abi3 = is_abi3();
         let abi_flags = map["abiflags"].to_string();
         let soabi = map["soabi"].as_str();
-        let abi_tag = soabi
-            .split('-')
-            .nth(1)
-            .map(ToString::to_string)
-            .expect("unable to parse ABI tag from SOABI");
+        let abi_tag = soabi.split('-').nth(1).map(ToString::to_string);
         let ext_suffix = map["ext_suffix"].to_string();
 
         let implementation = map["implementation"].parse()?;
@@ -282,7 +278,7 @@ print("mingw", get_platform().startswith("mingw"))
             shared,
             abi3,
             abi_flags: Some(abi_flags),
-            abi_tag: Some(abi_tag),
+            abi_tag,
             ext_suffix: Some(ext_suffix),
             lib_name: Some(lib_name),
             lib_dir,
