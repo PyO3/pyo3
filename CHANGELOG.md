@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add implementations for `Py::as_ref()` and `Py::into_ref()` for `Py<PySequence>`, `Py<PyIterator>` and `Py<PyMapping>`. [#1682](https://github.com/PyO3/pyo3/pull/1682)
 - Add `PyTraceback` type to represent and format Python tracebacks. [#1977](https://github.com/PyO3/pyo3/pull/1977)
+- Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
 
 ### Changed
 
