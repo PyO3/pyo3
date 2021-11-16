@@ -1671,13 +1671,29 @@ mod tests {
         };
         let parsed_config = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
 
+        // this is generally the format of the abi_flags, abi_tag, and ext_suffix on linux so this
+        // should work for CI
+        let expected_abi_flags = if PythonVersion::PY37 >= interpreter_config.version {
+            "m".to_string()
+        } else {
+            "".to_string()
+        };
+        let expected_abi_tag = format!(
+            "{}{}{}",
+            interpreter_config.version.major,
+            interpreter_config.version.minor,
+            expected_abi_flags.clone(),
+        );
+        let expected_ext_suffix =
+            format!(".cpython-{}-x86_64-linux-gnu.so", expected_abi_tag.clone());
+
         assert_eq!(
             parsed_config,
             InterpreterConfig {
                 abi3: false,
-                abi_flags: Some("m".to_string()),
-                abi_tag: Some("37m".to_string()),
-                ext_suffix: Some(".cpython-37m-x86_64-linux-gnu.so".to_string()),
+                abi_flags: Some(expected_abi_flags),
+                abi_tag: Some(expected_abi_tag),
+                ext_suffix: Some(expected_ext_suffix),
                 build_flags: BuildFlags(interpreter_config.build_flags.0.clone()),
                 pointer_width: Some(64),
                 executable: None,
