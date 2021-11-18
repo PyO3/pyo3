@@ -76,7 +76,7 @@ impl PyCapsule {
     /// when accessing the capsule.
     ///
     /// ## Safety
-    /// This is unsafe, as there is no gurantee when casting `*mut void` into `T`.
+    /// This is unsafe, as there is no guarantee when casting `*mut void` into `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr, no_block: bool) -> PyResult<&'py T> {
         let ptr = ffi::PyCapsule_Import(name.as_ptr(), no_block as c_int);
         if ptr.is_null() {
@@ -99,8 +99,12 @@ impl PyCapsule {
     }
 
     /// Get a reference to the context `T` in the capsule, if any.
-    pub fn get_context<T>(&self, py: Python) -> PyResult<Option<&T>> {
-        let ctx = unsafe { ffi::PyCapsule_GetContext(self.as_ptr()) };
+    ///
+    /// ## Safety
+    ///
+    /// This is unsafe, as there is no guarantee when casting `*mut void` into `T`.
+    pub unsafe fn get_context<T>(&self, py: Python) -> PyResult<Option<&T>> {
+        let ctx = ffi::PyCapsule_GetContext(self.as_ptr());
         if ctx.is_null() {
             if self.is_valid() & PyErr::occurred(py) {
                 Err(PyErr::fetch(py))
@@ -108,7 +112,7 @@ impl PyCapsule {
                 Ok(None)
             }
         } else {
-            Ok(Some(unsafe { &*(ctx as *const T) }))
+            Ok(Some(&*(ctx as *const T)))
         }
     }
 
@@ -215,12 +219,12 @@ mod tests {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, (), &name, None)?;
 
-            let c = cap.get_context::<()>(py)?;
+            let c = unsafe { cap.get_context::<()>(py)? };
             assert!(c.is_none());
 
             cap.set_context(py, 123)?;
 
-            let ctx: Option<&u32> = cap.get_context(py)?;
+            let ctx: Option<&u32> = unsafe { cap.get_context(py)? };
             assert_eq!(ctx, Some(&123));
             Ok(())
         })
@@ -309,7 +313,7 @@ mod tests {
         });
 
         Python::with_gil(|py| {
-            let ctx: Option<&Vec<u8>> = cap.as_ref(py).get_context(py).unwrap();
+            let ctx: Option<&Vec<u8>> = unsafe { cap.as_ref(py).get_context(py).unwrap() };
             assert_eq!(ctx, Some(&vec![1_u8, 2, 3, 4]));
         })
     }
