@@ -46,7 +46,7 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 
 impl PyCapsule {
     /// Constructs a new capsule of whose contents are `T` associated with `name`.
-    /// Can optionally provide a deconstructor for when `PyCapsule` is destroyed
+    /// Can optionally provide a destructor for when `PyCapsule` is destroyed
     /// it will be passed the capsule.
     pub fn new<'py, T: 'static>(
         py: Python<'py>,
@@ -135,12 +135,12 @@ impl PyCapsule {
         r != 0
     }
 
-    /// Get the capsule deconstructor, if any.
-    pub fn get_deconstructor(&self, py: Python) -> PyResult<Option<ffi::PyCapsule_Destructor>> {
+    /// Get the capsule destructor, if any.
+    pub fn get_destructor(&self, py: Python) -> PyResult<Option<ffi::PyCapsule_Destructor>> {
         match unsafe { ffi::PyCapsule_GetDestructor(self.as_ptr()) } {
-            Some(deconstructor) => Ok(Some(deconstructor)),
+            Some(destructor) => Ok(Some(destructor)),
             None => {
-                // A None can mean an error was raised, or there is no deconstructor
+                // A None can mean an error was raised, or there is no destructor
                 // https://docs.python.org/3/c-api/capsule.html#c.PyCapsule_GetDestructor
                 if self.is_valid() {
                     Ok(None)
