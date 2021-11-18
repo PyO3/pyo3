@@ -23,21 +23,14 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_argument_attributes.rs");
+    t.compile_fail("tests/ui/missing_clone.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
+    t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
 
-    tests_rust_1_48(&t);
     tests_rust_1_49(&t);
     tests_rust_1_54(&t);
     tests_rust_1_55(&t);
     tests_rust_1_56(&t);
-
-    #[rustversion::since(1.48)]
-    fn tests_rust_1_48(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/missing_clone.rs");
-        t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
-    }
-    #[rustversion::before(1.48)]
-    fn tests_rust_1_48(_t: &trybuild::TestCases) {}
 
     #[rustversion::since(1.49)]
     fn tests_rust_1_49(t: &trybuild::TestCases) {
