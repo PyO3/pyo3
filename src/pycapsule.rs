@@ -46,9 +46,22 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 
 impl PyCapsule {
     /// Constructs a new capsule of whose contents are `T` associated with `name`.
-    /// Can optionally provide a destructor for when `PyCapsule` is destroyed
-    /// it will be passed the capsule.
-    pub fn new<'py, T: 'static>(
+    pub fn new<'py, T: 'static>(py: Python<'py>, value: T, name: &CStr) -> PyResult<&'py Self> {
+        Self::new_with_maybe_destructor(py, value, name, None)
+    }
+
+    /// Constructs a new capsule of whose contents are `T` associated with `name`
+    /// Provide a destructor for when `PyCapsule` is destroyed it will be passed the capsule.
+    pub fn new_with_destructor<'py, T: 'static>(
+        py: Python<'py>,
+        value: T,
+        name: &CStr,
+        destructor: ffi::PyCapsule_Destructor,
+    ) -> PyResult<&'py Self> {
+        Self::new_with_maybe_destructor(py, value, name, Some(destructor))
+    }
+
+    fn new_with_maybe_destructor<'py, T: 'static>(
         py: Python<'py>,
         value: T,
         name: &CStr,
@@ -184,7 +197,7 @@ mod tests {
             let foo = Foo { val: 123 };
             let name = CString::new("foo").unwrap();
 
-            let cap = PyCapsule::new(py, foo, &name, None)?;
+            let cap = PyCapsule::new(py, foo, &name)?;
             assert!(cap.is_valid());
 
             let foo_capi = unsafe { cap.reference::<Foo>() };
@@ -203,7 +216,7 @@ mod tests {
             }
 
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, foo as *const c_void, &name, None).unwrap();
+            let cap = PyCapsule::new(py, foo as *const c_void, &name).unwrap();
             cap.into()
         });
 
@@ -217,7 +230,7 @@ mod tests {
     fn test_pycapsule_context() -> PyResult<()> {
         Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, (), &name, None)?;
+            let cap = PyCapsule::new(py, (), &name)?;
 
             let c = unsafe { cap.get_context::<()>(py)? };
             assert!(c.is_none());
@@ -241,7 +254,7 @@ mod tests {
             let foo = Foo { val: 123 };
             let name = CString::new("builtins.capsule").unwrap();
 
-            let capsule = PyCapsule::new(py, foo, &name, None)?;
+            let capsule = PyCapsule::new(py, foo, &name)?;
 
             let module = PyModule::import(py, "builtins")?;
             module.add("capsule", capsule)?;
@@ -274,7 +287,7 @@ mod tests {
         let r = Python::with_gil(|py| -> PyResult<()> {
             let foo = Foo { called: tx };
             let name = CString::new("builtins.capsule").unwrap();
-            let _capsule = PyCapsule::new(py, foo, &name, Some(destructor))?;
+            let _capsule = PyCapsule::new_with_destructor(py, foo, &name, destructor)?;
             Ok(())
         });
         assert!(r.is_ok());
@@ -289,7 +302,7 @@ mod tests {
             let name = CString::new("foo").unwrap();
 
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
-            let cap = PyCapsule::new(py, stuff, &name, None).unwrap();
+            let cap = PyCapsule::new(py, stuff, &name).unwrap();
 
             cap.into()
         });
@@ -304,7 +317,7 @@ mod tests {
     fn test_vec_context() {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, (), &name, None).unwrap();
+            let cap = PyCapsule::new(py, (), &name).unwrap();
 
             let ctx: Vec<u8> = vec![1, 2, 3, 4];
             cap.set_context(py, ctx).unwrap();
