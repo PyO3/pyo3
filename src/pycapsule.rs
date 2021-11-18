@@ -44,33 +44,44 @@ pub struct PyCapsule(PyAny);
 
 pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::PyCapsule_CheckExact);
 
+struct CapsuleContents<T: 'static, D: FnOnce(T)> {
+    value: T,
+    destructor: D,
+}
+impl<T: 'static, D: FnOnce(T)> CapsuleContents<T, D> {
+    fn new(value: T, destructor: D) -> Self {
+        Self { value, destructor }
+    }
+}
+
+unsafe extern "C" fn capsule_destructor<T: 'static, F: FnOnce(T)>(capsule: *mut ffi::PyObject) {
+    let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
+    let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
+    destructor(value)
+}
+
 impl PyCapsule {
     /// Constructs a new capsule of whose contents are `T` associated with `name`.
     pub fn new<'py, T: 'static>(py: Python<'py>, value: T, name: &CStr) -> PyResult<&'py Self> {
-        Self::new_with_maybe_destructor(py, value, name, None)
+        Self::new_with_destructor(py, value, name, std::mem::drop)
     }
 
     /// Constructs a new capsule of whose contents are `T` associated with `name`
     /// Provide a destructor for when `PyCapsule` is destroyed it will be passed the capsule.
-    pub fn new_with_destructor<'py, T: 'static>(
+    pub fn new_with_destructor<'py, T: 'static, F: FnOnce(T)>(
         py: Python<'py>,
         value: T,
         name: &CStr,
-        destructor: ffi::PyCapsule_Destructor,
+        destructor: F,
     ) -> PyResult<&'py Self> {
-        Self::new_with_maybe_destructor(py, value, name, Some(destructor))
-    }
-
-    fn new_with_maybe_destructor<'py, T: 'static>(
-        py: Python<'py>,
-        value: T,
-        name: &CStr,
-        destructor: Option<ffi::PyCapsule_Destructor>,
-    ) -> PyResult<&'py Self> {
-        let val = Box::new(value);
+        let val = Box::new(CapsuleContents::new(value, destructor));
 
         let cap_ptr = unsafe {
-            ffi::PyCapsule_New(Box::into_raw(val) as *mut c_void, name.as_ptr(), destructor)
+            ffi::PyCapsule_New(
+                Box::into_raw(val) as *mut c_void,
+                name.as_ptr(),
+                Some(capsule_destructor::<T, F>),
+            )
         };
         if cap_ptr.is_null() {
             Err(PyErr::fetch(py))
@@ -149,19 +160,9 @@ impl PyCapsule {
     }
 
     /// Get the capsule destructor, if any.
-    pub fn get_destructor(&self, py: Python) -> PyResult<Option<ffi::PyCapsule_Destructor>> {
-        match unsafe { ffi::PyCapsule_GetDestructor(self.as_ptr()) } {
-            Some(destructor) => Ok(Some(destructor)),
-            None => {
-                // A None can mean an error was raised, or there is no destructor
-                // https://docs.python.org/3/c-api/capsule.html#c.PyCapsule_GetDestructor
-                if self.is_valid() {
-                    Ok(None)
-                } else {
-                    Err(PyErr::fetch(py))
-                }
-            }
-        }
+    pub fn get_destructor<T: 'static, D: FnOnce(T)>(&self) -> PyResult<Option<&D>> {
+        let val = unsafe { Box::from_raw(self.get_pointer() as *mut &CapsuleContents<T, D>) };
+        Ok(Some(&val.destructor))
     }
 
     /// Retrieve the name of this capsule.
@@ -176,7 +177,7 @@ impl PyCapsule {
 #[cfg(test)]
 mod tests {
     use crate::prelude::PyModule;
-    use crate::{ffi, pycapsule::PyCapsule, Py, PyResult, Python};
+    use crate::{pycapsule::PyCapsule, Py, PyResult, Python};
     use std::ffi::{c_void, CString};
     use std::sync::mpsc::{channel, Sender};
 
@@ -275,12 +276,8 @@ mod tests {
         let (tx, rx) = channel();
 
         // Setup destructor, call sender to notify of being called
-        unsafe extern "C" fn destructor(ptr: *mut ffi::PyObject) {
-            Python::with_gil(|py| {
-                let cap = py.from_borrowed_ptr::<PyCapsule>(ptr);
-                let foo = cap.reference::<Foo>();
-                foo.called.send(true).unwrap();
-            })
+        fn destructor(foo: Foo) {
+            foo.called.send(true).unwrap();
         }
 
         // Create a capsule and allow it to be freed.
