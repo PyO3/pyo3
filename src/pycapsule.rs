@@ -74,12 +74,15 @@ impl PyCapsule {
     /// [PyImport_ImportModuleNoBlock()](https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModuleNoBlock)
     /// or [PyImport_ImportModule()](https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule)
     /// when accessing the capsule.
-    pub fn import<'py, T>(py: Python<'py>, name: &CStr, no_block: bool) -> PyResult<&'py T> {
-        let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), no_block as c_int) };
+    ///
+    /// ## Safety
+    /// This is unsafe, as there is no gurantee when casting `*mut void` into `T`.
+    pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr, no_block: bool) -> PyResult<&'py T> {
+        let ptr = ffi::PyCapsule_Import(name.as_ptr(), no_block as c_int);
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(unsafe { &*(ptr as *const T) })
+            Ok(&*(ptr as *const T))
         }
     }
 
@@ -239,7 +242,7 @@ mod tests {
             let module = PyModule::import(py, "builtins")?;
             module.add("capsule", capsule)?;
 
-            let cap: &Foo = PyCapsule::import(py, name.as_ref(), false)?;
+            let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref(), false)? };
             assert_eq!(cap.val, 123);
             Ok(())
         })
