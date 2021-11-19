@@ -28,12 +28,12 @@ use std::os::raw::c_int;
 ///     let foo = Foo { val: 123 };
 ///     let name = CString::new("builtins.capsule").unwrap();
 ///
-///     let capsule = PyCapsule::new(py, foo, name.as_ref(), None)?;
+///     let capsule = PyCapsule::new(py, foo, name.as_ref())?;
 ///
 ///     let module = PyModule::import(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
 ///
-///     let cap: &Foo = PyCapsule::import(py, name.as_ref(), false)?;
+///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref(), false)? };
 ///     assert_eq!(cap.val, 123);
 ///     Ok(())
 ///  });
