@@ -14,7 +14,7 @@ edition = "2018"
 once_cell = "1"
 
 [features]
-default = ["resolve-config"]
+default = []
 
 # Attempt to resolve a Python interpreter config for building in the build
 # script. If this feature isn't enabled, the build script no-ops.

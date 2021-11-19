@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update MSRV to Rust 1.48. [#2004](https://github.com/PyO3/pyo3/pull/2004)
 - Update `indoc` optional dependency to 1.0. [#2004](https://github.com/PyO3/pyo3/pull/2004)
 - Update `paste` optional dependency to 1.0. [#2004](https://github.com/PyO3/pyo3/pull/2004)
+- `pyo3-build-config` no longer enables the `resolve-config` feature by default. [#2008](https://github.com/PyO3/pyo3/pull/2008)
 
 ## [0.15.1] - 2021-11-19
 
