@@ -65,21 +65,6 @@ pub struct InterpreterConfig {
     /// Serialized to `abi3`.
     pub abi3: bool,
 
-    /// ABI flags as specified in [PEP 3149](https://www.python.org/dev/peps/pep-3149/).
-    ///
-    /// Serialized to `abi_flags`.
-    pub abi_flags: Option<String>,
-
-    /// Python abi tag - typically '{major}{minor}{abi_flags}' (e.g. '39m').
-    ///
-    /// Serialized to `abi_tag`.
-    pub abi_tag: Option<String>,
-
-    /// Platform-dependent extension module suffix (e.g. '.cpython-39-darwin.so').
-    ///
-    /// Serialized to `ext_suffix`.
-    pub ext_suffix: Option<String>,
-
     /// The name of the link library defining Python.
     ///
     /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
@@ -209,9 +194,6 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
-print("abiflags", get_config_var("ABIFLAGS"))
-print("soabi", get_config_var("SOABI"))
-print("ext_suffix", get_config_var("EXT_SUFFIX"))
 print("shared", PYPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("libdir", get_config_var("LIBDIR"))
@@ -234,10 +216,6 @@ print("mingw", get_platform().startswith("mingw"))
         };
 
         let abi3 = is_abi3();
-        let abi_flags = map["abiflags"].to_string();
-        let soabi = map["soabi"].as_str();
-        let abi_tag = soabi.split('-').nth(1).map(ToString::to_string);
-        let ext_suffix = map["ext_suffix"].to_string();
 
         let implementation = map["implementation"].parse()?;
 
@@ -277,9 +255,6 @@ print("mingw", get_platform().startswith("mingw"))
             implementation,
             shared,
             abi3,
-            abi_flags: Some(abi_flags),
-            abi_tag,
-            ext_suffix: Some(ext_suffix),
             lib_name: Some(lib_name),
             lib_dir,
             executable: map.get("executable").cloned(),
@@ -321,9 +296,6 @@ print("mingw", get_platform().startswith("mingw"))
         let mut version = None;
         let mut shared = None;
         let mut abi3 = None;
-        let mut abi_flags = None;
-        let mut abi_tag = None;
-        let mut ext_suffix = None;
         let mut lib_name = None;
         let mut lib_dir = None;
         let mut executable = None;
@@ -348,9 +320,6 @@ print("mingw", get_platform().startswith("mingw"))
                 "version" => parse_value!(version, value),
                 "shared" => parse_value!(shared, value),
                 "abi3" => parse_value!(abi3, value),
-                "abi_flags" => parse_value!(abi_flags, value),
-                "abi_tag" => parse_value!(abi_tag, value),
-                "ext_suffix" => parse_value!(ext_suffix, value),
                 "lib_name" => parse_value!(lib_name, value),
                 "lib_dir" => parse_value!(lib_dir, value),
                 "executable" => parse_value!(executable, value),
@@ -375,9 +344,6 @@ print("mingw", get_platform().startswith("mingw"))
             version,
             shared: shared.unwrap_or(true),
             abi3,
-            abi_flags,
-            abi_tag,
-            ext_suffix,
             lib_name,
             lib_dir,
             executable,
@@ -425,9 +391,6 @@ print("mingw", get_platform().startswith("mingw"))
         write_line!(version)?;
         write_line!(shared)?;
         write_line!(abi3)?;
-        write_option_line!(abi_flags)?;
-        write_option_line!(abi_tag)?;
-        write_option_line!(ext_suffix)?;
         write_option_line!(lib_name)?;
         write_option_line!(lib_dir)?;
         write_option_line!(executable)?;
@@ -821,7 +784,6 @@ pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Inter
     script += r#"
 print("version", build_time_vars["VERSION"])
 print("SOABI", build_time_vars.get("SOABI", ""))
-print("ABIFLAGS", build_time_vars.get("ABIFLAGS", ""))
 print("EXT_SUFFIX", build_time_vars.get("EXT_SUFFIX", ""))
 if "LIBDIR" in build_time_vars:
     print("LIBDIR", build_time_vars["LIBDIR"])
@@ -881,22 +843,11 @@ for key in KEYS:
         _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
     };
 
-    let abi_flags = get_key!(sysconfigdata, "ABIFLAGS")?.to_string();
-    let abi_tag = soabi
-        .split('-')
-        .nth(1)
-        .map(ToString::to_string)
-        .expect("unable to parse ABI tag from SOABI");
-    let ext_suffix = get_key!(sysconfigdata, "EXT_SUFFIX")?.to_string();
-
     Ok(InterpreterConfig {
         implementation,
         version,
         shared,
         abi3: is_abi3(),
-        abi_flags: Some(abi_flags),
-        abi_tag: Some(abi_tag),
-        ext_suffix: Some(ext_suffix),
         lib_dir: get_key!(sysconfigdata, "LIBDIR").ok().cloned(),
         lib_name: Some(default_lib_name_unix(
             version,
@@ -1084,9 +1035,6 @@ fn windows_hardcoded_cross_compile(
         version,
         shared: true,
         abi3,
-        abi_flags: Some("".to_string()),
-        abi_tag: None,
-        ext_suffix: Some(".pyd".to_string()),
         lib_name: Some(default_lib_name_windows(
             version,
             PythonImplementation::CPython,
@@ -1311,9 +1259,6 @@ mod tests {
     fn test_config_file_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
-            abi_flags: None,
-            abi_tag: None,
-            ext_suffix: None,
             build_flags: BuildFlags::abi3(),
             pointer_width: Some(32),
             executable: Some("executable".into()),
@@ -1337,9 +1282,6 @@ mod tests {
 
         let config = InterpreterConfig {
             abi3: false,
-            abi_flags: Some("".to_string()),
-            abi_tag: Some("310".to_string()),
-            ext_suffix: Some(".cpython-310-darwin.so".to_string()),
             build_flags: {
                 let mut flags = HashSet::new();
                 flags.insert(BuildFlag::Py_DEBUG);
@@ -1378,9 +1320,6 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 shared: true,
                 abi3: false,
-                abi_flags: None,
-                abi_tag: None,
-                ext_suffix: None,
                 lib_name: None,
                 lib_dir: None,
                 executable: None,
@@ -1494,9 +1433,6 @@ mod tests {
                 version: PythonVersion { major: 3, minor: 6 },
                 shared: true,
                 abi3: false,
-                abi_flags: Some("".to_string()),
-                abi_tag: None,
-                ext_suffix: Some(".pyd".to_string()),
                 lib_name: Some("python36".into()),
                 lib_dir: Some("C:\\some\\path".into()),
                 executable: None,
@@ -1591,9 +1527,6 @@ mod tests {
     fn interpreter_version_reduced_to_abi3() {
         let mut config = InterpreterConfig {
             abi3: true,
-            abi_flags: None,
-            abi_tag: None,
-            ext_suffix: Some(".abi3.so".to_string()),
             build_flags: BuildFlags::new(),
             pointer_width: None,
             executable: None,
@@ -1614,9 +1547,6 @@ mod tests {
     fn abi3_version_cannot_be_higher_than_interpreter() {
         let mut config = InterpreterConfig {
             abi3: true,
-            abi_flags: None,
-            abi_tag: Some("36".to_string()),
-            ext_suffix: Some(".abi3.so".to_string()),
             build_flags: BuildFlags::new(),
             pointer_width: None,
             executable: None,
@@ -1671,29 +1601,10 @@ mod tests {
         };
         let parsed_config = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
 
-        // this is generally the format of the abi_flags, abi_tag, and ext_suffix on linux so this
-        // should work for CI
-        let expected_abi_flags = if PythonVersion::PY37 >= interpreter_config.version {
-            "m".to_string()
-        } else {
-            "".to_string()
-        };
-        let expected_abi_tag = format!(
-            "{}{}{}",
-            interpreter_config.version.major,
-            interpreter_config.version.minor,
-            expected_abi_flags.clone(),
-        );
-        let expected_ext_suffix =
-            format!(".cpython-{}-x86_64-linux-gnu.so", expected_abi_tag.clone());
-
         assert_eq!(
             parsed_config,
             InterpreterConfig {
                 abi3: false,
-                abi_flags: Some(expected_abi_flags),
-                abi_tag: Some(expected_abi_tag),
-                ext_suffix: Some(expected_ext_suffix),
                 build_flags: BuildFlags(interpreter_config.build_flags.0.clone()),
                 pointer_width: Some(64),
                 executable: None,
