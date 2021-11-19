@@ -44,22 +44,6 @@ pub struct PyCapsule(PyAny);
 
 pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::PyCapsule_CheckExact);
 
-struct CapsuleContents<T: 'static, D: FnOnce(T)> {
-    value: T,
-    destructor: D,
-}
-impl<T: 'static, D: FnOnce(T)> CapsuleContents<T, D> {
-    fn new(value: T, destructor: D) -> Self {
-        Self { value, destructor }
-    }
-}
-
-unsafe extern "C" fn capsule_destructor<T: 'static, F: FnOnce(T)>(capsule: *mut ffi::PyObject) {
-    let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
-    let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
-    destructor(value)
-}
-
 impl PyCapsule {
     /// Constructs a new capsule of whose contents are `T` associated with `name`.
     pub fn new<'py, T: 'static>(py: Python<'py>, value: T, name: &CStr) -> PyResult<&'py Self> {
@@ -99,8 +83,9 @@ impl PyCapsule {
     /// or [PyImport_ImportModule()](https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule)
     /// when accessing the capsule.
     ///
-    /// ## Safety
-    /// This is unsafe, as there is no guarantee when casting `*mut void` into `T`.
+    /// # Safety
+    ///
+    /// It must be known that this capsule's pointer is to an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr, no_block: bool) -> PyResult<&'py T> {
         let ptr = ffi::PyCapsule_Import(name.as_ptr(), no_block as c_int);
         if ptr.is_null() {
@@ -124,9 +109,9 @@ impl PyCapsule {
 
     /// Get a reference to the context `T` in the capsule, if any.
     ///
-    /// ## Safety
+    /// # Safety
     ///
-    /// This is unsafe, as there is no guarantee when casting `*mut void` into `T`.
+    /// It must be known that this capsule's contains a context item of type `T`.
     pub unsafe fn get_context<T>(&self, py: Python) -> PyResult<Option<&T>> {
         let ctx = ffi::PyCapsule_GetContext(self.as_ptr());
         if ctx.is_null() {
@@ -143,7 +128,8 @@ impl PyCapsule {
     /// Obtain a reference to the value `T` of this capsule.
     ///
     /// # Safety
-    /// This is unsafe because there is no guarantee the pointer is `T`
+    ///
+    /// It must be known that this capsule's pointer is to an item of type `T`.
     pub unsafe fn reference<T>(&self) -> &T {
         &*(self.get_pointer() as *const T)
     }
@@ -172,6 +158,20 @@ impl PyCapsule {
             CStr::from_ptr(ptr)
         }
     }
+}
+
+// C layout, as PyCapsule::get_reference depends on `T` being first.
+#[repr(C)]
+struct CapsuleContents<T: 'static, D: FnOnce(T)> {
+    value: T,
+    destructor: D,
+}
+
+// Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
+unsafe extern "C" fn capsule_destructor<T: 'static, F: FnOnce(T)>(capsule: *mut ffi::PyObject) {
+    let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
+    let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
+    destructor(value)
 }
 
 #[cfg(test)]
