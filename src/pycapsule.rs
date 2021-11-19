@@ -58,7 +58,7 @@ impl PyCapsule {
         name: &CStr,
         destructor: F,
     ) -> PyResult<&'py Self> {
-        let val = Box::new(CapsuleContents::new(value, destructor));
+        let val = Box::new(CapsuleContents { value, destructor });
 
         let cap_ptr = unsafe {
             ffi::PyCapsule_New(
@@ -145,12 +145,6 @@ impl PyCapsule {
         r != 0
     }
 
-    /// Get the capsule destructor, if any.
-    pub fn get_destructor<T: 'static, D: FnOnce(T)>(&self) -> PyResult<Option<&D>> {
-        let val = unsafe { Box::from_raw(self.get_pointer() as *mut &CapsuleContents<T, D>) };
-        Ok(Some(&val.destructor))
-    }
-
     /// Retrieve the name of this capsule.
     pub fn name(&self) -> &CStr {
         unsafe {
@@ -179,7 +173,6 @@ mod tests {
     use crate::prelude::PyModule;
     use crate::{pycapsule::PyCapsule, Py, PyResult, Python};
     use std::ffi::{c_void, CString};
-    use std::sync::mpsc::{channel, Sender};
 
     #[test]
     fn test_pycapsule_struct() -> PyResult<()> {
@@ -264,33 +257,6 @@ mod tests {
             assert_eq!(cap.val, 123);
             Ok(())
         })
-    }
-
-    #[test]
-    fn test_pycapsule_destructor() {
-        #[repr(C)]
-        struct Foo {
-            called: Sender<bool>,
-        }
-
-        let (tx, rx) = channel();
-
-        // Setup destructor, call sender to notify of being called
-        fn destructor(foo: Foo) {
-            foo.called.send(true).unwrap();
-        }
-
-        // Create a capsule and allow it to be freed.
-        let r = Python::with_gil(|py| -> PyResult<()> {
-            let foo = Foo { called: tx };
-            let name = CString::new("builtins.capsule").unwrap();
-            let _capsule = PyCapsule::new_with_destructor(py, foo, &name, destructor)?;
-            Ok(())
-        });
-        assert!(r.is_ok());
-
-        // Indeed it was
-        assert_eq!(rx.recv(), Ok(true));
     }
 
     #[test]
