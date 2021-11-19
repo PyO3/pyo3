@@ -550,9 +550,9 @@ impl<'py> Python<'py> {
     /// ```rust
     /// # use pyo3::Python;
     /// Python::with_gil(|py| {
-    ///     // PyO3 supports Python 3.6 and up.
-    ///     assert!(py.version_info() >= (3, 6));
-    ///     assert!(py.version_info() >= (3, 6, 0));
+    ///     // PyO3 supports Python 3.7 and up.
+    ///     assert!(py.version_info() >= (3, 7));
+    ///     assert!(py.version_info() >= (3, 7, 0));
     /// });
     /// ```
     pub fn version_info(self) -> PythonVersionInfo<'py> {
@@ -891,10 +891,6 @@ mod tests {
     fn test_python_version_info() {
         Python::with_gil(|py| {
             let version = py.version_info();
-            #[cfg(Py_3_6)]
-            assert!(version >= (3, 6));
-            #[cfg(Py_3_6)]
-            assert!(version >= (3, 6, 0));
             #[cfg(Py_3_7)]
             assert!(version >= (3, 7));
             #[cfg(Py_3_7)]

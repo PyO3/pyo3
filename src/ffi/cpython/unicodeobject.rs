@@ -323,13 +323,8 @@ extern "C" {
 extern "C" {
     // skipped _PyUnicode_AsStringAndSize
 
-    #[cfg(Py_3_7)]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8")]
     pub fn PyUnicode_AsUTF8(unicode: *mut PyObject) -> *const c_char;
-
-    #[cfg(not(Py_3_7))]
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8")]
-    pub fn PyUnicode_AsUTF8(unicode: *mut PyObject) -> *mut c_char;
 
     // skipped _PyUnicode_AsString
 

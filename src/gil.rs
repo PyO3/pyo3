@@ -45,19 +45,11 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// signal handling depends on the notion of a 'main thread', which must be the thread that
 /// initializes the Python interpreter.
 ///
-/// If both the Python interpreter and Python threading are already initialized, this function has
-/// no effect.
+/// If the Python interpreter is already initialized, this function has no effect.
 ///
 /// This function is unavailable under PyPy because PyPy cannot be embedded in Rust (or any other
 /// software). Support for this is tracked on the
 /// [PyPy issue tracker](https://foss.heptapod.net/pypy/pypy/-/issues/3286).
-///
-/// Python 3.6 only: If the Python interpreter is initialized but Python threading is not, this
-/// function will initialize Python threading.
-///
-/// # Panics
-/// - Python 3.6 only: If this function needs to initialize Python threading but the calling thread
-///   is not the thread which initialized Python, this function will panic.
 ///
 /// # Examples
 /// ```rust
@@ -75,29 +67,6 @@ pub fn prepare_freethreaded_python() {
     // concurrent initialization of the Python runtime by other users of the Python C API.
     START.call_once_force(|_| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
-
-        // TODO(#1782) - Python 3.6 legacy code
-        #[cfg(not(Py_3_7))]
-        if ffi::Py_IsInitialized() != 0 {
-            if ffi::PyEval_ThreadsInitialized() == 0 {
-                // We can only safely initialize threads if this thread holds the GIL.
-                assert!(
-                    !ffi::PyGILState_GetThisThreadState().is_null(),
-                    "Python threading is not initialized and cannot be initialized by this \
-                     thread, because it is not the thread which initialized Python."
-                );
-                ffi::PyEval_InitThreads();
-            }
-        } else {
-            ffi::Py_InitializeEx(0);
-            ffi::PyEval_InitThreads();
-
-            // Release the GIL.
-            ffi::PyEval_SaveThread();
-        }
-
-        // In Python 3.7 and up PyEval_InitThreads is irrelevant.
-        #[cfg(Py_3_7)]
         if ffi::Py_IsInitialized() == 0 {
             ffi::Py_InitializeEx(0);
 
@@ -149,14 +118,7 @@ where
 
     ffi::Py_InitializeEx(0);
 
-    // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have to
-    // call it yourself anymore.
-    #[cfg(not(Py_3_7))]
-    if ffi::PyEval_ThreadsInitialized() == 0 {
-        ffi::PyEval_InitThreads();
-    }
-
-    // Safe: the GIL is already held because of the Py_IntializeEx call.
+    // Safety: the GIL is already held because of the Py_IntializeEx call.
     let pool = GILPool::new();
 
     // Import the threading module - this ensures that it will associate this thread as the "main"
@@ -228,14 +190,6 @@ impl GILGuard {
                         0,
                         "The Python interpreter is not initalized and the `auto-initialize` \
                          feature is not enabled.\n\n\
-                         Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
-                         to use Python APIs."
-                    );
-                    assert_ne!(
-                        ffi::PyEval_ThreadsInitialized(),
-                        0,
-                        "Python threading is not initalized and the `auto-initialize` feature is \
-                         not enabled.\n\n\
                          Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
                          to use Python APIs."
                     );

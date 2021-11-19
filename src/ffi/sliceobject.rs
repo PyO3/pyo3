@@ -52,20 +52,8 @@ extern "C" {
         stop: *mut Py_ssize_t,
         step: *mut Py_ssize_t,
     ) -> c_int;
-
-    #[cfg(not(Py_3_7))]
-    #[cfg_attr(PyPy, link_name = "PyPySlice_GetIndicesEx")]
-    pub fn PySlice_GetIndicesEx(
-        r: *mut PyObject,
-        length: Py_ssize_t,
-        start: *mut Py_ssize_t,
-        stop: *mut Py_ssize_t,
-        step: *mut Py_ssize_t,
-        slicelength: *mut Py_ssize_t,
-    ) -> c_int;
 }
 
-#[cfg(Py_3_7)]
 #[inline]
 pub unsafe fn PySlice_GetIndicesEx(
     slice: *mut PyObject,
