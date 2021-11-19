@@ -12,7 +12,7 @@ use pyo3_macros_backend::{
     PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
-use syn::parse_macro_input;
+use syn::{parse::Nothing, parse_macro_input};
 
 /// A proc macro used to implement Python modules.
 ///
@@ -31,19 +31,11 @@ use syn::parse_macro_input;
 ///
 /// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
-pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
+    parse_macro_input!(args as Nothing);
+
     let mut ast = parse_macro_input!(input as syn::ItemFn);
-
-    let deprecated_pymodule_name_arg = if attr.is_empty() {
-        None
-    } else {
-        Some(parse_macro_input!(attr as syn::Ident))
-    };
-
-    let options = match PyModuleOptions::from_pymodule_arg_and_attrs(
-        deprecated_pymodule_name_arg,
-        &mut ast.attrs,
-    ) {
+    let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
         Err(e) => return e.to_compile_error().into(),
     };

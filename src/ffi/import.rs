@@ -69,10 +69,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
     #[cfg(not(Py_3_9))]
-    #[deprecated(
-        since = "0.14.0",
-        note = "Removed in Python 3.9 as it was \"For internal use only\"."
-    )]
+    #[deprecated(note = "Removed in Python 3.9 as it was \"For internal use only\".")]
     pub fn PyImport_Cleanup();
     pub fn PyImport_ImportFrozenModuleObject(name: *mut PyObject) -> c_int;
     pub fn PyImport_ImportFrozenModule(name: *const c_char) -> c_int;

@@ -670,7 +670,6 @@ slots_trait!(PyMethodsProtocolSlots, methods_protocol_slots);
 
 methods_trait!(PyObjectProtocolMethods, object_protocol_methods);
 methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);
-methods_trait!(PyContextProtocolMethods, context_protocol_methods);
 methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
 methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
 methods_trait!(PyNumberProtocolMethods, number_protocol_methods);
