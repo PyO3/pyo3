@@ -115,7 +115,7 @@ impl PyCapsule {
     pub unsafe fn get_context<T>(&self, py: Python) -> PyResult<Option<&T>> {
         let ctx = ffi::PyCapsule_GetContext(self.as_ptr());
         if ctx.is_null() {
-            if self.is_valid() & PyErr::occurred(py) {
+            if self.is_valid() && PyErr::occurred(py) {
                 Err(PyErr::fetch(py))
             } else {
                 Ok(None)
