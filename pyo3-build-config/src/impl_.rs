@@ -265,6 +265,62 @@ print("mingw", get_platform().startswith("mingw"))
         })
     }
 
+    /// Generate from parsed sysconfigdata file
+    ///
+    /// Use [`parse_sysconfigdata`](parse_sysconfigdata) to generate a hash map of
+    /// configuration values which may be used to build an `InterpreterConfig`.
+    pub fn from_sysconfigdata(sysconfigdata: Sysconfigdata) -> Result<Self> {
+        macro_rules! get_key {
+            ($sysconfigdata:expr, $key:literal) => {
+                $sysconfigdata
+                    .get_value($key)
+                    .ok_or(concat!($key, " not found in sysconfigdata file"))
+            };
+        }
+
+        macro_rules! parse_key {
+            ($sysconfigdata:expr, $key:literal) => {
+                get_key!($sysconfigdata, $key)?
+                    .parse()
+                    .context(concat!("could not parse value of ", $key))
+            };
+        }
+
+        let soabi = get_key!(sysconfigdata, "SOABI")?;
+        let implementation = PythonImplementation::from_soabi(soabi)?;
+        let version = parse_key!(sysconfigdata, "VERSION")?;
+        let shared = match sysconfigdata.get_value("Py_ENABLE_SHARED") {
+            Some("1") | Some("true") | Some("True") => true,
+            Some("0") | Some("false") | Some("False") => false,
+            _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
+        };
+        let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
+        let lib_name = Some(default_lib_name_unix(
+            version,
+            implementation,
+            sysconfigdata.get_value("LDVERSION"),
+        ));
+        let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
+            .map(|bytes_width: u32| bytes_width * 8)
+            .ok();
+        let build_flags =
+            BuildFlags::from_sysconfigdata(&sysconfigdata).fixup(version, implementation);
+
+        Ok(InterpreterConfig {
+            implementation,
+            version,
+            shared,
+            abi3: is_abi3(),
+            lib_dir,
+            lib_name,
+            executable: None,
+            pointer_width,
+            build_flags,
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        })
+    }
+
     #[doc(hidden)]
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
@@ -449,6 +505,17 @@ impl PythonImplementation {
     #[doc(hidden)]
     pub fn is_pypy(self) -> bool {
         self == PythonImplementation::PyPy
+    }
+
+    #[doc(hidden)]
+    pub fn from_soabi(soabi: &str) -> Result<Self> {
+        if soabi.starts_with("pypy") {
+            Ok(PythonImplementation::PyPy)
+        } else if soabi.starts_with("cpython") {
+            Ok(PythonImplementation::CPython)
+        } else {
+            bail!("unsupported Python interpreter");
+        }
     }
 }
 
@@ -652,14 +719,14 @@ impl BuildFlags {
         BuildFlags(HashSet::new())
     }
 
-    fn from_config_map(config_map: &HashMap<String, String>) -> Self {
+    fn from_sysconfigdata(config_map: &Sysconfigdata) -> Self {
         Self(
             BuildFlags::ALL
                 .iter()
                 .cloned()
                 .filter(|flag| {
                     config_map
-                        .get(&flag.to_string())
+                        .get_value(&flag.to_string())
                         .map_or(false, |value| value == "1")
                 })
                 .collect(),
@@ -768,12 +835,25 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
         .collect()
 }
 
+/// Parsed data from Python sysconfigdata file
+///
+/// A hash map of all values from a sysconfigdata file.
+pub struct Sysconfigdata(std::collections::HashMap<String, String>);
+
+impl Sysconfigdata {
+    fn get_value(&self, k: &str) -> Option<&str> {
+        self.0.get(k).map(String::as_str)
+    }
+}
+
 /// Parse sysconfigdata file
 ///
 /// The sysconfigdata is simply a dictionary containing all the build time variables used for the
-/// python executable and library. Here it is read and added to a script to extract only what is
-/// necessary. This necessitates a python interpreter for the host machine to work.
-pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<InterpreterConfig> {
+/// python executable and library. This function necessitates a python interpreter on the host
+/// machine to work. Here it is read into a `Sysconfigdata` (hash map), which can be turned into an
+/// [`InterpreterConfig`](InterpreterConfig) using
+/// [`from_sysconfigdata`](InterpreterConfig::from_sysconfigdata).
+pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysconfigdata> {
     let sysconfigdata_path = sysconfigdata_path.as_ref();
     let mut script = fs::read_to_string(&sysconfigdata_path).with_context(|| {
         format!(
@@ -782,84 +862,13 @@ pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Inter
         )
     })?;
     script += r#"
-print("version", build_time_vars["VERSION"])
-print("SOABI", build_time_vars.get("SOABI", ""))
-print("EXT_SUFFIX", build_time_vars.get("EXT_SUFFIX", ""))
-if "LIBDIR" in build_time_vars:
-    print("LIBDIR", build_time_vars["LIBDIR"])
-KEYS = [
-    "WITH_THREAD",
-    "Py_DEBUG",
-    "Py_REF_DEBUG",
-    "Py_TRACE_REFS",
-    "COUNT_ALLOCS",
-    "Py_ENABLE_SHARED",
-    "LDVERSION",
-    "SIZEOF_VOID_P"
-]
-for key in KEYS:
-    print(key, build_time_vars.get(key, 0))
+for key, val in build_time_vars.items():
+    print(key, val)
 "#;
+
     let output = run_python_script(&find_interpreter()?, &script)?;
 
-    let sysconfigdata = parse_script_output(&output);
-
-    macro_rules! get_key {
-        ($sysconfigdata:expr, $key:literal) => {
-            $sysconfigdata
-                .get($key)
-                .ok_or(concat!($key, " not found in sysconfigdata file"))
-        };
-    }
-
-    macro_rules! parse_key {
-        ($sysconfigdata:expr, $key:literal) => {
-            get_key!($sysconfigdata, $key)?
-                .parse()
-                .context(concat!("could not parse value of ", $key))
-        };
-    }
-
-    let version = parse_key!(sysconfigdata, "version")?;
-    let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
-        .map(|bytes_width: u32| bytes_width * 8)
-        .ok();
-
-    let soabi = get_key!(sysconfigdata, "SOABI")?;
-    let implementation = if soabi.starts_with("pypy") {
-        PythonImplementation::PyPy
-    } else if soabi.starts_with("cpython") {
-        PythonImplementation::CPython
-    } else {
-        bail!("unsupported Python interpreter");
-    };
-
-    let shared = match sysconfigdata
-        .get("Py_ENABLE_SHARED")
-        .map(|string| string.as_str())
-    {
-        Some("1") | Some("true") | Some("True") => true,
-        Some("0") | Some("false") | Some("False") | None => false,
-        _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
-    };
-
-    Ok(InterpreterConfig {
-        implementation,
-        version,
-        shared,
-        abi3: is_abi3(),
-        lib_dir: get_key!(sysconfigdata, "LIBDIR").ok().cloned(),
-        lib_name: Some(default_lib_name_unix(
-            version,
-            implementation,
-            sysconfigdata.get("LDVERSION").map(String::as_str),
-        )),
-        executable: None,
-        pointer_width,
-        build_flags: BuildFlags::from_config_map(&sysconfigdata).fixup(version, implementation),
-        suppress_build_script_link_lines: false,
-        extra_build_script_lines: vec![],
-    })
+    Ok(Sysconfigdata(parse_script_output(&output)))
 }
 
 fn starts_with(entry: &DirEntry, pat: &str) -> bool {
@@ -1018,7 +1027,7 @@ fn load_cross_compile_from_sysconfigdata(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
     let sysconfigdata_path = find_sysconfigdata(&cross_compile_config)?;
-    parse_sysconfigdata(sysconfigdata_path)
+    InterpreterConfig::from_sysconfigdata(parse_sysconfigdata(sysconfigdata_path)?)
 }
 
 fn windows_hardcoded_cross_compile(
@@ -1337,27 +1346,6 @@ mod tests {
     }
 
     #[test]
-    fn build_flags_from_config_map() {
-        let mut config_map = HashMap::new();
-
-        assert_eq!(BuildFlags::from_config_map(&config_map).0, HashSet::new());
-
-        for flag in &BuildFlags::ALL {
-            config_map.insert(flag.to_string(), "0".into());
-        }
-
-        assert_eq!(BuildFlags::from_config_map(&config_map).0, HashSet::new());
-
-        let mut expected_flags = HashSet::new();
-        for flag in &BuildFlags::ALL {
-            config_map.insert(flag.to_string(), "1".into());
-            expected_flags.insert(flag.clone());
-        }
-
-        assert_eq!(BuildFlags::from_config_map(&config_map).0, expected_flags);
-    }
-
-    #[test]
     fn build_flags_fixup_py36_debug() {
         let mut build_flags = BuildFlags::new();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
@@ -1599,7 +1587,14 @@ mod tests {
             // Couldn't find a matching sysconfigdata; never mind!
             Err(_) => return,
         };
-        let parsed_config = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
+        let sysconfigdata = match super::parse_sysconfigdata(sysconfigdata_path) {
+            Ok(sysconfigdata) => sysconfigdata,
+            Err(_) => return,
+        };
+        let parsed_config = match InterpreterConfig::from_sysconfigdata(sysconfigdata) {
+            Ok(parsed_config) => parsed_config,
+            Err(_) => return,
+        };
 
         assert_eq!(
             parsed_config,
