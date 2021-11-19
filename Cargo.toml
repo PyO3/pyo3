@@ -27,7 +27,7 @@ unindent = { version = "0.1.4", optional = true }
 
 # support crate for multiple-pymethods feature
 # must stay at 0.1.x for Rust 1.41 compatibility
-inventory = { version = "0.1.4", optional = true }
+inventory = { version = "0.2.0", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
