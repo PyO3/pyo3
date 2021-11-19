@@ -96,7 +96,7 @@ impl PyCapsule {
     }
 
     /// Set a context pointer in the capsule to `T`
-    pub fn set_context<'py, T: 'static>(&self, py: Python<'py>, context: T) -> PyResult<()> {
+    pub fn set_context<T: 'static>(&self, py: Python, context: T) -> PyResult<()> {
         let ctx = Box::new(context);
         let result =
             unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), Box::into_raw(ctx) as _) as u8 };
