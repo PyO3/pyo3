@@ -542,7 +542,6 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
 /// - The GIL must be held.
-#[allow(clippy::collapsible_if)] // for if cfg!
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
     debug_assert_eq!(
@@ -560,10 +559,9 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
         };
         free(obj as *mut c_void);
 
-        if cfg!(Py_3_8) {
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
-            }
+        #[cfg(Py_3_8)]
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
         }
     }
 }

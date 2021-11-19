@@ -69,33 +69,36 @@ pub(crate) fn gil_is_acquired() -> bool {
 /// # }
 /// ```
 #[cfg(not(PyPy))]
-#[allow(clippy::collapsible_if)] // for if cfg!
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'prepare_freethreaded_python()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
     START.call_once_force(|_| unsafe {
-        if cfg!(not(Py_3_7)) {
-            // Use call_once_force because if initialization panics, it's okay to try again.
-            if ffi::Py_IsInitialized() != 0 {
-                if ffi::PyEval_ThreadsInitialized() == 0 {
-                    // We can only safely initialize threads if this thread holds the GIL.
-                    assert!(
-                        !ffi::PyGILState_GetThisThreadState().is_null(),
-                        "Python threading is not initialized and cannot be initialized by this \
-                         thread, because it is not the thread which initialized Python."
-                    );
-                    ffi::PyEval_InitThreads();
-                }
-            } else {
-                ffi::Py_InitializeEx(0);
-                ffi::PyEval_InitThreads();
+        // Use call_once_force because if initialization panics, it's okay to try again.
 
-                // Release the GIL.
-                ffi::PyEval_SaveThread();
+        // TODO(#1782) - Python 3.6 legacy code
+        #[cfg(not(Py_3_7))]
+        if ffi::Py_IsInitialized() != 0 {
+            if ffi::PyEval_ThreadsInitialized() == 0 {
+                // We can only safely initialize threads if this thread holds the GIL.
+                assert!(
+                    !ffi::PyGILState_GetThisThreadState().is_null(),
+                    "Python threading is not initialized and cannot be initialized by this \
+                     thread, because it is not the thread which initialized Python."
+                );
+                ffi::PyEval_InitThreads();
             }
-        } else if ffi::Py_IsInitialized() == 0 {
-            // In Python 3.7 and up PyEval_InitThreads is irrelevant.
+        } else {
+            ffi::Py_InitializeEx(0);
+            ffi::PyEval_InitThreads();
+
+            // Release the GIL.
+            ffi::PyEval_SaveThread();
+        }
+
+        // In Python 3.7 and up PyEval_InitThreads is irrelevant.
+        #[cfg(Py_3_7)]
+        if ffi::Py_IsInitialized() == 0 {
             ffi::Py_InitializeEx(0);
 
             // Release the GIL.
@@ -134,7 +137,6 @@ pub fn prepare_freethreaded_python() {
 /// # }
 /// ```
 #[cfg(not(PyPy))]
-#[allow(clippy::collapsible_if)] // for if cfg!
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R
 where
     F: for<'p> FnOnce(Python<'p>) -> R,
@@ -149,10 +151,9 @@ where
 
     // Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have to
     // call it yourself anymore.
-    if cfg!(not(Py_3_7)) {
-        if ffi::PyEval_ThreadsInitialized() == 0 {
-            ffi::PyEval_InitThreads();
-        }
+    #[cfg(not(Py_3_7))]
+    if ffi::PyEval_ThreadsInitialized() == 0 {
+        ffi::PyEval_InitThreads();
     }
 
     // Safe: the GIL is already held because of the Py_IntializeEx call.

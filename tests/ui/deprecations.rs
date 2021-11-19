@@ -50,6 +50,3 @@ fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
 fn main() {
 
 }
-
-
-// TODO: ensure name deprecated on #[pyfunction] and #[pymodule]

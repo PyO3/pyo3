@@ -111,7 +111,7 @@
 //!
 //! PyO3 supports the following software versions:
 //!   - Python 3.6 and up (CPython and PyPy)
-//!   - Rust 1.41 and up
+//!   - Rust 1.48 and up
 //!
 //! # Example: Building a native Python module
 //!
