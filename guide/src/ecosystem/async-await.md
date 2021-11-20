@@ -536,12 +536,13 @@ fn main() -> PyResult<()> {
         pyo3_asyncio::async_std::run(py, async move {
             // verify that we are on a uvloop.Loop
             Python::with_gil(|py| -> PyResult<()> {
-                assert!(uvloop
-                    .as_ref(py)
-                    .getattr("Loop")?
-                    .downcast::<PyType>()
-                    .unwrap()
-                    .is_instance(pyo3_asyncio::async_std::get_current_loop(py)?)?);
+                assert!(pyo3_asyncio::async_std::get_current_loop(py)?.is_instance(
+                    uvloop
+                        .as_ref(py)
+                        .getattr("Loop")?
+                        .downcast::<PyType>()
+                        .unwrap()
+                )?);
                 Ok(())
             })?;
 

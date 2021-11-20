@@ -146,7 +146,7 @@ impl PyModule {
         match self.getattr("__all__") {
             Ok(idx) => idx.downcast().map_err(PyErr::from),
             Err(err) => {
-                if err.is_instance::<exceptions::PyAttributeError>(self.py()) {
+                if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
                     self.setattr("__all__", l).map_err(PyErr::from)?;
                     Ok(l)

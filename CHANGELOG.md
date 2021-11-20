@@ -20,8 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Py::setattr` method. [#2009](https://github.com/PyO3/pyo3/pull/2009)
 
-## Removed
+### Changed
 
+- `PyType::is_subclass`, `PyErr::is_instance` and `PyAny::is_instance` now operate run-time type object instead of a type known at compile-time. The old behavior is still available as `PyType::is_subclass_of`, `PyErr::is_instance_of` and `PyAny::is_instance_of`.  [#1985](https://github.com/PyO3/pyo3/pull/1985)
+
+### Removed
+
+- Remove `PyType::is_instance`, which is unintuitive; instead of `typ.is_instance(obj)`, use `obj.is_instance(typ)`. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
 
 ## [0.15.1] - 2021-11-19
