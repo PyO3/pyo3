@@ -25,7 +25,7 @@ extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]
     pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
-    #[cfg(all(Py_3_7, not(PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
     #[cfg(not(PyPy))]

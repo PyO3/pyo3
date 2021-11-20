@@ -683,12 +683,7 @@ mod tests {
             let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
 
             assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-            if py.version_info() >= (3, 7) {
-                assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-            } else {
-                // Python 3.6 and below formats the repr differently
-                assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
-            }
+            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
 
             let traceback = fields.next().unwrap();
             assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));

@@ -794,19 +794,11 @@ mod tests {
                 .into_instance(py)
                 .into_ref(py);
 
-            if py.version_info() >= (3, 7) {
-                assert_eq!(format!("{:?}", exc), "Exception('banana')");
-            } else {
-                assert_eq!(format!("{:?}", exc), "Exception('banana',)");
-            }
+            assert_eq!(format!("{:?}", exc), "Exception('banana')");
 
             let source = exc.source().expect("cause should exist");
 
-            if py.version_info() >= (3, 7) {
-                assert_eq!(format!("{:?}", source), "TypeError('peach')");
-            } else {
-                assert_eq!(format!("{:?}", source), "TypeError('peach',)");
-            }
+            assert_eq!(format!("{:?}", source), "TypeError('peach')");
 
             let source_source = source.source();
             assert!(source_source.is_none(), "source_source should be None");
