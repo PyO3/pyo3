@@ -6,7 +6,7 @@ use std::ffi::{c_void, CStr};
 use std::os::raw::c_int;
 
 /// Represents a Python Capsule
-/// As described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules)
+/// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
 /// > This subtype of PyObject represents an opaque value, useful for C extension
 /// > modules who need to pass an opaque value (as a void* pointer) through Python
 /// > code to other C code. It is often used to make a C function pointer defined
@@ -45,13 +45,14 @@ pub struct PyCapsule(PyAny);
 pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::PyCapsule_CheckExact);
 
 impl PyCapsule {
-    /// Constructs a new capsule of whose contents are `T` associated with `name`.
+    /// Constructs a new capsule whose contents are `value`, associated with `name`.
     pub fn new<'py, T: 'static>(py: Python<'py>, value: T, name: &CStr) -> PyResult<&'py Self> {
         Self::new_with_destructor(py, value, name, std::mem::drop)
     }
 
-    /// Constructs a new capsule of whose contents are `T` associated with `name`
-    /// Provide a destructor for when `PyCapsule` is destroyed it will be passed the capsule.
+    /// Constructs a new capsule whose contents are `value`, associated with `name`.
+    /// 
+    /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object.
     pub fn new_with_destructor<'py, T: 'static, F: FnOnce(T)>(
         py: Python<'py>,
         value: T,
@@ -70,20 +71,16 @@ impl PyCapsule {
         unsafe { py.from_owned_ptr_or_err(cap_ptr) }
     }
 
-    /// Import an existing capsule.
+    /// Imports an existing capsule.
     ///
-    /// The `name` should match the path to module attribute exactly in the form
-    /// of `module.attribute`, which should be the same as the name within the
-    /// capsule. `no_block` indicates to use
-    /// [PyImport_ImportModuleNoBlock()](https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModuleNoBlock)
-    /// or [PyImport_ImportModule()](https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule)
-    /// when accessing the capsule.
+    /// The `name` should match the path to the module attribute exactly in the form
+    /// of `module.attribute`, which should be the same as the name within the capsule.
     ///
     /// # Safety
     ///
     /// It must be known that this capsule's pointer is to an item of type `T`.
-    pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr, no_block: bool) -> PyResult<&'py T> {
-        let ptr = ffi::PyCapsule_Import(name.as_ptr(), no_block as c_int);
+    pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
+        let ptr = ffi::PyCapsule_Import(name.as_ptr(), false as c_int);
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
@@ -91,7 +88,7 @@ impl PyCapsule {
         }
     }
 
-    /// Set a context pointer in the capsule to `T`
+    /// Sets the context pointer in the capsule to `T`.
     pub fn set_context<T: 'static>(&self, py: Python, context: T) -> PyResult<()> {
         let ctx = Box::new(context);
         let result =
@@ -103,11 +100,11 @@ impl PyCapsule {
         }
     }
 
-    /// Get a reference to the context `T` in the capsule, if any.
+    /// Gets a reference to the context of the capsule, if any.
     ///
     /// # Safety
     ///
-    /// It must be known that this capsule's contains a context item of type `T`.
+    /// It must be known that this capsule contains a context of type `T`.
     pub unsafe fn get_context<T>(&self, py: Python) -> PyResult<Option<&T>> {
         let ctx = ffi::PyCapsule_GetContext(self.as_ptr());
         if ctx.is_null() {
@@ -121,7 +118,7 @@ impl PyCapsule {
         }
     }
 
-    /// Obtain a reference to the value `T` of this capsule.
+    /// Obtains a reference to the value of this capsule.
     ///
     /// # Safety
     ///
@@ -130,18 +127,18 @@ impl PyCapsule {
         &*(self.get_pointer() as *const T)
     }
 
-    /// Get the raw `c_void` pointer to the value in this capsule.
+    /// Gets the raw `c_void` pointer to the value in this capsule.
     pub fn get_pointer(&self) -> *mut c_void {
         unsafe { ffi::PyCapsule_GetPointer(self.0.as_ptr(), self.name().as_ptr()) }
     }
 
-    /// Check if this is a valid capsule.
+    /// Checks if this is a valid capsule.
     pub fn is_valid(&self) -> bool {
         let r = unsafe { ffi::PyCapsule_IsValid(self.as_ptr(), self.name().as_ptr()) } as u8;
         r != 0
     }
 
-    /// Retrieve the name of this capsule.
+    /// Retrieves the name of this capsule.
     pub fn name(&self) -> &CStr {
         unsafe {
             let ptr = ffi::PyCapsule_GetName(self.as_ptr());
@@ -252,11 +249,11 @@ mod tests {
             // check error when wrong named passed for capsule.
             let wrong_name = CString::new("builtins.non_existant").unwrap();
             let result: PyResult<&Foo> =
-                unsafe { PyCapsule::import(py, wrong_name.as_ref(), false) };
+                unsafe { PyCapsule::import(py, wrong_name.as_ref()) };
             assert!(result.is_err());
 
             // corret name is okay.
-            let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref(), false)? };
+            let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
             assert_eq!(cap.val, 123);
             Ok(())
         })
