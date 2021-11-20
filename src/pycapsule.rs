@@ -46,14 +46,18 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
-    pub fn new<'py, T: 'static>(py: Python<'py>, value: T, name: &CStr) -> PyResult<&'py Self> {
+    pub fn new<'py, T: 'static + Send>(
+        py: Python<'py>,
+        value: T,
+        name: &CStr,
+    ) -> PyResult<&'py Self> {
         Self::new_with_destructor(py, value, name, std::mem::drop)
     }
 
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
-    /// 
+    ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object.
-    pub fn new_with_destructor<'py, T: 'static, F: FnOnce(T)>(
+    pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T)>(
         py: Python<'py>,
         value: T,
         name: &CStr,
@@ -89,7 +93,16 @@ impl PyCapsule {
     }
 
     /// Sets the context pointer in the capsule to `T`.
-    pub fn set_context<T: 'static>(&self, py: Python, context: T) -> PyResult<()> {
+    ///
+    /// # Notes
+    ///
+    /// Context is not destructed like the value of the capsule is by `destructor`. Therefore,
+    /// it's likely this value will be leaked. If set, it's up to the user to either ignore this
+    /// side effect or figure another (unsafe) method of clean up.
+    ///
+    /// Context itself, is treated much like the value of the capsule, but should likely act as
+    /// a place to store any state managment when using the capsule.
+    pub fn set_context<T: 'static + Send>(&self, py: Python, context: T) -> PyResult<()> {
         let ctx = Box::new(context);
         let result =
             unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), Box::into_raw(ctx) as _) as u8 };
@@ -197,13 +210,14 @@ mod tests {
 
     #[test]
     fn test_pycapsule_func() {
-        let cap: Py<PyCapsule> = Python::with_gil(|py| {
-            extern "C" fn foo(x: u32) -> u32 {
-                x
-            }
 
+        fn foo(x: u32) -> u32 {
+            x
+        }
+
+        let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, foo as *const c_void, &name).unwrap();
+            let cap = PyCapsule::new(py, foo, &name).unwrap();
             cap.into()
         });
 
@@ -211,6 +225,7 @@ mod tests {
             let f = unsafe { cap.as_ref(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
         });
+        panic!("Failed");
     }
 
     #[test]
@@ -248,8 +263,7 @@ mod tests {
 
             // check error when wrong named passed for capsule.
             let wrong_name = CString::new("builtins.non_existant").unwrap();
-            let result: PyResult<&Foo> =
-                unsafe { PyCapsule::import(py, wrong_name.as_ref()) };
+            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, wrong_name.as_ref()) };
             assert!(result.is_err());
 
             // corret name is okay.
