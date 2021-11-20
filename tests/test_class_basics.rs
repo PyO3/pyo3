@@ -36,7 +36,7 @@ fn unit_class() {
 ///Line2
 ///  Line3
 // this is not doc string
-#[pyclass(mutable)]
+#[pyclass]
 struct ClassWithDocs {
     /// Property field
     #[pyo3(get, set)]
@@ -122,7 +122,7 @@ fn custom_names() {
     py_assert!(py, typeobj, "not hasattr(typeobj, 'foo')");
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct RawIdents {
     #[pyo3(get, set)]
     r#type: i64,
@@ -171,7 +171,7 @@ fn empty_class_in_module() {
     assert_eq!(module, "builtins");
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct ClassWithObjectField {
     // It used to be that PyObject was not supported with (get, set)
     // - this test is just ensuring it compiles.
@@ -316,7 +316,7 @@ fn test_pymethods_from_py_with() {
     })
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct TupleClass(#[pyo3(get, set, name = "value")] i32);
 
 #[test]

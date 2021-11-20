@@ -26,7 +26,6 @@ pub struct PyClassArgs {
     pub is_basetype: bool,
     pub has_extends: bool,
     pub has_unsendable: bool,
-    pub is_mutable: bool,
     pub module: Option<syn::LitStr>,
 }
 
@@ -55,7 +54,6 @@ impl Default for PyClassArgs {
             is_basetype: false,
             has_extends: false,
             has_unsendable: false,
-            is_mutable: false,
         }
     }
 }
@@ -159,9 +157,6 @@ impl PyClassArgs {
             }
             "unsendable" => {
                 self.has_unsendable = true;
-            }
-            "mutable" => {
-                self.is_mutable = true;
             }
             _ => bail_spanned!(
                 exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable"
@@ -520,52 +515,6 @@ fn impl_class(
     let is_basetype = attr.is_basetype;
     let is_subclass = attr.has_extends;
 
-    // If the pyclass has extends/unsendable, we must opt back into PyCell checking
-    // so that the inner Rust object is not inappropriately shared between threads.
-    let impl_pyclass = if attr.has_unsendable || attr.has_extends || attr.is_mutable {
-        quote! {
-            unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}
-
-            unsafe impl ::pyo3::PyClass for #cls {
-                type Dict = #dict;
-                type WeakRef = #weakref;
-                type BaseNativeType = #base_nativetype;
-
-                #[inline]
-                fn try_borrow_as_pyref(slf: &::pyo3::PyCell<Self>) -> ::std::result::Result<::pyo3::pycell::PyRef<'_, Self>, ::pyo3::pycell::PyBorrowError> {
-                    unsafe { ::pyo3::PyCell::immutable_pyclass_try_borrow(slf) }
-                }
-
-                #[inline]
-                fn borrow_as_pyref(slf: &::pyo3::PyCell<Self>) -> ::pyo3::pycell::PyRef<'_, Self> {
-                    unsafe { ::pyo3::PyCell::immutable_pyclass_borrow(slf) }
-                }
-
-                #[inline]
-                unsafe fn try_borrow_unguarded(slf: &::pyo3::PyCell<Self>) -> ::std::result::Result<&Self, ::pyo3::pycell::PyBorrowError> {
-                    ::pyo3::PyCell::immutable_pyclass_try_borrow_unguarded(slf)
-                }
-
-                #[inline]
-                unsafe fn drop_pyref(pyref: &mut ::pyo3::pycell::PyRef<Self>) {
-                    ::pyo3::pycell::PyRef::decrement_flag(pyref)
-                }
-            }
-
-            impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls {
-                type Target = ::pyo3::PyRefMut<'a, #cls>;
-            }
-        }
-    } else {
-        quote! {
-            unsafe impl ::pyo3::PyClass for #cls {
-                type Dict = #dict;
-                type WeakRef = #weakref;
-                type BaseNativeType = #base_nativetype;
-            }
-        }
-    };
-
     Ok(quote! {
         unsafe impl ::pyo3::type_object::PyTypeInfo for #cls {
             type AsRefTarget = ::pyo3::PyCell<Self>;
@@ -583,14 +532,21 @@ fn impl_class(
             }
         }
 
-        #impl_pyclass
+        impl ::pyo3::PyClass for #cls {
+            type Dict = #dict;
+            type WeakRef = #weakref;
+            type BaseNativeType = #base_nativetype;
+        }
 
         impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a #cls
         {
             type Target = ::pyo3::PyRef<'a, #cls>;
         }
 
-
+        impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+        {
+            type Target = ::pyo3::PyRefMut<'a, #cls>;
+        }
 
         #into_pyobject
 

@@ -7,7 +7,7 @@ use pyo3::py_run;
 
 mod common;
 
-#[pyclass(mutable)]
+#[pyclass]
 struct ByteSequence {
     elements: Vec<u8>,
 }
@@ -232,7 +232,7 @@ fn test_inplace_repeat() {
 
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
-#[pyclass(mutable)]
+#[pyclass]
 struct GenericList {
     #[pyo3(get, set)]
     items: Vec<PyObject>,
@@ -265,7 +265,7 @@ fn test_generic_list_set() {
     );
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct OptionList {
     #[pyo3(get, set)]
     items: Vec<Option<i64>>,

@@ -78,7 +78,7 @@ For users who are not very familiar with `RefCell`, here is a reminder of Rust's
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass(mutable)]
+#[pyclass]
 struct MyClass {
     #[pyo3(get)]
     num: i32,
@@ -299,7 +299,7 @@ use pyo3::types::PyDict;
 use pyo3::AsPyPointer;
 use std::collections::HashMap;
 
-#[pyclass(extends=PyDict, mutable)]
+#[pyclass(extends=PyDict)]
 #[derive(Default)]
 struct DictWithCounter {
     counter: HashMap<String, usize>,
@@ -362,7 +362,7 @@ For simple cases where a member variable is just read and written with no side e
 
 ```rust
 # use pyo3::prelude::*;
-#[pyclass(mutable)]
+#[pyclass]
 struct MyClass {
     #[pyo3(get, set)]
     num: i32
@@ -410,7 +410,7 @@ can be used since Rust 2018).
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass(mutable)]
+# #[pyclass]
 # struct MyClass {
 #     num: i32,
 # }
@@ -436,7 +436,7 @@ If this parameter is specified, it is used as the property name, i.e.
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass(mutable)]
+# #[pyclass]
 # struct MyClass {
 #    num: i32,
 # }
@@ -473,7 +473,7 @@ between those accessible to Python (and Rust) and those accessible only to Rust.
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass(mutable)]
+# #[pyclass]
 # struct MyClass {
 #     num: i32,
 # }
@@ -641,7 +641,7 @@ Example:
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
-# #[pyclass(mutable)]
+# #[pyclass]
 # struct MyClass {
 #     num: i32,
 # }
@@ -731,7 +731,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     }
 }
 
-unsafe impl pyo3::pyclass::PyClass for MyClass {
+impl pyo3::pyclass::PyClass for MyClass {
     type Dict = pyo3::pyclass_slots::PyClassDummySlot;
     type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
     type BaseNativeType = PyAny;

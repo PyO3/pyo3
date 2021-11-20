@@ -16,8 +16,7 @@ pub struct Foo2;
     gc,
     subclass,
     extends = ::pyo3::types::PyAny,
-    module = "Spam",
-    mutable
+    module = "Spam"
 )]
 pub struct Bar {
     #[pyo3(get, set)]

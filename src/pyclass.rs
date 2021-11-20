@@ -1,5 +1,4 @@
 //! `PyClass` and related traits.
-use crate::pycell::{PyBorrowError, PyRef};
 use crate::{
     class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
     ffi,
@@ -18,14 +17,7 @@ use std::{
 ///
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you normally don't have to use this trait directly.
-///
-/// # Safety
-///
-/// If `T` implements [`MutablePyClass`], then implementations must override the default methods.
-///
-/// If `T`  does not implement [`MutablePyClass`], then implementations should not  override the
-/// default methods.
-pub unsafe trait PyClass:
+pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
@@ -35,64 +27,7 @@ pub unsafe trait PyClass:
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
-
-    /// Default implementation that borrows as a PyRef without checking or incrementing the
-    /// borrowflag.
-    ///
-    /// # Safety
-    ///
-    /// Implementations that implement [`MutablePyClass`] **must** override this method
-    /// by wrapping `PyCell::immutable_pyclass_try_borrow()`
-    #[inline]
-    fn try_borrow_as_pyref(slf: &PyCell<Self>) -> Result<PyRef<'_, Self>, PyBorrowError> {
-        Ok(Self::borrow_as_pyref(slf))
-    }
-
-    /// Default implementation that borrows as a PyRef without checking or incrementing the
-    /// borrowflag.
-    ///
-    /// # Safety
-    ///
-    /// Implementations that implement [`MutablePyClass`] **must** override this method
-    /// by wrapping `PyCell::immutable_pyclass_borrow()`
-    #[inline]
-    fn borrow_as_pyref(slf: &PyCell<Self>) -> PyRef<'_, Self> {
-        unsafe { PyCell::borrow_unchecked_unincremented(slf) }
-    }
-
-    /// Default implementation that borrows as a PyRef without checking or incrementing the
-    /// borrowflag.
-    ///
-    /// # Safety
-    ///
-    /// Please see the safety requirements on [`PyCell::try_borrow_unguarded`].
-    ///
-    /// Implementations that implement [`MutablePyClass`] **must** override this method
-    /// by wrapping `PyCell::immutable_pyclass_try_borrow_unguarded()`.
-    #[inline]
-    unsafe fn try_borrow_unguarded(slf: &PyCell<Self>) -> Result<&Self, PyBorrowError> {
-        Ok(PyCell::_try_borrow_unchecked_unguarded(slf))
-    }
-
-    /// Default implementation that does nothing.
-    ///
-    /// # Safety
-    ///
-    /// This function is only called inside [`PyRef`]s [`Drop`] implementation.
-    ///
-    /// Implementations that also implement [`MutablePyClass`] **must** make this method call
-    /// [`PyRef::decrement_flag()`] so that [`PyRef`]s [`Drop`] implementation correctly decrements
-    /// the borrowflag.
-    #[inline]
-    unsafe fn drop_pyref(_: &mut PyRef<Self>) {}
 }
-
-/// Declares that a pyclass can be mutably borrowed.
-///
-/// # Safety
-///
-/// Implementations must correctly implement [`PyClass`].
-pub unsafe trait MutablePyClass: PyClass {}
 
 /// For collecting slot items.
 #[derive(Default)]

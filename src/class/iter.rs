@@ -21,7 +21,7 @@ use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 /// use pyo3::prelude::*;
 /// use pyo3::PyIterProtocol;
 ///
-/// #[pyclass(mutable)]
+/// #[pyclass]
 /// struct Iter {
 ///     count: usize,
 /// }

@@ -4,7 +4,7 @@ use pyo3::ToPyObject;
 #[macro_use]
 mod common;
 
-#[pyclass(mutable)]
+#[pyclass]
 #[derive(Clone, Debug, PartialEq)]
 struct Cloneable {
     x: i32,
@@ -30,7 +30,7 @@ fn test_cloneable_pyclass() {
     assert_eq!(&c, &*mrc);
 }
 
-#[pyclass(subclass, mutable)]
+#[pyclass(subclass)]
 #[derive(Default)]
 struct BaseClass {
     value: i32,
@@ -43,7 +43,7 @@ impl BaseClass {
     }
 }
 
-#[pyclass(extends=BaseClass, mutable)]
+#[pyclass(extends=BaseClass)]
 struct SubClass {}
 
 #[pymethods]
@@ -53,7 +53,7 @@ impl SubClass {
     }
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct PolymorphicContainer {
     #[pyo3(get, set)]
     inner: Py<BaseClass>,

@@ -45,7 +45,7 @@ fn_macro!("(a, b=None, *, c=42)", a, b = "None", c = 42);
 
 macro_rules! property_rename_via_macro {
     ($prop_name:ident) => {
-        #[pyclass(mutable)]
+        #[pyclass]
         struct ClassWithProperty {
             member: u64,
         }

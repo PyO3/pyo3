@@ -675,7 +675,7 @@ fn method_with_lifetime() {
     );
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct MethodWithPyClassArg {
     #[pyo3(get)]
     value: i64,
@@ -824,7 +824,7 @@ fn test_from_sequence() {
     py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]")
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct r#RawIdents {
     #[pyo3(get, set)]
     r#type: PyObject,

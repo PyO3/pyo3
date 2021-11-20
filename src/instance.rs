@@ -3,7 +3,6 @@ use crate::conversion::{PyTryFrom, ToBorrowedObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
-use crate::pyclass::MutablePyClass;
 use crate::types::{PyDict, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
@@ -392,23 +391,6 @@ where
         self.as_ref(py).borrow()
     }
 
-    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
-    ///
-    /// The borrow lasts while the returned [`PyRef`] exists.
-    ///
-    /// This is the non-panicking variant of [`borrow`](#method.borrow).
-    ///
-    /// Equivalent to `self.as_ref(py).borrow_mut()` -
-    /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
-    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
-        self.as_ref(py).try_borrow()
-    }
-}
-
-impl<T> Py<T>
-where
-    T: MutablePyClass,
-{
     /// Mutably borrows the value `T`.
     ///
     /// This borrow lasts while the returned [`PyRefMut`] exists.
@@ -421,7 +403,7 @@ where
     /// ```
     /// # use pyo3::prelude::*;
     /// #
-    /// #[pyclass(mutable)]
+    /// #[pyclass]
     /// struct Foo {
     ///     inner: u8,
     /// }
@@ -443,6 +425,18 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T> {
         self.as_ref(py).borrow_mut()
+    }
+
+    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyRef`] exists.
+    ///
+    /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// Equivalent to `self.as_ref(py).borrow_mut()` -
+    /// see [`PyCell::try_borrow`](crate::pycell::PyCell::try_borrow).
+    pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
+        self.as_ref(py).try_borrow()
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -808,7 +802,7 @@ where
 
 impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
 where
-    T: MutablePyClass,
+    T: PyClass,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }

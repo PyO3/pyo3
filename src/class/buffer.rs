@@ -5,8 +5,7 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::callback::IntoPyCallbackOutput;
-use crate::pyclass::MutablePyClass;
-use crate::{ffi, PyCell, PyRefMut};
+use crate::{ffi, PyCell, PyClass, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -14,7 +13,7 @@ use std::os::raw::c_int;
 /// For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 /// c-api.
 #[allow(unused_variables)]
-pub trait PyBufferProtocol<'p>: MutablePyClass {
+pub trait PyBufferProtocol<'p>: PyClass {
     // No default implementations so that implementors of this trait provide both methods.
 
     fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
@@ -52,7 +51,7 @@ where
 #[doc(hidden)]
 pub unsafe extern "C" fn releasebuffer<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer)
 where
-    T: for<'p> PyBufferReleaseBufferProtocol<'p> + MutablePyClass,
+    T: for<'p> PyBufferReleaseBufferProtocol<'p>,
 {
     crate::callback_body!(py, {
         let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);

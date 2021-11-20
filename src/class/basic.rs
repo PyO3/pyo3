@@ -9,7 +9,6 @@
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
-use crate::pyclass::MutablePyClass;
 use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
@@ -129,12 +128,12 @@ pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
-pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> + MutablePyClass {
+pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
-pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> + MutablePyClass {
+pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

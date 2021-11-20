@@ -4,7 +4,7 @@ use pyo3::types::{IntoPyDict, PyList};
 
 mod common;
 
-#[pyclass(mutable)]
+#[pyclass]
 struct ClassWithProperties {
     num: i32,
 }
@@ -65,7 +65,7 @@ fn class_with_properties() {
     py_assert!(py, *d, "C.DATA.__doc__ == 'a getter for data'");
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct GetterSetter {
     #[pyo3(get, set)]
     num: i32,
@@ -103,7 +103,7 @@ fn getter_setter_autogen() {
     );
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct RefGetterSetter {
     num: i32,
 }
@@ -133,7 +133,7 @@ fn ref_getter_setter() {
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
 }
 
-#[pyclass(mutable)]
+#[pyclass]
 struct TupleClassGetterSetter(i32);
 
 #[pymethods]

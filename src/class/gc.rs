@@ -2,7 +2,6 @@
 
 //! Python GC support
 
-use crate::pyclass::MutablePyClass;
 use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
 use std::os::raw::{c_int, c_void};
 
@@ -54,7 +53,7 @@ where
 #[doc(hidden)]
 pub unsafe extern "C" fn clear<T>(slf: *mut ffi::PyObject) -> c_int
 where
-    T: for<'p> PyGCClearProtocol<'p> + MutablePyClass,
+    T: for<'p> PyGCClearProtocol<'p>,
 {
     let pool = crate::GILPool::new();
     let slf = pool.python().from_borrowed_ptr::<PyCell<T>>(slf);

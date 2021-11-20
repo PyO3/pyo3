@@ -81,7 +81,7 @@ fn data_is_dropped() {
 }
 
 #[allow(dead_code)]
-#[pyclass(mutable)]
+#[pyclass]
 struct GcIntegration {
     self_ref: PyObject,
     dropped: TestDropCall,
@@ -127,7 +127,7 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc, mutable)]
+#[pyclass(gc)]
 struct GcIntegration2 {}
 
 #[pyproto]
@@ -181,7 +181,7 @@ fn inherited_weakref() {
     );
 }
 
-#[pyclass(subclass, mutable)]
+#[pyclass(subclass)]
 struct BaseClassWithDrop {
     data: Option<Arc<AtomicBool>>,
 }
@@ -202,7 +202,7 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[pyclass(extends = BaseClassWithDrop, mutable)]
+#[pyclass(extends = BaseClassWithDrop)]
 struct SubClassWithDrop {
     data: Option<Arc<AtomicBool>>,
 }
@@ -249,7 +249,7 @@ fn inheritance_with_new_methods_with_drop() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc, mutable)]
+#[pyclass(gc)]
 struct TraversableClass {
     traversed: AtomicBool,
 }
