@@ -67,11 +67,7 @@ impl PyCapsule {
                 Some(capsule_destructor::<T, F>),
             )
         };
-        if cap_ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(unsafe { py.from_owned_ptr::<PyCapsule>(cap_ptr) })
-        }
+        unsafe { py.from_owned_ptr_or_err(cap_ptr) }
     }
 
     /// Import an existing capsule.
@@ -253,6 +249,13 @@ mod tests {
             let module = PyModule::import(py, "builtins")?;
             module.add("capsule", capsule)?;
 
+            // check error when wrong named passed for capsule.
+            let wrong_name = CString::new("builtins.non_existant").unwrap();
+            let result: PyResult<&Foo> =
+                unsafe { PyCapsule::import(py, wrong_name.as_ref(), false) };
+            assert!(result.is_err());
+
+            // corret name is okay.
             let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref(), false)? };
             assert_eq!(cap.val, 123);
             Ok(())
