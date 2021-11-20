@@ -2,9 +2,8 @@
 
 use crate::{
     attributes::{
-        self, get_deprecated_name_attribute, get_deprecated_text_signature_attribute,
-        get_pyo3_options, take_attributes, FromPyWithAttribute, NameAttribute,
-        TextSignatureAttribute,
+        self, get_pyo3_options, take_attributes, take_pyo3_options, FromPyWithAttribute,
+        NameAttribute, TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
@@ -303,32 +302,8 @@ impl Parse for PyFunctionOption {
 impl PyFunctionOptions {
     pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Self> {
         let mut options = PyFunctionOptions::default();
-        options.take_pyo3_options(attrs)?;
+        options.add_attributes(take_pyo3_options(attrs)?)?;
         Ok(options)
-    }
-
-    pub fn take_pyo3_options(&mut self, attrs: &mut Vec<syn::Attribute>) -> syn::Result<()> {
-        take_attributes(attrs, |attr| {
-            if let Some(pyo3_attributes) = get_pyo3_options(attr)? {
-                self.add_attributes(pyo3_attributes)?;
-                Ok(true)
-            } else if let Some(name) = get_deprecated_name_attribute(attr, &mut self.deprecations)?
-            {
-                self.set_name(name)?;
-                Ok(true)
-            } else if let Some(text_signature) =
-                get_deprecated_text_signature_attribute(attr, &mut self.deprecations)?
-            {
-                self.add_attributes(std::iter::once(PyFunctionOption::TextSignature(
-                    text_signature,
-                )))?;
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        })?;
-
-        Ok(())
     }
 
     pub fn add_attributes(
@@ -379,7 +354,7 @@ pub fn build_py_function(
     ast: &mut syn::ItemFn,
     mut options: PyFunctionOptions,
 ) -> syn::Result<TokenStream> {
-    options.take_pyo3_options(&mut ast.attrs)?;
+    options.add_attributes(take_pyo3_options(&mut ast.attrs)?)?;
     Ok(impl_wrap_pyfunction(ast, options)?.1)
 }
 

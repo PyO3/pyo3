@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Py::setattr` method. [#2009](https://github.com/PyO3/pyo3/pull/2009)
 
+## Removed
+
+- Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
+
 ## [0.15.1] - 2021-11-19
 
 ### Added

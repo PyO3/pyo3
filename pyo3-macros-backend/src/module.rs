@@ -2,14 +2,9 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 use crate::{
-    attributes::{self, take_pyo3_options},
-    deprecations::Deprecations,
+    attributes::{self, is_attribute_ident, take_attributes, take_pyo3_options, NameAttribute},
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
     utils::PythonDoc,
-};
-use crate::{
-    attributes::{is_attribute_ident, take_attributes, NameAttribute},
-    deprecations::Deprecation,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -23,23 +18,11 @@ use syn::{
 
 pub struct PyModuleOptions {
     name: Option<syn::Ident>,
-    deprecations: Deprecations,
 }
 
 impl PyModuleOptions {
-    pub fn from_pymodule_arg_and_attrs(
-        deprecated_pymodule_name_arg: Option<syn::Ident>,
-        attrs: &mut Vec<syn::Attribute>,
-    ) -> Result<Self> {
-        let mut deprecations = Deprecations::new();
-        if let Some(name) = &deprecated_pymodule_name_arg {
-            deprecations.push(Deprecation::PyModuleNameArgument, name.span());
-        }
-
-        let mut options: PyModuleOptions = PyModuleOptions {
-            name: deprecated_pymodule_name_arg,
-            deprecations,
-        };
+    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
+        let mut options: PyModuleOptions = PyModuleOptions { name: None };
 
         for option in take_pyo3_options(attrs)? {
             match option {
@@ -65,7 +48,6 @@ impl PyModuleOptions {
 /// module
 pub fn py_init(fnname: &Ident, options: PyModuleOptions, doc: PythonDoc) -> TokenStream {
     let name = options.name.unwrap_or_else(|| fnname.unraw());
-    let deprecations = options.deprecations;
     let cb_name = Ident::new(&format!("PyInit_{}", name), Span::call_site());
 
     quote! {
@@ -78,8 +60,6 @@ pub fn py_init(fnname: &Ident, options: PyModuleOptions, doc: PythonDoc) -> Toke
             static NAME: &str = concat!(stringify!(#name), "\0");
             static DOC: &str = #doc;
             static MODULE_DEF: ModuleDef = unsafe { ModuleDef::new(NAME, DOC) };
-
-            #deprecations
 
             ::pyo3::callback::handle_panic(|_py| { MODULE_DEF.make_module(_py, #fnname) })
         }
@@ -129,23 +109,10 @@ impl Parse for PyFnArgs {
 
         let _: Comma = input.parse()?;
 
-        let mut deprecated_name_argument = None;
-        if let Ok(lit_str) = input.parse::<syn::LitStr>() {
-            deprecated_name_argument = Some(lit_str);
-            if !input.is_empty() {
-                let _: Comma = input.parse()?;
-            }
-        }
-
-        let mut options: PyFunctionOptions = input.parse()?;
-        if let Some(lit_str) = deprecated_name_argument {
-            options.set_name(NameAttribute(lit_str.parse()?))?;
-            options
-                .deprecations
-                .push(Deprecation::PyfnNameArgument, lit_str.span());
-        }
-
-        Ok(Self { modname, options })
+        Ok(Self {
+            modname,
+            options: input.parse()?,
+        })
     }
 }
 
@@ -167,7 +134,9 @@ fn get_pyfn_attr(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<PyFnArgs
     })?;
 
     if let Some(pyfn_args) = &mut pyfn_args {
-        pyfn_args.options.take_pyo3_options(attrs)?;
+        pyfn_args
+            .options
+            .add_attributes(take_pyo3_options(attrs)?)?;
     }
 
     Ok(pyfn_args)

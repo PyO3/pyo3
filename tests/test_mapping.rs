@@ -1,5 +1,3 @@
-#![allow(deprecated)] // for deprecated protocol methods
-
 use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;
@@ -59,16 +57,6 @@ impl PyMappingProtocol for Mapping {
             Ok(())
         }
     }
-
-    /// not an actual reversed implementation, just to demonstrate that the method is callable.
-    fn __reversed__(&self) -> PyObject {
-        let gil = Python::acquire_gil();
-        self.index
-            .keys()
-            .cloned()
-            .collect::<Vec<String>>()
-            .into_py(gil.python())
-    }
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
@@ -116,13 +104,4 @@ fn test_delitem() {
     );
     py_expect_exception!(py, *d, "del m[-1]", PyTypeError);
     py_expect_exception!(py, *d, "del m['4']", PyKeyError);
-}
-
-#[test]
-fn test_reversed() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let d = map_dict(py);
-    py_assert!(py, *d, "set(reversed(m)) == {'1', '2', '3'}");
 }
