@@ -449,7 +449,7 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
-    pub(crate) unsafe fn _borrow_unchecked_unguarded(&self) -> &T {
+    pub(crate) unsafe fn immutable_pyclass_try_borrow_unchecked_unguarded(&self) -> &T {
         &*self.contents.value.get()
     }
 

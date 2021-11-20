@@ -71,7 +71,7 @@ pub unsafe trait PyClass:
     /// by wrapping `PyCell::immutable_pyclass_try_borrow_unguarded()`.
     #[inline]
     unsafe fn try_borrow_unguarded(slf: &PyCell<Self>) -> Result<&Self, PyBorrowError> {
-        Ok(PyCell::_borrow_unchecked_unguarded(slf))
+        Ok(PyCell::_try_borrow_unchecked_unguarded(slf))
     }
 
     /// Default implementation that does nothing.
