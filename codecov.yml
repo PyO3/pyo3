@@ -7,6 +7,16 @@ coverage:
         target: auto
         # Allow a tiny drop of overall project coverage in PR to reduce spurious failures.
         threshold: 0.25%
+        flags:
+          - windows
+          - macos
+          - ubuntu
+    patch:
+      default:
+        flags:
+          - windows
+          - macos
+          - ubuntu
 
 ignore:
   - tests/*.rs
