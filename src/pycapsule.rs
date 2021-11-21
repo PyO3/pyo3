@@ -166,14 +166,15 @@ impl PyCapsule {
     ///         PyCapsule::new_with_destructor(py, 123, &name, destructor as fn(u32, *mut c_void))
     ///             .unwrap();
     ///     let context = Box::new(tx);  // `Sender<String>` is our context, box it up and ship it!
-    ///     unsafe { capsule.set_context(py, Box::into_raw(context) as *mut c_void).unwrap() };
+    ///     capsule.set_context(py, Box::into_raw(context) as *mut c_void).unwrap();
     ///     // This scope will end, causing our destructor to be called...
     /// });
     ///
     /// assert_eq!(rx.recv(), Ok("Destructor called!".to_string()));
     /// ```
-    pub unsafe fn set_context(&self, py: Python, context: *mut c_void) -> PyResult<()> {
-        let result = ffi::PyCapsule_SetContext(self.as_ptr(), context) as u8;
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn set_context(&self, py: Python, context: *mut c_void) -> PyResult<()> {
+        let result = unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), context) as u8 };
         if result != 0 {
             Err(PyErr::fetch(py))
         } else {
@@ -318,7 +319,7 @@ mod tests {
             assert!(c.is_null());
 
             let ctx = Box::new(123_u32);
-            unsafe { cap.set_context(py, Box::into_raw(ctx) as _)? };
+            cap.set_context(py, Box::into_raw(ctx) as _)?;
 
             let ctx_ptr: *mut c_void = cap.get_context(py)?;
             let ctx = unsafe { *Box::from_raw(ctx_ptr as *mut u32) };
@@ -379,10 +380,8 @@ mod tests {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, 0, &name).unwrap();
-            unsafe {
-                cap.set_context(py, Box::into_raw(Box::new(&context)) as _)
-                    .unwrap()
-            };
+            cap.set_context(py, Box::into_raw(Box::new(&context)) as _)
+                .unwrap();
 
             cap.into()
         });
@@ -409,10 +408,8 @@ mod tests {
             let cap =
                 PyCapsule::new_with_destructor(py, 0, &name, destructor as fn(u32, *mut c_void))
                     .unwrap();
-            unsafe {
-                cap.set_context(py, Box::into_raw(Box::new(tx)) as _)
-                    .unwrap()
-            };
+            cap.set_context(py, Box::into_raw(Box::new(tx)) as _)
+                .unwrap();
         });
 
         // the destructor was called.
