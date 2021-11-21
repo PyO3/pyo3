@@ -240,6 +240,7 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 
 /// Guarantee `T` is not zero sized at compile time.
 // credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
+#[doc(hidden)]
 pub trait AssertNotZeroSized: Sized {
     const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
     const _CHECK: &'static str =
