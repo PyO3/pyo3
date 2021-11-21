@@ -67,14 +67,6 @@ impl PyCapsule {
     /// # Notes
     ///
     /// An attempt to add a zero sized value will panic.
-    /// 
-    /// # Example
-    /// 
-    /// ```
-    /// use pyo3::{PyCapsule};
-    /// 
-    /// 
-    /// ```
     pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T, *mut c_void)>(
         py: Python<'py>,
         value: T,
@@ -336,26 +328,22 @@ mod tests {
 
     #[test]
     fn test_pycapsule_destructor() {
-        
-        let (tx, rx) = channel();
+        let (tx, rx) = channel::<bool>();
 
         fn destructor(_val: u32, ctx: *mut c_void) {
             assert!(!ctx.is_null());
-            let context = unsafe { *Box::from_raw(ctx as *mut Sender<bool>) };
+            let context = unsafe { Box::from_raw(ctx as *mut Sender<bool>) };
             context.send(true).unwrap();
         }
-        
-        {
-            let _cap: Py<PyCapsule> = Python::with_gil(|py| {
-                let name = CString::new("foo").unwrap();
-                let cap = PyCapsule::new_with_destructor(py, 0, &name, destructor).unwrap();
-                cap.set_context(py, tx).unwrap();
-                cap.into()
-            });
-        }
+
+        Python::with_gil(|py| {
+            let name = CString::new("foo").unwrap();
+            let cap =
+                PyCapsule::new_with_destructor(py, 0, &name, destructor as fn(u32, *mut c_void))
+                    .unwrap();
+            cap.set_context(py, tx).unwrap();
+        });
 
         assert_eq!(rx.recv(), Ok(true));
-
-
     }
 }
