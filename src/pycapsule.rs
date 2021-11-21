@@ -221,8 +221,8 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
     destructor(value, ctx)
 }
 
-// trait to gurantee T is not zero sized at compile time.
-// credit: https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685
+/// Guarantee `T` is not zero sized at compile time.
+/// credit: https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685
 pub trait PanicWhenZeroSized: Sized {
     const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
     const _CHECK: &'static str = ["type must not be zero-sized!"][Self::_CONDITION];
