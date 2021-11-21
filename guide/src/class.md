@@ -696,6 +696,112 @@ num=44
 num=-1
 ```
 
+## Making class method signatures available to Python
+
+The [`#[pyo3(text_signature = "...")]`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
+
+```rust
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+use pyo3::types::PyType;
+
+// it works even if the item is not documented:
+#[pyclass]
+#[pyo3(text_signature = "(c, d, /)")]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+    // the signature for the constructor is attached
+    // to the struct definition instead.
+    #[new]
+    fn new(c: i32, d: &str) -> Self {
+        Self {}
+    }
+    // the self argument should be written $self
+    #[pyo3(text_signature = "($self, e, f)")]
+    fn my_method(&self, e: i32, f: i32) -> i32 {
+        e + f
+    }
+    #[classmethod]
+    #[pyo3(text_signature = "(cls, e, f)")]
+    fn my_class_method(cls: &PyType, e: i32, f: i32) -> i32 {
+        e + f
+    }
+    #[staticmethod]
+    #[pyo3(text_signature = "(e, f)")]
+    fn my_static_method(e: i32, f: i32) -> i32 {
+        e + f
+    }
+}
+#
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let inspect = PyModule::import(py, "inspect")?.getattr("signature")?;
+#         let module = PyModule::new(py, "my_module")?;
+#         module.add_class::<MyClass>()?;
+#         let class = module.getattr("MyClass")?;
+#
+#         if cfg!(not(Py_LIMITED_API)) || py.version_info() >= (3, 10)  {
+#             let doc: String = class.getattr("__doc__")?.extract()?;
+#             assert_eq!(doc, "");
+#
+#             let sig: String = inspect
+#                 .call1((class,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(c, d, /)");
+#         } else {
+#             let doc: String = class.getattr("__doc__")?.extract()?;
+#             assert_eq!(doc, "");
+#
+#             inspect.call1((class,)).expect_err("`text_signature` on classes is not compatible with compilation in `abi3` mode until Python 3.10 or greater");
+#          }
+#
+#         {
+#             let method = class.getattr("my_method")?;
+#
+#             assert!(method.getattr("__doc__")?.is_none());
+#
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(self, /, e, f)");
+#         }
+#
+#         {
+#             let method = class.getattr("my_class_method")?;
+#
+#             assert!(method.getattr("__doc__")?.is_none());
+#
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(cls, e, f)");
+#         }
+#
+#         {
+#             let method = class.getattr("my_static_method")?;
+#
+#             assert!(method.getattr("__doc__")?.is_none());
+#
+#             let sig: String = inspect
+#                 .call1((method,))?
+#                 .call_method0("__str__")?
+#                 .extract()?;
+#             assert_eq!(sig, "(e, f)");
+#         }
+#
+#         Ok(())
+#     })
+# }
+```
+
+Note that `text_signature` on classes is not compatible with compilation in
+`abi3` mode until Python 3.10 or greater.
+
 ## Implementation details
 
 The `#[pyclass]` macros rely on a lot of conditional code generation: each `#[pyclass]` can optionally have a `#[pymethods]` block as well as several different possible `#[pyproto]` trait implementations.
@@ -759,7 +865,6 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.py_class_descriptors());
         visitor(collector.object_protocol_methods());
         visitor(collector.async_protocol_methods());
-        visitor(collector.context_protocol_methods());
         visitor(collector.descr_protocol_methods());
         visitor(collector.mapping_protocol_methods());
         visitor(collector.number_protocol_methods());

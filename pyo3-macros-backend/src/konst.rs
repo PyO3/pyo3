@@ -1,11 +1,10 @@
+use std::borrow::Cow;
+
 use crate::{
-    attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_options, is_attribute_ident, take_attributes,
-        NameAttribute,
-    },
+    attributes::{self, get_pyo3_options, is_attribute_ident, take_attributes, NameAttribute},
     deprecations::Deprecations,
 };
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
     ext::IdentExt,
@@ -20,15 +19,18 @@ pub struct ConstSpec {
 }
 
 impl ConstSpec {
+    pub fn python_name(&self) -> Cow<Ident> {
+        if let Some(name) = &self.attributes.name {
+            Cow::Borrowed(&name.0)
+        } else {
+            Cow::Owned(self.rust_ident.unraw())
+        }
+    }
+
     /// Null-terminated Python name
     pub fn null_terminated_python_name(&self) -> TokenStream {
-        if let Some(name) = &self.attributes.name {
-            let name = format!("{}\0", name.0);
-            quote!({#name})
-        } else {
-            let name = format!("{}\0", self.rust_ident.unraw().to_string());
-            quote!(#name)
-        }
+        let name = format!("{}\0", self.python_name());
+        quote!({#name})
     }
 }
 
@@ -75,11 +77,6 @@ impl ConstAttributes {
                         PyO3ConstAttribute::Name(name) => attributes.set_name(name)?,
                     }
                 }
-                Ok(true)
-            } else if let Some(name) =
-                get_deprecated_name_attribute(attr, &mut attributes.deprecations)?
-            {
-                attributes.set_name(name)?;
                 Ok(true)
             } else {
                 Ok(false)

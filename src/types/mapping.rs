@@ -2,9 +2,10 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::types::{PyAny, PySequence};
-use crate::AsPyPointer;
-use crate::{ffi, ToPyObject};
-use crate::{PyTryFrom, ToBorrowedObject};
+use crate::{
+    ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToBorrowedObject,
+    ToPyObject,
+};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -120,11 +121,31 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     }
 }
 
+impl Py<PyMapping> {
+    /// Borrows a GIL-bound reference to the PyMapping. By binding to the GIL lifetime, this
+    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PyMapping {
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
+    }
+
+    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    pub fn into_ref(self, py: Python) -> &PyMapping {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{exceptions::PyKeyError, types::PyTuple, Python};
+    use crate::{
+        exceptions::PyKeyError,
+        types::{PyDict, PyTuple},
+        Python,
+    };
 
     use super::*;
 
@@ -159,7 +180,7 @@ mod tests {
             assert!(mapping
                 .get_item(8i32)
                 .unwrap_err()
-                .is_instance::<PyKeyError>(py));
+                .is_instance_of::<PyKeyError>(py));
         });
     }
 
@@ -195,7 +216,7 @@ mod tests {
             assert!(mapping
                 .get_item(7i32)
                 .unwrap_err()
-                .is_instance::<PyKeyError>(py));
+                .is_instance_of::<PyKeyError>(py));
         });
     }
 
@@ -255,5 +276,27 @@ mod tests {
             }
             assert_eq!(32 + 42 + 123, values_sum);
         });
+    }
+
+    #[test]
+    fn test_as_ref() {
+        Python::with_gil(|py| {
+            let mapping: Py<PyMapping> = PyDict::new(py).as_mapping().into();
+            let mapping_ref: &PyMapping = mapping.as_ref(py);
+            assert_eq!(mapping_ref.len().unwrap(), 0);
+        })
+    }
+
+    #[test]
+    fn test_into_ref() {
+        Python::with_gil(|py| {
+            let bare_mapping = PyDict::new(py).as_mapping();
+            assert_eq!(bare_mapping.get_refcnt(), 1);
+            let mapping: Py<PyMapping> = bare_mapping.into();
+            assert_eq!(bare_mapping.get_refcnt(), 2);
+            let mapping_ref = mapping.into_ref(py);
+            assert_eq!(mapping_ref.len().unwrap(), 0);
+            assert_eq!(mapping_ref.get_refcnt(), 2);
+        })
     }
 }

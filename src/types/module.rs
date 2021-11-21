@@ -8,9 +8,9 @@ use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
+use crate::types::PyCFunction;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::types::{PyCFunction, PyTuple};
-use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
+use crate::{AsPyPointer, IntoPy, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -146,7 +146,7 @@ impl PyModule {
         match self.getattr("__all__") {
             Ok(idx) => idx.downcast().map_err(PyErr::from),
             Err(err) => {
-                if err.is_instance::<exceptions::PyAttributeError>(self.py()) {
+                if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
                     self.setattr("__all__", l).map_err(PyErr::from)?;
                     Ok(l)
@@ -366,46 +366,6 @@ impl PyModule {
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
         let name = fun.getattr("__name__")?.extract()?;
         self.add(name, fun)
-    }
-
-    /// Calls a function in the module.
-    ///
-    /// This is equivalent to the Python expression `module.name(*args, **kwargs)`.
-    #[deprecated(
-        since = "0.14.0",
-        note = "use getattr(name)?.call(args, kwargs) instead"
-    )]
-    pub fn call(
-        &self,
-        name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
-        self.getattr(name)?.call(args, kwargs)
-    }
-
-    /// Calls a function in the module with only positional arguments.
-    ///
-    /// This is equivalent to the Python expression `module.name(*args)`.
-    #[deprecated(since = "0.14.0", note = "use getattr(name)?.call1(args) instead")]
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
-        self.getattr(name)?.call1(args)
-    }
-
-    /// Calls a function in the module without arguments.
-    ///
-    /// This is equivalent to the Python expression `module.name()`.
-    #[deprecated(since = "0.14.0", note = "use getattr(name)?.call0() instead")]
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
-        self.getattr(name)?.call0()
-    }
-
-    /// Gets a member from the module.
-    ///
-    /// This is equivalent to the Python expression `module.name`.
-    #[deprecated(since = "0.14.0", note = "use getattr(name) instead")]
-    pub fn get(&self, name: &str) -> PyResult<&PyAny> {
-        self.getattr(name)
     }
 }
 

@@ -1,12 +1,9 @@
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    spanned::Spanned,
     token::Comma,
     Attribute, ExprPath, Ident, LitStr, Result, Token,
 };
-
-use crate::deprecations::{Deprecation, Deprecations};
 
 pub mod kw {
     syn::custom_keyword!(annotation);
@@ -112,67 +109,4 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Ve
         }
     })?;
     Ok(out)
-}
-
-pub fn get_deprecated_name_attribute(
-    attr: &syn::Attribute,
-    deprecations: &mut Deprecations,
-) -> syn::Result<Option<NameAttribute>> {
-    match attr.parse_meta() {
-        Ok(syn::Meta::NameValue(syn::MetaNameValue {
-            path,
-            lit: syn::Lit::Str(s),
-            ..
-        })) if path.is_ident("name") => {
-            deprecations.push(Deprecation::NameAttribute, attr.span());
-            Ok(Some(NameAttribute(s.parse()?)))
-        }
-        _ => Ok(None),
-    }
-}
-
-pub fn get_deprecated_text_signature_attribute(
-    attr: &syn::Attribute,
-    deprecations: &mut Deprecations,
-) -> syn::Result<Option<TextSignatureAttribute>> {
-    match attr.parse_meta() {
-        Ok(syn::Meta::NameValue(syn::MetaNameValue {
-            path,
-            lit: syn::Lit::Str(lit),
-            ..
-        })) if path.is_ident("text_signature") => {
-            let text_signature = TextSignatureAttribute {
-                kw: syn::parse_quote!(text_signature),
-                eq_token: syn::parse_quote!(=),
-                lit,
-            };
-            deprecations.push(
-                crate::deprecations::Deprecation::TextSignatureAttribute,
-                attr.span(),
-            );
-            Ok(Some(text_signature))
-        }
-        _ => Ok(None),
-    }
-}
-
-pub fn take_deprecated_text_signature_attribute(
-    attrs: &mut Vec<syn::Attribute>,
-    deprecations: &mut Deprecations,
-) -> syn::Result<Option<TextSignatureAttribute>> {
-    let mut text_signature = None;
-    let mut attrs_out = Vec::with_capacity(attrs.len());
-    for attr in attrs.drain(..) {
-        if let Some(value) = get_deprecated_text_signature_attribute(&attr, deprecations)? {
-            ensure_spanned!(
-                text_signature.is_none(),
-                attr.span() => "text_signature attribute already specified previously"
-            );
-            text_signature = Some(value);
-        } else {
-            attrs_out.push(attr);
-        }
-    }
-    *attrs = attrs_out;
-    Ok(text_signature)
 }

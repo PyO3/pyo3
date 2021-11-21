@@ -1,5 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
     docsrs, // rustdoc:: is not supported on msrv
     deny(
@@ -102,7 +102,7 @@
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
 //!
-//! - `Py_3_6`, `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
+//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`: Marks code that is only enabled when
 //!  compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `PyPy` - Marks code enabled when compiling for PyPy.
@@ -110,8 +110,8 @@
 //! # Minimum supported Rust and Python versions
 //!
 //! PyO3 supports the following software versions:
-//!   - Python 3.6 and up (CPython and PyPy)
-//!   - Rust 1.41 and up
+//!   - Python 3.7 and up (CPython and PyPy)
+//!   - Rust 1.48 and up
 //!
 //! # Example: Building a native Python module
 //!
@@ -406,6 +406,10 @@ pub mod doc_test {
     doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
     doctest!("guide/src/types.md", guide_types_md);
     doctest!("guide/src/faq.md", faq);
+    doctest!(
+        "guide/src/python_typing_hints.md",
+        guide_python_typing_hints
+    );
 
     // deliberate choice not to test guide/ecosystem because those pages depend on external crates
     // such as pyo3_asyncio.

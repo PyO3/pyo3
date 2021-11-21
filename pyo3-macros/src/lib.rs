@@ -12,7 +12,7 @@ use pyo3_macros_backend::{
     PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
-use syn::parse_macro_input;
+use syn::{parse::Nothing, parse_macro_input};
 
 /// A proc macro used to implement Python modules.
 ///
@@ -31,19 +31,11 @@ use syn::parse_macro_input;
 ///
 /// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
-pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
+    parse_macro_input!(args as Nothing);
+
     let mut ast = parse_macro_input!(input as syn::ItemFn);
-
-    let deprecated_pymodule_name_arg = if attr.is_empty() {
-        None
-    } else {
-        Some(parse_macro_input!(attr as syn::Ident))
-    };
-
-    let options = match PyModuleOptions::from_pymodule_arg_and_attrs(
-        deprecated_pymodule_name_arg,
-        &mut ast.attrs,
-    ) {
+    let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
         Err(e) => return e.to_compile_error().into(),
     };
@@ -125,7 +117,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to expose methods to Python.
 ///
-/// Methods within a `#[pymethods]` block can be annotated with the following:
+/// Methods within a `#[pymethods]` block can be annotated with  as well as the following:
 ///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
@@ -135,6 +127,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
 /// | [`#[classattr]`][9]  | Defines a class variable. |
 /// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
+/// | <nobr>[`#[pyo3(<option> = <value>)`][pyo3-method-options]<nobr> | Any of the `#[pyo3]` options supported on [`macro@pyfunction`]. |
 ///
 /// For more on creating class methods,
 /// see the [class section of the guide][1].

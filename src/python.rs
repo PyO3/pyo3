@@ -326,7 +326,7 @@ impl<'py> Python<'py> {
     ///     py.allow_threads(move || {
     ///         // An example of an "expensive" Rust calculation
     ///         let sum = numbers.iter().sum();
-    ///   
+    ///
     ///         Ok(sum)
     ///     })
     /// }
@@ -367,26 +367,30 @@ impl<'py> Python<'py> {
         F: Send + FnOnce() -> T,
         T: Send,
     {
+        // Use a guard pattern to handle reacquiring the GIL, so that the GIL will be reacquired
+        // even if `f` panics.
+
+        struct RestoreGuard {
+            count: usize,
+            tstate: *mut ffi::PyThreadState,
+        }
+
+        impl Drop for RestoreGuard {
+            fn drop(&mut self) {
+                gil::GIL_COUNT.with(|c| c.set(self.count));
+                unsafe {
+                    ffi::PyEval_RestoreThread(self.tstate);
+                }
+            }
+        }
+
         // The `Send` bound on the closure prevents the user from
         // transferring the `Python` token into the closure.
         let count = gil::GIL_COUNT.with(|c| c.replace(0));
         let tstate = unsafe { ffi::PyEval_SaveThread() };
-        // Unwinding right here corrupts the Python interpreter state and leads to weird
-        // crashes such as stack overflows. We will catch the unwind and resume as soon as
-        // we've restored the GIL state.
-        //
-        // Because we will resume unwinding as soon as the GIL state is fixed, we can assert
-        // that the closure is unwind safe.
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
 
-        // Restore GIL state
-        gil::GIL_COUNT.with(|c| c.set(count));
-        unsafe {
-            ffi::PyEval_RestoreThread(tstate);
-        }
-
-        // Now that the GIL state has been safely reset, we can unwind if a panic was caught.
-        result.unwrap_or_else(|payload| std::panic::resume_unwind(payload))
+        let _guard = RestoreGuard { count, tstate };
+        f()
     }
 
     /// Evaluates a Python expression in the given context and returns the result.
@@ -546,9 +550,9 @@ impl<'py> Python<'py> {
     /// ```rust
     /// # use pyo3::Python;
     /// Python::with_gil(|py| {
-    ///     // PyO3 supports Python 3.6 and up.
-    ///     assert!(py.version_info() >= (3, 6));
-    ///     assert!(py.version_info() >= (3, 6, 0));
+    ///     // PyO3 supports Python 3.7 and up.
+    ///     assert!(py.version_info() >= (3, 7));
+    ///     assert!(py.version_info() >= (3, 7, 0));
     /// });
     /// ```
     pub fn version_info(self) -> PythonVersionInfo<'py> {
@@ -841,6 +845,29 @@ mod tests {
     }
 
     #[test]
+    fn test_allow_threads_releases_and_acquires_gil() {
+        Python::with_gil(|py| {
+            let b = std::sync::Arc::new(std::sync::Barrier::new(2));
+
+            let b2 = b.clone();
+            std::thread::spawn(move || Python::with_gil(|_| b2.wait()));
+
+            py.allow_threads(|| {
+                // If allow_threads does not release the GIL, this will deadlock because
+                // the thread spawned above will never be able to acquire the GIL.
+                b.wait();
+            });
+
+            unsafe {
+                // If the GIL is not reacquired at the end of allow_threads, this call
+                // will crash the Python interpreter.
+                let tstate = ffi::PyEval_SaveThread();
+                ffi::PyEval_RestoreThread(tstate);
+            }
+        });
+    }
+
+    #[test]
     fn test_allow_threads_panics_safely() {
         Python::with_gil(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
@@ -864,10 +891,6 @@ mod tests {
     fn test_python_version_info() {
         Python::with_gil(|py| {
             let version = py.version_info();
-            #[cfg(Py_3_6)]
-            assert!(version >= (3, 6));
-            #[cfg(Py_3_6)]
-            assert!(version >= (3, 6, 0));
             #[cfg(Py_3_7)]
             assert!(version >= (3, 7));
             #[cfg(Py_3_7)]

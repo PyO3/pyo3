@@ -24,7 +24,7 @@ See the [building and distribution](building_and_distribution.md#py_limited_apia
 
 ### The `abi3-pyXY` features
 
-(`abi3-py36`, `abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
+(`abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
@@ -74,10 +74,8 @@ The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use R
 ### `resolve-config`
 
 The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's
-build script automatically resolves a Python interpreter / build configuration. Disabling
-this feature enables this crate to be used in *library mode*. This may be desirable for
-use cases where you want to read or write PyO3 build configuration files or resolve
-metadata about a Python interpreter.
+build script automatically resolves a Python interpreter / build configuration. This feature is primarily useful when building PyO3
+itself. By default this feature is not enabled, meaning you can freely use `pyo3-build-config` as a standalone library to read or write PyO3 build configuration files or resolve metadata about a Python interpreter.
 
 ## Optional Dependencies
 
@@ -127,5 +125,3 @@ struct User {
     permissions: Vec<Py<Permission>>
 }
 ```
-
-

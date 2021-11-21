@@ -26,6 +26,7 @@ pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
+pub use self::traceback::PyTraceback;
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
@@ -237,5 +238,6 @@ mod sequence;
 mod set;
 mod slice;
 mod string;
+mod traceback;
 mod tuple;
 mod typeobject;

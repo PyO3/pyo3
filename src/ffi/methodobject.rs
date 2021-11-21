@@ -31,7 +31,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 pub type PyCFunction =
     unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
 
-#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 pub type _PyCFunctionFast = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *mut *mut PyObject,
@@ -45,7 +45,7 @@ pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
     kwds: *mut PyObject,
 ) -> *mut PyObject;
 
-#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 pub type _PyCFunctionFastWithKeywords = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *const *mut PyObject,
@@ -119,7 +119,7 @@ pub const METH_COEXIST: c_int = 0x0040;
 
 /* METH_FASTCALL indicates the PEP 590 Vectorcall calling format. It may
 be specified alone or with METH_KEYWORDS. */
-#[cfg(all(Py_3_7, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 pub const METH_FASTCALL: c_int = 0x0080;
 
 // skipped METH_STACKLESS

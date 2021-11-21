@@ -174,7 +174,7 @@ mod tests {
             assert!(py_bytes_result
                 .err()
                 .unwrap()
-                .is_instance::<PyValueError>(py));
+                .is_instance_of::<PyValueError>(py));
         });
     }
 }

@@ -2,7 +2,7 @@
 
 use crate::panic::PanicException;
 use crate::type_object::PyTypeObject;
-use crate::types::PyType;
+use crate::types::{PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
@@ -180,7 +180,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.is_instance::<PyTypeError>(py));
+    ///     assert!(err.is_instance_of::<PyTypeError>(py));
     ///     assert_eq!(err.pvalue(py).to_string(), "some type error");
     /// });
     /// ```
@@ -201,7 +201,7 @@ impl PyErr {
     ///     assert_eq!(err.ptraceback(py), None);
     /// });
     /// ```
-    pub fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyAny> {
+    pub fn ptraceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
         self.normalized(py)
             .ptraceback
             .as_ref()
@@ -366,13 +366,16 @@ impl PyErr {
     }
 
     /// Returns true if the current exception is instance of `T`.
-    pub fn is_instance<T>(&self, py: Python) -> bool
+    pub fn is_instance(&self, py: Python, typ: &PyType) -> bool {
+        unsafe { ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), typ.as_ptr()) != 0 }
+    }
+
+    /// Returns true if the current exception is instance of `T`.
+    pub fn is_instance_of<T>(&self, py: Python) -> bool
     where
         T: PyTypeObject,
     {
-        unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.ptype_ptr(py), T::type_object(py).as_ptr()) != 0
-        }
+        self.is_instance(py, T::type_object(py))
     }
 
     /// Retrieves the exception instance for this error.
@@ -497,7 +500,7 @@ impl PyErr {
             *self_state = Some(PyErrState::Normalized(PyErrStateNormalized {
                 ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
                 pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-                ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback),
+                ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
             }));
 
             match self_state {
@@ -612,11 +615,11 @@ mod tests {
     fn set_valueerror() {
         Python::with_gil(|py| {
             let err: PyErr = exceptions::PyValueError::new_err("some exception message");
-            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            assert!(err.is_instance_of::<exceptions::PyValueError>(py));
             err.restore(py);
             assert!(PyErr::occurred(py));
             let err = PyErr::fetch(py);
-            assert!(err.is_instance::<exceptions::PyValueError>(py));
+            assert!(err.is_instance_of::<exceptions::PyValueError>(py));
             assert_eq!(err.to_string(), "ValueError: some exception message");
         })
     }
@@ -625,10 +628,10 @@ mod tests {
     fn invalid_error_type() {
         Python::with_gil(|py| {
             let err: PyErr = PyErr::new::<crate::types::PyString, _>(());
-            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             err.restore(py);
             let err = PyErr::fetch(py);
-            assert!(err.is_instance::<exceptions::PyTypeError>(py));
+            assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             assert_eq!(
                 err.to_string(),
                 "TypeError: exceptions must derive from BaseException"
@@ -683,12 +686,7 @@ mod tests {
             let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].split(", ");
 
             assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-            if py.version_info() >= (3, 7) {
-                assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-            } else {
-                // Python 3.6 and below formats the repr differently
-                assert_eq!(fields.next().unwrap(), ("value: Exception('banana',)"));
-            }
+            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
 
             let traceback = fields.next().unwrap();
             assert!(traceback.starts_with("traceback: Some(<traceback object at 0x"));

@@ -91,7 +91,7 @@ extern "C" {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-// Defined as this macro in Python 3.6, 3.7 limited API, but relies on
+// Defined as this macro in Python limited API, but relies on
 // non-limited PyTypeObject. Don't expose this since it cannot be used.
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[inline]
@@ -156,7 +156,7 @@ extern "C" {
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
 }
 
-// Defined as this macro in Python 3.6, 3.7 limited API, but relies on
+// Defined as this macro in Python limited API, but relies on
 // non-limited PyTypeObject. Don't expose this since it cannot be used.
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[inline]

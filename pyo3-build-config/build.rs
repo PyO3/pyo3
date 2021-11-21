@@ -63,7 +63,7 @@ pub fn abi3_config() -> Option<InterpreterConfig> {
                 abi3: true,
                 lib_name: None,
                 lib_dir: None,
-                build_flags: BuildFlags::abi3(),
+                build_flags: BuildFlags::default(),
                 pointer_width: None,
                 executable: None,
                 shared: true,

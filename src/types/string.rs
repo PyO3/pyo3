@@ -227,8 +227,9 @@ impl PyString {
     pub unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         let ptr = self.as_ptr();
 
-        if cfg!(not(Py_3_12)) {
-            #[allow(deprecated)]
+        #[cfg(not(Py_3_12))]
+        #[allow(deprecated)]
+        {
             let ready = ffi::PyUnicode_READY(ptr);
             if ready != 0 {
                 // Exception was created on failure.

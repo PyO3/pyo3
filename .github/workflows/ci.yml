@@ -58,7 +58,7 @@ jobs:
       - name: Run cargo checks
         run: |
           set -x
-          VERSIONS=("3.6" "3.7" "3.8" "3.9" "3.10")
+          VERSIONS=("3.7" "3.8" "3.9" "3.10")
           for VERSION in ${VERSIONS[@]}; do
             echo "version=$VERSION" > config.txt
             echo "suppress_build_script_link_lines=true" >> config.txt
@@ -76,7 +76,7 @@ jobs:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", pypy-3.6, pypy-3.7, pypy-3.8]
+        python-version: [3.7, 3.8, 3.9, "3.10", pypy-3.7, pypy-3.8]
         platform:
           [
             {
@@ -101,29 +101,14 @@ jobs:
             },
           ]
         exclude:
-          # PyPy 3.6 is EOL and not working on macos-latest (now macos-11)
-          - python-version: pypy-3.6
-            platform: { os: "macos-latest", python-architecture: "x64" }
-          # There is no 64-bit pypy on windows for pypy-3.6
-          - python-version: pypy-3.6
-            platform: { os: "windows-latest", python-architecture: "x64" }
-          # PyPy 3.7 on Windows doesn't release 32-bit builds any more
+          # PyPy doesn't release 32-bit Windows builds any more
           - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
-          # PyPy3.6 still runs on macos-10.15
-          - rust: stable
-            python-version: pypy-3.6
-            platform:
-              {
-                os: "macos-10.15",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
           # Test minimal supported Rust version
-          - rust: 1.41.1
+          - rust: 1.48.0
             python-version: "3.10"
             platform:
               {
@@ -211,6 +196,10 @@ jobs:
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
 
+      - if: ${{ startsWith(matrix.python-version, 'pypy') }}
+        name: Build PyPy (abi3-py37)
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
+
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
@@ -221,10 +210,10 @@ jobs:
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
 
-      # Run tests again, for abi3-py36 (the minimal Python version)
-      - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.6') }}
-        name: Test (abi3-py36)
-        run: cargo test --no-default-features --features "abi3-py36 ${{ steps.settings.outputs.all_additive_features }}"
+      # Run tests again, for abi3-py37 (the minimal Python version)
+      - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
+        name: Test (abi3-py37)
+        run: cargo test --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
@@ -266,7 +255,11 @@ jobs:
 
   coverage:
     needs: [fmt]
-    runs-on: ubuntu-latest
+    name: coverage-${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["windows", "macos", "ubuntu"]
+    runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -280,12 +273,19 @@ jobs:
             target
           key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
         continue-on-error: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+          components: llvm-tools-preview
       - name: install cargo-llvm-cov
+        shell: bash
         run: |
-          wget https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz -qO- | tar -xzvf -
-          mv cargo-llvm-cov ~/.cargo/bin
+          host=$(rustc -Vv | grep host | sed 's/host: //')
+          curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
         env:
-          CARGO_LLVM_COV_VERSION: 0.1.10
+          CARGO_LLVM_COV_VERSION: 0.1.11
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -299,8 +299,10 @@ jobs:
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features $(make list_all_additive_features)
           cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3 $(make list_all_additive_features)
           cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
+        shell: bash
         env:
           ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov
+          name: ${{ matrix.os }}

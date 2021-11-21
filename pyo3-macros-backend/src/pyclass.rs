@@ -1,9 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attributes::{
-    self, take_deprecated_text_signature_attribute, take_pyo3_options, NameAttribute,
-    TextSignatureAttribute,
-};
+use crate::attributes::{self, take_pyo3_options, NameAttribute, TextSignatureAttribute};
 use crate::deprecations::Deprecations;
 use crate::pyimpl::PyClassMethodsType;
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
@@ -218,12 +215,7 @@ pub fn build_py_class(
     args: &PyClassArgs,
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
-    let mut options = PyClassPyO3Options::take_pyo3_options(&mut class.attrs)?;
-    if let Some(text_signature) =
-        take_deprecated_text_signature_attribute(&mut class.attrs, &mut options.deprecations)?
-    {
-        options.set_text_signature(text_signature)?;
-    }
+    let options = PyClassPyO3Options::take_pyo3_options(&mut class.attrs)?;
     let doc = utils::get_doc(
         &class.attrs,
         options
@@ -569,7 +561,6 @@ fn impl_class(
                 visitor(collector.py_class_descriptors());
                 visitor(collector.object_protocol_methods());
                 visitor(collector.async_protocol_methods());
-                visitor(collector.context_protocol_methods());
                 visitor(collector.descr_protocol_methods());
                 visitor(collector.mapping_protocol_methods());
                 visitor(collector.number_protocol_methods());

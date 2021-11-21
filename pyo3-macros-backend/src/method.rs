@@ -352,15 +352,12 @@ impl<'a> FnSpec<'a> {
             parse_method_receiver(first_arg)
         };
 
-        #[allow(clippy::manual_strip)] // for strip_prefix replacement supporting rust < 1.45
         // strip get_ or set_
         let strip_fn_name = |prefix: &'static str| {
-            let ident = name.unraw().to_string();
-            if ident.starts_with(prefix) {
-                Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
-            } else {
-                None
-            }
+            name.unraw()
+                .to_string()
+                .strip_prefix(prefix)
+                .map(|stripped| syn::Ident::new(stripped, name.span()))
         };
 
         let (fn_type, skip_first_arg, fixed_convention) = match fn_type_attr {
