@@ -6,7 +6,6 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## Unreleased
 
 ### Packaging
@@ -49,7 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
 - Fix panic in `__get__` implementation when accessing descriptor on type object. [#1997](https://github.com/PyO3/pyo3/pull/1997)
->>>>>>> main
 
 ## [0.15.0] - 2021-11-03
 
