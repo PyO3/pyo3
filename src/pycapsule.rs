@@ -22,21 +22,21 @@ use std::os::raw::c_int;
 ///
 ///  #[repr(C)]
 ///  struct Foo {
-///     pub val: u32,
+///      pub val: u32,
 ///  }
 ///
 ///  let r = Python::with_gil(|py| -> PyResult<()> {
-///     let foo = Foo { val: 123 };
-///     let name = CString::new("builtins.capsule").unwrap();
+///      let foo = Foo { val: 123 };
+///      let name = CString::new("builtins.capsule").unwrap();
 ///
-///     let capsule = PyCapsule::new(py, foo, name.as_ref())?;
+///      let capsule = PyCapsule::new(py, foo, name.as_ref())?;
 ///
-///     let module = PyModule::import(py, "builtins")?;
-///     module.add("capsule", capsule)?;
+///      let module = PyModule::import(py, "builtins")?;
+///      module.add("capsule", capsule)?;
 ///
-///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
-///     assert_eq!(cap.val, 123);
-///     Ok(())
+///      let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
+///      assert_eq!(cap.val, 123);
+///      Ok(())
 ///  });
 ///  assert!(r.is_ok());
 /// ```
@@ -47,8 +47,10 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
+    /// `name` is the identifier for the capsule; if it is stored as an attribute of a module,
+    /// the name should be in the format `modulename.attribute`.
     ///
-    /// # Notes
+    /// # Panics
     ///
     /// An attempt to add a zero sized value will panic.
     pub fn new<'py, T: 'static + Send>(
@@ -64,7 +66,7 @@ impl PyCapsule {
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
     /// as well as `*mut c_void` which will point to the capsule's context, if any.
     ///
-    /// # Notes
+    /// # Panics
     ///
     /// An attempt to add a zero sized value will panic.
     pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T, *mut c_void)>(
@@ -110,9 +112,11 @@ impl PyCapsule {
     ///
     /// # Notes
     ///
-    /// Context is not destructed like the value of the capsule is by `destructor`. Therefore,
-    /// it's likely this value will be leaked. If set, it's up to the user to either ignore this
-    /// side effect or figure another (unsafe) method of clean up.
+    /// The default destructor does not drop the context value. If you need to ensure it is not
+    /// leaked, use `new_with_destructor`, let it call `Box::from_raw()` with the correct type,
+    /// and drop it.
+    ///
+    /// Finally, if `set_context` is called twice in a row, the previous value is always leaked.
     ///
     /// Context itself, is treated much like the value of the capsule, but should likely act as
     /// a place to store any state managment when using the capsule.
