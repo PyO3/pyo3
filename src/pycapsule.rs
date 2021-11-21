@@ -141,10 +141,6 @@ impl PyCapsule {
     ///
     /// Finally, if `set_context` is called twice in a row, the previous value is always leaked.
     ///
-    /// # Safety
-    ///
-    /// This might dereference the raw pointer `context`, which is unsafe.
-    ///
     /// # Example
     ///
     /// ```
