@@ -34,7 +34,7 @@ use std::os::raw::c_int;
 ///     let module = PyModule::import(py, "builtins")?;
 ///     module.add("capsule", capsule)?;
 ///
-///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref(), false)? };
+///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
 ///     assert_eq!(cap.val, 123);
 ///     Ok(())
 ///  });
