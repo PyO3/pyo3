@@ -657,6 +657,9 @@ slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
 slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
 slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
 
+// slots that PyO3 implements by default, but can be overidden by the users.
+slots_trait!(PyClassDefaultSlots, py_class_default_slots);
+
 // Protocol slots from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
 slots_trait!(PyMethodsProtocolSlots, methods_protocol_slots);

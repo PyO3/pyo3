@@ -51,3 +51,13 @@ fn test_enum_arg() {
 
     py_run!(py, f mynum, "f(mynum.Variant)")
 }
+
+#[test]
+fn test_default_repr_correct() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, MyEnum::Variant).unwrap();
+        let var2 = Py::new(py, MyEnum::OtherVariant).unwrap();
+        py_assert!(py, var1, "repr(var1) == 'MyEnum.Variant'");
+        py_assert!(py, var2, "repr(var2) == 'MyEnum.OtherVariant'");
+    })
+}

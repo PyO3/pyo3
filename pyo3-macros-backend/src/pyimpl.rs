@@ -139,6 +139,47 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     }
 }
 
+pub fn gen_default_slot_impls(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
+    // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
+    // all succeed.
+    let ty: syn::Type = syn::parse_quote!(#cls);
+
+    let mut method_defs: Vec<_> = method_defs
+        .into_iter()
+        .map(|token| syn::parse2::<syn::ImplItemMethod>(token).unwrap())
+        .collect();
+
+    let mut proto_impls = Vec::new();
+
+    for meth in &mut method_defs {
+        let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
+        match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
+            GeneratedPyMethod::Proto(token_stream) => {
+                let attrs = get_cfg_attributes(&meth.attrs);
+                proto_impls.push(quote!(#(#attrs)* #token_stream))
+            }
+            GeneratedPyMethod::SlotTraitImpl(..) => {
+                panic!("SlotFragment methods cannot have default implementation!")
+            }
+            GeneratedPyMethod::Method(_) | GeneratedPyMethod::TraitImpl(_) => {
+                panic!("Only protocol methods can have default implementation!")
+            }
+        }
+    }
+
+    quote! {
+        impl #cls {
+            #(#method_defs)*
+        }
+        impl ::pyo3::class::impl_::PyClassDefaultSlots<#cls>
+            for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
+                fn py_class_default_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
+                    &[#(#proto_impls),*]
+                }
+        }
+    }
+}
+
 fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
     quote! {
         impl ::pyo3::class::impl_::PyMethods<#ty>

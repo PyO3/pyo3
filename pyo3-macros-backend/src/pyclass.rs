@@ -3,7 +3,7 @@
 use crate::attributes::{self, take_pyo3_options, NameAttribute, TextSignatureAttribute};
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::pyimpl::{gen_py_const, PyClassMethodsType};
+use crate::pyimpl::{gen_default_slot_impls, gen_py_const, PyClassMethodsType};
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
 use crate::utils::{self, unwrap_group, PythonDoc};
 use proc_macro2::{Span, TokenStream};
@@ -425,6 +425,27 @@ fn impl_enum_class(
         .impl_all();
     let descriptors = unit_variants_as_descriptors(cls, variants.iter().map(|v| v.ident));
 
+    let default_repr_impl = {
+        let variants_repr = variants.iter().map(|variant| {
+            let variant_name = variant.ident;
+            // Assuming all variants are unit variants because they are the only type we support.
+            let repr = format!("{}.{}", cls, variant_name);
+            quote! { #cls::#variant_name => #repr, }
+        });
+        quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            #[pyo3(name = "__repr__")]
+            fn __pyo3__repr__(&self) -> &'static str {
+                match self {
+                    #(#variants_repr)*
+                    _ => unreachable!("Unsupported variant type."),
+                }
+            }
+        }
+    };
+
+    let default_impls = gen_default_slot_impls(cls, vec![default_repr_impl]);
     Ok(quote! {
 
         #pytypeinfo
@@ -432,6 +453,8 @@ fn impl_enum_class(
         #pyclass_impls
 
         #descriptors
+
+        #default_impls
 
     })
 }
@@ -758,6 +781,9 @@ impl<'a> PyClassImplsBuilder<'a> {
                     // Implementation which uses dtolnay specialization to load all slots.
                     use ::pyo3::class::impl_::*;
                     let collector = PyClassImplCollector::<Self>::new();
+                    // This depends on Python implementation detail;
+                    // an old slot entry will be overriden by newer ones.
+                    visitor(collector.py_class_default_slots());
                     visitor(collector.object_protocol_slots());
                     visitor(collector.number_protocol_slots());
                     visitor(collector.iter_protocol_slots());
