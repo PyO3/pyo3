@@ -25,7 +25,7 @@ mod pyproto;
 
 pub use from_pyobject::build_derive_from_pyobject;
 pub use module::{process_functions_in_module, py_init, PyModuleOptions};
-pub use pyclass::{build_py_class, PyClassArgs};
+pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
 pub use pyimpl::{build_py_methods, PyClassMethodsType};
 pub use pyproto::build_py_proto;

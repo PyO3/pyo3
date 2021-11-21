@@ -19,6 +19,8 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
+    t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
+    t.compile_fail("tests/ui/invalid_pyclass_item.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
