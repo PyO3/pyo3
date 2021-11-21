@@ -3,7 +3,6 @@ use crate::Python;
 use crate::{ffi, AsPyPointer, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};
 use std::ffi::{c_void, CStr};
-use std::mem::size_of;
 use std::os::raw::c_int;
 
 /// Represents a Python Capsule
@@ -53,6 +52,32 @@ impl PyCapsule {
     /// # Panics
     ///
     /// An attempt to add a zero sized value will panic.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::{prelude::*, pycapsule::PyCapsule};
+    /// use std::ffi::CString;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let name = CString::new("foo").unwrap();
+    ///     let capsule = PyCapsule::new(py, 123_u32, &name).unwrap();
+    ///     let val = unsafe { capsule.reference::<u32>() };
+    ///     assert_eq!(*val, 123);
+    /// });
+    /// ```
+    ///
+    /// However, attempting to construct a `PyCapsule` with a zero sized type will not compile:
+    ///
+    /// ```compile_fail
+    /// use pyo3::{prelude::*, pycapsule::PyCapsule};
+    /// use std::ffi::CString;
+    ///
+    /// Python::with_gil(|py| {
+    ///     let name = CString::new("foo").unwrap();
+    ///     let capsule = PyCapsule::new(py, (), &name).unwrap();  // Oops! `()` is zero sized!
+    /// });
+    /// ```
     pub fn new<'py, T: 'static + Send>(
         py: Python<'py>,
         value: T,
@@ -69,16 +94,17 @@ impl PyCapsule {
     /// # Panics
     ///
     /// An attempt to add a zero sized value will panic.
-    pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T, *mut c_void)>(
+    pub fn new_with_destructor<
+        'py,
+        T: 'static + Send + PanicWhenZeroSized,
+        F: FnOnce(T, *mut c_void),
+    >(
         py: Python<'py>,
         value: T,
         name: &CStr,
         destructor: F,
     ) -> PyResult<&'py Self> {
-        assert!(
-            size_of::<T>() > 0,
-            "Zero sized objects not allowed in capsule."
-        );
+        PanicWhenZeroSized::assert_not_zero_sized(&value);
         let val = Box::new(CapsuleContents { value, destructor });
 
         let cap_ptr = unsafe {
@@ -194,6 +220,19 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
     let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
     destructor(value, ctx)
 }
+
+// trait to gurantee T is not zero sized at compile time.
+// credit: https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685
+pub trait PanicWhenZeroSized: Sized {
+    const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
+    const _CHECK: &'static str = ["type must not be zero-sized!"][Self::_CONDITION];
+    #[allow(path_statements, clippy::no_effect)]
+    fn assert_not_zero_sized(&self) {
+        <Self as PanicWhenZeroSized>::_CHECK;
+    }
+}
+
+impl<T> PanicWhenZeroSized for T {}
 
 #[cfg(test)]
 mod tests {
