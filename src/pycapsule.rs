@@ -147,6 +147,10 @@ impl PyCapsule {
     /// Context itself, is treated much like the value of the capsule, but should likely act as
     /// a place to store any state managment when using the capsule.
     ///
+    /// # Safety
+    ///
+    /// This might dereference the raw pointer `context`, which is unsafe.
+    ///
     /// # Example
     ///
     /// ```
@@ -168,14 +172,14 @@ impl PyCapsule {
     ///         PyCapsule::new_with_destructor(py, 123, &name, destructor as fn(u32, *mut c_void))
     ///             .unwrap();
     ///     let context = Box::new(tx);  // `Sender<String>` is our context, box it up and ship it!
-    ///     capsule.set_context(py, Box::into_raw(context) as *mut c_void).unwrap();
+    ///     unsafe { capsule.set_context(py, Box::into_raw(context) as *mut c_void).unwrap() };
     ///     // This scope will end, causing our destructor to be called...
     /// });
     ///
     /// assert_eq!(rx.recv(), Ok("Destructor called!".to_string()));
     /// ```
-    pub fn set_context(&self, py: Python, context: *mut c_void) -> PyResult<()> {
-        let result = unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), context) as u8 };
+    pub unsafe fn set_context(&self, py: Python, context: *mut c_void) -> PyResult<()> {
+        let result = ffi::PyCapsule_SetContext(self.as_ptr(), context) as u8;
         if result != 0 {
             Err(PyErr::fetch(py))
         } else {
@@ -241,7 +245,7 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 }
 
 /// Guarantee `T` is not zero sized at compile time.
-/// credit: https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685
+// credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
 pub trait PanicWhenZeroSized: Sized {
     const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
     const _CHECK: &'static str = ["type must not be zero-sized!"][Self::_CONDITION];
@@ -318,7 +322,7 @@ mod tests {
             assert!(c.is_null());
 
             let ctx = Box::new(123_u32);
-            cap.set_context(py, Box::into_raw(ctx) as _)?;
+            unsafe { cap.set_context(py, Box::into_raw(ctx) as _)? };
 
             let ctx_ptr: *mut c_void = cap.get_context(py)?;
             let ctx = unsafe { *Box::from_raw(ctx_ptr as *mut u32) };
@@ -379,8 +383,10 @@ mod tests {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
             let cap = PyCapsule::new(py, 0, &name).unwrap();
-            cap.set_context(py, Box::into_raw(Box::new(&context)) as _)
-                .unwrap();
+            unsafe {
+                cap.set_context(py, Box::into_raw(Box::new(&context)) as _)
+                    .unwrap()
+            };
 
             cap.into()
         });
@@ -407,8 +413,10 @@ mod tests {
             let cap =
                 PyCapsule::new_with_destructor(py, 0, &name, destructor as fn(u32, *mut c_void))
                     .unwrap();
-            cap.set_context(py, Box::into_raw(Box::new(tx)) as _)
-                .unwrap();
+            unsafe {
+                cap.set_context(py, Box::into_raw(Box::new(tx)) as _)
+                    .unwrap()
+            };
         });
 
         // the destructor was called.
