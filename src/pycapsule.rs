@@ -210,14 +210,13 @@ mod tests {
 
     #[test]
     fn test_pycapsule_func() {
-
-        fn foo(x: u32) -> u32 {
-            x
-        }
-
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
+            extern "C" fn foo(x: u32) -> u32 {
+                x
+            }
+
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, foo, &name).unwrap();
+            let cap = PyCapsule::new(py, foo as *const c_void, &name).unwrap();
             cap.into()
         });
 
@@ -225,7 +224,6 @@ mod tests {
             let f = unsafe { cap.as_ref(py).reference::<fn(u32) -> u32>() };
             assert_eq!(f(123), 123);
         });
-        panic!("Failed");
     }
 
     #[test]
