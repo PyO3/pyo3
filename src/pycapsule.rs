@@ -3,6 +3,7 @@ use crate::Python;
 use crate::{ffi, AsPyPointer, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};
 use std::ffi::{c_void, CStr};
+use std::mem::size_of;
 use std::os::raw::c_int;
 
 /// Represents a Python Capsule
@@ -46,6 +47,10 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
+    ///
+    /// # Notes
+    ///
+    /// An attempt to add a zero sized value will panic.
     pub fn new<'py, T: 'static + Send>(
         py: Python<'py>,
         value: T,
@@ -58,12 +63,20 @@ impl PyCapsule {
     ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
     /// as well as `*mut c_void` which will point to the capsule's context, if any.
+    ///
+    /// # Notes
+    ///
+    /// An attempt to add a zero sized value will panic.
     pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T, *mut c_void)>(
         py: Python<'py>,
         value: T,
         name: &CStr,
         destructor: F,
     ) -> PyResult<&'py Self> {
+        assert!(
+            size_of::<T>() > 0,
+            "Zero sized objects not allowed in capsule."
+        );
         let val = Box::new(CapsuleContents { value, destructor });
 
         let cap_ptr = unsafe {
@@ -169,7 +182,9 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void)> {
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
-unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void)>(capsule: *mut ffi::PyObject) {
+unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void)>(
+    capsule: *mut ffi::PyObject,
+) {
     let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
     let ctx = ffi::PyCapsule_GetContext(capsule);
     let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
@@ -212,20 +227,19 @@ mod tests {
 
     #[test]
     fn test_pycapsule_func() {
-        
         fn foo(x: u32) -> u32 {
             x
         }
 
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, foo, &name).unwrap();
+            let cap = PyCapsule::new(py, foo as fn(u32) -> u32, &name).unwrap();
             cap.into()
         });
 
         Python::with_gil(|py| {
-            //let f = unsafe { cap.as_ref(py).reference::<&fn(u32) -> u32>() };
-            //assert_eq!(f(123), 123);
+            let f = unsafe { cap.as_ref(py).reference::<fn(u32) -> u32>() };
+            assert_eq!(f(123), 123);
         });
     }
 
@@ -233,7 +247,7 @@ mod tests {
     fn test_pycapsule_context() -> PyResult<()> {
         Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, (), &name)?;
+            let cap = PyCapsule::new(py, 0, &name)?;
 
             let c = unsafe { cap.get_context::<()>(py)? };
             assert!(c.is_none());
@@ -295,7 +309,7 @@ mod tests {
     fn test_vec_context() {
         let cap: Py<PyCapsule> = Python::with_gil(|py| {
             let name = CString::new("foo").unwrap();
-            let cap = PyCapsule::new(py, (), &name).unwrap();
+            let cap = PyCapsule::new(py, 0, &name).unwrap();
 
             let ctx: Vec<u8> = vec![1, 2, 3, 4];
             cap.set_context(py, ctx).unwrap();
