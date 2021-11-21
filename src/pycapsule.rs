@@ -49,9 +49,8 @@ impl PyCapsule {
     /// `name` is the identifier for the capsule; if it is stored as an attribute of a module,
     /// the name should be in the format `modulename.attribute`.
     ///
-    /// # Panics
-    ///
-    /// An attempt to add a zero sized value will panic.
+    /// It is checked at compile time that the type T is not zero-sized. Rust function items
+    /// need to cast to a function pointer (`fn(args) -> result`) to be put into a capsule.
     ///
     /// # Example
     ///
@@ -78,7 +77,7 @@ impl PyCapsule {
     ///     let capsule = PyCapsule::new(py, (), &name).unwrap();  // Oops! `()` is zero sized!
     /// });
     /// ```
-    pub fn new<'py, T: 'static + Send>(
+    pub fn new<'py, T: 'static + Send + AssertNotZeroSized>(
         py: Python<'py>,
         value: T,
         name: &CStr,
@@ -90,13 +89,9 @@ impl PyCapsule {
     ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
     /// as well as `*mut c_void` which will point to the capsule's context, if any.
-    ///
-    /// # Panics
-    ///
-    /// An attempt to add a zero sized value will panic.
     pub fn new_with_destructor<
         'py,
-        T: 'static + Send + PanicWhenZeroSized,
+        T: 'static + Send + AssertNotZeroSized,
         F: FnOnce(T, *mut c_void),
     >(
         py: Python<'py>,
@@ -104,7 +99,7 @@ impl PyCapsule {
         name: &CStr,
         destructor: F,
     ) -> PyResult<&'py Self> {
-        PanicWhenZeroSized::assert_not_zero_sized(&value);
+        AssertNotZeroSized::assert_not_zero_sized(&value);
         let val = Box::new(CapsuleContents { value, destructor });
 
         let cap_ptr = unsafe {
@@ -138,14 +133,13 @@ impl PyCapsule {
     ///
     /// # Notes
     ///
-    /// The default destructor does not drop the context value. If you need to ensure it is not
-    /// leaked, use `new_with_destructor`, let it call `Box::from_raw()` with the correct type,
-    /// and drop it. (See example.)
-    ///
-    /// Finally, if `set_context` is called twice in a row, the previous value is always leaked.
-    ///
     /// Context itself, is treated much like the value of the capsule, but should likely act as
     /// a place to store any state managment when using the capsule.
+    ///
+    /// If you want to store a Rust value as the context, and drop it from the destructor, use
+    /// `Box::into_raw` to convert it into a pointer, see the example.
+    ///
+    /// Finally, if `set_context` is called twice in a row, the previous value is always leaked.
     ///
     /// # Safety
     ///
@@ -246,16 +240,17 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 
 /// Guarantee `T` is not zero sized at compile time.
 // credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
-pub trait PanicWhenZeroSized: Sized {
+pub trait AssertNotZeroSized: Sized {
     const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
-    const _CHECK: &'static str = ["type must not be zero-sized!"][Self::_CONDITION];
+    const _CHECK: &'static str =
+        ["PyCapsule value type T must not be zero-sized!"][Self::_CONDITION];
     #[allow(path_statements, clippy::no_effect)]
     fn assert_not_zero_sized(&self) {
-        <Self as PanicWhenZeroSized>::_CHECK;
+        <Self as AssertNotZeroSized>::_CHECK;
     }
 }
 
-impl<T> PanicWhenZeroSized for T {}
+impl<T> AssertNotZeroSized for T {}
 
 #[cfg(test)]
 mod tests {
