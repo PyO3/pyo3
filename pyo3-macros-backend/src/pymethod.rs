@@ -1031,19 +1031,23 @@ fn extract_proto_arguments(
     let mut non_python_args = 0;
 
     let mut args_conversions = Vec::with_capacity(proto_args.len());
-
-    for arg in method_args {
-        if arg.py {
-            arg_idents.push(py.clone());
-        } else {
-            let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
-            let conversions = proto_args.get(non_python_args)
-                .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
-                .extract(cls, py, &ident, arg, extract_error_mode);
-            non_python_args += 1;
-            args_conversions.push(conversions);
-            arg_idents.push(ident);
+    if(method_args.len()!=0){
+        for arg in method_args {
+            if arg.py {
+                arg_idents.push(py.clone());
+            } else {
+                let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
+                let conversions = proto_args.get(non_python_args)
+                    .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
+                    .extract(cls, py, &ident, arg, extract_error_mode);
+                non_python_args += 1;
+                args_conversions.push(conversions);
+                arg_idents.push(ident);
+            }
         }
+    }
+    else{
+        println("Arguments missing");
     }
 
     let conversions = quote!(#(#args_conversions)*);
