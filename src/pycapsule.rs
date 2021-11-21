@@ -67,6 +67,14 @@ impl PyCapsule {
     /// # Notes
     ///
     /// An attempt to add a zero sized value will panic.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use pyo3::{PyCapsule};
+    /// 
+    /// 
+    /// ```
     pub fn new_with_destructor<'py, T: 'static + Send, F: FnOnce(T, *mut c_void)>(
         py: Python<'py>,
         value: T,
@@ -193,9 +201,12 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 
 #[cfg(test)]
 mod tests {
+    use libc::c_void;
+
     use crate::prelude::PyModule;
     use crate::{pycapsule::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
+    use std::sync::mpsc::{channel, Sender};
 
     #[test]
     fn test_pycapsule_struct() -> PyResult<()> {
@@ -321,5 +332,30 @@ mod tests {
             let ctx: Option<&Vec<u8>> = unsafe { cap.as_ref(py).get_context(py).unwrap() };
             assert_eq!(ctx, Some(&vec![1_u8, 2, 3, 4]));
         })
+    }
+
+    #[test]
+    fn test_pycapsule_destructor() {
+        
+        let (tx, rx) = channel();
+
+        fn destructor(_val: u32, ctx: *mut c_void) {
+            assert!(!ctx.is_null());
+            let context = unsafe { *Box::from_raw(ctx as *mut Sender<bool>) };
+            context.send(true).unwrap();
+        }
+        
+        {
+            let _cap: Py<PyCapsule> = Python::with_gil(|py| {
+                let name = CString::new("foo").unwrap();
+                let cap = PyCapsule::new_with_destructor(py, 0, &name, destructor).unwrap();
+                cap.set_context(py, tx).unwrap();
+                cap.into()
+            });
+        }
+
+        assert_eq!(rx.recv(), Ok(true));
+
+
     }
 }
