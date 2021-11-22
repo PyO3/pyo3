@@ -386,6 +386,9 @@ pub fn build_py_enum(
     args: PyClassArgs,
     method_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
+    if enum_.variants.is_empty() {
+        bail_spanned!(enum_.brace_token.span => "Empty enums can't be #[pyclass].");
+    }
     let variants: Vec<PyClassEnumVariant> = enum_
         .variants
         .iter()

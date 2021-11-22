@@ -9,3 +9,9 @@ error: enums cannot extend from other classes
   |
 9 | #[pyclass(extends = PyList)]
   |           ^^^^^^^
+
+error: Empty enums can't be #[pyclass].
+  --> tests/ui/invalid_pyclass_enum.rs:16:18
+   |
+16 | enum NoEmptyEnum {}
+   |                  ^^
