@@ -35,6 +35,7 @@ pub struct PyClassArgs {
     pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
     pub class_kind: PyClassKind,
+    pub is_immutable: bool,
 }
 
 impl PyClassArgs {
@@ -67,6 +68,7 @@ impl PyClassArgs {
             is_basetype: false,
             has_extends: false,
             has_unsendable: false,
+            is_immutable: false,
             class_kind,
         }
     }
@@ -175,6 +177,9 @@ impl PyClassArgs {
             }
             "unsendable" => {
                 self.has_unsendable = true;
+            }
+            "immutable" => {
+                self.is_immutable = true;
             }
             _ => bail_spanned!(
                 exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable"
@@ -587,11 +592,28 @@ fn impl_enum_class(
     let default_items =
         gen_default_items(cls, vec![default_repr_impl, default_richcmp, default_int]);
 
+    let mutability = if args.is_immutable {
+        quote! {
+            unsafe impl _pyo3::pyclass::ImmutablePyClass for #cls {}
+        }
+    } else {
+        quote! {
+            unsafe impl _pyo3::pyclass::MutablePyClass for #cls {}
+
+            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+            {
+                type Target = _pyo3::PyRefMut<'a, #cls>;
+            }
+        }
+    };
+
     Ok(quote! {
         const _: () = {
             use #krate as _pyo3;
 
             #pytypeinfo
+
+            #mutability
 
             #pyclass_impls
 
@@ -788,20 +810,30 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
+                type Mutability = _pyo3::pycell::Immutable;
             }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
         let cls = self.cls;
-        quote! {
-            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
-            {
-                type Target = _pyo3::PyRef<'a, #cls>;
+        if self.attr.is_immutable {
+            quote! {
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                {
+                    type Target = _pyo3::PyRef<'a, #cls>;
+                }
             }
+        } else {
+            quote! {
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                {
+                    type Target = _pyo3::PyRef<'a, #cls>;
+                }
 
-            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
-            {
-                type Target = _pyo3::PyRefMut<'a, #cls>;
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+                {
+                    type Target = _pyo3::PyRefMut<'a, #cls>;
+                }
             }
         }
     }
@@ -901,8 +933,18 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let default_items = &self.default_items;
 
+        let mutability = if self.attr.is_immutable {
+            quote! {
+                 _pyo3::pycell::Immutable
+            }
+        } else {
+            quote! {
+                _pyo3::pycell::Mutable
+            }
+        };
+
         quote! {
-            impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
+            impl _pyo3::impl_::pyclass::PyClassImpl<#mutability> for #cls {
                 const DOC: &'static str = #doc;
                 const IS_GC: bool = #is_gc;
                 const IS_BASETYPE: bool = #is_basetype;
@@ -943,9 +985,9 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #dict_offset
 
                 #weaklist_offset
-            }
 
-            #inventory_class
+                #inventory_class
+            }
         }
     }
 

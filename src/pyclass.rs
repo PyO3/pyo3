@@ -1,4 +1,5 @@
 //! `PyClass` and related traits.
+use crate::pycell::Mutability;
 use crate::{
     callback::IntoPyCallbackOutput,
     ffi,
@@ -22,7 +23,7 @@ use std::{
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you normally don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
+    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Self::Mutability, Layout = PyCell<Self>>
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -31,7 +32,12 @@ pub trait PyClass:
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
+
+    type Mutability: Mutability;
 }
+
+pub unsafe trait MutablePyClass: PyClass {}
+pub unsafe trait ImmutablePyClass: PyClass {}
 
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
