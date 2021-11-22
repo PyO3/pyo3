@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.15.0"
+version = "0.15.1"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -20,10 +20,9 @@ libc = "0.2.62"
 parking_lot = "0.11.0"
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.15.0", optional = true }
-# indoc must stay at 0.3.x for Rust 1.41 compatibility
-indoc = { version = "0.3.6", optional = true }
-paste = { version = "0.1.18", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.15.1", optional = true }
+indoc = { version = "1.0.3", optional = true }
+paste = { version = "1.0.6", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
 # support crate for multiple-pymethods feature
@@ -32,7 +31,7 @@ inventory = { version = "0.1.4", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
-eyre = { version = ">= 0.4, < 0.7" , optional = true }
+eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.12", optional = true }
 indexmap = { version = ">= 1.6, < 1.8", optional = true }
 num-bigint = { version = "0.4", optional = true }
@@ -41,11 +40,7 @@ serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-# O.3.5 uses the matches! macro, which isn't compatible with Rust 1.41
-criterion = "=0.3.4"
-# half and bitflags use if/match in const fn, which isn't compatible with Rust 1.41
-half = "=1.7.1"
-bitflags = "=1.2.1"
+criterion = "0.3.5"
 trybuild = "1.0.49"
 rustversion = "1.0"
 # 1.0.0 requires Rust 1.50
@@ -56,7 +51,7 @@ serde_json = "1.0.61"
 pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initialize"] }
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.15.0", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]
@@ -76,7 +71,6 @@ extension-module = []
 abi3 = ["pyo3-build-config/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py36 = ["abi3-py37", "pyo3-build-config/abi3-py36"]
 abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]

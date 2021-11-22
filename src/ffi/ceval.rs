@@ -52,7 +52,6 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-// TODO
 // skipped Py_EnterRecursiveCall
 // skipped Py_LeaveRecursiveCall
 
@@ -68,7 +67,6 @@ extern "C" {
     pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
 }
 
-#[cfg(py_sys_config = "WITH_THREAD")]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
     pub fn PyEval_ThreadsInitialized() -> c_int;

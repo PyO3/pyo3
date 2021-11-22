@@ -865,7 +865,6 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.py_class_descriptors());
         visitor(collector.object_protocol_methods());
         visitor(collector.async_protocol_methods());
-        visitor(collector.context_protocol_methods());
         visitor(collector.descr_protocol_methods());
         visitor(collector.mapping_protocol_methods());
         visitor(collector.number_protocol_methods());

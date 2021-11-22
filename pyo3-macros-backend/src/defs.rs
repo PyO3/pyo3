@@ -107,13 +107,6 @@ impl PyMethod {
             can_coexist: true,
         }
     }
-    const fn new(name: &'static str, proto: &'static str) -> Self {
-        PyMethod {
-            name,
-            proto,
-            can_coexist: false,
-        }
-    }
 }
 
 /// Represents a slot definition.
@@ -156,20 +149,13 @@ pub const OBJECT: Proto = Proto {
             .has_self(),
         MethodProto::new("__str__", "PyObjectStrProtocol").has_self(),
         MethodProto::new("__repr__", "PyObjectReprProtocol").has_self(),
-        MethodProto::new("__format__", "PyObjectFormatProtocol")
-            .args(&["Format"])
-            .has_self(),
         MethodProto::new("__hash__", "PyObjectHashProtocol").has_self(),
-        MethodProto::new("__bytes__", "PyObjectBytesProtocol").has_self(),
         MethodProto::new("__richcmp__", "PyObjectRichcmpProtocol")
             .args(&["Other"])
             .has_self(),
         MethodProto::new("__bool__", "PyObjectBoolProtocol").has_self(),
     ],
-    py_methods: &[
-        PyMethod::new("__format__", "FormatProtocolImpl"),
-        PyMethod::new("__bytes__", "BytesProtocolImpl"),
-    ],
+    py_methods: &[],
     slot_defs: &[
         SlotDef::new(&["__str__"], "Py_tp_str", "str"),
         SlotDef::new(&["__repr__"], "Py_tp_repr", "repr"),
@@ -194,15 +180,8 @@ pub const ASYNC: Proto = Proto {
         MethodProto::new("__await__", "PyAsyncAwaitProtocol").args(&["Receiver"]),
         MethodProto::new("__aiter__", "PyAsyncAiterProtocol").args(&["Receiver"]),
         MethodProto::new("__anext__", "PyAsyncAnextProtocol").args(&["Receiver"]),
-        MethodProto::new("__aenter__", "PyAsyncAenterProtocol").has_self(),
-        MethodProto::new("__aexit__", "PyAsyncAexitProtocol")
-            .args(&["ExcType", "ExcValue", "Traceback"])
-            .has_self(),
     ],
-    py_methods: &[
-        PyMethod::new("__aenter__", "PyAsyncAenterProtocolImpl"),
-        PyMethod::new("__aexit__", "PyAsyncAexitProtocolImpl"),
-    ],
+    py_methods: &[],
     slot_defs: &[
         SlotDef::new(&["__await__"], "Py_am_await", "await_"),
         SlotDef::new(&["__aiter__"], "Py_am_aiter", "aiter"),
@@ -226,22 +205,6 @@ pub const BUFFER: Proto = Proto {
             "releasebuffer",
         ),
     ],
-};
-
-pub const CONTEXT: Proto = Proto {
-    name: "Context",
-    module: "::pyo3::class::context",
-    methods: &[
-        MethodProto::new("__enter__", "PyContextEnterProtocol").has_self(),
-        MethodProto::new("__exit__", "PyContextExitProtocol")
-            .args(&["ExcType", "ExcValue", "Traceback"])
-            .has_self(),
-    ],
-    py_methods: &[
-        PyMethod::new("__enter__", "PyContextEnterProtocolImpl"),
-        PyMethod::new("__exit__", "PyContextExitProtocolImpl"),
-    ],
-    slot_defs: &[],
 };
 
 pub const GC: Proto = Proto {
@@ -268,17 +231,8 @@ pub const DESCR: Proto = Proto {
     methods: &[
         MethodProto::new("__get__", "PyDescrGetProtocol").args(&["Receiver", "Inst", "Owner"]),
         MethodProto::new("__set__", "PyDescrSetProtocol").args(&["Receiver", "Inst", "Value"]),
-        MethodProto::new("__delete__", "PyDescrDelProtocol")
-            .args(&["Inst"])
-            .has_self(),
-        MethodProto::new("__set_name__", "PyDescrSetNameProtocol")
-            .args(&["Inst"])
-            .has_self(),
     ],
-    py_methods: &[
-        PyMethod::new("__delete__", "PyDescrDelProtocolImpl"),
-        PyMethod::new("__set_name__", "PyDescrNameProtocolImpl"),
-    ],
+    py_methods: &[],
     slot_defs: &[
         SlotDef::new(&["__get__"], "Py_tp_descr_get", "descr_get"),
         SlotDef::new(&["__set__"], "Py_tp_descr_set", "descr_set"),
@@ -313,12 +267,8 @@ pub const MAPPING: Proto = Proto {
         MethodProto::new("__delitem__", "PyMappingDelItemProtocol")
             .args(&["Key"])
             .has_self(),
-        MethodProto::new("__reversed__", "PyMappingReversedProtocol").has_self(),
     ],
-    py_methods: &[PyMethod::new(
-        "__reversed__",
-        "PyMappingReversedProtocolImpl",
-    )],
+    py_methods: &[],
     slot_defs: &[
         SlotDef::new(&["__len__"], "Py_mp_length", "len"),
         SlotDef::new(&["__getitem__"], "Py_mp_subscript", "getitem"),
@@ -492,13 +442,9 @@ pub const NUM: Proto = Proto {
         MethodProto::new("__pos__", "PyNumberPosProtocol").has_self(),
         MethodProto::new("__abs__", "PyNumberAbsProtocol").has_self(),
         MethodProto::new("__invert__", "PyNumberInvertProtocol").has_self(),
-        MethodProto::new("__complex__", "PyNumberComplexProtocol").has_self(),
         MethodProto::new("__int__", "PyNumberIntProtocol").has_self(),
         MethodProto::new("__float__", "PyNumberFloatProtocol").has_self(),
         MethodProto::new("__index__", "PyNumberIndexProtocol").has_self(),
-        MethodProto::new("__round__", "PyNumberRoundProtocol")
-            .args(&["NDigits"])
-            .has_self(),
     ],
     py_methods: &[
         PyMethod::coexist("__radd__", "PyNumberRAddProtocolImpl"),
@@ -515,8 +461,6 @@ pub const NUM: Proto = Proto {
         PyMethod::coexist("__rand__", "PyNumberRAndProtocolImpl"),
         PyMethod::coexist("__rxor__", "PyNumberRXorProtocolImpl"),
         PyMethod::coexist("__ror__", "PyNumberROrProtocolImpl"),
-        PyMethod::new("__complex__", "PyNumberComplexProtocolImpl"),
-        PyMethod::new("__round__", "PyNumberRoundProtocolImpl"),
     ],
     slot_defs: &[
         SlotDef::new(&["__add__", "__radd__"], "Py_nb_add", "add_radd"),

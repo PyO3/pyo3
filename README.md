@@ -4,7 +4,7 @@
 [![benchmark](https://github.com/PyO3/pyo3/actions/workflows/bench.yml/badge.svg)](https://pyo3.rs/dev/bench/)
 [![codecov](https://codecov.io/gh/PyO3/pyo3/branch/main/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.41](https://img.shields.io/badge/rustc-1.41+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.48](https://img.shields.io/badge/rustc-1.48+-blue.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -17,8 +17,8 @@
 ## Usage
 
 PyO3 supports the following software versions:
-  - Python 3.6 and up (CPython and PyPy)
-  - Rust 1.41 and up
+  - Python 3.7 and up (CPython and PyPy)
+  - Rust 1.48 and up
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -46,7 +46,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.15.0"
+version = "0.15.1"
 features = ["extension-module"]
 ```
 
@@ -108,7 +108,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.15.0"
+version = "0.15.1"
 features = ["auto-initialize"]
 ```
 
@@ -171,6 +171,7 @@ about this topic.
 
 ## Articles and other media
 
+- [Calling Rust from Python using PyO3](https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/) - Nov 18, 2021
 - [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
 - [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Apr 29, 2021
 - [Vortexa - Integrating Rust into Python](https://www.vortexa.com/insight/integrating-rust-into-python) - Apr 12, 2021

@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 6 };
+const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 const ABI3_MAX_MINOR: u8 = 9;
 
@@ -131,7 +131,10 @@ impl InterpreterConfig {
     pub fn emit_pyo3_cfgs(&self) {
         // This should have been checked during pyo3-build-config build time.
         assert!(self.version >= MINIMUM_SUPPORTED_VERSION);
-        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
+
+        // pyo3-build-config was released when Python 3.6 was supported, so minimum flag to emit is
+        // Py_3_6 (to avoid silently breaking users who depend on this cfg).
+        for i in 6..=self.version.minor {
             println!("cargo:rustc-cfg=Py_3_{}", i);
         }
 
@@ -259,7 +262,7 @@ print("mingw", get_platform().startswith("mingw"))
             lib_dir,
             executable: map.get("executable").cloned(),
             pointer_width: Some(calcsize_pointer * 8),
-            build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version, implementation),
+            build_flags: BuildFlags::from_interpreter(interpreter)?.fixup(version),
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         })
@@ -337,7 +340,7 @@ print("mingw", get_platform().startswith("mingw"))
 
         macro_rules! parse_value {
             ($variable:ident, $value:ident) => {
-                $variable = Some($value.parse().context(format!(
+                $variable = Some($value.trim().parse().context(format!(
                     concat!(
                         "failed to parse ",
                         stringify!($variable),
@@ -404,14 +407,7 @@ print("mingw", get_platform().startswith("mingw"))
             lib_dir,
             executable,
             pointer_width,
-            build_flags: build_flags.unwrap_or_else(|| {
-                if abi3 {
-                    BuildFlags::abi3()
-                } else {
-                    BuildFlags::default()
-                }
-                .fixup(version, implementation)
-            }),
+            build_flags: build_flags.unwrap_or_default(),
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
@@ -658,7 +654,6 @@ pub fn cross_compiling(
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum BuildFlag {
-    WITH_THREAD,
     Py_DEBUG,
     Py_REF_DEBUG,
     Py_TRACE_REFS,
@@ -679,7 +674,6 @@ impl FromStr for BuildFlag {
     type Err = std::convert::Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "WITH_THREAD" => Ok(BuildFlag::WITH_THREAD),
             "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
             "Py_REF_DEBUG" => Ok(BuildFlag::Py_REF_DEBUG),
             "Py_TRACE_REFS" => Ok(BuildFlag::Py_TRACE_REFS),
@@ -706,9 +700,7 @@ impl FromStr for BuildFlag {
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [BuildFlag; 5] = [
-        // TODO: Remove WITH_THREAD once Python 3.6 support dropped (as it's always on).
-        BuildFlag::WITH_THREAD,
+    const ALL: [BuildFlag; 4] = [
         BuildFlag::Py_DEBUG,
         BuildFlag::Py_REF_DEBUG,
         BuildFlag::Py_TRACE_REFS,
@@ -737,9 +729,10 @@ impl BuildFlags {
     /// the interpreter and printing variables of interest from
     /// sysconfig.get_config_vars.
     fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
-        // If we're on a Windows host, then Python won't have any useful config vars
+        // sysconfig is missing all the flags on windows, so we can't actually
+        // query the interpreter directly for its build flags.
         if cfg!(windows) {
-            return Ok(Self::windows_hardcoded());
+            return Ok(Self::new());
         }
 
         let mut script = String::from("import sysconfig\n");
@@ -766,32 +759,13 @@ impl BuildFlags {
         Ok(Self(flags))
     }
 
-    fn windows_hardcoded() -> Self {
-        // sysconfig is missing all the flags on windows, so we can't actually
-        // query the interpreter directly for its build flags.
-        let mut flags = HashSet::new();
-        flags.insert(BuildFlag::WITH_THREAD);
-        Self(flags)
-    }
-
-    pub fn abi3() -> Self {
-        let mut flags = HashSet::new();
-        flags.insert(BuildFlag::WITH_THREAD);
-        Self(flags)
-    }
-
-    fn fixup(mut self, version: PythonVersion, implementation: PythonImplementation) -> Self {
+    fn fixup(mut self, version: PythonVersion) -> Self {
         if self.0.contains(&BuildFlag::Py_DEBUG) {
             self.0.insert(BuildFlag::Py_REF_DEBUG);
             if version <= PythonVersion::PY37 {
                 // Py_DEBUG only implies Py_TRACE_REFS until Python 3.7
                 self.0.insert(BuildFlag::Py_TRACE_REFS);
             }
-        }
-
-        // WITH_THREAD is always on for Python 3.7, and for PyPy.
-        if implementation == PythonImplementation::PyPy || version >= PythonVersion::PY37 {
-            self.0.insert(BuildFlag::WITH_THREAD);
         }
 
         self
@@ -818,7 +792,7 @@ impl FromStr for BuildFlags {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let mut flags = HashSet::new();
-        for flag in value.split(',') {
+        for flag in value.split_terminator(',') {
             flags.insert(flag.parse().unwrap());
         }
         Ok(BuildFlags(flags))
@@ -974,8 +948,6 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     };
     for f in fs::read_dir(path).expect("Path does not exist").into_iter() {
         sysconfig_paths.extend(match &f {
-            // Python 3.6 sysconfigdata without platform specifics
-            Ok(f) if f.file_name() == "_sysconfigdata.py" => vec![f.path()],
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
             Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
@@ -1030,7 +1002,6 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
 /// Find cross compilation information from sysconfigdata file
 ///
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
-/// on python 3.6 or greater. On python 3.5 it is simply `_sysconfigdata.py`.
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 fn load_cross_compile_from_sysconfigdata(
@@ -1063,7 +1034,7 @@ fn windows_hardcoded_cross_compile(
         lib_dir: cross_compile_config.lib_dir.to_str().map(String::from),
         executable: None,
         pointer_width: None,
-        build_flags: BuildFlags::windows_hardcoded(),
+        build_flags: BuildFlags::default(),
         suppress_build_script_link_lines: false,
         extra_build_script_lines: vec![],
     })
@@ -1278,7 +1249,7 @@ mod tests {
     fn test_config_file_roundtrip() {
         let config = InterpreterConfig {
             abi3: true,
-            build_flags: BuildFlags::abi3(),
+            build_flags: BuildFlags::default(),
             pointer_width: Some(32),
             executable: Some("executable".into()),
             implementation: PythonImplementation::CPython,
@@ -1333,9 +1304,9 @@ mod tests {
     fn test_config_file_defaults() {
         // Only version is required
         assert_eq!(
-            InterpreterConfig::from_reader(Cursor::new("version=3.6")).unwrap(),
+            InterpreterConfig::from_reader(Cursor::new("version=3.7")).unwrap(),
             InterpreterConfig {
-                version: PythonVersion { major: 3, minor: 6 },
+                version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,
                 shared: true,
                 abi3: false,
@@ -1387,45 +1358,26 @@ mod tests {
     }
 
     #[test]
-    fn build_flags_fixup_py36_debug() {
+    fn build_flags_fixup_py37_debug() {
         let mut build_flags = BuildFlags::new();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
-        build_flags = build_flags.fixup(
-            PythonVersion { major: 3, minor: 6 },
-            PythonImplementation::CPython,
-        );
+        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 7 });
 
-        // On 3.6, Py_DEBUG implies Py_REF_DEBUG and Py_TRACE_REFS
+        // On 3.7, Py_DEBUG implies Py_REF_DEBUG and Py_TRACE_REFS
         assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
         assert!(build_flags.0.contains(&BuildFlag::Py_TRACE_REFS));
     }
 
     #[test]
-    fn build_flags_fixup_py37_debug() {
+    fn build_flags_fixup_py38_debug() {
         let mut build_flags = BuildFlags::new();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
 
-        build_flags = build_flags.fixup(PythonVersion::PY37, PythonImplementation::CPython);
+        build_flags = build_flags.fixup(PythonVersion { major: 3, minor: 8 });
 
-        // On 3.7, Py_DEBUG implies Py_REF_DEBUG
+        // On 3.8, Py_DEBUG implies Py_REF_DEBUG
         assert!(build_flags.0.contains(&BuildFlag::Py_REF_DEBUG));
-
-        // 3.7 always has WITH_THREAD
-        assert!(build_flags.0.contains(&BuildFlag::WITH_THREAD));
-    }
-
-    #[test]
-    fn build_flags_fixup_pypy() {
-        let mut build_flags = BuildFlags::new();
-
-        build_flags = build_flags.fixup(
-            PythonVersion { major: 3, minor: 6 },
-            PythonImplementation::PyPy,
-        );
-
-        // PyPy always has WITH_THREAD
-        assert!(build_flags.0.contains(&BuildFlag::WITH_THREAD));
     }
 
     #[test]
@@ -1449,24 +1401,24 @@ mod tests {
     fn windows_hardcoded_cross_compile() {
         let cross_config = CrossCompileConfig {
             lib_dir: "C:\\some\\path".into(),
-            version: Some(PythonVersion { major: 3, minor: 6 }),
+            version: Some(PythonVersion { major: 3, minor: 7 }),
+            os: "os".into(),
             arch: "arch".into(),
             vendor: "vendor".into(),
-            os: "os".into(),
         };
 
         assert_eq!(
             super::windows_hardcoded_cross_compile(cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 6 },
+                version: PythonVersion { major: 3, minor: 7 },
                 shared: true,
                 abi3: false,
-                lib_name: Some("python36".into()),
+                lib_name: Some("python37".into()),
                 lib_dir: Some("C:\\some\\path".into()),
                 executable: None,
                 pointer_width: None,
-                build_flags: BuildFlags::windows_hardcoded(),
+                build_flags: BuildFlags::default(),
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
             }
@@ -1478,16 +1430,16 @@ mod tests {
         use PythonImplementation::*;
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 6 },
+                PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
                 false
             ),
-            "python36",
+            "python37",
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 6 },
+                PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
                 false
@@ -1496,16 +1448,16 @@ mod tests {
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 6 },
+                PythonVersion { major: 3, minor: 7 },
                 CPython,
                 false,
                 true
             ),
-            "python3.6",
+            "python3.7",
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 6 },
+                PythonVersion { major: 3, minor: 7 },
                 CPython,
                 true,
                 true
@@ -1514,12 +1466,12 @@ mod tests {
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonVersion { major: 3, minor: 6 },
+                PythonVersion { major: 3, minor: 7 },
                 PyPy,
                 true,
                 false
             ),
-            "python36",
+            "python37",
         );
     }
 
@@ -1528,8 +1480,8 @@ mod tests {
         use PythonImplementation::*;
         // Defaults to pythonX.Y for CPython
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 6 }, CPython, None),
-            "python3.6",
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, CPython, None),
+            "python3.7",
         );
         assert_eq!(
             super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, None),
@@ -1556,7 +1508,7 @@ mod tests {
     fn interpreter_version_reduced_to_abi3() {
         let mut config = InterpreterConfig {
             abi3: true,
-            build_flags: BuildFlags::new(),
+            build_flags: BuildFlags::default(),
             pointer_width: None,
             executable: None,
             implementation: PythonImplementation::CPython,
@@ -1568,8 +1520,8 @@ mod tests {
             extra_build_script_lines: vec![],
         };
 
-        fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 6 })).unwrap();
-        assert_eq!(config.version, PythonVersion { major: 3, minor: 6 });
+        fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 7 })).unwrap();
+        assert_eq!(config.version, PythonVersion { major: 3, minor: 7 });
     }
 
     #[test]
@@ -1583,16 +1535,16 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
-            version: PythonVersion { major: 3, minor: 6 },
+            version: PythonVersion { major: 3, minor: 7 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
         };
 
         assert!(
-            fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 7 }))
+            fixup_config_for_abi3(&mut config, Some(PythonVersion { major: 3, minor: 8 }))
                 .unwrap_err()
                 .to_string()
-                .contains("cannot set a minimum Python version 3.7 higher than the interpreter version 3.6")
+                .contains("cannot set a minimum Python version 3.8 higher than the interpreter version 3.7")
         );
     }
 

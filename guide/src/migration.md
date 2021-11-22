@@ -3,6 +3,12 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.15.* to 0.16
+
+### Drop support for older technogies
+
+PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables ore use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+
 ## from 0.14.* to 0.15
 
 ### Changes in sequence indexing

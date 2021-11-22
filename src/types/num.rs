@@ -345,7 +345,7 @@ mod test_128bit_intergers {
         Python::with_gil(|py| {
             let obj = py.eval("(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
-            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
     }
 
@@ -354,7 +354,7 @@ mod test_128bit_intergers {
         Python::with_gil(|py| {
             let obj = py.eval("1 << 130", None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
-            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
     }
 }
@@ -421,7 +421,7 @@ mod tests {
 
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::PyTypeError>(py));
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
                     });
                 }
 
@@ -431,7 +431,7 @@ mod tests {
 
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::PyTypeError>(py));});
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
                 }
 
                 #[test]
