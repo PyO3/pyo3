@@ -195,11 +195,11 @@ impl PyCapsule {
     ///
     /// It must be known that this capsule's pointer is to an item of type `T`.
     pub unsafe fn reference<T>(&self) -> &T {
-        &*(self.get_pointer() as *const T)
+        &*(self.pointer() as *const T)
     }
 
     /// Gets the raw `c_void` pointer to the value in this capsule.
-    pub fn get_pointer(&self) -> *mut c_void {
+    pub fn pointer(&self) -> *mut c_void {
         unsafe { ffi::PyCapsule_GetPointer(self.0.as_ptr(), self.name().as_ptr()) }
     }
 
