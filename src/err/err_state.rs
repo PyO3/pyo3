@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     type_object::PyTypeObject,
-    types::PyType,
+    types::{PyTraceback, PyType},
     AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
 };
 
@@ -10,7 +10,7 @@ use crate::{
 pub(crate) struct PyErrStateNormalized {
     pub ptype: Py<PyType>,
     pub pvalue: Py<PyBaseException>,
-    pub ptraceback: Option<PyObject>,
+    pub ptraceback: Option<Py<PyTraceback>>,
 }
 
 pub(crate) enum PyErrState {

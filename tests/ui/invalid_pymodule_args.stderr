@@ -1,0 +1,5 @@
+error: unexpected token
+ --> tests/ui/invalid_pymodule_args.rs:3:12
+  |
+3 | #[pymodule(some_arg)]
+  |            ^^^^^^^^

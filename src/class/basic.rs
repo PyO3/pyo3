@@ -83,31 +83,9 @@ pub trait PyObjectProtocol<'p>: PyClass {
         unimplemented!()
     }
 
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__format__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __format__(&'p self, format_spec: Self::Format) -> Self::Result
-    where
-        Self: PyObjectFormatProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
     fn __hash__(&'p self) -> Self::Result
     where
         Self: PyObjectHashProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__bytes__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __bytes__(&'p self) -> Self::Result
-    where
-        Self: PyObjectBytesProtocol<'p>,
     {
         unimplemented!()
     }
@@ -145,18 +123,11 @@ pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
-pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
-    type Format: FromPyObject<'p>;
-    type Result: IntoPyCallbackOutput<PyObject>;
-}
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
     type Result: IntoPyCallbackOutput<HashCallbackOutput>;
 }
 pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: IntoPyCallbackOutput<bool>;
-}
-pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Result: IntoPyCallbackOutput<PyObject>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;

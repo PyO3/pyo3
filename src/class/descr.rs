@@ -6,7 +6,6 @@
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::types::PyAny;
 use crate::{FromPyObject, PyClass, PyObject};
 use std::os::raw::c_int;
 
@@ -30,28 +29,6 @@ pub trait PyDescrProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__delete__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __delete__(&'p self, instance: &'p PyAny) -> Self::Result
-    where
-        Self: PyDescrDeleteProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__set_name__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __set_name__(&'p self, instance: &'p PyAny) -> Self::Result
-    where
-        Self: PyDescrSetNameProtocol<'p>,
-    {
-        unimplemented!()
-    }
 }
 
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
@@ -65,16 +42,6 @@ pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
     type Receiver: crate::derive_utils::TryFromPyCell<'p, Self>;
     type Inst: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
-    type Result: IntoPyCallbackOutput<()>;
-}
-
-pub trait PyDescrDeleteProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
-    type Result: IntoPyCallbackOutput<()>;
-}
-
-pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
-    type Inst: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 

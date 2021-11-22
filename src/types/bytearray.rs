@@ -241,7 +241,7 @@ mod tests {
     fn test_from_err() {
         Python::with_gil(|py| {
             if let Err(err) = PyByteArray::from(py, &py.None()) {
-                assert!(err.is_instance::<exceptions::PyTypeError>(py));
+                assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
                 panic!("error");
             }
@@ -293,7 +293,7 @@ mod tests {
             assert!(py_bytearray_result
                 .err()
                 .unwrap()
-                .is_instance::<PyValueError>(py));
+                .is_instance_of::<PyValueError>(py));
         })
     }
 }

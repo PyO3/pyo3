@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::{
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
-    pymethod,
+    pymethod::{self, is_proto_method},
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
@@ -13,6 +13,7 @@ use quote::quote;
 use syn::spanned::Spanned;
 
 /// The mechanism used to collect `#[pymethods]` into the type object
+#[derive(Copy, Clone)]
 pub enum PyClassMethodsType {
     Specialization,
     Inventory,
@@ -79,6 +80,13 @@ pub fn impl_methods(
                     let attrs = get_cfg_attributes(&konst.attrs);
                     let meth = gen_py_const(ty, &spec);
                     methods.push(quote!(#(#attrs)* #meth));
+                    if is_proto_method(&spec.python_name().to_string()) {
+                        // If this is a known protocol method e.g. __contains__, then allow this
+                        // symbol even though it's not an uppercase constant.
+                        konst
+                            .attrs
+                            .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
+                    }
                 }
             }
             _ => (),
@@ -111,7 +119,7 @@ pub fn impl_methods(
     })
 }
 
-fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let member = &spec.rust_ident;
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();

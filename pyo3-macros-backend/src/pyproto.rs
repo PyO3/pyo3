@@ -18,7 +18,6 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
             Some(segment) if segment.ident == "PyAsyncProtocol" => &defs::ASYNC,
             Some(segment) if segment.ident == "PyMappingProtocol" => &defs::MAPPING,
             Some(segment) if segment.ident == "PyIterProtocol" => &defs::ITER,
-            Some(segment) if segment.ident == "PyContextProtocol" => &defs::CONTEXT,
             Some(segment) if segment.ident == "PySequenceProtocol" => &defs::SEQ,
             Some(segment) if segment.ident == "PyNumberProtocol" => &defs::NUM,
             Some(segment) if segment.ident == "PyDescrProtocol" => &defs::DESCR,

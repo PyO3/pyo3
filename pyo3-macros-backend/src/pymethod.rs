@@ -24,6 +24,63 @@ pub enum GeneratedPyMethod {
     SlotTraitImpl(String, TokenStream),
 }
 
+pub struct PyMethod<'a> {
+    kind: PyMethodKind,
+    method_name: String,
+    spec: FnSpec<'a>,
+}
+
+enum PyMethodKind {
+    Fn,
+    Proto(PyMethodProtoKind),
+}
+
+impl PyMethodKind {
+    fn from_name(name: &str) -> Self {
+        if let Some(slot_def) = pyproto(name) {
+            PyMethodKind::Proto(PyMethodProtoKind::Slot(slot_def))
+        } else if name == "__call__" {
+            PyMethodKind::Proto(PyMethodProtoKind::Call)
+        } else if let Some(slot_fragment_def) = pyproto_fragment(name) {
+            PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(slot_fragment_def))
+        } else {
+            PyMethodKind::Fn
+        }
+    }
+}
+
+enum PyMethodProtoKind {
+    Slot(&'static SlotDef),
+    Call,
+    SlotFragment(&'static SlotFragmentDef),
+}
+
+impl<'a> PyMethod<'a> {
+    fn parse(
+        sig: &'a mut syn::Signature,
+        meth_attrs: &mut Vec<syn::Attribute>,
+        options: PyFunctionOptions,
+    ) -> Result<Self> {
+        let spec = FnSpec::parse(sig, meth_attrs, options)?;
+
+        let method_name = spec.python_name.to_string();
+        let kind = PyMethodKind::from_name(&method_name);
+
+        Ok(Self {
+            kind,
+            method_name,
+            spec,
+        })
+    }
+}
+
+pub fn is_proto_method(name: &str) -> bool {
+    match PyMethodKind::from_name(name) {
+        PyMethodKind::Fn => false,
+        PyMethodKind::Proto(_) => true,
+    }
+}
+
 pub fn gen_py_method(
     cls: &syn::Type,
     sig: &mut syn::Signature,
@@ -33,56 +90,55 @@ pub fn gen_py_method(
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
-    let spec = FnSpec::parse(sig, &mut *meth_attrs, options)?;
+    let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
+    let spec = &method.spec;
 
-    let method_name = spec.python_name.to_string();
-
-    if let Some(slot_def) = pyproto(&method_name) {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        let slot = slot_def.generate_type_slot(cls, &spec)?;
-        return Ok(GeneratedPyMethod::Proto(slot));
-    } else if method_name == "__call__" {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        return Ok(GeneratedPyMethod::Proto(impl_call_slot(cls, spec)?));
-    }
-
-    if let Some(slot_fragment_def) = pyproto_fragment(&method_name) {
-        ensure_no_forbidden_protocol_attributes(&spec, &method_name)?;
-        let proto = slot_fragment_def.generate_pyproto_fragment(cls, &spec)?;
-        return Ok(GeneratedPyMethod::SlotTraitImpl(method_name, proto));
-    }
-
-    Ok(match &spec.tp {
+    Ok(match (method.kind, &spec.tp) {
+        // Class attributes go before protos so that class attributes can be used to set proto
+        // method to None.
+        (_, FnType::ClassAttribute) => {
+            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec))
+        }
+        (PyMethodKind::Proto(proto_kind), _) => {
+            ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
+            match proto_kind {
+                PyMethodProtoKind::Slot(slot_def) => {
+                    let slot = slot_def.generate_type_slot(cls, spec)?;
+                    GeneratedPyMethod::Proto(slot)
+                }
+                PyMethodProtoKind::Call => {
+                    GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
+                }
+                PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
+                    let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
+                    GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
+                }
+            }
+        }
         // ordinary functions (with some specialties)
-        FnType::Fn(_) => GeneratedPyMethod::Method(impl_py_method_def(cls, &spec, None)?),
-        FnType::FnClass => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?),
+        (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
-            &spec,
+            spec,
             Some(quote!(::pyo3::ffi::METH_CLASS)),
         )?),
-        FnType::FnStatic => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
-            &spec,
+            spec,
             Some(quote!(::pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        FnType::FnNew => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, &spec)?),
-        FnType::ClassAttribute => GeneratedPyMethod::Method(impl_py_class_attribute(cls, &spec)),
-        FnType::Getter(self_type) => GeneratedPyMethod::Method(impl_py_getter_def(
+        (_, FnType::FnNew) => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, spec)?),
+
+        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
-            PropertyType::Function {
-                self_type,
-                spec: &spec,
-            },
+            PropertyType::Function { self_type, spec },
         )?),
-        FnType::Setter(self_type) => GeneratedPyMethod::Method(impl_py_setter_def(
+        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
-            PropertyType::Function {
-                self_type,
-                spec: &spec,
-            },
+            PropertyType::Function { self_type, spec },
         )?),
-        FnType::FnModule => {
+        (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
     })
@@ -343,14 +399,9 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
 fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
-    if args
-        .get(0)
-        .map(|py| utils::is_python(py.ty))
-        .unwrap_or(false)
-    {
-        (Some(&args[0]), &args[1..])
-    } else {
-        (None, args)
+    match args {
+        [py, args @ ..] if utils::is_python(py.ty) => (Some(py), args),
+        args => (None, args),
     }
 }
 
@@ -427,8 +478,8 @@ const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
 const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .arguments(&[Ty::Object, Ty::CompareOp]);
-const __GET__: SlotDef =
-    SlotDef::new("Py_tp_descr_get", "descrgetfunc").arguments(&[Ty::Object, Ty::Object]);
+const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
+    .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
     TokenGenerator(|| quote! { ::pyo3::class::iter::IterNextOutput::<_, _> }),
@@ -550,6 +601,7 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
 #[derive(Clone, Copy)]
 enum Ty {
     Object,
+    MaybeNullObject,
     NonNullObject,
     CompareOp,
     Int,
@@ -561,7 +613,7 @@ enum Ty {
 impl Ty {
     fn ffi_type(self) -> TokenStream {
         match self {
-            Ty::Object => quote! { *mut ::pyo3::ffi::PyObject },
+            Ty::Object | Ty::MaybeNullObject => quote! { *mut ::pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
@@ -585,6 +637,22 @@ impl Ty {
                     py,
                     quote! {
                         #py.from_borrowed_ptr::<::pyo3::PyAny>(#ident).extract()
+                    },
+                );
+                extract_object(cls, arg.ty, ident, extract)
+            }
+            Ty::MaybeNullObject => {
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                        #py.from_borrowed_ptr::<::pyo3::PyAny>(
+                            if #ident.is_null() {
+                                ::pyo3::ffi::Py_None()
+                            } else {
+                                #ident
+                            }
+                        ).extract()
                     },
                 );
                 extract_object(cls, arg.ty, ident, extract)

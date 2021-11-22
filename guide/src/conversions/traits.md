@@ -17,7 +17,7 @@ variety of Rust types, which you can check out in the implementor list of
 [`FromPyObject`].
 
 [`FromPyObject`] is also implemented for your own Rust types wrapped as Python
-objects (see [the chapter about classes](class.md)).  There, in order to both be
+objects (see [the chapter about classes](../class.md)).  There, in order to both be
 able to operate on mutable references *and* satisfy Rust's rules of non-aliasing
 mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
 and [`PyRefMut`].  They work like the reference wrappers of
@@ -413,7 +413,7 @@ enum RustyEnum {
 #         {
 #             let thing = b"foo".to_object(py);
 #             let error = thing.extract::<RustyEnum>(py).unwrap_err();
-#             assert!(error.is_instance::<pyo3::exceptions::PyTypeError>(py));
+#             assert!(error.is_instance_of::<pyo3::exceptions::PyTypeError>(py));
 #         }
 # 
 #         Ok(())

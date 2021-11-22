@@ -534,6 +534,21 @@ impl<T> Py<T> {
         })
     }
 
+    /// Sets an attribute value.
+    ///
+    /// This is equivalent to the Python expression `self.attr_name = value`.
+    pub fn setattr<N, V>(&self, py: Python, attr_name: N, value: V) -> PyResult<()>
+    where
+        N: ToPyObject,
+        V: ToPyObject,
+    {
+        attr_name.with_borrowed_ptr(py, move |attr_name| {
+            value.with_borrowed_ptr(py, |value| unsafe {
+                err::error_on_minusone(py, ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
+            })
+        })
+    }
+
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.

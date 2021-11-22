@@ -361,7 +361,7 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     pub TimeZone_UTC: *mut PyObject,
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
@@ -395,7 +395,7 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
@@ -451,7 +451,7 @@ pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
 ///
 /// The type obtained by dereferencing this object is `&'static PyObject`. This may change in the
 /// future to be a more specific type representing that this is a `datetime.timezone` object.
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 pub static PyDateTime_TimeZone_UTC: _PyDateTime_TimeZone_UTC_impl = _PyDateTime_TimeZone_UTC_impl {
     inner: &PyDateTimeAPI,
 };
@@ -609,12 +609,12 @@ impl Deref for _PyDateTimeAPI_impl {
 }
 
 #[doc(hidden)]
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 pub struct _PyDateTime_TimeZone_UTC_impl {
     inner: &'static _PyDateTimeAPI_impl,
 }
 
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 impl Deref for _PyDateTime_TimeZone_UTC_impl {
     type Target = crate::PyObject;
 
@@ -661,7 +661,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     fn test_utc_timezone() {
         Python::with_gil(|py| {
             let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);

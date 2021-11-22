@@ -86,7 +86,8 @@ where
         slots.push(ffi::Py_tp_free, free as _);
     }
 
-    if cfg!(Py_3_9) {
+    #[cfg(Py_3_9)]
+    {
         let members = py_class_members::<T>();
         if !members.is_empty() {
             slots.push(ffi::Py_tp_members, into_raw(members))
@@ -158,7 +159,8 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 
     // Setting buffer protocols via slots doesn't work until Python 3.9, so on older versions we
     // must manually fixup the type object.
-    if cfg!(not(Py_3_9)) {
+    #[cfg(not(Py_3_9))]
+    {
         if let Some(buffer) = T::get_buffer() {
             unsafe {
                 (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
@@ -169,7 +171,8 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 
     // Setting tp_dictoffset and tp_weaklistoffset via slots doesn't work until Python 3.9, so on
     // older versions again we must fixup the type object.
-    if cfg!(not(Py_3_9)) {
+    #[cfg(not(Py_3_9))]
+    {
         // __dict__ support
         if let Some(dict_offset) = PyCell::<T>::dict_offset() {
             unsafe {
@@ -261,12 +264,6 @@ fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
     members
 }
 
-// Stub needed since the `if cfg!()` above still compiles contained code.
-#[cfg(not(Py_3_9))]
-fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
-    vec![]
-}
-
 const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
@@ -275,7 +272,6 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
-#[allow(clippy::collapsible_if)] // for if cfg!
 fn py_class_properties(
     is_dummy: bool,
     for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),

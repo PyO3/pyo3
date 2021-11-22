@@ -18,11 +18,13 @@ PYO3_VERSION_TAG = os.environ.get("PYO3_VERSION_TAG", "main")
 
 if PYO3_VERSION_TAG == "main":
     PYO3_DOCS_URL = "https://pyo3.rs/main/doc"
+    PYO3_DOCS_VERSION = "latest"
     PYO3_CRATE_VERSION = 'git = "https://github.com/pyo3/pyo3"'
 else:
     # v0.13.2 -> 0.13.2
     version = PYO3_VERSION_TAG.lstrip("v")
     PYO3_DOCS_URL = f"https://docs.rs/pyo3/{version}"
+    PYO3_DOCS_VERSION = version
     PYO3_CRATE_VERSION = f'version = "{version}"'
 
 
@@ -35,6 +37,7 @@ def replace_section_content(section):
         section["Chapter"]["content"]
         .replace("{{#PYO3_VERSION_TAG}}", PYO3_VERSION_TAG)
         .replace("{{#PYO3_DOCS_URL}}", PYO3_DOCS_URL)
+        .replace("{{#PYO3_DOCS_VERSION}}", PYO3_DOCS_VERSION)
         .replace("{{#PYO3_CRATE_VERSION}}", PYO3_CRATE_VERSION)
     )
 

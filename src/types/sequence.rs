@@ -1,10 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::ffi;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
-use crate::AsPyPointer;
+use crate::{ffi, PyNativeType};
+use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
@@ -335,12 +335,36 @@ impl<'v> PyTryFrom<'v> for PySequence {
     }
 }
 
+impl Py<PySequence> {
+    /// Borrows a GIL-bound reference to the PySequence. By binding to the GIL lifetime, this
+    /// allows the GIL-bound reference to not require `Python` for any of its methods.
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::{PyList, PySequence};
+    /// # Python::with_gil(|py| {
+    /// let seq: Py<PySequence> = PyList::empty(py).as_sequence().into();
+    /// let seq: &PySequence = seq.as_ref(py);
+    /// assert_eq!(seq.len().unwrap(), 0);
+    /// # });
+    /// ```
+    pub fn as_ref<'py>(&'py self, _py: Python<'py>) -> &'py PySequence {
+        let any = self.as_ptr() as *const PyAny;
+        unsafe { PyNativeType::unchecked_downcast(&*any) }
+    }
+
+    /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
+    /// Python object reference in PyO3's object storage. The reference count for the Python
+    /// object will not be decreased until the GIL lifetime ends.
+    pub fn into_ref(self, py: Python) -> &PySequence {
+        unsafe { py.from_owned_ptr(self.into_ptr()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::types::{PyList, PySequence};
-    use crate::AsPyPointer;
-    use crate::Python;
-    use crate::{PyObject, PyTryFrom, ToPyObject};
+    use crate::{AsPyPointer, Py, PyObject, PyTryFrom, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -817,5 +841,27 @@ mod tests {
             let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
             assert!(seq_from.list().is_ok());
         });
+    }
+
+    #[test]
+    fn test_as_ref() {
+        Python::with_gil(|py| {
+            let seq: Py<PySequence> = PyList::empty(py).as_sequence().into();
+            let seq_ref: &PySequence = seq.as_ref(py);
+            assert_eq!(seq_ref.len().unwrap(), 0);
+        })
+    }
+
+    #[test]
+    fn test_into_ref() {
+        Python::with_gil(|py| {
+            let bare_seq = PyList::empty(py).as_sequence();
+            assert_eq!(bare_seq.get_refcnt(), 1);
+            let seq: Py<PySequence> = bare_seq.into();
+            assert_eq!(bare_seq.get_refcnt(), 2);
+            let seq_ref = seq.into_ref(py);
+            assert_eq!(seq_ref.len().unwrap(), 0);
+            assert_eq!(seq_ref.get_refcnt(), 2);
+        })
     }
 }

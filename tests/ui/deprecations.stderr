@@ -1,77 +1,11 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::NAME_ATTRIBUTE`: use `#[pyo3(name = "...")]` instead of `#[name = "..."]`
-  --> tests/ui/deprecations.rs:14:5
+error: use of deprecated constant `pyo3::impl_::deprecations::CALL_ATTRIBUTE`: use `fn __call__` instead of `#[call]`
+  --> tests/ui/deprecations.rs:10:7
    |
-14 |     #[name = "num"]
-   |     ^
+10 |     #[call]
+   |       ^^^^
    |
 note: the lint level is defined here
   --> tests/ui/deprecations.rs:1:9
    |
 1  | #![deny(deprecated)]
    |         ^^^^^^^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::NAME_ATTRIBUTE`: use `#[pyo3(name = "...")]` instead of `#[name = "..."]`
-  --> tests/ui/deprecations.rs:17:5
-   |
-17 |     #[name = "num"]
-   |     ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
-  --> tests/ui/deprecations.rs:18:5
-   |
-18 |     #[text_signature = "()"]
-   |     ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::NAME_ATTRIBUTE`: use `#[pyo3(name = "...")]` instead of `#[name = "..."]`
-  --> tests/ui/deprecations.rs:22:5
-   |
-22 |     #[name = "custom_static"]
-   |     ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
-  --> tests/ui/deprecations.rs:23:5
-   |
-23 |     #[text_signature = "()"]
-   |     ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::CALL_ATTRIBUTE`: use `fn __call__` instead of `#[call]`
-  --> tests/ui/deprecations.rs:32:7
-   |
-32 |     #[call]
-   |       ^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::NAME_ATTRIBUTE`: use `#[pyo3(name = "...")]` instead of `#[name = "..."]`
-  --> tests/ui/deprecations.rs:37:1
-   |
-37 | #[name = "foo"]
-   | ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
-  --> tests/ui/deprecations.rs:38:1
-   |
-38 | #[text_signature = "()"]
-   | ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::PYFN_NAME_ARGUMENT`: use `#[pyfn(m)] #[pyo3(name = "...")]` instead of `#[pyfn(m, "...")]`
-  --> tests/ui/deprecations.rs:43:15
-   |
-43 |     #[pyfn(m, "some_name")]
-   |               ^^^^^^^^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
-  --> tests/ui/deprecations.rs:44:5
-   |
-44 |     #[text_signature = "()"]
-   |     ^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::PYMODULE_NAME_ARGUMENT`: use `#[pymodule] #[pyo3(name = "...")]` instead of `#[pymodule(...)]`
-  --> tests/ui/deprecations.rs:41:12
-   |
-41 | #[pymodule(deprecated_module_name)]
-   |            ^^^^^^^^^^^^^^^^^^^^^^
-
-error: use of deprecated constant `pyo3::impl_::deprecations::TEXT_SIGNATURE_ATTRIBUTE`: use `#[pyo3(text_signature = "...")]` instead of `#[text_signature = "..."]`
- --> tests/ui/deprecations.rs:6:1
-  |
-6 | #[text_signature = "()"]
-  | ^

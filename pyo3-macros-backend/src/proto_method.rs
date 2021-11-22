@@ -15,13 +15,11 @@ pub struct MethodProto {
 }
 
 impl MethodProto {
-    // TODO: workaround for no unsized casts in const fn on Rust 1.45 (stable in 1.46)
-    const EMPTY_ARGS: &'static [&'static str] = &[];
     pub const fn new(name: &'static str, proto: &'static str) -> Self {
         MethodProto {
             name,
             proto,
-            args: MethodProto::EMPTY_ARGS,
+            args: &[],
             with_self: false,
             with_result: true,
         }

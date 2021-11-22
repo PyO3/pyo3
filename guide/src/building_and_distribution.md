@@ -13,7 +13,7 @@ PyO3 uses a build script (backed by the [`pyo3-build-config`] crate) to determin
  - The `python` executable (if it's a Python 3 interpreter).
  - The `python3` executable.
 
-You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.6`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
+You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.7`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
@@ -44,7 +44,11 @@ Caused by:
   build_flags=WITH_THREAD
 ```
 
-> Note: if you save the output config to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var. For now, this is an advanced feature that should not be needed for most users. The format of the config file and its contents are deliberately unstable and undocumented. If you have a production use-case for this config file, please file an issue and help us stabilize it!
+### Advanced: config files
+
+If you save the above output config from `PYO3_PRINT_CONFIG` to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var.
+
+If your build environment is unusual enough that PyO3's regular configuration detection doesn't work, using a config file like this will give you the flexibility to make PyO3 work for you. To see the full set of options supported, see the documentation for the [`InterpreterConfig` struct](https://docs.rs/pyo3-build-config/{{#PYO3_DOCS_VERSION}}/pyo3_build_config/struct.InterpreterConfig.html).
 
 ## Building Python extension modules
 
@@ -141,16 +145,16 @@ See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://
 
 #### Minimum Python version for `abi3`
 
-Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py36`, `abi3-py37`, `abi-py38` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py36` feature, your extension wheel can be used on all Python 3 versions from Python 3.6 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp36-abi3-manylinux2020_x86_64.whl`.
+Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py37`, `abi3-py38`, `abi3-py39` etc. to set the minimum required Python version for your `abi3` wheel.
+For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
 
 As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior. See [the relevant section of this guide](./building_and_distribution/multiple_python_versions.html#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
-PyO3 is only able to link your extension module to api3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.6, the build will fail.
+PyO3 is only able to link your extension module to api3 version up to and including your host Python version. E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set. On unix systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` evironment variable to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
-> Note: If you set more that one of these api version feature flags the highest version always wins. For example, with both `abi3-py36` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.8 and up.
+> Note: If you set more that one of these api version feature flags the lowest version always wins. For example, with both `abi3-py37` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.7 and up.
 
 #### Missing features
 

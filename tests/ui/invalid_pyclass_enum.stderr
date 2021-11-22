@@ -1,0 +1,11 @@
+error: enums can't be inherited by other classes
+ --> tests/ui/invalid_pyclass_enum.rs:3:11
+  |
+3 | #[pyclass(subclass)]
+  |           ^^^^^^^^
+
+error: enums cannot extend from other classes
+ --> tests/ui/invalid_pyclass_enum.rs:9:11
+  |
+9 | #[pyclass(extends = PyList)]
+  |           ^^^^^^^
