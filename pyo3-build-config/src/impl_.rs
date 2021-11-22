@@ -272,7 +272,7 @@ print("mingw", get_platform().startswith("mingw"))
     ///
     /// Use [`parse_sysconfigdata`](parse_sysconfigdata) to generate a hash map of
     /// configuration values which may be used to build an `InterpreterConfig`.
-    pub fn from_sysconfigdata(sysconfigdata: Sysconfigdata) -> Result<Self> {
+    pub fn from_sysconfigdata(sysconfigdata: &Sysconfigdata) -> Result<Self> {
         macro_rules! get_key {
             ($sysconfigdata:expr, $key:literal) => {
                 $sysconfigdata
@@ -306,8 +306,7 @@ print("mingw", get_platform().startswith("mingw"))
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
-        let build_flags =
-            BuildFlags::from_sysconfigdata(&sysconfigdata).fixup(version, implementation);
+        let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata).fixup(version);
 
         Ok(InterpreterConfig {
             implementation,
@@ -815,8 +814,8 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 pub struct Sysconfigdata(HashMap<String, String>);
 
 impl Sysconfigdata {
-    pub fn get_value(&self, k: &str) -> Option<&str> {
-        self.0.get(k).map(String::as_str)
+    pub fn get_value<S: AsRef<str>>(&self, k: S) -> Option<&str> {
+        self.0.get(k.as_ref()).map(String::as_str)
     }
 
     #[allow(dead_code)]
@@ -825,8 +824,8 @@ impl Sysconfigdata {
     }
 
     #[allow(dead_code)]
-    fn insert(&mut self, k: String, v: String) {
-        self.0.insert(k, v);
+    fn insert<S: Into<String>>(&mut self, k: S, v: S) {
+        self.0.insert(k.into(), v.into());
     }
 }
 
@@ -1008,7 +1007,7 @@ fn load_cross_compile_from_sysconfigdata(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
     let sysconfigdata_path = find_sysconfigdata(&cross_compile_config)?;
-    InterpreterConfig::from_sysconfigdata(parse_sysconfigdata(sysconfigdata_path)?)
+    InterpreterConfig::from_sysconfigdata(&parse_sysconfigdata(sysconfigdata_path)?)
 }
 
 fn windows_hardcoded_cross_compile(
@@ -1398,6 +1397,28 @@ mod tests {
     }
 
     #[test]
+    fn config_from_empty_sysconfigdata() {
+        // let sysconfigdata = parse_sysconfigdata(find_sysconfigdata()?)?;
+        // AGA3 TODO
+        let sysconfigdata = Sysconfigdata::new();
+        assert!(InterpreterConfig::from_sysconfigdata(&sysconfigdata).is_err());
+    }
+
+    #[test]
+    fn config_from_sysconfigdata() {
+        let mut sysconfigdata = Sysconfigdata::new();
+        // these are the minimal values required such that InterpreterConfig::from_sysconfigdata
+        // does not error
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("Py_ENABLE_SHARED", "1");
+        sysconfigdata.insert("LIBDIR", "/usr/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        assert!(InterpreterConfig::from_sysconfigdata(&sysconfigdata).is_ok());
+    }
+
+    #[test]
     fn windows_hardcoded_cross_compile() {
         let cross_config = CrossCompileConfig {
             lib_dir: "C:\\some\\path".into(),
@@ -1584,7 +1605,7 @@ mod tests {
             Ok(sysconfigdata) => sysconfigdata,
             Err(_) => return,
         };
-        let parsed_config = match InterpreterConfig::from_sysconfigdata(sysconfigdata) {
+        let parsed_config = match InterpreterConfig::from_sysconfigdata(&sysconfigdata) {
             Ok(parsed_config) => parsed_config,
             Err(_) => return,
         };
