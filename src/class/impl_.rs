@@ -4,7 +4,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError},
     ffi,
     impl_::freelist::FreeList,
-    pycell::PyCellLayout,
+    pycell::{self, PyCellLayout},
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
     PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -39,7 +39,7 @@ impl<T> Copy for PyClassImplCollector<T> {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl: Sized {
+pub trait PyClassImpl: Sized + BorrowImpl {
     /// Class doc string
     const DOC: &'static str = "\0";
 
@@ -80,6 +80,27 @@ pub trait PyClassImpl: Sized {
     fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
+    }
+}
+
+pub unsafe trait BorrowImpl {
+    fn get_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>) -> pycell::BorrowFlag
+    where
+        Self: PyClass,
+    {
+        pycell::impl_::get_borrow_flag
+    }
+    fn increment_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>, pycell::BorrowFlag)
+    where
+        Self: PyClass,
+    {
+        pycell::impl_::increment_borrow_flag
+    }
+    fn decrement_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>, pycell::BorrowFlag)
+    where
+        Self: PyClass,
+    {
+        pycell::impl_::decrement_borrow_flag
     }
 }
 

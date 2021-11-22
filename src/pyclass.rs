@@ -29,6 +29,9 @@ pub trait PyClass:
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 
+pub unsafe trait MutablePyClass: PyClass {}
+pub unsafe trait ImmutablePyClass: PyClass {}
+
 /// For collecting slot items.
 #[derive(Default)]
 struct TypeSlots(Vec<ffi::PyType_Slot>);

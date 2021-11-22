@@ -2,7 +2,7 @@
 
 //! Python GC support
 
-use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
+use crate::{ffi, pyclass::MutablePyClass, AsPyPointer, PyCell, Python};
 use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
@@ -10,7 +10,7 @@ pub struct PyTraverseError(c_int);
 
 /// GC support
 #[allow(clippy::upper_case_acronyms)]
-pub trait PyGCProtocol<'p>: PyClass {
+pub trait PyGCProtocol<'p>: MutablePyClass {
     fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
 }

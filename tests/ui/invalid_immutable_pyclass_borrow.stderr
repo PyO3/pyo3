@@ -1,0 +1,5 @@
+error[E0277]: the trait bound `Foo: MutablePyClass` is not satisfied
+  --> tests/ui/invalid_immutable_pyclass_borrow.rs:10:33
+   |
+10 |     let borrow = foo.as_ref(py).borrow_mut();
+   |                                 ^^^^^^^^^^ the trait `MutablePyClass` is not implemented for `Foo`

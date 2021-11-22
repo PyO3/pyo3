@@ -27,6 +27,7 @@ pub struct PyClassArgs {
     pub has_extends: bool,
     pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
+    pub is_immutable: bool,
 }
 
 impl Parse for PyClassArgs {
@@ -54,6 +55,7 @@ impl Default for PyClassArgs {
             is_basetype: false,
             has_extends: false,
             has_unsendable: false,
+            is_immutable: false,
         }
     }
 }
@@ -157,6 +159,9 @@ impl PyClassArgs {
             }
             "unsendable" => {
                 self.has_unsendable = true;
+            }
+            "immutable" => {
+                self.is_immutable = true;
             }
             _ => bail_spanned!(
                 exp.path.span() => "expected one of gc/weakref/subclass/dict/unsendable"
@@ -515,6 +520,41 @@ fn impl_class(
     let is_basetype = attr.is_basetype;
     let is_subclass = attr.has_extends;
 
+    let mutability = if attr.is_immutable {
+        quote! {
+            unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
+
+            unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {
+                fn get_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>) -> ::pyo3::pycell::BorrowFlag
+                where Self: ::pyo3::PyClass
+                {
+                    ::pyo3::pycell::impl_::get_borrow_flag_dummy
+                }
+                fn increment_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>, ::pyo3::pycell::BorrowFlag)
+                where Self: ::pyo3::PyClass
+                {
+                    ::pyo3::pycell::impl_::increment_borrow_flag_dummy
+                }
+                fn decrement_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>, ::pyo3::pycell::BorrowFlag)
+                where Self: ::pyo3::PyClass
+                {
+                    ::pyo3::pycell::impl_::decrement_borrow_flag_dummy
+                }
+            }
+        }
+    } else {
+        quote! {
+            unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}
+
+            unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {}
+
+            impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+            {
+                type Target = ::pyo3::PyRefMut<'a, #cls>;
+            }
+        }
+    };
+
     Ok(quote! {
         unsafe impl ::pyo3::type_object::PyTypeInfo for #cls {
             type AsRefTarget = ::pyo3::PyCell<Self>;
@@ -538,15 +578,14 @@ fn impl_class(
             type BaseNativeType = #base_nativetype;
         }
 
+        #mutability
+
         impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a #cls
         {
             type Target = ::pyo3::PyRef<'a, #cls>;
         }
 
-        impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
-        {
-            type Target = ::pyo3::PyRefMut<'a, #cls>;
-        }
+
 
         #into_pyobject
 
