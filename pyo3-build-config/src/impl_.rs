@@ -838,11 +838,21 @@ fn parse_script_output(output: &str) -> HashMap<String, String> {
 /// Parsed data from Python sysconfigdata file
 ///
 /// A hash map of all values from a sysconfigdata file.
-pub struct Sysconfigdata(std::collections::HashMap<String, String>);
+pub struct Sysconfigdata(HashMap<String, String>);
 
 impl Sysconfigdata {
-    fn get_value(&self, k: &str) -> Option<&str> {
+    pub fn get_value(&self, k: &str) -> Option<&str> {
         self.0.get(k).map(String::as_str)
+    }
+
+    #[allow(dead_code)]
+    fn new() -> Self {
+        Sysconfigdata(HashMap::new())
+    }
+
+    #[allow(dead_code)]
+    fn insert(&mut self, k: String, v: String) {
+        self.0.insert(k, v);
     }
 }
 
@@ -1343,6 +1353,37 @@ mod tests {
     #[test]
     fn build_flags_default() {
         assert_eq!(BuildFlags::default(), BuildFlags::new());
+    }
+
+    #[test]
+    fn build_flags_from_sysconfigdata() {
+        let mut sysconfigdata = Sysconfigdata::new();
+        // let mut config_map = HashMap::new();
+
+        assert_eq!(
+            BuildFlags::from_sysconfigdata(&sysconfigdata).0,
+            HashSet::new()
+        );
+
+        for flag in &BuildFlags::ALL {
+            sysconfigdata.insert(flag.to_string(), "0".into());
+        }
+
+        assert_eq!(
+            BuildFlags::from_sysconfigdata(&sysconfigdata).0,
+            HashSet::new()
+        );
+
+        let mut expected_flags = HashSet::new();
+        for flag in &BuildFlags::ALL {
+            sysconfigdata.insert(flag.to_string(), "1".into());
+            expected_flags.insert(flag.clone());
+        }
+
+        assert_eq!(
+            BuildFlags::from_sysconfigdata(&sysconfigdata).0,
+            expected_flags
+        );
     }
 
     #[test]
