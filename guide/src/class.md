@@ -710,51 +710,57 @@ The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplC
 # #[cfg(not(feature = "multiple-pymethods"))] {
 # use pyo3::prelude::*;
 // Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
-
-/// Class for demonstration
 struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
-
-unsafe impl pyo3::PyTypeInfo for MyClass {
-    type AsRefTarget = PyCell<Self>;
-
+unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
+    type AsRefTarget = ::pyo3::PyCell<Self>;
     const NAME: &'static str = "MyClass";
-    const MODULE: Option<&'static str> = None;
-
+    const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
-    fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
-        use pyo3::type_object::LazyStaticType;
+    fn type_object_raw(py: ::pyo3::Python<'_>) -> *mut ::pyo3::ffi::PyTypeObject {
+        use ::pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)
     }
 }
 
-impl pyo3::pyclass::PyClass for MyClass {
-    type Dict = pyo3::pyclass_slots::PyClassDummySlot;
-    type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
-    type BaseNativeType = PyAny;
+impl ::pyo3::PyClass for MyClass {
+    type Dict = ::pyo3::pyclass_slots::PyClassDummySlot;
+    type WeakRef = ::pyo3::pyclass_slots::PyClassDummySlot;
+    type BaseNativeType = ::pyo3::PyAny;
 }
 
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
-        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
+unsafe impl ::pyo3::pyclass::MutablePyClass for MyClass {}
+
+unsafe impl ::pyo3::class::impl_::BorrowImpl for MyClass {}
+
+impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut MyClass {
+    type Target = ::pyo3::PyRefMut<'a, MyClass>;
+}
+
+impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a MyClass {
+    type Target = ::pyo3::PyRef<'a, MyClass>;
+}
+
+impl ::pyo3::IntoPy<::pyo3::PyObject> for MyClass {
+    fn into_py(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
+        ::pyo3::IntoPy::into_py(::pyo3::Py::new(py, self).unwrap(), py)
     }
 }
 
-impl pyo3::class::impl_::PyClassImpl for MyClass {
-    const DOC: &'static str = "Class for demonstration\u{0}";
+impl ::pyo3::class::impl_::PyClassImpl for MyClass {
+    const DOC: &'static str = "\u{0}";
     const IS_GC: bool = false;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
-    type Layout = PyCell<MyClass>;
-    type BaseType = PyAny;
-    type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
-
-    fn for_each_method_def(visitor: &mut dyn FnMut(&[pyo3::class::PyMethodDefType])) {
-        use pyo3::class::impl_::*;
-        let collector = PyClassImplCollector::<MyClass>::new();
+    type Layout = ::pyo3::PyCell<Self>;
+    type BaseType = ::pyo3::PyAny;
+    type ThreadChecker = ::pyo3::class::impl_::ThreadCheckerStub<MyClass>;
+    fn for_each_method_def(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::class::PyMethodDefType])) {
+        use ::pyo3::class::impl_::*;
+        let collector = PyClassImplCollector::<Self>::new();
         visitor(collector.py_methods());
         visitor(collector.py_class_descriptors());
         visitor(collector.object_protocol_methods());
@@ -764,24 +770,23 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.mapping_protocol_methods());
         visitor(collector.number_protocol_methods());
     }
-    fn get_new() -> Option<pyo3::ffi::newfunc> {
-        use pyo3::class::impl_::*;
+    fn get_new() -> ::std::option::Option<::pyo3::ffi::newfunc> {
+        use ::pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
     }
-    fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
-        use pyo3::class::impl_::*;
+    fn get_alloc() -> ::std::option::Option<::pyo3::ffi::allocfunc> {
+        use ::pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.alloc_impl()
     }
-    fn get_free() -> Option<pyo3::ffi::freefunc> {
-        use pyo3::class::impl_::*;
+    fn get_free() -> ::std::option::Option<::pyo3::ffi::freefunc> {
+        use ::pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.free_impl()
     }
-    fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
-        // Implementation which uses dtolnay specialization to load all slots.
-        use pyo3::class::impl_::*;
+    fn for_each_proto_slot(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::ffi::PyType_Slot])) {
+        use ::pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         visitor(collector.object_protocol_slots());
         visitor(collector.number_protocol_slots());
@@ -794,11 +799,19 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.buffer_protocol_slots());
         visitor(collector.methods_protocol_slots());
     }
-
-    fn get_buffer() -> Option<&'static pyo3::class::impl_::PyBufferProcs> {
-        use pyo3::class::impl_::*;
+    fn get_buffer() -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {
+        use ::pyo3::class::impl_::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.buffer_procs()
+    }
+}
+
+impl ::pyo3::class::impl_::PyClassDescriptors<MyClass>
+    for ::pyo3::class::impl_::PyClassImplCollector<MyClass>
+{
+    fn py_class_descriptors(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
+        static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[];
+        METHODS
     }
 }
 # Python::with_gil(|py| {
