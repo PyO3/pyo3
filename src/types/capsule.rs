@@ -17,7 +17,7 @@ use std::os::raw::c_int;
 /// # Example
 /// ```
 ///  use std::ffi::CString;
-///  use pyo3::{prelude::*, pycapsule::PyCapsule};
+///  use pyo3::{prelude::*, types::PyCapsule};
 ///
 ///  #[repr(C)]
 ///  struct Foo {
@@ -47,15 +47,15 @@ pyobject_native_type_core!(PyCapsule, ffi::PyCapsule_Type, #checkfunction=ffi::P
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     /// `name` is the identifier for the capsule; if it is stored as an attribute of a module,
-    /// the name should be in the format `modulename.attribute`.
+    /// the name should be in the format `"modulename.attribute"`.
     ///
     /// It is checked at compile time that the type T is not zero-sized. Rust function items
-    /// need to cast to a function pointer (`fn(args) -> result`) to be put into a capsule.
+    /// need to be cast to a function pointer (`fn(args) -> result`) to be put into a capsule.
     ///
     /// # Example
     ///
     /// ```
-    /// use pyo3::{prelude::*, pycapsule::PyCapsule};
+    /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CString;
     ///
     /// Python::with_gil(|py| {
@@ -66,10 +66,10 @@ impl PyCapsule {
     /// });
     /// ```
     ///
-    /// However, attempting to construct a `PyCapsule` with a zero sized type will not compile:
+    /// However, attempting to construct a `PyCapsule` with a zero-sized type will not compile:
     ///
     /// ```compile_fail
-    /// use pyo3::{prelude::*, pycapsule::PyCapsule};
+    /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CString;
     ///
     /// Python::with_gil(|py| {
@@ -88,7 +88,7 @@ impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
     ///
     /// Also provides a destructor: when the `PyCapsule` is destroyed, it will be passed the original object,
-    /// as well as `*mut c_void` which will point to the capsule's context, if any.
+    /// as well as a `*mut c_void` which will point to the capsule's context, if any.
     pub fn new_with_destructor<
         'py,
         T: 'static + Send + AssertNotZeroSized,
@@ -115,11 +115,11 @@ impl PyCapsule {
     /// Imports an existing capsule.
     ///
     /// The `name` should match the path to the module attribute exactly in the form
-    /// of `module.attribute`, which should be the same as the name within the capsule.
+    /// of `"module.attribute"`, which should be the same as the name within the capsule.
     ///
     /// # Safety
     ///
-    /// It must be known that this capsule's pointer is to an item of type `T`.
+    /// It must be known that this capsule's value pointer is to an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
         let ptr = ffi::PyCapsule_Import(name.as_ptr(), false as c_int);
         if ptr.is_null() {
@@ -133,13 +133,11 @@ impl PyCapsule {
     ///
     /// # Notes
     ///
-    /// Context itself, is treated much like the value of the capsule, but should likely act as
-    /// a place to store any state managment when using the capsule.
+    /// The context is treated much like the value of the capsule, but should likely act as
+    /// a place to store any state management when using the capsule.
     ///
     /// If you want to store a Rust value as the context, and drop it from the destructor, use
     /// `Box::into_raw` to convert it into a pointer, see the example.
-    ///
-    /// Finally, if `set_context` is called twice in a row, the previous value is always leaked.
     ///
     /// # Example
     ///
@@ -147,7 +145,7 @@ impl PyCapsule {
     /// use std::ffi::CString;
     /// use std::sync::mpsc::{channel, Sender};
     /// use libc::c_void;
-    /// use pyo3::{prelude::*, pycapsule::PyCapsule};
+    /// use pyo3::{prelude::*, types::PyCapsule};
     ///
     /// let (tx, rx) = channel::<String>();
     ///
@@ -255,7 +253,7 @@ mod tests {
     use libc::c_void;
 
     use crate::prelude::PyModule;
-    use crate::{pycapsule::PyCapsule, Py, PyResult, Python};
+    use crate::{types::PyCapsule, Py, PyResult, Python};
     use std::ffi::CString;
     use std::sync::mpsc::{channel, Sender};
 
