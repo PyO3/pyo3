@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `paste` optional dependency to 1.0. [#2004](https://github.com/PyO3/pyo3/pull/2004)
 - Drop support for Python 3.6, remove `abi3-py36` feature. [#2006](https://github.com/PyO3/pyo3/pull/2006)
 - `pyo3-build-config` no longer enables the `resolve-config` feature by default. [#2008](https://github.com/PyO3/pyo3/pull/2008)
+- Update `inventory` optional dependency to 0.2. [#2019](https://github.com/PyO3/pyo3/pull/2019)
 
 ### Added
 

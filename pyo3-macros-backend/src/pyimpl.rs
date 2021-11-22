@@ -211,10 +211,8 @@ fn submit_methods_inventory(
 ) -> TokenStream {
     quote! {
         ::pyo3::inventory::submit! {
-            #![crate = ::pyo3] {
-                type Inventory = <#ty as ::pyo3::class::impl_::HasMethodsInventory>::Methods;
-                <Inventory as ::pyo3::class::impl_::PyMethodsInventory>::new(::std::vec![#(#methods),*], ::std::vec![#(#proto_impls),*])
-            }
+            type Inventory = <#ty as ::pyo3::class::impl_::PyClassImpl>::Inventory;
+            Inventory::new(&[#(#methods),*], &[#(#proto_impls),*])
         }
     }
 }
