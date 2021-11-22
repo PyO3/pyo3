@@ -632,8 +632,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { ::pyo3::PyAny }
         };
 
-
-
         quote! {
             impl ::pyo3::PyClass for #cls {
                 type Dict = #dict;
@@ -651,7 +649,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Target = ::pyo3::PyRef<'a, #cls>;
                 }
             }
-        } else{
+        } else {
             quote! {
                 impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a #cls
                 {
@@ -830,7 +828,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         if self.attr.is_immutable {
             quote! {
                 unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
-    
+
                 unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {
                     fn get_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>) -> ::pyo3::pycell::BorrowFlag
                     where Self: ::pyo3::PyClass
@@ -852,7 +850,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         } else {
             quote! {
                 unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}
-    
+
                 unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {}
             }
         }
