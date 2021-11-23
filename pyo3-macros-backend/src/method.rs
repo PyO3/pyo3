@@ -5,7 +5,7 @@ use crate::deprecations::Deprecation;
 use crate::params::{accept_args_kwargs, impl_arg_params};
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
-use crate::utils::{self, PythonDoc};
+use crate::utils::{self, get_pyo3_path, PythonDoc};
 use crate::{deprecations::Deprecations, pyfunction::Argument};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -228,6 +228,7 @@ pub struct FnSpec<'a> {
     pub deprecations: Deprecations,
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
+    pub pyo3_path: syn::Path,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -254,12 +255,14 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
 impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
     pub fn parse(
+        // Signature is mutable to remove the `Python` argument.
         sig: &'a mut syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
         options: PyFunctionOptions,
     ) -> Result<FnSpec<'a>> {
         let PyFunctionOptions {
             text_signature,
+            pyo3_path,
             name,
             mut deprecations,
             ..
@@ -278,6 +281,7 @@ impl<'a> FnSpec<'a> {
         let name = &sig.ident;
         let ty = get_return_info(&sig.output);
         let python_name = python_name.as_ref().unwrap_or(name).unraw();
+        let pyo3_path = get_pyo3_path(&pyo3_path);
 
         let doc = utils::get_doc(
             meth_attrs,
@@ -311,6 +315,7 @@ impl<'a> FnSpec<'a> {
             doc,
             deprecations,
             text_signature,
+            pyo3_path,
         })
     }
 
@@ -472,14 +477,16 @@ impl<'a> FnSpec<'a> {
         };
         let rust_call =
             quote! { _pyo3::callback::convert(#py, #rust_name(#self_arg #(#arg_names),*)) };
+        let pyo3_path = &self.pyo3_path;
         Ok(match self.convention {
             CallingConvention::Noargs => {
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut _pyo3::ffi::PyObject,
-                        _args: *mut _pyo3::ffi::PyObject,
-                    ) -> *mut _pyo3::ffi::PyObject
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *mut #pyo3_path::ffi::PyObject,
+                    ) -> *mut #pyo3_path::ffi::PyObject
                     {
+                        use #pyo3_path as _pyo3;
                         #deprecations
                         _pyo3::callback::handle_panic(|#py| {
                             #self_conversion
@@ -492,11 +499,12 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, true)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut _pyo3::ffi::PyObject,
-                        _args: *const *mut _pyo3::ffi::PyObject,
-                        _nargs: _pyo3::ffi::Py_ssize_t,
-                        _kwnames: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *const *mut #pyo3_path::ffi::PyObject,
+                        _nargs: #pyo3_path::ffi::Py_ssize_t,
+                        _kwnames: *mut #pyo3_path::ffi::PyObject) -> *mut #pyo3_path::ffi::PyObject
                     {
+                        use #pyo3_path as _pyo3;
                         #deprecations
                         _pyo3::callback::handle_panic(|#py| {
                             #self_conversion
@@ -519,10 +527,11 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        _slf: *mut _pyo3::ffi::PyObject,
-                        _args: *mut _pyo3::ffi::PyObject,
-                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *mut #pyo3_path::ffi::PyObject,
+                        _kwargs: *mut #pyo3_path::ffi::PyObject) -> *mut #pyo3_path::ffi::PyObject
                     {
+                        use #pyo3_path as _pyo3;
                         #deprecations
                         _pyo3::callback::handle_panic(|#py| {
                             #self_conversion
@@ -539,10 +548,11 @@ impl<'a> FnSpec<'a> {
                 let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
-                        subtype: *mut _pyo3::ffi::PyTypeObject,
-                        _args: *mut _pyo3::ffi::PyObject,
-                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                        subtype: *mut #pyo3_path::ffi::PyTypeObject,
+                        _args: *mut #pyo3_path::ffi::PyObject,
+                        _kwargs: *mut #pyo3_path::ffi::PyObject) -> *mut #pyo3_path::ffi::PyObject
                     {
+                        use #pyo3_path as _pyo3;
                         #deprecations
                         use _pyo3::callback::IntoPyCallbackOutput;
                         _pyo3::callback::handle_panic(|#py| {

@@ -3,12 +3,12 @@
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, FromPyWithAttribute,
-        NameAttribute, TextSignatureAttribute,
+        NameAttribute, PyO3PathAttribute, TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{self, ensure_not_async_fn},
+    utils::{self, ensure_not_async_fn, get_pyo3_path},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -239,17 +239,12 @@ pub struct PyFunctionOptions {
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
+    pub pyo3_path: Option<PyO3PathAttribute>,
 }
 
 impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut options = PyFunctionOptions {
-            pass_module: None,
-            name: None,
-            signature: None,
-            text_signature: None,
-            deprecations: Deprecations::new(),
-        };
+        let mut options = PyFunctionOptions::default();
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -262,6 +257,9 @@ impl Parse for PyFunctionOptions {
                 if !input.is_empty() {
                     let _: Comma = input.parse()?;
                 }
+            } else if lookahead.peek(attributes::kw::pyo3_path) {
+                // TODO needs duplicate check?
+                options.pyo3_path = Some(input.parse()?);
             } else {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
                 //
@@ -280,6 +278,7 @@ pub enum PyFunctionOption {
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
     TextSignature(TextSignatureAttribute),
+    PyO3Path(PyO3PathAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -293,6 +292,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Signature)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
+        } else if lookahead.peek(attributes::kw::pyo3_path) {
+            input.parse().map(PyFunctionOption::PyO3Path)
         } else {
             Err(lookahead.error())
         }
@@ -334,6 +335,13 @@ impl PyFunctionOptions {
                         text_signature.kw.span() => "`text_signature` may only be specified once"
                     );
                     self.text_signature = Some(text_signature);
+                }
+                PyFunctionOption::PyO3Path(path) => {
+                    ensure_spanned!(
+                        self.pyo3_path.is_none(),
+                        path.0.span() => "`pyo3_path` may only be specified once"
+                    );
+                    self.pyo3_path = Some(path);
                 }
             }
         }
@@ -410,6 +418,7 @@ pub fn impl_wrap_pyfunction(
     );
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
+    let pyo3_path = get_pyo3_path(&options.pyo3_path);
 
     let spec = method::FnSpec {
         tp: if options.pass_module.is_some() {
@@ -426,6 +435,7 @@ pub fn impl_wrap_pyfunction(
         doc,
         deprecations: options.deprecations,
         text_signature: options.text_signature,
+        pyo3_path: pyo3_path.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
@@ -434,9 +444,11 @@ pub fn impl_wrap_pyfunction(
 
     let wrapped_pyfunction = quote! {
         #wrapper
+
         pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<_pyo3::derive_utils::PyFunctionArguments<'a>>
-        ) -> _pyo3::PyResult<&'a _pyo3::types::PyCFunction> {
+            args: impl ::std::convert::Into<#pyo3_path::derive_utils::PyFunctionArguments<'a>>
+        ) -> #pyo3_path::PyResult<&'a #pyo3_path::types::PyCFunction> {
+            use #pyo3_path as _pyo3;
             _pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };

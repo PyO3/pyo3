@@ -2,7 +2,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Comma,
-    Attribute, ExprPath, Ident, LitStr, Result, Token,
+    Attribute, ExprPath, Ident, LitStr, Path, Result, Token,
 };
 
 pub mod kw {
@@ -17,6 +17,7 @@ pub mod kw {
     syn::custom_keyword!(signature);
     syn::custom_keyword!(text_signature);
     syn::custom_keyword!(transparent);
+    syn::custom_keyword!(pyo3_path);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +41,19 @@ impl Parse for NameAttribute {
         let _: Token![=] = input.parse()?;
         let string_literal: LitStr = input.parse()?;
         string_literal.parse().map(NameAttribute)
+    }
+}
+
+/// For specifying the path to the pyo3 crate.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PyO3PathAttribute(pub Path);
+
+impl Parse for PyO3PathAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let _: kw::pyo3_path = input.parse()?;
+        let _: Token![=] = input.parse()?;
+        let string_literal: LitStr = input.parse()?;
+        string_literal.parse().map(PyO3PathAttribute)
     }
 }
 

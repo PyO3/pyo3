@@ -1,4 +1,7 @@
-use crate::attributes::{self, get_pyo3_options, FromPyWithAttribute};
+use crate::{
+    attributes::{self, get_pyo3_options, FromPyWithAttribute, PyO3PathAttribute},
+    utils::get_pyo3_path,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -300,20 +303,25 @@ impl<'a> Container<'a> {
     }
 }
 
+#[derive(Default)]
 struct ContainerOptions {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     transparent: bool,
     /// Change the name of an enum variant in the generated error message.
     annotation: Option<syn::LitStr>,
+    /// Change the path for the pyo3 crate
+    pyo3_path: Option<PyO3PathAttribute>,
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 enum ContainerPyO3Attribute {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     Transparent(attributes::kw::transparent),
     /// Change the name of an enum variant in the generated error message.
     ErrorAnnotation(LitStr),
+    /// Change the path for the pyo3 crate
+    PyO3Path(PyO3PathAttribute),
 }
 
 impl Parse for ContainerPyO3Attribute {
@@ -326,6 +334,8 @@ impl Parse for ContainerPyO3Attribute {
             let _: attributes::kw::annotation = input.parse()?;
             let _: Token![=] = input.parse()?;
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
+        } else if lookahead.peek(attributes::kw::pyo3_path) {
+            input.parse().map(ContainerPyO3Attribute::PyO3Path)
         } else {
             Err(lookahead.error())
         }
@@ -334,10 +344,8 @@ impl Parse for ContainerPyO3Attribute {
 
 impl ContainerOptions {
     fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
-        let mut options = ContainerOptions {
-            transparent: false,
-            annotation: None,
-        };
+        let mut options = ContainerOptions::default();
+
         for attr in attrs {
             if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for pyo3_attr in pyo3_attrs {
@@ -355,6 +363,13 @@ impl ContainerOptions {
                                 lit_str.span() => "`annotation` may only be provided once"
                             );
                             options.annotation = Some(lit_str);
+                        }
+                        ContainerPyO3Attribute::PyO3Path(path) => {
+                            ensure_spanned!(
+                                options.pyo3_path.is_none(),
+                                path.0.span() => "`pyo3_path` may only be provided once"
+                            );
+                            options.pyo3_path = Some(path);
                         }
                     }
                 }
@@ -499,13 +514,18 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             .predicates
             .push(parse_quote!(#gen_ident: FromPyObject<#lt_param>))
     }
+    let options = ContainerOptions::from_attrs(&tokens.attrs)?;
+    let pyo3_path = get_pyo3_path(&options.pyo3_path);
     let derives = match &tokens.data {
         syn::Data::Enum(en) => {
+            if options.transparent || options.annotation.is_some() {
+                bail_spanned!(tokens.span() => "`transparent` or `annotation` is not supported \
+                                                at top level for enums");
+            }
             let en = Enum::new(en, &tokens.ident)?;
             en.build()
         }
         syn::Data::Struct(st) => {
-            let options = ContainerOptions::from_attrs(&tokens.attrs)?;
             if let Some(lit_str) = &options.annotation {
                 bail_spanned!(lit_str.span() => "`annotation` is unsupported for structs");
             }
@@ -520,11 +540,15 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     let ident = &tokens.ident;
     Ok(quote!(
-        #[automatically_derived]
-        impl#trait_generics _pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
-            fn extract(obj: &#lt_param _pyo3::PyAny) -> _pyo3::PyResult<Self>  {
-                #derives
+        const _: () = {
+            use #pyo3_path as _pyo3;
+
+            #[automatically_derived]
+            impl#trait_generics _pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
+                fn extract(obj: &#lt_param _pyo3::PyAny) -> _pyo3::PyResult<Self>  {
+                    #derives
+                }
             }
-        }
+        };
     ))
 }
