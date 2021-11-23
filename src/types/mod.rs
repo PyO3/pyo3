@@ -6,6 +6,7 @@ pub use self::any::PyAny;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
+pub use self::capsule::PyCapsule;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -223,6 +224,7 @@ mod any;
 mod boolobject;
 mod bytearray;
 mod bytes;
+mod capsule;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
