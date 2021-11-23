@@ -275,7 +275,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _other: *mut $crate::ffi::PyObject,
                 ) -> *mut $crate::ffi::PyObject {
                     $crate::callback::handle_panic(|py| {
-                        use ::pyo3::class::impl_::*;
+                        use $crate::class::impl_::*;
                         let collector = PyClassImplCollector::<$cls>::new();
                         let lhs_result = collector.$lhs(py, _slf, _other)?;
                         if lhs_result == $crate::ffi::Py_NotImplemented() {
@@ -467,7 +467,7 @@ macro_rules! generate_pyclass_pow_slot {
             _mod: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
             $crate::callback::handle_panic(|py| {
-                use ::pyo3::class::impl_::*;
+                use $crate::class::impl_::*;
                 let collector = PyClassImplCollector::<$cls>::new();
                 let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
                 if lhs_result == $crate::ffi::Py_NotImplemented() {
