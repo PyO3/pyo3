@@ -574,8 +574,8 @@ pub fn any_cross_compiling_env_vars_set() -> bool {
 }
 
 fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
-    let host = cargo_env_var("HOST").unwrap();
-    let target = cargo_env_var("TARGET").unwrap();
+    let host = cargo_env_var("HOST").ok_or("expected HOST env var")?;
+    let target = cargo_env_var("TARGET").ok_or("expected TARGET env var")?;
 
     if host == target {
         // Definitely not cross compiling if the host matches the target
@@ -587,11 +587,14 @@ fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
         return Ok(None);
     }
 
-    let target_arch = cargo_env_var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR").unwrap();
-    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_arch =
+        cargo_env_var("CARGO_CFG_TARGET_ARCH").ok_or("expected CARGO_CFG_TARGET_ARCH env var")?;
+    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR")
+        .ok_or("expected CARGO_CFG_TARGET_VENDOR env var")?;
+    let target_os =
+        cargo_env_var("CARGO_CFG_TARGET_OS").ok_or("expected CARGO_CFG_TARGET_OS env var")?;
 
-    cross_compiling(&host, &target_vendor, &target_arch, &target_os)
+    cross_compiling(&host, &target_arch, &target_vendor, &target_os)
 }
 
 /// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
@@ -1398,8 +1401,6 @@ mod tests {
 
     #[test]
     fn config_from_empty_sysconfigdata() {
-        // let sysconfigdata = parse_sysconfigdata(find_sysconfigdata()?)?;
-        // AGA3 TODO
         let sysconfigdata = Sysconfigdata::new();
         assert!(InterpreterConfig::from_sysconfigdata(&sysconfigdata).is_err());
     }
@@ -1653,4 +1654,54 @@ mod tests {
             PathBuf::from_iter(&["base", "bin", "python"])
         );
     }
+
+    #[test]
+    fn test_not_cross_compiling_from_cargo_env() {
+        // make sure the HOST and TARGET env vars match, but set them back (or unset them)
+        match (cargo_env_var("HOST"), cargo_env_var("TARGET")) {
+            (Some(host), Some(target)) => {
+                env::set_var("HOST", target);
+                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
+                env::set_var("HOST", host);
+            }
+            (None, Some(target)) => {
+                env::set_var("HOST", target);
+                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
+                env::remove_var("HOST");
+            }
+            (Some(host), None) => {
+                env::set_var("TARGET", host);
+                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
+                env::remove_var("TARGET");
+            }
+            (None, None) => {
+                env::set_var("HOST", "x86_64-unknown-linux-gnu");
+                env::set_var("TARGET", "x86_64-unknown-linux-gnu");
+                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
+                env::remove_var("HOST");
+                env::remove_var("TARGET");
+            }
+        }
+    }
+
+    #[test]
+    fn test_not_cross_compiling() {
+        assert!(
+            cross_compiling("aarch64-apple-darwin", "x86_64", "apple", "darwin")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            cross_compiling("x86_64-apple-darwin", "aarch64", "apple", "darwin")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            cross_compiling("x86_64-unknown-linux-gnu", "x86_64", "unknown", "linux")
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    // TODO test cross compiling
 }
