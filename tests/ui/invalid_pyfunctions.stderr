@@ -17,3 +17,9 @@ Additional crates such as `pyo3-asyncio` can be used to integrate async Rust and
    |
 10 | async fn async_function() {}
    | ^^^^^
+
+error: Required positional parameters cannot come after optional parameters
+  --> tests/ui/invalid_pyfunctions.rs:13:57
+   |
+13 | fn required_arg_after_optional(optional: Option<isize>, required: isize) {}
+   |                                                         ^^^^^^^^
