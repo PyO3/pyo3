@@ -132,7 +132,7 @@ error: only one of `attribute` or `item` can be provided
 118 |     #[pyo3(item, attribute)]
     |     ^
 
-error: expected `transparent` or `annotation`
+error: expected one of: `transparent`, `annotation`, `pyo3_path`
    --> tests/ui/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]

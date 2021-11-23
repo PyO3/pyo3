@@ -3,20 +3,70 @@
 use std::collections::HashSet;
 
 use crate::{
+    attributes::{self, take_pyo3_options, PyO3PathAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
     pymethod::{self, is_proto_method},
+    utils::get_pyo3_path,
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
 use quote::quote;
-use syn::spanned::Spanned;
+use syn::{
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
+    Result,
+};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
 pub enum PyClassMethodsType {
     Specialization,
     Inventory,
+}
+
+enum PyImplPyO3Option {
+    PyO3Path(PyO3PathAttribute),
+}
+
+impl Parse for PyImplPyO3Option {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::pyo3_path) {
+            input.parse().map(PyImplPyO3Option::PyO3Path)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct PyImplOptions {
+    pyo3_path: Option<PyO3PathAttribute>,
+}
+
+impl PyImplOptions {
+    pub fn from_attrs(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
+        let mut options: PyImplOptions = Default::default();
+
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                PyImplPyO3Option::PyO3Path(path) => options.set_pyo3_path(path)?,
+            }
+        }
+
+        Ok(options)
+    }
+
+    fn set_pyo3_path(&mut self, path: PyO3PathAttribute) -> Result<()> {
+        ensure_spanned!(
+            self.pyo3_path.is_none(),
+            path.0.span() => "`pyo3_path` may only be specified once"
+        );
+
+        self.pyo3_path = Some(path);
+        Ok(())
+    }
 }
 
 pub fn build_py_methods(
@@ -31,7 +81,8 @@ pub fn build_py_methods(
             "#[pymethods] cannot be used with lifetime parameters or generics"
         );
     } else {
-        impl_methods(&ast.self_ty, &mut ast.items, methods_type)
+        let options = PyImplOptions::from_attrs(&mut ast.attrs)?;
+        impl_methods(&ast.self_ty, &mut ast.items, methods_type, options)
     }
 }
 
@@ -39,6 +90,7 @@ pub fn impl_methods(
     ty: &syn::Type,
     impls: &mut Vec<syn::ImplItem>,
     methods_type: PyClassMethodsType,
+    options: PyImplOptions,
 ) -> syn::Result<TokenStream> {
     let mut trait_impls = Vec::new();
     let mut proto_impls = Vec::new();
@@ -49,8 +101,9 @@ pub fn impl_methods(
     for iimpl in impls.iter_mut() {
         match iimpl {
             syn::ImplItem::Method(meth) => {
-                let options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
-                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, options)? {
+                let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
+                fun_options.pyo3_path = fun_options.pyo3_path.or_else(|| options.pyo3_path.clone());
+                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
@@ -95,25 +148,35 @@ pub fn impl_methods(
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
 
+    let pyo3_path = get_pyo3_path(&options.pyo3_path);
+
     Ok(match methods_type {
         PyClassMethodsType::Specialization => {
             let methods_registration = impl_py_methods(ty, methods);
             let protos_registration = impl_protos(ty, proto_impls);
 
             quote! {
-                #(#trait_impls)*
+                const _: () = {
+                    use #pyo3_path as _pyo3;
 
-                #protos_registration
+                    #(#trait_impls)*
 
-                #methods_registration
+                    #protos_registration
+
+                    #methods_registration
+                };
             }
         }
         PyClassMethodsType::Inventory => {
             let inventory = submit_methods_inventory(ty, methods, proto_impls);
             quote! {
-                #(#trait_impls)*
+                const _: () = {
+                    use #pyo3_path as _pyo3;
 
-                #inventory
+                    #(#trait_impls)*
+
+                    #inventory
+                };
             }
         }
     })

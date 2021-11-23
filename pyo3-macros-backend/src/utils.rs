@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
-use crate::attributes::TextSignatureAttribute;
+use crate::attributes::{PyO3PathAttribute, TextSignatureAttribute};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
@@ -188,4 +188,11 @@ pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
         }
         _ => {}
     }
+}
+
+/// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
+pub(crate) fn get_pyo3_path(attr: &Option<PyO3PathAttribute>) -> syn::Path {
+    attr.as_ref()
+        .map(|p| p.0.clone())
+        .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
 }

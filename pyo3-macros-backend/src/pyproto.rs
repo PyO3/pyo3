@@ -86,10 +86,14 @@ fn impl_proto_impl(
     }
     let normal_methods = impl_normal_methods(py_methods, ty, proto);
     let protocol_methods = impl_proto_methods(method_names, ty, proto);
+
     Ok(quote! {
-        #trait_impls
-        #normal_methods
-        #protocol_methods
+        const _: () = {
+            use ::pyo3 as _pyo3; // pyproto doesn't support specifying #[pyo3(pyo3_path)]
+            #trait_impls
+            #normal_methods
+            #protocol_methods
+        };
     })
 }
 

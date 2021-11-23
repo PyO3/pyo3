@@ -216,16 +216,16 @@ fn pyclass_impl(
 }
 
 fn pyclass_enum_impl(
-    attr: TokenStream,
-    enum_: syn::ItemEnum,
+    attrs: TokenStream,
+    mut ast: syn::ItemEnum,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let args = parse_macro_input!(attr with PyClassArgs::parse_enum_args);
+    let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
     let expanded =
-        build_py_enum(&enum_, args, methods_type).unwrap_or_else(|e| e.into_compile_error());
+        build_py_enum(&mut ast, &args, methods_type).unwrap_or_else(|e| e.into_compile_error());
 
     quote!(
-        #enum_
+        #ast
         #expanded
     )
     .into()
