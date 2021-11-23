@@ -124,13 +124,13 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
     quote! {
-        ::pyo3::class::PyMethodDefType::ClassAttribute({
-            ::pyo3::class::PyClassAttributeDef::new(
+        _pyo3::class::PyMethodDefType::ClassAttribute({
+            _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                ::pyo3::class::methods::PyClassAttributeFactory({
-                    fn __wrap(py: ::pyo3::Python<'_>) -> ::pyo3::PyObject {
+                _pyo3::class::methods::PyClassAttributeFactory({
+                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
                         #deprecations
-                        ::pyo3::IntoPy::into_py(#cls::#member, py)
+                        _pyo3::IntoPy::into_py(#cls::#member, py)
                     }
                     __wrap
                 })
@@ -182,11 +182,11 @@ pub fn gen_default_slot_impls(cls: &syn::Ident, method_defs: Vec<TokenStream>) -
 
 fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
     quote! {
-        impl ::pyo3::class::impl_::PyMethods<#ty>
-            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::class::impl_::PyMethods<#ty>
+            for _pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
+            fn py_methods(self) -> &'static [_pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[_pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
                 METHODS
             }
         }
@@ -203,7 +203,7 @@ fn add_shared_proto_slots(
             let first_implemented = implemented_proto_fragments.remove($first);
             let second_implemented = implemented_proto_fragments.remove($second);
             if first_implemented || second_implemented {
-                proto_impls.push(quote! { ::pyo3::$slot!(#ty) })
+                proto_impls.push(quote! { _pyo3::$slot!(#ty) })
             }
         }};
     }
@@ -235,10 +235,10 @@ fn add_shared_proto_slots(
 
 fn impl_protos(ty: &syn::Type, proto_impls: Vec<TokenStream>) -> TokenStream {
     quote! {
-        impl ::pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
-            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
+            for _pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn methods_protocol_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
+            fn methods_protocol_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
                 &[#(#proto_impls),*]
             }
         }
@@ -251,8 +251,8 @@ fn submit_methods_inventory(
     proto_impls: Vec<TokenStream>,
 ) -> TokenStream {
     quote! {
-        ::pyo3::inventory::submit! {
-            type Inventory = <#ty as ::pyo3::class::impl_::PyClassImpl>::Inventory;
+        _pyo3::inventory::submit! {
+            type Inventory = <#ty as _pyo3::class::impl_::PyClassImpl>::Inventory;
             Inventory::new(&[#(#methods),*], &[#(#proto_impls),*])
         }
     }

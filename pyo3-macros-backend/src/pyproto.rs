@@ -67,7 +67,7 @@ fn impl_proto_impl(
 
                 let flags = if m.can_coexist {
                     // We need METH_COEXIST here to prevent __add__  from overriding __radd__
-                    Some(quote!(::pyo3::ffi::METH_COEXIST))
+                    Some(quote!(_pyo3::ffi::METH_COEXIST))
                 } else {
                     None
                 };
@@ -105,11 +105,11 @@ fn impl_normal_methods(
     let methods_trait = proto.methods_trait();
     let methods_trait_methods = proto.methods_trait_methods();
     quote! {
-        impl ::pyo3::class::impl_::#methods_trait<#ty>
-            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::class::impl_::#methods_trait<#ty>
+            for _pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn #methods_trait_methods(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[::pyo3::class::methods::PyMethodDefType] =
+            fn #methods_trait_methods(self) -> &'static [_pyo3::class::methods::PyMethodDefType] {
+                static METHODS: &[_pyo3::class::methods::PyMethodDefType] =
                     &[#(#py_methods),*];
                 METHODS
             }
@@ -138,16 +138,16 @@ fn impl_proto_methods(
 
     if build_config.version <= PY39 && proto.name == "Buffer" {
         maybe_buffer_methods = Some(quote! {
-            impl ::pyo3::class::impl_::PyBufferProtocolProcs<#ty>
-                for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+            impl _pyo3::class::impl_::PyBufferProtocolProcs<#ty>
+                for _pyo3::class::impl_::PyClassImplCollector<#ty>
             {
                 fn buffer_procs(
                     self
-                ) -> ::std::option::Option<&'static ::pyo3::class::impl_::PyBufferProcs> {
-                    static PROCS: ::pyo3::class::impl_::PyBufferProcs
-                        = ::pyo3::class::impl_::PyBufferProcs {
-                            bf_getbuffer: ::std::option::Option::Some(::pyo3::class::buffer::getbuffer::<#ty>),
-                            bf_releasebuffer: ::std::option::Option::Some(::pyo3::class::buffer::releasebuffer::<#ty>),
+                ) -> ::std::option::Option<&'static _pyo3::class::impl_::PyBufferProcs> {
+                    static PROCS: _pyo3::class::impl_::PyBufferProcs
+                        = _pyo3::class::impl_::PyBufferProcs {
+                            bf_getbuffer: ::std::option::Option::Some(_pyo3::class::buffer::getbuffer::<#ty>),
+                            bf_releasebuffer: ::std::option::Option::Some(_pyo3::class::buffer::releasebuffer::<#ty>),
                         };
                     ::std::option::Option::Some(&PROCS)
                 }
@@ -161,8 +161,8 @@ fn impl_proto_methods(
             let slot = syn::Ident::new(def.slot, Span::call_site());
             let slot_impl = syn::Ident::new(def.slot_impl, Span::call_site());
             quote! {{
-                ::pyo3::ffi::PyType_Slot {
-                    slot: ::pyo3::ffi::#slot,
+                _pyo3::ffi::PyType_Slot {
+                    slot: _pyo3::ffi::#slot,
                     pfunc: #module::#slot_impl::<#ty> as _
                 }
             }}
@@ -176,10 +176,10 @@ fn impl_proto_methods(
     quote! {
         #maybe_buffer_methods
 
-        impl ::pyo3::class::impl_::#slots_trait<#ty>
-            for ::pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::class::impl_::#slots_trait<#ty>
+            for _pyo3::class::impl_::PyClassImplCollector<#ty>
         {
-            fn #slots_trait_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
+            fn #slots_trait_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
                 &[#(#tokens),*]
             }
         }

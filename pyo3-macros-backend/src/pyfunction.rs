@@ -435,9 +435,9 @@ pub fn impl_wrap_pyfunction(
     let wrapped_pyfunction = quote! {
         #wrapper
         pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<::pyo3::derive_utils::PyFunctionArguments<'a>>
-        ) -> ::pyo3::PyResult<&'a ::pyo3::types::PyCFunction> {
-            ::pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
+            args: impl ::std::convert::Into<_pyo3::derive_utils::PyFunctionArguments<'a>>
+        ) -> _pyo3::PyResult<&'a _pyo3::types::PyCFunction> {
+            _pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };
     Ok((function_wrapper_ident, wrapped_pyfunction))
