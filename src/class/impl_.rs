@@ -67,6 +67,9 @@ pub trait PyClassImpl: Sized {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
+    #[cfg(feature = "multiple-pymethods")]
+    type Inventory: PyClassInventory;
+
     fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
     fn get_new() -> Option<ffi::newfunc> {
         None
@@ -607,23 +610,13 @@ macro_rules! methods_trait {
 /// Method storage for `#[pyclass]`.
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
 /// which are eventually collected by `#[pyclass]`.
-#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-pub trait PyMethodsInventory: inventory::Collect {
-    /// Create a new instance
-    fn new(methods: Vec<PyMethodDefType>, slots: Vec<ffi::PyType_Slot>) -> Self;
-
+#[cfg(feature = "multiple-pymethods")]
+pub trait PyClassInventory: inventory::Collect {
     /// Returns the methods for a single `#[pymethods] impl` block
     fn methods(&'static self) -> &'static [PyMethodDefType];
 
     /// Returns the slots for a single `#[pymethods] impl` block
     fn slots(&'static self) -> &'static [ffi::PyType_Slot];
-}
-
-/// Implemented for `#[pyclass]` in our proc macro code.
-/// Indicates that the pyclass has its own method storage.
-#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-pub trait HasMethodsInventory {
-    type Methods: PyMethodsInventory;
 }
 
 // Methods from #[pyo3(get, set)] on struct fields.

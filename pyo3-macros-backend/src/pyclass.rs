@@ -594,7 +594,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             self.impl_pyclass(),
             self.impl_extractext(),
             self.impl_into_py(),
-            self.impl_methods_inventory(),
             self.impl_pyclassimpl(),
             self.impl_freelist(),
             self.impl_gc(),
@@ -667,48 +666,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         }
     }
-
-    /// To allow multiple #[pymethods] block, we define inventory types.
-    fn impl_methods_inventory(&self) -> TokenStream {
-        let cls = self.cls;
-        let methods_type = self.methods_type;
-        match methods_type {
-            PyClassMethodsType::Specialization => quote! {},
-            PyClassMethodsType::Inventory => {
-                // Try to build a unique type for better error messages
-                let name = format!("Pyo3MethodsInventoryFor{}", cls.unraw());
-                let inventory_cls = syn::Ident::new(&name, Span::call_site());
-
-                quote! {
-                    #[doc(hidden)]
-                    pub struct #inventory_cls {
-                        methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>,
-                        slots: ::std::vec::Vec<::pyo3::ffi::PyType_Slot>,
-                    }
-                    impl ::pyo3::class::impl_::PyMethodsInventory for #inventory_cls {
-                        fn new(
-                            methods: ::std::vec::Vec<::pyo3::class::PyMethodDefType>,
-                            slots: ::std::vec::Vec<::pyo3::ffi::PyType_Slot>,
-                        ) -> Self {
-                            Self { methods, slots }
-                        }
-                        fn methods(&'static self) -> &'static [::pyo3::class::PyMethodDefType] {
-                            &self.methods
-                        }
-                        fn slots(&'static self) -> &'static [::pyo3::ffi::PyType_Slot] {
-                            &self.slots
-                        }
-                    }
-
-                    impl ::pyo3::class::impl_::HasMethodsInventory for #cls {
-                        type Methods = #inventory_cls;
-                    }
-
-                    ::pyo3::inventory::collect!(#inventory_cls);
-                }
-            }
-        }
-    }
     fn impl_pyclassimpl(&self) -> TokenStream {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
@@ -727,25 +684,36 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { ::pyo3::class::impl_::ThreadCheckerStub<#cls> }
         };
 
-        let methods_protos = match self.methods_type {
-            PyClassMethodsType::Specialization => {
-                quote! { visitor(collector.methods_protocol_slots()); }
-            }
+        let (for_each_py_method, methods_protos, inventory, inventory_class) = match self
+            .methods_type
+        {
+            PyClassMethodsType::Specialization => (
+                quote! { visitor(collector.py_methods()); },
+                quote! { visitor(collector.methods_protocol_slots()); },
+                None,
+                None,
+            ),
             PyClassMethodsType::Inventory => {
-                quote! {
-                    for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::HasMethodsInventory>::Methods>() {
-                        visitor(::pyo3::class::impl_::PyMethodsInventory::slots(inventory));
-                    }
-                }
+                // To allow multiple #[pymethods] block, we define inventory types.
+                let inventory_class_name = syn::Ident::new(
+                    &format!("Pyo3MethodsInventoryFor{}", cls.unraw()),
+                    Span::call_site(),
+                );
+                (
+                    quote! {
+                        for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::PyClassImpl>::Inventory>() {
+                            visitor(::pyo3::class::impl_::PyClassInventory::methods(inventory));
+                        }
+                    },
+                    quote! {
+                        for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::PyClassImpl>::Inventory>() {
+                            visitor(::pyo3::class::impl_::PyClassInventory::slots(inventory));
+                        }
+                    },
+                    Some(quote! { type Inventory = #inventory_class_name; }),
+                    Some(define_inventory_class(&inventory_class_name)),
+                )
             }
-        };
-        let for_each_py_method = match self.methods_type {
-            PyClassMethodsType::Specialization => quote! { visitor(collector.py_methods()); },
-            PyClassMethodsType::Inventory => quote! {
-                for inventory in ::pyo3::inventory::iter::<<Self as ::pyo3::class::impl_::HasMethodsInventory>::Methods>() {
-                    visitor(::pyo3::class::impl_::PyMethodsInventory::methods(inventory));
-                }
-            },
         };
         quote! {
             impl ::pyo3::class::impl_::PyClassImpl for #cls {
@@ -757,6 +725,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Layout = ::pyo3::PyCell<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
+                #inventory
 
                 fn for_each_method_def(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::class::PyMethodDefType])) {
                     use ::pyo3::class::impl_::*;
@@ -807,6 +776,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                     collector.buffer_procs()
                 }
             }
+
+            #inventory_class
         }
     }
 
@@ -863,5 +834,38 @@ impl<'a> PyClassImplsBuilder<'a> {
         } else {
             quote! {}
         }
+    }
+}
+
+fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
+    quote! {
+        #[doc(hidden)]
+        pub struct #inventory_class_name {
+            methods: &'static [::pyo3::class::PyMethodDefType],
+            slots: &'static [::pyo3::ffi::PyType_Slot],
+        }
+        impl #inventory_class_name {
+            const fn new(
+                methods: &'static [::pyo3::class::PyMethodDefType],
+                slots: &'static [::pyo3::ffi::PyType_Slot],
+            ) -> Self {
+                Self { methods, slots }
+            }
+        }
+
+        impl ::pyo3::class::impl_::PyClassInventory for #inventory_class_name {
+            fn methods(&'static self) -> &'static [::pyo3::class::PyMethodDefType] {
+                self.methods
+            }
+            fn slots(&'static self) -> &'static [::pyo3::ffi::PyType_Slot] {
+                self.slots
+            }
+        }
+
+        // inventory requires these bounds
+        unsafe impl ::std::marker::Send for #inventory_class_name {}
+        unsafe impl ::std::marker::Sync for #inventory_class_name {}
+
+        ::pyo3::inventory::collect!(#inventory_class_name);
     }
 }
