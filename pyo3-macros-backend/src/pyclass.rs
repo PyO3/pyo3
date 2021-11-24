@@ -392,7 +392,7 @@ pub fn build_py_enum(
     let variants: Vec<PyClassEnumVariant> = enum_
         .variants
         .iter()
-        .map(|v| extract_variant_data(v))
+        .map(extract_variant_data)
         .collect::<syn::Result<_>>()?;
     impl_enum(enum_, args, variants, method_type)
 }

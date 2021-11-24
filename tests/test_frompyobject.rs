@@ -194,6 +194,7 @@ struct PyBaz {
 }
 
 #[derive(Debug, FromPyObject)]
+#[allow(dead_code)]
 struct Baz<U, T> {
     e: E<U, T>,
     tup: Tuple,
