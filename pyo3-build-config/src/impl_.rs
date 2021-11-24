@@ -885,7 +885,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     } else {
         "python3.".into()
     };
-    for f in fs::read_dir(path).expect("Path does not exist").into_iter() {
+    for f in fs::read_dir(path).expect("Path does not exist") {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
             Ok(f) if starts_with(f, "_sysconfigdata_") && ends_with(f, "py") => vec![f.path()],
