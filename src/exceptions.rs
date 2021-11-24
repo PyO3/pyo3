@@ -129,33 +129,67 @@ macro_rules! import_exception {
 ///
 /// # Syntax
 ///
-/// ```create_exception!(module, MyError, BaseException)```
-///
 /// * `module` is the name of the containing module.
-/// * `MyError` is the name of the new exception type.
-/// * `BaseException` is the superclass of `MyError`, usually `pyo3::exceptions::PyException`.
+/// * `name` is the name of the new exception type.
+/// * `base` is the superclass of `MyError`, usually [`PyException`].
+/// * `doc` (optional) is the docstring visible to users (with `.__doc__` and `help()`) and
+/// accompanies your error type in your crate's documentation.
 ///
 /// # Examples
+///
 /// ```
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
-/// use pyo3::types::IntoPyDict;
 /// use pyo3::exceptions::PyException;
 ///
-/// create_exception!(mymodule, CustomError, PyException);
+/// create_exception!(my_module, MyError, PyException, "Some description.");
 ///
-/// Python::with_gil(|py| {
-///     let error_type = py.get_type::<CustomError>();
-///     let ctx = [("CustomError", error_type)].into_py_dict(py);
-///     let type_description: String = py
-///         .eval("str(CustomError)", None, Some(&ctx))
-///         .unwrap()
-///         .extract()
-///         .unwrap();
-///     assert_eq!(type_description, "<class 'mymodule.CustomError'>");
-///     pyo3::py_run!(py, *ctx, "assert CustomError('oops').args == ('oops',)");
-/// });
+/// #[pyfunction]
+/// fn raise_myerror() -> PyResult<()>{
+///     let err = MyError::new_err("Some error happened.");
+///     Err(err)
+/// }
+///
+/// #[pymodule]
+/// fn my_module(py: Python, m: &PyModule) -> PyResult<()> {
+///     m.add("MyError", py.get_type::<MyError>())?;
+///     m.add_function(wrap_pyfunction!(raise_myerror, py)?)?;
+///     Ok(())
+/// }
+/// # fn main() -> PyResult<()> {
+/// #     Python::with_gil(|py| -> PyResult<()> {
+/// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
+/// #         let globals = pyo3::types::PyDict::new(py);
+/// #         globals.set_item("MyError", py.get_type::<MyError>())?;
+/// #         globals.set_item("raise_myerror", fun)?;
+/// #
+/// #         py.run(
+/// # "try:
+/// #     raise_myerror()
+/// # except MyError as e:
+/// #     assert e.__doc__ == 'Some description.'
+/// #     assert str(e) == 'Some error happened.'",
+/// #             Some(globals),
+/// #             None,
+/// #         )?;
+/// #
+/// #         Ok(())
+/// #     })
+/// # }
 /// ```
+///
+/// Python code can handle this exception like any other exception:
+///
+/// ```python
+/// from my_module import MyError, raise_myerror
+///
+/// try:
+///     raise_myerror()
+/// except MyError as e:
+///     assert e.__doc__ == 'Some description.'
+///     assert str(e) == 'Some error happened.'
+/// ```
+///
 #[macro_export]
 macro_rules! create_exception {
     ($module: ident, $name: ident, $base: ty) => {
@@ -165,7 +199,22 @@ macro_rules! create_exception {
 
         $crate::impl_exception_boilerplate!($name);
 
-        $crate::create_exception_type_object!($module, $name, $base);
+        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
+    };
+    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+        #[repr(transparent)]
+        #[allow(non_camel_case_types)] // E.g. `socket.herror`
+        #[doc = $doc]
+        pub struct $name($crate::PyAny);
+
+        $crate::impl_exception_boilerplate!($name);
+
+        $crate::create_exception_type_object!(
+            $module,
+            $name,
+            $base,
+            ::std::option::Option::Some($doc)
+        );
     };
 }
 
@@ -174,7 +223,7 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
-    ($module: ident, $name: ident, $base: ty) => {
+    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
@@ -192,9 +241,10 @@ macro_rules! create_exception_type_object {
                     .get_or_init(py, || unsafe {
                         $crate::Py::from_owned_ptr(
                             py,
-                            $crate::PyErr::new_type(
+                            $crate::PyErr::new_type_with_doc(
                                 py,
                                 concat!(stringify!($module), ".", stringify!($name)),
+                                $doc,
                                 ::std::option::Option::Some(py.get_type::<$base>()),
                                 ::std::option::Option::None,
                             )
