@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `PyType::is_subclass`, `PyErr::is_instance` and `PyAny::is_instance` now operate run-time type object instead of a type known at compile-time. The old behavior is still available as `PyType::is_subclass_of`, `PyErr::is_instance_of` and `PyAny::is_instance_of`.  [#1985](https://github.com/PyO3/pyo3/pull/1985)
+- Rename some methods on `PyErr` (the old names are just marked deprecated for now): [#2026](https://github.com/PyO3/pyo3/pull/2026)
+  - `pytype` -> `get_type`
+  - `pvalue` -> `value` (and deprecate equivalent `instance`)
+  - `ptraceback` -> `traceback`
+  - `from_instance` -> `from_value`
+  - `into_instance` -> `into_value`
 
 ### Removed
 
@@ -34,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix undefined symbol for `PyObject_HasAttr` on PyPy. [#2025](https://github.com/PyO3/pyo3/pull/2025)
+- Fix memory leak in `PyErr::into_value`. [#2026](https://github.com/PyO3/pyo3/pull/2026)
 
 ## [0.15.1] - 2021-11-19
 

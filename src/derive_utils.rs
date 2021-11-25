@@ -273,9 +273,9 @@ impl FunctionDescription {
 
 /// Add the argument name to the error message of an error which occurred during argument extraction
 pub fn argument_extraction_error(py: Python, arg_name: &str, error: PyErr) -> PyErr {
-    if error.ptype(py) == py.get_type::<PyTypeError>() {
+    if error.is_instance_of::<PyTypeError>(py) {
         let reason = error
-            .instance(py)
+            .value(py)
             .str()
             .unwrap_or_else(|_| PyString::new(py, ""));
         PyTypeError::new_err(format!("argument '{}': {}", arg_name, reason))
