@@ -4,7 +4,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError},
     ffi,
     impl_::freelist::FreeList,
-    pycell::{self, PyCellLayout},
+    pycell::{PyCellLayout, Mutability},
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
     PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -769,6 +769,7 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type ThreadChecker: PyClassThreadChecker<Self>;
     type Initializer: PyObjectInit<Self>;
+    type Mutability: Mutability;
 }
 
 /// All PyClasses can be used as a base type.
@@ -779,6 +780,7 @@ impl<T: PyClass> PyClassBaseType for T {
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
+    type Mutability = T::Mutability;
 }
 
 /// Default new implementation

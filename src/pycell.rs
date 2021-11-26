@@ -175,12 +175,13 @@
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
-use crate::pyclass::{ImmutablePyClass, MutablePyClass, PyClass};
+use crate::pyclass::{MutablePyClass, PyClass};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
 use crate::{class::impl_::PyClassBaseType, class::impl_::PyClassThreadChecker};
+use crate::class::impl_::PyClassImpl;
 use crate::{
     conversion::{AsPyPointer, FromPyPointer, ToPyObject},
     ffi::PyBaseObject_Type,
@@ -976,7 +977,7 @@ impl From<PyBorrowMutError> for PyErr {
 
 #[doc(hidden)]
 pub trait PyCellLayout<T>: PyLayout<T> {
-    fn borrow_checker(&self) -> &Mutable;
+    fn borrow_checker(&self) ->  &T::Mutability where T: PyClass;
     /// Implementation of tp_dealloc.
     /// # Safety
     /// - slf must be a valid pointer to an instance of a T or a subclass.
@@ -984,12 +985,14 @@ pub trait PyCellLayout<T>: PyLayout<T> {
     unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python);
 }
 
-impl<T, U> PyCellLayout<T> for PyCellBase<U, Mutable>
+impl<T, U, M> PyCellLayout<T> for PyCellBase<U, M>
 where
     U: PySizedLayout<T>,
     T: PyTypeInfo,
+    M: Mutability
+   
 {
-    fn borrow_checker(&self) -> &Mutable {
+    fn borrow_checker(&self) -> &T::Mutability where T: PyClass{
         &self.borrow_impl
     }
 
@@ -1018,7 +1021,7 @@ impl<T: PyClass> PyCellLayout<T> for PyCell<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyCellLayout<T::BaseType>,
 {
-    fn borrow_checker(&self) -> &Mutable {
+    fn borrow_checker(&self) -> &T ::Mutability {
         self.contents.thread_checker.ensure();
         self.ob_base.borrow_checker()
     }

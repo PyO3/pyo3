@@ -271,7 +271,7 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
 impl<T> From<T> for PyClassInitializer<T>
 where
     T: PyClass,
-    T::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>,
+    T::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>, 
 {
     #[inline]
     fn from(value: T) -> PyClassInitializer<T> {
@@ -283,7 +283,7 @@ impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass<BaseType = B>,
     B: PyClass,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>, 
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;

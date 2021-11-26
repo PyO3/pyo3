@@ -5,6 +5,7 @@ use crate::{
     pyclass_slots::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
+use crate::pycell::Mutability;
 use std::{
     convert::TryInto,
     ffi::CString,
@@ -27,6 +28,8 @@ pub trait PyClass:
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
+
+    //type Mutability: Mutability;
 }
 
 pub unsafe trait MutablePyClass: PyClass {}
