@@ -198,7 +198,7 @@ macro_rules! pyobject_native_type_sized {
         impl<'a, $($generics,)*> $crate::class::impl_::PyClassBaseType for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<$layout>;
+            type LayoutAsBase = $crate::pycell::PyCellBase<$layout, $crate::pycell::Mutable>;
             type BaseNativeType = $name;
             type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;

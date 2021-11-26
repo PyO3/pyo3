@@ -39,7 +39,7 @@ impl<T> Copy for PyClassImplCollector<T> {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl: Sized + BorrowImpl {
+pub trait PyClassImpl: Sized {
     /// Class doc string
     const DOC: &'static str = "\0";
 
@@ -67,6 +67,8 @@ pub trait PyClassImpl: Sized + BorrowImpl {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
+    type Mutability: crate::pycell::Mutability;
+
     fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
     fn get_new() -> Option<ffi::newfunc> {
         None
@@ -80,27 +82,6 @@ pub trait PyClassImpl: Sized + BorrowImpl {
     fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
         None
-    }
-}
-
-pub unsafe trait BorrowImpl {
-    fn get_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>) -> pycell::BorrowFlag
-    where
-        Self: PyClass,
-    {
-        pycell::impl_::get_borrow_flag
-    }
-    fn increment_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>, pycell::BorrowFlag)
-    where
-        Self: PyClass,
-    {
-        pycell::impl_::increment_borrow_flag
-    }
-    fn decrement_borrow_flag() -> for<'r> fn(&'r pycell::PyCell<Self>, pycell::BorrowFlag)
-    where
-        Self: PyClass,
-    {
-        pycell::impl_::decrement_borrow_flag
     }
 }
 

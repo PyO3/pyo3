@@ -760,6 +760,17 @@ impl<'a> PyClassImplsBuilder<'a> {
                 }
             },
         };
+
+        let mutability = if self.attr.is_immutable {
+            quote! {
+                ::pyo3::pycell::Immutable
+           }
+        } else {
+            quote! {
+                ::pyo3::pycell::Mutable
+            }
+        };
+
         quote! {
             impl ::pyo3::class::impl_::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
@@ -770,6 +781,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Layout = ::pyo3::PyCell<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
+                type Mutability= #mutability;
 
                 fn for_each_method_def(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::class::PyMethodDefType])) {
                     use ::pyo3::class::impl_::*;
@@ -828,30 +840,10 @@ impl<'a> PyClassImplsBuilder<'a> {
         if self.attr.is_immutable {
             quote! {
                 unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
-
-                unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {
-                    fn get_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>) -> ::pyo3::pycell::BorrowFlag
-                    where Self: ::pyo3::PyClass
-                    {
-                        ::pyo3::pycell::impl_::get_borrow_flag_dummy
-                    }
-                    fn increment_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>, ::pyo3::pycell::BorrowFlag)
-                    where Self: ::pyo3::PyClass
-                    {
-                        ::pyo3::pycell::impl_::increment_borrow_flag_dummy
-                    }
-                    fn decrement_borrow_flag() -> for<'r> fn(&'r ::pyo3::pycell::PyCell<Self>, ::pyo3::pycell::BorrowFlag)
-                    where Self: ::pyo3::PyClass
-                    {
-                        ::pyo3::pycell::impl_::decrement_borrow_flag_dummy
-                    }
-                }
-            }
+           }
         } else {
             quote! {
                 unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}
-
-                unsafe impl ::pyo3::class::impl_::BorrowImpl for #cls {}
             }
         }
     }
