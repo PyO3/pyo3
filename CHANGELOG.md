@@ -31,10 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ptraceback` -> `traceback`
   - `from_instance` -> `from_value`
   - `into_instance` -> `into_value`
+- Deprecate `PyType::is_instance`; it is inconsistent with other `is_instance` methods in PyO3. Instead of `typ.is_instance(obj)`, use `obj.is_instance(typ)`. [#2031](https://github.com/PyO3/pyo3/pull/2031)
 
 ### Removed
 
-- Remove `PyType::is_instance`, which is unintuitive; instead of `typ.is_instance(obj)`, use `obj.is_instance(typ)`. [#1985](https://github.com/PyO3/pyo3/pull/1985)
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
 
 ### Fixed
