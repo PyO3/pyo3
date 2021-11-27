@@ -127,14 +127,17 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// ```
 pub struct PyClassInitializer<T: PyClass> {
     init: T,
-    super_init: <T::BaseType as PyClassBaseType>::Initializer,
+    super_init: <T::BaseType as PyClassBaseType<T::Mutability>>::Initializer,
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
     /// Constructs a new initializer from value `T` and base class' initializer.
     ///
     /// It is recommended to use `add_subclass` instead of this method for most usage.
-    pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
+    pub fn new(
+        init: T,
+        super_init: <T::BaseType as PyClassBaseType<T::Mutability>>::Initializer,
+    ) -> Self {
         Self { init, super_init }
     }
 
@@ -187,7 +190,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass<BaseType = T>,
-        S::BaseType: PyClassBaseType<Initializer = Self>,
+        S::BaseType: PyClassBaseType<T::Mutability, Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
@@ -228,16 +231,16 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         /// Layout of a PyCellBase after base new has been called, but the borrow flag has not
         /// yet been initialized.
         #[repr(C)]
-        struct PartiallyInitializedPyCellBase<T> {
+        struct PartiallyInitializedPyCellBase<T: PyClass> {
             _ob_base: T,
-            borrow_flag: MaybeUninit<Cell<BorrowFlag>>,
+            borrow_flag: MaybeUninit<T::Mutability>,
         }
 
         /// Layout of a PyCell after base new has been called, but the contents have not yet been
         /// written.
         #[repr(C)]
         struct PartiallyInitializedPyCell<T: PyClass> {
-            _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+            _ob_base: <T::BaseType as PyClassBaseType<T::Mutability>>::LayoutAsBase,
             contents: MaybeUninit<PyCellContents<T>>,
         }
 
@@ -271,7 +274,7 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
 impl<T> From<T> for PyClassInitializer<T>
 where
     T: PyClass,
-    T::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>, 
+    T::BaseType: PyClassBaseType<T::Mutability, Initializer = PyNativeTypeInitializer<T::BaseType>>,
 {
     #[inline]
     fn from(value: T) -> PyClassInitializer<T> {
@@ -283,7 +286,7 @@ impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass<BaseType = B>,
     B: PyClass,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>, 
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;

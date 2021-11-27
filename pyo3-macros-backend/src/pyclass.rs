@@ -637,6 +637,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
+                type Mutability = ::pyo3::pycell::Immutable;
             }
         }
     }
@@ -763,8 +764,8 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let mutability = if self.attr.is_immutable {
             quote! {
-                ::pyo3::pycell::Immutable
-           }
+                 ::pyo3::pycell::Immutable
+            }
         } else {
             quote! {
                 ::pyo3::pycell::Mutable
@@ -781,7 +782,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Layout = ::pyo3::PyCell<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
-                type Mutability= #mutability;
 
                 fn for_each_method_def(visitor: &mut dyn ::std::ops::FnMut(&[::pyo3::class::PyMethodDefType])) {
                     use ::pyo3::class::impl_::*;
@@ -839,8 +839,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
         if self.attr.is_immutable {
             quote! {
-                unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
-           }
+                 unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
+            }
         } else {
             quote! {
                 unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}

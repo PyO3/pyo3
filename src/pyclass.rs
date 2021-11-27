@@ -1,11 +1,11 @@
 //! `PyClass` and related traits.
+use crate::pycell::Mutability;
 use crate::{
     class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
     ffi,
     pyclass_slots::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
-use crate::pycell::Mutability;
 use std::{
     convert::TryInto,
     ffi::CString,
@@ -19,7 +19,7 @@ use std::{
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you normally don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
+    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Self::Mutability, Layout = PyCell<Self>>
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -29,7 +29,7 @@ pub trait PyClass:
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
 
-    //type Mutability: Mutability;
+    type Mutability: Mutability;
 }
 
 pub unsafe trait MutablePyClass: PyClass {}

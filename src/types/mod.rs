@@ -195,14 +195,13 @@ macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<'a, $($generics,)*> $crate::class::impl_::PyClassBaseType for $name {
+        impl<'a, $($generics,)*> $crate::class::impl_::PyClassBaseType<$crate::pycell::Mutable> for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
             type LayoutAsBase = $crate::pycell::PyCellBase<$layout, $crate::pycell::Mutable>;
             type BaseNativeType = $name;
             type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
-            type Mutability = $crate::pycell::Mutable;
         }
     }
 }
