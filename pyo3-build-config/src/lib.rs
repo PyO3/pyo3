@@ -1,8 +1,7 @@
 //! Configuration used by PyO3 for conditional support of varying Python versions.
 //!
-//! This crate exposes two functions, [`use_pyo3_cfgs`] and [`add_extension_module_link_args`],
-//! which are intended to be called from build scripts to simplify building crates which depend on
-//! PyO3.
+//! This crate exposes functionality to be called from build scripts to simplify building crates
+//! which depend on PyO3.
 //!
 //! It used internally by the PyO3 crate's build script to apply the same configuration.
 

@@ -270,8 +270,8 @@ print("mingw", get_platform().startswith("mingw"))
 
     /// Generate from parsed sysconfigdata file
     ///
-    /// Use [`parse_sysconfigdata`](parse_sysconfigdata) to generate a hash map of
-    /// configuration values which may be used to build an `InterpreterConfig`.
+    /// Use [`parse_sysconfigdata`] to generate a hash map of configuration values which may be
+    /// used to build an [`InterpreterConfig`].
     pub fn from_sysconfigdata(sysconfigdata: &Sysconfigdata) -> Result<Self> {
         macro_rules! get_key {
             ($sysconfigdata:expr, $key:literal) => {
@@ -542,7 +542,7 @@ fn is_abi3() -> bool {
 ///
 /// Usually this is collected from the environment (i.e. `PYO3_CROSS_*` and `CARGO_CFG_TARGET_*`)
 /// when a cross-compilation configuration is detected.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CrossCompileConfig {
     /// The directory containing the Python library to link against.
     pub lib_dir: PathBuf,
@@ -598,6 +598,19 @@ fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
 }
 
 /// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
+///
+/// This function relies on PyO3 cross-compiling environment variables:
+///
+///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
+///   * `PYO3_CROSS_LIB_DIR`: Must be set to the directory containing the target's libpython DSO and
+///   the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import
+///   libraries for the Windows target.
+///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
+///   installation. This variable is only needed if PyO3 cannnot determine the version to target
+///   from `abi3-py3*` features, or if there are multiple versions of Python present in
+///   `PYO3_CROSS_LIB_DIR`.
+///
+/// See the [PyO3 User Guide](https://pyo3.rs/) for more info on cross-compiling.
 pub fn cross_compiling(
     host: &str,
     target_arch: &str,
@@ -637,9 +650,9 @@ pub fn cross_compiling(
         lib_dir: cross_lib_dir
             .ok_or("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")?
             .into(),
-        arch: target_arch.to_string(),
-        vendor: target_vendor.to_string(),
-        os: target_os.to_string(),
+        arch: target_arch.into(),
+        vendor: target_vendor.into(),
+        os: target_os.into(),
         version: cross_python_version
             .map(|os_string| {
                 let utf8_str = os_string
@@ -1331,7 +1344,6 @@ mod tests {
     #[test]
     fn build_flags_from_sysconfigdata() {
         let mut sysconfigdata = Sysconfigdata::new();
-        // let mut config_map = HashMap::new();
 
         assert_eq!(
             BuildFlags::from_sysconfigdata(&sysconfigdata).0,
@@ -1416,7 +1428,22 @@ mod tests {
         sysconfigdata.insert("LIBDIR", "/usr/lib");
         sysconfigdata.insert("LDVERSION", "3.7m");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
-        assert!(InterpreterConfig::from_sysconfigdata(&sysconfigdata).is_ok());
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/usr/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: true,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
     }
 
     #[test]
@@ -1602,14 +1629,8 @@ mod tests {
             // Couldn't find a matching sysconfigdata; never mind!
             Err(_) => return,
         };
-        let sysconfigdata = match super::parse_sysconfigdata(sysconfigdata_path) {
-            Ok(sysconfigdata) => sysconfigdata,
-            Err(_) => return,
-        };
-        let parsed_config = match InterpreterConfig::from_sysconfigdata(&sysconfigdata) {
-            Ok(parsed_config) => parsed_config,
-            Err(_) => return,
-        };
+        let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
+        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
 
         assert_eq!(
             parsed_config,
@@ -1656,35 +1677,6 @@ mod tests {
     }
 
     #[test]
-    fn test_not_cross_compiling_from_cargo_env() {
-        // make sure the HOST and TARGET env vars match, but set them back (or unset them)
-        match (cargo_env_var("HOST"), cargo_env_var("TARGET")) {
-            (Some(host), Some(target)) => {
-                env::set_var("HOST", target);
-                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
-                env::set_var("HOST", host);
-            }
-            (None, Some(target)) => {
-                env::set_var("HOST", target);
-                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
-                env::remove_var("HOST");
-            }
-            (Some(host), None) => {
-                env::set_var("TARGET", host);
-                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
-                env::remove_var("TARGET");
-            }
-            (None, None) => {
-                env::set_var("HOST", "x86_64-unknown-linux-gnu");
-                env::set_var("TARGET", "x86_64-unknown-linux-gnu");
-                assert!(cross_compiling_from_cargo_env().unwrap().is_none());
-                env::remove_var("HOST");
-                env::remove_var("TARGET");
-            }
-        }
-    }
-
-    #[test]
     fn test_not_cross_compiling() {
         assert!(
             cross_compiling("aarch64-apple-darwin", "x86_64", "apple", "darwin")
@@ -1702,6 +1694,4 @@ mod tests {
                 .is_none()
         );
     }
-
-    // TODO test cross compiling
 }
