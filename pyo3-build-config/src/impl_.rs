@@ -918,10 +918,11 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
 /// So we must find the file in the following possible locations:
 ///
 /// ```sh
-/// # distribution from package manager, lib_dir should include lib/
+/// # distribution from package manager, (lib_dir may or may not include lib/)
 /// ${INSTALL_PREFIX}/lib/python3.Y/_sysconfigdata*.py
 /// ${INSTALL_PREFIX}/lib/libpython3.Y.so
 /// ${INSTALL_PREFIX}/lib/python3.Y/config-3.Y-${HOST_TRIPLE}/libpython3.Y.so
+/// ${INSTALL_PREFIX}/lib/pypy3.Y/_sysconfigdata.py
 ///
 /// # Built from source from host
 /// ${CROSS_COMPILED_LOCATION}/build/lib.linux-x86_64-Y/_sysconfigdata*.py
@@ -955,12 +956,12 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
 
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
 fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
-    let mut sysconfig_paths = vec![];
-    let version_pat = if let Some(v) = &cross.version {
-        format!("python{}", v)
+    let (pypy_version_pat, cpython_version_pat) = if let Some(v) = &cross.version {
+        (format!("pypy{}", v), format!("python{}", v))
     } else {
-        "python3.".into()
+        ("pypy3.".into(), "python3.".into())
     };
+    let mut sysconfig_paths = vec![];
     for f in fs::read_dir(path).expect("Path does not exist").into_iter() {
         sysconfig_paths.extend(match &f {
             // Python 3.7+ sysconfigdata with platform specifics
@@ -968,7 +969,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
             Ok(f) if f.metadata().map_or(false, |metadata| metadata.is_dir()) => {
                 let file_name = f.file_name();
                 let file_name = file_name.to_string_lossy();
-                if file_name.starts_with("build") {
+                if file_name == "build" || file_name == "lib" {
                     search_lib_dir(f.path(), cross)
                 } else if file_name.starts_with("lib.") {
                     // check if right target os
@@ -984,7 +985,9 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                         continue;
                     }
                     search_lib_dir(f.path(), cross)
-                } else if file_name.starts_with(&version_pat) {
+                } else if file_name.starts_with(&cpython_version_pat)
+                    || file_name.starts_with(&pypy_version_pat)
+                {
                     search_lib_dir(f.path(), cross)
                 } else {
                     continue;
