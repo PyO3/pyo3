@@ -280,7 +280,7 @@ class House(object):
             Err(e) => {
                 house.call_method1(
                     "__exit__",
-                    (e.ptype(py), e.pvalue(py), e.ptraceback(py))
+                    (e.get_type(py), e.value(py), e.traceback(py))
                 ).unwrap();
             }
         }

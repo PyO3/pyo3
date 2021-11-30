@@ -61,9 +61,9 @@ impl<'a> Enum<'a> {
 
                 match maybe_ret {
                     ok @ ::std::result::Result::Ok(_) => return ok,
-                    ::std::result::Result::Err(inner) => {
+                    ::std::result::Result::Err(err) => {
                         let py = ::pyo3::PyNativeType::py(obj);
-                        err_reasons.push_str(&::std::format!("{}\n", inner.instance(py).str()?));
+                        err_reasons.push_str(&::std::format!("{}\n", err.value(py).str()?));
                     }
                 }
             );
@@ -221,11 +221,11 @@ impl<'a> Container<'a> {
                 format!("failed to extract inner field of {}", quote!(#self_ty))
             };
             quote!(
-                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|inner| {
+                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|err| {
                     let py = ::pyo3::PyNativeType::py(obj);
                     let err_msg = ::std::format!("{}: {}",
                         #error_msg,
-                        inner.instance(py).str().unwrap());
+                        err.value(py).str().unwrap());
                     ::pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?))
             )

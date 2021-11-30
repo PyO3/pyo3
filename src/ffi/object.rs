@@ -280,6 +280,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
         -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_HasAttr")]
     pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SelfIter")]
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;

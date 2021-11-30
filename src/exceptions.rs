@@ -21,7 +21,7 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
-                $crate::PyErr::from_instance(err)
+                $crate::PyErr::from_value(err)
             }
         }
 
@@ -613,7 +613,7 @@ macro_rules! test_exception {
 
                 assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.instance(py).downcast().unwrap();
+                let value: &$exc_ty = err.value(py).downcast().unwrap();
                 assert!(value.source().is_none());
 
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
@@ -755,7 +755,7 @@ mod tests {
             let exc = py
                 .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
             assert_eq!(
                 format!("{:?}", exc),
@@ -770,7 +770,7 @@ mod tests {
             let exc = py
                 .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
             assert_eq!(
                 exc.to_string(),
@@ -791,7 +791,7 @@ mod tests {
                     None,
                 )
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
 
             assert_eq!(format!("{:?}", exc), "Exception('banana')");
@@ -861,7 +861,7 @@ mod tests {
     test_exception!(PyUnicodeDecodeError, |py| {
         let invalid_utf8 = b"fo\xd8o";
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_instance(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
+        PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
     test_exception!(PyUnicodeEncodeError, |py: Python<'_>| {
         py.eval("chr(40960).encode('ascii')", None, None)

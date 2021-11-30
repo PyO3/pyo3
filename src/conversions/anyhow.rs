@@ -144,7 +144,7 @@ mod test_anyhow {
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict(py);
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.pvalue(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 
@@ -161,7 +161,7 @@ mod test_anyhow {
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict(py);
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.pvalue(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 }
