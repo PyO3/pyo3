@@ -54,6 +54,7 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features =
 
 [features]
 default = ["macros"]
+skip-build-config = []
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "paste", "unindent"]

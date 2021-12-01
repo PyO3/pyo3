@@ -172,8 +172,10 @@ fn print_config_and_exit(config: &InterpreterConfig) {
 }
 
 fn main() {
-    if let Err(e) = configure_pyo3() {
-        eprintln!("error: {}", e.report());
-        std::process::exit(1)
+    if cfg!(not(feature="skip-build-config")) {
+        if let Err(e) = configure_pyo3() {
+            eprintln!("error: {}", e.report());
+            std::process::exit(1)
+        }
     }
 }
