@@ -922,7 +922,6 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
 /// ${INSTALL_PREFIX}/lib/python3.Y/_sysconfigdata*.py
 /// ${INSTALL_PREFIX}/lib/libpython3.Y.so
 /// ${INSTALL_PREFIX}/lib/python3.Y/config-3.Y-${HOST_TRIPLE}/libpython3.Y.so
-/// ${INSTALL_PREFIX}/lib/pypy3.Y/_sysconfigdata.py
 ///
 /// # Built from source from host
 /// ${CROSS_COMPILED_LOCATION}/build/lib.linux-x86_64-Y/_sysconfigdata*.py
@@ -931,6 +930,10 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
 /// # if cross compiled, kernel release is only present on certain OS targets.
 /// ${CROSS_COMPILED_LOCATION}/build/lib.{OS}(-{OS-KERNEL-RELEASE})?-{ARCH}-Y/_sysconfigdata*.py
 /// ${CROSS_COMPILED_LOCATION}/libpython3.Y.so
+///
+/// # PyPy includes a similar file since v73
+/// ${INSTALL_PREFIX}/lib/pypy3.Y/_sysconfigdata.py
+/// ${INSTALL_PREFIX}/lib_pypy/_sysconfigdata.py
 /// ```
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
@@ -954,13 +957,26 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
     sysconfig_paths
 }
 
+fn is_pypy_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
+    let pypy_version_pat = if let Some(v) = v {
+        format!("pypy{}", v)
+    } else {
+        "pypy3.".into()
+    };
+    path == "lib_pypy" || path.starts_with(&pypy_version_pat)
+}
+
+fn is_cpython_lib_dir(path: &str, v: &Option<PythonVersion>) -> bool {
+    let cpython_version_pat = if let Some(v) = v {
+        format!("python{}", v)
+    } else {
+        "python3.".into()
+    };
+    path.starts_with(&cpython_version_pat)
+}
+
 /// recursive search for _sysconfigdata, returns all possibilities of sysconfigdata paths
 fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<PathBuf> {
-    let (pypy_version_pat, cpython_version_pat) = if let Some(v) = &cross.version {
-        (format!("pypy{}", v), format!("python{}", v))
-    } else {
-        ("pypy3.".into(), "python3.".into())
-    };
     let mut sysconfig_paths = vec![];
     for f in fs::read_dir(path).expect("Path does not exist") {
         sysconfig_paths.extend(match &f {
@@ -985,8 +1001,8 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                         continue;
                     }
                     search_lib_dir(f.path(), cross)
-                } else if file_name.starts_with(&cpython_version_pat)
-                    || file_name.starts_with(&pypy_version_pat)
+                } else if is_cpython_lib_dir(&file_name, &cross.version)
+                    || is_pypy_lib_dir(&file_name, &cross.version)
                 {
                     search_lib_dir(f.path(), cross)
                 } else {
