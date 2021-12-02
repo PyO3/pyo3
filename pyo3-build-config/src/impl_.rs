@@ -32,9 +32,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// Gets an external environment variable, and registers the build script to rerun if
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
-    if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={}", var);
-    }
+    println!("cargo:rerun-if-env-changed={}", var);
     env::var_os(var)
 }
 
