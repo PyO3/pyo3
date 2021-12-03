@@ -1,4 +1,5 @@
 #![allow(deprecated)] // for deprecated protocol methods
+#![cfg(feature = "macros")]
 
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;

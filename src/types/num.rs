@@ -278,6 +278,7 @@ fn err_if_invalid_value<T: PartialEq>(
 #[cfg(test)]
 mod test_128bit_intergers {
     use super::*;
+    use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
@@ -288,7 +289,9 @@ mod test_128bit_intergers {
         fn test_i128_roundtrip(x: i128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
                 let roundtripped: i128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -301,7 +304,9 @@ mod test_128bit_intergers {
         fn test_u128_roundtrip(x: u128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
                 let roundtripped: u128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })

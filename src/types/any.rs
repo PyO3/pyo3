@@ -697,13 +697,6 @@ mod tests {
         Python, ToPyObject,
     };
 
-    macro_rules! test_module {
-        ($py:ident, $code:literal) => {
-            PyModule::from_code($py, indoc::indoc!($code), file!(), "test_module")
-                .expect("module creation failed")
-        };
-    }
-
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
@@ -728,14 +721,17 @@ mod tests {
     #[test]
     fn test_call_method0() {
         Python::with_gil(|py| {
-            let module = test_module!(
+            let module = PyModule::from_code(
                 py,
                 r#"
-                class SimpleClass:
-                    def foo(self):
-                        return 42
-            "#
-            );
+class SimpleClass:
+    def foo(self):
+        return 42
+"#,
+                file!(),
+                "test_module",
+            )
+            .expect("module creation failed");
 
             let simple_class = module.getattr("SimpleClass").unwrap().call0().unwrap();
             assert_eq!(

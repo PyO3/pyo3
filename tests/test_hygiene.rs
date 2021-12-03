@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 mod hygiene {
     mod misc;
     mod pyclass;
