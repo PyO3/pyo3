@@ -292,6 +292,7 @@ fn impl_arg_param(
 
         Ok(quote_arg_span! {
             let #mut_ _tmp: #target_ty = #arg_value_or_default;
+            #[allow(clippy::needless_option_as_deref)]
             let #arg_name = #borrow_tmp;
         })
     } else {

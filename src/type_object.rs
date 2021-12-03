@@ -16,6 +16,10 @@ use std::thread::{self, ThreadId};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent valid layouts of Python objects.
 pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
@@ -31,6 +35,11 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///  - the return value of type_object must always point to the same PyTypeObject instance
 ///
 /// It is safely implemented by the `pyclass` macro.
+///
+/// # Safety
+///
+/// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
+/// non-null pointer to the corresponding Python type object.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
@@ -56,6 +65,8 @@ pub unsafe trait PyTypeInfo: Sized {
 }
 
 /// Python object types that have a corresponding type object.
+///
+/// # Safety
 ///
 /// This trait is marked unsafe because not fulfilling the contract for type_object
 /// leads to UB.
