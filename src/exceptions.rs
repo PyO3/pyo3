@@ -131,7 +131,7 @@ macro_rules! import_exception {
 ///
 /// * `module` is the name of the containing module.
 /// * `name` is the name of the new exception type.
-/// * `base` is the superclass of `MyError`, usually [`PyException`].
+/// * `base` is the base class of `MyError`, usually [`PyException`].
 /// * `doc` (optional) is the docstring visible to users (with `.__doc__` and `help()`) and
 /// accompanies your error type in your crate's documentation.
 ///
@@ -159,9 +159,9 @@ macro_rules! import_exception {
 /// # fn main() -> PyResult<()> {
 /// #     Python::with_gil(|py| -> PyResult<()> {
 /// #         let fun = wrap_pyfunction!(raise_myerror, py)?;
-/// #         let globals = pyo3::types::PyDict::new(py);
-/// #         globals.set_item("MyError", py.get_type::<MyError>())?;
-/// #         globals.set_item("raise_myerror", fun)?;
+/// #         let locals = pyo3::types::PyDict::new(py);
+/// #         locals.set_item("MyError", py.get_type::<MyError>())?;
+/// #         locals.set_item("raise_myerror", fun)?;
 /// #
 /// #         py.run(
 /// # "try:
@@ -169,8 +169,8 @@ macro_rules! import_exception {
 /// # except MyError as e:
 /// #     assert e.__doc__ == 'Some description.'
 /// #     assert str(e) == 'Some error happened.'",
-/// #             Some(globals),
 /// #             None,
+/// #             Some(locals),
 /// #         )?;
 /// #
 /// #         Ok(())
@@ -238,20 +238,15 @@ macro_rules! create_exception_type_object {
                     GILOnceCell::new();
 
                 TYPE_OBJECT
-                    .get_or_init(py, || unsafe {
-                        $crate::Py::from_owned_ptr(
+                    .get_or_init(py, ||
+                        $crate::PyErr::new_type(
                             py,
-                            $crate::PyErr::new_type_with_doc(
-                                py,
-                                concat!(stringify!($module), ".", stringify!($name)),
-                                $doc,
-                                ::std::option::Option::Some(py.get_type::<$base>()),
-                                ::std::option::Option::None,
-                            )
-                            .as_ptr() as *mut $crate::ffi::PyObject,
-                        )
-                    })
-                    .as_ptr() as *mut _
+                            concat!(stringify!($module), ".", stringify!($name)),
+                            $doc,
+                            ::std::option::Option::Some(py.get_type::<$base>()),
+                            ::std::option::Option::None,
+                        ).expect("Failed to initialize new exception type.")
+                ).as_ptr() as *mut $crate::ffi::PyTypeObject
             }
         }
     };
@@ -792,6 +787,65 @@ mod tests {
             assert_eq!(type_description, "<class 'mymodule.CustomError'>");
             py.run(
                 "assert CustomError('oops').args == ('oops',)",
+                None,
+                Some(ctx),
+            )
+            .unwrap();
+            py.run("assert CustomError.__doc__ is None", None, Some(ctx))
+                .unwrap();
+        });
+    }
+
+    #[test]
+    fn custom_exception_doc() {
+        create_exception!(mymodule, CustomError, PyException, "Some docs");
+
+        Python::with_gil(|py| {
+            let error_type = py.get_type::<CustomError>();
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let type_description: String = py
+                .eval("str(CustomError)", None, Some(ctx))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            py.run(
+                "assert CustomError('oops').args == ('oops',)",
+                None,
+                Some(ctx),
+            )
+            .unwrap();
+            py.run("assert CustomError.__doc__ == 'Some docs'", None, Some(ctx))
+                .unwrap();
+        });
+    }
+
+    #[test]
+    fn custom_exception_doc_expr() {
+        create_exception!(
+            mymodule,
+            CustomError,
+            PyException,
+            concat!("Some", " more ", stringify!(docs))
+        );
+
+        Python::with_gil(|py| {
+            let error_type = py.get_type::<CustomError>();
+            let ctx = [("CustomError", error_type)].into_py_dict(py);
+            let type_description: String = py
+                .eval("str(CustomError)", None, Some(ctx))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_eq!(type_description, "<class 'mymodule.CustomError'>");
+            py.run(
+                "assert CustomError('oops').args == ('oops',)",
+                None,
+                Some(ctx),
+            )
+            .unwrap();
+            py.run(
+                "assert CustomError.__doc__ == 'Some more docs'",
                 None,
                 Some(ctx),
             )

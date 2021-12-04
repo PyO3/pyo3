@@ -12,7 +12,6 @@ use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
 use std::os::raw::c_int;
-use std::ptr::NonNull;
 
 mod err_state;
 mod impls;
@@ -305,65 +304,27 @@ impl PyErr {
         }
     }
 
-    /// Creates a new exception type with the given name.
-    ///
-    /// - `base` can be an existing exception type to subclass, or a tuple of classes.
-    /// - `dict` specifies an optional dictionary of class variables and methods.
-    ///
-    /// For a version of this function that also takes a docstring, see [`PyErr::new_type_with_doc`].
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if:
-    /// - `name` is not of the form `<module>.<ExceptionName>`.
-    /// - `name` cannot be converted to [`CString`]s.
-    pub fn new_type<'p>(
-        py: Python<'p>,
-        name: &str,
-        base: Option<&PyType>,
-        dict: Option<PyObject>,
-    ) -> NonNull<ffi::PyTypeObject> {
-        let base: *mut ffi::PyObject = match base {
-            None => std::ptr::null_mut(),
-            Some(obj) => obj.as_ptr(),
-        };
-
-        let dict: *mut ffi::PyObject = match dict {
-            None => std::ptr::null_mut(),
-            Some(obj) => obj.as_ptr(),
-        };
-
-        let null_terminated_name =
-            CString::new(name).expect("Failed to initialize nul terminated exception name");
-
-        let ptr = unsafe {
-            ffi::PyErr_NewException(null_terminated_name.as_ptr(), base, dict)
-                as *mut ffi::PyTypeObject
-        };
-        match NonNull::new(ptr) {
-            Some(not_null) => not_null,
-            None => panic!("{}", PyErr::fetch(py)),
-        }
-    }
-
     /// Creates a new exception type with the given name and docstring.
     ///
     /// - `base` can be an existing exception type to subclass, or a tuple of classes.
     /// - `dict` specifies an optional dictionary of class variables and methods.
     /// - `doc` will be the docstring seen by python users.
     ///
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if `name` is not of the form `<module>.<ExceptionName>`.
+    ///
     /// # Panics
     ///
-    /// This function will panic if:
-    /// - `name` is not of the form `<module>.<ExceptionName>`.
-    /// - `name` or `doc` cannot be converted to [`CString`]s.
-    pub fn new_type_with_doc<'p>(
-        py: Python<'p>,
+    /// This function will panic if  `name` or `doc` cannot be converted to [`CString`]s.
+    pub fn new_type(
+        py: Python,
         name: &str,
         doc: Option<&str>,
         base: Option<&PyType>,
         dict: Option<PyObject>,
-    ) -> NonNull<ffi::PyTypeObject> {
+    ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
@@ -391,13 +352,10 @@ impl PyErr {
                 null_terminated_doc_ptr,
                 base,
                 dict,
-            ) as *mut ffi::PyTypeObject
+            )
         };
 
-        match NonNull::new(ptr) {
-            Some(not_null) => not_null,
-            None => panic!("{}", PyErr::fetch(py)),
-        }
+        unsafe { Py::from_owned_ptr_or_err(py, ptr) }
     }
 
     /// Prints a standard traceback to `sys.stderr`.
