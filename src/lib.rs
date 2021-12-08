@@ -360,6 +360,11 @@ pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyO
 #[macro_use]
 mod macros;
 
+/// Test macro hygiene - this is in the crate since we won't have
+/// `pyo3` available in the crate root.
+#[cfg(test)]
+mod test_hygiene;
+
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
