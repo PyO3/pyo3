@@ -232,6 +232,15 @@ jobs:
           done
         env:
           TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
+          
+      - name: Test pytest modules
+        shell: bash
+        run: |
+          for dir in pytest/*/; do
+              tox -c $dir -e py
+          done
+        env:
+          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
