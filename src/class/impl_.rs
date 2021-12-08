@@ -183,6 +183,7 @@ macro_rules! define_pyclass_setattr_slot {
                 }
             }};
         }
+        pub use $generate_macro;
     };
 }
 
@@ -292,6 +293,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                 }
             }};
         }
+        pub use $generate_macro;
     };
 }
 
@@ -484,6 +486,7 @@ macro_rules! generate_pyclass_pow_slot {
         }
     }};
 }
+pub use generate_pyclass_pow_slot;
 
 pub trait PyClassAllocImpl<T> {
     fn alloc_impl(self) -> Option<ffi::allocfunc>;
