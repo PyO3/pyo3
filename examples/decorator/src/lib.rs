@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-
 /// A function decorator that keeps track how often it is called.
 ///
 /// It otherwise doesn't do anything special.
@@ -27,7 +26,7 @@ impl PyCounter {
         PyCounter { count: 0, wraps }
     }
 
-    #[args(args="*", kwargs="**")]
+    #[args(args = "*", kwargs = "**")]
     fn __call__(
         &mut self,
         py: Python,
