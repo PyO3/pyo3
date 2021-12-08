@@ -186,6 +186,7 @@ impl GILGuard {
                 // all depend on the auto-initialize feature for conciseness but Cargo does not
                 // provide a mechanism to specify required features for tests.
                 if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
+                    #[cfg(not(PyPy))]
                     prepare_freethreaded_python();
                 }
 
