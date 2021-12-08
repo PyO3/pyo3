@@ -1,5 +1,6 @@
 from decorator import Counter
 
+
 def test_no_args():
     @Counter
     def say_hello():
@@ -11,6 +12,7 @@ def test_no_args():
     say_hello()
 
     assert say_hello.count == 4
+
 
 def test_arg():
     @Counter
@@ -24,9 +26,10 @@ def test_arg():
 
     assert say_hello.count == 4
 
+
 def test_default_arg():
     @Counter
-    def say_hello(name = "default"):
+    def say_hello(name="default"):
         print(f"hello {name}")
 
     say_hello("a")
