@@ -266,7 +266,7 @@ fn add_shared_proto_slots(
             let first_implemented = implemented_proto_fragments.remove($first);
             let second_implemented = implemented_proto_fragments.remove($second);
             if first_implemented || second_implemented {
-                proto_impls.push(quote! { _pyo3::$slot!(#ty) })
+                proto_impls.push(quote! { _pyo3::class::impl_::$slot!(#ty) })
             }
         }};
     }
