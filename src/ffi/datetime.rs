@@ -630,7 +630,7 @@ impl Deref for _PyDateTime_TimeZone_UTC_impl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{py_run, AsPyPointer, IntoPy, Py, PyAny, Python};
+    use crate::{types::PyDict, AsPyPointer, IntoPy, Py, PyAny, Python};
 
     #[test]
     fn test_datetime_fromtimestamp() {
@@ -638,11 +638,14 @@ mod tests {
             let args: Py<PyAny> = (100,).into_py(py);
             unsafe { PyDateTime_IMPORT() };
             let dt: &PyAny = unsafe { py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr())) };
-            py_run!(
-                py,
-                dt,
-                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("dt", dt).unwrap();
+            py.run(
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 
@@ -652,11 +655,14 @@ mod tests {
             let args: Py<PyAny> = (100,).into_py(py);
             unsafe { PyDateTime_IMPORT() };
             let dt: &PyAny = unsafe { py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr())) };
-            py_run!(
-                py,
-                dt,
-                "import datetime; assert dt == datetime.date.fromtimestamp(100)"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("dt", dt).unwrap();
+            py.run(
+                "import datetime; assert dt == datetime.date.fromtimestamp(100)",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 
@@ -665,11 +671,14 @@ mod tests {
     fn test_utc_timezone() {
         Python::with_gil(|py| {
             let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);
-            py_run!(
-                py,
-                utc_timezone,
-                "import datetime; assert utc_timezone is datetime.timezone.utc"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("utc_timezone", utc_timezone).unwrap();
+            py.run(
+                "import datetime; assert utc_timezone is datetime.timezone.utc",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 }

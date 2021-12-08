@@ -1,3 +1,4 @@
+#![cfg(feature = "macros")]
 #![cfg(not(Py_LIMITED_API))]
 
 use pyo3::{

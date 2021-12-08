@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 #[rustversion::stable]
 #[test]
 fn test_compile_errors() {

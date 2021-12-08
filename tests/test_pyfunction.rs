@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;

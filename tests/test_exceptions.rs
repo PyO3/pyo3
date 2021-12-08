@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::{exceptions, py_run, PyErr, PyResult};
 use std::error::Error;

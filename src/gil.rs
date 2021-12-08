@@ -181,6 +181,14 @@ impl GILGuard {
             if #[cfg(all(feature = "auto-initialize", not(PyPy)))] {
                 prepare_freethreaded_python();
             } else {
+                // This is a "hack" to make running `cargo test` for PyO3 convenient (i.e. no need
+                // to specify `--features auto-initialize` manually. Tests within the crate itself
+                // all depend on the auto-initialize feature for conciseness but Cargo does not
+                // provide a mechanism to specify required features for tests.
+                if option_env!("CARGO_PRIMARY_PACKAGE").is_some() {
+                    prepare_freethreaded_python();
+                }
+
                 START.call_once_force(|_| unsafe {
                     // Use call_once_force because if there is a panic because the interpreter is
                     // not initialized, it's fine for the user to initialize the interpreter and

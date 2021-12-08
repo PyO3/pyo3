@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::{types::PyType, wrap_pymodule, PyCell};
 
