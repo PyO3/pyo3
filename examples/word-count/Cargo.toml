@@ -8,6 +8,8 @@ edition = "2018"
 rayon = "1.0.2"
 pyo3 = { path = "../..", features = ["extension-module"] }
 
+[workspace]
+
 [lib]
 name = "word_count"
 crate-type = ["cdylib"]

@@ -11,6 +11,8 @@ edition = "2018"
 path = "../../"
 features = ["extension-module"]
 
+[workspace]
+
 [lib]
 name = "maturin_starter"
 crate-type = ["cdylib"]
