@@ -1,16 +1,16 @@
 #![no_implicit_prelude]
 
 #[derive(crate::FromPyObject)]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 struct Derive1(i32); // newtype case
 
 #[derive(crate::FromPyObject)]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 #[allow(dead_code)]
 struct Derive2(i32, i32); // tuple case
 
 #[derive(crate::FromPyObject)]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 #[allow(dead_code)]
 struct Derive3 {
     f: i32,
@@ -18,7 +18,7 @@ struct Derive3 {
 } // struct case
 
 #[derive(crate::FromPyObject)]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 #[allow(dead_code)]
 enum Derive4 {
     A(i32),

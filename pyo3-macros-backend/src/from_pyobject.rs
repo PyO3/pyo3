@@ -334,7 +334,7 @@ impl Parse for ContainerPyO3Attribute {
             let _: attributes::kw::annotation = input.parse()?;
             let _: Token![=] = input.parse()?;
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
-        } else if lookahead.peek(attributes::kw::pyo3_path) {
+        } else if lookahead.peek(Token![crate]) {
             input.parse().map(ContainerPyO3Attribute::PyO3Path)
         } else {
             Err(lookahead.error())

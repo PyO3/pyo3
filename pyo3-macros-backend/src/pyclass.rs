@@ -201,7 +201,7 @@ impl Parse for PyClassPyO3Option {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyClassPyO3Option::TextSignature)
-        } else if lookahead.peek(attributes::kw::pyo3_path) {
+        } else if lookahead.peek(Token![crate]) {
             input.parse().map(PyClassPyO3Option::PyO3Path)
         } else {
             Err(lookahead.error())

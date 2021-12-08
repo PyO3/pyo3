@@ -170,7 +170,7 @@ impl Parse for PyModulePyO3Option {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(PyModulePyO3Option::Name)
-        } else if lookahead.peek(attributes::kw::pyo3_path) {
+        } else if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyModulePyO3Option::PyO3Path)
         } else {
             Err(lookahead.error())

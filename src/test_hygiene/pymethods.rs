@@ -2,15 +2,15 @@
 #![allow(unused_variables)]
 
 #[crate::pyclass]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 pub struct Dummy;
 
 #[crate::pyclass]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 pub struct DummyIter;
 
 #[crate::pymethods]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 impl Dummy {
     //////////////////////
     // Basic customization

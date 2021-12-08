@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    attributes::{self, take_pyo3_options, PyO3PathAttribute},
+    attributes::{take_pyo3_options, PyO3PathAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
     pymethod::{self, is_proto_method},
@@ -32,7 +32,7 @@ enum PyImplPyO3Option {
 impl Parse for PyImplPyO3Option {
     fn parse(input: ParseStream) -> Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::pyo3_path) {
+        if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyImplPyO3Option::PyO3Path)
         } else {
             Err(lookahead.error())

@@ -2,12 +2,12 @@
 #![allow(unused_variables)]
 
 #[crate::pyclass]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 #[derive(::std::clone::Clone)]
 pub struct Foo;
 
 #[crate::pyclass]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 pub struct Foo2;
 
 #[crate::pyclass(
@@ -19,7 +19,7 @@ pub struct Foo2;
     extends = crate::types::PyAny,
     module = "Spam"
 )]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 pub struct Bar {
     #[pyo3(get, set)]
     a: u8,

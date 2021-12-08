@@ -257,7 +257,7 @@ impl Parse for PyFunctionOptions {
                 if !input.is_empty() {
                     let _: Comma = input.parse()?;
                 }
-            } else if lookahead.peek(attributes::kw::pyo3_path) {
+            } else if lookahead.peek(syn::Token![crate]) {
                 // TODO needs duplicate check?
                 options.pyo3_path = Some(input.parse()?);
             } else {
@@ -292,7 +292,7 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Signature)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
-        } else if lookahead.peek(attributes::kw::pyo3_path) {
+        } else if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyFunctionOption::PyO3Path)
         } else {
             Err(lookahead.error())

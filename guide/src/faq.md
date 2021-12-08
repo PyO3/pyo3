@@ -149,13 +149,13 @@ crate.
 
 However, when the dependency is renamed, or your crate only indirectly depends
 on `pyo3`, you need to let the macro code know where to find the crate.  This is
-done with the `pyo3_path` attribute:
+done with the `crate` attribute:
 
 ```rust
 # use pyo3::prelude::*;
 # pub extern crate pyo3;
 # mod reexported { pub use ::pyo3; }
 #[pyclass]
-#[pyo3(pyo3_path = "reexported::pyo3")]
+#[pyo3(crate = "reexported::pyo3")]
 struct MyClass;
 ```

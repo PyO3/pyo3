@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 #[crate::pyfunction]
-#[pyo3(pyo3_path = "crate")]
+#[pyo3(crate = "crate")]
 fn do_something(x: i32) -> crate::PyResult<i32> {
     ::std::result::Result::Ok(x)
 }
