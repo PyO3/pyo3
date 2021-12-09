@@ -3,11 +3,11 @@
 use std::collections::HashSet;
 
 use crate::{
-    attributes::{take_pyo3_options, PyO3PathAttribute},
+    attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
     pymethod::{self, is_proto_method},
-    utils::get_pyo3_path,
+    utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
@@ -26,14 +26,14 @@ pub enum PyClassMethodsType {
 }
 
 enum PyImplPyO3Option {
-    PyO3Path(PyO3PathAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for PyImplPyO3Option {
     fn parse(input: ParseStream) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(syn::Token![crate]) {
-            input.parse().map(PyImplPyO3Option::PyO3Path)
+            input.parse().map(PyImplPyO3Option::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -42,7 +42,7 @@ impl Parse for PyImplPyO3Option {
 
 #[derive(Default)]
 pub struct PyImplOptions {
-    pyo3_path: Option<PyO3PathAttribute>,
+    krate: Option<CrateAttribute>,
 }
 
 impl PyImplOptions {
@@ -51,20 +51,20 @@ impl PyImplOptions {
 
         for option in take_pyo3_options(attrs)? {
             match option {
-                PyImplPyO3Option::PyO3Path(path) => options.set_pyo3_path(path)?,
+                PyImplPyO3Option::Crate(path) => options.set_crate(path)?,
             }
         }
 
         Ok(options)
     }
 
-    fn set_pyo3_path(&mut self, path: PyO3PathAttribute) -> Result<()> {
+    fn set_crate(&mut self, path: CrateAttribute) -> Result<()> {
         ensure_spanned!(
-            self.pyo3_path.is_none(),
-            path.0.span() => "`pyo3_path` may only be specified once"
+            self.krate.is_none(),
+            path.0.span() => "`crate` may only be specified once"
         );
 
-        self.pyo3_path = Some(path);
+        self.krate = Some(path);
         Ok(())
     }
 }
@@ -102,7 +102,7 @@ pub fn impl_methods(
         match iimpl {
             syn::ImplItem::Method(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
-                fun_options.pyo3_path = fun_options.pyo3_path.or_else(|| options.pyo3_path.clone());
+                fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
@@ -148,7 +148,7 @@ pub fn impl_methods(
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
 
-    let pyo3_path = get_pyo3_path(&options.pyo3_path);
+    let krate = get_pyo3_crate(&options.krate);
 
     Ok(match methods_type {
         PyClassMethodsType::Specialization => {
@@ -157,7 +157,7 @@ pub fn impl_methods(
 
             quote! {
                 const _: () = {
-                    use #pyo3_path as _pyo3;
+                    use #krate as _pyo3;
 
                     #(#trait_impls)*
 
@@ -171,7 +171,7 @@ pub fn impl_methods(
             let inventory = submit_methods_inventory(ty, methods, proto_impls);
             quote! {
                 const _: () = {
-                    use #pyo3_path as _pyo3;
+                    use #krate as _pyo3;
 
                     #(#trait_impls)*
 

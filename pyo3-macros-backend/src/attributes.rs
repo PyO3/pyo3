@@ -45,14 +45,14 @@ impl Parse for NameAttribute {
 
 /// For specifying the path to the pyo3 crate.
 #[derive(Clone, Debug, PartialEq)]
-pub struct PyO3PathAttribute(pub Path);
+pub struct CrateAttribute(pub Path);
 
-impl Parse for PyO3PathAttribute {
+impl Parse for CrateAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
         let _: Token![crate] = input.parse()?;
         let _: Token![=] = input.parse()?;
         let string_literal: LitStr = input.parse()?;
-        string_literal.parse().map(PyO3PathAttribute)
+        string_literal.parse().map(CrateAttribute)
     }
 }
 

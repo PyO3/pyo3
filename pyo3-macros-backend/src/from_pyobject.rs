@@ -1,6 +1,6 @@
 use crate::{
-    attributes::{self, get_pyo3_options, FromPyWithAttribute, PyO3PathAttribute},
-    utils::get_pyo3_path,
+    attributes::{self, get_pyo3_options, CrateAttribute, FromPyWithAttribute},
+    utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -310,7 +310,7 @@ struct ContainerOptions {
     /// Change the name of an enum variant in the generated error message.
     annotation: Option<syn::LitStr>,
     /// Change the path for the pyo3 crate
-    pyo3_path: Option<PyO3PathAttribute>,
+    krate: Option<CrateAttribute>,
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
@@ -321,7 +321,7 @@ enum ContainerPyO3Attribute {
     /// Change the name of an enum variant in the generated error message.
     ErrorAnnotation(LitStr),
     /// Change the path for the pyo3 crate
-    PyO3Path(PyO3PathAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for ContainerPyO3Attribute {
@@ -335,7 +335,7 @@ impl Parse for ContainerPyO3Attribute {
             let _: Token![=] = input.parse()?;
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
         } else if lookahead.peek(Token![crate]) {
-            input.parse().map(ContainerPyO3Attribute::PyO3Path)
+            input.parse().map(ContainerPyO3Attribute::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -364,12 +364,12 @@ impl ContainerOptions {
                             );
                             options.annotation = Some(lit_str);
                         }
-                        ContainerPyO3Attribute::PyO3Path(path) => {
+                        ContainerPyO3Attribute::Crate(path) => {
                             ensure_spanned!(
-                                options.pyo3_path.is_none(),
-                                path.0.span() => "`pyo3_path` may only be provided once"
+                                options.krate.is_none(),
+                                path.0.span() => "`crate` may only be provided once"
                             );
-                            options.pyo3_path = Some(path);
+                            options.krate = Some(path);
                         }
                     }
                 }
@@ -515,7 +515,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             .push(parse_quote!(#gen_ident: FromPyObject<#lt_param>))
     }
     let options = ContainerOptions::from_attrs(&tokens.attrs)?;
-    let pyo3_path = get_pyo3_path(&options.pyo3_path);
+    let krate = get_pyo3_crate(&options.krate);
     let derives = match &tokens.data {
         syn::Data::Enum(en) => {
             if options.transparent || options.annotation.is_some() {
@@ -541,7 +541,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     let ident = &tokens.ident;
     Ok(quote!(
         const _: () = {
-            use #pyo3_path as _pyo3;
+            use #krate as _pyo3;
 
             #[automatically_derived]
             impl#trait_generics _pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {

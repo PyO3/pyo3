@@ -2,13 +2,13 @@
 
 use crate::{
     attributes::{
-        self, get_pyo3_options, take_attributes, take_pyo3_options, FromPyWithAttribute,
-        NameAttribute, PyO3PathAttribute, TextSignatureAttribute,
+        self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
+        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{self, ensure_not_async_fn, get_pyo3_path},
+    utils::{self, ensure_not_async_fn, get_pyo3_crate},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -239,7 +239,7 @@ pub struct PyFunctionOptions {
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
-    pub pyo3_path: Option<PyO3PathAttribute>,
+    pub krate: Option<CrateAttribute>,
 }
 
 impl Parse for PyFunctionOptions {
@@ -259,7 +259,7 @@ impl Parse for PyFunctionOptions {
                 }
             } else if lookahead.peek(syn::Token![crate]) {
                 // TODO needs duplicate check?
-                options.pyo3_path = Some(input.parse()?);
+                options.krate = Some(input.parse()?);
             } else {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
                 //
@@ -278,7 +278,7 @@ pub enum PyFunctionOption {
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
     TextSignature(TextSignatureAttribute),
-    PyO3Path(PyO3PathAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -293,7 +293,7 @@ impl Parse for PyFunctionOption {
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
         } else if lookahead.peek(syn::Token![crate]) {
-            input.parse().map(PyFunctionOption::PyO3Path)
+            input.parse().map(PyFunctionOption::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -336,12 +336,12 @@ impl PyFunctionOptions {
                     );
                     self.text_signature = Some(text_signature);
                 }
-                PyFunctionOption::PyO3Path(path) => {
+                PyFunctionOption::Crate(path) => {
                     ensure_spanned!(
-                        self.pyo3_path.is_none(),
-                        path.0.span() => "`pyo3_path` may only be specified once"
+                        self.krate.is_none(),
+                        path.0.span() => "`crate` may only be specified once"
                     );
-                    self.pyo3_path = Some(path);
+                    self.krate = Some(path);
                 }
             }
         }
@@ -418,7 +418,7 @@ pub fn impl_wrap_pyfunction(
     );
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
-    let pyo3_path = get_pyo3_path(&options.pyo3_path);
+    let krate = get_pyo3_crate(&options.krate);
 
     let spec = method::FnSpec {
         tp: if options.pass_module.is_some() {
@@ -435,7 +435,7 @@ pub fn impl_wrap_pyfunction(
         doc,
         deprecations: options.deprecations,
         text_signature: options.text_signature,
-        pyo3_path: pyo3_path.clone(),
+        krate: krate.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
@@ -446,9 +446,9 @@ pub fn impl_wrap_pyfunction(
         #wrapper
 
         pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<#pyo3_path::derive_utils::PyFunctionArguments<'a>>
-        ) -> #pyo3_path::PyResult<&'a #pyo3_path::types::PyCFunction> {
-            use #pyo3_path as _pyo3;
+            args: impl ::std::convert::Into<#krate::derive_utils::PyFunctionArguments<'a>>
+        ) -> #krate::PyResult<&'a #krate::types::PyCFunction> {
+            use #krate as _pyo3;
             _pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };

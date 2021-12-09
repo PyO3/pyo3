@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::attributes::{
-    self, take_pyo3_options, NameAttribute, PyO3PathAttribute, TextSignatureAttribute,
+    self, take_pyo3_options, CrateAttribute, NameAttribute, TextSignatureAttribute,
 };
 use crate::deprecations::Deprecations;
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::pyimpl::{gen_default_slot_impls, gen_py_const, PyClassMethodsType};
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
-use crate::utils::{self, get_pyo3_path, unwrap_group, PythonDoc};
+use crate::utils::{self, get_pyo3_crate, unwrap_group, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -188,12 +188,12 @@ impl PyClassArgs {
 pub struct PyClassPyO3Options {
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
-    pub pyo3_path: Option<PyO3PathAttribute>,
+    pub krate: Option<CrateAttribute>,
 }
 
 enum PyClassPyO3Option {
     TextSignature(TextSignatureAttribute),
-    PyO3Path(PyO3PathAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -202,7 +202,7 @@ impl Parse for PyClassPyO3Option {
         if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyClassPyO3Option::TextSignature)
         } else if lookahead.peek(Token![crate]) {
-            input.parse().map(PyClassPyO3Option::PyO3Path)
+            input.parse().map(PyClassPyO3Option::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -217,8 +217,8 @@ impl PyClassPyO3Options {
                 PyClassPyO3Option::TextSignature(text_signature) => {
                     options.set_text_signature(text_signature)?;
                 }
-                PyClassPyO3Option::PyO3Path(path) => {
-                    options.set_pyo3_path(path)?;
+                PyClassPyO3Option::Crate(path) => {
+                    options.set_crate(path)?;
                 }
             }
         }
@@ -237,12 +237,12 @@ impl PyClassPyO3Options {
         Ok(())
     }
 
-    pub fn set_pyo3_path(&mut self, path: PyO3PathAttribute) -> syn::Result<()> {
+    pub fn set_crate(&mut self, path: CrateAttribute) -> syn::Result<()> {
         ensure_spanned!(
-            self.pyo3_path.is_none(),
+            self.krate.is_none(),
             path.0.span() => "`text_signature` may only be specified once"
         );
-        self.pyo3_path = Some(path);
+        self.krate = Some(path);
         Ok(())
     }
 }
@@ -260,7 +260,7 @@ pub fn build_py_class(
             .as_ref()
             .map(|attr| (get_class_python_name(&class.ident, args), attr)),
     );
-    let pyo3_path = get_pyo3_path(&options.pyo3_path);
+    let krate = get_pyo3_crate(&options.krate);
 
     ensure_spanned!(
         class.generics.params.is_empty(),
@@ -297,7 +297,7 @@ pub fn build_py_class(
         field_options,
         methods_type,
         options.deprecations,
-        pyo3_path,
+        krate,
     )
 }
 
@@ -378,7 +378,7 @@ fn impl_class(
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
     methods_type: PyClassMethodsType,
     deprecations: Deprecations,
-    pyo3_path: syn::Path,
+    krate: syn::Path,
 ) -> syn::Result<TokenStream> {
     let pytypeinfo_impl = impl_pytypeinfo(cls, attr, Some(&deprecations));
 
@@ -390,7 +390,7 @@ fn impl_class(
 
     Ok(quote! {
         const _: () = {
-            use #pyo3_path as _pyo3;
+            use #krate as _pyo3;
 
             #pytypeinfo_impl
 
@@ -439,8 +439,8 @@ fn impl_enum(
             .as_ref()
             .map(|attr| (get_class_python_name(&enum_.ident, args), attr)),
     );
-    let pyo3_path = get_pyo3_path(&options.pyo3_path);
-    impl_enum_class(enum_name, args, variants, doc, methods_type, pyo3_path)
+    let krate = get_pyo3_crate(&options.krate);
+    impl_enum_class(enum_name, args, variants, doc, methods_type, krate)
 }
 
 fn impl_enum_class(
@@ -449,7 +449,7 @@ fn impl_enum_class(
     variants: Vec<PyClassEnumVariant>,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
-    pyo3_path: syn::Path,
+    krate: syn::Path,
 ) -> syn::Result<TokenStream> {
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
     let pyclass_impls = PyClassImplsBuilder::new(cls, args, methods_type)
@@ -480,7 +480,7 @@ fn impl_enum_class(
     let default_impls = gen_default_slot_impls(cls, vec![default_repr_impl]);
     Ok(quote! {
         const _: () = {
-            use #pyo3_path as _pyo3;
+            use #krate as _pyo3;
 
             #pytypeinfo
 

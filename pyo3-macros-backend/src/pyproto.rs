@@ -89,7 +89,7 @@ fn impl_proto_impl(
 
     Ok(quote! {
         const _: () = {
-            use ::pyo3 as _pyo3; // pyproto doesn't support specifying #[pyo3(pyo3_path)]
+            use ::pyo3 as _pyo3; // pyproto doesn't support specifying #[pyo3(crate)]
             #trait_impls
             #normal_methods
             #protocol_methods
