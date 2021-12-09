@@ -1,3 +1,5 @@
+#![cfg(not(Py_LIMITED_API))]
+
 //! Objects related to PyBuffer and PyStr
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;

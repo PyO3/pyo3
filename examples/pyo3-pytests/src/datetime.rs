@@ -1,3 +1,5 @@
+#![cfg(not(Py_LIMITED_API))]
+
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,

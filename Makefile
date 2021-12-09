@@ -19,8 +19,8 @@ fmt:
 	black . --check
 
 clippy:
-	cargo clippy --features="$(ALL_ADDITIVE_FEATURES)" --tests -- -Dwarnings
-	cargo clippy --features="abi3 $(ALL_ADDITIVE_FEATURES)" --tests -- -Dwarnings
+	cargo clippy --features="$(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
+	cargo clippy --features="abi3 $(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
 	for example in examples/*/; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
 
 lint: fmt clippy
