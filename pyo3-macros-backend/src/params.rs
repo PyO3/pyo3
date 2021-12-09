@@ -82,6 +82,8 @@ pub fn impl_arg_params(
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
 
+    let mut all_positional_required = true;
+
     for arg in spec.args.iter() {
         if arg.py || is_args(&spec.attrs, arg.name) || is_kwargs(&spec.attrs, arg.name) {
             continue;
@@ -100,7 +102,13 @@ pub fn impl_arg_params(
             });
         } else {
             if required {
+                ensure_spanned!(
+                    all_positional_required,
+                    arg.name.span() => "Required positional parameters cannot come after optional parameters"
+                );
                 required_positional_parameters += 1;
+            } else {
+                all_positional_required = false;
             }
             if posonly {
                 positional_only_parameters += 1;
