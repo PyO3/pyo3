@@ -33,7 +33,7 @@ impl ToTokens for Deprecations {
             let ident = deprecation.ident(*span);
             quote_spanned!(
                 *span =>
-                let _ = ::pyo3::impl_::deprecations::#ident;
+                let _ = _pyo3::impl_::deprecations::#ident;
             )
             .to_tokens(tokens)
         }
