@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Py::setattr` method. [#2009](https://github.com/PyO3/pyo3/pull/2009)
 - Add `PyCapsule`, exposing the [Capsule API](https://docs.python.org/3/c-api/capsule.html#capsules). [#1980](https://github.com/PyO3/pyo3/pull/1980)
-- All PyO3 proc-macros except the deprecated `#[pyproto]` now accept a supplemental attribute `#[pyo3(crate = "some::path")]` that specifies
-  where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
 - Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
+- All PyO3 proc-macros except the deprecated `#[pyproto]` now accept a supplemental attribute `#[pyo3(crate = "some::path")]` that specifies where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
+- Enable `#[pyclass]` for fieldless (aka C-like) enums. [#2034](https://github.com/PyO3/pyo3/pull/2034)
 - Add buffer magic methods `__getbuffer__` and `__releasebuffer__` to `#[pymethods]`. [#2067](https://github.com/PyO3/pyo3/pull/2067)
 - Accept paths in `wrap_pyfunction` and `wrap_pymodule`. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - Add check for correct number of arguments on magic methods. [#2083](https://github.com/PyO3/pyo3/pull/2083)
