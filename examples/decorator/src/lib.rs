@@ -39,11 +39,11 @@ impl PyCounter {
         println!("{} has been called {} time(s).", name, self.count);
 
         // After doing something, we finally forward the call to the wrapped function
-        let ret = self.wraps.call(py, args, kwargs);
+        let ret = self.wraps.call(py, args, kwargs)?;
 
         // We could do something with the return value of
         // the function before returning it
-        ret
+        Ok(ret)
     }
 }
 

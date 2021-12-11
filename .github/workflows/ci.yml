@@ -236,8 +236,8 @@ jobs:
       - name: Test pytest modules
         shell: bash
         run: |
-          for dir in pytest/*/; do
-              tox -c $dir -e py
+          for test_dir in pytests/*/; do
+              tox -c $test_dir -e py
           done
         env:
           TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
