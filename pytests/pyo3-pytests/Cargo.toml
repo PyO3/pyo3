@@ -25,3 +25,5 @@ classifier=[
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+
+[workspace]
