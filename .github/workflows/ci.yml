@@ -228,6 +228,7 @@ jobs:
         shell: bash
         run: |
           for example_dir in examples/*/; do
+              echo "Testing ${example_dir}"
               tox -c $example_dir -e py
           done
         env:
@@ -237,6 +238,7 @@ jobs:
         shell: bash
         run: |
           for test_dir in pytests/*/; do
+              echo "Testing ${test_dir}"
               tox -c $test_dir -e py
           done
         env:
