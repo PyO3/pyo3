@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyList, PySlice, PyType};
 use pyo3::{exceptions::PyAttributeError, prelude::*};

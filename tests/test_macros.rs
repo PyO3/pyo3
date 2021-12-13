@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 //! Ensure that pyo3 macros can be used inside macro_rules!
 
 use pyo3::prelude::*;

@@ -101,3 +101,15 @@ error: `pass_module` cannot be used on Python methods
     |
 112 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
+
+error: Required positional parameters cannot come after optional parameters
+   --> tests/ui/invalid_pymethods.rs:118:68
+    |
+118 |     fn required_arg_after_optional(&self, optional: Option<isize>, required: isize) {}
+    |                                                                    ^^^^^^^^
+
+error: Required positional parameters cannot come after optional parameters
+   --> tests/ui/invalid_pymethods.rs:124:63
+    |
+124 |     fn default_arg_before_required(&self, has_default: isize, required: isize) {}
+    |                                                               ^^^^^^^^

@@ -113,4 +113,15 @@ impl MyClass {
     fn method_cannot_pass_module(&self, m: &PyModule) {}
 }
 
+#[pymethods]
+impl MyClass {
+    fn required_arg_after_optional(&self, optional: Option<isize>, required: isize) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[args(has_default = "1")]
+    fn default_arg_before_required(&self, has_default: isize, required: isize) {}
+}
+
 fn main() {}

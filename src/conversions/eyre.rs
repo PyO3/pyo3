@@ -118,8 +118,8 @@ impl From<eyre::Report> for PyErr {
 
 #[cfg(test)]
 mod tests {
-    use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
+    use crate::prelude::*;
+    use crate::types::IntoPyDict;
 
     use eyre::{bail, Result, WrapErr};
 

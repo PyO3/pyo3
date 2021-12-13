@@ -2,13 +2,13 @@
 
 use crate::{
     attributes::{
-        self, get_pyo3_options, take_attributes, take_pyo3_options, FromPyWithAttribute,
-        NameAttribute, TextSignatureAttribute,
+        self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
+        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{self, ensure_not_async_fn},
+    utils::{self, ensure_not_async_fn, get_pyo3_crate},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -239,17 +239,12 @@ pub struct PyFunctionOptions {
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
+    pub krate: Option<CrateAttribute>,
 }
 
 impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut options = PyFunctionOptions {
-            pass_module: None,
-            name: None,
-            signature: None,
-            text_signature: None,
-            deprecations: Deprecations::new(),
-        };
+        let mut options = PyFunctionOptions::default();
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -262,6 +257,9 @@ impl Parse for PyFunctionOptions {
                 if !input.is_empty() {
                     let _: Comma = input.parse()?;
                 }
+            } else if lookahead.peek(syn::Token![crate]) {
+                // TODO needs duplicate check?
+                options.krate = Some(input.parse()?);
             } else {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
                 //
@@ -280,6 +278,7 @@ pub enum PyFunctionOption {
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
     TextSignature(TextSignatureAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -293,6 +292,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Signature)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
+        } else if lookahead.peek(syn::Token![crate]) {
+            input.parse().map(PyFunctionOption::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -334,6 +335,13 @@ impl PyFunctionOptions {
                         text_signature.kw.span() => "`text_signature` may only be specified once"
                     );
                     self.text_signature = Some(text_signature);
+                }
+                PyFunctionOption::Crate(path) => {
+                    ensure_spanned!(
+                        self.krate.is_none(),
+                        path.0.span() => "`crate` may only be specified once"
+                    );
+                    self.krate = Some(path);
                 }
             }
         }
@@ -410,6 +418,7 @@ pub fn impl_wrap_pyfunction(
     );
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
+    let krate = get_pyo3_crate(&options.krate);
 
     let spec = method::FnSpec {
         tp: if options.pass_module.is_some() {
@@ -426,6 +435,7 @@ pub fn impl_wrap_pyfunction(
         doc,
         deprecations: options.deprecations,
         text_signature: options.text_signature,
+        krate: krate.clone(),
     };
 
     let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
@@ -434,10 +444,12 @@ pub fn impl_wrap_pyfunction(
 
     let wrapped_pyfunction = quote! {
         #wrapper
+
         pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<::pyo3::derive_utils::PyFunctionArguments<'a>>
-        ) -> ::pyo3::PyResult<&'a ::pyo3::types::PyCFunction> {
-            ::pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
+            args: impl ::std::convert::Into<#krate::derive_utils::PyFunctionArguments<'a>>
+        ) -> #krate::PyResult<&'a #krate::types::PyCFunction> {
+            use #krate as _pyo3;
+            _pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
         }
     };
     Ok((function_wrapper_ident, wrapped_pyfunction))

@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;

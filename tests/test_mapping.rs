@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;

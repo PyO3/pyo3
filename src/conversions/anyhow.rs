@@ -117,8 +117,8 @@ impl From<anyhow::Error> for PyErr {
 
 #[cfg(test)]
 mod test_anyhow {
-    use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
+    use crate::prelude::*;
+    use crate::types::IntoPyDict;
 
     use anyhow::{anyhow, bail, Context, Result};
 
