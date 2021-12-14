@@ -13,9 +13,7 @@ use crate::{
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
-use std::os::raw::c_char;
 use std::os::raw::c_int;
-use std::ptr::NonNull;
 
 mod err_state;
 mod impls;
@@ -337,17 +335,27 @@ impl PyErr {
         }
     }
 
-    /// Creates a new exception type with the given name, which must be of the form
-    /// `<module>.<ExceptionName>`, as required by `PyErr_NewException`.
+    /// Creates a new exception type with the given name and docstring.
     ///
-    /// `base` can be an existing exception type to subclass, or a tuple of classes
-    /// `dict` specifies an optional dictionary of class variables and methods
-    pub fn new_type<'p>(
-        _: Python<'p>,
+    /// - `base` can be an existing exception type to subclass, or a tuple of classes.
+    /// - `dict` specifies an optional dictionary of class variables and methods.
+    /// - `doc` will be the docstring seen by python users.
+    ///
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if `name` is not of the form `<module>.<ExceptionName>`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if  `name` or `doc` cannot be converted to [`CString`]s.
+    pub fn new_type(
+        py: Python,
         name: &str,
+        doc: Option<&str>,
         base: Option<&PyType>,
         dict: Option<PyObject>,
-    ) -> NonNull<ffi::PyTypeObject> {
+    ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
@@ -358,16 +366,27 @@ impl PyErr {
             Some(obj) => obj.as_ptr(),
         };
 
-        unsafe {
-            let null_terminated_name =
-                CString::new(name).expect("Failed to initialize nul terminated exception name");
+        let null_terminated_name =
+            CString::new(name).expect("Failed to initialize nul terminated exception name");
 
-            NonNull::new_unchecked(ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char,
+        let null_terminated_doc =
+            doc.map(|d| CString::new(d).expect("Failed to initialize nul terminated docstring"));
+
+        let null_terminated_doc_ptr = match null_terminated_doc.as_ref() {
+            Some(c) => c.as_ptr(),
+            None => std::ptr::null(),
+        };
+
+        let ptr = unsafe {
+            ffi::PyErr_NewExceptionWithDoc(
+                null_terminated_name.as_ptr(),
+                null_terminated_doc_ptr,
                 base,
                 dict,
-            ) as *mut ffi::PyTypeObject)
-        }
+            )
+        };
+
+        unsafe { Py::from_owned_ptr_or_err(py, ptr) }
     }
 
     /// Prints a standard traceback to `sys.stderr`.

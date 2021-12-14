@@ -35,7 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `into_instance` -> `into_value`
 - Deprecate `PyType::is_instance`; it is inconsistent with other `is_instance` methods in PyO3. Instead of `typ.is_instance(obj)`, use `obj.is_instance(typ)`. [#2031](https://github.com/PyO3/pyo3/pull/2031)
 - Optional parameters of `#[pymethods]` and `#[pyfunction]`s cannot be followed by required parameters, i.e. `fn opt_first(a: Option<i32>, b: i32) {}` is not allowed, while `fn opt_last(a:i32, b: Option<i32>) {}` is. [#2041](https://github.com/PyO3/pyo3/pull/2041)
-
+- `PyErr::new_type` now takes an optional docstring and now returns `PyResult<Py<PyType>>` rather than a `ffi::PyTypeObject` pointer.
+- The `create_exception!` macro can now take an optional docstring. This docstring, if supplied, is visible to users (with `.__doc__` and `help()`) and
+  accompanies your error type in your crate's documentation.
+  
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)

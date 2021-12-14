@@ -35,7 +35,7 @@ macro_rules! pyo3_exception {
 
         $crate::impl_exception_boilerplate!($name);
 
-        $crate::create_exception_type_object!(pyo3_runtime, $name, $base);
+        $crate::create_exception_type_object!(pyo3_runtime, $name, $base, Some($doc));
     };
 }
 
