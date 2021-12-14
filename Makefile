@@ -12,8 +12,8 @@ test: lint test_py
 	cargo test --features="abi3 $(ALL_ADDITIVE_FEATURES)"
 
 test_py:
-	for example in examples/*/; do TOX_TESTENV_PASSENV=RUSTUP_HOME tox -e py -c $$example || exit 1; done
-	for package in pytests/*/; do TOX_TESTENV_PASSENV=RUSTUP_HOME tox -e py -c $$package || exit 1; done
+	@for example in examples/*/; do echo "-- Testing $$example --"; TOX_TESTENV_PASSENV=RUSTUP_HOME tox -e py -c $$example || exit 1; echo ""; done
+	@for package in pytests/*/; do echo "-- Testing $$package --"; TOX_TESTENV_PASSENV=RUSTUP_HOME tox -e py -c $$package || exit 1; echo ""; done
 
 fmt_py:
 	black . --check

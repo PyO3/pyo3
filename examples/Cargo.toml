@@ -10,3 +10,4 @@ pyo3 = { version = "0.15.1", path = "..", features = ["auto-initialize", "extens
 [[example]]
 name = "decorator"
 path = "decorator/src/lib.rs"
+crate_type = ["cdylib"]

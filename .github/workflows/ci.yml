@@ -221,24 +221,14 @@ jobs:
       - name: Test build config
         run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
 
-      - name: Install python test dependencies
-        run: python -m pip install -U pip tox
-
-      - name: Test example extension modules
+      - name: Test python examples and tests
         shell: bash
         run: |
-          for example_dir in examples/*/; do
-              echo "Testing ${example_dir}"
-              tox -c $example_dir -e py
-          done
-
-      - name: Test pytest modules
-        shell: bash
-        run: |
-          for test_dir in pytests/*/; do
-              echo "Testing ${test_dir}"
-              tox -c $test_dir -e py
-          done
+          python -m pip install -U pip tox
+          make test_py
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}
+          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
@@ -253,8 +243,6 @@ jobs:
     env:
       CARGO_TERM_VERBOSE: true
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
-      CARGO_TARGET_DIR: ${{ github.workspace }}
-      TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
