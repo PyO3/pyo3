@@ -1,0 +1,13 @@
+[package]
+authors = ["{{authors}}"]
+name = "{{project-name}}"
+version = "0.1.0"
+description = "An example project to get started using PyO3 with setuptools_rust"
+edition = "2018"
+
+[dependencies]
+pyo3 = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
+
+[lib]
+name = "setuptools_rust_starter"
+crate-type = ["cdylib"]

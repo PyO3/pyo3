@@ -1,17 +1,12 @@
 [package]
-authors = ["PyO3 Authors"]
-name = "maturin-starter"
+authors = ["{{authors}}"]
+name = "{{project-name}}"
 version = "0.1.0"
 description = "An example project to get started using PyO3 with maturin"
 edition = "2018"
 
 [dependencies]
-
-[dependencies.pyo3]
-path = "../../"
-features = ["extension-module"]
-
-[workspace]
+pyo3 = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
 
 [lib]
 name = "maturin_starter"
