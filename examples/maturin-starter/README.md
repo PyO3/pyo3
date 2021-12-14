@@ -25,7 +25,7 @@ tox -e py
 
 ## Copying this example
 
-Use `cargo-generate`:
+Use [`cargo-generate`](https://crates.io/crates/cargo-generate):
 
 ```bash
 $ cargo install cargo-generate

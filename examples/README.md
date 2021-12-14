@@ -13,7 +13,7 @@ Below is a brief description of each of these:
 
 ## Creating new projects from these examples
 
-To copy an example, use `cargo-generate`. Follow the commands below, replacing `<example>` with the example to start from:
+To copy an example, use [`cargo-generate`](https://crates.io/crates/cargo-generate). Follow the commands below, replacing `<example>` with the example to start from:
 
 ```bash
 $ cargo install cargo-generate
