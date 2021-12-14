@@ -1,4 +1,5 @@
 #![allow(deprecated)] // for deprecated protocol methods
+#![cfg(feature = "macros")]
 
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
@@ -38,10 +39,6 @@ impl PyNumberProtocol for UnaryArithmetic {
     fn __abs__(&self) -> Self {
         Self::new(self.inner.abs())
     }
-
-    fn __round__(&self, _ndigits: Option<u32>) -> Self {
-        Self::new(self.inner.round())
-    }
 }
 
 #[test]
@@ -53,8 +50,6 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
     py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
     py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
-    py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
-    py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
 }
 
 #[pyclass]

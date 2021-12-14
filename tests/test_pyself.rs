@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};

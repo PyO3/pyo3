@@ -7,12 +7,12 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use pyo3_macros_backend::{
-    build_derive_from_pyobject, build_py_class, build_py_function, build_py_methods,
+    build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
     build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
     PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
-use syn::parse_macro_input;
+use syn::{parse::Nothing, parse_macro_input};
 
 /// A proc macro used to implement Python modules.
 ///
@@ -31,19 +31,11 @@ use syn::parse_macro_input;
 ///
 /// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
-pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
+    parse_macro_input!(args as Nothing);
+
     let mut ast = parse_macro_input!(input as syn::ItemFn);
-
-    let deprecated_pymodule_name_arg = if attr.is_empty() {
-        None
-    } else {
-        Some(parse_macro_input!(attr as syn::Ident))
-    };
-
-    let options = match PyModuleOptions::from_pymodule_arg_and_attrs(
-        deprecated_pymodule_name_arg,
-        &mut ast.attrs,
-    ) {
+    let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
         Err(e) => return e.to_compile_error().into(),
     };
@@ -115,12 +107,17 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// [10]: https://en.wikipedia.org/wiki/Free_list
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let methods_type = if cfg!(feature = "multiple-pymethods") {
-        PyClassMethodsType::Inventory
-    } else {
-        PyClassMethodsType::Specialization
-    };
-    pyclass_impl(attr, input, methods_type)
+    use syn::Item;
+    let item = parse_macro_input!(input as Item);
+    match item {
+        Item::Struct(struct_) => pyclass_impl(attr, struct_, methods_type()),
+        Item::Enum(enum_) => pyclass_enum_impl(attr, enum_, methods_type()),
+        unsupported => {
+            syn::Error::new_spanned(unsupported, "#[pyclass] only supports structs and enums.")
+                .to_compile_error()
+                .into()
+        }
+    }
 }
 
 /// A proc macro used to expose methods to Python.
@@ -203,14 +200,29 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
 }
 
 fn pyclass_impl(
-    attr: TokenStream,
-    input: TokenStream,
+    attrs: TokenStream,
+    mut ast: syn::ItemStruct,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let mut ast = parse_macro_input!(input as syn::ItemStruct);
-    let args = parse_macro_input!(attr as PyClassArgs);
+    let args = parse_macro_input!(attrs with PyClassArgs::parse_stuct_args);
     let expanded =
         build_py_class(&mut ast, &args, methods_type).unwrap_or_else(|e| e.to_compile_error());
+
+    quote!(
+        #ast
+        #expanded
+    )
+    .into()
+}
+
+fn pyclass_enum_impl(
+    attrs: TokenStream,
+    mut ast: syn::ItemEnum,
+    methods_type: PyClassMethodsType,
+) -> TokenStream {
+    let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
+    let expanded =
+        build_py_enum(&mut ast, &args, methods_type).unwrap_or_else(|e| e.into_compile_error());
 
     quote!(
         #ast
@@ -229,4 +241,12 @@ fn pymethods_impl(input: TokenStream, methods_type: PyClassMethodsType) -> Token
         #expanded
     )
     .into()
+}
+
+fn methods_type() -> PyClassMethodsType {
+    if cfg!(feature = "multiple-pymethods") {
+        PyClassMethodsType::Inventory
+    } else {
+        PyClassMethodsType::Specialization
+    }
 }

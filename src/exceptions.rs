@@ -21,7 +21,7 @@ macro_rules! impl_exception_boilerplate {
         impl ::std::convert::From<&$name> for $crate::PyErr {
             #[inline]
             fn from(err: &$name) -> $crate::PyErr {
-                $crate::PyErr::from_instance(err)
+                $crate::PyErr::from_value(err)
             }
         }
 
@@ -312,7 +312,7 @@ fn always_throws() -> PyResult<()> {
 # Python::with_gil(|py| {
 #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
 #     let err = fun.call0().expect_err(\"called a function that should always return an error but the return value was Ok\");
-#     assert!(err.is_instance::<Py", $name, ">(py))
+#     assert!(err.is_instance_of::<Py", $name, ">(py))
 # });
 ```
 
@@ -337,7 +337,7 @@ Python::with_gil(|py| {
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
-        Err(error) if error.is_instance::<Py", $name, ">(py) => \"" , $name, "\",
+        Err(error) if error.is_instance_of::<Py", $name, ">(py) => \"" , $name, "\",
         Err(_) => \"Some other error\",
     };
 
@@ -656,15 +656,15 @@ macro_rules! test_exception {
                         .unwrap_or($exc_ty::new_err("a test exception"))
                 };
 
-                assert!(err.is_instance::<$exc_ty>(py));
+                assert!(err.is_instance_of::<$exc_ty>(py));
 
-                let value: &$exc_ty = err.instance(py).downcast().unwrap();
+                let value: &$exc_ty = err.value(py).downcast().unwrap();
                 assert!(value.source().is_none());
 
                 err.set_cause(py, Some($crate::exceptions::PyValueError::new_err("a cause")));
                 assert!(value.source().is_some());
 
-                assert!($crate::PyErr::from(value).is_instance::<$exc_ty>(py));
+                assert!($crate::PyErr::from(value).is_instance_of::<$exc_ty>(py));
             })
         }
     };
@@ -859,7 +859,7 @@ mod tests {
             let exc = py
                 .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
             assert_eq!(
                 format!("{:?}", exc),
@@ -874,7 +874,7 @@ mod tests {
             let exc = py
                 .run("raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
             assert_eq!(
                 exc.to_string(),
@@ -895,22 +895,14 @@ mod tests {
                     None,
                 )
                 .expect_err("raising should have given us an error")
-                .into_instance(py)
+                .into_value(py)
                 .into_ref(py);
 
-            if py.version_info() >= (3, 7) {
-                assert_eq!(format!("{:?}", exc), "Exception('banana')");
-            } else {
-                assert_eq!(format!("{:?}", exc), "Exception('banana',)");
-            }
+            assert_eq!(format!("{:?}", exc), "Exception('banana')");
 
             let source = exc.source().expect("cause should exist");
 
-            if py.version_info() >= (3, 7) {
-                assert_eq!(format!("{:?}", source), "TypeError('peach')");
-            } else {
-                assert_eq!(format!("{:?}", source), "TypeError('peach',)");
-            }
+            assert_eq!(format!("{:?}", source), "TypeError('peach')");
 
             let source_source = source.source();
             assert!(source_source.is_none(), "source_source should be None");
@@ -973,7 +965,7 @@ mod tests {
     test_exception!(PyUnicodeDecodeError, |py| {
         let invalid_utf8 = b"fo\xd8o";
         let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
-        PyErr::from_instance(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
+        PyErr::from_value(PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap())
     });
     test_exception!(PyUnicodeEncodeError, |py: Python<'_>| {
         py.eval("chr(40960).encode('ascii')", None, None)

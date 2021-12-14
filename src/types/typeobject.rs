@@ -40,25 +40,72 @@ impl PyType {
         self.getattr("__qualname__")?.extract()
     }
 
-    /// Checks whether `self` is subclass of type `T`.
+    /// Checks whether `self` is a subclass of `other`.
     ///
-    /// Equivalent to Python's `issubclass` function.
-    pub fn is_subclass<T>(&self) -> PyResult<bool>
-    where
-        T: PyTypeObject,
-    {
-        let result =
-            unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr()) };
+    /// Equivalent to the Python expression `issubclass(self, other)`.
+    pub fn is_subclass(&self, other: &PyType) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
     }
 
-    /// Check whether `obj` is an instance of `self`.
+    /// Checks whether `self` is a subclass of type `T`.
     ///
-    /// Equivalent to Python's `isinstance` function.
+    /// Equivalent to the Python expression `issubclass(self, T)`, if the type
+    /// `T` is known at compile time.
+    pub fn is_subclass_of<T>(&self) -> PyResult<bool>
+    where
+        T: PyTypeObject,
+    {
+        self.is_subclass(T::type_object(self.py()))
+    }
+
+    #[deprecated(
+        since = "0.16.0",
+        note = "prefer obj.is_instance(type) to typ.is_instance(obj)"
+    )]
+    /// Equivalent to Python's `isinstance(obj, self)`.
+    ///
+    /// This function has been deprecated because it has inverted argument ordering compared to
+    /// other `is_instance` functions in PyO3 such as [`PyAny::is_instance`].
     pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
-        let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
-        Ok(result == 1)
+        let any: &PyAny = unsafe { self.py().from_borrowed_ptr(obj.as_ptr()) };
+        any.is_instance(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        type_object::PyTypeObject,
+        types::{PyBool, PyLong},
+        Python,
+    };
+
+    #[test]
+    fn test_type_is_subclass() {
+        Python::with_gil(|py| {
+            let bool_type = PyBool::type_object(py);
+            let long_type = PyLong::type_object(py);
+            assert!(bool_type.is_subclass(long_type).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_type_is_subclass_of() {
+        Python::with_gil(|py| {
+            assert!(PyBool::type_object(py).is_subclass_of::<PyLong>().unwrap());
+        });
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn type_is_instance() {
+        Python::with_gil(|py| {
+            let bool_object = PyBool::new(py, false);
+            let bool_type = bool_object.get_type();
+            assert!(bool_type.is_instance(bool_object).unwrap());
+            assert!(bool_object.is_instance(bool_type).unwrap());
+        })
     }
 }

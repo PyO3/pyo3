@@ -90,31 +90,29 @@ Python::with_gil(|py| {
 });
 ```
 
-If you already have a Python exception instance, you can simply call [`PyErr::from_instance`].
+If you already have a Python exception object, you can simply call [`PyErr::from_value`].
 
 ```rust,ignore
-PyErr::from_instance(py, err).restore(py);
+PyErr::from_value(py, err).restore(py);
 ```
 
 
 ## Checking exception types
 
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type.
-In PyO3 every native type has access to the [`PyAny::is_instance`] method which does the same thing.
+In PyO3 every object has the [`PyAny::is_instance`] and [`PyAny::is_instance_of`] methods which do the same thing.
 
 ```rust
 use pyo3::Python;
 use pyo3::types::{PyBool, PyList};
 
 Python::with_gil(|py| {
-    assert!(PyBool::new(py, true).is_instance::<PyBool>().unwrap());
+    assert!(PyBool::new(py, true).is_instance_of::<PyBool>().unwrap());
     let list = PyList::new(py, &[1, 2, 3, 4]);
-    assert!(!list.is_instance::<PyBool>().unwrap());
-    assert!(list.is_instance::<PyList>().unwrap());
+    assert!(!list.is_instance_of::<PyBool>().unwrap());
+    assert!(list.is_instance_of::<PyList>().unwrap());
 });
 ```
-[`PyAny::is_instance`] calls the underlying [`PyType::is_instance`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyType.html#method.is_instance)
-method to do the actual work.
 
 To check the type of an exception, you can similarly do:
 
@@ -123,7 +121,7 @@ To check the type of an exception, you can similarly do:
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
 # let err = PyTypeError::new_err(());
-err.is_instance::<PyTypeError>(py);
+err.is_instance_of::<PyTypeError>(py);
 # });
 ```
 
@@ -136,7 +134,7 @@ which is an alias for the type `Result<T, PyErr>`.
 A [`PyErr`] represents a Python exception. Errors within the PyO3 library are also exposed as
 Python exceptions.
 
-If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr` 
+If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr`
 is usually enough. PyO3 will then automatically convert your error to a Python exception when needed.
 
 The following code snippet defines a Rust error named `CustomIOError`. In its `From<CustomIOError> for PyErr`
@@ -184,13 +182,13 @@ fn main() {
     Python::with_gil(|py| {
         let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
         let err = fun.call1(("0.0.0.0",)).unwrap_err();
-        assert!(err.is_instance::<PyOSError>(py));
+        assert!(err.is_instance_of::<PyOSError>(py));
     });
 }
 ```
 
 This has been implemented for most of Rust's standard library errors, so that you can use the `?`
-("try") operator with them. The following code snippet will raise a `ValueError` in Python if 
+("try") operator with them. The following code snippet will raise a `ValueError` in Python if
 `String::parse()` returns an error.
 
 ```rust
@@ -201,21 +199,21 @@ fn parse_int(s: String) -> PyResult<usize> {
 }
 #
 # use pyo3::exceptions::PyValueError;
-# 
+#
 # fn main() {
 #     Python::with_gil(|py| {
 #         assert_eq!(parse_int(String::from("1")).unwrap(), 1);
 #         assert_eq!(parse_int(String::from("1337")).unwrap(), 1337);
-# 
+#
 #         assert!(parse_int(String::from("-1"))
 #             .unwrap_err()
-#             .is_instance::<PyValueError>(py));
+#             .is_instance_of::<PyValueError>(py));
 #         assert!(parse_int(String::from("foo"))
 #             .unwrap_err()
-#             .is_instance::<PyValueError>(py));
+#             .is_instance_of::<PyValueError>(py));
 #         assert!(parse_int(String::from("13.37"))
 #             .unwrap_err()
-#             .is_instance::<PyValueError>(py));
+#             .is_instance_of::<PyValueError>(py));
 #     })
 # }
 ```
@@ -256,6 +254,6 @@ defines exceptions for several standard library modules.
 
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
-[`PyErr::from_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_instance
-[`Python::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.is_instance
+[`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
 [`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
+[`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance_of

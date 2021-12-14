@@ -12,7 +12,9 @@ pub mod path;
 pub mod pyclass_iter;
 pub mod subclassing;
 
+#[cfg(not(Py_LIMITED_API))]
 use buf_and_str::*;
+#[cfg(not(Py_LIMITED_API))]
 use datetime::*;
 use dict_iter::*;
 use misc::*;
@@ -24,7 +26,9 @@ use subclassing::*;
 
 #[pymodule]
 fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
+    #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(buf_and_str))?;
+    #[cfg(not(Py_LIMITED_API))]
     m.add_wrapped(wrap_pymodule!(datetime))?;
     m.add_wrapped(wrap_pymodule!(dict_iter))?;
     m.add_wrapped(wrap_pymodule!(misc))?;

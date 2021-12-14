@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 
 use pyo3::py_run;
@@ -23,10 +25,6 @@ impl ValueClass {
 #[pyclass(module = "module")]
 struct LocatedClass {}
 
-fn sum_as_string(a: i64, b: i64) -> String {
-    format!("{}", a + b)
-}
-
 #[pyfunction]
 /// Doubles the given value
 fn double(x: usize) -> usize {
@@ -36,12 +34,6 @@ fn double(x: usize) -> usize {
 /// This module is implemented in Rust.
 #[pymodule]
 fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
-    #![allow(deprecated)]
-    #[pyfn(m, "sum_as_string")]
-    fn function_with_deprecated_name(_py: Python, a: i64, b: i64) -> String {
-        sum_as_string(a, b)
-    }
-
     #[pyfn(m)]
     #[pyo3(name = "no_parameters")]
     fn function_with_name() -> usize {
@@ -89,7 +81,6 @@ fn test_module_with_functions() {
         *d,
         "module_with_functions.__doc__ == 'This module is implemented in Rust.'"
     );
-    py_assert!(py, *d, "module_with_functions.sum_as_string(1, 2) == '3'");
     py_assert!(py, *d, "module_with_functions.no_parameters() == 42");
     py_assert!(py, *d, "module_with_functions.foo == 'bar'");
     py_assert!(py, *d, "module_with_functions.AnonClass != None");
@@ -436,20 +427,6 @@ fn test_module_functions_with_module() {
         m,
         "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
     );
-}
-
-#[test]
-#[allow(deprecated)]
-fn test_module_with_deprecated_name() {
-    #[pymodule(custom_name)]
-    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
-        Ok(())
-    }
-
-    Python::with_gil(|py| {
-        let m = pyo3::wrap_pymodule!(custom_name)(py);
-        py_assert!(py, m, "m.__name__ == 'custom_name'");
-    })
 }
 
 #[test]

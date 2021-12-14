@@ -36,17 +36,6 @@ pub trait PyMappingProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__reversed__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __reversed__(&'p self) -> Self::Result
-    where
-        Self: PyMappingReversedProtocol<'p>,
-    {
-        unimplemented!()
-    }
 }
 
 // The following are a bunch of marker traits used to detect
@@ -70,10 +59,6 @@ pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
 pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
-}
-
-pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
-    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 py_len_func!(len, PyMappingLenProtocol, Self::__len__);

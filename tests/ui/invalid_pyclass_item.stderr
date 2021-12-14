@@ -1,0 +1,5 @@
+error: #[pyclass] only supports structs and enums.
+ --> tests/ui/invalid_pyclass_item.rs:4:1
+  |
+4 | fn foo() {}
+  | ^^^^^^^^^^^

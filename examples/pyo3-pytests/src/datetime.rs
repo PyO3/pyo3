@@ -1,3 +1,5 @@
+#![cfg(not(Py_LIMITED_API))]
+
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
@@ -49,8 +51,8 @@ fn time_with_fold<'p>(
     minute: u8,
     second: u8,
     microsecond: u32,
-    tzinfo: Option<&PyTzInfo>,
     fold: bool,
+    tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<&'p PyTime> {
     PyTime::new_with_fold(
         py,

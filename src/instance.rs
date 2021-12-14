@@ -17,6 +17,10 @@ use std::ptr::NonNull;
 /// PyO3 is designed in a way that all references to those types are bound
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which cannot be accessed without the GIL.
 pub unsafe trait PyNativeType: Sized {
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
@@ -525,6 +529,21 @@ impl<T> Py<T> {
     {
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             PyObject::from_owned_ptr_or_err(py, ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
+        })
+    }
+
+    /// Sets an attribute value.
+    ///
+    /// This is equivalent to the Python expression `self.attr_name = value`.
+    pub fn setattr<N, V>(&self, py: Python, attr_name: N, value: V) -> PyResult<()>
+    where
+        N: ToPyObject,
+        V: ToPyObject,
+    {
+        attr_name.with_borrowed_ptr(py, move |attr_name| {
+            value.with_borrowed_ptr(py, |value| unsafe {
+                err::error_on_minusone(py, ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
+            })
         })
     }
 

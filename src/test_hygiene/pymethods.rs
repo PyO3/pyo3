@@ -1,13 +1,16 @@
 #![no_implicit_prelude]
 #![allow(unused_variables)]
 
-#[::pyo3::pyclass]
+#[crate::pyclass]
+#[pyo3(crate = "crate")]
 pub struct Dummy;
 
-#[::pyo3::pyclass]
+#[crate::pyclass]
+#[pyo3(crate = "crate")]
 pub struct DummyIter;
 
-#[::pyo3::pymethods]
+#[crate::pymethods]
+#[pyo3(crate = "crate")]
 impl Dummy {
     //////////////////////
     // Basic customization
@@ -20,8 +23,8 @@ impl Dummy {
         "Dummy"
     }
 
-    fn __bytes__<'py>(&self, py: ::pyo3::Python<'py>) -> &'py ::pyo3::types::PyBytes {
-        ::pyo3::types::PyBytes::new(py, &[0])
+    fn __bytes__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyBytes {
+        crate::types::PyBytes::new(py, &[0])
     }
 
     fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
@@ -60,11 +63,11 @@ impl Dummy {
     // Customizing attribute access
     //////////////////////
 
-    fn __getattr__(&self, name: ::std::string::String) -> &::pyo3::PyAny {
+    fn __getattr__(&self, name: ::std::string::String) -> &crate::PyAny {
         ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
 
-    fn __getattribute__(&self, name: ::std::string::String) -> &::pyo3::PyAny {
+    fn __getattribute__(&self, name: ::std::string::String) -> &crate::PyAny {
         ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
 
@@ -72,8 +75,8 @@ impl Dummy {
 
     fn __delattr__(&mut self, name: ::std::string::String) {}
 
-    fn __dir__<'py>(&self, py: ::pyo3::Python<'py>) -> &'py ::pyo3::types::PyList {
-        ::pyo3::types::PyList::new(py, ::std::vec![0_u8])
+    fn __dir__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyList {
+        crate::types::PyList::new(py, ::std::vec![0_u8])
     }
 
     //////////////////////
@@ -82,17 +85,17 @@ impl Dummy {
 
     fn __get__(
         &self,
-        instance: &::pyo3::PyAny,
-        owner: &::pyo3::PyAny,
-    ) -> ::pyo3::PyResult<&::pyo3::PyAny> {
+        instance: &crate::PyAny,
+        owner: &crate::PyAny,
+    ) -> crate::PyResult<&crate::PyAny> {
         ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
 
-    fn __set__(&self, instance: &::pyo3::PyAny, owner: &::pyo3::PyAny) {}
+    fn __set__(&self, instance: &crate::PyAny, owner: &crate::PyAny) {}
 
-    fn __delete__(&self, instance: &::pyo3::PyAny) {}
+    fn __delete__(&self, instance: &crate::PyAny) {}
 
-    fn __set_name__(&self, owner: &::pyo3::PyAny, name: &::pyo3::PyAny) {}
+    fn __set_name__(&self, owner: &crate::PyAny, name: &crate::PyAny) {}
 
     //////////////////////
     // Implementing Descriptors
@@ -102,24 +105,24 @@ impl Dummy {
         0
     }
 
-    fn __getitem__(&self, key: u32) -> ::pyo3::PyResult<u32> {
-        ::std::result::Result::Err(::pyo3::exceptions::PyKeyError::new_err("boo"))
+    fn __getitem__(&self, key: u32) -> crate::PyResult<u32> {
+        ::std::result::Result::Err(crate::exceptions::PyKeyError::new_err("boo"))
     }
 
     fn __setitem__(&self, key: u32, value: u32) {}
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: ::pyo3::pycell::PyRef<Self>, py: ::pyo3::Python) -> ::pyo3::Py<DummyIter> {
-        ::pyo3::Py::new(py, DummyIter {}).unwrap()
+    fn __iter__(_: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+        crate::Py::new(py, DummyIter {}).unwrap()
     }
 
     fn __next__(&mut self) -> ::std::option::Option<()> {
         ::std::option::Option::None
     }
 
-    fn __reversed__(slf: ::pyo3::pycell::PyRef<Self>, py: ::pyo3::Python) -> ::pyo3::Py<DummyIter> {
-        ::pyo3::Py::new(py, DummyIter {}).unwrap()
+    fn __reversed__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+        crate::Py::new(py, DummyIter {}).unwrap()
     }
 
     fn __contains__(&self, item: u32) -> bool {
@@ -142,12 +145,12 @@ impl Dummy {
         Dummy {}
     }
 
-    fn __truediv__(&self, _other: &Self) -> ::pyo3::PyResult<()> {
-        ::std::result::Result::Err(::pyo3::exceptions::PyZeroDivisionError::new_err("boo"))
+    fn __truediv__(&self, _other: &Self) -> crate::PyResult<()> {
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
-    fn __floordiv__(&self, _other: &Self) -> ::pyo3::PyResult<()> {
-        ::std::result::Result::Err(::pyo3::exceptions::PyZeroDivisionError::new_err("boo"))
+    fn __floordiv__(&self, _other: &Self) -> crate::PyResult<()> {
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __mod__(&self, _other: &Self) -> u32 {
@@ -194,12 +197,12 @@ impl Dummy {
         Dummy {}
     }
 
-    fn __rtruediv__(&self, _other: &Self) -> ::pyo3::PyResult<()> {
-        ::std::result::Result::Err(::pyo3::exceptions::PyZeroDivisionError::new_err("boo"))
+    fn __rtruediv__(&self, _other: &Self) -> crate::PyResult<()> {
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
-    fn __rfloordiv__(&self, _other: &Self) -> ::pyo3::PyResult<()> {
-        ::std::result::Result::Err(::pyo3::exceptions::PyZeroDivisionError::new_err("boo"))
+    fn __rfloordiv__(&self, _other: &Self) -> crate::PyResult<()> {
+        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __rmod__(&self, _other: &Self) -> u32 {
@@ -258,24 +261,24 @@ impl Dummy {
 
     fn __ior__(&mut self, other: &Self) {}
 
-    fn __neg__(slf: ::pyo3::pycell::PyRef<Self>) -> ::pyo3::pycell::PyRef<Self> {
+    fn __neg__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
         slf
     }
 
-    fn __pos__(slf: ::pyo3::pycell::PyRef<Self>) -> ::pyo3::pycell::PyRef<Self> {
+    fn __pos__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
         slf
     }
 
-    fn __abs__(slf: ::pyo3::pycell::PyRef<Self>) -> ::pyo3::pycell::PyRef<Self> {
+    fn __abs__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
         slf
     }
 
-    fn __invert__(slf: ::pyo3::pycell::PyRef<Self>) -> ::pyo3::pycell::PyRef<Self> {
+    fn __invert__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
         slf
     }
 
-    fn __complex__<'py>(&self, py: ::pyo3::Python<'py>) -> &'py ::pyo3::types::PyComplex {
-        ::pyo3::types::PyComplex::from_doubles(py, 0.0, 0.0)
+    fn __complex__<'py>(&self, py: crate::Python<'py>) -> &'py crate::types::PyComplex {
+        crate::types::PyComplex::from_doubles(py, 0.0, 0.0)
     }
 
     fn __int__(&self) -> u32 {
@@ -314,9 +317,9 @@ impl Dummy {
 
     fn __exit__(
         &mut self,
-        exc_type: &::pyo3::PyAny,
-        exc_value: &::pyo3::PyAny,
-        traceback: &::pyo3::PyAny,
+        exc_type: &crate::PyAny,
+        exc_value: &crate::PyAny,
+        traceback: &crate::PyAny,
     ) {
     }
 
@@ -324,7 +327,7 @@ impl Dummy {
     // Awaitable Objects
     //////////////////////
 
-    fn __await__(slf: ::pyo3::pycell::PyRef<Self>) -> ::pyo3::pycell::PyRef<Self> {
+    fn __await__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
         slf
     }
 
@@ -333,8 +336,8 @@ impl Dummy {
     // Asynchronous Iterators
     //////////////////////
 
-    fn __aiter__(slf: ::pyo3::pycell::PyRef<Self>, py: ::pyo3::Python) -> ::pyo3::Py<DummyIter> {
-        ::pyo3::Py::new(py, DummyIter {}).unwrap()
+    fn __aiter__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+        crate::Py::new(py, DummyIter {}).unwrap()
     }
 
     fn __anext__(&mut self) -> ::std::option::Option<()> {
@@ -349,9 +352,9 @@ impl Dummy {
 
     fn __aexit__(
         &mut self,
-        exc_type: &::pyo3::PyAny,
-        exc_value: &::pyo3::PyAny,
-        traceback: &::pyo3::PyAny,
+        exc_type: &crate::PyAny,
+        exc_value: &crate::PyAny,
+        traceback: &crate::PyAny,
     ) {
     }
 
@@ -362,13 +365,13 @@ impl Dummy {
     #[staticmethod]
     fn staticmethod() {}
     #[classmethod]
-    fn clsmethod(_: &::pyo3::types::PyType) {}
+    fn clsmethod(_: &crate::types::PyType) {}
     #[args(args = "*", kwds = "**")]
     fn __call__(
         &self,
-        _args: &::pyo3::types::PyTuple,
-        _kwds: ::std::option::Option<&::pyo3::types::PyDict>,
-    ) -> ::pyo3::PyResult<i32> {
+        _args: &crate::types::PyTuple,
+        _kwds: ::std::option::Option<&crate::types::PyDict>,
+    ) -> crate::PyResult<i32> {
         ::std::panic!("unimplemented isn't hygienic before 1.50")
     }
     #[new]
@@ -391,8 +394,8 @@ impl Dummy {
     fn __richcmp__(
         &self,
         other: &Self,
-        op: ::pyo3::class::basic::CompareOp,
-    ) -> ::pyo3::PyResult<bool> {
+        op: crate::class::basic::CompareOp,
+    ) -> crate::PyResult<bool> {
         ::std::result::Result::Ok(false)
     }
     // PyGcProtocol

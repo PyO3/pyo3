@@ -1,5 +1,8 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::py_run;
+use pyo3::type_object::PyTypeObject;
 
 use pyo3::types::IntoPyDict;
 
@@ -100,6 +103,23 @@ fn mutation_fails() {
         .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
         .unwrap_err();
     assert_eq!(&e.to_string(), "RuntimeError: Already borrowed")
+}
+
+#[test]
+fn is_subclass_and_is_instance() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let sub_ty = SubClass::type_object(py);
+    let base_ty = BaseClass::type_object(py);
+    assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
+    assert!(sub_ty.is_subclass(base_ty).unwrap());
+
+    let obj = PyCell::new(py, SubClass::new()).unwrap();
+    assert!(obj.is_instance_of::<SubClass>().unwrap());
+    assert!(obj.is_instance_of::<BaseClass>().unwrap());
+    assert!(obj.is_instance(sub_ty).unwrap());
+    assert!(obj.is_instance(base_ty).unwrap());
 }
 
 #[pyclass(subclass)]

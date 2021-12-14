@@ -15,16 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==20.8b1
+      - run: pip install black==21.12b0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: rustfmt
       - name: Check python formatting (black)
-        run: black --check .
+        run: make fmt_py
       - name: Check rust formatting (rustfmt)
-        run: cargo fmt --all -- --check
+        run: make fmt_rust
 
   clippy:
     runs-on: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
       - name: Run cargo checks
         run: |
           set -x
-          VERSIONS=("3.6" "3.7" "3.8" "3.9" "3.10")
+          VERSIONS=("3.7" "3.8" "3.9" "3.10")
           for VERSION in ${VERSIONS[@]}; do
             echo "version=$VERSION" > config.txt
             echo "suppress_build_script_link_lines=true" >> config.txt
@@ -76,7 +76,7 @@ jobs:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", pypy-3.6, pypy-3.7, pypy-3.8]
+        python-version: [3.7, 3.8, 3.9, "3.10", pypy-3.7, pypy-3.8]
         platform:
           [
             {
@@ -101,29 +101,14 @@ jobs:
             },
           ]
         exclude:
-          # PyPy 3.6 is EOL and not working on macos-latest (now macos-11)
-          - python-version: pypy-3.6
-            platform: { os: "macos-latest", python-architecture: "x64" }
-          # There is no 64-bit pypy on windows for pypy-3.6
-          - python-version: pypy-3.6
-            platform: { os: "windows-latest", python-architecture: "x64" }
-          # PyPy 3.7 on Windows doesn't release 32-bit builds any more
+          # PyPy doesn't release 32-bit Windows builds any more
           - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
-          # PyPy3.6 still runs on macos-10.15
-          - rust: stable
-            python-version: pypy-3.6
-            platform:
-              {
-                os: "macos-10.15",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
           # Test minimal supported Rust version
-          - rust: 1.41.1
+          - rust: 1.48.0
             python-version: "3.10"
             platform:
               {
@@ -200,7 +185,7 @@ jobs:
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
-        run: cargo test --no-default-features
+        run: cargo test --no-default-features --lib --tests
 
       # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
       - name: Test pyo3-build-config (no features)
@@ -210,6 +195,10 @@ jobs:
 
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+
+      - if: ${{ startsWith(matrix.python-version, 'pypy') }}
+        name: Build PyPy (abi3-py37)
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
@@ -221,10 +210,10 @@ jobs:
         name: Test (abi3)
         run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
 
-      # Run tests again, for abi3-py36 (the minimal Python version)
-      - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.6') }}
-        name: Test (abi3-py36)
-        run: cargo test --no-default-features --features "abi3-py36 ${{ steps.settings.outputs.all_additive_features }}"
+      # Run tests again, for abi3-py37 (the minimal Python version)
+      - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
+        name: Test (abi3-py37)
+        run: cargo test --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
@@ -263,6 +252,10 @@ jobs:
       # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
       # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
       PYO3_CI: 1
+      # This is a hack to make CARGO_PRIMARY_PACKAGE always set even for the
+      # msrv job. MSRV is currently 1.48, but CARGO_PRIMARY_PACKAGE only came in
+      # 1.49.
+      CARGO_PRIMARY_PACKAGE: 1
 
   coverage:
     needs: [fmt]

@@ -98,7 +98,7 @@ impl PyCounter {
     fn __new__(wraps: Py<PyAny>) -> Self {
         PyCounter { count: 0, wraps }
     }
-
+    #[args(args="*", kwargs="**")]
     fn __call__(
         &mut self,
         py: Python,

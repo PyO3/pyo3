@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
-use crate::attributes::TextSignatureAttribute;
+use crate::attributes::{CrateAttribute, TextSignatureAttribute};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
@@ -62,8 +62,6 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
 #[derive(Clone)]
 pub struct PythonDoc(TokenStream);
 
-// TODO(#1782) use strip_prefix on Rust 1.45 or greater
-#[allow(clippy::manual_strip)]
 /// Collects all #[doc = "..."] attributes into a TokenStream evaluating to a null-terminated string
 /// e.g. concat!("...", "\n", "\0")
 pub fn get_doc(
@@ -79,11 +77,7 @@ pub fn get_doc(
     syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
         if let Some((python_name, text_signature)) = text_signature {
             // create special doc string lines to set `__text_signature__`
-            let signature_lines = format!(
-                "{}{}\n--\n\n",
-                python_name.to_string(),
-                text_signature.lit.value()
-            );
+            let signature_lines = format!("{}{}\n--\n\n", python_name, text_signature.lit.value());
             signature_lines.to_tokens(tokens);
             comma.to_tokens(tokens);
         }
@@ -107,11 +101,11 @@ pub fn get_doc(
                         // Strip single left space from literal strings, if needed.
                         // e.g. `/// Hello world` expands to #[doc = " Hello world"]
                         let doc_line = lit_str.value();
-                        if doc_line.starts_with(' ') {
-                            syn::LitStr::new(&doc_line[1..], lit_str.span()).to_tokens(tokens)
-                        } else {
-                            lit_str.to_tokens(tokens)
-                        }
+                        doc_line
+                            .strip_prefix(' ')
+                            .map(|stripped| syn::LitStr::new(stripped, lit_str.span()))
+                            .unwrap_or(lit_str)
+                            .to_tokens(tokens);
                     } else {
                         // This is probably a macro doc from Rust 1.54, e.g. #[doc = include_str!(...)]
                         token_stream.to_tokens(tokens)
@@ -194,4 +188,11 @@ pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
         }
         _ => {}
     }
+}
+
+/// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
+pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
+    attr.as_ref()
+        .map(|p| p.0.clone())
+        .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
 }

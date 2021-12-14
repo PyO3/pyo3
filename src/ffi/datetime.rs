@@ -361,7 +361,7 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     pub TimeZone_UTC: *mut PyObject,
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
@@ -395,7 +395,7 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
@@ -451,7 +451,7 @@ pub static PyDateTimeAPI: _PyDateTimeAPI_impl = _PyDateTimeAPI_impl {
 ///
 /// The type obtained by dereferencing this object is `&'static PyObject`. This may change in the
 /// future to be a more specific type representing that this is a `datetime.timezone` object.
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 pub static PyDateTime_TimeZone_UTC: _PyDateTime_TimeZone_UTC_impl = _PyDateTime_TimeZone_UTC_impl {
     inner: &PyDateTimeAPI,
 };
@@ -609,12 +609,12 @@ impl Deref for _PyDateTimeAPI_impl {
 }
 
 #[doc(hidden)]
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 pub struct _PyDateTime_TimeZone_UTC_impl {
     inner: &'static _PyDateTimeAPI_impl,
 }
 
-#[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+#[cfg(not(all(PyPy, not(Py_3_8))))]
 impl Deref for _PyDateTime_TimeZone_UTC_impl {
     type Target = crate::PyObject;
 
@@ -630,7 +630,7 @@ impl Deref for _PyDateTime_TimeZone_UTC_impl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{py_run, AsPyPointer, IntoPy, Py, PyAny, Python};
+    use crate::{types::PyDict, AsPyPointer, IntoPy, Py, PyAny, Python};
 
     #[test]
     fn test_datetime_fromtimestamp() {
@@ -638,11 +638,14 @@ mod tests {
             let args: Py<PyAny> = (100,).into_py(py);
             unsafe { PyDateTime_IMPORT() };
             let dt: &PyAny = unsafe { py.from_owned_ptr(PyDateTime_FromTimestamp(args.as_ptr())) };
-            py_run!(
-                py,
-                dt,
-                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("dt", dt).unwrap();
+            py.run(
+                "import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 
@@ -652,24 +655,30 @@ mod tests {
             let args: Py<PyAny> = (100,).into_py(py);
             unsafe { PyDateTime_IMPORT() };
             let dt: &PyAny = unsafe { py.from_owned_ptr(PyDate_FromTimestamp(args.as_ptr())) };
-            py_run!(
-                py,
-                dt,
-                "import datetime; assert dt == datetime.date.fromtimestamp(100)"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("dt", dt).unwrap();
+            py.run(
+                "import datetime; assert dt == datetime.date.fromtimestamp(100)",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 
     #[test]
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(not(all(PyPy, not(Py_3_8))))]
     fn test_utc_timezone() {
         Python::with_gil(|py| {
             let utc_timezone = PyDateTime_TimeZone_UTC.as_ref(py);
-            py_run!(
-                py,
-                utc_timezone,
-                "import datetime; assert utc_timezone is datetime.timezone.utc"
-            );
+            let locals = PyDict::new(py);
+            locals.set_item("utc_timezone", utc_timezone).unwrap();
+            py.run(
+                "import datetime; assert utc_timezone is datetime.timezone.utc",
+                None,
+                Some(locals),
+            )
+            .unwrap();
         })
     }
 }

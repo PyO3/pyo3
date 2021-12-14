@@ -1,4 +1,7 @@
-use crate::attributes::{self, get_pyo3_options, FromPyWithAttribute};
+use crate::{
+    attributes::{self, get_pyo3_options, CrateAttribute, FromPyWithAttribute},
+    utils::get_pyo3_crate,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -55,15 +58,15 @@ impl<'a> Enum<'a> {
         for (i, var) in self.variants.iter().enumerate() {
             let struct_derive = var.build();
             let ext = quote!(
-                let maybe_ret = || -> ::pyo3::PyResult<Self> {
+                let maybe_ret = || -> _pyo3::PyResult<Self> {
                     #struct_derive
                 }();
 
                 match maybe_ret {
                     ok @ ::std::result::Result::Ok(_) => return ok,
-                    ::std::result::Result::Err(inner) => {
-                        let py = ::pyo3::PyNativeType::py(obj);
-                        err_reasons.push_str(&::std::format!("{}\n", inner.instance(py).str()?));
+                    ::std::result::Result::Err(err) => {
+                        let py = _pyo3::PyNativeType::py(obj);
+                        err_reasons.push_str(&::std::format!("{}\n", err.value(py).str()?));
                     }
                 }
             );
@@ -82,7 +85,7 @@ impl<'a> Enum<'a> {
                 #ty_name,
                 #error_names,
                 &err_reasons);
-            ::std::result::Result::Err(::pyo3::exceptions::PyTypeError::new_err(err_msg))
+            ::std::result::Result::Err(_pyo3::exceptions::PyTypeError::new_err(err_msg))
         )
     }
 }
@@ -207,8 +210,8 @@ impl<'a> Container<'a> {
             );
             quote!(
                 ::std::result::Result::Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
-                    let py = ::pyo3::PyNativeType::py(obj);
-                    let new_err = ::pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                    let py = _pyo3::PyNativeType::py(obj);
+                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
                     new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?})
@@ -221,12 +224,12 @@ impl<'a> Container<'a> {
                 format!("failed to extract inner field of {}", quote!(#self_ty))
             };
             quote!(
-                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|inner| {
-                    let py = ::pyo3::PyNativeType::py(obj);
+                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|err| {
+                    let py = _pyo3::PyNativeType::py(obj);
                     let err_msg = ::std::format!("{}: {}",
                         #error_msg,
-                        inner.instance(py).str().unwrap());
-                    ::pyo3::exceptions::PyTypeError::new_err(err_msg)
+                        err.value(py).str().unwrap());
+                    _pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?))
             )
         }
@@ -238,9 +241,9 @@ impl<'a> Container<'a> {
         for i in 0..len {
             let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
             fields.push(quote!(
-                s.get_item(#i).and_then(::pyo3::types::PyAny::extract).map_err(|inner| {
-                let py = ::pyo3::PyNativeType::py(obj);
-                let new_err = ::pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                s.get_item(#i).and_then(_pyo3::types::PyAny::extract).map_err(|inner| {
+                let py = _pyo3::PyNativeType::py(obj);
+                let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
                 new_err.set_cause(py, ::std::option::Option::Some(inner));
                 new_err
                 })?));
@@ -255,9 +258,9 @@ impl<'a> Container<'a> {
             quote!("")
         };
         quote!(
-            let s = <::pyo3::types::PyTuple as ::pyo3::conversion::PyTryFrom>::try_from(obj)?;
+            let s = <_pyo3::types::PyTuple as _pyo3::conversion::PyTryFrom>::try_from(obj)?;
             if s.len() != #len {
-                return ::std::result::Result::Err(::pyo3::exceptions::PyValueError::new_err(#msg))
+                return ::std::result::Result::Err(_pyo3::exceptions::PyValueError::new_err(#msg))
             }
             ::std::result::Result::Ok(#self_ty(#fields))
         )
@@ -279,15 +282,15 @@ impl<'a> Container<'a> {
             let extractor = match &attrs.from_py_with {
                 None => quote!(
                     #get_field.extract().map_err(|inner| {
-                    let py = ::pyo3::PyNativeType::py(obj);
-                    let new_err = ::pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                    let py = _pyo3::PyNativeType::py(obj);
+                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
                     new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?),
                 Some(FromPyWithAttribute(expr_path)) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
-                        let py = ::pyo3::PyNativeType::py(obj);
-                        let new_err = ::pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                        let py = _pyo3::PyNativeType::py(obj);
+                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
                         new_err.set_cause(py, ::std::option::Option::Some(inner));
                         new_err
                     })?
@@ -300,20 +303,25 @@ impl<'a> Container<'a> {
     }
 }
 
+#[derive(Default)]
 struct ContainerOptions {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     transparent: bool,
     /// Change the name of an enum variant in the generated error message.
     annotation: Option<syn::LitStr>,
+    /// Change the path for the pyo3 crate
+    krate: Option<CrateAttribute>,
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 enum ContainerPyO3Attribute {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     Transparent(attributes::kw::transparent),
     /// Change the name of an enum variant in the generated error message.
     ErrorAnnotation(LitStr),
+    /// Change the path for the pyo3 crate
+    Crate(CrateAttribute),
 }
 
 impl Parse for ContainerPyO3Attribute {
@@ -326,6 +334,8 @@ impl Parse for ContainerPyO3Attribute {
             let _: attributes::kw::annotation = input.parse()?;
             let _: Token![=] = input.parse()?;
             input.parse().map(ContainerPyO3Attribute::ErrorAnnotation)
+        } else if lookahead.peek(Token![crate]) {
+            input.parse().map(ContainerPyO3Attribute::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -334,10 +344,8 @@ impl Parse for ContainerPyO3Attribute {
 
 impl ContainerOptions {
     fn from_attrs(attrs: &[Attribute]) -> Result<Self> {
-        let mut options = ContainerOptions {
-            transparent: false,
-            annotation: None,
-        };
+        let mut options = ContainerOptions::default();
+
         for attr in attrs {
             if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
                 for pyo3_attr in pyo3_attrs {
@@ -355,6 +363,13 @@ impl ContainerOptions {
                                 lit_str.span() => "`annotation` may only be provided once"
                             );
                             options.annotation = Some(lit_str);
+                        }
+                        ContainerPyO3Attribute::Crate(path) => {
+                            ensure_spanned!(
+                                options.krate.is_none(),
+                                path.0.span() => "`crate` may only be provided once"
+                            );
+                            options.krate = Some(path);
                         }
                     }
                 }
@@ -499,13 +514,18 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             .predicates
             .push(parse_quote!(#gen_ident: FromPyObject<#lt_param>))
     }
+    let options = ContainerOptions::from_attrs(&tokens.attrs)?;
+    let krate = get_pyo3_crate(&options.krate);
     let derives = match &tokens.data {
         syn::Data::Enum(en) => {
+            if options.transparent || options.annotation.is_some() {
+                bail_spanned!(tokens.span() => "`transparent` or `annotation` is not supported \
+                                                at top level for enums");
+            }
             let en = Enum::new(en, &tokens.ident)?;
             en.build()
         }
         syn::Data::Struct(st) => {
-            let options = ContainerOptions::from_attrs(&tokens.attrs)?;
             if let Some(lit_str) = &options.annotation {
                 bail_spanned!(lit_str.span() => "`annotation` is unsupported for structs");
             }
@@ -520,11 +540,15 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
 
     let ident = &tokens.ident;
     Ok(quote!(
-        #[automatically_derived]
-        impl#trait_generics ::pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
-            fn extract(obj: &#lt_param ::pyo3::PyAny) -> ::pyo3::PyResult<Self>  {
-                #derives
+        const _: () = {
+            use #krate as _pyo3;
+
+            #[automatically_derived]
+            impl#trait_generics _pyo3::FromPyObject<#lt_param> for #ident#generics #where_clause {
+                fn extract(obj: &#lt_param _pyo3::PyAny) -> _pyo3::PyResult<Self>  {
+                    #derives
+                }
             }
-        }
+        };
     ))
 }

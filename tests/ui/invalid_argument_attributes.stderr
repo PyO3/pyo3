@@ -5,10 +5,10 @@ error: expected `from_py_with`
   |                             ^^^
 
 error: expected `=`
- --> tests/ui/invalid_argument_attributes.rs:7:32
+ --> tests/ui/invalid_argument_attributes.rs:7:45
   |
 7 | fn from_py_with_no_value(#[pyo3(from_py_with)] param: String) {}
-  |                                ^^^^^^^^^^^^^^
+  |                                             ^
 
 error: expected `from_py_with`
   --> tests/ui/invalid_argument_attributes.rs:10:31

@@ -1,4 +1,4 @@
 pytest>=3.5.0
-setuptools-rust>=0.10.2
+setuptools_rust~=1.0.0
 pytest-benchmark~=3.2
 pip>=21.3

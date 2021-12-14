@@ -67,6 +67,9 @@ pub trait PyClassImpl: Sized {
     ///    can be accessed by multiple threads by `threading` module.
     type ThreadChecker: PyClassThreadChecker<Self>;
 
+    #[cfg(feature = "multiple-pymethods")]
+    type Inventory: PyClassInventory;
+
     fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
     fn get_new() -> Option<ffi::newfunc> {
         None
@@ -180,6 +183,7 @@ macro_rules! define_pyclass_setattr_slot {
                 }
             }};
         }
+        pub use $generate_macro;
     };
 }
 
@@ -272,7 +276,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _other: *mut $crate::ffi::PyObject,
                 ) -> *mut $crate::ffi::PyObject {
                     $crate::callback::handle_panic(|py| {
-                        use ::pyo3::class::impl_::*;
+                        use $crate::class::impl_::*;
                         let collector = PyClassImplCollector::<$cls>::new();
                         let lhs_result = collector.$lhs(py, _slf, _other)?;
                         if lhs_result == $crate::ffi::Py_NotImplemented() {
@@ -289,6 +293,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                 }
             }};
         }
+        pub use $generate_macro;
     };
 }
 
@@ -464,7 +469,7 @@ macro_rules! generate_pyclass_pow_slot {
             _mod: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
             $crate::callback::handle_panic(|py| {
-                use ::pyo3::class::impl_::*;
+                use $crate::class::impl_::*;
                 let collector = PyClassImplCollector::<$cls>::new();
                 let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
                 if lhs_result == $crate::ffi::Py_NotImplemented() {
@@ -481,6 +486,7 @@ macro_rules! generate_pyclass_pow_slot {
         }
     }};
 }
+pub use generate_pyclass_pow_slot;
 
 pub trait PyClassAllocImpl<T> {
     fn alloc_impl(self) -> Option<ffi::allocfunc>;
@@ -542,7 +548,6 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 /// # Safety
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
 /// - The GIL must be held.
-#[allow(clippy::collapsible_if)] // for if cfg!
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
     let obj = obj as *mut ffi::PyObject;
     debug_assert_eq!(
@@ -560,10 +565,9 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
         };
         free(obj as *mut c_void);
 
-        if cfg!(Py_3_8) {
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
-            }
+        #[cfg(Py_3_8)]
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
         }
     }
 }
@@ -609,23 +613,13 @@ macro_rules! methods_trait {
 /// Method storage for `#[pyclass]`.
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
 /// which are eventually collected by `#[pyclass]`.
-#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-pub trait PyMethodsInventory: inventory::Collect {
-    /// Create a new instance
-    fn new(methods: Vec<PyMethodDefType>, slots: Vec<ffi::PyType_Slot>) -> Self;
-
+#[cfg(feature = "multiple-pymethods")]
+pub trait PyClassInventory: inventory::Collect {
     /// Returns the methods for a single `#[pymethods] impl` block
     fn methods(&'static self) -> &'static [PyMethodDefType];
 
     /// Returns the slots for a single `#[pymethods] impl` block
     fn slots(&'static self) -> &'static [ffi::PyType_Slot];
-}
-
-/// Implemented for `#[pyclass]` in our proc macro code.
-/// Indicates that the pyclass has its own method storage.
-#[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
-pub trait HasMethodsInventory {
-    type Methods: PyMethodsInventory;
 }
 
 // Methods from #[pyo3(get, set)] on struct fields.
@@ -666,13 +660,15 @@ slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
 slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
 slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
 
+// slots that PyO3 implements by default, but can be overidden by the users.
+slots_trait!(PyClassDefaultSlots, py_class_default_slots);
+
 // Protocol slots from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
 slots_trait!(PyMethodsProtocolSlots, methods_protocol_slots);
 
 methods_trait!(PyObjectProtocolMethods, object_protocol_methods);
 methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);
-methods_trait!(PyContextProtocolMethods, context_protocol_methods);
 methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
 methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
 methods_trait!(PyNumberProtocolMethods, number_protocol_methods);

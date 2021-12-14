@@ -75,12 +75,7 @@ impl ElementType {
     pub fn from_format(format: &CStr) -> ElementType {
         match format.to_bytes() {
             [char] | [b'@', char] => native_element_type_from_type_char(*char),
-            [modifier, char]
-                if (*modifier == b'='
-                    || *modifier == b'<'
-                    || *modifier == b'>'
-                    || *modifier == b'!') =>
-            {
+            [modifier, char] if matches!(modifier, b'=' | b'<' | b'>' | b'!') => {
                 standard_element_type_from_type_char(*char)
             }
             _ => ElementType::Unknown,
@@ -168,6 +163,10 @@ fn is_matching_endian(c: u8) -> bool {
 }
 
 /// Trait implemented for possible element types of `PyBuffer`.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent valid elements of Python buffers.
 pub unsafe trait Element: Copy {
     /// Gets whether the element specified in the format string is potentially compatible.
     /// Alignment and size are checked separately from this function.

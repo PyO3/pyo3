@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString, PyTuple};
@@ -194,6 +196,7 @@ struct PyBaz {
 }
 
 #[derive(Debug, FromPyObject)]
+#[allow(dead_code)]
 struct Baz<U, T> {
     e: E<U, T>,
     tup: Tuple,

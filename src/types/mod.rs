@@ -6,6 +6,7 @@ pub use self::any::PyAny;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
+pub use self::capsule::PyCapsule;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -26,6 +27,7 @@ pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 pub use self::string::PyStringData;
 pub use self::string::{PyString, PyString as PyUnicode};
+pub use self::traceback::PyTraceback;
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
@@ -222,6 +224,7 @@ mod any;
 mod boolobject;
 mod bytearray;
 mod bytes;
+mod capsule;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
@@ -237,5 +240,6 @@ mod sequence;
 mod set;
 mod slice;
 mod string;
+mod traceback;
 mod tuple;
 mod typeobject;

@@ -278,6 +278,7 @@ fn err_if_invalid_value<T: PartialEq>(
 #[cfg(test)]
 mod test_128bit_intergers {
     use super::*;
+    use crate::types::PyDict;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
@@ -288,7 +289,9 @@ mod test_128bit_intergers {
         fn test_i128_roundtrip(x: i128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
                 let roundtripped: i128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -301,7 +304,9 @@ mod test_128bit_intergers {
         fn test_u128_roundtrip(x: u128) {
             Python::with_gil(|py| {
                 let x_py = x.into_py(py);
-                crate::py_run!(py, x_py, &format!("assert x_py == {}", x));
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
                 let roundtripped: u128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
@@ -345,7 +350,7 @@ mod test_128bit_intergers {
         Python::with_gil(|py| {
             let obj = py.eval("(1 << 130) * -1", None, None).unwrap();
             let err = obj.extract::<i128>().unwrap_err();
-            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
     }
 
@@ -354,7 +359,7 @@ mod test_128bit_intergers {
         Python::with_gil(|py| {
             let obj = py.eval("1 << 130", None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
-            assert!(err.is_instance::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
     }
 }
@@ -421,7 +426,7 @@ mod tests {
 
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::PyTypeError>(py));
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
                     });
                 }
 
@@ -431,7 +436,7 @@ mod tests {
 
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exceptions::PyTypeError>(py));});
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
                 }
 
                 #[test]

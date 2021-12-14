@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    attributes::{
-        self, get_deprecated_name_attribute, get_pyo3_options, is_attribute_ident, take_attributes,
-        NameAttribute,
-    },
+    attributes::{self, get_pyo3_options, is_attribute_ident, take_attributes, NameAttribute},
     deprecations::Deprecations,
 };
 use proc_macro2::{Ident, TokenStream};
@@ -80,11 +77,6 @@ impl ConstAttributes {
                         PyO3ConstAttribute::Name(name) => attributes.set_name(name)?,
                     }
                 }
-                Ok(true)
-            } else if let Some(name) =
-                get_deprecated_name_attribute(attr, &mut attributes.deprecations)?
-            {
-                attributes.set_name(name)?;
                 Ok(true)
             } else {
                 Ok(false)

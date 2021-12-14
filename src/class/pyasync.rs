@@ -37,33 +37,6 @@ pub trait PyAsyncProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__aenter__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __aenter__(&'p mut self) -> Self::Result
-    where
-        Self: PyAsyncAenterProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__aexit__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __aexit__(
-        &'p mut self,
-        exc_type: Option<Self::ExcType>,
-        exc_value: Option<Self::ExcValue>,
-        traceback: Option<Self::Traceback>,
-    ) -> Self::Result
-    where
-        Self: PyAsyncAexitProtocol<'p>,
-    {
-        unimplemented!()
-    }
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
@@ -79,17 +52,6 @@ pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
     type Result: IntoPyCallbackOutput<PyIterANextOutput>;
-}
-
-pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Result: IntoPyCallbackOutput<PyObject>;
-}
-
-pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
-    type ExcType: crate::FromPyObject<'p>;
-    type ExcValue: crate::FromPyObject<'p>;
-    type Traceback: crate::FromPyObject<'p>;
-    type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 py_unarys_func!(await_, PyAsyncAwaitProtocol, Self::__await__);

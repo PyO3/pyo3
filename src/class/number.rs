@@ -283,16 +283,6 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__complex__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __complex__(&'p self) -> Self::Result
-    where
-        Self: PyNumberComplexProtocol<'p>,
-    {
-        unimplemented!()
-    }
     fn __int__(&'p self) -> Self::Result
     where
         Self: PyNumberIntProtocol<'p>,
@@ -308,16 +298,6 @@ pub trait PyNumberProtocol<'p>: PyClass {
     fn __index__(&'p self) -> Self::Result
     where
         Self: PyNumberIndexProtocol<'p>,
-    {
-        unimplemented!()
-    }
-    #[deprecated(
-        since = "0.14.0",
-        note = "prefer implementing `__round__` in `#[pymethods]` instead of in a protocol"
-    )]
-    fn __round__(&'p self, ndigits: Option<Self::NDigits>) -> Self::Result
-    where
-        Self: PyNumberRoundProtocol<'p>,
     {
         unimplemented!()
     }
@@ -569,20 +549,11 @@ pub trait PyNumberInvertProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PyNumberComplexProtocol<'p>: PyNumberProtocol<'p> {
-    type Result: IntoPyCallbackOutput<PyObject>;
-}
-
 pub trait PyNumberIntProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
 pub trait PyNumberFloatProtocol<'p>: PyNumberProtocol<'p> {
-    type Result: IntoPyCallbackOutput<PyObject>;
-}
-
-pub trait PyNumberRoundProtocol<'p>: PyNumberProtocol<'p> {
-    type NDigits: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 

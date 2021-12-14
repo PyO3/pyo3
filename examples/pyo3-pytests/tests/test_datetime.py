@@ -139,7 +139,7 @@ def test_time_fold(t):
 @pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @pytest.mark.parametrize("fold", [False, True])
 def test_time_fold(fold):
-    t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
+    t = rdt.time_with_fold(0, 0, 0, 0, fold, None)
     assert t.fold == fold
 
 
