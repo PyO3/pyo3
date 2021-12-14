@@ -1530,11 +1530,11 @@ mod tests {
     fn test_venv_interpreter() {
         let base = OsStr::new("base");
         assert_eq!(
-            venv_interpreter(&base, true),
+            venv_interpreter(base, true),
             PathBuf::from_iter(&["base", "Scripts", "python.exe"])
         );
         assert_eq!(
-            venv_interpreter(&base, false),
+            venv_interpreter(base, false),
             PathBuf::from_iter(&["base", "bin", "python"])
         );
     }
@@ -1543,11 +1543,11 @@ mod tests {
     fn test_conda_env_interpreter() {
         let base = OsStr::new("base");
         assert_eq!(
-            conda_env_interpreter(&base, true),
+            conda_env_interpreter(base, true),
             PathBuf::from_iter(&["base", "python.exe"])
         );
         assert_eq!(
-            conda_env_interpreter(&base, false),
+            conda_env_interpreter(base, false),
             PathBuf::from_iter(&["base", "bin", "python"])
         );
     }

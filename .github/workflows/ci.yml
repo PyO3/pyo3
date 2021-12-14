@@ -15,16 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==20.8b1
+      - run: pip install black==21.12b0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: rustfmt
       - name: Check python formatting (black)
-        run: black --check .
+        run: make fmt_py
       - name: Check rust formatting (rustfmt)
-        run: cargo fmt --all -- --check
+        run: make fmt_rust
 
   clippy:
     runs-on: ubuntu-latest

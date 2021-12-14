@@ -1,4 +1,4 @@
-.PHONY: test test_py publish clippy lint fmt
+.PHONY: test test_py publish clippy lint fmt fmt_py fmt_rust
 
 ALL_ADDITIVE_FEATURES = macros multiple-pymethods num-bigint num-complex hashbrown serde indexmap eyre anyhow
 
@@ -14,13 +14,18 @@ test: lint test_py
 test_py:
 	for example in examples/*/; do TOX_TESTENV_PASSENV=RUSTUP_HOME tox -e py -c $$example || exit 1; done
 
-fmt:
-	cargo fmt --all -- --check
+fmt_py:
 	black . --check
 
+fmt_rust:
+	cargo fmt --all -- --check
+
+fmt: fmt_rust fmt_py
+	@true
+
 clippy:
-	cargo clippy --features="$(ALL_ADDITIVE_FEATURES)" --tests -- -Dwarnings
-	cargo clippy --features="abi3 $(ALL_ADDITIVE_FEATURES)" --tests -- -Dwarnings
+	cargo clippy --features="$(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
+	cargo clippy --features="abi3 $(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
 	for example in examples/*/; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
 
 lint: fmt clippy
