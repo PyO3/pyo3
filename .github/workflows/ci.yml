@@ -231,9 +231,7 @@ jobs:
               echo "Testing ${example_dir}"
               tox -c $example_dir -e py
           done
-        env:
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
-          
+
       - name: Test pytest modules
         shell: bash
         run: |
@@ -241,8 +239,6 @@ jobs:
               echo "Testing ${test_dir}"
               tox -c $test_dir -e py
           done
-        env:
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
@@ -257,6 +253,8 @@ jobs:
     env:
       CARGO_TERM_VERBOSE: true
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
+      CARGO_TARGET_DIR: ${{ github.workspace }}
+      TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTDOCFLAGS: "-D warnings"
