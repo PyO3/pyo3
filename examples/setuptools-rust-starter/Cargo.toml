@@ -11,6 +11,8 @@ edition = "2018"
 path = "../../"
 features = ["extension-module"]
 
+[workspace]
+
 [lib]
 name = "setuptools_rust_starter"
 crate-type = ["cdylib"]
@@ -25,3 +27,4 @@ classifier=[
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+

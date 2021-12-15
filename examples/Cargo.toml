@@ -1,0 +1,13 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[dev-dependencies]
+pyo3 = { version = "0.15.1", path = "..", features = ["auto-initialize", "extension-module"] }
+
+[[example]]
+name = "decorator"
+path = "decorator/src/lib.rs"
+crate_type = ["cdylib"]

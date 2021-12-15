@@ -221,17 +221,14 @@ jobs:
       - name: Test build config
         run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
 
-      - name: Install python test dependencies
-        run: python -m pip install -U pip tox
-
-      - name: Test example extension modules
+      - name: Test python examples and tests
         shell: bash
         run: |
-          for example_dir in examples/*/; do
-              tox -c $example_dir -e py
-          done
+          python -m pip install -U pip tox
+          make test_py
         env:
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
+          CARGO_TARGET_DIR: ${{ github.workspace }}
+          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}

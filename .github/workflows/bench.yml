@@ -83,7 +83,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cd examples/pyo3-benchmarks
+          cd pytests/pyo3-benchmarks
           python -m pip install -r requirements-dev.txt
           python setup.py develop
           pytest --benchmark-json ../../output.json
