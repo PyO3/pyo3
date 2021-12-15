@@ -10,3 +10,14 @@ Below is a brief description of each of these:
 | `maturin-starter` | A template project which is configured to use [`maturin`](https://github.com/PyO3/maturin) for development. |
 | `setuptools-rust-starter` | A template project which is configured to use [`setuptools_rust`](https://github.com/PyO3/setuptools-rust/) for development. |
 | `word-count` | A quick performance comparison between word counter implementations written in each of Rust and Python. |
+
+## Creating new projects from these examples
+
+To copy an example, use [`cargo-generate`](https://crates.io/crates/cargo-generate). Follow the commands below, replacing `<example>` with the example to start from:
+
+```bash
+$ cargo install cargo-generate
+$ cargo generate --git https://github.com/PyO3/pyo3 examples/<example>
+```
+
+(`cargo generate` will take a little while to clone the PyO3 repo first; be patient when waiting for the command to run.)
