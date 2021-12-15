@@ -1,18 +1,13 @@
 [package]
-authors = ["PyO3 Authors"]
 name = "setuptools-rust-starter"
 version = "0.1.0"
-description = "An example project to get started using PyO3 with maturin"
 edition = "2018"
-
-[dependencies]
-
-[dependencies.pyo3]
-path = "../../"
-features = ["extension-module"]
-
-[workspace]
 
 [lib]
 name = "setuptools_rust_starter"
 crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { path = "../../", features = ["extension-module"] }
+
+[workspace]

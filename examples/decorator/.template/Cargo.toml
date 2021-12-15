@@ -2,12 +2,11 @@
 authors = ["{{authors}}"]
 name = "{{project-name}}"
 version = "0.1.0"
-description = "An example project to get started using PyO3 with maturin"
 edition = "2018"
+
+[lib]
+name = "decorator"
+crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "{{PYO3_VERSION}}", features = ["extension-module"] }
-
-[lib]
-name = "maturin_starter"
-crate-type = ["cdylib"]
