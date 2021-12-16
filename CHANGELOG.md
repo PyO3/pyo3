@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PyCapsule`, exposing the [Capsule API](https://docs.python.org/3/c-api/capsule.html#capsules). [#1980](https://github.com/PyO3/pyo3/pull/1980)
 - All PyO3 proc-macros except the deprecated `#[pyproto]` now accept a supplemental attribute `#[pyo3(crate = "some::path")]` that specifies
   where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
+- Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
 
 ### Changed
 
@@ -55,7 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add implementations for `Py::as_ref()` and `Py::into_ref()` for `Py<PySequence>`, `Py<PyIterator>` and `Py<PyMapping>`. [#1682](https://github.com/PyO3/pyo3/pull/1682)
 - Add `PyTraceback` type to represent and format Python tracebacks. [#1977](https://github.com/PyO3/pyo3/pull/1977)
-- Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
 
 ### Changed
 
