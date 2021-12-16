@@ -1,8 +1,7 @@
 //! Configuration used by PyO3 for conditional support of varying Python versions.
 //!
-//! This crate exposes two functions, [`use_pyo3_cfgs`] and [`add_extension_module_link_args`],
-//! which are intended to be called from build scripts to simplify building crates which depend on
-//! PyO3.
+//! This crate exposes functionality to be called from build scripts to simplify building crates
+//! which depend on PyO3.
 //!
 //! It used internally by the PyO3 crate's build script to apply the same configuration.
 
@@ -15,7 +14,10 @@ use std::io::Cursor;
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
-pub use impl_::{BuildFlag, BuildFlags, InterpreterConfig, PythonImplementation, PythonVersion};
+pub use impl_::{
+    cross_compiling, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
+    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion,
+};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
