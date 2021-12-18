@@ -121,23 +121,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # macos: install gnu-tar because BSD tar is buggy for github actions
-      # https://github.com/actions/cache/issues/403
-      - name: Install GNU tar (macOS only)
-        if: matrix.platform.os == 'macos-latest'
-        run: |
-          brew install gnu-tar
-          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-${{ hashFiles('**/Cargo.toml') }}
-        continue-on-error: true
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -153,6 +136,11 @@ jobs:
           default: true
           # needed to correctly format errors, see #1865
           components: rust-src
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          key: cargo-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}
+        continue-on-error: true
 
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
@@ -266,13 +254,9 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: "3.10"
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: coverage-cargo-${{ matrix.os }}
         continue-on-error: true
       - uses: actions-rs/toolchain@v1
         with:
