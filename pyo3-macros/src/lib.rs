@@ -9,7 +9,7 @@ use proc_macro::TokenStream;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
     build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    PyDictLiteral, PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -197,6 +197,19 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
         #expanded
     )
     .into()
+}
+
+#[proc_macro]
+pub fn py_dict(input: proc_macro::TokenStream) -> TokenStream {
+    let PyDictLiteral { items, py } = parse_macro_input!(input as PyDictLiteral);
+    let stream = quote! {
+            (|| {
+                let dict = ::pyo3::types::PyDict::new(#py);
+                #(dict.set_item#items?;)*
+                ::pyo3::prelude::PyResult::Ok(dict)
+            })()
+    };
+    stream.into()
 }
 
 fn pyclass_impl(

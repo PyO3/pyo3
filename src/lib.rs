@@ -355,7 +355,7 @@ pub mod proc_macro {
 }
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
+pub use pyo3_macros::{py_dict, pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
 
 #[macro_use]
 mod macros;

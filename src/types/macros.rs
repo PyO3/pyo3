@@ -1,26 +1,19 @@
+pub use pyo3_macros::py_dict;
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! py_object_vec {
     ($py:ident, [$($item:expr),+]) => {{
-        let items_vec: Vec<$crate::instance::PyObject> =
+        let items_vec: Vec<$crate::PyObject> =
             vec![$($crate::conversion::IntoPy::into_py($item, $py)),+];
         items_vec
     }};
 }
 
 #[macro_export]
-macro_rules! py_dict {
-    ($py:ident, {$($keys:literal : $values:expr),+}) => {{
-        let items: $crate::instance::PyObject = py_list!($py, [$(($keys, $values)),+]).into();
-
-        $crate::types::dict::PyDict::from_sequence($py, items)
-    }};
-}
-
-#[macro_export]
 macro_rules! py_list {
     ($py:ident, [$($items:expr),+]) => {{
-        let items_vec = py_object_vec!($py, [$($items),+]);
+        let items_vec = $crate::py_object_vec!($py, [$($items),+]);
         $crate::types::list::PyList::new($py, items_vec)
     }};
 }
@@ -28,15 +21,15 @@ macro_rules! py_list {
 #[macro_export]
 macro_rules! py_tuple {
     ($py:ident, ($($items:expr),+)) => {{
-        let items_vec = py_object_vec!($py, [$($items),+]);
-        $crate::types::tuple::PyTuple::new($py, items_vec)
+        let items_vec = $crate::py_object_vec!($py, [$($items),+]);
+        $crate::types::PyTuple::new($py, items_vec)
     }};
 }
 
 #[macro_export]
 macro_rules! py_set {
     ($py:ident, {$($items:expr),+}) => {{
-        let items_vec = py_object_vec!($py, [$($items),+]);
+        let items_vec = $crate::py_object_vec!($py, [$($items),+]);
         $crate::types::set::PySet::new($py, items_vec.as_slice())
     }};
 }
@@ -44,51 +37,16 @@ macro_rules! py_set {
 #[macro_export]
 macro_rules! py_frozenset {
     ($py:ident, {$($items:expr),+}) => {{
-        let items_vec = py_object_vec!($py, [$($items),+]);
+        let items_vec = $crate::py_object_vec!($py, [$($items),+]);
         $crate::types::set::PyFrozenSet::new($py, items_vec.as_slice())
     }};
 }
 
 #[cfg(test)]
 mod test {
+    use crate::py_dict;
     use crate::types::PyFrozenSet;
     use crate::Python;
-
-    #[test]
-    fn test_dict_macro() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let single_elem_dict = py_dict!(py, { "a": 2 }).expect("failed to create dict");
-        assert_eq!(
-            2,
-            single_elem_dict
-                .get_item("a")
-                .unwrap()
-                .extract::<i32>()
-                .unwrap()
-        );
-
-        let value = "value";
-        let multi_elem_dict = py_dict!(py, {"key1": value, 143: "abcde", "name": "Даня"})
-            .expect("failed to create dict");
-        assert_eq!(
-            "value",
-            multi_elem_dict
-                .get_item("key1")
-                .unwrap()
-                .extract::<&str>()
-                .unwrap()
-        );
-        assert_eq!(
-            "abcde",
-            multi_elem_dict
-                .get_item(143)
-                .unwrap()
-                .extract::<&str>()
-                .unwrap()
-        );
-    }
 
     #[test]
     fn test_list_macro() {
@@ -98,18 +56,16 @@ mod test {
         let single_item_list = py_list!(py, ["elem"]);
         assert_eq!(
             "elem",
-            single_item_list.get_item(0).extract::<&str>().unwrap()
+            single_item_list
+                .get_item(0)
+                .expect("failed to get item")
+                .extract::<&str>()
+                .unwrap()
         );
 
         let multi_item_list = py_list!(
             py,
-            [
-                "elem1",
-                "elem2",
-                3,
-                4,
-                py_dict!(py, {"type": "user"}).unwrap()
-            ]
+            ["elem1", "elem2", 3, 4, py_dict!({"type": "user"}).unwrap()]
         );
 
         assert_eq!(
@@ -126,18 +82,16 @@ mod test {
         let single_item_tuple = py_tuple!(py, ("elem"));
         assert_eq!(
             "elem",
-            single_item_tuple.get_item(0).extract::<&str>().unwrap()
+            single_item_tuple
+                .get_item(0)
+                .expect("failed to get item")
+                .extract::<&str>()
+                .unwrap()
         );
 
         let multi_item_tuple = py_tuple!(
             py,
-            (
-                "elem1",
-                "elem2",
-                3,
-                4,
-                py_dict!(py, {"type": "user"}).unwrap()
-            )
+            ("elem1", "elem2", 3, 4, py_dict!({"type": "user"}).unwrap())
         );
 
         assert_eq!(
