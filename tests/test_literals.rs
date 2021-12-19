@@ -34,13 +34,17 @@ fn test_dict_literal() {
 
     let keys = &["key1", "key2"];
 
-    let expr_dict =
-        py_dict!(py => { keys[0]: "value1", keys[1]: "value2", 3-7: py_tuple!(py, ("elem1", "elem2", 3)) })
-            .expect("failed to create dict");
+    let expr_dict = py_dict!(py => {
+        keys[0]: "value1",
+        keys[1]: "value2",
+        3-7: py_tuple!(py, ("elem1", "elem2", 3)),
+        "KeY".to_lowercase(): 100 * 2,
+    })
+    .expect("failed to create dict");
 
     py_run!(
         py,
         expr_dict,
-        "assert expr_dict == {'key1': 'value1', 'key2': 'value2', -4: ('elem1', 'elem2', 3)}"
+        "assert expr_dict == {'key1': 'value1', 'key2': 'value2', -4: ('elem1', 'elem2', 3), 'key': 200}"
     );
 }

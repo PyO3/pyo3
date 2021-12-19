@@ -15,7 +15,6 @@ pub struct PyDictLiteral {
 #[derive(Debug)]
 pub struct KeyValue {
     key: syn::Expr,
-    sep: Token![:],
     value: syn::Expr,
 }
 
@@ -40,14 +39,10 @@ impl Parse for Key {
 impl Parse for KeyValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let key: Key = input.parse()?;
-        let sep: Token![:] = input.parse()?;
+        let _sep: Token![:] = input.parse()?;
         let value: syn::Expr = input.parse()?;
 
-        Ok(Self {
-            key: key.0,
-            sep,
-            value,
-        })
+        Ok(Self { key: key.0, value })
     }
 }
 

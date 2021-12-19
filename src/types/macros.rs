@@ -44,7 +44,6 @@ macro_rules! py_frozenset {
 
 #[cfg(test)]
 mod test {
-    use crate::py_dict;
     use crate::types::PyFrozenSet;
     use crate::Python;
 
@@ -63,13 +62,10 @@ mod test {
                 .unwrap()
         );
 
-        let multi_item_list = py_list!(
-            py,
-            ["elem1", "elem2", 3, 4, py_dict!({"type": "user"}).unwrap()]
-        );
+        let multi_item_list = py_list!(py, ["elem1", "elem2", 3, 4]);
 
         assert_eq!(
-            "['elem1', 'elem2', 3, 4, {'type': 'user'}]",
+            "['elem1', 'elem2', 3, 4]",
             multi_item_list.str().unwrap().extract::<&str>().unwrap()
         );
     }
@@ -89,13 +85,10 @@ mod test {
                 .unwrap()
         );
 
-        let multi_item_tuple = py_tuple!(
-            py,
-            ("elem1", "elem2", 3, 4, py_dict!({"type": "user"}).unwrap())
-        );
+        let multi_item_tuple = py_tuple!(py, ("elem1", "elem2", 3, 4));
 
         assert_eq!(
-            "('elem1', 'elem2', 3, 4, {'type': 'user'})",
+            "('elem1', 'elem2', 3, 4)",
             multi_item_tuple.str().unwrap().extract::<&str>().unwrap()
         );
     }

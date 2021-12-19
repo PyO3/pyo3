@@ -204,9 +204,11 @@ pub fn py_dict(input: proc_macro::TokenStream) -> TokenStream {
     let PyDictLiteral { items, py } = parse_macro_input!(input as PyDictLiteral);
     let stream = quote! {
             (|| {
-                let dict = ::pyo3::types::PyDict::new(#py);
+                use pyo3 as _pyo3;
+
+                let dict = _pyo3::types::PyDict::new(#py);
                 #(dict.set_item#items?;)*
-                ::pyo3::prelude::PyResult::Ok(dict)
+                _pyo3::PyResult::Ok(dict)
             })()
     };
     stream.into()
