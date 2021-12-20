@@ -57,17 +57,17 @@ impl PySlice {
     pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
-            let slicelength: isize = 0;
-            let start: isize = 0;
-            let stop: isize = 0;
-            let step: isize = 0;
+            let mut slicelength: isize = 0;
+            let mut start: isize = 0;
+            let mut stop: isize = 0;
+            let mut step: isize = 0;
             let r = ffi::PySlice_GetIndicesEx(
                 self.as_ptr(),
                 length as Py_ssize_t,
-                &start as *const _ as *mut _,
-                &stop as *const _ as *mut _,
-                &step as *const _ as *mut _,
-                &slicelength as *const _ as *mut _,
+                &mut start,
+                &mut stop,
+                &mut step,
+                &mut slicelength,
             );
             if r == 0 {
                 Ok(PySliceIndices {
