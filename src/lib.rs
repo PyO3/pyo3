@@ -11,6 +11,7 @@
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
+#![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
 //!

@@ -3,7 +3,7 @@
 // #[pyo3(crate = "crate")] this validates that all macro expansion respects the setting.
 //
 // The generated code is never executed (these tests are checking compile time correctness.)
-#![cfg_attr(coverage, feature(no_coverage))]
+#![cfg_attr(coverage, no_coverage)]
 
 mod misc;
 mod pyclass;
