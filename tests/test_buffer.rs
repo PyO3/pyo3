@@ -55,9 +55,9 @@ impl PyBufferProtocol for TestBufferErrors {
             (*view).format = msg.as_ptr() as *mut _;
 
             (*view).ndim = 1;
-            (*view).shape = (&((*view).len)) as *const _ as *mut _;
+            (*view).shape = &mut (*view).len;
 
-            (*view).strides = &((*view).itemsize) as *const _ as *mut _;
+            (*view).strides = &mut (*view).itemsize;
 
             (*view).suboffsets = ptr::null_mut();
             (*view).internal = ptr::null_mut();

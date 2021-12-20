@@ -9,7 +9,7 @@ use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::c_int;
 
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
@@ -537,7 +537,7 @@ impl<'py> Python<'py> {
     /// ```
     pub fn version(self) -> &'py str {
         unsafe {
-            CStr::from_ptr(ffi::Py_GetVersion() as *const c_char)
+            CStr::from_ptr(ffi::Py_GetVersion())
                 .to_str()
                 .expect("Python version string not UTF-8")
         }

@@ -54,12 +54,12 @@ impl PyBufferProtocol for TestBufferClass {
             (*view).ndim = 1;
             (*view).shape = ptr::null_mut();
             if (flags & ffi::PyBUF_ND) == ffi::PyBUF_ND {
-                (*view).shape = (&((*view).len)) as *const _ as *mut _;
+                (*view).shape = &mut (*view).len;
             }
 
             (*view).strides = ptr::null_mut();
             if (flags & ffi::PyBUF_STRIDES) == ffi::PyBUF_STRIDES {
-                (*view).strides = &((*view).itemsize) as *const _ as *mut _;
+                (*view).strides = &mut (*view).itemsize;
             }
 
             (*view).suboffsets = ptr::null_mut();
