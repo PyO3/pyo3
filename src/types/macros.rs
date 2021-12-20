@@ -1,3 +1,4 @@
+#[cfg(feature = "macros")]
 pub use pyo3_macros::py_dict;
 
 #[doc(hidden)]

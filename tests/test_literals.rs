@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::{py_dict, py_run, py_tuple};
 
