@@ -103,7 +103,7 @@ pub fn gen_py_method(
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
-                    let slot = slot_def.generate_type_slot(cls, spec)?;
+                    let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
@@ -556,6 +556,14 @@ const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
+const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc")
+    .arguments(&[Ty::PyBuffer, Ty::Int])
+    .ret_ty(Ty::Int)
+    .require_unsafe();
+const __RELEASEBUFFER__: SlotDef = SlotDef::new("Py_bf_releasebuffer", "releasebufferproc")
+    .arguments(&[Ty::PyBuffer])
+    .ret_ty(Ty::Void)
+    .require_unsafe();
 
 fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
     match method_name {
@@ -594,6 +602,8 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__iand__" => Some(&__IAND__),
         "__ixor__" => Some(&__IXOR__),
         "__ior__" => Some(&__IOR__),
+        "__getbuffer__" => Some(&__GETBUFFER__),
+        "__releasebuffer__" => Some(&__RELEASEBUFFER__),
         _ => None,
     }
 }
@@ -608,6 +618,7 @@ enum Ty {
     PyHashT,
     PySsizeT,
     Void,
+    PyBuffer,
 }
 
 impl Ty {
@@ -619,6 +630,7 @@ impl Ty {
             Ty::PyHashT => quote! { _pyo3::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { _pyo3::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
+            Ty::PyBuffer => quote! { *mut _pyo3::ffi::Py_buffer },
         }
     }
 
@@ -680,7 +692,8 @@ impl Ty {
                     let #ident = #extract;
                 }
             }
-            Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => todo!(),
+            // Just pass other types through unmodified
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => quote! {},
         }
     }
 }
@@ -752,6 +765,7 @@ struct SlotDef {
     before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
+    require_unsafe: bool,
 }
 
 const NO_ARGUMENTS: &[Ty] = &[];
@@ -766,6 +780,7 @@ impl SlotDef {
             before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
+            require_unsafe: false,
         }
     }
 
@@ -799,7 +814,17 @@ impl SlotDef {
         self
     }
 
-    fn generate_type_slot(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    const fn require_unsafe(mut self) -> Self {
+        self.require_unsafe = true;
+        self
+    }
+
+    fn generate_type_slot(
+        &self,
+        cls: &syn::Type,
+        spec: &FnSpec,
+        method_name: &str,
+    ) -> Result<TokenStream> {
         let SlotDef {
             slot,
             func_ty,
@@ -808,7 +833,14 @@ impl SlotDef {
             extract_error_mode,
             ret_ty,
             return_mode,
+            require_unsafe,
         } = self;
+        if *require_unsafe {
+            ensure_spanned!(
+                spec.unsafety.is_some(),
+                spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
+            );
+        }
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();

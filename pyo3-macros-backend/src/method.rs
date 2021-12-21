@@ -229,6 +229,7 @@ pub struct FnSpec<'a> {
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: syn::Path,
+    pub unsafety: Option<syn::Token![unsafe]>,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -316,6 +317,7 @@ impl<'a> FnSpec<'a> {
             deprecations,
             text_signature,
             krate,
+            unsafety: sig.unsafety,
         })
     }
 
