@@ -119,7 +119,8 @@ harness = false
 members = [
     "pyo3-macros",
     "pyo3-macros-backend",
-    "examples"
+    "examples",
+    "xtask"
 ]
 
 [package.metadata.docs.rs]
