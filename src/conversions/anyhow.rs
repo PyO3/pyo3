@@ -1,6 +1,9 @@
 #![cfg(feature = "anyhow")]
 
-//! A conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
+//! A conversion from
+//! [anyhow](https://docs.rs/anyhow/ "A trait object based error system for easy idiomatic error handling in Rust applications.")’s
+//! [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html "Anyhows `Error` type, a wrapper around a dynamic error type")
+//! type to [`PyErr`].
 //!
 //! Use of an error handling library like [anyhow] is common in application code and when you just
 //! want error handling to be easy. If you are writing a library or you need more control over your
@@ -101,8 +104,6 @@
 //! }
 //! ```
 //!
-//! [anyhow]: https://docs.rs/anyhow/ "A trait object based error system for easy idiomatic error handling in Rust applications."
-//! [anyhow_error]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html "Anyhows `Error` type, a wrapper around a dynamic error type"
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 

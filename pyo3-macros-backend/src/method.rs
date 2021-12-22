@@ -64,17 +64,17 @@ impl<'a> FnArg<'a> {
 
 #[derive(Clone, PartialEq, Debug, Copy, Eq)]
 pub enum MethodTypeAttribute {
-    /// #[new]
+    /// `#[new]`
     New,
-    /// #[classmethod]
+    /// `#[classmethod]`
     ClassMethod,
-    /// #[classattr]
+    /// `#[classattr]`
     ClassAttribute,
-    /// #[staticmethod]
+    /// `#[staticmethod]`
     StaticMethod,
-    /// #[getter]
+    /// `#[getter]`
     Getter,
-    /// #[setter]
+    /// `#[setter]`
     Setter,
 }
 

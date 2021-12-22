@@ -9,7 +9,9 @@ If you want to become familiar with the codebase, see
 
 ## Getting started contributing
 
-Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
+Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it. 
+
+You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/pyo3/index.html).
 
 The following sections also contain specific ideas on where to start contributing to PyO3.
 
@@ -34,7 +36,8 @@ There are some specific areas of focus where help is currently needed for the do
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
-You can build the docs (including all features) with `cargo +nightly rustdoc --features="$(make list_all_additive_features)" --open -- --cfg docsrs`.
+You can build the docs (including all features) with 
+```cargo +nightly pyo3_doc_scrape```
 
 #### Doctests
 
@@ -47,7 +50,7 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 You can preview the user guide by building it locally with `mdbook`.
 
 First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run
-`mdbook build -d ../gh-pages-build guide --open`.
+```mdbook build -d ../gh-pages-build guide --open```
 
 ### Help design the next PyO3
 
@@ -71,7 +74,7 @@ Formatting, linting and tests are checked for all Rust and Python code. In addit
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
-If you are adding a new feature, you should add it to the `ALL_ADDITIVE_FEATURES` declaration in the `Makefile` so that it is tested in CI.
+If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
 ## Python and Rust version support policy
 

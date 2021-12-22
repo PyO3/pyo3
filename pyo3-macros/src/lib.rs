@@ -2,7 +2,7 @@
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
