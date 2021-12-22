@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! This crate contains the implementation of the proc macro attributes
 
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![recursion_limit = "1024"]
 
 // Listed first so that macros in this module are available in the rest of the crate.
