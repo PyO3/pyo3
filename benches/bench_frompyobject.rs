@@ -6,7 +6,7 @@ use pyo3::{prelude::*, types::PyString};
 enum ManyTypes {
     Int(i32),
     Bytes(Vec<u8>),
-    String(String)
+    String(String),
 }
 
 fn enum_from_pyobject(b: &mut Bencher) {
