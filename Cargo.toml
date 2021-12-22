@@ -92,6 +92,10 @@ name = "bench_dict"
 harness = false
 
 [[bench]]
+name = "bench_frompyobject"
+harness = false
+
+[[bench]]
 name = "bench_gil"
 harness = false
 
