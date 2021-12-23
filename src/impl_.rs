@@ -8,3 +8,4 @@ pub mod deprecations;
 pub mod freelist;
 #[doc(hidden)]
 pub mod frompyobject;
+pub(crate) mod not_send;
