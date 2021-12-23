@@ -5,6 +5,7 @@
 //! breaking semver guarantees.
 
 pub mod deprecations;
+pub mod extract_argument;
 pub mod freelist;
 #[doc(hidden)]
 pub mod frompyobject;
