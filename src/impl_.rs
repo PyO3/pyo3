@@ -6,3 +6,5 @@
 
 pub mod deprecations;
 pub mod freelist;
+#[doc(hidden)]
+pub mod frompyobject;
