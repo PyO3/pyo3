@@ -40,7 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `create_exception!` macro can now take an optional docstring. This docstring, if supplied, is visible to users (with `.__doc__` and `help()`) and
   accompanies your error type in your crate's documentation.
 - Improve performance and error messages for `#[derive(FromPyObject)]` for enums. [#2068](https://github.com/PyO3/pyo3/pull/2068)
-- Tweak LLVM code for compile times for internal `handle_panic` helper. [#2073](https://github.com/PyO3/pyo3/pull/2073)
+- Reduce generated LLVM code size (to improve compile times) for:
+  - internal `handle_panic` helper [#2073](https://github.com/PyO3/pyo3/pull/2073)
+  - `#[pyclass]` type object creation [#2075](https://github.com/PyO3/pyo3/pull/2075)
 
 ### Removed
 
