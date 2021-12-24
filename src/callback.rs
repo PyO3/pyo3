@@ -10,7 +10,7 @@ use crate::{GILPool, IntoPyPointer};
 use crate::{IntoPy, PyObject, Python};
 use std::any::Any;
 use std::os::raw::c_int;
-use std::panic::{AssertUnwindSafe, UnwindSafe};
+use std::panic::UnwindSafe;
 use std::{isize, panic};
 
 /// A type which can be the return type of a python C-API callback
@@ -241,13 +241,8 @@ where
     R: PyCallbackOutput,
 {
     let pool = GILPool::new();
-    let unwind_safe_py = AssertUnwindSafe(pool.python());
-    let panic_result = panic::catch_unwind(move || -> PyResult<_> {
-        let py = *unwind_safe_py;
-        body(py)
-    });
-
-    panic_result_into_callback_output(pool.python(), panic_result)
+    let py = pool.python();
+    panic_result_into_callback_output(py, panic::catch_unwind(move || -> PyResult<_> { body(py) }))
 }
 
 fn panic_result_into_callback_output<R>(

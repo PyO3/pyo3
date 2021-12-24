@@ -312,8 +312,6 @@ pub enum Foo<'a> {
         #[pyo3(item("foo"))]
         a: String,
     },
-    #[pyo3(transparent)]
-    CatchAll(&'a PyAny),
 }
 
 #[pyclass]
@@ -381,15 +379,52 @@ fn test_enum() {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
             _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
         }
+    });
+}
 
+#[test]
+fn test_enum_error() {
+    Python::with_gil(|py| {
         let dict = PyDict::new(py);
-        let f = Foo::extract(dict.as_ref()).expect("Failed to extract Foo from dict");
+        let err = Foo::extract(dict.as_ref()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "\
+TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple | TransparentStructVar | StructVarGetAttrArg | StructWithGetItem | StructWithGetItemArg')
+- variant TupleVar (TupleVar): 'dict' object cannot be converted to 'PyTuple'
+- variant StructVar (StructVar): 'dict' object has no attribute 'test'
+- variant TransparentTuple (TransparentTuple): 'dict' object cannot be interpreted as an integer
+- variant TransparentStructVar (TransparentStructVar): failed to extract field Foo :: TransparentStructVar.a
+- variant StructVarGetAttrArg (StructVarGetAttrArg): 'dict' object has no attribute 'bla'
+- variant StructWithGetItem (StructWithGetItem): 'a'
+- variant StructWithGetItemArg (StructWithGetItemArg): 'foo'"
+        );
+    });
+}
+
+#[derive(Debug, FromPyObject)]
+enum EnumWithCatchAll<'a> {
+    #[pyo3(transparent)]
+    Foo(Foo<'a>),
+    #[pyo3(transparent)]
+    CatchAll(&'a PyAny),
+}
+
+#[test]
+fn test_enum_catch_all() {
+    Python::with_gil(|py| {
+        let dict = PyDict::new(py);
+        let f = EnumWithCatchAll::extract(dict.as_ref())
+            .expect("Failed to extract EnumWithCatchAll from dict");
         match f {
-            Foo::CatchAll(any) => {
+            EnumWithCatchAll::CatchAll(any) => {
                 let d = <&PyDict>::extract(any).expect("Expected pydict");
                 assert!(d.is_empty());
             }
-            _ => panic!("Expected extracting Foo::CatchAll, got {:?}", f),
+            _ => panic!(
+                "Expected extracting EnumWithCatchAll::CatchAll, got {:?}",
+                f
+            ),
         }
     });
 }
@@ -412,10 +447,11 @@ fn test_err_rename() {
         assert!(f.is_err());
         assert_eq!(
             f.unwrap_err().to_string(),
-            "TypeError: failed to extract enum Bar (\'str | uint | int\')\n- variant A (str): \
-         \'dict\' object cannot be converted to \'PyString\'\n- variant B (uint): \'dict\' object \
-         cannot be interpreted as an integer\n- variant C (int): \'dict\' object cannot be \
-         interpreted as an integer\n"
+            "\
+TypeError: failed to extract enum Bar (\'str | uint | int\')
+- variant A (str): \'dict\' object cannot be converted to \'PyString\'
+- variant B (uint): \'dict\' object cannot be interpreted as an integer
+- variant C (int): \'dict\' object cannot be interpreted as an integer"
         );
     });
 }

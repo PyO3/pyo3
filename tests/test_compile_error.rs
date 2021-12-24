@@ -29,6 +29,7 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/missing_clone.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
+    t.compile_fail("tests/ui/not_send.rs");
 
     tests_rust_1_49(&t);
     tests_rust_1_55(&t);

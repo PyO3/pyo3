@@ -11,7 +11,7 @@ mod utils;
 mod attributes;
 mod defs;
 mod deprecations;
-mod from_pyobject;
+mod frompyobject;
 mod konst;
 mod method;
 mod module;
@@ -23,7 +23,7 @@ mod pyimpl;
 mod pymethod;
 mod pyproto;
 
-pub use from_pyobject::build_derive_from_pyobject;
+pub use frompyobject::build_derive_from_pyobject;
 pub use module::{process_functions_in_module, py_init, PyModuleOptions};
 pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};

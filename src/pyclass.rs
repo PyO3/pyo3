@@ -7,7 +7,7 @@ use crate::{
 };
 use std::{
     convert::TryInto,
-    ffi::CString,
+    ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_uint, c_void},
     ptr,
 };
@@ -29,32 +29,6 @@ pub trait PyClass:
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 
-/// For collecting slot items.
-#[derive(Default)]
-struct TypeSlots(Vec<ffi::PyType_Slot>);
-
-impl TypeSlots {
-    fn push(&mut self, slot: c_int, pfunc: *mut c_void) {
-        self.0.push(ffi::PyType_Slot { slot, pfunc });
-    }
-}
-
-fn tp_doc<T: PyClass>() -> PyResult<Option<*mut c_void>> {
-    Ok(match T::DOC {
-        "\0" => None,
-        s if s.as_bytes().ends_with(b"\0") => Some(s.as_ptr() as _),
-        // If the description is not null-terminated, create CString and leak it
-        s => Some(CString::new(s)?.into_raw() as _),
-    })
-}
-
-fn get_type_name<T: PyTypeInfo>(module_name: Option<&str>) -> PyResult<*mut c_char> {
-    Ok(match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
-        None => CString::new(format!("builtins.{}", T::NAME))?.into_raw(),
-    })
-}
-
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
@@ -66,41 +40,53 @@ pub(crate) fn create_type_object<T>(
 where
     T: PyClass,
 {
-    let mut slots = TypeSlots::default();
+    let mut slots = Vec::new();
 
-    slots.push(ffi::Py_tp_base, T::BaseType::type_object_raw(py) as _);
-    if let Some(doc) = tp_doc::<T>()? {
-        slots.push(ffi::Py_tp_doc, doc);
+    fn push_slot(slots: &mut Vec<ffi::PyType_Slot>, slot: c_int, pfunc: *mut c_void) {
+        slots.push(ffi::PyType_Slot { slot, pfunc });
     }
 
-    slots.push(ffi::Py_tp_new, T::get_new().unwrap_or(fallback_new) as _);
-    slots.push(ffi::Py_tp_dealloc, tp_dealloc::<T> as _);
+    push_slot(
+        &mut slots,
+        ffi::Py_tp_base,
+        T::BaseType::type_object_raw(py) as _,
+    );
+    if let Some(doc) = py_class_doc(T::DOC) {
+        push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
+    }
+
+    push_slot(
+        &mut slots,
+        ffi::Py_tp_new,
+        T::get_new().unwrap_or(fallback_new) as _,
+    );
+    push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc::<T> as _);
 
     if let Some(alloc) = T::get_alloc() {
-        slots.push(ffi::Py_tp_alloc, alloc as _);
+        push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
     }
     if let Some(free) = T::get_free() {
-        slots.push(ffi::Py_tp_free, free as _);
+        push_slot(&mut slots, ffi::Py_tp_free, free as _);
     }
 
     #[cfg(Py_3_9)]
     {
-        let members = py_class_members::<T>();
+        let members = py_class_members(PyCell::<T>::dict_offset(), PyCell::<T>::weakref_offset());
         if !members.is_empty() {
-            slots.push(ffi::Py_tp_members, into_raw(members))
+            push_slot(&mut slots, ffi::Py_tp_members, into_raw(members))
         }
     }
 
     // normal methods
     let methods = py_class_method_defs(&T::for_each_method_def);
     if !methods.is_empty() {
-        slots.push(ffi::Py_tp_methods, into_raw(methods));
+        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(methods));
     }
 
     // properties
     let props = py_class_properties(T::Dict::IS_DUMMY, &T::for_each_method_def);
     if !props.is_empty() {
-        slots.push(ffi::Py_tp_getset, into_raw(props));
+        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(props));
     }
 
     // protocol methods
@@ -109,16 +95,16 @@ where
         has_gc_methods |= proto_slots
             .iter()
             .any(|slot| slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse);
-        slots.0.extend_from_slice(proto_slots);
+        slots.extend_from_slice(proto_slots);
     });
 
-    slots.push(0, ptr::null_mut());
+    push_slot(&mut slots, 0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {
-        name: get_type_name::<T>(module_name)?,
+        name: py_class_qualified_name(module_name, T::NAME)?,
         basicsize: std::mem::size_of::<T::Layout>() as c_int,
         itemsize: 0,
         flags: py_class_flags(has_gc_methods, T::IS_GC, T::IS_BASETYPE),
-        slots: slots.0.as_mut_ptr(),
+        slots: slots.as_mut_ptr(),
     };
 
     let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
@@ -188,6 +174,33 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 #[cfg(any(Py_LIMITED_API, Py_3_10))]
 fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
 
+fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {
+    match class_doc {
+        "\0" => None,
+        s => {
+            // To pass *mut pointer to python safely, leak a CString in whichever case
+            let cstring = if s.as_bytes().last() == Some(&0) {
+                CStr::from_bytes_with_nul(s.as_bytes())
+                    .unwrap_or_else(|e| panic!("doc contains interior nul byte: {:?} in {}", e, s))
+                    .to_owned()
+            } else {
+                CString::new(s)
+                    .unwrap_or_else(|e| panic!("doc contains interior nul byte: {:?} in {}", e, s))
+            };
+            Some(cstring.into_raw())
+        }
+    }
+}
+
+fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyResult<*mut c_char> {
+    Ok(CString::new(format!(
+        "{}.{}",
+        module_name.unwrap_or("builtins"),
+        class_name
+    ))?
+    .into_raw())
+}
+
 fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uint {
     let mut flags = if has_gc_methods || is_gc {
         ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
@@ -230,7 +243,10 @@ fn py_class_method_defs(
 ///
 /// Only works on Python 3.9 and up.
 #[cfg(Py_3_9)]
-fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
+fn py_class_members(
+    dict_offset: Option<isize>,
+    weakref_offset: Option<isize>,
+) -> Vec<ffi::structmember::PyMemberDef> {
     #[inline(always)]
     fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::structmember::PyMemberDef {
         ffi::structmember::PyMemberDef {
@@ -245,12 +261,12 @@ fn py_class_members<T: PyClass>() -> Vec<ffi::structmember::PyMemberDef> {
     let mut members = Vec::new();
 
     // __dict__ support
-    if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+    if let Some(dict_offset) = dict_offset {
         members.push(offset_def("__dictoffset__\0", dict_offset));
     }
 
     // weakref support
-    if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+    if let Some(weakref_offset) = weakref_offset {
         members.push(offset_def("__weaklistoffset__\0", weakref_offset));
     }
 

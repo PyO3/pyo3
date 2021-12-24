@@ -213,8 +213,9 @@ fn impl_arg_param(
 
     let ty = arg.ty;
     let name = arg.name;
+    let name_str = name.to_string();
     let transform_error = quote! {
-        |e| _pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
+        |e| _pyo3::impl_::extract_argument::argument_extraction_error(#py, #name_str, e)
     };
 
     if is_args(&spec.attrs, name) {
@@ -223,7 +224,7 @@ fn impl_arg_param(
             arg.name.span() => "args cannot be optional"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _args.unwrap().extract().map_err(#transform_error)?;
+            let #arg_name = _pyo3::impl_::extract_argument::extract_argument(_args.unwrap(), #name_str)?;
         });
     } else if is_kwargs(&spec.attrs, name) {
         ensure_spanned!(
@@ -231,9 +232,8 @@ fn impl_arg_param(
             arg.name.span() => "kwargs must be Option<_>"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _kwargs.map(|kwargs| kwargs.extract())
-                .transpose()
-                .map_err(#transform_error)?;
+            let #arg_name = _kwargs.map(|kwargs| _pyo3::impl_::extract_argument::extract_argument(kwargs, #name_str))
+                .transpose()?;
         });
     }
 
@@ -243,7 +243,7 @@ fn impl_arg_param(
     let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
         quote_arg_span! { #expr_path(_obj).map_err(#transform_error) }
     } else {
-        quote_arg_span! { _obj.extract().map_err(#transform_error) }
+        quote_arg_span! { _pyo3::impl_::extract_argument::extract_argument(_obj, #name_str) }
     };
 
     let arg_value_or_default = match (spec.default_value(name), arg.optional.is_some()) {

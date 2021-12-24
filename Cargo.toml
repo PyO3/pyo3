@@ -96,6 +96,11 @@ name = "bench_dict"
 harness = false
 
 [[bench]]
+name = "bench_frompyobject"
+harness = false
+required-features = ["macros"]
+
+[[bench]]
 name = "bench_gil"
 harness = false
 
@@ -106,6 +111,7 @@ harness = false
 [[bench]]
 name = "bench_pyclass"
 harness = false
+required-features = ["macros"]
 
 [[bench]]
 name = "bench_pyobject"
