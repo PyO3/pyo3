@@ -102,9 +102,12 @@ impl FunctionDescription {
                 varkeywords
             }
             (Some(kwargs), false) => {
-                self.extract_keyword_arguments(kwargs, output, |name, _| {
-                    Err(self.unexpected_keyword_argument(name))
-                })?;
+                self.extract_keyword_arguments(
+                    kwargs,
+                    output,
+                    #[cold]
+                    |name, _| Err(self.unexpected_keyword_argument(name)),
+                )?;
                 None
             }
             (None, _) => None,
@@ -112,58 +115,39 @@ impl FunctionDescription {
 
         // Check that there's sufficient positional arguments once keyword arguments are specified
         if args_provided < self.required_positional_parameters {
-            let missing_positional_arguments: Vec<_> = self
-                .positional_parameter_names
-                .iter()
-                .take(self.required_positional_parameters)
-                .zip(output.iter())
-                .filter_map(|(param, out)| if out.is_none() { Some(*param) } else { None })
-                .collect();
-            if !missing_positional_arguments.is_empty() {
-                return Err(
-                    self.missing_required_arguments("positional", &missing_positional_arguments)
-                );
+            for out in &output[..self.required_positional_parameters] {
+                if out.is_none() {
+                    return Err(self.missing_required_positional_arguments(output));
+                }
             }
         }
 
         // Check no missing required keyword arguments
-        let missing_keyword_only_arguments: Vec<_> = self
-            .keyword_only_parameters
-            .iter()
-            .zip(&output[num_positional_parameters..])
-            .filter_map(|(keyword_desc, out)| {
-                if keyword_desc.required && out.is_none() {
-                    Some(keyword_desc.name)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        if !missing_keyword_only_arguments.is_empty() {
-            return Err(self.missing_required_arguments("keyword", &missing_keyword_only_arguments));
+        let keyword_output = &output[num_positional_parameters..];
+        for (param, out) in self.keyword_only_parameters.iter().zip(keyword_output) {
+            if param.required && out.is_none() {
+                return Err(self.missing_required_keyword_arguments(keyword_output));
+            }
         }
 
         Ok((varargs, varkeywords))
     }
 
-    #[inline]
     fn extract_keyword_arguments<'p>(
         &self,
         kwargs: impl Iterator<Item = (&'p PyAny, &'p PyAny)>,
         output: &mut [Option<&'p PyAny>],
         mut unexpected_keyword_handler: impl FnMut(&'p PyAny, &'p PyAny) -> PyResult<()>,
     ) -> PyResult<()> {
-        let (args_output, kwargs_output) =
-            output.split_at_mut(self.positional_parameter_names.len());
+        let positional_args_count = self.positional_parameter_names.len();
         let mut positional_only_keyword_arguments = Vec::new();
-        for (kwarg_name, value) in kwargs {
-            let utf8_string = match kwarg_name.downcast::<PyString>()?.to_str() {
-                Ok(utf8_string) => utf8_string,
+        'for_each_kwarg: for (kwarg_name_py, value) in kwargs {
+            let kwarg_name = match kwarg_name_py.downcast::<PyString>()?.to_str() {
+                Ok(kwarg_name) => kwarg_name,
                 // This keyword is not a UTF8 string: all PyO3 argument names are guaranteed to be
                 // UTF8 by construction.
                 Err(_) => {
-                    unexpected_keyword_handler(kwarg_name, value)?;
+                    unexpected_keyword_handler(kwarg_name_py, value)?;
                     continue;
                 }
             };
@@ -171,31 +155,24 @@ impl FunctionDescription {
             // Compare the keyword name against each parameter in turn. This is exactly the same method
             // which CPython uses to map keyword names. Although it's O(num_parameters), the number of
             // parameters is expected to be small so it's not worth constructing a mapping.
-            if let Some(i) = self
-                .keyword_only_parameters
-                .iter()
-                .position(|param| utf8_string == param.name)
-            {
-                kwargs_output[i] = Some(value);
-                continue;
+            for (i, param) in self.keyword_only_parameters.iter().enumerate() {
+                if param.name == kwarg_name {
+                    output[positional_args_count + i] = Some(value);
+                    continue 'for_each_kwarg;
+                }
             }
 
             // Repeat for positional parameters
-            if let Some((i, param)) = self
-                .positional_parameter_names
-                .iter()
-                .enumerate()
-                .find(|&(_, param)| utf8_string == *param)
-            {
+            if let Some(i) = self.find_keyword_parameter_in_positionals(kwarg_name) {
                 if i < self.positional_only_parameters {
-                    positional_only_keyword_arguments.push(*param);
-                } else if args_output[i].replace(value).is_some() {
-                    return Err(self.multiple_values_for_argument(param));
+                    positional_only_keyword_arguments.push(kwarg_name);
+                } else if output[i].replace(value).is_some() {
+                    return Err(self.multiple_values_for_argument(kwarg_name));
                 }
                 continue;
             }
 
-            unexpected_keyword_handler(kwarg_name, value)?;
+            unexpected_keyword_handler(kwarg_name_py, value)?;
         }
 
         if positional_only_keyword_arguments.is_empty() {
@@ -205,6 +182,16 @@ impl FunctionDescription {
         }
     }
 
+    fn find_keyword_parameter_in_positionals(&self, kwarg_name: &str) -> Option<usize> {
+        for (i, param_name) in self.positional_parameter_names.iter().enumerate() {
+            if *param_name == kwarg_name {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    #[cold]
     fn too_many_positional_arguments(&self, args_provided: usize) -> PyErr {
         let was = if args_provided == 1 { "was" } else { "were" };
         let msg = if self.required_positional_parameters != self.positional_parameter_names.len() {
@@ -228,6 +215,7 @@ impl FunctionDescription {
         PyTypeError::new_err(msg)
     }
 
+    #[cold]
     fn multiple_values_for_argument(&self, argument: &str) -> PyErr {
         PyTypeError::new_err(format!(
             "{} got multiple values for argument '{}'",
@@ -236,6 +224,7 @@ impl FunctionDescription {
         ))
     }
 
+    #[cold]
     fn unexpected_keyword_argument(&self, argument: &PyAny) -> PyErr {
         PyTypeError::new_err(format!(
             "{} got an unexpected keyword argument '{}'",
@@ -244,6 +233,7 @@ impl FunctionDescription {
         ))
     }
 
+    #[cold]
     fn positional_only_keyword_arguments(&self, parameter_names: &[&str]) -> PyErr {
         let mut msg = format!(
             "{} got some positional-only arguments passed as keyword arguments: ",
@@ -253,6 +243,7 @@ impl FunctionDescription {
         PyTypeError::new_err(msg)
     }
 
+    #[cold]
     fn missing_required_arguments(&self, argument_type: &str, parameter_names: &[&str]) -> PyErr {
         let arguments = if parameter_names.len() == 1 {
             "argument"
@@ -269,18 +260,40 @@ impl FunctionDescription {
         push_parameter_list(&mut msg, parameter_names);
         PyTypeError::new_err(msg)
     }
-}
 
-/// Add the argument name to the error message of an error which occurred during argument extraction
-pub fn argument_extraction_error(py: Python, arg_name: &str, error: PyErr) -> PyErr {
-    if error.is_instance_of::<PyTypeError>(py) {
-        let reason = error
-            .value(py)
-            .str()
-            .unwrap_or_else(|_| PyString::new(py, ""));
-        PyTypeError::new_err(format!("argument '{}': {}", arg_name, reason))
-    } else {
-        error
+    #[cold]
+    fn missing_required_keyword_arguments(&self, keyword_outputs: &[Option<&PyAny>]) -> PyErr {
+        debug_assert_eq!(self.keyword_only_parameters.len(), keyword_outputs.len());
+
+        let missing_keyword_only_arguments: Vec<_> = self
+            .keyword_only_parameters
+            .iter()
+            .zip(keyword_outputs)
+            .filter_map(|(keyword_desc, out)| {
+                if keyword_desc.required && out.is_none() {
+                    Some(keyword_desc.name)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        debug_assert!(!missing_keyword_only_arguments.is_empty());
+        self.missing_required_arguments("keyword", &missing_keyword_only_arguments)
+    }
+
+    #[cold]
+    fn missing_required_positional_arguments(&self, output: &[Option<&PyAny>]) -> PyErr {
+        let missing_positional_arguments: Vec<_> = self
+            .positional_parameter_names
+            .iter()
+            .take(self.required_positional_parameters)
+            .zip(output)
+            .filter_map(|(param, out)| if out.is_none() { Some(*param) } else { None })
+            .collect();
+
+        debug_assert!(!missing_positional_arguments.is_empty());
+        self.missing_required_arguments("positional", &missing_positional_arguments)
     }
 }
 
