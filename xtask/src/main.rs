@@ -1,34 +1,52 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::{collections::HashMap, process::Command};
 
 #[derive(Parser)]
 enum Subcommand {
+    /// Runs `cargo llvm-cov` for the PyO3 codebase.
     Coverage,
+    /// Runs tests in examples/ and pytests/
+    TestPy,
+}
+
+impl Subcommand {
+    fn execute(self) -> Result<()> {
+        match self {
+            Subcommand::Coverage => subcommand_coverage(),
+            Subcommand::TestPy => run_python_tests(None),
+        }
+    }
 }
 
 fn main() -> Result<()> {
-    match Subcommand::parse() {
-        Subcommand::Coverage => {
-            run(&mut llvm_cov_command(&["clean", "--workspace"]))?;
-            // FIXME: run (including with various feature combinations)
-            // run(&mut llvm_cov_command(&["--no-report"]))?;
-            let env = get_coverage_env()?;
-            for entry in std::fs::read_dir("pytests")? {
-                let path = entry?.path();
-                if path.is_dir() {
-                    run(Command::new("tox").arg("-c").arg(path).envs(&env))?;
-                }
-            }
-            // FIXME: also run for examples
-            // FIXME: make it possible to generate lcov report too
-            run(&mut llvm_cov_command(&["--no-run", "--summary-only"]))?;
-        }
-    }
+    Subcommand::parse().execute()
+}
+
+/// Runs `cargo llvm-cov` for the PyO3 codebase.
+fn subcommand_coverage() -> Result<()> {
+    run(&mut llvm_cov_command(&["clean", "--workspace"]))?;
+    run(&mut llvm_cov_command(&["--no-report"]))?;
+
+    // FIXME: add various feature combinations using 'full' feature.
+    // run(&mut llvm_cov_command(&["--no-report"]))?;
+
+    // XXX: the following block doesn't work until https://github.com/taiki-e/cargo-llvm-cov/pull/115 is merged
+    let env = get_coverage_env()?;
+    run_python_tests(&env)?;
+    // (after here works with stable llvm-cov)
+
+    // TODO: add an argument to make it possible to generate lcov report & use this in CI.
+    run(&mut llvm_cov_command(&["--no-run", "--summary-only"]))?;
     Ok(())
 }
 
 fn run(command: &mut Command) -> Result<()> {
+    print!("running: {}", command.get_program().to_string_lossy());
+    for arg in command.get_args() {
+        print!(" {}", arg.to_string_lossy());
+    }
+    println!();
     command.spawn()?.wait()?;
     Ok(())
 }
@@ -39,19 +57,42 @@ fn llvm_cov_command(args: &[&str]) -> Command {
     command
 }
 
+fn run_python_tests<'a>(
+    env: impl IntoIterator<Item = (&'a String, &'a String)> + Copy,
+) -> Result<()> {
+    for entry in std::fs::read_dir("pytests")? {
+        let path = entry?.path();
+        if path.is_dir() && path.join("tox.ini").exists() {
+            run(Command::new("tox").arg("-c").arg(path).envs(env))?;
+        }
+    }
+    for entry in std::fs::read_dir("examples")? {
+        let path = entry?.path();
+        if path.is_dir() && path.join("tox.ini").exists() {
+            run(Command::new("tox").arg("-c").arg(path).envs(env))?;
+        }
+    }
+    Ok(())
+}
+
 fn get_coverage_env() -> Result<HashMap<String, String>> {
     let mut env = HashMap::new();
 
     let output = String::from_utf8(llvm_cov_command(&["show-env"]).output()?.stdout)?;
 
     for line in output.trim().split('\n') {
-        // TODO use split_once on MSRV 1.52
-        let mut iter = line.splitn(2, '=');
-        env.insert(iter.next().unwrap().into(), iter.next().unwrap().trim_matches('"').into());
+        let (key, value) = split_once(line, '=').context("expected '=' in each output line")?;
+        env.insert(key.to_owned(), value.trim_matches('"').to_owned());
     }
 
     env.insert("TOX_TESTENV_PASSENV".to_owned(), "*".to_owned());
     env.insert("RUSTUP_TOOLCHAIN".to_owned(), "nightly".to_owned());
 
     Ok(env)
+}
+
+// Replacement for str.split_once() on Rust older than 1.52
+fn split_once(s: &str, pat: char) -> Option<(&str, &str)> {
+    let mut iter = s.splitn(2, pat);
+    Some((iter.next()?, iter.next()?))
 }
