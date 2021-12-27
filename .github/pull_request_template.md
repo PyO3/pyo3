@@ -10,6 +10,6 @@ Be aware the CI pipeline will check your pull request for the following:
  - Rust lints (`make clippy`)
  - Rust formatting (`cargo fmt`)
  - Python formatting (`black . --check`. You can install black with `pip install black`)
- - Compatibility with all supported Python versions for all examples. This uses `tox`; you can do run it using `make test_py`.
+ - Compatibility with all supported Python versions for all examples. This uses `tox`; you can do run it using `cargo xtask test-py`.
 
 You can run a similar set of checks as the CI pipeline using `make test`.
