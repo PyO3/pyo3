@@ -304,7 +304,6 @@ pub use crate::types::PyAny;
 #[doc(hidden)]
 pub use {
     indoc,    // Re-exported for py_run
-    paste,    // Re-exported for wrap_function
     unindent, // Re-exported for py_run
 };
 
@@ -356,8 +355,11 @@ pub mod proc_macro {
 }
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
+pub use pyo3_macros::{
+    pyclass, pyfunction, pymethods, pymodule, pyproto, wrap_pyfunction, wrap_pymodule, FromPyObject,
+};
 
+#[cfg(feature = "macros")]
 #[macro_use]
 mod macros;
 
