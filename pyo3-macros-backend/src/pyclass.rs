@@ -664,8 +664,6 @@ impl<'a> PyClassImplsBuilder<'a> {
         let attr = self.attr;
         let dict = if attr.has_dict {
             quote! { _pyo3::pyclass_slots::PyClassDictSlot }
-        } else if attr.has_extends {
-            quote! { <Self::BaseType as _pyo3::class::impl_::PyClassBaseType>::Dict }
         } else {
             quote! { _pyo3::pyclass_slots::PyClassDummySlot }
         };
@@ -673,8 +671,6 @@ impl<'a> PyClassImplsBuilder<'a> {
         // insert space for weak ref
         let weakref = if attr.has_weaklist {
             quote! { _pyo3::pyclass_slots::PyClassWeakRefSlot }
-        } else if attr.has_extends {
-            quote! { <Self::BaseType as _pyo3::class::impl_::PyClassBaseType>::WeakRef }
         } else {
             quote! { _pyo3::pyclass_slots::PyClassDummySlot }
         };

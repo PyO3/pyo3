@@ -760,8 +760,6 @@ impl<T: Send, U: PyClassBaseType> PyClassThreadChecker<T> for ThreadCheckerInher
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 pub trait PyClassBaseType: Sized {
-    type Dict;
-    type WeakRef;
     type LayoutAsBase: PyCellLayout<Self>;
     type BaseNativeType;
     type ThreadChecker: PyClassThreadChecker<Self>;
@@ -770,8 +768,6 @@ pub trait PyClassBaseType: Sized {
 
 /// All PyClasses can be used as a base type.
 impl<T: PyClass> PyClassBaseType for T {
-    type Dict = T::Dict;
-    type WeakRef = T::WeakRef;
     type LayoutAsBase = crate::pycell::PyCell<T>;
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;
