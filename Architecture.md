@@ -102,7 +102,7 @@ Since we need lots of boilerplate for implementing common traits for these types
 
 [`src/pycell.rs`], [`src/pyclass.rs`], and [`src/type_object.rs`] contain types and
 traits to make `#[pyclass]` work.
-Also, [`src/pyclass_init.rs`] and [`src/pyclass_slots.rs`] have related functionalities.
+Also, [`src/pyclass_init.rs`] and [`src/impl_/pyclass.rs`] have related functionalities.
 
 To realize object-oriented programming in C, all Python objects must have the following two fields
 at the beginning.

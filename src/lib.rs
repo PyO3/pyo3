@@ -337,7 +337,6 @@ pub mod prelude;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
-pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;

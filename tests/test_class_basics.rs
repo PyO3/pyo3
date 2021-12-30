@@ -344,7 +344,6 @@ fn test_tuple_struct_class() {
     });
 }
 
-
 #[pyclass(dict, subclass)]
 struct DunderDictSupport {}
 
@@ -418,8 +417,6 @@ fn weakref_dunder_dict_support() {
         "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
     );
 }
-
-
 
 #[pyclass(weakref, subclass)]
 struct WeakRefSupport {}

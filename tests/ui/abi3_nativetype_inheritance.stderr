@@ -9,10 +9,9 @@ note: required by a bound in `PyClassBaseType`
    --> src/class/impl_.rs
     |
     | / pub trait PyClassBaseType: Sized {
-    | |     type Dict;
-    | |     type WeakRef;
     | |     type LayoutAsBase: PyCellLayout<Self>;
-...   |
+    | |     type BaseNativeType;
+    | |     type ThreadChecker: PyClassThreadChecker<Self>;
     | |     type Initializer: PyObjectInit<Self>;
     | | }
     | |_^ required by this bound in `PyClassBaseType`

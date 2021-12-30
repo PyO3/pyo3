@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce generated LLVM code size (to improve compile times) for:
   - internal `handle_panic` helper [#2074](https://github.com/PyO3/pyo3/pull/2074)
   - `#[pyfunction]` and `#[pymethods]` argument extraction [#2075](https://github.com/PyO3/pyo3/pull/2075)
-  - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076)
+  - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081)
 
 ### Removed
 

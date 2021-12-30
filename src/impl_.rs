@@ -11,4 +11,5 @@ pub mod freelist;
 pub mod frompyobject;
 pub(crate) mod not_send;
 #[doc(hidden)]
+pub mod pyclass;
 pub mod pymodule;

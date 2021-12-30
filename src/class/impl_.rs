@@ -71,17 +71,29 @@ pub trait PyClassImpl: Sized {
     type Inventory: PyClassInventory;
 
     fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
+    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
+
+    #[inline]
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
+    #[inline]
     fn get_alloc() -> Option<ffi::allocfunc> {
         None
     }
+    #[inline]
     fn get_free() -> Option<ffi::freefunc> {
         None
     }
-    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
     fn get_buffer() -> Option<&'static PyBufferProcs> {
+        None
+    }
+    #[inline]
+    fn dict_offset() -> Option<ffi::Py_ssize_t> {
+        None
+    }
+    #[inline]
+    fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
 }

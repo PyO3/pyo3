@@ -1,8 +1,8 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{fallback_new, tp_dealloc, PyClassImpl, PyBufferProcs},
+    class::impl_::{fallback_new, tp_dealloc, PyBufferProcs, PyClassImpl},
     ffi,
-    pyclass_slots::{PyClassDict, PyClassWeakRef},
+    impl_::pyclass::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -33,36 +33,37 @@ fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
 
-pub(crate) fn create_type_object<T>(
-    py: Python,
-) -> *mut ffi::PyTypeObject
+pub(crate) fn create_type_object<T>(py: Python) -> *mut ffi::PyTypeObject
 where
     T: PyClass,
 {
-    match unsafe { create_type_object_impl(
-        py,
-        T::DOC,
-        T::MODULE,
-        T::NAME,
-        T::BaseType::type_object_raw(py),
-        std::mem::size_of::<T::Layout>(),
-        T::get_new(),
-        tp_dealloc::<T>,
-        T::get_alloc(),
-        T::get_free(),
-        PyCell::<T>::dict_offset(),
-        PyCell::<T>::weakref_offset(),
-        &T::for_each_method_def,
-        &T::for_each_proto_slot,
-        T::IS_GC,
-        T::IS_BASETYPE,
-        T::get_buffer(),
-    ) } {
+    match unsafe {
+        create_type_object_impl(
+            py,
+            T::DOC,
+            T::MODULE,
+            T::NAME,
+            T::BaseType::type_object_raw(py),
+            std::mem::size_of::<T::Layout>(),
+            T::get_new(),
+            tp_dealloc::<T>,
+            T::get_alloc(),
+            T::get_free(),
+            T::dict_offset(),
+            T::weaklist_offset(),
+            &T::for_each_method_def,
+            &T::for_each_proto_slot,
+            T::IS_GC,
+            T::IS_BASETYPE,
+            T::get_buffer(),
+        )
+    } {
         Ok(type_object) => type_object,
         Err(e) => type_object_creation_failed(py, e, T::NAME),
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 unsafe fn create_type_object_impl(
     py: Python,
     tp_doc: &str,
@@ -75,7 +76,7 @@ unsafe fn create_type_object_impl(
     tp_alloc: Option<ffi::allocfunc>,
     tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
-    weakref_offset: Option<ffi::Py_ssize_t>,
+    weaklist_offset: Option<ffi::Py_ssize_t>,
     for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
     for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
     is_gc: bool,
@@ -88,11 +89,7 @@ unsafe fn create_type_object_impl(
         slots.push(ffi::PyType_Slot { slot, pfunc });
     }
 
-    push_slot(
-        &mut slots,
-        ffi::Py_tp_base,
-        base_type_object as _,
-    );
+    push_slot(&mut slots, ffi::Py_tp_base, base_type_object as _);
     if let Some(doc) = py_class_doc(tp_doc) {
         push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
     }
@@ -113,7 +110,7 @@ unsafe fn create_type_object_impl(
 
     #[cfg(Py_3_9)]
     {
-        let members = py_class_members(dict_offset, weakref_offset);
+        let members = py_class_members(dict_offset, weaklist_offset);
         if !members.is_empty() {
             push_slot(&mut slots, ffi::Py_tp_members, into_raw(members))
         }
@@ -153,7 +150,13 @@ unsafe fn create_type_object_impl(
     if type_object.is_null() {
         Err(PyErr::fetch(py))
     } else {
-        tp_init_additional(type_object as _, tp_doc, buffer_procs, dict_offset, weakref_offset);
+        tp_init_additional(
+            type_object as _,
+            tp_doc,
+            buffer_procs,
+            dict_offset,
+            weaklist_offset,
+        );
         Ok(type_object as _)
     }
 }
@@ -166,7 +169,13 @@ fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
 
 /// Additional type initializations necessary before Python 3.10
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-fn tp_init_additional(type_object: *mut ffi::PyTypeObject, tp_doc: &str, buffer_procs: Option<&PyBufferProcs>, dict_offset: Option<ffi::Py_ssize_t>, weakref_offset: Option<ffi::Py_ssize_t>) {
+fn tp_init_additional(
+    type_object: *mut ffi::PyTypeObject,
+    _tp_doc: &str,
+    _buffer_procs: Option<&PyBufferProcs>,
+    _dict_offset: Option<ffi::Py_ssize_t>,
+    _weaklist_offset: Option<ffi::Py_ssize_t>,
+) {
     // Just patch the type objects for the things there's no
     // PyType_FromSpec API for... there's no reason this should work,
     // except for that it does and we have tests.
@@ -174,53 +183,54 @@ fn tp_init_additional(type_object: *mut ffi::PyTypeObject, tp_doc: &str, buffer_
     // Running this causes PyPy to segfault.
     #[cfg(all(not(PyPy), not(Py_3_10)))]
     {
-        if tp_doc != "\0" {
+        if _tp_doc != "\0" {
             unsafe {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
                 ffi::PyObject_Free((*type_object).tp_doc as _);
-                let data = ffi::PyObject_Malloc(tp_doc.len());
-                data.copy_from(tp_doc.as_ptr() as _, tp_doc.len());
+                let data = ffi::PyObject_Malloc(_tp_doc.len());
+                data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
                 (*type_object).tp_doc = data as _;
             }
         }
     }
 
-    // Setting buffer protocols via slots doesn't work until Python 3.9, so on older versions we
-    // must manually fixup the type object.
+    // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
+    // Python 3.9, so on older versions we must manually fixup the type object.
     #[cfg(not(Py_3_9))]
     {
-        if let Some(buffer) = buffer_procs {
+        if let Some(buffer) = _buffer_procs {
             unsafe {
                 (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
                 (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
             }
         }
-    }
 
-    // Setting tp_dictoffset and tp_weaklistoffset via slots doesn't work until Python 3.9, so on
-    // older versions again we must fixup the type object.
-    #[cfg(not(Py_3_9))]
-    {
-        // __dict__ support
-        if let Some(dict_offset) = dict_offset {
+        if let Some(dict_offset) = _dict_offset {
             unsafe {
                 (*type_object).tp_dictoffset = dict_offset;
             }
         }
-        // weakref support
-        if let Some(weakref_offset) = weakref_offset {
+
+        if let Some(weaklist_offset) = _weaklist_offset {
             unsafe {
-                (*type_object).tp_weaklistoffset = weakref_offset;
+                (*type_object).tp_weaklistoffset = weaklist_offset;
             }
         }
     }
 }
 
 #[cfg(any(Py_LIMITED_API, Py_3_10))]
-fn tp_init_additional(_type_object: *mut ffi::PyTypeObject, tp_doc: &str, buffer_procs: Option<&PyBufferProcs>, dict_offset: Option<ffi::Py_ssize_t>, weakref_offset: Option<ffi::Py_ssize_t>) {}
+fn tp_init_additional(
+    _type_object: *mut ffi::PyTypeObject,
+    _tp_doc: &str,
+    _buffer_procs: Option<&PyBufferProcs>,
+    _dict_offset: Option<ffi::Py_ssize_t>,
+    _weaklist_offset: Option<ffi::Py_ssize_t>,
+) {
+}
 
 fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {
     match class_doc {
@@ -293,7 +303,7 @@ fn py_class_method_defs(
 #[cfg(Py_3_9)]
 fn py_class_members(
     dict_offset: Option<isize>,
-    weakref_offset: Option<isize>,
+    weaklist_offset: Option<isize>,
 ) -> Vec<ffi::structmember::PyMemberDef> {
     #[inline(always)]
     fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::structmember::PyMemberDef {
@@ -314,8 +324,8 @@ fn py_class_members(
     }
 
     // weakref support
-    if let Some(weakref_offset) = weakref_offset {
-        members.push(offset_def("__weaklistoffset__\0", weakref_offset));
+    if let Some(weaklist_offset) = weaklist_offset {
+        members.push(offset_def("__weaklistoffset__\0", weaklist_offset));
     }
 
     if !members.is_empty() {
