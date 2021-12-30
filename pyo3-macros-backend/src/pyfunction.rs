@@ -9,6 +9,7 @@ use crate::{
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
     utils::{self, ensure_not_async_fn, get_pyo3_crate},
+    wrap::function_wrapper_ident,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -364,12 +365,6 @@ pub fn build_py_function(
 ) -> syn::Result<TokenStream> {
     options.add_attributes(take_pyo3_options(&mut ast.attrs)?)?;
     Ok(impl_wrap_pyfunction(ast, options)?.1)
-}
-
-/// Coordinates the naming of a the add-function-to-python-module function
-fn function_wrapper_ident(name: &Ident) -> Ident {
-    // Make sure this ident matches the one of wrap_pyfunction
-    format_ident!("__pyo3_get_function_{}", name)
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python

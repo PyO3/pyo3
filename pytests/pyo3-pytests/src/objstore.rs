@@ -19,6 +19,6 @@ impl ObjStore {
 }
 
 #[pymodule]
-fn objstore(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn objstore(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<ObjStore>()
 }

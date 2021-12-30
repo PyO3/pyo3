@@ -22,7 +22,6 @@ parking_lot = "0.11.0"
 # support crates for macros feature
 pyo3-macros = { path = "pyo3-macros", version = "=0.15.1", optional = true }
 indoc = { version = "1.0.3", optional = true }
-paste = { version = "1.0.6", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
 # support crate for multiple-pymethods feature
@@ -53,7 +52,7 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features =
 default = ["macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
-macros = ["pyo3-macros", "indoc", "paste", "unindent"]
+macros = ["pyo3-macros", "indoc", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]

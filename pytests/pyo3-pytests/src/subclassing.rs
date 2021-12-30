@@ -21,7 +21,7 @@ impl pyo3::PyObjectProtocol for Subclassable {
 }
 
 #[pymodule]
-fn subclassing(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn subclassing(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Subclassable>()?;
     Ok(())
 }

@@ -8,7 +8,7 @@ fn issue_219() {
 }
 
 #[pymodule]
-fn misc(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn misc(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(issue_219, m)?)?;
     Ok(())
 }

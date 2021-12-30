@@ -8,8 +8,7 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
-use crate::{ffi, PyCell, Python};
-use std::cell::UnsafeCell;
+use crate::{PyCell, Python};
 
 #[derive(Debug)]
 pub struct KeywordOnlyParameterDescription {
@@ -294,48 +293,6 @@ impl FunctionDescription {
 
         debug_assert!(!missing_positional_arguments.is_empty());
         self.missing_required_arguments("positional", &missing_positional_arguments)
-    }
-}
-
-/// `Sync` wrapper of `ffi::PyModuleDef`.
-pub struct ModuleDef(UnsafeCell<ffi::PyModuleDef>);
-
-unsafe impl Sync for ModuleDef {}
-
-impl ModuleDef {
-    /// Make new module defenition with given module name.
-    ///
-    /// # Safety
-    /// `name` and `doc` must be null-terminated strings.
-    pub const unsafe fn new(name: &'static str, doc: &'static str) -> Self {
-        const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
-            m_base: ffi::PyModuleDef_HEAD_INIT,
-            m_name: std::ptr::null(),
-            m_doc: std::ptr::null(),
-            m_size: 0,
-            m_methods: std::ptr::null_mut(),
-            m_slots: std::ptr::null_mut(),
-            m_traverse: None,
-            m_clear: None,
-            m_free: None,
-        };
-
-        ModuleDef(UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr() as *const _,
-            m_doc: doc.as_ptr() as *const _,
-            ..INIT
-        }))
-    }
-    /// Builds a module using user given initializer. Used for `#[pymodule]`.
-    pub fn make_module(
-        &'static self,
-        py: Python,
-        initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
-    ) -> PyResult<*mut ffi::PyObject> {
-        let module =
-            unsafe { py.from_owned_ptr_or_err::<PyModule>(ffi::PyModule_Create(self.0.get()))? };
-        initializer(py, module)?;
-        Ok(crate::IntoPyPointer::into_ptr(module))
     }
 }
 

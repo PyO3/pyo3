@@ -6,10 +6,12 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    build_py_proto, get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl,
+    wrap_pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    WrapPyFunctionArgs,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -46,7 +48,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let doc = get_doc(&ast.attrs, None);
 
-    let expanded = py_init(&ast.sig.ident, options, doc);
+    let expanded = pymodule_impl(&ast.sig.ident, options, doc, &ast.vis);
 
     quote!(
         #ast
@@ -68,7 +70,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_proto(&mut ast).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_proto(&mut ast).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -180,7 +182,7 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let options = parse_macro_input!(attr as PyFunctionOptions);
 
-    let expanded = build_py_function(&mut ast, options).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_function(&mut ast, options).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -192,11 +194,30 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromPyObject, attributes(pyo3))]
 pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded = build_derive_from_pyobject(&ast).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_derive_from_pyobject(&ast).unwrap_or_compile_error();
     quote!(
         #expanded
     )
     .into()
+}
+
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with `PyModule::add_function` to add free functions to a `PyModule` - see its
+/// documentation for more information.
+#[proc_macro]
+pub fn wrap_pyfunction(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as WrapPyFunctionArgs);
+    wrap_pyfunction_impl(args).unwrap_or_compile_error().into()
+}
+
+/// Returns a function that takes a `Python` instance and returns a Python module.
+///
+/// Use this together with [`#[pymodule]`](macro@crate::pymodule) and `PyModule::add_wrapped`.
+#[proc_macro]
+pub fn wrap_pymodule(input: TokenStream) -> TokenStream {
+    let path = parse_macro_input!(input as syn::Path);
+    wrap_pymodule_impl(path).unwrap_or_compile_error().into()
 }
 
 fn pyclass_impl(
@@ -205,8 +226,7 @@ fn pyclass_impl(
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
     let args = parse_macro_input!(attrs with PyClassArgs::parse_stuct_args);
-    let expanded =
-        build_py_class(&mut ast, &args, methods_type).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_class(&mut ast, &args, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -221,8 +241,7 @@ fn pyclass_enum_impl(
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
     let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
-    let expanded =
-        build_py_enum(&mut ast, &args, methods_type).unwrap_or_else(|e| e.into_compile_error());
+    let expanded = build_py_enum(&mut ast, &args, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -233,8 +252,7 @@ fn pyclass_enum_impl(
 
 fn pymethods_impl(input: TokenStream, methods_type: PyClassMethodsType) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded =
-        build_py_methods(&mut ast, methods_type).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_methods(&mut ast, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -248,5 +266,15 @@ fn methods_type() -> PyClassMethodsType {
         PyClassMethodsType::Inventory
     } else {
         PyClassMethodsType::Specialization
+    }
+}
+
+trait UnwrapOrCompileError {
+    fn unwrap_or_compile_error(self) -> TokenStream2;
+}
+
+impl UnwrapOrCompileError for syn::Result<TokenStream2> {
+    fn unwrap_or_compile_error(self) -> TokenStream2 {
+        self.unwrap_or_else(|e| e.into_compile_error())
     }
 }
