@@ -107,13 +107,7 @@ impl LazyStaticType {
     }
 
     pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
-        let type_object = *self.value.get_or_init(py, || {
-            create_type_object::<T>(py, T::MODULE).unwrap_or_else(|e| {
-                e.print(py);
-                panic!("An error occurred while initializing class {}", T::NAME)
-            })
-        });
-
+        let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
         self.ensure_init(py, type_object, T::NAME, &T::for_each_method_def);
         type_object
     }

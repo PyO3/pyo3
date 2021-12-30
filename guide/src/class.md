@@ -838,8 +838,8 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
 }
 
 impl pyo3::pyclass::PyClass for MyClass {
-    type Dict = pyo3::pyclass_slots::PyClassDummySlot;
-    type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
+    type Dict = pyo3::impl_::pyclass::PyClassDummySlot;
+    type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
     type BaseNativeType = PyAny;
 }
 

@@ -1,12 +1,19 @@
-//! Contains additional fields for `#[pyclass]`.
-//!
-//! Mainly used by PyO3's proc-macro code.
-use crate::{ffi, Python};
+use crate::{ffi, PyCell, PyClass, Python};
+
+/// Gets the offset of the dictionary from the start of the object in bytes.
+#[inline]
+pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
+    PyCell::<T>::dict_offset()
+}
+
+/// Gets the offset of the weakref list from the start of the object in bytes.
+#[inline]
+pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
+    PyCell::<T>::weaklist_offset()
+}
 
 /// Represents the `__dict__` field for `#[pyclass]`.
 pub trait PyClassDict {
-    /// Whether this `__dict__` field is capable of holding a dictionary.
-    const IS_DUMMY: bool = true;
     /// Initializes a [PyObject](crate::ffi::PyObject) `__dict__` reference.
     fn new() -> Self;
     /// Empties the dictionary of its key-value pairs.
@@ -17,8 +24,6 @@ pub trait PyClassDict {
 
 /// Represents the `__weakref__` field for `#[pyclass]`.
 pub trait PyClassWeakRef {
-    /// Whether this `weakref` type is capable of holding weak references.
-    const IS_DUMMY: bool = true;
     /// Initializes a `weakref` instance.
     fn new() -> Self;
     /// Clears the weak references to the given object.
@@ -58,7 +63,6 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
     private_impl! {}
-    const IS_DUMMY: bool = false;
     #[inline]
     fn new() -> Self {
         Self(std::ptr::null_mut())
@@ -79,7 +83,6 @@ pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {
     private_impl! {}
-    const IS_DUMMY: bool = false;
     #[inline]
     fn new() -> Self {
         Self(std::ptr::null_mut())
