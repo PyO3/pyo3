@@ -1,6 +1,6 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
+    class::impl_::{fallback_new, tp_dealloc, PyClassImpl, PyBufferProcs},
     ffi,
     pyclass_slots::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -35,11 +35,53 @@ fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
 
 pub(crate) fn create_type_object<T>(
     py: Python,
-    module_name: Option<&str>,
-) -> PyResult<*mut ffi::PyTypeObject>
+) -> *mut ffi::PyTypeObject
 where
     T: PyClass,
 {
+    match unsafe { create_type_object_impl(
+        py,
+        T::DOC,
+        T::MODULE,
+        T::NAME,
+        T::BaseType::type_object_raw(py),
+        std::mem::size_of::<T::Layout>(),
+        T::get_new(),
+        tp_dealloc::<T>,
+        T::get_alloc(),
+        T::get_free(),
+        PyCell::<T>::dict_offset(),
+        PyCell::<T>::weakref_offset(),
+        &T::for_each_method_def,
+        &T::for_each_proto_slot,
+        T::IS_GC,
+        T::IS_BASETYPE,
+        T::get_buffer(),
+    ) } {
+        Ok(type_object) => type_object,
+        Err(e) => type_object_creation_failed(py, e, T::NAME),
+    }
+}
+
+unsafe fn create_type_object_impl(
+    py: Python,
+    tp_doc: &str,
+    module_name: Option<&str>,
+    name: &str,
+    base_type_object: *mut ffi::PyTypeObject,
+    basicsize: usize,
+    tp_new: Option<ffi::newfunc>,
+    tp_dealloc: ffi::destructor,
+    tp_alloc: Option<ffi::allocfunc>,
+    tp_free: Option<ffi::freefunc>,
+    dict_offset: Option<ffi::Py_ssize_t>,
+    weakref_offset: Option<ffi::Py_ssize_t>,
+    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+    for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
+    is_gc: bool,
+    is_basetype: bool,
+    buffer_procs: Option<&PyBufferProcs>,
+) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
 
     fn push_slot(slots: &mut Vec<ffi::PyType_Slot>, slot: c_int, pfunc: *mut c_void) {
@@ -49,49 +91,49 @@ where
     push_slot(
         &mut slots,
         ffi::Py_tp_base,
-        T::BaseType::type_object_raw(py) as _,
+        base_type_object as _,
     );
-    if let Some(doc) = py_class_doc(T::DOC) {
+    if let Some(doc) = py_class_doc(tp_doc) {
         push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
     }
 
     push_slot(
         &mut slots,
         ffi::Py_tp_new,
-        T::get_new().unwrap_or(fallback_new) as _,
+        tp_new.unwrap_or(fallback_new) as _,
     );
-    push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc::<T> as _);
+    push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
 
-    if let Some(alloc) = T::get_alloc() {
+    if let Some(alloc) = tp_alloc {
         push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
     }
-    if let Some(free) = T::get_free() {
+    if let Some(free) = tp_free {
         push_slot(&mut slots, ffi::Py_tp_free, free as _);
     }
 
     #[cfg(Py_3_9)]
     {
-        let members = py_class_members(PyCell::<T>::dict_offset(), PyCell::<T>::weakref_offset());
+        let members = py_class_members(dict_offset, weakref_offset);
         if !members.is_empty() {
             push_slot(&mut slots, ffi::Py_tp_members, into_raw(members))
         }
     }
 
     // normal methods
-    let methods = py_class_method_defs(&T::for_each_method_def);
+    let methods = py_class_method_defs(for_each_method_def);
     if !methods.is_empty() {
         push_slot(&mut slots, ffi::Py_tp_methods, into_raw(methods));
     }
 
     // properties
-    let props = py_class_properties(T::Dict::IS_DUMMY, &T::for_each_method_def);
+    let props = py_class_properties(dict_offset.is_none(), for_each_method_def);
     if !props.is_empty() {
         push_slot(&mut slots, ffi::Py_tp_getset, into_raw(props));
     }
 
     // protocol methods
     let mut has_gc_methods = false;
-    T::for_each_proto_slot(&mut |proto_slots| {
+    for_each_proto_slot(&mut |proto_slots| {
         has_gc_methods |= proto_slots
             .iter()
             .any(|slot| slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse);
@@ -100,25 +142,31 @@ where
 
     push_slot(&mut slots, 0, ptr::null_mut());
     let mut spec = ffi::PyType_Spec {
-        name: py_class_qualified_name(module_name, T::NAME)?,
-        basicsize: std::mem::size_of::<T::Layout>() as c_int,
+        name: py_class_qualified_name(module_name, name)?,
+        basicsize: basicsize as c_int,
         itemsize: 0,
-        flags: py_class_flags(has_gc_methods, T::IS_GC, T::IS_BASETYPE),
+        flags: py_class_flags(has_gc_methods, is_gc, is_basetype),
         slots: slots.as_mut_ptr(),
     };
 
-    let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
+    let type_object = ffi::PyType_FromSpec(&mut spec);
     if type_object.is_null() {
         Err(PyErr::fetch(py))
     } else {
-        tp_init_additional::<T>(type_object as _);
+        tp_init_additional(type_object as _, tp_doc, buffer_procs, dict_offset, weakref_offset);
         Ok(type_object as _)
     }
 }
 
+#[cold]
+fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
+    e.print(py);
+    panic!("An error occurred while initializing class {}", name)
+}
+
 /// Additional type initializations necessary before Python 3.10
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
+fn tp_init_additional(type_object: *mut ffi::PyTypeObject, tp_doc: &str, buffer_procs: Option<&PyBufferProcs>, dict_offset: Option<ffi::Py_ssize_t>, weakref_offset: Option<ffi::Py_ssize_t>) {
     // Just patch the type objects for the things there's no
     // PyType_FromSpec API for... there's no reason this should work,
     // except for that it does and we have tests.
@@ -126,15 +174,15 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // Running this causes PyPy to segfault.
     #[cfg(all(not(PyPy), not(Py_3_10)))]
     {
-        if T::DOC != "\0" {
+        if tp_doc != "\0" {
             unsafe {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
                 ffi::PyObject_Free((*type_object).tp_doc as _);
-                let data = ffi::PyObject_Malloc(T::DOC.len());
-                data.copy_from(T::DOC.as_ptr() as _, T::DOC.len());
+                let data = ffi::PyObject_Malloc(tp_doc.len());
+                data.copy_from(tp_doc.as_ptr() as _, tp_doc.len());
                 (*type_object).tp_doc = data as _;
             }
         }
@@ -144,7 +192,7 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     // must manually fixup the type object.
     #[cfg(not(Py_3_9))]
     {
-        if let Some(buffer) = T::get_buffer() {
+        if let Some(buffer) = buffer_procs {
             unsafe {
                 (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
                 (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
@@ -157,13 +205,13 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
     #[cfg(not(Py_3_9))]
     {
         // __dict__ support
-        if let Some(dict_offset) = PyCell::<T>::dict_offset() {
+        if let Some(dict_offset) = dict_offset {
             unsafe {
                 (*type_object).tp_dictoffset = dict_offset;
             }
         }
         // weakref support
-        if let Some(weakref_offset) = PyCell::<T>::weakref_offset() {
+        if let Some(weakref_offset) = weakref_offset {
             unsafe {
                 (*type_object).tp_weaklistoffset = weakref_offset;
             }
@@ -172,7 +220,7 @@ fn tp_init_additional<T: PyClass>(type_object: *mut ffi::PyTypeObject) {
 }
 
 #[cfg(any(Py_LIMITED_API, Py_3_10))]
-fn tp_init_additional<T: PyClass>(_type_object: *mut ffi::PyTypeObject) {}
+fn tp_init_additional(_type_object: *mut ffi::PyTypeObject, tp_doc: &str, buffer_procs: Option<&PyBufferProcs>, dict_offset: Option<ffi::Py_ssize_t>, weakref_offset: Option<ffi::Py_ssize_t>) {}
 
 fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {
     match class_doc {
