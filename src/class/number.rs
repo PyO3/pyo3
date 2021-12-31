@@ -221,6 +221,14 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
+    #[cfg(Py_3_8)]
+    fn __ipow__(&'p mut self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
+    where
+        Self: PyNumberIPowProtocol<'p>,
+    {
+        unimplemented!()
+    }
+    #[cfg(not(Py_3_8))]
     fn __ipow__(&'p mut self, other: Self::Other) -> Self::Result
     where
         Self: PyNumberIPowProtocol<'p>,
@@ -504,6 +512,8 @@ pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
 pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
+    #[cfg(Py_3_8)]
+    type Modulo: FromPyObject<'p>;
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -714,11 +724,13 @@ py_binary_self_func!(isub, PyNumberISubProtocol, T::__isub__);
 py_binary_self_func!(imul, PyNumberIMulProtocol, T::__imul__);
 py_binary_self_func!(imod, PyNumberIModProtocol, T::__imod__);
 
+// See https://bugs.python.org/issue36379
 #[doc(hidden)]
+#[cfg(Py_3_8)]
 pub unsafe extern "C" fn ipow<T>(
     slf: *mut ffi::PyObject,
     other: *mut ffi::PyObject,
-    _modulo: *mut ffi::PyObject,
+    modulo: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject
 where
     T: for<'p> PyNumberIPowProtocol<'p>,
@@ -728,7 +740,35 @@ where
     crate::callback_body!(py, {
         let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
         let other = py.from_borrowed_ptr::<crate::PyAny>(other);
-        call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
+        let modulo = py.from_borrowed_ptr::<crate::PyAny>(modulo);
+        slf_cell
+            .try_borrow_mut()?
+            .__ipow__(
+                extract_or_return_not_implemented!(other),
+                extract_or_return_not_implemented!(modulo),
+            )
+            .convert(py)?;
+        ffi::Py_INCREF(slf);
+        Ok::<_, PyErr>(slf)
+    })
+}
+
+#[doc(hidden)]
+#[cfg(not(Py_3_8))]
+pub unsafe extern "C" fn ipow<T>(
+    slf: *mut ffi::PyObject,
+    other: *mut ffi::PyObject,
+) -> *mut ffi::PyObject
+where
+    T: for<'p> PyNumberIPowProtocol<'p>,
+{
+    crate::callback_body!(py, {
+        let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+        let other = py.from_borrowed_ptr::<crate::PyAny>(other);
+        slf_cell
+            .try_borrow_mut()?
+            .__ipow__(extract_or_return_not_implemented!(other))
+            .convert(py)?;
         ffi::Py_INCREF(slf);
         Ok::<_, PyErr>(slf)
     })

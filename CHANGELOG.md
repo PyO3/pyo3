@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
 - Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
 - Accept paths in `wrap_pyfunction` and `wrap_pymodule`. [#2081](https://github.com/PyO3/pyo3/pull/2081)
+- Add check for correct number of arguments on magic methods. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 
 ### Changed
 
@@ -45,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - internal `handle_panic` helper [#2074](https://github.com/PyO3/pyo3/pull/2074)
   - `#[pyfunction]` and `#[pymethods]` argument extraction [#2075](https://github.com/PyO3/pyo3/pull/2075)
   - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081)
+- `__ipow__` now supports modulo argument on Python 3.8+. [#2083](https://github.com/PyO3/pyo3/pull/2083)
+- `pyo3-macros-backend` is now compiled with PyO3 cfgs to enable different magic method definitions based on version. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 
 ### Removed
 
