@@ -189,9 +189,12 @@ about this topic.
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust_
 - [polaroid](https://github.com/daggy1234/polaroid) _Hyper Fast and safe image manipulation library for Python written in Rust_
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library_
+- [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently_
+    - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
 
 ## Articles and other media
 
+- [Nine Rules for Writing Python Extensions in Rust](https://towardsdatascience.com/nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29?sk=f8d808d5f414154fdb811e4137011437) - Dec 31, 2021
 - [Calling Rust from Python using PyO3](https://saidvandeklundert.net/learn/2021-11-18-calling-rust-from-python-using-pyo3/) - Nov 18, 2021
 - [davidhewitt's 2021 talk at Rust Manchester meetup](https://www.youtube.com/watch?v=-XyWG_klSAw&t=320s) - Aug 19, 2021
 - [Incrementally porting a small Python project to Rust](https://blog.waleedkhan.name/port-python-to-rust/) - Apr 29, 2021
