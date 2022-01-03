@@ -175,7 +175,8 @@ TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
 
 #### Buffer objects
 
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
+  - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
+  - `__releasebuffer__(<self>, *mut ffi::Py_buffer)` (no return value, not even `PyResult`)
 
 #### Garbage Collector Integration
 

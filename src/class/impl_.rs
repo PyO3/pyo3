@@ -85,9 +85,6 @@ pub trait PyClassImpl: Sized {
     fn get_free() -> Option<ffi::freefunc> {
         None
     }
-    fn get_buffer() -> Option<&'static PyBufferProcs> {
-        None
-    }
     #[inline]
     fn dict_offset() -> Option<ffi::Py_ssize_t> {
         None
@@ -684,25 +681,6 @@ methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);
 methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
 methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
 methods_trait!(PyNumberProtocolMethods, number_protocol_methods);
-
-// On Python < 3.9 setting the buffer protocol using slots doesn't work, so these procs are used
-// on those versions to set the slots manually (on the limited API).
-
-#[cfg(not(Py_LIMITED_API))]
-pub use ffi::PyBufferProcs;
-
-#[cfg(Py_LIMITED_API)]
-pub struct PyBufferProcs;
-
-pub trait PyBufferProtocolProcs<T> {
-    fn buffer_procs(self) -> Option<&'static PyBufferProcs>;
-}
-
-impl<T> PyBufferProtocolProcs<T> for &'_ PyClassImplCollector<T> {
-    fn buffer_procs(self) -> Option<&'static PyBufferProcs> {
-        None
-    }
-}
 
 // Thread checkers
 

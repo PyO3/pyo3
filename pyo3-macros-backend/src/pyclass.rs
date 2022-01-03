@@ -847,12 +847,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                     #methods_protos
                 }
 
-                fn get_buffer() -> ::std::option::Option<&'static _pyo3::class::impl_::PyBufferProcs> {
-                    use _pyo3::class::impl_::*;
-                    let collector = PyClassImplCollector::<Self>::new();
-                    collector.buffer_procs()
-                }
                 #dict_offset
+
                 #weaklist_offset
             }
 

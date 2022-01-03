@@ -1,6 +1,6 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{fallback_new, tp_dealloc, PyBufferProcs, PyClassImpl},
+    class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
     ffi,
     impl_::pyclass::{PyClassDict, PyClassWeakRef},
     PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -55,7 +55,6 @@ where
             &T::for_each_proto_slot,
             T::IS_GC,
             T::IS_BASETYPE,
-            T::get_buffer(),
         )
     } {
         Ok(type_object) => type_object,
@@ -81,7 +80,6 @@ unsafe fn create_type_object_impl(
     for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
     is_gc: bool,
     is_basetype: bool,
-    buffer_procs: Option<&PyBufferProcs>,
 ) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
 
@@ -130,10 +128,26 @@ unsafe fn create_type_object_impl(
 
     // protocol methods
     let mut has_gc_methods = false;
+    // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
+    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+    let mut buffer_procs: ffi::PyBufferProcs = Default::default();
+
     for_each_proto_slot(&mut |proto_slots| {
-        has_gc_methods |= proto_slots
-            .iter()
-            .any(|slot| slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse);
+        for slot in proto_slots {
+            has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
+
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            if slot.slot == ffi::Py_bf_getbuffer {
+                // Safety: slot.pfunc is a valid function pointer
+                buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
+            }
+
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            if slot.slot == ffi::Py_bf_releasebuffer {
+                // Safety: slot.pfunc is a valid function pointer
+                buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+            }
+        }
         slots.extend_from_slice(proto_slots);
     });
 
@@ -153,8 +167,11 @@ unsafe fn create_type_object_impl(
         tp_init_additional(
             type_object as _,
             tp_doc,
-            buffer_procs,
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            &buffer_procs,
+            #[cfg(not(Py_3_9))]
             dict_offset,
+            #[cfg(not(Py_3_9))]
             weaklist_offset,
         );
         Ok(type_object as _)
@@ -169,12 +186,12 @@ fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
 
 /// Additional type initializations necessary before Python 3.10
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-fn tp_init_additional(
+unsafe fn tp_init_additional(
     type_object: *mut ffi::PyTypeObject,
     _tp_doc: &str,
-    _buffer_procs: Option<&PyBufferProcs>,
-    _dict_offset: Option<ffi::Py_ssize_t>,
-    _weaklist_offset: Option<ffi::Py_ssize_t>,
+    #[cfg(not(Py_3_9))] buffer_procs: &ffi::PyBufferProcs,
+    #[cfg(not(Py_3_9))] dict_offset: Option<ffi::Py_ssize_t>,
+    #[cfg(not(Py_3_9))] weaklist_offset: Option<ffi::Py_ssize_t>,
 ) {
     // Just patch the type objects for the things there's no
     // PyType_FromSpec API for... there's no reason this should work,
@@ -184,16 +201,14 @@ fn tp_init_additional(
     #[cfg(all(not(PyPy), not(Py_3_10)))]
     {
         if _tp_doc != "\0" {
-            unsafe {
-                // Until CPython 3.10, tp_doc was treated specially for
-                // heap-types, and it removed the text_signature value from it.
-                // We go in after the fact and replace tp_doc with something
-                // that _does_ include the text_signature value!
-                ffi::PyObject_Free((*type_object).tp_doc as _);
-                let data = ffi::PyObject_Malloc(_tp_doc.len());
-                data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
-                (*type_object).tp_doc = data as _;
-            }
+            // Until CPython 3.10, tp_doc was treated specially for
+            // heap-types, and it removed the text_signature value from it.
+            // We go in after the fact and replace tp_doc with something
+            // that _does_ include the text_signature value!
+            ffi::PyObject_Free((*type_object).tp_doc as _);
+            let data = ffi::PyObject_Malloc(_tp_doc.len());
+            data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
+            (*type_object).tp_doc = data as _;
         }
     }
 
@@ -201,23 +216,15 @@ fn tp_init_additional(
     // Python 3.9, so on older versions we must manually fixup the type object.
     #[cfg(not(Py_3_9))]
     {
-        if let Some(buffer) = _buffer_procs {
-            unsafe {
-                (*(*type_object).tp_as_buffer).bf_getbuffer = buffer.bf_getbuffer;
-                (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer.bf_releasebuffer;
-            }
+        (*(*type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
+        (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
+
+        if let Some(dict_offset) = dict_offset {
+            (*type_object).tp_dictoffset = dict_offset;
         }
 
-        if let Some(dict_offset) = _dict_offset {
-            unsafe {
-                (*type_object).tp_dictoffset = dict_offset;
-            }
-        }
-
-        if let Some(weaklist_offset) = _weaklist_offset {
-            unsafe {
-                (*type_object).tp_weaklistoffset = weaklist_offset;
-            }
+        if let Some(weaklist_offset) = weaklist_offset {
+            (*type_object).tp_weaklistoffset = weaklist_offset;
         }
     }
 }
@@ -226,9 +233,9 @@ fn tp_init_additional(
 fn tp_init_additional(
     _type_object: *mut ffi::PyTypeObject,
     _tp_doc: &str,
-    _buffer_procs: Option<&PyBufferProcs>,
-    _dict_offset: Option<ffi::Py_ssize_t>,
-    _weaklist_offset: Option<ffi::Py_ssize_t>,
+    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))] _buffer_procs: &ffi::PyBufferProcs,
+    #[cfg(not(Py_3_9))] _dict_offset: Option<ffi::Py_ssize_t>,
+    #[cfg(not(Py_3_9))] _weaklist_offset: Option<ffi::Py_ssize_t>,
 ) {
 }
 
@@ -290,6 +297,7 @@ fn py_class_method_defs(
     });
 
     if !defs.is_empty() {
+        // Safety: Python expects a zeroed entry to mark the end of the defs
         defs.push(unsafe { std::mem::zeroed() });
     }
 
@@ -329,6 +337,7 @@ fn py_class_members(
     }
 
     if !members.is_empty() {
+        // Safety: Python expects a zeroed entry to mark the end of the defs
         members.push(unsafe { std::mem::zeroed() });
     }
 
@@ -370,6 +379,7 @@ fn py_class_properties(
     push_dict_getset(&mut props, is_dummy);
 
     if !props.is_empty() {
+        // Safety: Python expects a zeroed entry to mark the end of the defs
         props.push(unsafe { std::mem::zeroed() });
     }
     props

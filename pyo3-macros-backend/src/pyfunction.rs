@@ -431,6 +431,7 @@ pub fn impl_wrap_pyfunction(
         deprecations: options.deprecations,
         text_signature: options.text_signature,
         krate: krate.clone(),
+        unsafety: func.sig.unsafety,
     };
 
     let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);

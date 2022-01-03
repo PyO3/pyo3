@@ -134,31 +134,6 @@ fn impl_proto_methods(
     let slots_trait = proto.slots_trait();
     let slots_trait_slots = proto.slots_trait_slots();
 
-    let mut maybe_buffer_methods = None;
-
-    let build_config = pyo3_build_config::get();
-    const PY39: pyo3_build_config::PythonVersion =
-        pyo3_build_config::PythonVersion { major: 3, minor: 9 };
-
-    if build_config.version <= PY39 && proto.name == "Buffer" {
-        maybe_buffer_methods = Some(quote! {
-            impl _pyo3::class::impl_::PyBufferProtocolProcs<#ty>
-                for _pyo3::class::impl_::PyClassImplCollector<#ty>
-            {
-                fn buffer_procs(
-                    self
-                ) -> ::std::option::Option<&'static _pyo3::class::impl_::PyBufferProcs> {
-                    static PROCS: _pyo3::class::impl_::PyBufferProcs
-                        = _pyo3::class::impl_::PyBufferProcs {
-                            bf_getbuffer: ::std::option::Option::Some(_pyo3::class::buffer::getbuffer::<#ty>),
-                            bf_releasebuffer: ::std::option::Option::Some(_pyo3::class::buffer::releasebuffer::<#ty>),
-                        };
-                    ::std::option::Option::Some(&PROCS)
-                }
-            }
-        });
-    }
-
     let mut tokens = proto
         .slot_defs(method_names)
         .map(|def| {
@@ -178,8 +153,6 @@ fn impl_proto_methods(
     }
 
     quote! {
-        #maybe_buffer_methods
-
         impl _pyo3::class::impl_::#slots_trait<#ty>
             for _pyo3::class::impl_::PyClassImplCollector<#ty>
         {
