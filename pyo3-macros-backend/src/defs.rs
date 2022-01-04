@@ -420,14 +420,8 @@ pub const NUM: Proto = Proto {
         MethodProto::new("__imod__", "PyNumberIModProtocol")
             .args(&["Other"])
             .has_self(),
-        // See https://bugs.python.org/issue36379
-        #[cfg(Py_3_8)]
         MethodProto::new("__ipow__", "PyNumberIPowProtocol")
             .args(&["Other", "Modulo"])
-            .has_self(),
-        #[cfg(not(Py_3_8))]
-        MethodProto::new("__ipow__", "PyNumberIPowProtocol")
-            .args(&["Other"])
             .has_self(),
         MethodProto::new("__ilshift__", "PyNumberILShiftProtocol")
             .args(&["Other"])

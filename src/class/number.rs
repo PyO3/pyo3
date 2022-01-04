@@ -221,15 +221,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    #[cfg(Py_3_8)]
     fn __ipow__(&'p mut self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
-    where
-        Self: PyNumberIPowProtocol<'p>,
-    {
-        unimplemented!()
-    }
-    #[cfg(not(Py_3_8))]
-    fn __ipow__(&'p mut self, other: Self::Other) -> Self::Result
     where
         Self: PyNumberIPowProtocol<'p>,
     {
@@ -512,7 +504,7 @@ pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
 pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
-    #[cfg(Py_3_8)]
+    // See https://bugs.python.org/issue36379
     type Modulo: FromPyObject<'p>;
 }
 
@@ -724,50 +716,31 @@ py_binary_self_func!(isub, PyNumberISubProtocol, T::__isub__);
 py_binary_self_func!(imul, PyNumberIMulProtocol, T::__imul__);
 py_binary_self_func!(imod, PyNumberIModProtocol, T::__imod__);
 
-// See https://bugs.python.org/issue36379
 #[doc(hidden)]
-#[cfg(Py_3_8)]
 pub unsafe extern "C" fn ipow<T>(
     slf: *mut ffi::PyObject,
     other: *mut ffi::PyObject,
-    modulo: *mut ffi::PyObject,
+    modulo: crate::impl_::pymethods::IPowModulo,
 ) -> *mut ffi::PyObject
 where
     T: for<'p> PyNumberIPowProtocol<'p>,
 {
-    // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
-    // so we ignore it. It's the same as what CPython does.
     crate::callback_body!(py, {
         let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
         let other = py.from_borrowed_ptr::<crate::PyAny>(other);
-        let modulo = py.from_borrowed_ptr::<crate::PyAny>(modulo);
         slf_cell
             .try_borrow_mut()?
             .__ipow__(
                 extract_or_return_not_implemented!(other),
-                extract_or_return_not_implemented!(modulo),
+                match modulo.extract(py) {
+                    Ok(value) => value,
+                    Err(_) => {
+                        let res = crate::ffi::Py_NotImplemented();
+                        crate::ffi::Py_INCREF(res);
+                        return Ok(res);
+                    }
+                },
             )
-            .convert(py)?;
-        ffi::Py_INCREF(slf);
-        Ok::<_, PyErr>(slf)
-    })
-}
-
-#[doc(hidden)]
-#[cfg(not(Py_3_8))]
-pub unsafe extern "C" fn ipow<T>(
-    slf: *mut ffi::PyObject,
-    other: *mut ffi::PyObject,
-) -> *mut ffi::PyObject
-where
-    T: for<'p> PyNumberIPowProtocol<'p>,
-{
-    crate::callback_body!(py, {
-        let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-        let other = py.from_borrowed_ptr::<crate::PyAny>(other);
-        slf_cell
-            .try_borrow_mut()?
-            .__ipow__(extract_or_return_not_implemented!(other))
             .convert(py)?;
         ffi::Py_INCREF(slf);
         Ok::<_, PyErr>(slf)

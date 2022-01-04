@@ -57,7 +57,6 @@ struct InPlaceOperations {
     value: u32,
 }
 
-#[cfg(Py_3_8)]
 #[pymethods]
 impl InPlaceOperations {
     fn __repr__(&self) -> String {
@@ -97,50 +96,6 @@ impl InPlaceOperations {
     }
 
     fn __ipow__(&mut self, other: u32, _modulo: Option<u32>) {
-        self.value = self.value.pow(other);
-    }
-}
-
-#[cfg(not(Py_3_8))]
-#[pymethods]
-impl InPlaceOperations {
-    fn __repr__(&self) -> String {
-        format!("IPO({:?})", self.value)
-    }
-
-    fn __iadd__(&mut self, other: u32) {
-        self.value += other;
-    }
-
-    fn __isub__(&mut self, other: u32) {
-        self.value -= other;
-    }
-
-    fn __imul__(&mut self, other: u32) {
-        self.value *= other;
-    }
-
-    fn __ilshift__(&mut self, other: u32) {
-        self.value <<= other;
-    }
-
-    fn __irshift__(&mut self, other: u32) {
-        self.value >>= other;
-    }
-
-    fn __iand__(&mut self, other: u32) {
-        self.value &= other;
-    }
-
-    fn __ixor__(&mut self, other: u32) {
-        self.value ^= other;
-    }
-
-    fn __ior__(&mut self, other: u32) {
-        self.value |= other;
-    }
-
-    fn __ipow__(&mut self, other: u32) {
         self.value = self.value.pow(other);
     }
 }
@@ -550,7 +505,6 @@ mod return_not_implemented {
     #[pyclass]
     struct RichComparisonToSelf {}
 
-    #[cfg(Py_3_8)]
     #[pymethods]
     impl RichComparisonToSelf {
         fn __repr__(&self) -> &'static str {
@@ -618,76 +572,6 @@ mod return_not_implemented {
         fn __ior__(&mut self, _other: PyRef<Self>) {}
         fn __ixor__(&mut self, _other: PyRef<Self>) {}
         fn __ipow__(&mut self, _other: PyRef<Self>, _modulo: Option<u8>) {}
-    }
-
-    #[cfg(not(Py_3_8))]
-    #[pymethods]
-    impl RichComparisonToSelf {
-        fn __repr__(&self) -> &'static str {
-            "RC_Self"
-        }
-
-        fn __richcmp__(&self, other: PyRef<Self>, _op: CompareOp) -> PyObject {
-            other.py().None()
-        }
-
-        fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __sub__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __mul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __matmul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __truediv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __floordiv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __mod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __pow__(slf: PyRef<Self>, _other: u8, _modulo: Option<u8>) -> PyRef<Self> {
-            slf
-        }
-        fn __lshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __rshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __divmod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __and__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __or__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-        fn __xor__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
-            slf
-        }
-
-        // Inplace assignments
-        fn __iadd__(&mut self, _other: PyRef<Self>) {}
-        fn __isub__(&mut self, _other: PyRef<Self>) {}
-        fn __imul__(&mut self, _other: PyRef<Self>) {}
-        fn __imatmul__(&mut self, _other: PyRef<Self>) {}
-        fn __itruediv__(&mut self, _other: PyRef<Self>) {}
-        fn __ifloordiv__(&mut self, _other: PyRef<Self>) {}
-        fn __imod__(&mut self, _other: PyRef<Self>) {}
-        fn __ilshift__(&mut self, _other: PyRef<Self>) {}
-        fn __irshift__(&mut self, _other: PyRef<Self>) {}
-        fn __iand__(&mut self, _other: PyRef<Self>) {}
-        fn __ior__(&mut self, _other: PyRef<Self>) {}
-        fn __ixor__(&mut self, _other: PyRef<Self>) {}
-        fn __ipow__(&mut self, _other: PyRef<Self>) {}
     }
 
     fn _test_binary_dunder(dunder: &str) {

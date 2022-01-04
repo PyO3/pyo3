@@ -12,4 +12,6 @@ pub mod frompyobject;
 pub(crate) mod not_send;
 #[doc(hidden)]
 pub mod pyclass;
+#[doc(hidden)]
+pub mod pymethods;
 pub mod pymodule;

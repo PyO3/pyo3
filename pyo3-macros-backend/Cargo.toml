@@ -18,9 +18,6 @@ quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
 pyo3-build-config = { path = "../pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
 
-[build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
-
 [dependencies.syn]
 version = "1"
 default-features = false
