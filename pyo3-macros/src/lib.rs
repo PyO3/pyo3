@@ -166,7 +166,8 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to expose Rust functions to Python.
 ///
-/// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]` options:
+/// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]`
+/// options:
 ///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
@@ -175,6 +176,11 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | `#[pyo3(pass_module)]` | Passes the module containing the function as a `&PyModule` first argument to the function. |
 ///
 /// For more on exposing functions see the [function section of the guide][1].
+///
+/// Due to technical limitations on how `#[pyfunction]` is implemented, a function marked
+/// `#[pyfunction]` cannot have a module with the same name in the same scope. (The
+/// `#[pyfunction]` implementation generates a hidden module with the same name containing
+/// metadata about the function, which is used by `wrap_pyfunction!`).
 ///
 /// [1]: https://pyo3.rs/latest/function.html
 #[proc_macro_attribute]
@@ -208,7 +214,7 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn wrap_pyfunction(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as WrapPyFunctionArgs);
-    wrap_pyfunction_impl(args).unwrap_or_compile_error().into()
+    wrap_pyfunction_impl(args).into()
 }
 
 /// Returns a function that takes a `Python` instance and returns a Python module.
