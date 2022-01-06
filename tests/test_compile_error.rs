@@ -31,6 +31,7 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/reject_generics.rs");
     t.compile_fail("tests/ui/not_send.rs");
     t.compile_fail("tests/ui/invalid_pymethod_proto_args.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_proto_args_py.rs");
 
     tests_rust_1_49(&t);
     tests_rust_1_55(&t);

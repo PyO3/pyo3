@@ -644,7 +644,7 @@ impl Dummy {
 
     fn __imod__(&mut self, _other: &Self) {}
 
-    fn __ipow__(&mut self, _other: &Self) {}
+    fn __ipow__(&mut self, _other: &Self, _modulo: ::std::option::Option<u32>) {}
     fn __ilshift__(&mut self, other: &Self) {}
 
     fn __irshift__(&mut self, other: &Self) {}
