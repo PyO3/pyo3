@@ -204,3 +204,7 @@ mod cpython;
 
 #[cfg(not(Py_LIMITED_API))]
 pub use self::cpython::*;
+
+/// Helper to enable #\[pymethods\] to see the workaround for __ipow__ on Python 3.7
+#[doc(hidden)]
+pub use crate::impl_::pymethods::ipowfunc;

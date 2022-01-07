@@ -532,8 +532,8 @@ const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
-const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
-    .arguments(&[Ty::Object, Ty::Object])
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
+    .arguments(&[Ty::Object, Ty::IPowModulo])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
@@ -613,6 +613,7 @@ enum Ty {
     Object,
     MaybeNullObject,
     NonNullObject,
+    IPowModulo,
     CompareOp,
     Int,
     PyHashT,
@@ -626,6 +627,7 @@ impl Ty {
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut _pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<_pyo3::ffi::PyObject> },
+            Ty::IPowModulo => quote! { _pyo3::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { _pyo3::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { _pyo3::ffi::Py_ssize_t },
@@ -675,6 +677,16 @@ impl Ty {
                     py,
                     quote! {
                         #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr()).extract()
+                    },
+                );
+                extract_object(cls, arg.ty, ident, extract)
+            }
+            Ty::IPowModulo => {
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                        #ident.extract(#py)
                     },
                 );
                 extract_object(cls, arg.ty, ident, extract)
@@ -888,8 +900,11 @@ fn generate_method_body(
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let rust_name = spec.name;
-    let (arg_idents, conversions) =
+    let (arg_idents, arg_count, conversions) =
         extract_proto_arguments(cls, py, &spec.args, arguments, extract_error_mode)?;
+    if arg_count != arguments.len() {
+        bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", arguments.len(), arg_count));
+    }
     let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
@@ -1058,7 +1073,7 @@ fn extract_proto_arguments(
     method_args: &[FnArg],
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
-) -> Result<(Vec<Ident>, TokenStream)> {
+) -> Result<(Vec<Ident>, usize, TokenStream)> {
     let mut arg_idents = Vec::with_capacity(method_args.len());
     let mut non_python_args = 0;
 
@@ -1077,9 +1092,8 @@ fn extract_proto_arguments(
             arg_idents.push(ident);
         }
     }
-
     let conversions = quote!(#(#args_conversions)*);
-    Ok((arg_idents, conversions))
+    Ok((arg_idents, non_python_args, conversions))
 }
 
 struct StaticIdent(&'static str);
