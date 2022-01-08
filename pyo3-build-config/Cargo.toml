@@ -20,6 +20,9 @@ default = []
 # script. If this feature isn't enabled, the build script no-ops.
 resolve-config = []
 
+# Export the resolved build config into a file for use by e.g. other build scripts.
+export-config = ["resolve-config"]
+
 abi3 = []
 abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
