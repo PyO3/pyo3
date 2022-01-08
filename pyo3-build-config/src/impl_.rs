@@ -361,6 +361,7 @@ print("mingw", get_platform().startswith("mingw"))
 
     /// Create an InterpreterConfig generated from pyo3-build-config using the "export-config"
     /// feature
+    #[cfg(feature = "export-config")]
     pub fn from_pyo3_export_config() -> Result<Self> {
         InterpreterConfig::from_path(Path::new(
             &cargo_env_var("DEP_PYTHON_PYO3_EXPORT_CONFIG").unwrap(),
