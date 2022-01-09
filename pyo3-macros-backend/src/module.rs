@@ -99,10 +99,11 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
         if let syn::Stmt::Item(syn::Item::Fn(func)) = &mut stmt {
             if let Some(pyfn_args) = get_pyfn_attr(&mut func.attrs)? {
                 let module_name = pyfn_args.modname;
-                let (ident, wrapped_function) = impl_wrap_pyfunction(func, pyfn_args.options)?;
+                let wrapped_function = impl_wrap_pyfunction(func, pyfn_args.options)?;
+                let name = &func.sig.ident;
                 let statements: Vec<syn::Stmt> = syn::parse_quote! {
                     #wrapped_function
-                    #module_name.add_function(#ident(#module_name)?)?;
+                    #module_name.add_function(#name::wrap(#name::DEF, #module_name)?)?;
                 };
                 stmts.extend(statements);
             }
