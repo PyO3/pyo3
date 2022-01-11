@@ -1929,7 +1929,7 @@ mod tests {
         let out = interpreter
             .run_python_script("print(2 + 2)")
             .expect("failed to run Python script");
-        assert_eq!(out, "4\n");
+        assert_eq!(out.trim_end(), "4");
     }
 
     #[test]
@@ -1943,6 +1943,6 @@ mod tests {
                 [("PYO3_TEST", "42")],
             )
             .expect("failed to run Python script");
-        assert_eq!(out, "42\n");
+        assert_eq!(out.trim_end(), "42");
     }
 }
