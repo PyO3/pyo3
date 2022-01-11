@@ -1920,4 +1920,29 @@ mod tests {
                 .is_none()
         );
     }
+
+    #[test]
+    fn test_run_python_script() {
+        // as above, this should be okay in CI where Python is presumed installed
+        let interpreter = make_interpreter_config()
+            .expect("could not get InterpreterConfig from installed interpreter");
+        let out = interpreter
+            .run_python_script("print(2 + 2)")
+            .expect("failed to run Python script");
+        assert_eq!(out, "4\n");
+    }
+
+    #[test]
+    fn test_run_python_script_with_envs() {
+        // as above, this should be okay in CI where Python is presumed installed
+        let interpreter = make_interpreter_config()
+            .expect("could not get InterpreterConfig from installed interpreter");
+        let out = interpreter
+            .run_python_script_with_envs(
+                "import os; print(os.getenv('PYO3_TEST'))",
+                [("PYO3_TEST", "42")],
+            )
+            .expect("failed to run Python script");
+        assert_eq!(out, "42\n");
+    }
 }
