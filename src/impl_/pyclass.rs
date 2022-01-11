@@ -7,7 +7,12 @@ use crate::{
     type_object::{PyLayout, PyTypeObject},
     PyCell, PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
-use std::{marker::PhantomData, os::raw::{c_int, c_void}, ptr::NonNull, thread};
+use std::{
+    marker::PhantomData,
+    os::raw::{c_int, c_void},
+    ptr::NonNull,
+    thread,
+};
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
@@ -128,6 +133,14 @@ impl<T> Clone for PyClassImplCollector<T> {
 
 impl<T> Copy for PyClassImplCollector<T> {}
 
+pub struct PyClassItems {
+    pub methods: &'static [PyMethodDefType],
+    pub slots: &'static [ffi::PyType_Slot],
+}
+
+// Allow PyClassItems in statics
+unsafe impl Sync for PyClassItems {}
+
 /// Implements the underlying functionality of `#[pyclass]`, assembled by various proc macros.
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
@@ -163,8 +176,7 @@ pub trait PyClassImpl: Sized {
     #[cfg(feature = "multiple-pymethods")]
     type Inventory: PyClassInventory;
 
-    fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
-    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
+    fn for_all_items(visitor: &mut dyn FnMut(&PyClassItems));
 
     #[inline]
     fn get_new() -> Option<ffi::newfunc> {
@@ -697,15 +709,18 @@ unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObject) {
 // General methods implementation: either dtolnay specialization trait or inventory if
 // multiple-pymethods feature is enabled.
 
-macro_rules! methods_trait {
+macro_rules! items_trait {
     ($name:ident, $function_name: ident) => {
         pub trait $name<T> {
-            fn $function_name(self) -> &'static [PyMethodDefType];
+            fn $function_name(self) -> &'static PyClassItems;
         }
 
         impl<T> $name<T> for &'_ PyClassImplCollector<T> {
-            fn $function_name(self) -> &'static [PyMethodDefType] {
-                &[]
+            fn $function_name(self) -> &'static PyClassItems {
+                &PyClassItems {
+                    methods: &[],
+                    slots: &[],
+                }
             }
         }
     };
@@ -717,62 +732,40 @@ macro_rules! methods_trait {
 /// which are eventually collected by `#[pyclass]`.
 #[cfg(feature = "multiple-pymethods")]
 pub trait PyClassInventory: inventory::Collect {
-    /// Returns the methods for a single `#[pymethods] impl` block
-    fn methods(&'static self) -> &'static [PyMethodDefType];
-
-    /// Returns the slots for a single `#[pymethods] impl` block
-    fn slots(&'static self) -> &'static [ffi::PyType_Slot];
+    /// Returns the items for a single `#[pymethods] impl` block
+    fn items(&'static self) -> &'static PyClassItems;
 }
 
 // Methods from #[pyo3(get, set)] on struct fields.
-methods_trait!(PyClassDescriptors, py_class_descriptors);
+items_trait!(PyClassIntrinsicItems, pyclass_intrinsic_items);
 
-// Methods from #[pymethods] if not using inventory.
+// Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-methods_trait!(PyMethods, py_methods);
+items_trait!(PyMethods, py_methods);
 
-// All traits describing slots, as well as the fallback implementations for unimplemented protos
-//
-// Protos which are implemented use dtolnay specialization to implement for PyClassImplCollector<T>.
-//
-// See https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
-
-macro_rules! slots_trait {
-    ($name:ident, $function_name: ident) => {
-        pub trait $name<T> {
-            fn $function_name(self) -> &'static [ffi::PyType_Slot];
-        }
-
-        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
-            fn $function_name(self) -> &'static [ffi::PyType_Slot] {
-                &[]
-            }
-        }
-    };
+/// Items from `#[pyproto]` implementations
+#[cfg(feature = "pyproto")]
+mod pyproto_traits {
+    use super::*;
+    items_trait!(PyObjectProtocolItems, object_protocol_items);
+    items_trait!(PyDescrProtocolItems, descr_protocol_items);
+    items_trait!(PyGCProtocolItems, gc_protocol_items);
+    items_trait!(PyIterProtocolItems, iter_protocol_items);
+    items_trait!(PyMappingProtocolItems, mapping_protocol_items);
+    items_trait!(PyNumberProtocolItems, number_protocol_items);
+    items_trait!(PyAsyncProtocolItems, async_protocol_items);
+    items_trait!(PySequenceProtocolItems, sequence_protocol_items);
+    items_trait!(PyBufferProtocolItems, buffer_protocol_items);
 }
+#[cfg(feature = "pyproto")]
+pub use pyproto_traits::*;
 
-slots_trait!(PyObjectProtocolSlots, object_protocol_slots);
-slots_trait!(PyDescrProtocolSlots, descr_protocol_slots);
-slots_trait!(PyGCProtocolSlots, gc_protocol_slots);
-slots_trait!(PyIterProtocolSlots, iter_protocol_slots);
-slots_trait!(PyMappingProtocolSlots, mapping_protocol_slots);
-slots_trait!(PyNumberProtocolSlots, number_protocol_slots);
-slots_trait!(PyAsyncProtocolSlots, async_protocol_slots);
-slots_trait!(PySequenceProtocolSlots, sequence_protocol_slots);
-slots_trait!(PyBufferProtocolSlots, buffer_protocol_slots);
-
-// slots that PyO3 implements by default, but can be overidden by the users.
-slots_trait!(PyClassDefaultSlots, py_class_default_slots);
+// items that PyO3 implements by default, but can be overidden by the users.
+items_trait!(PyClassDefaultItems, pyclass_default_items);
 
 // Protocol slots from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-slots_trait!(PyMethodsProtocolSlots, methods_protocol_slots);
-
-methods_trait!(PyObjectProtocolMethods, object_protocol_methods);
-methods_trait!(PyAsyncProtocolMethods, async_protocol_methods);
-methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
-methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
-methods_trait!(PyNumberProtocolMethods, number_protocol_methods);
+items_trait!(PyMethodsProtocolItems, methods_protocol_items);
 
 // Thread checkers
 

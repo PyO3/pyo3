@@ -56,6 +56,7 @@ struct Iter {
 
 #[pymethods]
 impl Iter {
+    #[allow(clippy::self_named_constructors)]
     fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }

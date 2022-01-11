@@ -150,35 +150,19 @@ pub fn impl_methods(
 
     let krate = get_pyo3_crate(&options.krate);
 
-    Ok(match methods_type {
-        PyClassMethodsType::Specialization => {
-            let methods_registration = impl_py_methods(ty, methods);
-            let protos_registration = impl_protos(ty, proto_impls);
+    let items = match methods_type {
+        PyClassMethodsType::Specialization => impl_py_methods(ty, methods, proto_impls),
+        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls),
+    };
 
-            quote! {
-                const _: () = {
-                    use #krate as _pyo3;
+    Ok(quote! {
+        const _: () = {
+            use #krate as _pyo3;
 
-                    #(#trait_impls)*
+            #(#trait_impls)*
 
-                    #protos_registration
-
-                    #methods_registration
-                };
-            }
-        }
-        PyClassMethodsType::Inventory => {
-            let inventory = submit_methods_inventory(ty, methods, proto_impls);
-            quote! {
-                const _: () = {
-                    use #krate as _pyo3;
-
-                    #(#trait_impls)*
-
-                    #inventory
-                };
-            }
-        }
+            #items
+        };
     })
 }
 
@@ -202,7 +186,7 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     }
 }
 
-pub fn gen_default_slot_impls(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
+pub fn gen_default_items(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
     // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
     // all succeed.
     let ty: syn::Type = syn::parse_quote!(#cls);
@@ -234,23 +218,34 @@ pub fn gen_default_slot_impls(cls: &syn::Ident, method_defs: Vec<TokenStream>) -
         impl #cls {
             #(#method_defs)*
         }
-        impl ::pyo3::impl_::pyclass::PyClassDefaultSlots<#cls>
+        impl ::pyo3::impl_::pyclass::PyClassDefaultItems<#cls>
             for ::pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
-                fn py_class_default_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
-                    &[#(#proto_impls),*]
+                fn pyclass_default_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
+                    static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
+                        methods: &[],
+                        slots: &[#(#proto_impls),*]
+                    };
+                    &ITEMS
                 }
         }
     }
 }
 
-fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
+fn impl_py_methods(
+    ty: &syn::Type,
+    methods: Vec<TokenStream>,
+    proto_impls: Vec<TokenStream>,
+) -> TokenStream {
     quote! {
         impl _pyo3::impl_::pyclass::PyMethods<#ty>
             for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static [_pyo3::impl_::pymethods::PyMethodDefType] {
-                static METHODS: &[_pyo3::impl_::pymethods::PyMethodDefType] = &[#(#methods),*];
-                METHODS
+            fn py_methods(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
+                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
+                    methods: &[#(#methods),*],
+                    slots: &[#(#proto_impls),*]
+                };
+                &ITEMS
             }
         }
     }
@@ -298,18 +293,6 @@ fn add_shared_proto_slots(
     assert!(implemented_proto_fragments.is_empty());
 }
 
-fn impl_protos(ty: &syn::Type, proto_impls: Vec<TokenStream>) -> TokenStream {
-    quote! {
-        impl _pyo3::impl_::pyclass::PyMethodsProtocolSlots<#ty>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
-        {
-            fn methods_protocol_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
-                &[#(#proto_impls),*]
-            }
-        }
-    }
-}
-
 fn submit_methods_inventory(
     ty: &syn::Type,
     methods: Vec<TokenStream>,
@@ -318,7 +301,7 @@ fn submit_methods_inventory(
     quote! {
         _pyo3::inventory::submit! {
             type Inventory = <#ty as _pyo3::impl_::pyclass::PyClassImpl>::Inventory;
-            Inventory::new(&[#(#methods),*], &[#(#proto_impls),*])
+            Inventory::new(_pyo3::impl_::pyclass::PyClassItems { methods: &[#(#methods),*], slots: &[#(#proto_impls),*] })
         }
     }
 }

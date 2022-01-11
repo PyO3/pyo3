@@ -84,55 +84,30 @@ fn impl_proto_impl(
             }
         }
     }
-    let normal_methods = impl_normal_methods(py_methods, ty, proto);
-    let protocol_methods = impl_proto_methods(method_names, ty, proto);
+    let items = impl_proto_items(method_names, py_methods, ty, proto);
 
     Ok(quote! {
         const _: () = {
             use ::pyo3 as _pyo3; // pyproto doesn't support specifying #[pyo3(crate)]
             #trait_impls
-            #normal_methods
-            #protocol_methods
+            #items
         };
     })
 }
 
-fn impl_normal_methods(
+fn impl_proto_items(
+    method_names: HashSet<String>,
     py_methods: Vec<TokenStream>,
     ty: &syn::Type,
     proto: &defs::Proto,
 ) -> TokenStream {
-    if py_methods.is_empty() {
-        return TokenStream::default();
-    }
-
-    let methods_trait = proto.methods_trait();
-    let methods_trait_methods = proto.methods_trait_methods();
-    quote! {
-        impl _pyo3::impl_::pyclass::#methods_trait<#ty>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
-        {
-            fn #methods_trait_methods(self) -> &'static [_pyo3::impl_::pymethods::PyMethodDefType] {
-                static METHODS: &[_pyo3::impl_::pymethods::PyMethodDefType] =
-                    &[#(#py_methods),*];
-                METHODS
-            }
-        }
-    }
-}
-
-fn impl_proto_methods(
-    method_names: HashSet<String>,
-    ty: &syn::Type,
-    proto: &defs::Proto,
-) -> TokenStream {
-    if method_names.is_empty() {
+    if method_names.is_empty() && py_methods.is_empty() {
         return TokenStream::default();
     }
 
     let module = proto.module();
-    let slots_trait = proto.slots_trait();
-    let slots_trait_slots = proto.slots_trait_slots();
+    let items_trait = proto.items_trait();
+    let items_trait_items = proto.items_trait_items();
 
     let mut tokens = proto
         .slot_defs(method_names)
@@ -153,11 +128,15 @@ fn impl_proto_methods(
     }
 
     quote! {
-        impl _pyo3::impl_::pyclass::#slots_trait<#ty>
+        impl _pyo3::impl_::pyclass::#items_trait<#ty>
             for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
-            fn #slots_trait_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
-                &[#(#tokens),*]
+            fn #items_trait_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
+                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
+                    methods: &[#(#py_methods),*],
+                    slots: &[#(#tokens),*]
+                };
+                &ITEMS
             }
         }
     }

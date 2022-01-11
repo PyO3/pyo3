@@ -2,7 +2,10 @@
 use crate::{
     callback::IntoPyCallbackOutput,
     ffi,
-    impl_::pyclass::{assign_sequence_item_from_mapping, get_sequence_item_from_mapping, fallback_new, tp_dealloc, PyClassDict, PyClassImpl, PyClassWeakRef},
+    impl_::pyclass::{
+        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
+        tp_dealloc, PyClassDict, PyClassImpl, PyClassItems, PyClassWeakRef,
+    },
     IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
     PyTypeInfo, Python,
 };
@@ -52,8 +55,7 @@ where
             T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
-            &T::for_each_method_def,
-            &T::for_each_proto_slot,
+            &T::for_all_items,
             T::IS_GC,
             T::IS_BASETYPE,
         )
@@ -77,8 +79,7 @@ unsafe fn create_type_object_impl(
     tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-    for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     is_gc: bool,
     is_basetype: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
@@ -118,7 +119,7 @@ unsafe fn create_type_object_impl(
     let PyClassInfo {
         method_defs,
         property_defs,
-    } = method_defs_to_pyclass_info(for_each_method_def, dict_offset.is_none());
+    } = method_defs_to_pyclass_info(for_all_items, dict_offset.is_none());
 
     // normal methods
     if !method_defs.is_empty() {
@@ -139,8 +140,8 @@ unsafe fn create_type_object_impl(
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
     let mut buffer_procs: ffi::PyBufferProcs = Default::default();
 
-    for_each_proto_slot(&mut |proto_slots| {
-        for slot in proto_slots {
+    for_all_items(&mut |items| {
+        for slot in items.slots {
             has_getitem |= slot.slot == ffi::Py_mp_subscript;
             has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
             has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
@@ -156,7 +157,7 @@ unsafe fn create_type_object_impl(
                 buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
             }
         }
-        slots.extend_from_slice(proto_slots);
+        slots.extend_from_slice(items.slots);
     });
 
     // If mapping methods implemented, define sequence methods get implemented too.
@@ -320,14 +321,14 @@ struct PyClassInfo {
 }
 
 fn method_defs_to_pyclass_info(
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     has_dict: bool,
 ) -> PyClassInfo {
     let mut method_defs = Vec::new();
     let mut property_defs_map = std::collections::HashMap::new();
 
-    for_each_method_def(&mut |class_method_defs| {
-        for def in class_method_defs {
+    for_all_items(&mut |items| {
+        for def in items.methods {
             match def {
                 PyMethodDefType::Getter(getter) => {
                     getter.copy_to(

@@ -858,16 +858,11 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
 
-    fn for_each_method_def(visitor: &mut dyn FnMut(&[pyo3::class::PyMethodDefType])) {
+    fn for_all_items(visitor: &mut dyn FnMut(&pyo3::impl_::pyclass::PyClassItems)) {
         use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<MyClass>::new();
         visitor(collector.py_methods());
-        visitor(collector.py_class_descriptors());
-        visitor(collector.object_protocol_methods());
-        visitor(collector.async_protocol_methods());
-        visitor(collector.descr_protocol_methods());
-        visitor(collector.mapping_protocol_methods());
-        visitor(collector.number_protocol_methods());
+        visitor(collector.pyclass_intrinsic_items());
     }
     fn get_new() -> Option<pyo3::ffi::newfunc> {
         use pyo3::impl_::pyclass::*;
@@ -883,21 +878,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.free_impl()
-    }
-    fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
-        // Implementation which uses dtolnay specialization to load all slots.
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        visitor(collector.object_protocol_slots());
-        visitor(collector.number_protocol_slots());
-        visitor(collector.iter_protocol_slots());
-        visitor(collector.gc_protocol_slots());
-        visitor(collector.descr_protocol_slots());
-        visitor(collector.mapping_protocol_slots());
-        visitor(collector.sequence_protocol_slots());
-        visitor(collector.async_protocol_slots());
-        visitor(collector.buffer_protocol_slots());
-        visitor(collector.methods_protocol_slots());
     }
 }
 # Python::with_gil(|py| {
