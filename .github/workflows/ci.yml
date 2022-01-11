@@ -227,7 +227,7 @@ jobs:
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
 
       - name: Test build config
-        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
+        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml --all-features
 
       - name: Test python examples and tests
         shell: bash

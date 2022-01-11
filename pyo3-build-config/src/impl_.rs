@@ -1945,4 +1945,19 @@ mod tests {
             .expect("failed to run Python script");
         assert_eq!(out.trim_end(), "42");
     }
+
+    #[test]
+    #[cfg(feature = "export-config")]
+    fn test_emit_pyo3_configs_round_trip() {
+        let interpreter = make_interpreter_config()
+            .expect("could not get InterpreterConfig from installed interpreter");
+        interpreter.emit_pyo3_cfgs();
+        // config path env var is not set during testing of this crate alone, as it relies on the
+        // pyo3 python links manifest key, so we have to hard-code the same path
+        let output_path =
+            Path::new(&cargo_env_var("OUT_DIR").unwrap()).join(EXPORT_CONFIG_FILENAME);
+        let reimported_interpreter = InterpreterConfig::from_path(output_path)
+            .expect("could not generated InterpreterConfig from exported config");
+        assert_eq!(interpreter, reimported_interpreter);
+    }
 }
