@@ -51,8 +51,8 @@ fn time_with_fold<'p>(
     minute: u8,
     second: u8,
     microsecond: u32,
-    fold: bool,
     tzinfo: Option<&PyTzInfo>,
+    fold: bool,
 ) -> PyResult<&'p PyTime> {
     PyTime::new_with_fold(
         py,
