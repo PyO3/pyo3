@@ -1,12 +1,10 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{
-        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
-        tp_dealloc, PyClassImpl,
-    },
+    callback::IntoPyCallbackOutput,
     ffi,
-    impl_::pyclass::{PyClassDict, PyClassWeakRef},
-    PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    impl_::pyclass::{assign_sequence_item_from_mapping, get_sequence_item_from_mapping, fallback_new, tp_dealloc, PyClassDict, PyClassImpl, PyClassWeakRef},
+    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     convert::TryInto,
@@ -435,3 +433,130 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     doc: ptr::null_mut(),
     closure: ptr::null_mut(),
 };
+
+/// Operators for the `__richcmp__` method
+#[derive(Debug, Clone, Copy)]
+pub enum CompareOp {
+    /// The *less than* operator.
+    Lt = ffi::Py_LT as isize,
+    /// The *less than or equal to* operator.
+    Le = ffi::Py_LE as isize,
+    /// The equality operator.
+    Eq = ffi::Py_EQ as isize,
+    /// The *not equal to* operator.
+    Ne = ffi::Py_NE as isize,
+    /// The *greater than* operator.
+    Gt = ffi::Py_GT as isize,
+    /// The *greater than or equal to* operator.
+    Ge = ffi::Py_GE as isize,
+}
+
+impl CompareOp {
+    pub fn from_raw(op: c_int) -> Option<Self> {
+        match op {
+            ffi::Py_LT => Some(CompareOp::Lt),
+            ffi::Py_LE => Some(CompareOp::Le),
+            ffi::Py_EQ => Some(CompareOp::Eq),
+            ffi::Py_NE => Some(CompareOp::Ne),
+            ffi::Py_GT => Some(CompareOp::Gt),
+            ffi::Py_GE => Some(CompareOp::Ge),
+            _ => None,
+        }
+    }
+}
+
+/// Output of `__next__` which can either `yield` the next value in the iteration, or
+/// `return` a value to raise `StopIteration` in Python.
+///
+/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
+pub enum IterNextOutput<T, U> {
+    /// The value yielded by the iterator.
+    Yield(T),
+    /// The `StopIteration` object.
+    Return(U),
+}
+
+pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
+        }
+    }
+}
+
+impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
+            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterNextOutput::Return(py.None())),
+        }
+    }
+}
+
+/// Output of `__anext__`.
+///
+/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
+pub enum IterANextOutput<T, U> {
+    /// An expression which the generator yielded.
+    Yield(T),
+    /// A `StopAsyncIteration` object.
+    Return(U),
+}
+
+/// An [IterANextOutput] of Python objects.
+pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterANextOutput::Return(opt) => {
+                Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
+            }
+        }
+    }
+}
+
+impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
+            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterANextOutput::Return(py.None())),
+        }
+    }
+}

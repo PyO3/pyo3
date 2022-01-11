@@ -109,11 +109,11 @@ fn impl_normal_methods(
     let methods_trait = proto.methods_trait();
     let methods_trait_methods = proto.methods_trait_methods();
     quote! {
-        impl _pyo3::class::impl_::#methods_trait<#ty>
-            for _pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::impl_::pyclass::#methods_trait<#ty>
+            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
-            fn #methods_trait_methods(self) -> &'static [_pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[_pyo3::class::methods::PyMethodDefType] =
+            fn #methods_trait_methods(self) -> &'static [_pyo3::impl_::pymethods::PyMethodDefType] {
+                static METHODS: &[_pyo3::impl_::pymethods::PyMethodDefType] =
                     &[#(#py_methods),*];
                 METHODS
             }
@@ -153,8 +153,8 @@ fn impl_proto_methods(
     }
 
     quote! {
-        impl _pyo3::class::impl_::#slots_trait<#ty>
-            for _pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::impl_::pyclass::#slots_trait<#ty>
+            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
             fn #slots_trait_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
                 &[#(#tokens),*]

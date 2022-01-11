@@ -194,7 +194,7 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
-        impl _pyo3::class::impl_::PyClassNewImpl<#cls> for _pyo3::class::impl_::PyClassImplCollector<#cls> {
+        impl _pyo3::impl_::pyclass::PyClassNewImpl<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
             fn new_impl(self) -> ::std::option::Option<_pyo3::ffi::newfunc> {
                 ::std::option::Option::Some({
                     #wrapper
@@ -229,7 +229,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
         _pyo3::class::PyMethodDefType::ClassAttribute({
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                _pyo3::class::methods::PyClassAttributeFactory({
+                _pyo3::impl_::pymethods::PyClassAttributeFactory({
                     fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
                         #deprecations
                         _pyo3::IntoPy::into_py(#cls::#name(), py)
@@ -299,7 +299,7 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
             #deprecations
             _pyo3::class::PySetterDef::new(
                 #python_name,
-                _pyo3::class::methods::PySetter({
+                _pyo3::impl_::pymethods::PySetter({
                     unsafe extern "C" fn __wrap(
                         _slf: *mut _pyo3::ffi::PyObject,
                         _value: *mut _pyo3::ffi::PyObject,
@@ -379,7 +379,7 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
             #deprecations
             _pyo3::class::PyGetterDef::new(
                 #python_name,
-                _pyo3::class::methods::PyGetter({
+                _pyo3::impl_::pymethods::PyGetter({
                     unsafe extern "C" fn __wrap(
                         _slf: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
@@ -972,7 +972,7 @@ impl SlotFragmentDef {
         let body = generate_method_body(cls, spec, &py, arguments, *extract_error_mode, None)?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
-            impl _pyo3::class::impl_::#fragment_trait<#cls> for _pyo3::class::impl_::PyClassImplCollector<#cls> {
+            impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
 
                 #[inline]
                 unsafe fn #method(

@@ -52,13 +52,16 @@ serde_json = "1.0.61"
 pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "pyproto"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
+
+# Enables deprecated #[pyproto] macro
+pyproto = ["pyo3-macros/pyproto"]
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
@@ -83,7 +86,7 @@ nightly = []
 
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
-full = ["macros", "multiple-pymethods", "num-bigint", "num-complex", "hashbrown", "serde", "indexmap", "eyre", "anyhow"]
+full = ["macros", "pyproto", "multiple-pymethods", "num-bigint", "num-complex", "hashbrown", "serde", "indexmap", "eyre", "anyhow"]
 
 [[bench]]
 name = "bench_call"

@@ -9,9 +9,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    build_py_proto, get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl,
-    wrap_pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
-    WrapPyFunctionArgs,
+    get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl, wrap_pymodule_impl,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, WrapPyFunctionArgs,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -68,9 +67,10 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 /// [4]: ../class/gc/trait.PyGCProtocol.html
 /// [5]: ../class/iter/trait.PyIterProtocol.html
 #[proc_macro_attribute]
+#[cfg(feature = "pyproto")]
 pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_proto(&mut ast).unwrap_or_compile_error();
+    let expanded = pyo3_macros_backend::build_py_proto(&mut ast).unwrap_or_compile_error();
 
     quote!(
         #ast

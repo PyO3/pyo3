@@ -849,17 +849,17 @@ impl pyo3::IntoPy<PyObject> for MyClass {
     }
 }
 
-impl pyo3::class::impl_::PyClassImpl for MyClass {
+impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const DOC: &'static str = "Class for demonstration\u{0}";
     const IS_GC: bool = false;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
     type Layout = PyCell<MyClass>;
     type BaseType = PyAny;
-    type ThreadChecker = pyo3::class::impl_::ThreadCheckerStub<MyClass>;
+    type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
 
     fn for_each_method_def(visitor: &mut dyn FnMut(&[pyo3::class::PyMethodDefType])) {
-        use pyo3::class::impl_::*;
+        use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<MyClass>::new();
         visitor(collector.py_methods());
         visitor(collector.py_class_descriptors());
@@ -870,23 +870,23 @@ impl pyo3::class::impl_::PyClassImpl for MyClass {
         visitor(collector.number_protocol_methods());
     }
     fn get_new() -> Option<pyo3::ffi::newfunc> {
-        use pyo3::class::impl_::*;
+        use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
     }
     fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
-        use pyo3::class::impl_::*;
+        use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.alloc_impl()
     }
     fn get_free() -> Option<pyo3::ffi::freefunc> {
-        use pyo3::class::impl_::*;
+        use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<Self>::new();
         collector.free_impl()
     }
     fn for_each_proto_slot(visitor: &mut dyn FnMut(&[pyo3::ffi::PyType_Slot])) {
         // Implementation which uses dtolnay specialization to load all slots.
-        use pyo3::class::impl_::*;
+        use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<Self>::new();
         visitor(collector.object_protocol_slots());
         visitor(collector.number_protocol_slots());

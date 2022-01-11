@@ -3,7 +3,7 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::{PyCell, PyIterProtocol};
+use pyo3::PyCell;
 use std::collections::HashMap;
 
 mod common;
@@ -54,9 +54,9 @@ struct Iter {
     idx: usize,
 }
 
-#[pyproto]
-impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<'p, Self> {
+#[pymethods]
+impl Iter {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
 

@@ -3,7 +3,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString, PyTuple};
-use pyo3::PyMappingProtocol;
 
 #[macro_use]
 mod common;
@@ -39,8 +38,8 @@ pub struct PyA {
     foo: Option<String>,
 }
 
-#[pyproto]
-impl PyMappingProtocol for PyA {
+#[pymethods]
+impl PyA {
     fn __getitem__(&self, key: String) -> pyo3::PyResult<String> {
         if key == "t" {
             Ok("bar".into())

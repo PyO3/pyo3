@@ -4,8 +4,7 @@
 
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
-use crate::err::PyResult;
-use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
+use crate::{PyClass, PyObject};
 
 /// Python Iterator Interface.
 ///
@@ -73,49 +72,4 @@ pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
 py_unarys_func!(iter, PyIterIterProtocol, Self::__iter__);
 py_unarys_func!(iternext, PyIterNextProtocol, Self::__next__);
 
-/// Output of `__next__` which can either `yield` the next value in the iteration, or
-/// `return` a value to raise `StopIteration` in Python.
-///
-/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
-pub enum IterNextOutput<T, U> {
-    /// The value yielded by the iterator.
-    Yield(T),
-    /// The `StopIteration` object.
-    Return(U),
-}
-
-pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
-
-impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
-    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
-        match self {
-            IterNextOutput::Yield(o) => Ok(o.into_ptr()),
-            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
-        }
-    }
-}
-
-impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
-where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
-        match self {
-            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
-            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
-        }
-    }
-}
-
-impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
-        match self {
-            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
-            None => Ok(PyIterNextOutput::Return(py.None())),
-        }
-    }
-}
+pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};

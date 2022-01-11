@@ -2,8 +2,9 @@ use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::prelude::*;
 use crate::{
-    class::methods::{self, PyMethodDef},
-    ffi, types, AsPyPointer,
+    ffi,
+    impl_::pymethods::{self, PyMethodDef},
+    types, AsPyPointer,
 };
 use std::os::raw::c_void;
 
@@ -64,7 +65,11 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::cfunction_with_keywords(name, methods::PyCFunctionWithKeywords(fun), doc),
+            PyMethodDef::cfunction_with_keywords(
+                name,
+                pymethods::PyCFunctionWithKeywords(fun),
+                doc,
+            ),
             py_or_module,
         )
     }
@@ -77,7 +82,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::noargs(name, methods::PyCFunction(fun), doc),
+            PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
             py_or_module,
         )
     }
@@ -115,9 +120,9 @@ impl PyCFunction {
                 ),
             )?
         };
-        let method_def = methods::PyMethodDef::cfunction_with_keywords(
+        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
             "pyo3-closure",
-            methods::PyCFunctionWithKeywords(run_closure::<F, R>),
+            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
             "",
         );
         Self::internal_new_from_pointers(method_def, py, capsule.as_ptr(), std::ptr::null_mut())
