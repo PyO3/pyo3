@@ -1940,7 +1940,7 @@ mod tests {
         let out = interpreter
             .run_python_script_with_envs(
                 "import os; print(os.getenv('PYO3_TEST'))",
-                [("PYO3_TEST", "42")],
+                vec![("PYO3_TEST", "42")],
             )
             .expect("failed to run Python script");
         assert_eq!(out.trim_end(), "42");
