@@ -87,7 +87,19 @@ nightly = []
 
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
-full = ["macros", "pyproto", "multiple-pymethods", "num-bigint", "num-complex", "hashbrown", "serde", "indexmap", "eyre", "anyhow"]
+full = [
+    "macros",
+    "pyproto",
+    "multiple-pymethods",
+    "num-bigint",
+    "num-complex",
+    "hashbrown",
+    "serde",
+    "indexmap",
+    "eyre",
+    "anyhow",
+    "pyo3-build-config/export-config"
+]
 
 [[bench]]
 name = "bench_call"

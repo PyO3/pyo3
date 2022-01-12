@@ -1948,7 +1948,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "export-config")]
-    fn test_emit_pyo3_configs_round_trip() {
+    fn test_emit_pyo3_configs_roundtrip() {
         let interpreter = make_interpreter_config()
             .expect("could not get InterpreterConfig from installed interpreter");
         interpreter.emit_pyo3_cfgs();
