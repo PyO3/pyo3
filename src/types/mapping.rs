@@ -101,7 +101,9 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
         unsafe {
-            if ffi::PyMapping_Check(value.as_ptr()) != 0 {
+            if ffi::PyMapping_Check(value.as_ptr()) != 0
+                && ffi::PySequence_Check(value.as_ptr()) == 0
+            {
                 Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError::new(value, "Mapping"))
@@ -143,7 +145,7 @@ mod tests {
 
     use crate::{
         exceptions::PyKeyError,
-        types::{PyDict, PyTuple},
+        types::{PyDict, PyString, PyTuple},
         Python,
     };
 
@@ -298,5 +300,13 @@ mod tests {
             assert_eq!(mapping_ref.len().unwrap(), 0);
             assert_eq!(mapping_ref.get_refcnt(), 2);
         })
+    }
+
+    #[test]
+    fn test_not_mapping() {
+        Python::with_gil(|py| {
+            let str = PyString::new(py, "hello, world");
+            str.downcast::<PyMapping>().unwrap_err();
+        });
     }
 }
