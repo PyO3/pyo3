@@ -48,8 +48,6 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_closure.rs");
         t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/pyclass_send.rs");
-
-        
     }
 
     #[rustversion::before(1.56)]
