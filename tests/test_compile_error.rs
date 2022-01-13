@@ -49,8 +49,7 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/pyclass_send.rs");
 
-        #[cfg(Py_LIMITED_API)]
-        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
+        
     }
 
     #[rustversion::before(1.56)]
@@ -74,6 +73,8 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_pymethods.rs");
         t.compile_fail("tests/ui/missing_clone.rs");
         t.compile_fail("tests/ui/not_send.rs");
+        #[cfg(Py_LIMITED_API)]
+        t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
 
     #[rustversion::before(1.58)]
