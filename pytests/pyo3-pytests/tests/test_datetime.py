@@ -1,12 +1,12 @@
 import datetime as pdt
 import platform
-import struct
 import re
+import struct
 import sys
 
-import pytest
 import pyo3_pytests.datetime as rdt
-from hypothesis import given, example
+import pytest
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 
@@ -139,7 +139,7 @@ def test_time_fold(t):
 @pytest.mark.xfail(PYPY, reason="Feature not available on PyPy")
 @pytest.mark.parametrize("fold", [False, True])
 def test_time_fold(fold):
-    t = rdt.time_with_fold(0, 0, 0, 0, fold, None)
+    t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
     assert t.fold == fold
 
 

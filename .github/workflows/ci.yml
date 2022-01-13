@@ -64,8 +64,8 @@ jobs:
             echo "suppress_build_script_link_lines=true" >> config.txt
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features full
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3 full"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features full
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full"
           done
 
   build:
@@ -207,7 +207,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install -U pip tox
-          make test_py
+          cargo xtask test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}
           TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"

@@ -51,8 +51,8 @@ fn time_with_fold<'p>(
     minute: u8,
     second: u8,
     microsecond: u32,
-    fold: bool,
     tzinfo: Option<&PyTzInfo>,
+    fold: bool,
 ) -> PyResult<&'p PyTime> {
     PyTime::new_with_fold(
         py,
@@ -203,7 +203,7 @@ impl TzClass {
 }
 
 #[pymodule]
-fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_date, m)?)?;
     m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;
     m.add_function(wrap_pyfunction!(date_from_timestamp, m)?)?;

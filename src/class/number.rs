@@ -221,7 +221,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __ipow__(&'p mut self, other: Self::Other) -> Self::Result
+    fn __ipow__(&'p mut self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
     where
         Self: PyNumberIPowProtocol<'p>,
     {
@@ -504,6 +504,8 @@ pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
 pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
+    // See https://bugs.python.org/issue36379
+    type Modulo: FromPyObject<'p>;
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -718,17 +720,28 @@ py_binary_self_func!(imod, PyNumberIModProtocol, T::__imod__);
 pub unsafe extern "C" fn ipow<T>(
     slf: *mut ffi::PyObject,
     other: *mut ffi::PyObject,
-    _modulo: *mut ffi::PyObject,
+    modulo: crate::impl_::pymethods::IPowModulo,
 ) -> *mut ffi::PyObject
 where
     T: for<'p> PyNumberIPowProtocol<'p>,
 {
-    // NOTE: Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract,
-    // so we ignore it. It's the same as what CPython does.
     crate::callback_body!(py, {
         let slf_cell = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
         let other = py.from_borrowed_ptr::<crate::PyAny>(other);
-        call_operator_mut!(py, slf_cell, __ipow__, other).convert(py)?;
+        slf_cell
+            .try_borrow_mut()?
+            .__ipow__(
+                extract_or_return_not_implemented!(other),
+                match modulo.extract(py) {
+                    Ok(value) => value,
+                    Err(_) => {
+                        let res = crate::ffi::Py_NotImplemented();
+                        crate::ffi::Py_INCREF(res);
+                        return Ok(res);
+                    }
+                },
+            )
+            .convert(py)?;
         ffi::Py_INCREF(slf);
         Ok::<_, PyErr>(slf)
     })

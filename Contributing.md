@@ -11,9 +11,20 @@ If you want to become familiar with the codebase, see
 
 Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it. 
 
-You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/pyo3/index.html).
+You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/doc/pyo3/index.html).
 
 The following sections also contain specific ideas on where to start contributing to PyO3.
+
+## Setting up a development environment
+
+To work and develop PyO3, you need Python & Rust installed on your system.
+* We encourage the use of [rustup](https://rustup.rs/) to be able to select and choose specific toolchains based on the project.
+* [Pyenv](https://github.com/pyenv/pyenv) is also highly recommended for being able to choose a specific Python version.
+* [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
+
+### Caveats
+
+* When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
 
 ### Help users identify bugs
 

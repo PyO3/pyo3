@@ -25,10 +25,15 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
+    #[cfg(not(Py_LIMITED_API))]
+    t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/missing_clone.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
+    t.compile_fail("tests/ui/not_send.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_proto_args.rs");
+    t.compile_fail("tests/ui/invalid_pymethod_proto_args_py.rs");
 
     tests_rust_1_49(&t);
     tests_rust_1_55(&t);

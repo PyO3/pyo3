@@ -71,17 +71,26 @@ pub trait PyClassImpl: Sized {
     type Inventory: PyClassInventory;
 
     fn for_each_method_def(_visitor: &mut dyn FnMut(&[PyMethodDefType])) {}
+    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
+
+    #[inline]
     fn get_new() -> Option<ffi::newfunc> {
         None
     }
+    #[inline]
     fn get_alloc() -> Option<ffi::allocfunc> {
         None
     }
+    #[inline]
     fn get_free() -> Option<ffi::freefunc> {
         None
     }
-    fn for_each_proto_slot(_visitor: &mut dyn FnMut(&[ffi::PyType_Slot])) {}
-    fn get_buffer() -> Option<&'static PyBufferProcs> {
+    #[inline]
+    fn dict_offset() -> Option<ffi::Py_ssize_t> {
+        None
+    }
+    #[inline]
+    fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
 }
@@ -673,25 +682,6 @@ methods_trait!(PyDescrProtocolMethods, descr_protocol_methods);
 methods_trait!(PyMappingProtocolMethods, mapping_protocol_methods);
 methods_trait!(PyNumberProtocolMethods, number_protocol_methods);
 
-// On Python < 3.9 setting the buffer protocol using slots doesn't work, so these procs are used
-// on those versions to set the slots manually (on the limited API).
-
-#[cfg(not(Py_LIMITED_API))]
-pub use ffi::PyBufferProcs;
-
-#[cfg(Py_LIMITED_API)]
-pub struct PyBufferProcs;
-
-pub trait PyBufferProtocolProcs<T> {
-    fn buffer_procs(self) -> Option<&'static PyBufferProcs>;
-}
-
-impl<T> PyBufferProtocolProcs<T> for &'_ PyClassImplCollector<T> {
-    fn buffer_procs(self) -> Option<&'static PyBufferProcs> {
-        None
-    }
-}
-
 // Thread checkers
 
 #[doc(hidden)]
@@ -760,8 +750,6 @@ impl<T: Send, U: PyClassBaseType> PyClassThreadChecker<T> for ThreadCheckerInher
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
 pub trait PyClassBaseType: Sized {
-    type Dict;
-    type WeakRef;
     type LayoutAsBase: PyCellLayout<Self>;
     type BaseNativeType;
     type ThreadChecker: PyClassThreadChecker<Self>;
@@ -770,8 +758,6 @@ pub trait PyClassBaseType: Sized {
 
 /// All PyClasses can be used as a base type.
 impl<T: PyClass> PyClassBaseType for T {
-    type Dict = T::Dict;
-    type WeakRef = T::WeakRef;
     type LayoutAsBase = crate::pycell::PyCell<T>;
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;

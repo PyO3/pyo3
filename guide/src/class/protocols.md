@@ -175,7 +175,8 @@ TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
 
 #### Buffer objects
 
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
+  - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
+  - `__releasebuffer__(<self>, *mut ffi::Py_buffer)` (no return value, not even `PyResult`)
 
 #### Garbage Collector Integration
 
@@ -288,12 +289,14 @@ This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
   * `fn __itruediv__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ifloordiv__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __imod__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
-  * `fn __ipow__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
+  * `fn __ipow__(&'p mut self, other: impl FromPyObject, modulo: impl FromPyObject) -> PyResult<()>` on Python 3.8^
+  * `fn __ipow__(&'p mut self, other: impl FromPyObject) -> PyResult<()>` on Python 3.7 see https://bugs.python.org/issue36379
   * `fn __ilshift__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __irshift__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __iand__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ior__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ixor__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
+
 
 The following methods implement the unary arithmetic operations (`-`, `+`, `abs()` and `~`):
 

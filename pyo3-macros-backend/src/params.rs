@@ -53,12 +53,11 @@ fn is_kwargs(attrs: &[Argument], name: &syn::Ident) -> bool {
 pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
-    body: TokenStream,
     py: &syn::Ident,
     fastcall: bool,
 ) -> Result<TokenStream> {
     if spec.args.is_empty() {
-        return Ok(body);
+        return Ok(TokenStream::new());
     }
 
     let args_array = syn::Ident::new("output", Span::call_site());
@@ -70,19 +69,17 @@ pub fn impl_arg_params(
         for (i, arg) in spec.args.iter().enumerate() {
             arg_convert.push(impl_arg_param(arg, spec, i, None, &mut 0, py, &args_array)?);
         }
-        return Ok(quote! {{
-            let _args = Some(_args);
+        return Ok(quote! {
+            let _args = ::std::option::Option::Some(#py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args));
+            let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
             #(#arg_convert)*
-            #body
-        }});
+        });
     };
 
     let mut positional_parameter_names = Vec::new();
     let mut positional_only_parameters = 0usize;
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
-
-    let mut all_positional_required = true;
 
     for arg in spec.args.iter() {
         if arg.py || is_args(&spec.attrs, arg.name) || is_kwargs(&spec.attrs, arg.name) {
@@ -95,25 +92,20 @@ pub fn impl_arg_params(
 
         if kwonly {
             keyword_only_parameters.push(quote! {
-                _pyo3::derive_utils::KeywordOnlyParameterDescription {
+                _pyo3::impl_::extract_argument::KeywordOnlyParameterDescription {
                     name: #name,
                     required: #required,
                 }
             });
         } else {
+            positional_parameter_names.push(name);
+
             if required {
-                ensure_spanned!(
-                    all_positional_required,
-                    arg.name.span() => "Required positional parameters cannot come after optional parameters"
-                );
-                required_positional_parameters += 1;
-            } else {
-                all_positional_required = false;
+                required_positional_parameters = positional_parameter_names.len();
             }
             if posonly {
                 positional_only_parameters += 1;
             }
-            positional_parameter_names.push(name);
         }
     }
 
@@ -142,28 +134,30 @@ pub fn impl_arg_params(
     };
     let python_name = &spec.python_name;
 
-    let (args_to_extract, kwargs_to_extract) = if fastcall {
-        // _args is a &[&PyAny], _kwnames is a Option<&PyTuple> containing the
-        // keyword names of the keyword args in _kwargs
-        (
-            // need copied() for &&PyAny -> &PyAny
-            quote! { ::std::iter::Iterator::copied(_args.iter()) },
-            quote! { _kwnames.map(|kwnames| {
-                use ::std::iter::Iterator;
-                kwnames.as_slice().iter().copied().zip(_kwargs.iter().copied())
-            }) },
-        )
+    let extract_expression = if fastcall {
+        quote! {
+            DESCRIPTION.extract_arguments_fastcall(
+                #py,
+                _args,
+                _nargs,
+                _kwnames,
+                &mut #args_array
+            )?
+        }
     } else {
-        // _args is a &PyTuple, _kwargs is an Option<&PyDict>
-        (
-            quote! { _args.iter() },
-            quote! { _kwargs.map(|dict| dict.iter()) },
-        )
+        quote! {
+            DESCRIPTION.extract_arguments_tuple_dict(
+                #py,
+                _args,
+                _kwargs,
+                &mut #args_array
+            )?
+        }
     };
 
     // create array of arguments, and then parse
-    Ok(quote! {{
-            const DESCRIPTION: _pyo3::derive_utils::FunctionDescription = _pyo3::derive_utils::FunctionDescription {
+    Ok(quote! {
+            const DESCRIPTION: _pyo3::impl_::extract_argument::FunctionDescription = _pyo3::impl_::extract_argument::FunctionDescription {
                 cls_name: #cls_name,
                 func_name: stringify!(#python_name),
                 positional_parameter_names: &[#(#positional_parameter_names),*],
@@ -175,17 +169,10 @@ pub fn impl_arg_params(
             };
 
             let mut #args_array = [::std::option::Option::None; #num_params];
-            let (_args, _kwargs) = DESCRIPTION.extract_arguments(
-                #py,
-                #args_to_extract,
-                #kwargs_to_extract,
-                &mut #args_array
-            )?;
+            let (_args, _kwargs) = #extract_expression;
 
             #(#param_conversion)*
-
-            #body
-    }})
+    })
 }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
@@ -213,8 +200,9 @@ fn impl_arg_param(
 
     let ty = arg.ty;
     let name = arg.name;
+    let name_str = name.to_string();
     let transform_error = quote! {
-        |e| _pyo3::derive_utils::argument_extraction_error(#py, stringify!(#name), e)
+        |e| _pyo3::impl_::extract_argument::argument_extraction_error(#py, #name_str, e)
     };
 
     if is_args(&spec.attrs, name) {
@@ -223,7 +211,7 @@ fn impl_arg_param(
             arg.name.span() => "args cannot be optional"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _args.unwrap().extract().map_err(#transform_error)?;
+            let #arg_name = _pyo3::impl_::extract_argument::extract_argument(_args.unwrap(), #name_str)?;
         });
     } else if is_kwargs(&spec.attrs, name) {
         ensure_spanned!(
@@ -231,9 +219,8 @@ fn impl_arg_param(
             arg.name.span() => "kwargs must be Option<_>"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _kwargs.map(|kwargs| kwargs.extract())
-                .transpose()
-                .map_err(#transform_error)?;
+            let #arg_name = _kwargs.map(|kwargs| _pyo3::impl_::extract_argument::extract_argument(kwargs, #name_str))
+                .transpose()?;
         });
     }
 
@@ -243,7 +230,7 @@ fn impl_arg_param(
     let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
         quote_arg_span! { #expr_path(_obj).map_err(#transform_error) }
     } else {
-        quote_arg_span! { _obj.extract().map_err(#transform_error) }
+        quote_arg_span! { _pyo3::impl_::extract_argument::extract_argument(_obj, #name_str) }
     };
 
     let arg_value_or_default = match (spec.default_value(name), arg.optional.is_some()) {
