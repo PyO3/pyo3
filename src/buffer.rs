@@ -34,6 +34,7 @@ pub struct PyBuffer<T>(Pin<Box<ffi::Py_buffer>>, PhantomData<T>);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
 // Accessing the buffer contents is protected using the GIL.
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
 
