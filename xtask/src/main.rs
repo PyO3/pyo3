@@ -1,19 +1,26 @@
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use std::{collections::HashMap, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
 enum Subcommand {
     /// Runs `cargo llvm-cov` for the PyO3 codebase.
-    Coverage,
+    Coverage(CoverageOpts),
     /// Runs tests in examples/ and pytests/
     TestPy,
+}
+
+#[derive(StructOpt)]
+struct CoverageOpts {
+    /// Creates an lcov output instead of printing to the terminal.
+    #[structopt(long)]
+    output_lcov: Option<String>,
 }
 
 impl Subcommand {
     fn execute(self) -> Result<()> {
         match self {
-            Subcommand::Coverage => subcommand_coverage(),
+            Subcommand::Coverage(opts) => subcommand_coverage(opts),
             Subcommand::TestPy => run_python_tests(None),
         }
     }
@@ -24,32 +31,84 @@ fn main() -> Result<()> {
 }
 
 /// Runs `cargo llvm-cov` for the PyO3 codebase.
-fn subcommand_coverage() -> Result<()> {
-    run(&mut llvm_cov_command(&["clean", "--workspace"]))?;
-    run(&mut llvm_cov_command(&["--no-report"]))?;
-
-    // FIXME: add various feature combinations using 'full' feature.
-    // run(&mut llvm_cov_command(&["--no-report"]))?;
-
-    // XXX: the following block doesn't work until https://github.com/taiki-e/cargo-llvm-cov/pull/115 is merged
+fn subcommand_coverage(opts: CoverageOpts) -> Result<()> {
     let env = get_coverage_env()?;
-    run_python_tests(&env)?;
-    // (after here works with stable llvm-cov)
 
-    // TODO: add an argument to make it possible to generate lcov report & use this in CI.
-    run(&mut llvm_cov_command(&["--no-run", "--summary-only"]))?;
+    run(llvm_cov_command(&["clean", "--workspace"]).envs(&env))?;
+
+    run(Command::new("cargo")
+        .args(&["test", "--manifest-path", "pyo3-build-config/Cargo.toml"])
+        .envs(&env))?;
+    run(Command::new("cargo")
+        .args(&["test", "--manifest-path", "pyo3-macros-backend/Cargo.toml"])
+        .envs(&env))?;
+    run(Command::new("cargo")
+        .args(&["test", "--manifest-path", "pyo3-macros/Cargo.toml"])
+        .envs(&env))?;
+
+    run(Command::new("cargo").arg("test").envs(&env))?;
+    run(Command::new("cargo")
+        .args(&["test", "--features", "abi3"])
+        .envs(&env))?;
+    run(Command::new("cargo")
+        .args(&["test", "--features", "full"])
+        .envs(&env))?;
+    run(Command::new("cargo")
+        .args(&["test", "--features", "abi3 full"])
+        .envs(&env))?;
+
+    run_python_tests(&env)?;
+
+    match opts.output_lcov {
+        Some(path) => {
+            run(llvm_cov_command(&["--no-run", "--lcov", "--output-path", &path]).envs(&env))?
+        }
+        None => run(llvm_cov_command(&["--no-run", "--summary-only"]).envs(&env))?,
+    }
+
     Ok(())
 }
 
 fn run(command: &mut Command) -> Result<()> {
     println!("running: {}", format_command(command));
-    command.spawn()?.wait()?;
+    let status = command.spawn()?.wait()?;
+    ensure! {
+        status.success(),
+        "process did not run successfully ({exit}): {command}",
+        exit = match status.code() {
+            Some(code) => format!("exit code {}", code),
+            None => "terminated by signal".into(),
+        },
+        command = format_command(command),
+    };
     Ok(())
+}
+
+fn get_output(command: &mut Command) -> Result<std::process::Output> {
+    let output = command.output()?;
+    ensure! {
+        output.status.success(),
+        "process did not run successfully ({exit}): {command}",
+        exit = match output.status.code() {
+            Some(code) => format!("exit code {}", code),
+            None => "terminated by signal".into(),
+        },
+        command = format_command(command),
+    };
+    Ok(output)
 }
 
 fn llvm_cov_command(args: &[&str]) -> Command {
     let mut command = Command::new("cargo");
-    command.args(&["llvm-cov", "--package=pyo3"]).args(args);
+    command
+        .args(&[
+            "llvm-cov",
+            "--package=pyo3",
+            "--package=pyo3-build-config",
+            "--package=pyo3-macros-backend",
+            "--package=pyo3-macros",
+        ])
+        .args(args);
     command
 }
 
@@ -85,11 +144,25 @@ fn get_coverage_env() -> Result<HashMap<String, String>> {
     let output = String::from_utf8(llvm_cov_command(&["show-env"]).output()?.stdout)?;
 
     for line in output.trim().split('\n') {
-        let (key, value) = split_once(line, '=').context("expected '=' in each output line")?;
+        let (key, value) = split_once(line, '=')
+            .context("expected '=' in each line of output from llvm-cov show-env")?;
         env.insert(key.to_owned(), value.trim_matches('"').to_owned());
     }
 
-    env.insert("RUSTUP_TOOLCHAIN".to_owned(), "nightly".to_owned());
+    // Ensure that examples/ and pytests/ all build to the correct target directory to collect
+    // coverage artifacts.
+    env.insert(
+        "CARGO_TARGET_DIR".to_owned(),
+        env.get("CARGO_LLVM_COV_TARGET_DIR").unwrap().to_owned(),
+    );
+
+    // Coverage only works on nightly.
+    let rustc_version =
+        String::from_utf8(get_output(Command::new("rustc").arg("--version"))?.stdout)
+            .context("failed to parse rust version as utf8")?;
+    if !rustc_version.contains("nightly") {
+        env.insert("RUSTUP_TOOLCHAIN".to_owned(), "nightly".to_owned());
+    }
 
     Ok(env)
 }

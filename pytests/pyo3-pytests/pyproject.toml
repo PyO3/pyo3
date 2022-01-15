@@ -1,3 +1,4 @@
 [build-system]
-requires = ["maturin>=0.10,<0.11"]
+# FIXME: branch is necessary for coverage to work
+requires = ["maturin @ git+https://github.com/davidhewitt/maturin@profile-arg"]
 build-backend = "maturin"
