@@ -65,7 +65,7 @@ macro_rules! index_impls {
             // Always PyAny output (even if the slice operation returns something else)
             type Output = PyAny;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(&self, index: usize) -> &Self::Output {
                 self.get_item(index).unwrap_or_else(|_| {
                     crate::internal_tricks::index_len_fail(index, $ty_name, $len(self))
@@ -76,7 +76,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::Range<usize>> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(
                 &self,
                 std::ops::Range { start, end }: std::ops::Range<usize>,
@@ -97,7 +97,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::RangeFrom<usize>> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(
                 &self,
                 std::ops::RangeFrom { start }: std::ops::RangeFrom<usize>,
@@ -114,7 +114,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::RangeFull> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(&self, _: std::ops::RangeFull) -> &Self::Output {
                 let len = $len(self);
                 $get_slice(self, 0, len)
@@ -124,7 +124,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::RangeInclusive<usize>> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(&self, range: std::ops::RangeInclusive<usize>) -> &Self::Output {
                 let exclusive_end = range
                     .end()
@@ -137,7 +137,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::RangeTo<usize>> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(&self, std::ops::RangeTo { end }: std::ops::RangeTo<usize>) -> &Self::Output {
                 &self[0..end]
             }
@@ -146,7 +146,7 @@ macro_rules! index_impls {
         impl std::ops::Index<std::ops::RangeToInclusive<usize>> for $ty {
             type Output = $ty;
 
-            #[cfg_attr(track_caller, track_caller)]
+            #[track_caller]
             fn index(
                 &self,
                 std::ops::RangeToInclusive { end }: std::ops::RangeToInclusive<usize>,
@@ -161,7 +161,7 @@ macro_rules! index_impls {
 
 #[inline(never)]
 #[cold]
-#[cfg_attr(track_caller, track_caller)]
+#[track_caller]
 pub(crate) fn index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "index {} out of range for {} of length {}",
@@ -171,7 +171,7 @@ pub(crate) fn index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
 
 #[inline(never)]
 #[cold]
-#[cfg_attr(track_caller, track_caller)]
+#[track_caller]
 pub(crate) fn slice_start_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "range start index {} out of range for {} of length {}",
@@ -181,7 +181,7 @@ pub(crate) fn slice_start_index_len_fail(index: usize, ty_name: &str, len: usize
 
 #[inline(never)]
 #[cold]
-#[cfg_attr(track_caller, track_caller)]
+#[track_caller]
 pub(crate) fn slice_end_index_len_fail(index: usize, ty_name: &str, len: usize) -> ! {
     panic!(
         "range end index {} out of range for {} of length {}",
@@ -191,7 +191,7 @@ pub(crate) fn slice_end_index_len_fail(index: usize, ty_name: &str, len: usize) 
 
 #[inline(never)]
 #[cold]
-#[cfg_attr(track_caller, track_caller)]
+#[track_caller]
 pub(crate) fn slice_index_order_fail(index: usize, end: usize) -> ! {
     panic!("slice index starts at {} but ends at {}", index, end);
 }
