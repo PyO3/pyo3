@@ -13,8 +13,8 @@ test: lint test_py
 	cargo test --features="abi3 $(ALL_ADDITIVE_FEATURES)"
 
 test_py:
-	@for example in examples/*/tox.ini; do echo "-- Running tox for $$example --"; tox -e py -c $$example || exit 1; echo ""; done
-	@for package in pytests/*/tox.ini; do echo "-- Running tox for $$package --"; tox -e py -c $$package || exit 1; echo ""; done
+	@for example in examples/*/noxfile.py; do echo "-- Running nox for $$example --"; nox -f $$example/noxfile.py || exit 1; echo ""; done
+	@for package in pytests/*/noxfile.py; do echo "-- Running nox for $$package --"; nox -f $$package/noxfile.py || exit 1; echo ""; done
 
 fmt_py:
 	black . --check
@@ -35,7 +35,6 @@ coverage:
 	bash -c "\
 		set -a\
 		source <(cargo llvm-cov show-env)\
-		export TOX_TESTENV_PASSENV=*\
 		make test_py\
 	"
 	cargo llvm-cov $(COVERAGE_PACKAGES) --no-run --summary-only

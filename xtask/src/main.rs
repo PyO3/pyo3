@@ -58,14 +58,22 @@ fn run_python_tests<'a>(
 ) -> Result<()> {
     for entry in std::fs::read_dir("pytests")? {
         let path = entry?.path();
-        if path.is_dir() && path.join("tox.ini").exists() {
-            run(Command::new("tox").arg("-c").arg(path).envs(env))?;
+        if path.is_dir() && path.join("noxfile.py").exists() {
+            run(Command::new("nox")
+                .arg("--non-interactive")
+                .arg("-f")
+                .arg(path.join("noxfile.py"))
+                .envs(env))?;
         }
     }
     for entry in std::fs::read_dir("examples")? {
         let path = entry?.path();
-        if path.is_dir() && path.join("tox.ini").exists() {
-            run(Command::new("tox").arg("-c").arg(path).envs(env))?;
+        if path.is_dir() && path.join("noxfile.py").exists() {
+            run(Command::new("nox")
+                .arg("--non-interactive")
+                .arg("-f")
+                .arg(path.join("noxfile.py"))
+                .envs(env))?;
         }
     }
     Ok(())
@@ -81,7 +89,6 @@ fn get_coverage_env() -> Result<HashMap<String, String>> {
         env.insert(key.to_owned(), value.trim_matches('"').to_owned());
     }
 
-    env.insert("TOX_TESTENV_PASSENV".to_owned(), "*".to_owned());
     env.insert("RUSTUP_TOOLCHAIN".to_owned(), "nightly".to_owned());
 
     Ok(env)

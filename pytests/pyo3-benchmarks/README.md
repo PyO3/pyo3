@@ -11,8 +11,8 @@ python setup.py develop
 pytest
 ```
 
-Or with tox:
+Or with nox:
 
 ```shell
-tox -e py
+nox
 ```
