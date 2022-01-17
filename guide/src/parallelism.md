@@ -56,7 +56,7 @@ We are using `pytest-benchmark` to benchmark four word count functions:
 3. Rust sequential version
 4. Rust sequential version executed twice with two Python threads
 
-The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/main/examples/word-count/tests/test_word_count.py), and we can run `tox` in the `word-count` folder to benchmark these functions.
+The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/main/examples/word-count/tests/test_word_count.py), and we can run `nox` in the `word-count` folder to benchmark these functions.
 
 While the results of the benchmark of course depend on your machine, the relative results should be similar to this (mid 2020):
 ```ignore

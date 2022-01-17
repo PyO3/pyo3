@@ -206,11 +206,10 @@ jobs:
       - name: Test python examples and tests
         shell: bash
         run: |
-          python -m pip install -U pip tox
+          python -m pip install -U pip nox
           cargo xtask test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
