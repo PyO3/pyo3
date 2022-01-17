@@ -1,5 +1,5 @@
 [template]
-ignore = [".tox", ".nox"]
+ignore = [".nox"]
 
 [hooks]
 pre = [".template/pre-script.rhai"]
