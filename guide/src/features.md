@@ -81,6 +81,14 @@ The `resolve-config` feature of the `pyo3-build-config` crate controls whether t
 build script automatically resolves a Python interpreter / build configuration. This feature is primarily useful when building PyO3
 itself. By default this feature is not enabled, meaning you can freely use `pyo3-build-config` as a standalone library to read or write PyO3 build configuration files or resolve metadata about a Python interpreter.
 
+### `export-config`
+
+The `export-config` feature of the `pyo3-build-config` crate controls whether
+that crate exports the build configuration for use in other crates. This
+feature may be useful if building an additional dependency that requires access
+to the Python interpreter used to build PyO3 itself. This feature should be
+used with caution as it can impact build portability.
+
 ## Optional Dependencies
 
 These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.
