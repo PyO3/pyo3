@@ -253,7 +253,9 @@ jobs:
         continue-on-error: true
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          # TODO: this is pinned to work around a rustc bug in instrumented coverage
+          # https://github.com/taiki-e/cargo-llvm-cov/issues/128
+          toolchain: nightly-2022-01-14
           override: true
           profile: minimal
           components: llvm-tools-preview
@@ -264,12 +266,6 @@ jobs:
           curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
         env:
           CARGO_LLVM_COV_VERSION: 0.1.11
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
-          components: llvm-tools-preview
       - run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov --package $ALL_PACKAGES --no-report
