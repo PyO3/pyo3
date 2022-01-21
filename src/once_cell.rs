@@ -28,7 +28,6 @@ use std::cell::UnsafeCell;
 /// }
 /// # Python::with_gil(|py| assert_eq!(get_shared_list(py).len(), 0));
 /// ```
-#[allow(clippy::upper_case_acronyms)]
 pub struct GILOnceCell<T>(UnsafeCell<Option<T>>);
 
 // T: Send is needed for Sync because the thread which drops the GILOnceCell can be different

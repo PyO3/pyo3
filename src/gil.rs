@@ -153,7 +153,7 @@ where
 ///     let py = gil_guard.python();
 /// } // GIL is released when gil_guard is dropped
 /// ```
-#[allow(clippy::upper_case_acronyms)]
+
 #[must_use]
 pub struct GILGuard {
     gstate: ffi::PyGILState_STATE,
@@ -330,7 +330,6 @@ static POOL: ReferencePool = ReferencePool::new();
 
 ///
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
-#[allow(clippy::upper_case_acronyms)]
 pub struct GILPool {
     /// Initial length of owned objects and anys.
     /// `Option` is used since TSL can be broken when `new` is called from `atexit`.
@@ -473,7 +472,6 @@ pub(crate) fn ensure_gil_unchecked() -> EnsureGIL {
 }
 
 /// Struct used internally which avoids acquiring the GIL where it's not necessary.
-#[allow(clippy::upper_case_acronyms)]
 pub(crate) struct EnsureGIL(Option<GILGuard>);
 
 impl EnsureGIL {

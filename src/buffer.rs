@@ -34,7 +34,6 @@ pub struct PyBuffer<T>(Pin<Box<ffi::Py_buffer>>, PhantomData<T>);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
 // Accessing the buffer contents is protected using the GIL.
-#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
 
@@ -689,7 +688,6 @@ mod tests {
         });
     }
 
-    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
         Python::with_gil(|py| {
