@@ -434,13 +434,11 @@ pub trait PyNumberRPowProtocol<'p>: PyNumberProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberRLShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberRRShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
@@ -508,13 +506,11 @@ pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Modulo: FromPyObject<'p>;
 }
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberILShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyNumberIRShiftProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
