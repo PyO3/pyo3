@@ -309,9 +309,9 @@ The example below shows:
 * how to call function `run()` (declared in `app.py`) that needs function
   imported from `utils/foo.py`
 
-It is recommended to use an absolute paths because then your binary can be run
-from anywhere as long as your `app.py` is in expected directory (in example
-expected directory is `/usr/share/python_app`).
+It is recommended to use absolute paths because then your binary can be run
+from anywhere as long as your `app.py` is in the expected directory (in this example
+that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
 ```ignore
