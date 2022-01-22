@@ -1,6 +1,7 @@
+import os
+
 from setuptools import setup
 from setuptools_rust import RustExtension
-
 
 setup(
     name="pyo3-benchmarks",
@@ -18,7 +19,8 @@ setup(
     rust_extensions=[
         RustExtension(
             "pyo3_benchmarks._pyo3_benchmarks",
-            debug=False,
+            # build debug when measuring coverage, otherwise release
+            debug="CARGO_LLVM_COV_TARGET_DIR" in os.environ,
         ),
     ],
     include_package_data=True,

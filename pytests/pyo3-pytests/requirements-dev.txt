@@ -2,4 +2,3 @@ hypothesis>=3.55
 pytest>=3.5.0
 psutil>=5.6
 pip>=21.3
-maturin>=0.12,<0.13
