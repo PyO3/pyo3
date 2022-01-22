@@ -84,9 +84,9 @@ jobs:
       - name: Run benchmarks
         run: |
           cd pytests/pyo3-benchmarks
-          python -m pip install -r requirements-dev.txt
-          python setup.py develop
-          pytest --benchmark-json ../../output.json
+          pip install -r requirements-dev.txt
+          pip install .
+          pytest --benchmark-json ../../output.json --benchmark-enable
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:
