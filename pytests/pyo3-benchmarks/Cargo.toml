@@ -12,5 +12,5 @@ path = "../../"
 features = ["extension-module"]
 
 [lib]
-name = "_pyo3_benchmarks"
+name = "pyo3_benchmarks"
 crate-type = ["cdylib"]
