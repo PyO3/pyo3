@@ -758,7 +758,9 @@ mod tests {
     }
 
     use std::ops::Range;
-
+    
+    // An iterator that lies about its `ExactSizeIterator` implementation.
+    // See https://github.com/PyO3/pyo3/issues/2118
     struct FaultyIter(Range<usize>, usize);
 
     impl Iterator for FaultyIter {
