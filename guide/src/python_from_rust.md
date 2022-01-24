@@ -255,7 +255,7 @@ Example directory structure:
 .
 ├── Cargo.lock
 ├── Cargo.toml
-├── python
+├── python_app
 │   ├── app.py
 │   └── utils
 │       └── foo.py
@@ -263,7 +263,7 @@ Example directory structure:
     └── main.rs
 ```
 
-`python/app.py`:
+`python_app/app.py`:
 ```python
 from utils.foo import bar
 
@@ -272,7 +272,7 @@ def run():
     return bar()
 ```
 
-`python/utils/foo.py`:
+`python_app/utils/foo.py`:
 ```python
 def bar():
     return "baz"
@@ -288,8 +288,8 @@ The example below shows:
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
-    let py_foo = include_str!("../python/utils/foo.py");
-    let py_app = include_str!("../python/app.py");
+    let py_foo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/utils/foo.py"));
+    let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
         PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
@@ -304,23 +304,28 @@ fn main() -> PyResult<()> {
 ```
 
 The example below shows:
-* how to load content of `app.py` and `utils/foo.py` at runtime
+* how to load content of `app.py` at runtime so that it sees its dependencies
+  automatically
 * how to call function `run()` (declared in `app.py`) that needs function
   imported from `utils/foo.py`
 
-It is recommended to use an absolute path to your Python files because then
-your binary can be run from anywhere.
+It is recommended to use absolute paths because then your binary can be run
+from anywhere as long as your `app.py` is in the expected directory (in this example
+that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
 ```ignore
-use std::fs;
 use pyo3::prelude::*;
+use pyo3::types::PyList;
+use std::fs;
+use std::path::Path;
 
 fn main() -> PyResult<()> {
-    let py_foo = fs::read_to_string("/some/absolute/path/to/python/utils/foo.py")?;
-    let py_app = fs::read_to_string("/some/absolute/path/to/python/app.py")?;
+    let path = Path::new("/usr/share/python_app");
+    let py_app = fs::read_to_string(path.join("app.py"))?;
     let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
-        PyModule::from_code(py, &py_foo, "utils.foo", "utils.foo")?;
+        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast::<PyList>()?;
+        syspath.insert(0, &path)?;
         let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
             .getattr("run")?
             .into();
