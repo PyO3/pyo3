@@ -33,9 +33,9 @@ fn new_from_iter<T>(
 
         for (i, e) in elements.by_ref().enumerate().take(len as usize) {
             let obj = convert(e).into_ptr();
-            #[cfg(not(Py_LIMITED_API))]
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
             ffi::PyTuple_SET_ITEM(tup, i as Py_ssize_t, obj);
-            #[cfg(Py_LIMITED_API)]
+            #[cfg(any(Py_LIMITED_API, PyPy))]
             ffi::PyTuple_SetItem(tup, i as Py_ssize_t, obj);
             counter += 1;
         }
