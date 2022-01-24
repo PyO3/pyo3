@@ -456,7 +456,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAny, PyTuple};
-    use crate::{IntoPy, Py, PyTryFrom, Python, ToPyObject};
+    use crate::{PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -809,8 +809,10 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
+        use crate::{IntoPy, Py};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -875,8 +877,10 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks_2() {
+        use crate::{IntoPy, Py};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);

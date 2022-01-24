@@ -367,7 +367,7 @@ where
 mod tests {
     use crate::types::PyList;
     use crate::Python;
-    use crate::{IntoPy, Py, PyAny, PyObject, PyTryFrom, ToPyObject};
+    use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -826,10 +826,11 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "macros")]
     #[test]
     fn bad_clone_mem_leaks() {
+        use crate::{Py, PyAny};
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
         #[crate::pyclass]
