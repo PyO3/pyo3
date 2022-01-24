@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix undefined behavior in `PySlice::indices`. [#2061](https://github.com/PyO3/pyo3/pull/2061)
 - Use the Rust function path for `wrap_pymodule!` of a `#[pymodule]` with a `#[pyo3(name = "..")]` attribute, not the Python name. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - Fix panic in `#[pyfunction]` generated code when a required argument following an `Option` was not provided.  [#2093](https://github.com/PyO3/pyo3/pull/2093)
+- Fixed undefined behaviour caused by incorrect `ExactSizeIterator` implementations. [#2124](https://github.com/PyO3/pyo3/pull/2124)
 
 ## [0.15.1] - 2021-11-19
 
