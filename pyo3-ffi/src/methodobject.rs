@@ -36,7 +36,6 @@ pub type _PyCFunctionFast = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *mut *mut PyObject,
     nargs: crate::pyport::Py_ssize_t,
-    kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
 pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
