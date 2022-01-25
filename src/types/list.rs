@@ -21,38 +21,33 @@ pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_
 
 #[inline]
 #[track_caller]
-fn new_from_iter<T>(
-    py: Python,
-    mut elements: impl ExactSizeIterator<Item = T>,
-    convert: impl Fn(T) -> PyObject,
-) -> *mut ffi::PyObject {
+fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyList> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
-        let len: Py_ssize_t = elements.len().try_into().unwrap_or_else(|_| {
-            panic!("out of range integral type conversion attempted on `elements.len()`")
-        });
+        let len: Py_ssize_t = elements
+            .len()
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
 
-        let list = ffi::PyList_New(len);
+        let ptr = ffi::PyList_New(len);
 
         // - Panics if the ptr is null
         // - Cleans up the list if `convert` or the asserts panic
-        let guard: Py<PyAny> = Py::from_owned_ptr(py, list);
+        let list: Py<PyList> = Py::from_owned_ptr(py, ptr);
 
         let mut counter: Py_ssize_t = 0;
 
-        for (i, e) in elements.by_ref().enumerate().take(len as usize) {
-            let obj = convert(e).into_ptr();
+        for obj in elements.take(len as usize) {
             #[cfg(not(Py_LIMITED_API))]
-            ffi::PyList_SET_ITEM(list, i as Py_ssize_t, obj);
+            ffi::PyList_SET_ITEM(ptr, counter, obj.into_ptr());
             #[cfg(Py_LIMITED_API)]
-            ffi::PyList_SetItem(list, i as Py_ssize_t, obj);
+            ffi::PyList_SetItem(ptr, counter, obj.into_ptr());
             counter += 1;
         }
 
         assert!(elements.next().is_none(), "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
         assert_eq!(len, counter, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
 
-        std::mem::forget(guard);
         list
     }
 }
@@ -89,11 +84,9 @@ impl PyList {
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
-        unsafe {
-            py.from_owned_ptr::<PyList>(new_from_iter(py, elements.into_iter(), |e| {
-                e.to_object(py)
-            }))
-        }
+        let mut iter = elements.into_iter().map(|e| e.to_object(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into_ref(py)
     }
 
     /// Constructs a new empty list.
@@ -339,7 +332,9 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, new_from_iter(py, self.iter(), |e| e.to_object(py))) }
+        let mut iter = self.into_iter().map(|e| e.to_object(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
     }
 }
 
@@ -357,9 +352,9 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python) -> PyObject {
-        unsafe {
-            PyObject::from_owned_ptr(py, new_from_iter(py, self.into_iter(), |e| e.into_py(py)))
-        }
+        let mut iter = self.into_iter().map(|e| e.into_py(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
     }
 }
 

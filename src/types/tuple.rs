@@ -12,38 +12,33 @@ use crate::{
 
 #[inline]
 #[track_caller]
-fn new_from_iter<T>(
-    py: Python,
-    mut elements: impl ExactSizeIterator<Item = T>,
-    convert: impl Fn(T) -> PyObject,
-) -> *mut ffi::PyObject {
+fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyTuple> {
     unsafe {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
-        let len: Py_ssize_t = elements.len().try_into().unwrap_or_else(|_| {
-            panic!("out of range integral type conversion attempted on `elements.len()`")
-        });
+        let len: Py_ssize_t = elements
+            .len()
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
 
-        let tup = ffi::PyTuple_New(len);
+        let ptr = ffi::PyTuple_New(len);
 
         // - Panics if the ptr is null
         // - Cleans up the tuple if `convert` or the asserts panic
-        let guard: Py<PyAny> = Py::from_owned_ptr(py, tup);
+        let tup: Py<PyTuple> = Py::from_owned_ptr(py, ptr);
 
         let mut counter: Py_ssize_t = 0;
 
-        for (i, e) in elements.by_ref().enumerate().take(len as usize) {
-            let obj = convert(e).into_ptr();
+        for obj in elements.take(len as usize) {
             #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            ffi::PyTuple_SET_ITEM(tup, i as Py_ssize_t, obj);
+            ffi::PyTuple_SET_ITEM(ptr, counter, obj.into_ptr());
             #[cfg(any(Py_LIMITED_API, PyPy))]
-            ffi::PyTuple_SetItem(tup, i as Py_ssize_t, obj);
+            ffi::PyTuple_SetItem(ptr, counter, obj.into_ptr());
             counter += 1;
         }
 
         assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
         assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
 
-        std::mem::forget(guard);
         tup
     }
 }
@@ -89,9 +84,9 @@ impl PyTuple {
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
-        let elements = elements.into_iter();
-        let ptr = new_from_iter(py, elements, |e| e.to_object(py));
-        unsafe { py.from_owned_ptr(ptr) }
+        let mut elements = elements.into_iter().map(|e| e.to_object(py));
+        let tup = new_from_iter(py, &mut elements);
+        tup.into_ref(py)
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
@@ -758,7 +753,7 @@ mod tests {
     }
 
     use std::ops::Range;
-    
+
     // An iterator that lies about its `ExactSizeIterator` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118
     struct FaultyIter(Range<usize>, usize);
