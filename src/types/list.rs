@@ -332,7 +332,7 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let mut iter = self.into_iter().map(|e| e.to_object(py));
+        let mut iter = self.iter().map(|e| e.to_object(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
     }
