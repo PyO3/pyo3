@@ -259,19 +259,10 @@ jobs:
           override: true
           profile: minimal
           components: llvm-tools-preview
-      - name: install cargo-llvm-cov
-        shell: bash
-        run: |
-          host=$(rustc -Vv | grep host | sed 's/host: //')
-          curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
-        env:
-          CARGO_LLVM_COV_VERSION: 0.1.15
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - run: pip install -U pip nox
-      - run: |
-          cargo xtask coverage --output-lcov coverage.lcov
-        shell: bash
-        env:
-          ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
+      - run: cargo xtask coverage --output-lcov coverage.lcov
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov
