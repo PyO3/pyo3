@@ -107,6 +107,7 @@ fn llvm_cov_command(args: &[&str]) -> Command {
             "--package=pyo3-build-config",
             "--package=pyo3-macros-backend",
             "--package=pyo3-macros",
+            "--package=pyo3-ffi",
         ])
         .args(args);
     command
