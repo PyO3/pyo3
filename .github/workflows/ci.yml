@@ -253,9 +253,7 @@ jobs:
         continue-on-error: true
       - uses: actions-rs/toolchain@v1
         with:
-          # TODO: this is pinned to work around a rustc bug in instrumented coverage
-          # https://github.com/taiki-e/cargo-llvm-cov/issues/128
-          toolchain: nightly-2022-01-14
+          toolchain: nightly
           override: true
           profile: minimal
           components: llvm-tools-preview
