@@ -191,6 +191,8 @@ about this topic.
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library_
 - [bed-reader](https://github.com/fastlmm/bed-reader) _Read and write the PLINK BED format, simply and efficiently_
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
+- [pyheck](https://github.com/kevinheavey/pyheck) _Fast case conversion library, built by wrapping [heck](https://github.com/withoutboats/heck)_
+    - Quite easy to follow as there's not much code.
 
 ## Articles and other media
 
