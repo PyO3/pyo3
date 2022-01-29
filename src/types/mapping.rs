@@ -33,7 +33,7 @@ impl PyMapping {
         self.len().map(|l| l == 0)
     }
 
-    /// Determines if the dictionary contains the specified key.
+    /// Determines if the mapping contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
     #[inline]
