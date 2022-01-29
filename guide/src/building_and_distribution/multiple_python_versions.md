@@ -53,31 +53,31 @@ After these steps you are ready to annotate your code!
 
 The `#[cfg]` flags added by `pyo3-build-cfg` can be combined with all of Rust's logic in the `#[cfg]` attribute to create very precise conditional code generation. The following are some common patterns implemented using these flags:
 
-```
+```rust,ignore
 #[cfg(Py_3_7)]
 ```
 
 This `#[cfg]` marks code that will only be present on Python 3.7 and upwards. There are similar options `Py_3_8`, `Py_3_9`, `Py_3_10` and so on for each minor version.
 
-```
+```rust,ignore
 #[cfg(not(Py_3_7))]
 ```
 
 This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.7.
 
-```
+```rust,ignore
 #[cfg(not(Py_LIMITED_API))]
 ```
 
 This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled). This might be useful if you want to ship your extension module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
 
-```
+```rust,ignore
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 ```
 
 This `#[cfg]` marks code which is available when running Python 3.9 or newer, or when using the unlimited API with an older Python version. Patterns like this are commonly seen on Python APIs which were added to the limited Python API in a specific minor version.
 
-```
+```rust,ignore
 #[cfg(PyPy)]
 ```
 
