@@ -192,16 +192,16 @@ macro_rules! import_exception {
 ///
 #[macro_export]
 macro_rules! create_exception {
-    ($module: ident, $name: ident, $base: ty) => {
+    ($module: ident $( . $submodule: ident)*, $name: ident, $base: ty) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
 
-        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
+        $crate::create_exception_type_object!($module $(.$submodule)*, $name, $base, ::std::option::Option::None);
     };
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: ident $( . $submodule: ident)*, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         #[doc = $doc]
@@ -210,7 +210,7 @@ macro_rules! create_exception {
         $crate::impl_exception_boilerplate!($name);
 
         $crate::create_exception_type_object!(
-            $module,
+            $module $(.$submodule)*,
             $name,
             $base,
             ::std::option::Option::Some($doc)
@@ -223,11 +223,13 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
-    ($module: ident, $name: ident, $base: ty, $doc: expr) => {
+    ($module: ident $( . $submodule: ident)*, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
             *$name::type_object_raw($crate::Python::assume_gil_acquired()),
-            #module=::std::option::Option::Some(stringify!($module))
+            #module=::std::option::Option::Some(
+                concat!(stringify!($module) $(, ".", stringify!($submodule))*)
+            )
         );
 
         impl $name {
@@ -241,7 +243,7 @@ macro_rules! create_exception_type_object {
                     .get_or_init(py, ||
                         $crate::PyErr::new_type(
                             py,
-                            concat!(stringify!($module), ".", stringify!($name)),
+                            concat!(stringify!($module) $(, ".", stringify!($submodule))*, ".", stringify!($name)),
                             $doc,
                             ::std::option::Option::Some(py.get_type::<$base>()),
                             ::std::option::Option::None,

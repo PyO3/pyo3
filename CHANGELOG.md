@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - `__ipow__` now supports modulo argument on Python 3.8+. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 - `pyo3-macros-backend` is now compiled with PyO3 cfgs to enable different magic method definitions based on version. [#2083](https://github.com/PyO3/pyo3/pull/2083)
+- `create_exception` macro can now create exceptions in submodules. [#2121](https://github.com/PyO3/pyo3/pull/2121)
 
 ### Removed
 
