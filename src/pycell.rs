@@ -175,9 +175,9 @@
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
+use crate::impl_::pyclass::{PyClassDict, PyClassWeakRef};
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
-use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
 use crate::{class::impl_::PyClassBaseType, class::impl_::PyClassThreadChecker};
@@ -251,84 +251,6 @@ pub(crate) struct PyCellContents<T: PyClass> {
     pub(crate) thread_checker: T::ThreadChecker,
     pub(crate) dict: T::Dict,
     pub(crate) weakref: T::WeakRef,
-}
-
-impl<T: PyClass> PyCell<T> {
-    /// Get the offset of the dictionary from the start of the struct in bytes.
-    #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
-    pub(crate) fn dict_offset() -> Option<ffi::Py_ssize_t> {
-        use std::convert::TryInto;
-        if T::Dict::IS_DUMMY {
-            None
-        } else {
-            #[cfg(addr_of)]
-            let offset = {
-                // With std::ptr::addr_of - can measure offset using uninit memory without UB.
-                let cell = std::mem::MaybeUninit::<Self>::uninit();
-                let base_ptr = cell.as_ptr();
-                let dict_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.dict) };
-                unsafe { (dict_ptr as *const u8).offset_from(base_ptr as *const u8) }
-            };
-            #[cfg(not(addr_of))]
-            let offset = {
-                // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
-                // make a zero-initialised "fake" one so that referencing it is not UB.
-                let mut cell = std::mem::MaybeUninit::<Self>::uninit();
-                unsafe {
-                    std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
-                }
-                let cell = unsafe { cell.assume_init() };
-                let dict_ptr = &cell.contents.dict;
-                // offset_from wasn't stabilised until 1.47, so we also have to work around
-                // that...
-                let offset = (dict_ptr as *const _ as usize) - (&cell as *const _ as usize);
-                // This isn't a valid cell, so ensure no Drop code runs etc.
-                std::mem::forget(cell);
-                offset
-            };
-            // Py_ssize_t may not be equal to isize on all platforms
-            #[allow(clippy::useless_conversion)]
-            Some(offset.try_into().expect("offset should fit in Py_ssize_t"))
-        }
-    }
-
-    /// Get the offset of the weakref list from the start of the struct in bytes.
-    #[cfg(not(all(Py_LIMITED_API, not(Py_3_9))))]
-    pub(crate) fn weakref_offset() -> Option<ffi::Py_ssize_t> {
-        use std::convert::TryInto;
-        if T::WeakRef::IS_DUMMY {
-            None
-        } else {
-            #[cfg(addr_of)]
-            let offset = {
-                // With std::ptr::addr_of - can measure offset using uninit memory without UB.
-                let cell = std::mem::MaybeUninit::<Self>::uninit();
-                let base_ptr = cell.as_ptr();
-                let weaklist_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.weakref) };
-                unsafe { (weaklist_ptr as *const u8).offset_from(base_ptr as *const u8) }
-            };
-            #[cfg(not(addr_of))]
-            let offset = {
-                // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
-                // make a zero-initialised "fake" one so that referencing it is not UB.
-                let mut cell = std::mem::MaybeUninit::<Self>::uninit();
-                unsafe {
-                    std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
-                }
-                let cell = unsafe { cell.assume_init() };
-                let weaklist_ptr = &cell.contents.weakref;
-                // offset_from wasn't stabilised until 1.47, so we also have to work around
-                // that...
-                let offset = (weaklist_ptr as *const _ as usize) - (&cell as *const _ as usize);
-                // This isn't a valid cell, so ensure no Drop code runs etc.
-                std::mem::forget(cell);
-                offset
-            };
-            // Py_ssize_t may not be equal to isize on all platforms
-            #[allow(clippy::useless_conversion)]
-            Some(offset.try_into().expect("offset should fit in Py_ssize_t"))
-        }
-    }
 }
 
 unsafe impl<T: PyClass> PyNativeType for PyCell<T> {}
@@ -501,6 +423,72 @@ impl<T: PyClass> PyCell<T> {
 
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
+    }
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
+        use std::convert::TryInto;
+        #[cfg(addr_of)]
+        let offset = {
+            // With std::ptr::addr_of - can measure offset using uninit memory without UB.
+            let cell = std::mem::MaybeUninit::<Self>::uninit();
+            let base_ptr = cell.as_ptr();
+            let dict_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.dict) };
+            unsafe { (dict_ptr as *const u8).offset_from(base_ptr as *const u8) }
+        };
+        #[cfg(not(addr_of))]
+        let offset = {
+            // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
+            // make a zero-initialised "fake" one so that referencing it is not UB.
+            let mut cell = std::mem::MaybeUninit::<Self>::uninit();
+            unsafe {
+                std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
+            }
+            let cell = unsafe { cell.assume_init() };
+            let dict_ptr = &cell.contents.dict;
+            // offset_from wasn't stabilised until 1.47, so we also have to work around
+            // that...
+            let offset = (dict_ptr as *const _ as usize) - (&cell as *const _ as usize);
+            // This isn't a valid cell, so ensure no Drop code runs etc.
+            std::mem::forget(cell);
+            offset
+        };
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        offset.try_into().expect("offset should fit in Py_ssize_t")
+    }
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
+        use std::convert::TryInto;
+        #[cfg(addr_of)]
+        let offset = {
+            // With std::ptr::addr_of - can measure offset using uninit memory without UB.
+            let cell = std::mem::MaybeUninit::<Self>::uninit();
+            let base_ptr = cell.as_ptr();
+            let weaklist_ptr = unsafe { std::ptr::addr_of!((*base_ptr).contents.weakref) };
+            unsafe { (weaklist_ptr as *const u8).offset_from(base_ptr as *const u8) }
+        };
+        #[cfg(not(addr_of))]
+        let offset = {
+            // No std::ptr::addr_of - need to take references to PyCell to measure offsets;
+            // make a zero-initialised "fake" one so that referencing it is not UB.
+            let mut cell = std::mem::MaybeUninit::<Self>::uninit();
+            unsafe {
+                std::ptr::write_bytes(cell.as_mut_ptr(), 0, 1);
+            }
+            let cell = unsafe { cell.assume_init() };
+            let weaklist_ptr = &cell.contents.weakref;
+            // offset_from wasn't stabilised until 1.47, so we also have to work around
+            // that...
+            let offset = (weaklist_ptr as *const _ as usize) - (&cell as *const _ as usize);
+            // This isn't a valid cell, so ensure no Drop code runs etc.
+            std::mem::forget(cell);
+            offset
+        };
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 }
 

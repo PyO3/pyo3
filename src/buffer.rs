@@ -688,7 +688,6 @@ mod tests {
         });
     }
 
-    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
         Python::with_gil(|py| {

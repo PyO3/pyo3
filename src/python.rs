@@ -4,6 +4,7 @@
 
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
+use crate::impl_::not_send::NotSend;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
@@ -184,7 +185,7 @@ impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
 /// [`Py::clone_ref`]: crate::Py::clone_ref
 /// [Memory Management]: https://pyo3.rs/main/memory.html#gil-bound-memory
 #[derive(Copy, Clone)]
-pub struct Python<'py>(PhantomData<&'py GILGuard>);
+pub struct Python<'py>(PhantomData<(&'py GILGuard, NotSend)>);
 
 impl Python<'_> {
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The

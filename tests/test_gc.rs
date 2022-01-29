@@ -148,41 +148,6 @@ fn gc_integration2() {
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
-#[pyclass(weakref, subclass)]
-struct WeakRefSupport {}
-
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
-fn weakref_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, WeakRefSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst"
-    );
-}
-
-// If the base class has weakref support, child class also has weakref.
-#[pyclass(extends=WeakRefSupport)]
-struct InheritWeakRef {
-    _value: usize,
-}
-
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
-fn inherited_weakref() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, (InheritWeakRef { _value: 0 }, WeakRefSupport {})).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst"
-    );
-}
-
 #[pyclass(subclass)]
 struct BaseClassWithDrop {
     data: Option<Arc<AtomicBool>>,

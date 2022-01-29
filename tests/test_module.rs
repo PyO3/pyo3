@@ -128,7 +128,7 @@ fn test_module_renaming() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = [("different_name", wrap_pymodule!(other_name)(py))].into_py_dict(py);
+    let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
 
     py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
 }

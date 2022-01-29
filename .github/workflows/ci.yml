@@ -64,8 +64,8 @@ jobs:
             echo "suppress_build_script_link_lines=true" >> config.txt
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "$(make list_all_additive_features)"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3 $(make list_all_additive_features)"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features full
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full"
           done
 
   build:
@@ -76,7 +76,7 @@ jobs:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.7, 3.8, 3.9, "3.10", pypy-3.7, pypy-3.8]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", "pypy-3.7", "pypy-3.8"]
         platform:
           [
             {
@@ -146,12 +146,6 @@ jobs:
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-      - name: Prepare workflow settings
-        id: settings
-        shell: bash
-        run: |
-          echo "::set-output name=all_additive_features::$(make list_all_additive_features)"
-
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
         run: |
@@ -159,7 +153,7 @@ jobs:
           cargo update -p hashbrown:0.11.2 --precise 0.9.1
 
       - name: Build docs
-        run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo doc --no-deps --no-default-features --features full
 
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
@@ -182,26 +176,26 @@ jobs:
           cargo test --no-default-features
 
       - name: Build (all additive features)
-        run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo build --lib --tests --no-default-features --features full
 
       - if: ${{ startsWith(matrix.python-version, 'pypy') }}
         name: Build PyPy (abi3-py37)
-        run: cargo build --lib --tests --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
-        run: cargo test --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features full
 
       # Run tests again, but in abi3 mode
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features "abi3 full"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
       - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
         name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features "abi3-py37 full"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
@@ -212,11 +206,10 @@ jobs:
       - name: Test python examples and tests
         shell: bash
         run: |
-          python -m pip install -U pip tox
-          make test_py
+          python -m pip install -U pip nox
+          cargo xtask test-py
         env:
-          CARGO_TARGET_DIR: ${{ github.workspace }}
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET CARGO_TARGET_DIR"
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
@@ -264,29 +257,10 @@ jobs:
           override: true
           profile: minimal
           components: llvm-tools-preview
-      - name: install cargo-llvm-cov
-        shell: bash
-        run: |
-          host=$(rustc -Vv | grep host | sed 's/host: //')
-          curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
-        env:
-          CARGO_LLVM_COV_VERSION: 0.1.11
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
-          components: llvm-tools-preview
-      - run: |
-          cargo llvm-cov clean --workspace
-          cargo llvm-cov --package $ALL_PACKAGES --no-report
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features $(make list_all_additive_features)
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3 $(make list_all_additive_features)
-          cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
-        shell: bash
-        env:
-          ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - run: pip install -U pip nox
+      - run: cargo xtask coverage --output-lcov coverage.lcov
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov

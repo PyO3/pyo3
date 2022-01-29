@@ -54,38 +54,39 @@ impl<'a> Enum<'a> {
     /// Build derivation body for enums.
     fn build(&self) -> TokenStream {
         let mut var_extracts = Vec::new();
-        let mut error_names = String::new();
-        for (i, var) in self.variants.iter().enumerate() {
+        let mut variant_names = Vec::new();
+        let mut error_names = Vec::new();
+        for var in &self.variants {
             let struct_derive = var.build();
-            let ext = quote!(
+            let ext = quote!({
                 let maybe_ret = || -> _pyo3::PyResult<Self> {
                     #struct_derive
                 }();
 
                 match maybe_ret {
                     ok @ ::std::result::Result::Ok(_) => return ok,
-                    ::std::result::Result::Err(err) => {
-                        let py = _pyo3::PyNativeType::py(obj);
-                        err_reasons.push_str(&::std::format!("{}\n", err.value(py).str()?));
-                    }
+                    ::std::result::Result::Err(err) => err
                 }
-            );
+            });
 
             var_extracts.push(ext);
-            if i > 0 {
-                error_names.push_str(" | ");
-            }
-            error_names.push_str(&var.err_name);
+            variant_names.push(var.path.segments.last().unwrap().ident.to_string());
+            error_names.push(&var.err_name);
         }
         let ty_name = self.enum_ident.to_string();
         quote!(
-            let mut err_reasons = ::std::string::String::new();
-            #(#var_extracts)*
-            let err_msg = ::std::format!("failed to extract enum {} ('{}')\n{}",
-                #ty_name,
-                #error_names,
-                &err_reasons);
-            ::std::result::Result::Err(_pyo3::exceptions::PyTypeError::new_err(err_msg))
+            let errors = [
+                #(#var_extracts),*
+            ];
+            ::std::result::Result::Err(
+                _pyo3::impl_::frompyobject::failed_to_extract_enum(
+                    obj.py(),
+                    #ty_name,
+                    &[#(#variant_names),*],
+                    &[#(#error_names),*],
+                    &errors
+                )
+            )
         )
     }
 }
@@ -216,13 +217,8 @@ impl<'a> Container<'a> {
                     new_err
                 })?})
             )
-        } else {
-            let error_msg = if self.is_enum_variant {
-                let variant_name = &self.path.segments.last().unwrap();
-                format!("- variant {} ({})", quote!(#variant_name), &self.err_name)
-            } else {
-                format!("failed to extract inner field of {}", quote!(#self_ty))
-            };
+        } else if !self.is_enum_variant {
+            let error_msg = format!("failed to extract inner field of {}", quote!(#self_ty));
             quote!(
                 ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|err| {
                     let py = _pyo3::PyNativeType::py(obj);
@@ -232,6 +228,8 @@ impl<'a> Container<'a> {
                     _pyo3::exceptions::PyTypeError::new_err(err_msg)
                 })?))
             )
+        } else {
+            quote!(obj.extract().map(#self_ty))
         }
     }
 

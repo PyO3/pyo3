@@ -663,20 +663,16 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
         let attr = self.attr;
         let dict = if attr.has_dict {
-            quote! { _pyo3::pyclass_slots::PyClassDictSlot }
-        } else if attr.has_extends {
-            quote! { <Self::BaseType as _pyo3::class::impl_::PyClassBaseType>::Dict }
+            quote! { _pyo3::impl_::pyclass::PyClassDictSlot }
         } else {
-            quote! { _pyo3::pyclass_slots::PyClassDummySlot }
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
         };
 
         // insert space for weak ref
         let weakref = if attr.has_weaklist {
-            quote! { _pyo3::pyclass_slots::PyClassWeakRefSlot }
-        } else if attr.has_extends {
-            quote! { <Self::BaseType as _pyo3::class::impl_::PyClassBaseType>::WeakRef }
+            quote! { _pyo3::impl_::pyclass::PyClassWeakRefSlot }
         } else {
-            quote! { _pyo3::pyclass_slots::PyClassDummySlot }
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
         };
 
         let base_nativetype = if attr.has_extends {
@@ -730,6 +726,27 @@ impl<'a> PyClassImplsBuilder<'a> {
         let is_basetype = self.attr.is_basetype;
         let base = &self.attr.base;
         let is_subclass = self.attr.has_extends;
+
+        let dict_offset = if self.attr.has_dict {
+            quote! {
+                fn dict_offset() -> ::std::option::Option<_pyo3::ffi::Py_ssize_t> {
+                    ::std::option::Option::Some(_pyo3::impl_::pyclass::dict_offset::<Self>())
+                }
+            }
+        } else {
+            TokenStream::new()
+        };
+
+        // insert space for weak ref
+        let weaklist_offset = if self.attr.has_weaklist {
+            quote! {
+                fn weaklist_offset() -> ::std::option::Option<_pyo3::ffi::Py_ssize_t> {
+                    ::std::option::Option::Some(_pyo3::impl_::pyclass::weaklist_offset::<Self>())
+                }
+            }
+        } else {
+            TokenStream::new()
+        };
 
         let thread_checker = if self.attr.has_unsendable {
             quote! { _pyo3::class::impl_::ThreadCheckerImpl<#cls> }
@@ -830,11 +847,9 @@ impl<'a> PyClassImplsBuilder<'a> {
                     #methods_protos
                 }
 
-                fn get_buffer() -> ::std::option::Option<&'static _pyo3::class::impl_::PyBufferProcs> {
-                    use _pyo3::class::impl_::*;
-                    let collector = PyClassImplCollector::<Self>::new();
-                    collector.buffer_procs()
-                }
+                #dict_offset
+
+                #weaklist_offset
             }
 
             #inventory_class

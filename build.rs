@@ -140,11 +140,6 @@ fn configure_pyo3() -> Result<()> {
 
     let rustc_minor_version = rustc_minor_version().unwrap_or(0);
 
-    // Enable use of #[track_caller] on Rust 1.46 and greater
-    if rustc_minor_version >= 46 {
-        println!("cargo:rustc-cfg=track_caller");
-    }
-
     // Enable use of const generics on Rust 1.51 and greater
     if rustc_minor_version >= 51 {
         println!("cargo:rustc-cfg=min_const_generics");

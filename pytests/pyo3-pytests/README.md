@@ -12,8 +12,8 @@ maturin develop
 pytest
 ```
 
-Alternatively, install tox and run the tests inside an isolated environment:
+Alternatively, install nox and run the tests inside an isolated environment:
 
 ```shell
-tox -e py
+nox
 ```

@@ -421,7 +421,7 @@ pub const NUM: Proto = Proto {
             .args(&["Other"])
             .has_self(),
         MethodProto::new("__ipow__", "PyNumberIPowProtocol")
-            .args(&["Other"])
+            .args(&["Other", "Modulo"])
             .has_self(),
         MethodProto::new("__ilshift__", "PyNumberILShiftProtocol")
             .args(&["Other"])

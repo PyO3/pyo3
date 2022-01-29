@@ -269,3 +269,65 @@ fn test_closure_counter() {
     py_assert!(py, counter_py, "counter_py() == 2");
     py_assert!(py, counter_py, "counter_py() == 3");
 }
+
+#[test]
+fn use_pyfunction() {
+    mod function_in_module {
+        use pyo3::prelude::*;
+
+        #[pyfunction]
+        pub fn foo(x: i32) -> i32 {
+            x
+        }
+    }
+
+    Python::with_gil(|py| {
+        use function_in_module::foo;
+
+        // check imported name can be wrapped
+        let f = wrap_pyfunction!(foo, py).unwrap();
+        assert_eq!(f.call1((5,)).unwrap().extract::<i32>().unwrap(), 5);
+        assert_eq!(f.call1((42,)).unwrap().extract::<i32>().unwrap(), 42);
+
+        // check path import can be wrapped
+        let f2 = wrap_pyfunction!(function_in_module::foo, py).unwrap();
+        assert_eq!(f2.call1((5,)).unwrap().extract::<i32>().unwrap(), 5);
+        assert_eq!(f2.call1((42,)).unwrap().extract::<i32>().unwrap(), 42);
+    })
+}
+
+#[test]
+fn required_argument_after_option() {
+    #[pyfunction]
+    pub fn foo(x: Option<i32>, y: i32) -> i32 {
+        y + x.unwrap_or_default()
+    }
+
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(foo, py).unwrap();
+
+        // it is an error to call this function with no arguments
+        py_expect_exception!(
+            py,
+            f,
+            "f()",
+            PyTypeError,
+            "foo() missing 2 required positional arguments: 'x' and 'y'"
+        );
+
+        // it is an error to call this function with one argument
+        py_expect_exception!(
+            py,
+            f,
+            "f(None)",
+            PyTypeError,
+            "foo() missing 1 required positional argument: 'y'"
+        );
+
+        // ok to call with two arguments
+        py_assert!(py, f, "f(None, 5) == 5");
+
+        // ok to call with keyword arguments
+        py_assert!(py, f, "f(x=None, y=5) == 5");
+    })
+}

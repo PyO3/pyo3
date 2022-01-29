@@ -64,17 +64,17 @@ impl<'a> FnArg<'a> {
 
 #[derive(Clone, PartialEq, Debug, Copy, Eq)]
 pub enum MethodTypeAttribute {
-    /// #[new]
+    /// `#[new]`
     New,
-    /// #[classmethod]
+    /// `#[classmethod]`
     ClassMethod,
-    /// #[classattr]
+    /// `#[classattr]`
     ClassAttribute,
-    /// #[staticmethod]
+    /// `#[staticmethod]`
     StaticMethod,
-    /// #[getter]
+    /// `#[getter]`
     Getter,
-    /// #[setter]
+    /// `#[setter]`
     Setter,
 }
 
@@ -229,6 +229,7 @@ pub struct FnSpec<'a> {
     pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: syn::Path,
+    pub unsafety: Option<syn::Token![unsafe]>,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -316,6 +317,7 @@ impl<'a> FnSpec<'a> {
             deprecations,
             text_signature,
             krate,
+            unsafety: sig.unsafety,
         })
     }
 
@@ -496,7 +498,7 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Fastcall => {
-                let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, true)?;
+                let arg_convert = impl_arg_params(self, cls, &py, true)?;
                 quote! {
                     unsafe extern "C" fn #ident (
                         _slf: *mut #krate::ffi::PyObject,
@@ -508,23 +510,14 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         _pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _kwnames: ::std::option::Option<&_pyo3::types::PyTuple> = #py.from_borrowed_ptr_or_opt(_kwnames);
-                            // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
-                            let _args = _args as *const &_pyo3::PyAny;
-                            let _kwargs = if let ::std::option::Option::Some(kwnames) = _kwnames {
-                                ::std::slice::from_raw_parts(_args.offset(_nargs), kwnames.len())
-                            } else {
-                                &[]
-                            };
-                            let _args = ::std::slice::from_raw_parts(_args, _nargs as usize);
-
-                            #arg_convert_and_rust_call
+                            #arg_convert
+                            #rust_call
                         })
                     }
                 }
             }
             CallingConvention::Varargs => {
-                let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
+                let arg_convert = impl_arg_params(self, cls, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
                         _slf: *mut #krate::ffi::PyObject,
@@ -535,17 +528,15 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         _pyo3::callback::handle_panic(|#py| {
                             #self_conversion
-                            let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                            let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
-
-                            #arg_convert_and_rust_call
+                            #arg_convert
+                            #rust_call
                         })
                     }
                 }
             }
             CallingConvention::TpNew => {
                 let rust_call = quote! { #rust_name(#(#arg_names),*) };
-                let arg_convert_and_rust_call = impl_arg_params(self, cls, rust_call, &py, false)?;
+                let arg_convert = impl_arg_params(self, cls, &py, false)?;
                 quote! {
                     unsafe extern "C" fn #ident (
                         subtype: *mut #krate::ffi::PyTypeObject,
@@ -556,10 +547,8 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         use _pyo3::callback::IntoPyCallbackOutput;
                         _pyo3::callback::handle_panic(|#py| {
-                            let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
-                            let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
-
-                            let result = #arg_convert_and_rust_call;
+                            #arg_convert
+                            let result = #rust_call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
                             ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)

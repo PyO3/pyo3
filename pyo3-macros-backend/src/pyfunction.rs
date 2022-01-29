@@ -13,7 +13,7 @@ use crate::{
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
-use syn::{ext::IdentExt, spanned::Spanned, Ident, NestedMeta, Path, Result};
+use syn::{ext::IdentExt, spanned::Spanned, NestedMeta, Path, Result};
 use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     token::Comma,
@@ -363,13 +363,7 @@ pub fn build_py_function(
     mut options: PyFunctionOptions,
 ) -> syn::Result<TokenStream> {
     options.add_attributes(take_pyo3_options(&mut ast.attrs)?)?;
-    Ok(impl_wrap_pyfunction(ast, options)?.1)
-}
-
-/// Coordinates the naming of a the add-function-to-python-module function
-fn function_wrapper_ident(name: &Ident) -> Ident {
-    // Make sure this ident matches the one of wrap_pyfunction
-    format_ident!("__pyo3_get_function_{}", name)
+    impl_wrap_pyfunction(ast, options)
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python
@@ -377,7 +371,7 @@ fn function_wrapper_ident(name: &Ident) -> Ident {
 pub fn impl_wrap_pyfunction(
     func: &mut syn::ItemFn,
     options: PyFunctionOptions,
-) -> syn::Result<(Ident, TokenStream)> {
+) -> syn::Result<TokenStream> {
     check_generic(&func.sig)?;
     ensure_not_async_fn(&func.sig)?;
 
@@ -417,7 +411,6 @@ pub fn impl_wrap_pyfunction(
             .map(|attr| (&python_name, attr)),
     );
 
-    let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
     let krate = get_pyo3_crate(&options.krate);
 
     let spec = method::FnSpec {
@@ -436,23 +429,43 @@ pub fn impl_wrap_pyfunction(
         deprecations: options.deprecations,
         text_signature: options.text_signature,
         krate: krate.clone(),
+        unsafety: func.sig.unsafety,
     };
 
-    let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
+    let vis = &func.vis;
+    let name = &func.sig.ident;
+
+    let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
     let methoddef = spec.get_methoddef(wrapper_ident);
 
     let wrapped_pyfunction = quote! {
         #wrapper
 
-        pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<#krate::derive_utils::PyFunctionArguments<'a>>
-        ) -> #krate::PyResult<&'a #krate::types::PyCFunction> {
+        // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
+        // will actually bring both the module and the function into scope.
+        #[doc(hidden)]
+        #vis mod #name {
             use #krate as _pyo3;
-            _pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
+            pub(crate) struct PyO3Def;
+
+            // Exported for `wrap_pyfunction!`
+            pub use _pyo3::impl_::pyfunction::wrap_pyfunction as wrap;
+            pub const DEF: _pyo3::PyMethodDef = <PyO3Def as _pyo3::impl_::pyfunction::PyFunctionDef>::DEF;
         }
+
+        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // this avoids complications around the fact that the generated module has a different scope
+        // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
+        // inside a function body)
+        const _: () = {
+            use #krate as _pyo3;
+            impl _pyo3::impl_::pyfunction::PyFunctionDef for #name::PyO3Def {
+                const DEF: _pyo3::PyMethodDef = #methoddef;
+            }
+        };
     };
-    Ok((function_wrapper_ident, wrapped_pyfunction))
+    Ok(wrapped_pyfunction)
 }
 
 fn type_is_pymodule(ty: &syn::Type) -> bool {

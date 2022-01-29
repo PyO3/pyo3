@@ -1,6 +1,8 @@
 #![cfg(feature = "eyre")]
 
-//! A conversion from [eyre]’s [`Report`] type to [`PyErr`].
+//! A conversion from
+//! [eyre](https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications.")’s
+//! [`Report`] type to [`PyErr`].
 //!
 //! Use of an error handling library like [eyre] is common in application code and when you just
 //! want error handling to be easy. If you are writing a library or you need more control over your

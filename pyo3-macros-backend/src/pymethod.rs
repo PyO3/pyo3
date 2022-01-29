@@ -103,7 +103,7 @@ pub fn gen_py_method(
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
-                    let slot = slot_def.generate_type_slot(cls, spec)?;
+                    let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
@@ -532,8 +532,8 @@ const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
-const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
-    .arguments(&[Ty::Object, Ty::Object])
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
+    .arguments(&[Ty::Object, Ty::IPowModulo])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
@@ -556,6 +556,14 @@ const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
+const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc")
+    .arguments(&[Ty::PyBuffer, Ty::Int])
+    .ret_ty(Ty::Int)
+    .require_unsafe();
+const __RELEASEBUFFER__: SlotDef = SlotDef::new("Py_bf_releasebuffer", "releasebufferproc")
+    .arguments(&[Ty::PyBuffer])
+    .ret_ty(Ty::Void)
+    .require_unsafe();
 
 fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
     match method_name {
@@ -594,6 +602,8 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__iand__" => Some(&__IAND__),
         "__ixor__" => Some(&__IXOR__),
         "__ior__" => Some(&__IOR__),
+        "__getbuffer__" => Some(&__GETBUFFER__),
+        "__releasebuffer__" => Some(&__RELEASEBUFFER__),
         _ => None,
     }
 }
@@ -603,11 +613,13 @@ enum Ty {
     Object,
     MaybeNullObject,
     NonNullObject,
+    IPowModulo,
     CompareOp,
     Int,
     PyHashT,
     PySsizeT,
     Void,
+    PyBuffer,
 }
 
 impl Ty {
@@ -615,10 +627,12 @@ impl Ty {
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut _pyo3::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<_pyo3::ffi::PyObject> },
+            Ty::IPowModulo => quote! { _pyo3::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
             Ty::PyHashT => quote! { _pyo3::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { _pyo3::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
+            Ty::PyBuffer => quote! { *mut _pyo3::ffi::Py_buffer },
         }
     }
 
@@ -667,6 +681,16 @@ impl Ty {
                 );
                 extract_object(cls, arg.ty, ident, extract)
             }
+            Ty::IPowModulo => {
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                        #ident.extract(#py)
+                    },
+                );
+                extract_object(cls, arg.ty, ident, extract)
+            }
             Ty::CompareOp => {
                 let extract = handle_error(
                     extract_error_mode,
@@ -680,7 +704,8 @@ impl Ty {
                     let #ident = #extract;
                 }
             }
-            Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => todo!(),
+            // Just pass other types through unmodified
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => quote! {},
         }
     }
 }
@@ -752,6 +777,7 @@ struct SlotDef {
     before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
+    require_unsafe: bool,
 }
 
 const NO_ARGUMENTS: &[Ty] = &[];
@@ -766,6 +792,7 @@ impl SlotDef {
             before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
+            require_unsafe: false,
         }
     }
 
@@ -799,7 +826,17 @@ impl SlotDef {
         self
     }
 
-    fn generate_type_slot(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    const fn require_unsafe(mut self) -> Self {
+        self.require_unsafe = true;
+        self
+    }
+
+    fn generate_type_slot(
+        &self,
+        cls: &syn::Type,
+        spec: &FnSpec,
+        method_name: &str,
+    ) -> Result<TokenStream> {
         let SlotDef {
             slot,
             func_ty,
@@ -808,7 +845,14 @@ impl SlotDef {
             extract_error_mode,
             ret_ty,
             return_mode,
+            require_unsafe,
         } = self;
+        if *require_unsafe {
+            ensure_spanned!(
+                spec.unsafety.is_some(),
+                spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
+            );
+        }
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
@@ -856,8 +900,11 @@ fn generate_method_body(
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let rust_name = spec.name;
-    let (arg_idents, conversions) =
+    let (arg_idents, arg_count, conversions) =
         extract_proto_arguments(cls, py, &spec.args, arguments, extract_error_mode)?;
+    if arg_count != arguments.len() {
+        bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", arguments.len(), arg_count));
+    }
     let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
@@ -1026,7 +1073,7 @@ fn extract_proto_arguments(
     method_args: &[FnArg],
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
-) -> Result<(Vec<Ident>, TokenStream)> {
+) -> Result<(Vec<Ident>, usize, TokenStream)> {
     let mut arg_idents = Vec::with_capacity(method_args.len());
     let mut non_python_args = 0;
 
@@ -1045,9 +1092,8 @@ fn extract_proto_arguments(
             arg_idents.push(ident);
         }
     }
-
     let conversions = quote!(#(#args_conversions)*);
-    Ok((arg_idents, conversions))
+    Ok((arg_idents, non_python_args, conversions))
 }
 
 struct StaticIdent(&'static str);

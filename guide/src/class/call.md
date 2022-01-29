@@ -21,7 +21,7 @@ An example crate containing this pyclass can be found [here](https://github.com/
 Python code:
 
 ```python
-{{#include ../../../examples/decorator/src/test.py}}
+{{#include ../../../examples/decorator/tests/example.py}}
 ```
 
 Output:

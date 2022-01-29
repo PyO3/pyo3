@@ -66,7 +66,7 @@ impl EmptyClass {
 }
 
 #[pymodule]
-fn _pyo3_benchmarks(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pyo3_benchmarks(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
     m.add_function(wrap_pyfunction!(simple, m)?)?;
     m.add_function(wrap_pyfunction!(simple_args, m)?)?;

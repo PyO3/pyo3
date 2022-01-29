@@ -12,31 +12,19 @@ pub mod path;
 pub mod pyclass_iter;
 pub mod subclassing;
 
-#[cfg(not(Py_LIMITED_API))]
-use buf_and_str::*;
-#[cfg(not(Py_LIMITED_API))]
-use datetime::*;
-use dict_iter::*;
-use misc::*;
-use objstore::*;
-use othermod::*;
-use path::*;
-use pyclass_iter::*;
-use subclassing::*;
-
 #[pymodule]
 fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
     #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(buf_and_str))?;
+    m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
     #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(datetime))?;
-    m.add_wrapped(wrap_pymodule!(dict_iter))?;
-    m.add_wrapped(wrap_pymodule!(misc))?;
-    m.add_wrapped(wrap_pymodule!(objstore))?;
-    m.add_wrapped(wrap_pymodule!(othermod))?;
-    m.add_wrapped(wrap_pymodule!(path))?;
-    m.add_wrapped(wrap_pymodule!(pyclass_iter))?;
-    m.add_wrapped(wrap_pymodule!(subclassing))?;
+    m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
+    m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
+    m.add_wrapped(wrap_pymodule!(misc::misc))?;
+    m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
+    m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
+    m.add_wrapped(wrap_pymodule!(path::path))?;
+    m.add_wrapped(wrap_pymodule!(pyclass_iter::pyclass_iter))?;
+    m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas

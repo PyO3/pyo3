@@ -10,7 +10,7 @@ repository = "https://github.com/pyo3/pyo3"
 documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
-exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/tox.ini"]
+exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py"]
 edition = "2018"
 links = "python"
 
@@ -22,7 +22,6 @@ parking_lot = "0.11.0"
 # support crates for macros feature
 pyo3-macros = { path = "pyo3-macros", version = "=0.15.1", optional = true }
 indoc = { version = "1.0.3", optional = true }
-paste = { version = "1.0.6", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
 # support crate for multiple-pymethods feature
@@ -53,7 +52,7 @@ pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features =
 default = ["macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
-macros = ["pyo3-macros", "indoc", "paste", "unindent"]
+macros = ["pyo3-macros", "indoc", "unindent"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
@@ -79,6 +78,10 @@ auto-initialize = []
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
+# Activates all additional features
+# This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
+full = ["macros", "multiple-pymethods", "num-bigint", "num-complex", "hashbrown", "serde", "indexmap", "eyre", "anyhow"]
+
 [[bench]]
 name = "bench_call"
 harness = false
@@ -92,6 +95,11 @@ name = "bench_dict"
 harness = false
 
 [[bench]]
+name = "bench_frompyobject"
+harness = false
+required-features = ["macros"]
+
+[[bench]]
 name = "bench_gil"
 harness = false
 
@@ -102,6 +110,7 @@ harness = false
 [[bench]]
 name = "bench_pyclass"
 harness = false
+required-features = ["macros"]
 
 [[bench]]
 name = "bench_pyobject"
@@ -119,7 +128,10 @@ harness = false
 members = [
     "pyo3-macros",
     "pyo3-macros-backend",
-    "examples"
+    "pytests/pyo3-benchmarks",
+    "pytests/pyo3-pytests",
+    "examples",
+    "xtask"
 ]
 
 [package.metadata.docs.rs]
