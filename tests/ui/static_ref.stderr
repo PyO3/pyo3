@@ -1,4 +1,4 @@
-error[E0495]: cannot infer an appropriate lifetime for lifetime parameter 'py in function call due to conflicting requirements
+error[E0495]: cannot infer an appropriate lifetime for lifetime parameter `'py` due to conflicting requirements
  --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
