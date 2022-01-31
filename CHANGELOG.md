@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pyo3-build-config` no longer enables the `resolve-config` feature by default. [#2008](https://github.com/PyO3/pyo3/pull/2008)
 - Update `inventory` optional dependency to 0.2. [#2019](https://github.com/PyO3/pyo3/pull/2019)
 - Drop `paste` dependency. [#2081](https://github.com/PyO3/pyo3/pull/2081)
+- The bindings found `pyo3::ffi` are now a re-export of the new `pyo3-ffi` crate. [#2126](https://github.com/PyO3/pyo3/pull/2126)
 
 ### Added
 
@@ -50,6 +51,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - `__ipow__` now supports modulo argument on Python 3.8+. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 - `pyo3-macros-backend` is now compiled with PyO3 cfgs to enable different magic method definitions based on version. [#2083](https://github.com/PyO3/pyo3/pull/2083)
+- `_PyCFunctionFast` now correctly reflects the signature defined in the [Python docs](https://docs.python.org/3/c-api/structures.html#c._PyCFunctionFast). [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- `PyDateTimeAPI` and `PyDateTime_TimeZone_UTC` are are now unsafe functions instead of statics. [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- `PyDateTimeAPI` does not implicitly call `PyDateTime_IMPORT` anymore to reflect the original Python API more closely. Before the first call to `PyDateTime_IMPORT` a null pointer is returned. Therefore before calling any of the following FFI functions `PyDateTime_IMPORT` must be called to avoid undefined behaviour: [#2126](https://github.com/PyO3/pyo3/pull/2126)
+  - `PyDateTime_TimeZone_UTC`
+  - `PyDate_Check`
+  - `PyDate_CheckExact`
+  - `PyDateTime_Check`
+  - `PyDateTime_CheckExact`
+  - `PyTime_Check`
+  - `PyTime_CheckExact`
+  - `PyDelta_Check`
+  - `PyDelta_CheckExact`
+  - `PyTZInfo_Check`
+  - `PyTZInfo_CheckExact`
+  - `PyDateTime_FromTimestamp`
+  - `PyDate_FromTimestamp`
 
 ### Removed
 

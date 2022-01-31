@@ -5,10 +5,9 @@
 
 use crate::err::PyResult;
 use crate::ffi;
-#[cfg(PyPy)]
-use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
-use crate::ffi::PyDateTimeAPI;
-use crate::ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
+use crate::ffi::{
+    PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
+};
 #[cfg(not(PyPy))]
 use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 use crate::ffi::{
@@ -26,8 +25,64 @@ use crate::ffi::{
 use crate::types::PyTuple;
 use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_int;
-#[cfg(not(PyPy))]
-use std::ptr;
+
+fn ensure_datetime_api(_py: Python) -> &'static PyDateTime_CAPI {
+    unsafe {
+        if pyo3_ffi::PyDateTimeAPI().is_null() {
+            PyDateTime_IMPORT()
+        }
+
+        &*pyo3_ffi::PyDateTimeAPI()
+    }
+}
+
+// Type Check macros
+//
+// These are bindings around the C API typecheck macros, all of them return
+// `1` if True and `0` if False. In all type check macros, the argument (`op`)
+// must not be `NULL`. The implementations here all call ensure_datetime_api
+// to ensure that the PyDateTimeAPI is initalized before use
+//
+//
+// # Safety
+//
+// These functions must only be called when the GIL is held!
+
+macro_rules! ffi_fun_with_autoinit {
+    ($(#[$outer:meta] unsafe fn $name: ident($arg: ident: *mut PyObject) -> $ret: ty;)*) => {
+        $(
+            #[$outer]
+            #[allow(non_snake_case)]
+            /// # Safety
+            ///
+            /// Must only be called while the GIL is held
+            unsafe fn $name($arg: *mut crate::ffi::PyObject) -> $ret {
+
+                let _ = ensure_datetime_api(Python::assume_gil_acquired());
+                crate::ffi::$name($arg)
+            }
+        )*
+
+
+    };
+}
+
+ffi_fun_with_autoinit! {
+    /// Check if `op` is a `PyDateTimeAPI.DateType` or subtype.
+    unsafe fn PyDate_Check(op: *mut PyObject) -> c_int;
+
+    /// Check if `op` is a `PyDateTimeAPI.DateTimeType` or subtype.
+    unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int;
+
+    /// Check if `op` is a `PyDateTimeAPI.TimeType` or subtype.
+    unsafe fn PyTime_Check(op: *mut PyObject) -> c_int;
+
+    /// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.
+    unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int;
+
+    /// Check if `op` is a `PyDateTimeAPI.TZInfoType` or subtype.
+    unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int;
+}
 
 // Access traits
 
@@ -111,7 +166,7 @@ pub struct PyDate(PyAny);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
-    *PyDateTimeAPI.DateType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
@@ -120,11 +175,11 @@ impl PyDate {
     /// Creates a new `datetime.date`.
     pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         unsafe {
-            let ptr = (PyDateTimeAPI.Date_FromDate)(
+            let ptr = (ensure_datetime_api(py).Date_FromDate)(
                 year,
                 c_int::from(month),
                 c_int::from(day),
-                PyDateTimeAPI.DateType,
+                ensure_datetime_api(py).DateType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
@@ -136,14 +191,11 @@ impl PyDate {
     pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
+        // safety ensure that the API is loaded
+        let _api = ensure_datetime_api(py);
+
         unsafe {
-            #[cfg(PyPy)]
             let ptr = PyDate_FromTimestamp(time_tuple.as_ptr());
-
-            #[cfg(not(PyPy))]
-            let ptr =
-                (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr());
-
             py.from_owned_ptr_or_err(ptr)
         }
     }
@@ -169,7 +221,7 @@ pub struct PyDateTime(PyAny);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
-    *PyDateTimeAPI.DateTimeType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).DateType,
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
@@ -187,8 +239,9 @@ impl PyDateTime {
         microsecond: u32,
         tzinfo: Option<&PyObject>,
     ) -> PyResult<&'p PyDateTime> {
+        let api = ensure_datetime_api(py);
         unsafe {
-            let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
+            let ptr = (api.DateTime_FromDateAndTime)(
                 year,
                 c_int::from(month),
                 c_int::from(day),
@@ -197,7 +250,7 @@ impl PyDateTime {
                 c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
-                PyDateTimeAPI.DateTimeType,
+                api.DateTimeType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
@@ -219,8 +272,9 @@ impl PyDateTime {
         tzinfo: Option<&PyObject>,
         fold: bool,
     ) -> PyResult<&'p PyDateTime> {
+        let api = ensure_datetime_api(py);
         unsafe {
-            let ptr = (PyDateTimeAPI.DateTime_FromDateAndTimeAndFold)(
+            let ptr = (api.DateTime_FromDateAndTimeAndFold)(
                 year,
                 c_int::from(month),
                 c_int::from(day),
@@ -230,7 +284,7 @@ impl PyDateTime {
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
                 c_int::from(fold),
-                PyDateTimeAPI.DateTimeType,
+                api.DateTimeType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
@@ -253,19 +307,11 @@ impl PyDateTime {
 
         let args = PyTuple::new(py, &[timestamp, time_zone_info]);
 
+        // safety ensure API is loaded
+        let _api = ensure_datetime_api(py);
+
         unsafe {
-            #[cfg(PyPy)]
             let ptr = PyDateTime_FromTimestamp(args.as_ptr());
-
-            #[cfg(not(PyPy))]
-            let ptr = {
-                (PyDateTimeAPI.DateTime_FromTimestamp)(
-                    PyDateTimeAPI.DateTimeType,
-                    args.as_ptr(),
-                    ptr::null_mut(),
-                )
-            };
-
             py.from_owned_ptr_or_err(ptr)
         }
     }
@@ -314,7 +360,7 @@ pub struct PyTime(PyAny);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
-    *PyDateTimeAPI.TimeType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).TimeType,
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
@@ -329,14 +375,15 @@ impl PyTime {
         microsecond: u32,
         tzinfo: Option<&PyObject>,
     ) -> PyResult<&'p PyTime> {
+        let api = ensure_datetime_api(py);
         unsafe {
-            let ptr = (PyDateTimeAPI.Time_FromTime)(
+            let ptr = (api.Time_FromTime)(
                 c_int::from(hour),
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
-                PyDateTimeAPI.TimeType,
+                api.TimeType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
@@ -353,15 +400,16 @@ impl PyTime {
         tzinfo: Option<&PyObject>,
         fold: bool,
     ) -> PyResult<&'p PyTime> {
+        let api = ensure_datetime_api(py);
         unsafe {
-            let ptr = (PyDateTimeAPI.Time_FromTimeAndFold)(
+            let ptr = (api.Time_FromTimeAndFold)(
                 c_int::from(hour),
                 c_int::from(minute),
                 c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
                 fold as c_int,
-                PyDateTimeAPI.TimeType,
+                api.TimeType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
@@ -399,7 +447,7 @@ pub struct PyTzInfo(PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
-    *PyDateTimeAPI.TZInfoType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).TZInfoType,
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
@@ -410,7 +458,7 @@ pub struct PyDelta(PyAny);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
-    *PyDateTimeAPI.DeltaType,
+    *ensure_datetime_api(Python::assume_gil_acquired()).DeltaType,
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
@@ -424,13 +472,14 @@ impl PyDelta {
         microseconds: i32,
         normalize: bool,
     ) -> PyResult<&PyDelta> {
+        let api = ensure_datetime_api(py);
         unsafe {
-            let ptr = (PyDateTimeAPI.Delta_FromDelta)(
+            let ptr = (api.Delta_FromDelta)(
                 days as c_int,
                 seconds as c_int,
                 microseconds as c_int,
                 normalize as c_int,
-                PyDateTimeAPI.DeltaType,
+                api.DeltaType,
             );
             py.from_owned_ptr_or_err(ptr)
         }
