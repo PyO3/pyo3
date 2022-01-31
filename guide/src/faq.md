@@ -15,17 +15,17 @@ PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` bu
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/once_cell/struct.GILOnceCell.html
 
-## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
+## I can't run `cargo test` or `cargo run`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
-Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
+On unix operating systems the `extension-module` feature is required to disable linking against libpython to meet criteria of how Python extension modules should be built.
 
-```toml
-[dependencies.pyo3]
-{{#PYO3_CRATE_VERSION}}
+PyO3 is able to re-enable linking for binaries and tests in the project, but this requires a `cargo` version capable of understanding extra linker arguments. This is only supported on nightly cargoes from February of 2022 or newer.
 
-[features]
-extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+```text
+# For cargo test
+cargo +nightly test
+# For cargo run
+cargo +nightly run
 ```
 
 ## I can't run `cargo test`: my crate cannot be found for tests in `tests/` directory!

@@ -37,23 +37,35 @@ pub fn use_pyo3_cfgs() {
     get().emit_pyo3_cfgs();
 }
 
-/// Adds linker arguments (for macOS) suitable for PyO3's `extension-module` feature.
+/// Adds linker arguments suitable for PyO3's `extension-module` feature.
 ///
 /// This should be called from a build script.
-///
-/// This is currently a no-op on non-macOS platforms, however may emit additional linker arguments
-/// in future if deemed necessarys.
+#[cfg(feature = "resolve-config")]
 pub fn add_extension_module_link_args() {
+    let interpreter_config = get();
+
     _add_extension_module_link_args(
+        interpreter_config,
         &impl_::cargo_env_var("CARGO_CFG_TARGET_OS").unwrap(),
         std::io::stdout(),
     )
 }
 
-fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Write) {
+fn _add_extension_module_link_args(
+    interpreter_config: &InterpreterConfig,
+    target_os: &str,
+    mut writer: impl std::io::Write,
+) {
     if target_os == "macos" {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
+    }
+    if target_os != "windows" && target_os != "android" {
+        let lib_name = interpreter_config.lib_name.as_ref().unwrap();
+        writeln!(writer, "cargo:rustc-link-arg-bins=-l{}", lib_name).unwrap();
+        writeln!(writer, "cargo:rustc-link-arg-tests=-l{}", lib_name).unwrap();
+        writeln!(writer, "cargo:rustc-link-arg-benches=-l{}", lib_name).unwrap();
+        writeln!(writer, "cargo:rustc-link-arg-examples=-l{}", lib_name).unwrap();
     }
 }
 
@@ -179,15 +191,32 @@ mod tests {
     fn extension_module_link_args() {
         let mut buf = Vec::new();
 
+        let interpreter_cfg = InterpreterConfig {
+            version: PythonVersion { major: 3, minor: 7 },
+            implementation: PythonImplementation::CPython,
+            shared: true,
+            abi3: false,
+            lib_name: Some("test".to_owned()),
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+        };
         // Does nothing on non-mac
-        _add_extension_module_link_args("windows", &mut buf);
+        _add_extension_module_link_args(&interpreter_cfg, "windows", &mut buf);
         assert_eq!(buf, Vec::new());
 
-        _add_extension_module_link_args("macos", &mut buf);
+        _add_extension_module_link_args(&interpreter_cfg, "macos", &mut buf);
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-undefined\n\
-             cargo:rustc-cdylib-link-arg=dynamic_lookup\n"
+             cargo:rustc-cdylib-link-arg=dynamic_lookup\n\
+             cargo:rustc-link-arg-bins=-ltest\n\
+             cargo:rustc-link-arg-tests=-ltest\n\
+             cargo:rustc-link-arg-benches=-ltest\n\
+             cargo:rustc-link-arg-examples=-ltest\n"
         );
     }
 }
