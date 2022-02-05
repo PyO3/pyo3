@@ -333,12 +333,10 @@ impl PyAny {
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
-            // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
-            // Once the issue is resolved, we can enable this optimization for limited API.
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(Py_3_9)] {
                 // Optimized path on python 3.9+
                 unsafe {
-                    self.py().from_owned_ptr_or_err(ffi::_PyObject_CallNoArg(self.as_ptr()))
+                    self.py().from_owned_ptr_or_err(ffi::PyObject_CallNoArgs(self.as_ptr()))
                 }
             } else {
                 self.call((), None)
