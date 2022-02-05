@@ -9,7 +9,8 @@ pub mod misc;
 pub mod objstore;
 pub mod othermod;
 pub mod path;
-pub mod pyclass_iter;
+pub mod pyclasses;
+pub mod pyfunctions;
 pub mod subclassing;
 
 #[pymodule]
@@ -23,7 +24,8 @@ fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
     m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
     m.add_wrapped(wrap_pymodule!(path::path))?;
-    m.add_wrapped(wrap_pymodule!(pyclass_iter::pyclass_iter))?;
+    m.add_wrapped(wrap_pymodule!(pyclasses::pyclasses))?;
+    m.add_wrapped(wrap_pymodule!(pyfunctions::pyfunctions))?;
     m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
@@ -38,7 +40,8 @@ fn pyo3_pytests(py: Python, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
     sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
     sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
-    sys_modules.set_item("pyo3_pytests.pyclass_iter", m.getattr("pyclass_iter")?)?;
+    sys_modules.set_item("pyo3_pytests.pyclasses", m.getattr("pyclasses")?)?;
+    sys_modules.set_item("pyo3_pytests.pyfunctions", m.getattr("pyfunctions")?)?;
     sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
 
     Ok(())

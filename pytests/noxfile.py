@@ -15,4 +15,4 @@ def test(session):
 def bench(session):
     session.install("-rrequirements-dev.txt")
     session.install(".")
-    session.run("pytest", "--benchmark-enable", *session.posargs)
+    session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)

@@ -1,10 +1,34 @@
-# PyO3 Python tests
+# pyo3-pytests
 
-These crates are a collection of test extension modules built with PyO3. They are all tested using `nox` in PyO3's CI.
+An extension module built using PyO3, used to test and benchmark PyO3 from Python.
 
-Below is a brief description of each of these:
+## Testing
 
-| Example | Description |
-| ------- | ----------- |
-| `pyo3-benchmarks` | A project containing some benchmarks of PyO3 functionality called from Python. |
-| `pyo3-pytests` | A project containing some tests of PyO3 functionality called from Python. |
+This package is intended to be built using `maturin`. Once built, you can run the tests using `pytest`:
+
+```shell
+pip install maturin
+maturin develop
+pytest
+```
+
+Alternatively, install nox and run the tests inside an isolated environment:
+
+```shell
+nox
+```
+
+## Running benchmarks
+
+You can install the module in your Python environment and then run the benchmarks with pytest:
+
+```shell
+pip install .
+pytest --benchmark-enable
+```
+
+Or with nox:
+
+```shell
+nox -s bench
+```

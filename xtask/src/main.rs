@@ -1,5 +1,5 @@
 use anyhow::{ensure, Context, Result};
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, path::Path, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -116,16 +116,12 @@ fn llvm_cov_command(args: &[&str]) -> Command {
 fn run_python_tests<'a>(
     env: impl IntoIterator<Item = (&'a String, &'a String)> + Copy,
 ) -> Result<()> {
-    for entry in std::fs::read_dir("pytests")? {
-        let path = entry?.path();
-        if path.is_dir() && path.join("noxfile.py").exists() {
-            run(Command::new("nox")
-                .arg("--non-interactive")
-                .arg("-f")
-                .arg(path.join("noxfile.py"))
-                .envs(env))?;
-        }
-    }
+    run(Command::new("nox")
+        .arg("--non-interactive")
+        .arg("-f")
+        .arg(Path::new("pytests").join("noxfile.py"))
+        .envs(env))?;
+
     for entry in std::fs::read_dir("examples")? {
         let path = entry?.path();
         if path.is_dir() && path.join("noxfile.py").exists() {

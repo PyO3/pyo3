@@ -83,10 +83,8 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cd pytests/pyo3-benchmarks
-          pip install -r requirements-dev.txt
-          pip install .
-          pytest --benchmark-json ../../output.json --benchmark-enable
+          pip install nox
+          nox -f pytests/noxfile.py -s bench -- --benchmark-json $(pwd)/output.json
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:
