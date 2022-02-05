@@ -9,7 +9,7 @@ use crate::{
     pyport::PY_SSIZE_T_MAX, vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET,
     PyTuple_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
-#[cfg(all(Py_3_8, not(PyPy)))]
+#[cfg(Py_3_8)]
 use libc::size_t;
 
 extern "C" {
@@ -101,17 +101,29 @@ pub unsafe fn PyObject_Vectorcall(
 }
 
 extern "C" {
-    #[cfg(all(Py_3_8, not(PyPy)))]
-    #[cfg_attr(not(Py_3_9), link_name = "_PyObject_VectorcallDict")]
+    #[cfg(all(PyPy, Py_3_8))]
+    #[cfg_attr(not(Py_3_9), link_name = "_PyPyObject_Vectorcall")]
+    pub fn PyObject_Vectorcall(
+        callable: *mut PyObject,
+        args: *const *mut PyObject,
+        nargsf: size_t,
+        kwnames: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(all(Py_3_8))]
+    #[cfg_attr(all(not(PyPy), not(Py_3_9)), link_name = "_PyObject_VectorcallDict")]
+    #[cfg_attr(all(PyPy, not(Py_3_9)), link_name = "_PyPyObject_VectorcallDict")]
+    #[cfg_attr(all(PyPy, Py_3_9), link_name = "PyPyObject_VectorcallDict")]
     pub fn PyObject_VectorcallDict(
         callable: *mut PyObject,
         args: *const *mut PyObject,
         nargsf: size_t,
-        kwargs: *mut PyObject,
+        kwdict: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_8, not(PyPy)))]
-    #[cfg_attr(not(Py_3_9), link_name = "_PyVectorcall_Call")]
+    #[cfg(all(Py_3_8))]
+    #[cfg_attr(not(any(Py_3_9, PyPy)), link_name = "_PyVectorcall_Call")]
+    #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
     pub fn PyVectorcall_Call(
         callable: *mut PyObject,
         tuple: *mut PyObject,
@@ -150,6 +162,12 @@ pub unsafe fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject {
         0,
         std::ptr::null_mut(),
     )
+}
+
+extern "C" {
+    #[cfg(PyPy)]
+    #[link_name = "_PyPyObject_CallNoArg"]
+    pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
 }
 
 #[cfg(all(Py_3_8, not(PyPy)))]
