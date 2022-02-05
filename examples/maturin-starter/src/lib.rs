@@ -5,6 +5,7 @@ use pyo3::wrap_pymodule;
 mod submodule;
 use submodule::*;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[pyclass]
 struct ExampleClass {
     #[pyo3(get, set)]
@@ -33,4 +34,20 @@ fn maturin_starter(py: Python, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("maturin_starter.submodule", m.getattr("submodule")?)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_class() {
+        Python::with_gil(|py| {
+            let class = Py::new(py, ExampleClass::new(5)).unwrap();
+            assert_eq!(
+                class.extract::<ExampleClass>(py).unwrap(),
+                ExampleClass { value: 5 }
+            );
+        })
+    }
 }
