@@ -293,6 +293,8 @@ fn add_shared_proto_slots(
     );
     try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
 
+    // if this assertion trips, a slot fragment has been implemented which has not been added in the
+    // list above
     assert!(implemented_proto_fragments.is_empty());
 }
 

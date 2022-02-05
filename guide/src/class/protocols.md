@@ -18,7 +18,6 @@ In PyO3 0.15, if a function name in `#[pymethods]` is a recognised magic method,
 The magic methods handled by PyO3 are very similar to the standard Python ones on [this page](https://docs.python.org/3/reference/datamodel.html#special-method-names) - in particular they are the the subset which have slots as [defined here](https://docs.python.org/3/c-api/typeobj.html). Some of the slots do not have a magic method in Python, which leads to a few additional magic methods defined only in PyO3:
  - Magic methods for garbage collection
  - Magic methods for the buffer protocol
- - Magic methods for the sequence protocol
 
 When PyO3 handles a magic method, a couple of changes apply compared to other `#[pymethods]`:
  - The `#[pyo3(text_signature = "...")]` attribute is not allowed
@@ -86,11 +85,7 @@ given signatures should be interpreted as follows:
   - `__aiter__(<self>) -> object`
   - `__anext__(<self>) -> Option<object> or IterANextOutput`
 
-#### Sequence types
-
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
-
-#### Mapping types
+#### Mapping & Sequence types
 
   - `__len__(<self>) -> usize`
   - `__contains__(<self>, object) -> bool`
