@@ -143,7 +143,7 @@ int_convert_u64_or_i64!(
     ffi::PyLong_AsUnsignedLongLong
 );
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(Py_LIMITED_API))]
 mod fast_128bit_int_conversion {
     use super::*;
 
@@ -200,8 +200,8 @@ mod fast_128bit_int_conversion {
     int_convert_128!(u128, 0);
 }
 
-// For ABI3 and PyPy, we implement the conversion manually.
-#[cfg(any(Py_LIMITED_API, PyPy))]
+// For ABI3 we implement the conversion manually.
+#[cfg(Py_LIMITED_API)]
 mod slow_128bit_int_conversion {
     use super::*;
     const SHIFT: usize = 64;
@@ -245,10 +245,10 @@ mod slow_128bit_int_conversion {
                             -1 as _,
                             ffi::PyLong_AsUnsignedLongLongMask(ob.as_ptr()),
                         )? as $rust_type;
-                        let shifted = PyObject::from_owned_ptr(
+                        let shifted = PyObject::from_owned_ptr_or_err(
                             py,
                             ffi::PyNumber_Rshift(ob.as_ptr(), SHIFT.into_py(py).as_ptr()),
-                        );
+                        )?;
                         let upper: $half_type = shifted.extract(py)?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)
                     }
@@ -461,8 +461,6 @@ mod tests {
     test_common!(u64, u64);
     test_common!(isize, isize);
     test_common!(usize, usize);
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     test_common!(i128, i128);
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     test_common!(u128, u128);
 }

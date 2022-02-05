@@ -96,7 +96,7 @@ extern "C" {
 extern "C" {
     // skipped non-limited _PyLong_Sign
 
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
 
     // skipped _PyLong_DivmodNear
@@ -109,7 +109,7 @@ extern "C" {
         is_signed: c_int,
     ) -> *mut PyObject;
 
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "_PyPyLong_AsByteArrayO")]
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,
         bytes: *mut c_uchar,
