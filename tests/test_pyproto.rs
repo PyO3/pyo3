@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![cfg(feature = "pyproto")]
 
 use pyo3::class::{
     PyAsyncProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol,

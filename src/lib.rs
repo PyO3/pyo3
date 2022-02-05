@@ -300,6 +300,30 @@ pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 
+// Old directory layout, to be rethought?
+#[cfg(not(feature = "pyproto"))]
+pub mod class {
+    #[doc(hidden)]
+    pub use crate::impl_::pymethods as methods;
+
+    #[doc(hidden)]
+    pub use self::methods::{
+        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
+    };
+
+    pub mod basic {
+        pub use crate::pyclass::CompareOp;
+    }
+
+    pub mod pyasync {
+        pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
+    }
+
+    pub mod iter {
+        pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
+    }
+}
+
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
@@ -317,6 +341,7 @@ mod internal_tricks;
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
+#[cfg(feature = "pyproto")]
 pub mod class;
 pub mod conversion;
 mod conversions;
@@ -350,12 +375,16 @@ pub use crate::conversions::*;
 )]
 #[cfg(feature = "macros")]
 pub mod proc_macro {
-    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto};
+    #[cfg(feature = "pyproto")]
+    pub use pyo3_macros::pyproto;
+    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule};
 }
 
+#[cfg(all(feature = "macros", feature = "pyproto"))]
+pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyclass, pyfunction, pymethods, pymodule, pyproto, wrap_pyfunction, wrap_pymodule, FromPyObject,
+    pyclass, pyfunction, pymethods, pymodule, wrap_pyfunction, wrap_pymodule, FromPyObject,
 };
 
 #[cfg(feature = "macros")]

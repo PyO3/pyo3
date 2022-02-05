@@ -566,23 +566,23 @@ impl<'a> FnSpec<'a> {
         let doc = &self.doc;
         match self.convention {
             CallingConvention::Noargs => quote! {
-                _pyo3::class::methods::PyMethodDef::noargs(
+                _pyo3::impl_::pymethods::PyMethodDef::noargs(
                     #python_name,
-                    _pyo3::class::methods::PyCFunction(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunction(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
-                _pyo3::class::methods::PyMethodDef::fastcall_cfunction_with_keywords(
+                _pyo3::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    _pyo3::class::methods::PyCFunctionFastWithKeywords(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunctionFastWithKeywords(#wrapper),
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
-                _pyo3::class::methods::PyMethodDef::cfunction_with_keywords(
+                _pyo3::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    _pyo3::class::methods::PyCFunctionWithKeywords(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunctionWithKeywords(#wrapper),
                     #doc,
                 )
             },

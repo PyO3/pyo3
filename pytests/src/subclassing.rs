@@ -11,10 +11,7 @@ impl Subclassable {
     fn new() -> Self {
         Subclassable {}
     }
-}
 
-#[pyproto]
-impl pyo3::PyObjectProtocol for Subclassable {
     fn __str__(&self) -> PyResult<&'static str> {
         Ok("Subclassable")
     }

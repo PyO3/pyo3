@@ -1,12 +1,13 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{
-        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
-        tp_dealloc, PyClassImpl,
-    },
+    callback::IntoPyCallbackOutput,
     ffi,
-    impl_::pyclass::{PyClassDict, PyClassWeakRef},
-    PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    impl_::pyclass::{
+        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
+        tp_dealloc, PyClassDict, PyClassImpl, PyClassItems, PyClassWeakRef,
+    },
+    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     convert::TryInto,
@@ -54,8 +55,7 @@ where
             T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
-            &T::for_each_method_def,
-            &T::for_each_proto_slot,
+            &T::for_all_items,
             T::IS_GC,
             T::IS_BASETYPE,
         )
@@ -79,8 +79,7 @@ unsafe fn create_type_object_impl(
     tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-    for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     is_gc: bool,
     is_basetype: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
@@ -120,7 +119,7 @@ unsafe fn create_type_object_impl(
     let PyClassInfo {
         method_defs,
         property_defs,
-    } = method_defs_to_pyclass_info(for_each_method_def, dict_offset.is_none());
+    } = method_defs_to_pyclass_info(for_all_items, dict_offset.is_none());
 
     // normal methods
     if !method_defs.is_empty() {
@@ -141,8 +140,8 @@ unsafe fn create_type_object_impl(
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
     let mut buffer_procs: ffi::PyBufferProcs = Default::default();
 
-    for_each_proto_slot(&mut |proto_slots| {
-        for slot in proto_slots {
+    for_all_items(&mut |items| {
+        for slot in items.slots {
             has_getitem |= slot.slot == ffi::Py_mp_subscript;
             has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
             has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
@@ -158,7 +157,7 @@ unsafe fn create_type_object_impl(
                 buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
             }
         }
-        slots.extend_from_slice(proto_slots);
+        slots.extend_from_slice(items.slots);
     });
 
     // If mapping methods implemented, define sequence methods get implemented too.
@@ -322,14 +321,14 @@ struct PyClassInfo {
 }
 
 fn method_defs_to_pyclass_info(
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     has_dict: bool,
 ) -> PyClassInfo {
     let mut method_defs = Vec::new();
     let mut property_defs_map = std::collections::HashMap::new();
 
-    for_each_method_def(&mut |class_method_defs| {
-        for def in class_method_defs {
+    for_all_items(&mut |items| {
+        for def in items.methods {
             match def {
                 PyMethodDefType::Getter(getter) => {
                     getter.copy_to(
@@ -435,3 +434,130 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     doc: ptr::null_mut(),
     closure: ptr::null_mut(),
 };
+
+/// Operators for the `__richcmp__` method
+#[derive(Debug, Clone, Copy)]
+pub enum CompareOp {
+    /// The *less than* operator.
+    Lt = ffi::Py_LT as isize,
+    /// The *less than or equal to* operator.
+    Le = ffi::Py_LE as isize,
+    /// The equality operator.
+    Eq = ffi::Py_EQ as isize,
+    /// The *not equal to* operator.
+    Ne = ffi::Py_NE as isize,
+    /// The *greater than* operator.
+    Gt = ffi::Py_GT as isize,
+    /// The *greater than or equal to* operator.
+    Ge = ffi::Py_GE as isize,
+}
+
+impl CompareOp {
+    pub fn from_raw(op: c_int) -> Option<Self> {
+        match op {
+            ffi::Py_LT => Some(CompareOp::Lt),
+            ffi::Py_LE => Some(CompareOp::Le),
+            ffi::Py_EQ => Some(CompareOp::Eq),
+            ffi::Py_NE => Some(CompareOp::Ne),
+            ffi::Py_GT => Some(CompareOp::Gt),
+            ffi::Py_GE => Some(CompareOp::Ge),
+            _ => None,
+        }
+    }
+}
+
+/// Output of `__next__` which can either `yield` the next value in the iteration, or
+/// `return` a value to raise `StopIteration` in Python.
+///
+/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
+pub enum IterNextOutput<T, U> {
+    /// The value yielded by the iterator.
+    Yield(T),
+    /// The `StopIteration` object.
+    Return(U),
+}
+
+pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
+        }
+    }
+}
+
+impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
+            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterNextOutput::Return(py.None())),
+        }
+    }
+}
+
+/// Output of `__anext__`.
+///
+/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
+pub enum IterANextOutput<T, U> {
+    /// An expression which the generator yielded.
+    Yield(T),
+    /// A `StopAsyncIteration` object.
+    Return(U),
+}
+
+/// An [IterANextOutput] of Python objects.
+pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterANextOutput::Return(opt) => {
+                Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
+            }
+        }
+    }
+}
+
+impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
+            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterANextOutput::Return(py.None())),
+        }
+    }
+}

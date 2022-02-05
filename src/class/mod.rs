@@ -10,12 +10,10 @@ pub mod basic;
 pub mod buffer;
 pub mod descr;
 pub mod gc;
-#[doc(hidden)]
-pub mod impl_;
 pub mod iter;
 pub mod mapping;
 #[doc(hidden)]
-pub mod methods;
+pub use crate::impl_::pymethods as methods;
 pub mod number;
 pub mod pyasync;
 pub mod sequence;

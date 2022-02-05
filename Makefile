@@ -3,9 +3,6 @@
 ALL_ADDITIVE_FEATURES = macros multiple-pymethods num-bigint num-complex hashbrown serde indexmap eyre anyhow
 COVERAGE_PACKAGES = --package pyo3 --package pyo3-build-config --package pyo3-macros-backend --package pyo3-macros
 
-list_all_additive_features:
-	@echo $(ALL_ADDITIVE_FEATURES)
-
 test: lint test_py
 	cargo test
 	cargo test --features="abi3"

@@ -1,10 +1,7 @@
 #![cfg(feature = "macros")]
 #![cfg(not(Py_LIMITED_API))]
 
-use pyo3::{
-    buffer::PyBuffer, class::PyBufferProtocol, exceptions::PyBufferError, ffi, prelude::*,
-    AsPyPointer,
-};
+use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*, AsPyPointer};
 use std::{
     ffi::CStr,
     os::raw::{c_int, c_void},
@@ -28,9 +25,13 @@ struct TestBufferErrors {
     error: Option<TestGetBufferError>,
 }
 
-#[pyproto]
-impl PyBufferProtocol for TestBufferErrors {
-    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
+#[pymethods]
+impl TestBufferErrors {
+    unsafe fn __getbuffer__(
+        slf: PyRefMut<Self>,
+        view: *mut ffi::Py_buffer,
+        flags: c_int,
+    ) -> PyResult<()> {
         if view.is_null() {
             return Err(PyBufferError::new_err("View is null"));
         }
@@ -39,53 +40,47 @@ impl PyBufferProtocol for TestBufferErrors {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        unsafe {
-            (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
-        }
+        (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
 
         let bytes = &slf.buf;
 
-        unsafe {
-            (*view).buf = bytes.as_ptr() as *mut c_void;
-            (*view).len = bytes.len() as isize;
-            (*view).readonly = 1;
-            (*view).itemsize = std::mem::size_of::<u32>() as isize;
+        (*view).buf = bytes.as_ptr() as *mut c_void;
+        (*view).len = bytes.len() as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = std::mem::size_of::<u32>() as isize;
 
-            let msg = CStr::from_bytes_with_nul(b"I\0").unwrap();
-            (*view).format = msg.as_ptr() as *mut _;
+        let msg = CStr::from_bytes_with_nul(b"I\0").unwrap();
+        (*view).format = msg.as_ptr() as *mut _;
 
-            (*view).ndim = 1;
-            (*view).shape = &mut (*view).len;
+        (*view).ndim = 1;
+        (*view).shape = &mut (*view).len;
 
-            (*view).strides = &mut (*view).itemsize;
+        (*view).strides = &mut (*view).itemsize;
 
-            (*view).suboffsets = ptr::null_mut();
-            (*view).internal = ptr::null_mut();
+        (*view).suboffsets = ptr::null_mut();
+        (*view).internal = ptr::null_mut();
 
-            if let Some(err) = &slf.error {
-                use TestGetBufferError::*;
-                match err {
-                    NullShape => {
-                        (*view).shape = std::ptr::null_mut();
-                    }
-                    NullStrides => {
-                        (*view).strides = std::ptr::null_mut();
-                    }
-                    IncorrectItemSize => {
-                        (*view).itemsize += 1;
-                    }
-                    IncorrectFormat => {
-                        (*view).format = CStr::from_bytes_with_nul(b"B\0").unwrap().as_ptr() as _;
-                    }
-                    IncorrectAlignment => (*view).buf = (*view).buf.add(1),
+        if let Some(err) = &slf.error {
+            use TestGetBufferError::*;
+            match err {
+                NullShape => {
+                    (*view).shape = std::ptr::null_mut();
                 }
+                NullStrides => {
+                    (*view).strides = std::ptr::null_mut();
+                }
+                IncorrectItemSize => {
+                    (*view).itemsize += 1;
+                }
+                IncorrectFormat => {
+                    (*view).format = CStr::from_bytes_with_nul(b"B\0").unwrap().as_ptr() as _;
+                }
+                IncorrectAlignment => (*view).buf = (*view).buf.add(1),
             }
         }
 
         Ok(())
     }
-
-    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) {}
 }
 
 #[test]

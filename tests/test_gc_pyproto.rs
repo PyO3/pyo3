@@ -1,5 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(feature = "pyproto")] // FIXME: #[pymethods] to support gc protocol
+#![cfg(feature = "pyproto")]
 
 use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;

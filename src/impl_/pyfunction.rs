@@ -1,5 +1,5 @@
 use crate::{
-    class::methods::PyMethodDef, derive_utils::PyFunctionArguments, types::PyCFunction, PyResult,
+    derive_utils::PyFunctionArguments, impl_::pymethods::PyMethodDef, types::PyCFunction, PyResult,
 };
 
 pub trait PyFunctionDef {

@@ -22,6 +22,7 @@ pub use crate::python::Python;
 pub use crate::types::{PyAny, PyModule};
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{
-    pyclass, pyfunction, pymethods, pymodule, pyproto, wrap_pyfunction, FromPyObject,
-};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, wrap_pyfunction, FromPyObject};
+
+#[cfg(all(feature = "macros", feature = "pyproto"))]
+pub use pyo3_macros::pyproto;
