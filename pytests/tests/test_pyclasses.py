@@ -1,9 +1,21 @@
 import pytest
-from pyo3_pytests import pyclass_iter
+from pyo3_pytests import pyclasses
+
+
+def test_empty_class_init(benchmark):
+    benchmark(pyclasses.EmptyClass)
+
+
+class EmptyClassPy:
+    pass
+
+
+def test_empty_class_init_py(benchmark):
+    benchmark(EmptyClassPy)
 
 
 def test_iter():
-    i = pyclass_iter.PyClassIter()
+    i = pyclasses.PyClassIter()
     assert next(i) == 1
     assert next(i) == 2
     assert next(i) == 3

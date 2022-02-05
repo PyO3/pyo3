@@ -130,10 +130,10 @@ harness = false
 [workspace]
 members = [
     "pyo3-ffi",
+    "pyo3-build-config",
     "pyo3-macros",
     "pyo3-macros-backend",
-    "pytests/pyo3-benchmarks",
-    "pytests/pyo3-pytests",
+    "pytests",
     "examples",
     "xtask"
 ]

@@ -14,37 +14,22 @@ test: lint test_py
 
 test_py:
 	@for example in examples/*/noxfile.py; do echo "-- Running nox for $$example --"; nox -f $$example/noxfile.py || exit 1; echo ""; done
-	@for package in pytests/*/noxfile.py; do echo "-- Running nox for $$package --"; nox -f $$package/noxfile.py || exit 1; echo ""; done
+	echo "-- Running nox for pytests/noxfile.py --";
+	nox -f pytests/noxfile.py || exit 1;
 
 fmt_py:
 	black . --check
 
 fmt_rust:
 	cargo fmt --all -- --check
-	for package in pytests/*/; do cargo fmt --manifest-path $$package/Cargo.toml -- --check || exit 1; done
 
 fmt: fmt_rust fmt_py
 	@true
-
-coverage:
-	# cargo llvm-cov clean --workspace
-	# cargo llvm-cov $(COVERAGE_PACKAGES) --no-report
-	# cargo llvm-cov $(COVERAGE_PACKAGES) --no-report --features abi3
-	# cargo llvm-cov $(COVERAGE_PACKAGES) --no-report --features $(ALL_ADDITIVE_FEATURES)
-	# cargo llvm-cov $(COVERAGE_PACKAGES) --no-report --features abi3 $(ALL_ADDITIVE_FEATURES)
-	bash -c "\
-		set -a\
-		source <(cargo llvm-cov show-env)\
-		make test_py\
-	"
-	cargo llvm-cov $(COVERAGE_PACKAGES) --no-run --summary-only
-
 
 clippy:
 	cargo clippy --features="$(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
 	cargo clippy --features="abi3 $(ALL_ADDITIVE_FEATURES)" --all-targets --workspace -- -Dwarnings
 	for example in examples/*/; do cargo clippy --manifest-path $$example/Cargo.toml -- -Dwarnings || exit 1; done
-	for package in pytests/*/; do cargo clippy --manifest-path $$package/Cargo.toml -- -Dwarnings || exit 1; done
 
 lint: fmt clippy
 	@true
