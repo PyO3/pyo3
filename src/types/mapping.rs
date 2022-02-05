@@ -185,9 +185,9 @@ mod tests {
             let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             mapping.set_item("key1", "foo").unwrap();
 
-            assert!(mapping.contains("key0"));
-            assert!(mapping.contains("key1"));
-            assert!(!mapping.contains("key2"));
+            assert!(mapping.contains("key0").unwrap());
+            assert!(mapping.contains("key1").unwrap());
+            assert!(!mapping.contains("key2").unwrap());
         });
     }
 
