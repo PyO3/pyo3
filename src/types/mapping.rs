@@ -36,15 +36,11 @@ impl PyMapping {
     /// Determines if the mapping contains the specified key.
     ///
     /// This is equivalent to the Python expression `key in self`.
-    #[inline]
-    pub fn contains<K>(&self, key: K) -> bool
+    pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
         K: ToBorrowedObject,
     {
-        let value = key.with_borrowed_ptr(self.py(), |key| unsafe {
-            ffi::PyMapping_HasKey(self.as_ptr(), key)
-        });
-        value == 1
+        PyAny::contains(self, key)
     }
 
     /// Gets the item in self with key `key`.
