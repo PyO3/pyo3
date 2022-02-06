@@ -1,8 +1,6 @@
 use std::os::raw::c_int;
 
-#[cfg(not(Py_LIMITED_API))]
 pub const Py_bf_getbuffer: c_int = 1;
-#[cfg(not(Py_LIMITED_API))]
 pub const Py_bf_releasebuffer: c_int = 2;
 pub const Py_mp_ass_subscript: c_int = 3;
 pub const Py_mp_length: c_int = 4;
