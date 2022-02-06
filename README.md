@@ -159,7 +159,7 @@ about this topic.
 
 ## Tools and libraries
 
-- [maturin](https://github.com/PyO3/maturin) _Build and publish crates with pyo3, rust-cpython and cffi bindings as well as rust binaries as python packages_
+- [maturin](https://github.com/PyO3/maturin) _Build and publish crates with pyo3, rust-cpython or cffi bindings as well as rust binaries as python packages_
 - [setuptools-rust](https://github.com/PyO3/setuptools-rust) _Setuptools plugin for Rust support_.
 - [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://docs.rs/pyo3/*/pyo3/types/struct.PyDict.html)_
 - [rust-numpy](https://github.com/PyO3/rust-numpy) _Rust binding of NumPy C-API_
