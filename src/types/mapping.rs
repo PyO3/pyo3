@@ -33,6 +33,16 @@ impl PyMapping {
         self.len().map(|l| l == 0)
     }
 
+    /// Determines if the mapping contains the specified key.
+    ///
+    /// This is equivalent to the Python expression `key in self`.
+    pub fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToBorrowedObject,
+    {
+        PyAny::contains(self, key)
+    }
+
     /// Gets the item in self with key `key`.
     ///
     /// Returns an `Err` if the item with specified key is not found, usually `KeyError`.
@@ -163,6 +173,21 @@ mod tests {
             let mapping2 = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert_eq!(1, mapping2.len().unwrap());
             assert!(!mapping2.is_empty().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_contains() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert("key0", 1234);
+            let ob = v.to_object(py);
+            let mapping = <PyMapping as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            mapping.set_item("key1", "foo").unwrap();
+
+            assert!(mapping.contains("key0").unwrap());
+            assert!(mapping.contains("key1").unwrap());
+            assert!(!mapping.contains("key2").unwrap());
         });
     }
 
