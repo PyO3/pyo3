@@ -736,9 +736,6 @@ pub trait PyClassInventory: inventory::Collect {
     fn items(&'static self) -> &'static PyClassItems;
 }
 
-// Methods from #[pyo3(get, set)] on struct fields.
-items_trait!(PyClassIntrinsicItems, pyclass_intrinsic_items);
-
 // Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
 items_trait!(PyMethods, py_methods);
