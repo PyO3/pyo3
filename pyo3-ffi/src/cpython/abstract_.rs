@@ -1,5 +1,8 @@
-use crate::{PyObject, Py_buffer, Py_ssize_t};
-use std::os::raw::{c_char, c_int, c_void};
+use crate::{PyObject, Py_ssize_t};
+use std::os::raw::{c_char, c_int};
+
+#[cfg(not(Py_3_11))]
+use crate::Py_buffer;
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 use crate::{
@@ -211,6 +214,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_LengthHint")]
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t) -> Py_ssize_t;
 
+    #[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
     #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int;
 }
@@ -222,16 +226,20 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
     (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
 }
 
+#[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetBuffer")]
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_GetPointer")]
-    pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t) -> *mut c_void;
+    pub fn PyBuffer_GetPointer(
+        view: *mut Py_buffer,
+        indices: *mut Py_ssize_t,
+    ) -> *mut std::os::raw::c_void;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(
-        buf: *mut c_void,
+        buf: *mut std::os::raw::c_void,
         view: *mut Py_buffer,
         len: Py_ssize_t,
         order: c_char,
@@ -239,7 +247,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(
         view: *mut Py_buffer,
-        buf: *mut c_void,
+        buf: *mut std::os::raw::c_void,
         len: Py_ssize_t,
         order: c_char,
     ) -> c_int;
@@ -257,7 +265,7 @@ extern "C" {
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
         o: *mut PyObject,
-        buf: *mut c_void,
+        buf: *mut std::os::raw::c_void,
         len: Py_ssize_t,
         readonly: c_int,
         flags: c_int,

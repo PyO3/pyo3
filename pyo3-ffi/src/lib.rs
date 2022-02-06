@@ -121,7 +121,7 @@
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: "returns the sum of two integers as a string\0".as_ptr() as *const c_char,
 //!     };
-//!     
+//!
 //!     // PyModule_AddObject can technically fail.
 //!     // For more involved applications error checking may be necessary
 //!     PyModule_AddObject(
@@ -268,6 +268,8 @@ macro_rules! opaque_struct {
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
+#[cfg(Py_3_11)]
+pub use self::buffer::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
 pub use self::ceval::*;
@@ -332,6 +334,8 @@ mod abstract_;
 // skipped ast.h
 mod bltinmodule;
 mod boolobject;
+#[cfg(Py_3_11)]
+mod buffer;
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h

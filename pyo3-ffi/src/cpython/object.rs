@@ -11,6 +11,7 @@ use std::os::raw::c_int;
 // skipped _Py_static_string
 // skipped _Py_IDENTIFIER
 
+#[cfg(not(Py_3_11))] // moved to src/buffer.rs from Python
 mod bufferinfo {
     use crate::Py_ssize_t;
     use std::os::raw::{c_char, c_int, c_void};
@@ -106,6 +107,7 @@ mod bufferinfo {
     pub const PyBUF_WRITE: c_int = 0x200;
 }
 
+#[cfg(not(Py_3_11))]
 pub use self::bufferinfo::*;
 
 #[cfg(Py_3_8)]
@@ -199,8 +201,8 @@ mod typeobject {
     #[repr(C)]
     #[derive(Clone, Default)]
     pub struct PyBufferProcs {
-        pub bf_getbuffer: Option<super::getbufferproc>,
-        pub bf_releasebuffer: Option<super::releasebufferproc>,
+        pub bf_getbuffer: Option<crate::getbufferproc>,
+        pub bf_releasebuffer: Option<crate::releasebufferproc>,
     }
 
     pub type printfunc =

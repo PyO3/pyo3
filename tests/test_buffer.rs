@@ -1,5 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*, AsPyPointer};
 use std::{

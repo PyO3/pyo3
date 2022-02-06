@@ -162,6 +162,11 @@ pub type newfunc = unsafe extern "C" fn(
 ) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
+#[cfg(Py_3_11)]
+pub type getbufferproc =
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut crate::Py_buffer, arg3: c_int) -> c_int;
+#[cfg(Py_3_11)]
+pub type releasebufferproc = unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut crate::Py_buffer);
 
 #[repr(C)]
 #[derive(Copy, Clone)]
