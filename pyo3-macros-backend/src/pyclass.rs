@@ -382,11 +382,14 @@ fn impl_class(
 ) -> syn::Result<TokenStream> {
     let pytypeinfo_impl = impl_pytypeinfo(cls, attr, Some(&deprecations));
 
-    let py_class_impl = PyClassImplsBuilder::new(cls, attr, methods_type)
-        .doc(doc)
-        .impl_all();
-
-    let descriptors = impl_descriptors(cls, field_options)?;
+    let py_class_impl = PyClassImplsBuilder::new(
+        cls,
+        attr,
+        methods_type,
+        descriptors_to_items(cls, field_options)?,
+    )
+    .doc(doc)
+    .impl_all();
 
     Ok(quote! {
         const _: () = {
@@ -395,8 +398,6 @@ fn impl_class(
             #pytypeinfo_impl
 
             #py_class_impl
-
-            #descriptors
         };
     })
 }
@@ -452,10 +453,14 @@ fn impl_enum_class(
     krate: syn::Path,
 ) -> syn::Result<TokenStream> {
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
-    let pyclass_impls = PyClassImplsBuilder::new(cls, args, methods_type)
-        .doc(doc)
-        .impl_all();
-    let descriptors = unit_variants_as_descriptors(cls, variants.iter().map(|v| v.ident));
+    let pyclass_impls = PyClassImplsBuilder::new(
+        cls,
+        args,
+        methods_type,
+        unit_variants_as_items(cls, variants.iter().map(|v| v.ident)),
+    )
+    .doc(doc)
+    .impl_all();
 
     let default_repr_impl = {
         let variants_repr = variants.iter().map(|variant| {
@@ -487,13 +492,11 @@ fn impl_enum_class(
             #pyclass_impls
 
             #default_impls
-
-            #descriptors
         };
     })
 }
 
-fn unit_variants_as_descriptors<'a>(
+fn unit_variants_as_items<'a>(
     cls: &'a syn::Ident,
     variant_names: impl IntoIterator<Item = &'a syn::Ident>,
 ) -> TokenStream {
@@ -511,16 +514,9 @@ fn unit_variants_as_descriptors<'a>(
         .map(|var| gen_py_const(&cls_type, &variant_to_attribute(var)));
 
     quote! {
-        impl _pyo3::impl_::pyclass::PyClassIntrinsicItems<#cls>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#cls>
-        {
-            fn pyclass_intrinsic_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
-                    methods: &[#(#py_methods),*],
-                    slots: &[]
-                };
-                &ITEMS
-            }
+        _pyo3::impl_::pyclass::PyClassItems {
+            methods: &[#(#py_methods),*],
+            slots: &[]
         }
     }
 }
@@ -537,7 +533,7 @@ fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVarian
     Ok(PyClassEnumVariant { ident })
 }
 
-fn impl_descriptors(
+fn descriptors_to_items(
     cls: &syn::Ident,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
 ) -> syn::Result<TokenStream> {
@@ -577,16 +573,9 @@ fn impl_descriptors(
         .collect::<syn::Result<_>>()?;
 
     Ok(quote! {
-        impl _pyo3::impl_::pyclass::PyClassIntrinsicItems<#cls>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#cls>
-        {
-            fn pyclass_intrinsic_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
-                    methods: &[#(#py_methods),*],
-                    slots: &[]
-                };
-                &ITEMS
-            }
+        _pyo3::impl_::pyclass::PyClassItems {
+            methods: &[#(#py_methods),*],
+            slots: &[]
         }
     })
 }
@@ -632,15 +621,22 @@ struct PyClassImplsBuilder<'a> {
     cls: &'a syn::Ident,
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
+    default_items: TokenStream,
     doc: Option<PythonDoc>,
 }
 
 impl<'a> PyClassImplsBuilder<'a> {
-    fn new(cls: &'a syn::Ident, attr: &'a PyClassArgs, methods_type: PyClassMethodsType) -> Self {
+    fn new(
+        cls: &'a syn::Ident,
+        attr: &'a PyClassArgs,
+        methods_type: PyClassMethodsType,
+        default_items: TokenStream,
+    ) -> Self {
         Self {
             cls,
             attr,
             methods_type,
+            default_items,
             doc: None,
         }
     }
@@ -802,6 +798,8 @@ impl<'a> PyClassImplsBuilder<'a> {
             None
         };
 
+        let default_items = &self.default_items;
+
         quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
@@ -817,7 +815,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
-                    visitor(collector.pyclass_intrinsic_items());
+                    static INTRINSIC_ITEMS: PyClassItems = #default_items;
+                    visitor(&INTRINSIC_ITEMS);
                     // This depends on Python implementation detail;
                     // an old slot entry will be overriden by newer ones.
                     visitor(collector.pyclass_default_items());
