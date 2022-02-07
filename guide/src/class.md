@@ -861,7 +861,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     fn for_all_items(visitor: &mut dyn FnMut(&pyo3::impl_::pyclass::PyClassItems)) {
         use pyo3::impl_::pyclass::*;
         let collector = PyClassImplCollector::<MyClass>::new();
-        static INTRINSIC_ITEMS: &PyClassItems = PyClassItems { slots: &[], methods: &[] };
+        static INTRINSIC_ITEMS: PyClassItems = PyClassItems { slots: &[], methods: &[] };
         visitor(&INTRINSIC_ITEMS);
         visitor(collector.py_methods());
     }
