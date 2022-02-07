@@ -407,6 +407,54 @@ struct PyClassEnumVariant<'a> {
     /* currently have no more options */
 }
 
+struct PyClassEnum<'a> {
+    ident: &'a syn::Ident,
+    // The underlying #[repr] of the enum, used to implement __int__ and __richcmp__.
+    // This matters when the underlying representation may not fit in `isize`.
+    repr_type: syn::Ident,
+    variants: Vec<PyClassEnumVariant<'a>>,
+}
+
+impl<'a> PyClassEnum<'a> {
+    fn new(enum_: &'a syn::ItemEnum) -> syn::Result<Self> {
+        fn is_numeric_type(t: &syn::Ident) -> bool {
+            [
+                "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "usize",
+                "isize",
+            ]
+            .iter()
+            .any(|&s| t == s)
+        }
+        let ident = &enum_.ident;
+        // According to the [reference](https://doc.rust-lang.org/reference/items/enumerations.html),
+        // "Under the default representation, the specified discriminant is interpreted as an isize
+        // value", so `isize` should be enough by default.
+        let mut repr_type = syn::Ident::new("isize", proc_macro2::Span::call_site());
+        if let Some(attr) = enum_.attrs.iter().find(|attr| attr.path.is_ident("repr")) {
+            let args =
+                attr.parse_args_with(Punctuated::<TokenStream, Token![!]>::parse_terminated)?;
+            if let Some(ident) = args
+                .into_iter()
+                .filter_map(|ts| syn::parse2::<syn::Ident>(ts).ok())
+                .find(is_numeric_type)
+            {
+                repr_type = ident;
+            }
+        }
+
+        let variants = enum_
+            .variants
+            .iter()
+            .map(extract_variant_data)
+            .collect::<syn::Result<_>>()?;
+        Ok(Self {
+            ident,
+            repr_type,
+            variants,
+        })
+    }
+}
+
 pub fn build_py_enum(
     enum_: &mut syn::ItemEnum,
     args: &PyClassArgs,
@@ -417,22 +465,6 @@ pub fn build_py_enum(
     if enum_.variants.is_empty() {
         bail_spanned!(enum_.brace_token.span => "Empty enums can't be #[pyclass].");
     }
-    let variants: Vec<PyClassEnumVariant> = enum_
-        .variants
-        .iter()
-        .map(extract_variant_data)
-        .collect::<syn::Result<_>>()?;
-    impl_enum(enum_, args, variants, method_type, options)
-}
-
-fn impl_enum(
-    enum_: &syn::ItemEnum,
-    args: &PyClassArgs,
-    variants: Vec<PyClassEnumVariant>,
-    methods_type: PyClassMethodsType,
-    options: PyClassPyO3Options,
-) -> syn::Result<TokenStream> {
-    let enum_name = &enum_.ident;
     let doc = utils::get_doc(
         &enum_.attrs,
         options
@@ -440,18 +472,30 @@ fn impl_enum(
             .as_ref()
             .map(|attr| (get_class_python_name(&enum_.ident, args), attr)),
     );
+    let enum_ = PyClassEnum::new(enum_)?;
+    impl_enum(enum_, args, doc, method_type, options)
+}
+
+fn impl_enum(
+    enum_: PyClassEnum,
+    args: &PyClassArgs,
+    doc: PythonDoc,
+    methods_type: PyClassMethodsType,
+    options: PyClassPyO3Options,
+) -> syn::Result<TokenStream> {
     let krate = get_pyo3_crate(&options.krate);
-    impl_enum_class(enum_name, args, variants, doc, methods_type, krate)
+    impl_enum_class(enum_, args, doc, methods_type, krate)
 }
 
 fn impl_enum_class(
-    cls: &syn::Ident,
+    enum_: PyClassEnum,
     args: &PyClassArgs,
-    variants: Vec<PyClassEnumVariant>,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
     krate: syn::Path,
 ) -> syn::Result<TokenStream> {
+    let cls = enum_.ident;
+    let variants = enum_.variants;
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
@@ -476,13 +520,73 @@ fn impl_enum_class(
             fn __pyo3__repr__(&self) -> &'static str {
                 match self {
                     #(#variants_repr)*
-                    _ => unreachable!("Unsupported variant type."),
                 }
             }
         }
     };
 
-    let default_impls = gen_default_items(cls, vec![default_repr_impl]);
+    let repr_type = &enum_.repr_type;
+
+    let default_int = {
+        // This implementation allows us to convert &T to #repr_type without implementing `Copy`
+        let variants_to_int = variants.iter().map(|variant| {
+            let variant_name = variant.ident;
+            quote! { #cls::#variant_name => #cls::#variant_name as #repr_type, }
+        });
+        quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            #[pyo3(name = "__int__")]
+            fn __pyo3__int__(&self) -> #repr_type {
+                match self {
+                    #(#variants_to_int)*
+                }
+            }
+        }
+    };
+
+    let default_richcmp = {
+        let variants_eq = variants.iter().map(|variant| {
+            let variant_name = variant.ident;
+            quote! {
+                (#cls::#variant_name, #cls::#variant_name) =>
+                    Ok(true.to_object(py)),
+            }
+        });
+        quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            #[pyo3(name = "__richcmp__")]
+            fn __pyo3__richcmp__(
+                &self,
+                py: _pyo3::Python,
+                other: &_pyo3::PyAny,
+                op: _pyo3::basic::CompareOp
+            ) -> _pyo3::PyResult<_pyo3::PyObject> {
+                use _pyo3::conversion::ToPyObject;
+                use ::core::result::Result::*;
+                match op {
+                    _pyo3::basic::CompareOp::Eq => {
+                        if let Ok(i) = other.extract::<#repr_type>() {
+                            let self_val = self.__pyo3__int__();
+                            return Ok((self_val == i).to_object(py));
+                        }
+                        let other = other.extract::<_pyo3::PyRef<Self>>()?;
+                        let other = &*other;
+                        match (self, other) {
+                            #(#variants_eq)*
+                            _ => Ok(false.to_object(py)),
+                        }
+                    }
+                    _ => Ok(py.NotImplemented()),
+                }
+            }
+        }
+    };
+
+    let default_items =
+        gen_default_items(cls, vec![default_repr_impl, default_richcmp, default_int]);
+
     Ok(quote! {
         const _: () = {
             use #krate as _pyo3;
@@ -491,7 +595,7 @@ fn impl_enum_class(
 
             #pyclass_impls
 
-            #default_impls
+            #default_items
         };
     })
 }
@@ -526,9 +630,6 @@ fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVarian
     let ident = match variant.fields {
         Fields::Unit => &variant.ident,
         _ => bail_spanned!(variant.span() => "Currently only support unit variants."),
-    };
-    if let Some(discriminant) = variant.discriminant.as_ref() {
-        bail_spanned!(discriminant.0.span() => "Currently does not support discriminats.")
     };
     Ok(PyClassEnumVariant { ident })
 }

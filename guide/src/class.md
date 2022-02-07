@@ -2,7 +2,7 @@
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
-The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` to generate a Python type for it. A struct will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) Finally, there may be multiple `#[pyproto]` trait implementations for the struct, which are used to define certain python magic methods such as `__str__`.
+The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or a fieldless `enum` (a.k.a. C-like enum) to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) Finally, there may be multiple `#[pyproto]` trait implementations for the struct, which are used to define certain python magic methods such as `__str__`.
 
 This chapter will discuss the functionality and configuration these attributes offer. Below is a list of links to the relevant section of this chapter for each:
 
@@ -20,9 +20,7 @@ This chapter will discuss the functionality and configuration these attributes o
 
 ## Defining a new class
 
-To define a custom Python class, a Rust struct needs to be annotated with the
-`#[pyclass]` attribute.
-
+To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or a fieldless enum.
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
@@ -31,11 +29,17 @@ struct MyClass {
     # #[pyo3(get)]
     num: i32,
 }
+
+#[pyclass]
+enum MyEnum {
+    Variant,
+    OtherVariant = 30, // PyO3 supports custom discriminants.
+}
 ```
 
-Because Python objects are freely shared between threads by the Python interpreter, all structs annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
+Because Python objects are freely shared between threads by the Python interpreter, all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
 
-The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
+The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
 ## Adding the class to a module
 
@@ -140,8 +144,8 @@ so that they can benefit from a freelist. `XXX` is a number of items for the fre
 * `gc` - Classes with the `gc` parameter participate in Python garbage collection.
 If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
-* `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
-* `subclass` - Allows Python classes to inherit from this class.
+* `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`. `enum` pyclasses can't use a custom base class.
+* `subclass` - Allows Python classes to inherit from this class. `enum` pyclasses can't be inherited from.
 * `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
 * `unsendable` - Making it safe to expose `!Send` structs to Python, where all object can be accessed
    by multiple threads. A class marked with `unsendable` panics when accessed by another thread.
@@ -351,7 +355,7 @@ impl SubClass {
 ## Object properties
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
-- For simple fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
+- For simple struct fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
 - For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
 We'll cover each of these in the following sections.
@@ -801,6 +805,118 @@ impl MyClass {
 
 Note that `text_signature` on classes is not compatible with compilation in
 `abi3` mode until Python 3.10 or greater.
+
+## #[pyclass] enums
+
+Currently PyO3 only supports fieldless enums. PyO3 adds a class attribute for each variant, so you can access them in Python without defining `#[new]`. PyO3 also provides default implementations of `__richcmp__` and `__int__`, so they can be compared using `==`:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum MyEnum {
+    Variant,
+    OtherVariant,
+}
+
+Python::with_gil(|py| {
+    let x = Py::new(py, MyEnum::Variant).unwrap();
+    let y = Py::new(py, MyEnum::OtherVariant).unwrap();
+    let cls = py.get_type::<MyEnum>();
+    pyo3::py_run!(py, x y cls, r#"
+        assert x == cls.Variant
+        assert y == cls.OtherVariant
+        assert x != y
+    "#)
+})
+```
+
+You can also convert your enums into `int`:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum MyEnum {
+    Variant,
+    OtherVariant = 10,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type::<MyEnum>();
+    let x = MyEnum::Variant as i32; // The exact value is assigned by the compiler.
+    pyo3::py_run!(py, cls x, r#"
+        assert int(cls.Variant) == x
+        assert int(cls.OtherVariant) == 10
+        assert cls.OtherVariant == 10  # You can also compare against int.
+        assert 10 == cls.OtherVariant
+    "#)
+})
+```
+
+PyO3 also provides `__repr__` for enums:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum MyEnum{
+    Variant,
+    OtherVariant,
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type::<MyEnum>();
+    let x = Py::new(py, MyEnum::Variant).unwrap();
+    pyo3::py_run!(py, cls x, r#"
+        assert repr(x) == 'MyEnum.Variant'
+        assert repr(cls.OtherVariant) == 'MyEnum.OtherVariant'
+    "#)
+})
+```
+
+All methods defined by PyO3 can be overriden. For example here's how you override `__repr__`:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+enum MyEnum {
+    Answer = 42,
+}
+
+#[pymethods]
+impl MyEnum {
+    fn __repr__(&self) -> &'static str {
+        "42"
+    }
+}
+
+Python::with_gil(|py| {
+    let cls = py.get_type::<MyEnum>();
+    pyo3::py_run!(py, cls, "assert repr(cls.Answer) == '42'")
+})
+```
+
+You may not use enums as a base class or let enums inherit from other classes.
+
+```rust,compile_fail
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+enum BadBase{
+    Var1,
+}
+```
+
+```rust,compile_fail
+# use pyo3::prelude::*;
+
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+enum BadSubclass{
+    Var1,
+}
+```
+
+`#[pyclass]` enums are currently not interoperable with `IntEnum` in Python.
 
 ## Implementation details
 

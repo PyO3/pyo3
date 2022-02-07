@@ -28,3 +28,9 @@ pub struct Bar {
     #[pyo3(get, set)]
     c: ::std::option::Option<crate::Py<Foo2>>,
 }
+
+#[crate::pyclass]
+#[pyo3(crate = "crate")]
+pub enum Enum {
+    Var0,
+}

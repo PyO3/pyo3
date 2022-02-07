@@ -218,8 +218,8 @@ pub fn gen_default_items(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> Tok
         impl #cls {
             #(#method_defs)*
         }
-        impl ::pyo3::impl_::pyclass::PyClassDefaultItems<#cls>
-            for ::pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
+        impl _pyo3::impl_::pyclass::PyClassDefaultItems<#cls>
+            for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
                 fn pyclass_default_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
                     static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
                         methods: &[],

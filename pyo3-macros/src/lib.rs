@@ -79,7 +79,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// A proc macro used to expose Rust structs as Python objects.
+/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
 /// `#[pyclass]` accepts the following [parameters][2]:
 ///
@@ -90,7 +90,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
 /// | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][4] |
-/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
+/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
 /// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
 /// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
