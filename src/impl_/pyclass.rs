@@ -179,10 +179,6 @@ pub trait PyClassImpl: Sized {
     fn for_all_items(visitor: &mut dyn FnMut(&PyClassItems));
 
     #[inline]
-    fn get_new() -> Option<ffi::newfunc> {
-        None
-    }
-    #[inline]
     fn dict_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
@@ -193,16 +189,6 @@ pub trait PyClassImpl: Sized {
 }
 
 // Traits describing known special methods.
-
-pub trait PyClassNewImpl<T> {
-    fn new_impl(self) -> Option<ffi::newfunc>;
-}
-
-impl<T> PyClassNewImpl<T> for &'_ PyClassImplCollector<T> {
-    fn new_impl(self) -> Option<ffi::newfunc> {
-        None
-    }
-}
 
 macro_rules! slot_fragment_trait {
     ($trait_name:ident, $($default_method:tt)*) => {
@@ -813,19 +799,6 @@ impl<T: PyClass> PyClassBaseType for T {
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
-}
-
-/// Default new implementation
-pub(crate) unsafe extern "C" fn fallback_new(
-    _subtype: *mut ffi::PyTypeObject,
-    _args: *mut ffi::PyObject,
-    _kwds: *mut ffi::PyObject,
-) -> *mut ffi::PyObject {
-    crate::callback_body!(py, {
-        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
-            "No constructor defined",
-        ))
-    })
 }
 
 /// Implementation of tp_dealloc for all pyclasses

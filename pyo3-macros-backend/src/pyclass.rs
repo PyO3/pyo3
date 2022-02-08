@@ -927,11 +927,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                     #pymethods_items
                     #pyproto_items
                 }
-                fn get_new() -> ::std::option::Option<_pyo3::ffi::newfunc> {
-                    use _pyo3::impl_::pyclass::*;
-                    let collector = PyClassImplCollector::<Self>::new();
-                    collector.new_impl()
-                }
 
                 #dict_offset
 

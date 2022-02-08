@@ -981,11 +981,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         visitor(&INTRINSIC_ITEMS);
         visitor(collector.py_methods());
     }
-    fn get_new() -> Option<pyo3::ffi::newfunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.new_impl()
-    }
 }
 # Python::with_gil(|py| {
 #     let cls = py.get_type::<MyClass>();

@@ -108,10 +108,6 @@ pub fn impl_methods(
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::TraitImpl(token_stream) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        trait_impls.push(quote!(#(#attrs)* #token_stream));
-                    }
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
@@ -204,7 +200,7 @@ pub fn gen_default_items<'a>(
             GeneratedPyMethod::SlotTraitImpl(..) => {
                 panic!("SlotFragment methods cannot have default implementation!")
             }
-            GeneratedPyMethod::Method(_) | GeneratedPyMethod::TraitImpl(_) => {
+            GeneratedPyMethod::Method(_) => {
                 panic!("Only protocol methods can have default implementation!")
             }
         }

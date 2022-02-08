@@ -20,7 +20,6 @@ use syn::{ext::IdentExt, spanned::Spanned, Result};
 pub enum GeneratedPyMethod {
     Method(TokenStream),
     Proto(TokenStream),
-    TraitImpl(TokenStream),
     SlotTraitImpl(String, TokenStream),
 }
 
@@ -128,7 +127,7 @@ pub fn gen_py_method(
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        (_, FnType::FnNew) => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, spec)?),
+        (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
 
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
@@ -191,18 +190,18 @@ pub fn impl_py_method_def(
 }
 
 fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
-    let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
+    let wrapper_ident = syn::Ident::new("__pymethod__new__", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
-    Ok(quote! {
-        impl _pyo3::impl_::pyclass::PyClassNewImpl<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
-            fn new_impl(self) -> ::std::option::Option<_pyo3::ffi::newfunc> {
-                ::std::option::Option::Some({
-                    #wrapper
-                    #wrapper_ident
-                })
-            }
+    Ok(quote! {{
+        impl #cls {
+            #[doc(hidden)]
+            #wrapper
         }
-    })
+        _pyo3::ffi::PyType_Slot {
+            slot: _pyo3::ffi::Py_tp_new,
+            pfunc: #cls::#wrapper_ident as _pyo3::ffi::newfunc as _
+        }
+    }})
 }
 
 fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
