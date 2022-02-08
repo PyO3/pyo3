@@ -15,8 +15,10 @@ fn test_compile_errors() {
     let _ = std::panic::catch_unwind(_test_compile_errors);
 }
 
+#[cfg(not(feature = "nightly"))]
 fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
+
     t.compile_fail("tests/ui/invalid_macro_args.rs");
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
@@ -71,10 +73,21 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_pymethods.rs");
         t.compile_fail("tests/ui/missing_clone.rs");
         t.compile_fail("tests/ui/not_send.rs");
+        t.compile_fail("tests/ui/not_send2.rs");
+        t.compile_fail("tests/ui/not_send3.rs");
         #[cfg(Py_LIMITED_API)]
         t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
 
     #[rustversion::before(1.58)]
     fn tests_rust_1_58(_t: &trybuild::TestCases) {}
+}
+
+#[cfg(feature = "nightly")]
+fn _test_compile_errors() {
+    let t = trybuild::TestCases::new();
+
+    t.compile_fail("tests/ui/not_send_auto_trait.rs");
+    t.compile_fail("tests/ui/not_send_auto_trait2.rs");
+    t.compile_fail("tests/ui/send_wrapper.rs");
 }

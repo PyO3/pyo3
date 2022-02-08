@@ -2,103 +2,161 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+//! Fundamental properties of objects tied to the Python interpreter.
+//!
+//! The Python interpreter is not threadsafe. To protect the Python interpreter in multithreaded
+//! scenarios there is a global lock, the *global interpreter lock* (hereafter referred to as *GIL*)
+//! that must be held to safely interact with Python objects. This is why in PyO3 when you acquire
+//! the GIL you get a [`Python`] marker token that carries the *lifetime* of holding the GIL and all
+//! borrowed references to Python objects carry this lifetime as well. This will statically ensure
+//! that you can never use Python objects after dropping the lock - if you mess this up it will be
+//! caught at compile time and your program will fail to compile.
+//!
+//! It also supports this pattern that many extension modules employ:
+//! - Drop the GIL, so that other Python threads can acquire it and make progress themselves
+//! - Do something independently of the Python interpreter, like IO, a long running calculation or
+//! awaiting a future
+//! - Once that is done, reacquire the GIL
+//!
+//! That API is provided by [`Python::allow_threads`] and enforced via the [`Ungil`] bound on the
+//! closure and the return type. This is done by relying on the [`Send`] auto trait. `Ungil` is
+//! defined as the following:
+//!
+//! ```rust
+//! pub unsafe trait Ungil {}
+//!
+//! unsafe impl<T: Send> Ungil for T {}
+//! ```
+//!
+//! In practice this API works quite well, but it comes with some drawbacks:
+//!
+//! ## Drawbacks
+//!
+//! There is no reason to prevent `!Send` types like [`Rc`] from crossing the closure. After all,
+//! [`Python::allow_threads`] just lets other Python threads run - it does not itself launch a new
+//! thread.
+//!
+//! ```rust, compile_fail
+//! # #[cfg(feature = "nightly")]
+//! # compile_error!("this actually works on nightly")
+//! use pyo3::prelude::*;
+//! use std::rc::Rc;
+//!
+//! fn main() {
+//!     Python::with_gil(|py| {
+//!         let rc = Rc::new(5);
+//!
+//!         py.allow_threads(|| {
+//!             // This would actually be fine...
+//!             println!("{:?}", *rc);
+//!         });
+//!     });
+//! }
+//! ```
+//!
+//! Because we are using `Send` for something it's not quite meant for, other code that
+//! (correctly) upholds the invariants of [`Send`] can cause problems.
+//!
+//! [`SendWrapper`] is one of those. Per its documentation:
+//!
+//! > A wrapper which allows you to move around non-Send-types between threads, as long as you
+//! > access the contained value only from within the original thread and make sure that it is
+//! > dropped from within the original thread.
+//!
+//! This will "work" to smuggle Python references across the closure, because we're not actually
+//! doing anything with threads:
+//!
+//! ```rust, no_run
+//! use pyo3::prelude::*;
+//! use pyo3::types::PyString;
+//! use send_wrapper::SendWrapper;
+//!
+//! Python::with_gil(|py| {
+//!     let string = PyString::new(py, "foo");
+//!
+//!     let wrapped = SendWrapper::new(string);
+//!
+//!     py.allow_threads(|| {
+//! # #[cfg(not(feature = "nightly"))]
+//! # {
+//!         // 💥 Unsound! 💥
+//!         let smuggled: &PyString = *wrapped;
+//!         println!("{:?}", smuggled);
+//! # }
+//!     });
+//! });
+//! ```
+//!
+//! For now the answer to that is "don't do that".
+//!
+//! # A proper implementation using an auto trait
+//!
+//! However on nightly Rust and when PyO3's `nightly` feature is
+//! enabled, `Ungil` is defined as the following:
+//!
+//! ```rust
+//! # #[cfg(FALSE)]
+//! # {
+//! #![feature(auto_traits, negative_impls)]
+//!
+//! pub unsafe auto trait Ungil {}
+//!
+//! // It is unimplemented for the `Python` struct and Python objects.
+//! impl !Ungil for Python<'_> {}
+//! impl !Ungil for ffi::PyObject {}
+//!
+//! // `Py` wraps it in  a safe api, so this is OK
+//! unsafe impl <T> Ungil for Py<T> {}
+//! # }
+//! ```
+//!
+//! With this feature enabled, the above two examples will start working and not working, respectively.
+//!
+//! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
+//! [`Rc`]: std::rc::Rc
+//! [`Py`]: crate::Py
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::impl_::not_send::NotSend;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
+use crate::version::PythonVersionInfo;
 use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
+use std::convert::TryFrom;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 
-/// Represents the major, minor, and patch (if any) versions of this interpreter.
+/// Types that are safe to access while the GIL is not held.
 ///
-/// See [Python::version].
-#[derive(Debug)]
-pub struct PythonVersionInfo<'py> {
-    /// Python major version (e.g. `3`).
-    pub major: u8,
-    /// Python minor version (e.g. `11`).
-    pub minor: u8,
-    /// Python patch version (e.g. `0`).
-    pub patch: u8,
-    /// Python version suffix, if applicable (e.g. `a0`).
-    pub suffix: Option<&'py str>,
-}
+/// # Safety
+///
+/// The type must not carry borrowed Python references or, if it does, not allow access to them if
+/// the GIL is not held.
+///
+/// See the [module-level documentation](self) for more information.
+#[cfg(not(feature = "nightly"))]
+pub unsafe trait Ungil {}
 
-impl<'py> PythonVersionInfo<'py> {
-    /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
-    ///
-    /// Panics if the string is ill-formatted.
-    fn from_str(version_number_str: &'py str) -> Self {
-        fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
-            match version_part.find(|c: char| !c.is_ascii_digit()) {
-                None => (version_part.parse().unwrap(), None),
-                Some(version_part_suffix_start) => {
-                    let (version_part, version_part_suffix) =
-                        version_part.split_at(version_part_suffix_start);
-                    (version_part.parse().unwrap(), Some(version_part_suffix))
-                }
-            }
-        }
+#[cfg(not(feature = "nightly"))]
+unsafe impl<T: Send> Ungil for T {}
 
-        let mut parts = version_number_str.split('.');
-        let major_str = parts.next().expect("Python major version missing");
-        let minor_str = parts.next().expect("Python minor version missing");
-        let patch_str = parts.next();
-        assert!(
-            parts.next().is_none(),
-            "Python version string has too many parts"
-        );
+/// Types that are safe to access while the GIL is not held.
+///
+/// # Safety
+///
+/// The type must not carry borrowed Python references or, if it does, not allow access to them if
+/// the GIL is not held.
+///
+/// See the [module-level documentation](self) for more information.
+#[cfg(feature = "nightly")]
+pub unsafe auto trait Ungil {}
 
-        let major = major_str
-            .parse()
-            .expect("Python major version not an integer");
-        let (minor, suffix) = split_and_parse_number(minor_str);
-        if suffix.is_some() {
-            assert!(patch_str.is_none());
-            return PythonVersionInfo {
-                major,
-                minor,
-                patch: 0,
-                suffix,
-            };
-        }
+#[cfg(feature = "nightly")]
+impl !Ungil for Python<'_> {}
 
-        let (patch, suffix) = patch_str.map(split_and_parse_number).unwrap_or_default();
-        PythonVersionInfo {
-            major,
-            minor,
-            patch,
-            suffix,
-        }
-    }
-}
-
-impl PartialEq<(u8, u8)> for PythonVersionInfo<'_> {
-    fn eq(&self, other: &(u8, u8)) -> bool {
-        self.major == other.0 && self.minor == other.1
-    }
-}
-
-impl PartialEq<(u8, u8, u8)> for PythonVersionInfo<'_> {
-    fn eq(&self, other: &(u8, u8, u8)) -> bool {
-        self.major == other.0 && self.minor == other.1 && self.patch == other.2
-    }
-}
-
-impl PartialOrd<(u8, u8)> for PythonVersionInfo<'_> {
-    fn partial_cmp(&self, other: &(u8, u8)) -> Option<std::cmp::Ordering> {
-        (self.major, self.minor).partial_cmp(other)
-    }
-}
-
-impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
-    fn partial_cmp(&self, other: &(u8, u8, u8)) -> Option<std::cmp::Ordering> {
-        (self.major, self.minor, self.patch).partial_cmp(other)
-    }
-}
+#[cfg(feature = "nightly")]
+impl !Ungil for ffi::PyObject {}
 
 /// A marker token that represents holding the GIL.
 ///
@@ -305,12 +363,8 @@ impl<'py> Python<'py> {
     /// interpreter for some time and have other Python threads around, this will let you run
     /// Rust-only code while letting those other Python threads make progress.
     ///
-    /// The closure is impermeable to types that are tied to holding the GIL, such as `&`[`PyAny`]
-    /// and its concrete-typed siblings like `&`[`PyString`]. This is achieved via the [`Send`]
-    /// bound on the closure and the return type. This is slightly
-    /// more restrictive than necessary, but it's the most fitting solution available in stable
-    /// Rust. In the future this bound may be relaxed by using an "auto-trait" instead, if
-    /// [auto-traits] ever become a stable feature of the Rust language.
+    /// Only types that implement [`Ungil`] can cross the closure. See the
+    /// [module level documentation](self) for more information.
     ///
     /// If you need to pass Python objects into the closure you can use [`Py`]`<T>`to create a
     /// reference independent of the GIL lifetime. However, you cannot do much with those without a
@@ -365,8 +419,8 @@ impl<'py> Python<'py> {
     /// [Parallelism]: https://pyo3.rs/main/parallelism.html
     pub fn allow_threads<T, F>(self, f: F) -> T
     where
-        F: Send + FnOnce() -> T,
-        T: Send,
+        F: Ungil + FnOnce() -> T,
+        T: Ungil,
     {
         // Use a guard pattern to handle reacquiring the GIL, so that the GIL will be reacquired
         // even if `f` panics.
@@ -532,7 +586,7 @@ impl<'py> Python<'py> {
     /// # use pyo3::Python;
     /// Python::with_gil(|py| {
     ///     // The full string could be, for example:
-    ///     // "3.0a5+ (py3k:63103M, May 12 2008, 00:53:55) \n[GCC 4.2.3]"
+    ///     // "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]"
     ///     assert!(py.version().starts_with("3."));
     /// });
     /// ```
@@ -563,7 +617,7 @@ impl<'py> Python<'py> {
         // version number.
         let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
 
-        PythonVersionInfo::from_str(version_number_str)
+        TryFrom::try_from(version_number_str).unwrap()
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.
@@ -804,6 +858,8 @@ impl<'py> Python<'py> {
 mod tests {
     use super::*;
     use crate::types::{IntoPyDict, PyList};
+    use crate::Py;
+    use std::sync::Arc;
 
     #[test]
     fn test_eval() {
@@ -889,36 +945,19 @@ mod tests {
     }
 
     #[test]
-    fn test_python_version_info() {
-        Python::with_gil(|py| {
-            let version = py.version_info();
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7));
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7, 0));
-            #[cfg(Py_3_8)]
-            assert!(version >= (3, 8));
-            #[cfg(Py_3_8)]
-            assert!(version >= (3, 8, 0));
-            #[cfg(Py_3_9)]
-            assert!(version >= (3, 9));
-            #[cfg(Py_3_9)]
-            assert!(version >= (3, 9, 0));
+    fn test_allow_threads_pass_stuff_in() {
+        let list: Py<PyList> = Python::with_gil(|py| {
+            let list = PyList::new(py, vec!["foo", "bar"]);
+            list.into()
         });
-    }
+        let mut v = vec![1, 2, 3];
+        let a = Arc::new(String::from("foo"));
 
-    #[test]
-    fn test_python_version_info_parse() {
-        assert!(PythonVersionInfo::from_str("3.5.0a1") >= (3, 5, 0));
-        assert!(PythonVersionInfo::from_str("3.5+") >= (3, 5, 0));
-        assert!(PythonVersionInfo::from_str("3.5+") == (3, 5, 0));
-        assert!(PythonVersionInfo::from_str("3.5+") != (3, 5, 1));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+") < (3, 5, 3));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+") == (3, 5, 2));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+") == (3, 5));
-        assert!(PythonVersionInfo::from_str("3.5+") == (3, 5));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+") < (3, 6));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+") > (3, 4));
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                drop((list, &mut v, a));
+            });
+        });
     }
 
     #[test]
