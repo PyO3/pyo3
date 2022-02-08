@@ -293,10 +293,10 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
+pub use crate::marker::{Python, PythonVersionInfo};
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 
@@ -355,6 +355,7 @@ mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+mod marker;
 pub mod marshal;
 pub mod once_cell;
 pub mod panic;
@@ -362,7 +363,7 @@ pub mod prelude;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
-mod python;
+
 pub mod type_object;
 pub mod types;
 
