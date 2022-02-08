@@ -986,16 +986,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         let collector = PyClassImplCollector::<Self>::new();
         collector.new_impl()
     }
-    fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.alloc_impl()
-    }
-    fn get_free() -> Option<pyo3::ffi::freefunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.free_impl()
-    }
 }
 # Python::with_gil(|py| {
 #     let cls = py.get_type::<MyClass>();

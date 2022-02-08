@@ -51,8 +51,6 @@ where
             std::mem::size_of::<T::Layout>(),
             T::get_new(),
             tp_dealloc::<T>,
-            T::get_alloc(),
-            T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
             &T::for_all_items,
@@ -75,8 +73,6 @@ unsafe fn create_type_object_impl(
     basicsize: usize,
     tp_new: Option<ffi::newfunc>,
     tp_dealloc: ffi::destructor,
-    tp_alloc: Option<ffi::allocfunc>,
-    tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
     for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
@@ -100,13 +96,6 @@ unsafe fn create_type_object_impl(
         tp_new.unwrap_or(fallback_new) as _,
     );
     push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
-
-    if let Some(alloc) = tp_alloc {
-        push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
-    }
-    if let Some(free) = tp_free {
-        push_slot(&mut slots, ffi::Py_tp_free, free as _);
-    }
 
     #[cfg(Py_3_9)]
     {

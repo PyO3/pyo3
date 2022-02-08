@@ -183,14 +183,6 @@ pub trait PyClassImpl: Sized {
         None
     }
     #[inline]
-    fn get_alloc() -> Option<ffi::allocfunc> {
-        None
-    }
-    #[inline]
-    fn get_free() -> Option<ffi::freefunc> {
-        None
-    }
-    #[inline]
     fn dict_offset() -> Option<ffi::Py_ssize_t> {
         None
     }
@@ -601,26 +593,6 @@ macro_rules! generate_pyclass_pow_slot {
     }};
 }
 pub use generate_pyclass_pow_slot;
-
-pub trait PyClassAllocImpl<T> {
-    fn alloc_impl(self) -> Option<ffi::allocfunc>;
-}
-
-impl<T> PyClassAllocImpl<T> for &'_ PyClassImplCollector<T> {
-    fn alloc_impl(self) -> Option<ffi::allocfunc> {
-        None
-    }
-}
-
-pub trait PyClassFreeImpl<T> {
-    fn free_impl(self) -> Option<ffi::freefunc>;
-}
-
-impl<T> PyClassFreeImpl<T> for &'_ PyClassImplCollector<T> {
-    fn free_impl(self) -> Option<ffi::freefunc> {
-        None
-    }
-}
 
 /// Implements a freelist.
 ///

@@ -194,7 +194,7 @@ pub fn gen_default_items<'a>(
     // all succeed.
     let ty: syn::Type = syn::parse_quote!(#cls);
 
-    method_defs.into_iter().map(move |meth| {
+    method_defs.iter_mut().map(move |meth| {
         let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
         match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
             GeneratedPyMethod::Proto(token_stream) => {
