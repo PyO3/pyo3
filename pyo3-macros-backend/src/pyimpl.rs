@@ -186,24 +186,20 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     }
 }
 
-pub fn gen_default_items(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
+pub fn gen_default_items<'a>(
+    cls: &syn::Ident,
+    method_defs: &'a mut [syn::ImplItemMethod],
+) -> impl Iterator<Item = TokenStream> + 'a {
     // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
     // all succeed.
     let ty: syn::Type = syn::parse_quote!(#cls);
 
-    let mut method_defs: Vec<_> = method_defs
-        .into_iter()
-        .map(|token| syn::parse2::<syn::ImplItemMethod>(token).unwrap())
-        .collect();
-
-    let mut proto_impls = Vec::new();
-
-    for meth in &mut method_defs {
+    method_defs.into_iter().map(move |meth| {
         let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
         match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
             GeneratedPyMethod::Proto(token_stream) => {
                 let attrs = get_cfg_attributes(&meth.attrs);
-                proto_impls.push(quote!(#(#attrs)* #token_stream))
+                quote!(#(#attrs)* #token_stream)
             }
             GeneratedPyMethod::SlotTraitImpl(..) => {
                 panic!("SlotFragment methods cannot have default implementation!")
@@ -212,23 +208,7 @@ pub fn gen_default_items(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> Tok
                 panic!("Only protocol methods can have default implementation!")
             }
         }
-    }
-
-    quote! {
-        impl #cls {
-            #(#method_defs)*
-        }
-        impl _pyo3::impl_::pyclass::PyClassDefaultItems<#cls>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
-                fn pyclass_default_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                    static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
-                        methods: &[],
-                        slots: &[#(#proto_impls),*]
-                    };
-                    &ITEMS
-                }
-        }
-    }
+    })
 }
 
 fn impl_py_methods(

@@ -757,9 +757,6 @@ mod pyproto_traits {
 #[cfg(feature = "pyproto")]
 pub use pyproto_traits::*;
 
-// items that PyO3 implements by default, but can be overidden by the users.
-items_trait!(PyClassDefaultItems, pyclass_default_items);
-
 // Protocol slots from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
 items_trait!(PyMethodsProtocolItems, methods_protocol_items);

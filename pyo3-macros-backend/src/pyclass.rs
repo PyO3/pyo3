@@ -497,23 +497,15 @@ fn impl_enum_class(
     let cls = enum_.ident;
     let variants = enum_.variants;
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
-    let pyclass_impls = PyClassImplsBuilder::new(
-        cls,
-        args,
-        methods_type,
-        unit_variants_as_items(cls, variants.iter().map(|v| v.ident)),
-    )
-    .doc(doc)
-    .impl_all();
 
-    let default_repr_impl = {
+    let default_repr_impl: syn::ImplItemMethod = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!("{}.{}", cls, variant_name);
             quote! { #cls::#variant_name => #repr, }
         });
-        quote! {
+        syn::parse_quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             #[pyo3(name = "__repr__")]
@@ -533,7 +525,7 @@ fn impl_enum_class(
             let variant_name = variant.ident;
             quote! { #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
-        quote! {
+        syn::parse_quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             #[pyo3(name = "__int__")]
@@ -553,7 +545,7 @@ fn impl_enum_class(
                     Ok(true.to_object(py)),
             }
         });
-        quote! {
+        syn::parse_quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             #[pyo3(name = "__richcmp__")]
@@ -584,8 +576,16 @@ fn impl_enum_class(
         }
     };
 
-    let default_items =
-        gen_default_items(cls, vec![default_repr_impl, default_richcmp, default_int]);
+    let mut default_methods = vec![default_repr_impl, default_richcmp, default_int];
+
+    let pyclass_impls = PyClassImplsBuilder::new(
+        cls,
+        args,
+        methods_type,
+        enum_default_items(cls, variants.iter().map(|v| v.ident), &mut default_methods),
+    )
+    .doc(doc)
+    .impl_all();
 
     Ok(quote! {
         const _: () = {
@@ -595,14 +595,17 @@ fn impl_enum_class(
 
             #pyclass_impls
 
-            #default_items
+            impl #cls {
+                #(#default_methods)*
+            }
         };
     })
 }
 
-fn unit_variants_as_items<'a>(
+fn enum_default_items<'a>(
     cls: &'a syn::Ident,
-    variant_names: impl IntoIterator<Item = &'a syn::Ident>,
+    unit_variant_names: impl IntoIterator<Item = &'a syn::Ident>,
+    default_items: &mut [syn::ImplItemMethod],
 ) -> TokenStream {
     let cls_type = syn::parse_quote!(#cls);
     let variant_to_attribute = |ident: &syn::Ident| ConstSpec {
@@ -613,14 +616,16 @@ fn unit_variants_as_items<'a>(
             deprecations: Default::default(),
         },
     };
-    let py_methods = variant_names
+    let py_methods = unit_variant_names
         .into_iter()
         .map(|var| gen_py_const(&cls_type, &variant_to_attribute(var)));
+
+    let slots = gen_default_items(cls, default_items);
 
     quote! {
         _pyo3::impl_::pyclass::PyClassItems {
             methods: &[#(#py_methods),*],
-            slots: &[]
+            slots: &[#(#slots),*]
         }
     }
 }
@@ -918,9 +923,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                     let collector = PyClassImplCollector::<Self>::new();
                     static INTRINSIC_ITEMS: PyClassItems = #default_items;
                     visitor(&INTRINSIC_ITEMS);
-                    // This depends on Python implementation detail;
-                    // an old slot entry will be overriden by newer ones.
-                    visitor(collector.pyclass_default_items());
                     #pymethods_items
                     #pyproto_items
                 }
