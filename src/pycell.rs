@@ -700,8 +700,8 @@ impl<'p, T: PyClass> PyRef<'p, T> {
 
 impl<'p, T, U> AsRef<U> for PyRef<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: MutablePyClass<BaseType = U>, // For now, only mutable classes can be extended
+    U: MutablePyClass,
 {
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
@@ -710,8 +710,8 @@ where
 
 impl<'p, T, U> PyRef<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: MutablePyClass<BaseType = U>, // For now, only mutable classes can be extended
+    U: MutablePyClass,
 {
     /// Gets a `PyRef<T::BaseType>`.
     ///

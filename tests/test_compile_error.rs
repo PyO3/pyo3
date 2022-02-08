@@ -17,6 +17,7 @@ fn test_compile_errors() {
 
 fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
+    t.compile_fail("tests/ui/invalid_immutable_pyclass_borrow.rs");
     t.compile_fail("tests/ui/invalid_macro_args.rs");
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
@@ -28,12 +29,8 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-<<<<<<< HEAD
     t.compile_fail("tests/ui/invalid_pymethod_proto_args.rs");
     t.compile_fail("tests/ui/invalid_pymethod_proto_args_py.rs");
-=======
-    t.compile_fail("tests/ui/invalid_immutable_pyclass_borrow.rs");
->>>>>>> 0fa03a67cd (Implement opt-in immutable pyclasses)
 
     tests_rust_1_49(&t);
     tests_rust_1_56(&t);

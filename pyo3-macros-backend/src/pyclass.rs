@@ -592,28 +592,11 @@ fn impl_enum_class(
     let default_items =
         gen_default_items(cls, vec![default_repr_impl, default_richcmp, default_int]);
 
-    let mutability = if args.is_immutable {
-        quote! {
-            unsafe impl _pyo3::pyclass::ImmutablePyClass for #cls {}
-        }
-    } else {
-        quote! {
-            unsafe impl _pyo3::pyclass::MutablePyClass for #cls {}
-
-            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
-            {
-                type Target = _pyo3::PyRefMut<'a, #cls>;
-            }
-        }
-    };
-
     Ok(quote! {
         const _: () = {
             use #krate as _pyo3;
 
             #pytypeinfo
-
-            #mutability
 
             #pyclass_impls
 
@@ -801,7 +784,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let base_nativetype = if attr.has_extends {
-            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType>::BaseNativeType }
+            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType<Self::Mutability>>::BaseNativeType }
         } else {
             quote! { _pyo3::PyAny }
         };
@@ -810,7 +793,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
-                type Mutability = _pyo3::pycell::Immutable;
             }
         }
     }
@@ -944,7 +926,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         quote! {
-            impl _pyo3::impl_::pyclass::PyClassImpl<#mutability> for #cls {
+            impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
                 const IS_GC: bool = #is_gc;
                 const IS_BASETYPE: bool = #is_basetype;
@@ -954,6 +936,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
+                type Mutability = #mutability;
 
                 fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
                     use _pyo3::impl_::pyclass::*;
@@ -985,9 +968,9 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #dict_offset
 
                 #weaklist_offset
-
-                #inventory_class
             }
+
+            #inventory_class
         }
     }
 

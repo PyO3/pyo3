@@ -11,20 +11,8 @@ note: required because it appears within the type `NotThreadSafe`
 5   | struct NotThreadSafe {
     |        ^^^^^^^^^^^^^
 note: required by a bound in `ThreadCheckerStub`
-<<<<<<< HEAD
-<<<<<<< HEAD
    --> src/impl_/pyclass.rs
     |
     | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
-=======
-   --> src/class/impl_.rs:731:33
-    |
-731 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
->>>>>>> 0fa03a67cd (Implement opt-in immutable pyclasses)
-=======
-   --> src/class/impl_.rs:728:33
-    |
-728 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
->>>>>>> 7cded1178d (Fix formatting.)
     |                                 ^^^^ required by this bound in `ThreadCheckerStub`
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

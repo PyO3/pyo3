@@ -1,14 +1,16 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
+use crate::pycell::Mutability;
+use crate::pyclass::MutablePyClass;
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{BorrowFlag, PyCellContents},
+    pycell::PyCellContents,
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::UnsafeCell,
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
 };
@@ -193,7 +195,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass<BaseType = T>,
-        S::BaseType: PyClassBaseType<T::Mutability, Initializer = Self>,
+        S::BaseType: PyClassBaseType<S::Mutability, Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
@@ -234,9 +236,9 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         /// Layout of a PyCellBase after base new has been called, but the borrow flag has not
         /// yet been initialized.
         #[repr(C)]
-        struct PartiallyInitializedPyCellBase<T: PyClass> {
+        struct PartiallyInitializedPyCellBase<T, M: Mutability> {
             _ob_base: T,
-            borrow_flag: MaybeUninit<T::Mutability>,
+            borrow_flag: MaybeUninit<M>,
         }
 
         /// Layout of a PyCell after base new has been called, but the contents have not yet been
@@ -251,11 +253,8 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         let obj = super_init.into_new_object(py, subtype)?;
 
         // FIXME: Only need to initialize borrow flag once per whole hierarchy
-        let base: *mut PartiallyInitializedPyCellBase<T::BaseNativeType> = obj as _;
-        std::ptr::write(
-            (*base).borrow_flag.as_mut_ptr(),
-            Cell::new(BorrowFlag::UNUSED),
-        );
+        let base: *mut PartiallyInitializedPyCellBase<T::BaseNativeType, T::Mutability> = obj as _;
+        std::ptr::write((*base).borrow_flag.as_mut_ptr(), T::Mutability::new());
 
         // FIXME: Initialize borrow flag if necessary??
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
@@ -287,9 +286,9 @@ where
 
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
-    S: PyClass<BaseType = B>,
-    B: PyClass,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+    S: MutablePyClass<BaseType = B>,
+    B: MutablePyClass,
+    B::BaseType: PyClassBaseType<S::Mutability, Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
