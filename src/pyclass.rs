@@ -3,8 +3,8 @@ use crate::{
     callback::IntoPyCallbackOutput,
     ffi,
     impl_::pyclass::{
-        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
-        tp_dealloc, PyClassDict, PyClassImpl, PyClassItems, PyClassWeakRef,
+        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
+        PyClassImpl, PyClassItems, PyClassWeakRef,
     },
     IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
     PyTypeInfo, Python,
@@ -49,10 +49,7 @@ where
             T::NAME,
             T::BaseType::type_object_raw(py),
             std::mem::size_of::<T::Layout>(),
-            T::get_new(),
             tp_dealloc::<T>,
-            T::get_alloc(),
-            T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
             &T::for_all_items,
@@ -73,10 +70,7 @@ unsafe fn create_type_object_impl(
     name: &str,
     base_type_object: *mut ffi::PyTypeObject,
     basicsize: usize,
-    tp_new: Option<ffi::newfunc>,
     tp_dealloc: ffi::destructor,
-    tp_alloc: Option<ffi::allocfunc>,
-    tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
     for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
@@ -94,19 +88,7 @@ unsafe fn create_type_object_impl(
         push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
     }
 
-    push_slot(
-        &mut slots,
-        ffi::Py_tp_new,
-        tp_new.unwrap_or(fallback_new) as _,
-    );
     push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
-
-    if let Some(alloc) = tp_alloc {
-        push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
-    }
-    if let Some(free) = tp_free {
-        push_slot(&mut slots, ffi::Py_tp_free, free as _);
-    }
 
     #[cfg(Py_3_9)]
     {
@@ -132,6 +114,7 @@ unsafe fn create_type_object_impl(
     }
 
     // protocol methods
+    let mut has_new = false;
     let mut has_getitem = false;
     let mut has_setitem = false;
     let mut has_gc_methods = false;
@@ -142,6 +125,7 @@ unsafe fn create_type_object_impl(
 
     for_all_items(&mut |items| {
         for slot in items.slots {
+            has_new |= slot.slot == ffi::Py_tp_new;
             has_getitem |= slot.slot == ffi::Py_mp_subscript;
             has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
             has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
@@ -180,6 +164,10 @@ unsafe fn create_type_object_impl(
             ffi::Py_sq_ass_item,
             assign_sequence_item_from_mapping as _,
         );
+    }
+
+    if !has_new {
+        push_slot(&mut slots, ffi::Py_tp_new, no_constructor_defined as _);
     }
 
     // Add empty sentinel at the end
@@ -560,4 +548,17 @@ where
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }
+}
+
+/// Default new implementation
+pub(crate) unsafe extern "C" fn no_constructor_defined(
+    _subtype: *mut ffi::PyTypeObject,
+    _args: *mut ffi::PyObject,
+    _kwds: *mut ffi::PyObject,
+) -> *mut ffi::PyObject {
+    crate::callback_body!(py, {
+        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+            "No constructor defined",
+        ))
+    })
 }
