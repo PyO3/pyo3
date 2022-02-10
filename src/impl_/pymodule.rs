@@ -1,9 +1,10 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{cell::UnsafeCell, panic::AssertUnwindSafe};
+use std::cell::UnsafeCell;
 
 use crate::{
-    callback::handle_panic, ffi, types::PyModule, IntoPyPointer, Py, PyObject, PyResult, Python,
+    callback::panic_result_into_callback_output, ffi, types::PyModule, GILPool, IntoPyPointer, Py,
+    PyObject, PyResult, Python,
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
@@ -64,8 +65,15 @@ impl ModuleDef {
     /// # Safety
     /// The Python GIL must be held.
     pub unsafe fn module_init(&'static self) -> *mut ffi::PyObject {
-        let unwind_safe_self = AssertUnwindSafe(self);
-        handle_panic(|py| Ok(unwind_safe_self.make_module(py)?.into_ptr()))
+        let pool = GILPool::new();
+        let py = pool.python();
+        let unwind_safe_self = std::panic::AssertUnwindSafe(self);
+        panic_result_into_callback_output(
+            py,
+            std::panic::catch_unwind(move || -> PyResult<_> {
+                Ok(unwind_safe_self.make_module(py)?.into_ptr())
+            }),
+        )
     }
 }
 

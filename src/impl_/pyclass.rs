@@ -260,14 +260,19 @@ macro_rules! define_pyclass_setattr_slot {
                     use ::std::option::Option::*;
                     use $crate::callback::IntoPyCallbackOutput;
                     use $crate::impl_::pyclass::*;
-                    $crate::callback::handle_panic(|py| {
-                        let collector = PyClassImplCollector::<$cls>::new();
-                        if let Some(value) = ::std::ptr::NonNull::new(value) {
-                            collector.$set(py, _slf, attr, value).convert(py)
-                        } else {
-                            collector.$del(py, _slf, attr).convert(py)
-                        }
-                    })
+                    let gil = $crate::GILPool::new();
+                    let py = gil.python();
+                    $crate::callback::panic_result_into_callback_output(
+                        py,
+                        ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+                            let collector = PyClassImplCollector::<$cls>::new();
+                            if let Some(value) = ::std::ptr::NonNull::new(value) {
+                                collector.$set(py, _slf, attr, value).convert(py)
+                            } else {
+                                collector.$del(py, _slf, attr).convert(py)
+                            }
+                        }),
+                    )
                 }
                 $crate::ffi::PyType_Slot {
                     slot: $crate::ffi::$slot,
@@ -367,17 +372,22 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     _other: *mut $crate::ffi::PyObject,
                 ) -> *mut $crate::ffi::PyObject {
-                    $crate::callback::handle_panic(|py| {
-                        use $crate::impl_::pyclass::*;
-                        let collector = PyClassImplCollector::<$cls>::new();
-                        let lhs_result = collector.$lhs(py, _slf, _other)?;
-                        if lhs_result == $crate::ffi::Py_NotImplemented() {
-                            $crate::ffi::Py_DECREF(lhs_result);
-                            collector.$rhs(py, _other, _slf)
-                        } else {
-                            ::std::result::Result::Ok(lhs_result)
-                        }
-                    })
+                    let gil = $crate::GILPool::new();
+                    let py = gil.python();
+                    $crate::callback::panic_result_into_callback_output(
+                        py,
+                        ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+                            use $crate::impl_::pyclass::*;
+                            let collector = PyClassImplCollector::<$cls>::new();
+                            let lhs_result = collector.$lhs(py, _slf, _other)?;
+                            if lhs_result == $crate::ffi::Py_NotImplemented() {
+                                $crate::ffi::Py_DECREF(lhs_result);
+                                collector.$rhs(py, _other, _slf)
+                            } else {
+                                ::std::result::Result::Ok(lhs_result)
+                            }
+                        }),
+                    )
                 }
                 $crate::ffi::PyType_Slot {
                     slot: $crate::ffi::$slot,
@@ -560,17 +570,22 @@ macro_rules! generate_pyclass_pow_slot {
             _other: *mut $crate::ffi::PyObject,
             _mod: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
-            $crate::callback::handle_panic(|py| {
-                use $crate::impl_::pyclass::*;
-                let collector = PyClassImplCollector::<$cls>::new();
-                let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
-                if lhs_result == $crate::ffi::Py_NotImplemented() {
-                    $crate::ffi::Py_DECREF(lhs_result);
-                    collector.__rpow__(py, _other, _slf, _mod)
-                } else {
-                    ::std::result::Result::Ok(lhs_result)
-                }
-            })
+            let gil = $crate::GILPool::new();
+            let py = gil.python();
+            $crate::callback::panic_result_into_callback_output(
+                py,
+                ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+                    use $crate::impl_::pyclass::*;
+                    let collector = PyClassImplCollector::<$cls>::new();
+                    let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
+                    if lhs_result == $crate::ffi::Py_NotImplemented() {
+                        $crate::ffi::Py_DECREF(lhs_result);
+                        collector.__rpow__(py, _other, _slf, _mod)
+                    } else {
+                        ::std::result::Result::Ok(lhs_result)
+                    }
+                }),
+            )
         }
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_nb_power,
