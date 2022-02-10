@@ -757,7 +757,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             self.impl_into_py(),
             self.impl_pyclassimpl(),
             self.impl_freelist(),
-            self.impl_gc(),
         ]
         .into_iter()
         .collect()
@@ -979,26 +978,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             ]
         } else {
             Vec::new()
-        }
-    }
-
-    /// Enforce at compile time that PyGCProtocol is implemented
-    fn impl_gc(&self) -> TokenStream {
-        let cls = self.cls;
-        let attr = self.attr;
-        if attr.is_gc {
-            let closure_name = format!("__assertion_closure_{}", cls);
-            let closure_token = syn::Ident::new(&closure_name, Span::call_site());
-            quote! {
-                fn #closure_token() {
-                    use _pyo3::class;
-
-                    fn _assert_implements_protocol<'p, T: _pyo3::class::PyGCProtocol<'p>>() {}
-                    _assert_implements_protocol::<#cls>();
-                }
-            }
-        } else {
-            quote! {}
         }
     }
 }

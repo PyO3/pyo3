@@ -1,7 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(feature = "pyproto")] // FIXME: #[pymethods] to support gc protocol
 
-use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
@@ -90,8 +88,8 @@ struct GcIntegration {
     dropped: TestDropCall,
 }
 
-#[pyproto]
-impl PyGCProtocol for GcIntegration {
+#[pymethods]
+impl GcIntegration {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
         visit.call(&self.self_ref)
     }
@@ -133,8 +131,8 @@ fn gc_integration() {
 #[pyclass(gc)]
 struct GcIntegration2 {}
 
-#[pyproto]
-impl PyGCProtocol for GcIntegration2 {
+#[pymethods]
+impl GcIntegration2 {
     fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
@@ -230,8 +228,8 @@ impl TraversableClass {
     }
 }
 
-#[pyproto]
-impl PyGCProtocol for TraversableClass {
+#[pymethods]
+impl TraversableClass {
     fn __clear__(&mut self) {}
     fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         self.traversed.store(true, Ordering::Relaxed);

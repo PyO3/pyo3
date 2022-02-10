@@ -175,7 +175,8 @@ given signatures should be interpreted as follows:
 
 #### Garbage Collector Integration
 
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
+  - `__traverse__(<self>, visit: pyo3::class::gc::PyVisit) -> Result<(), pyo3::class::gc::PyTraverseError>`
+  - `__clear__(<self>) -> ()`
 
 ### `#[pyproto]` traits
 
