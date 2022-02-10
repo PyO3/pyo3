@@ -490,10 +490,12 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -508,11 +510,13 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -526,11 +530,13 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -546,13 +552,15 @@ impl<'a> FnSpec<'a> {
                         use #krate as _pyo3;
                         #deprecations
                         use _pyo3::callback::IntoPyCallbackOutput;
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #arg_convert
                             let result = #rust_call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
                             ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
-                        })
+                        }))
                     }
                 }
             }

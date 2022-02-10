@@ -245,7 +245,11 @@ where
     panic_result_into_callback_output(py, panic::catch_unwind(move || -> PyResult<_> { body(py) }))
 }
 
-fn panic_result_into_callback_output<R>(
+/// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
+/// exception or by unwrapping the contained success output.
+#[doc(hidden)]
+#[inline]
+pub fn panic_result_into_callback_output<R>(
     py: Python,
     panic_result: Result<PyResult<R>, Box<dyn Any + Send + 'static>>,
 ) -> R

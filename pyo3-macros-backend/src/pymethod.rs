@@ -304,7 +304,9 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                         _value: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
                     ) -> ::std::os::raw::c_int {
-                        _pyo3::callback::handle_panic(|_py| {
+                        let gil = _pyo3::GILPool::new();
+                        let _py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #slf
                             let _value = _py
                                 .from_borrowed_ptr_or_opt(_value)
@@ -314,7 +316,7 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                             let _val = _pyo3::FromPyObject::extract(_value)?;
 
                             _pyo3::callback::convert(_py, #setter_impl)
-                        })
+                        }))
                     }
                     __wrap
                 }),
@@ -383,10 +385,12 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                         _slf: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
                     ) -> *mut _pyo3::ffi::PyObject {
-                        _pyo3::callback::handle_panic(|_py| {
+                        let gil = _pyo3::GILPool::new();
+                        let _py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #slf
                             _pyo3::callback::convert(_py, #getter_impl)
-                        })
+                        }))
                     }
                     __wrap
                 }),
@@ -880,9 +884,11 @@ impl SlotDef {
             unsafe extern "C" fn __wrap(_raw_slf: *mut _pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
                 #before_call_method
-                _pyo3::callback::handle_panic(|#py| {
+                let gil = _pyo3::GILPool::new();
+                let #py = gil.python();
+                _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                     #body
-                })
+                }))
             }
             _pyo3::ffi::PyType_Slot {
                 slot: _pyo3::ffi::#slot,
