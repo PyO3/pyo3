@@ -3,12 +3,14 @@ use quote::{quote_spanned, ToTokens};
 
 pub enum Deprecation {
     CallAttribute,
+    PyClassGcOption,
 }
 
 impl Deprecation {
     fn ident(&self, span: Span) -> syn::Ident {
         let string = match self {
             Deprecation::CallAttribute => "CALL_ATTRIBUTE",
+            Deprecation::PyClassGcOption => "PYCLASS_GC_OPTION",
         };
         syn::Ident::new(string, span)
     }

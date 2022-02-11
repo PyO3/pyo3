@@ -128,7 +128,7 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[pyclass]
 struct GcIntegration2 {}
 
 #[pymethods]
@@ -215,7 +215,7 @@ fn inheritance_with_new_methods_with_drop() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[pyclass]
 struct TraversableClass {
     traversed: AtomicBool,
 }

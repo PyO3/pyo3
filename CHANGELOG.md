@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyTZInfo_CheckExact`
   - `PyDateTime_FromTimestamp`
   - `PyDate_FromTimestamp`
+- Deprecate the `gc` option for `pyclass` (e.g. `#[pyclass(gc)]`). Just implement a `__traverse__` `#[pymethod]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
 - The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
 
 ### Removed

@@ -1,6 +1,7 @@
 //! `PyClass` and related traits.
 use crate::{
     callback::IntoPyCallbackOutput,
+    exceptions::PyTypeError,
     ffi,
     impl_::pyclass::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
@@ -53,7 +54,6 @@ where
             T::dict_offset(),
             T::weaklist_offset(),
             &T::for_all_items,
-            T::IS_GC,
             T::IS_BASETYPE,
         )
     } {
@@ -74,7 +74,6 @@ unsafe fn create_type_object_impl(
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
     for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
-    is_gc: bool,
     is_basetype: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
@@ -117,7 +116,8 @@ unsafe fn create_type_object_impl(
     let mut has_new = false;
     let mut has_getitem = false;
     let mut has_setitem = false;
-    let mut has_gc_methods = false;
+    let mut has_traverse = false;
+    let mut has_clear = false;
 
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -125,20 +125,23 @@ unsafe fn create_type_object_impl(
 
     for_all_items(&mut |items| {
         for slot in items.slots {
-            has_new |= slot.slot == ffi::Py_tp_new;
-            has_getitem |= slot.slot == ffi::Py_mp_subscript;
-            has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
-            has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_getbuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
-            }
-
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_releasebuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+            match slot.slot {
+                ffi::Py_tp_new => has_new = true,
+                ffi::Py_mp_subscript => has_getitem = true,
+                ffi::Py_mp_ass_subscript => has_setitem = true,
+                ffi::Py_tp_traverse => has_traverse = true,
+                ffi::Py_tp_clear => has_clear = true,
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_getbuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_releasebuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                _ => {}
             }
         }
         slots.extend_from_slice(items.slots);
@@ -170,6 +173,13 @@ unsafe fn create_type_object_impl(
         push_slot(&mut slots, ffi::Py_tp_new, no_constructor_defined as _);
     }
 
+    if has_clear && !has_traverse {
+        return Err(PyTypeError::new_err(format!(
+            "`#[pyclass]` {} implements __clear__ without __traverse__",
+            name
+        )));
+    }
+
     // Add empty sentinel at the end
     push_slot(&mut slots, 0, ptr::null_mut());
 
@@ -177,7 +187,7 @@ unsafe fn create_type_object_impl(
         name: py_class_qualified_name(module_name, name)?,
         basicsize: basicsize as c_int,
         itemsize: 0,
-        flags: py_class_flags(has_gc_methods, is_gc, is_basetype),
+        flags: py_class_flags(has_traverse, is_basetype),
         slots: slots.as_mut_ptr(),
     };
 
@@ -287,12 +297,13 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
     .into_raw())
 }
 
-fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uint {
-    let mut flags = if has_gc_methods || is_gc {
-        ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
-    } else {
-        ffi::Py_TPFLAGS_DEFAULT
-    };
+fn py_class_flags(is_gc: bool, is_basetype: bool) -> c_uint {
+    let mut flags = ffi::Py_TPFLAGS_DEFAULT;
+
+    if is_gc {
+        flags |= ffi::Py_TPFLAGS_HAVE_GC;
+    }
+
     if is_basetype {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }

@@ -3,7 +3,7 @@
 use crate::attributes::{
     self, take_pyo3_options, CrateAttribute, NameAttribute, TextSignatureAttribute,
 };
-use crate::deprecations::Deprecations;
+use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::pyimpl::{gen_default_items, gen_py_const, PyClassMethodsType};
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
@@ -29,12 +29,12 @@ pub struct PyClassArgs {
     pub base: syn::TypePath,
     pub has_dict: bool,
     pub has_weaklist: bool,
-    pub is_gc: bool,
     pub is_basetype: bool,
     pub has_extends: bool,
     pub has_unsendable: bool,
     pub module: Option<syn::LitStr>,
     pub class_kind: PyClassKind,
+    pub deprecations: Deprecations,
 }
 
 impl PyClassArgs {
@@ -63,11 +63,11 @@ impl PyClassArgs {
             base: parse_quote! { _pyo3::PyAny },
             has_dict: false,
             has_weaklist: false,
-            is_gc: false,
             is_basetype: false,
             has_extends: false,
             has_unsendable: false,
             class_kind,
+            deprecations: Deprecations::new(),
         }
     }
 
@@ -158,9 +158,9 @@ impl PyClassArgs {
     fn add_path(&mut self, exp: &syn::ExprPath) -> syn::Result<()> {
         let flag = exp.path.segments.first().unwrap().ident.to_string();
         match flag.as_str() {
-            "gc" => {
-                self.is_gc = true;
-            }
+            "gc" => self
+                .deprecations
+                .push(Deprecation::PyClassGcOption, exp.span()),
             "weakref" => {
                 self.has_weaklist = true;
             }
@@ -825,7 +825,6 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self) -> TokenStream {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
-        let is_gc = self.attr.is_gc;
         let is_basetype = self.attr.is_basetype;
         let base = &self.attr.base;
         let is_subclass = self.attr.has_extends;
@@ -903,10 +902,11 @@ impl<'a> PyClassImplsBuilder<'a> {
         let default_slots = &self.default_slots;
         let freelist_slots = self.freelist_slots();
 
+        let deprecations = &self.attr.deprecations;
+
         quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
-                const IS_GC: bool = #is_gc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
 
@@ -918,6 +918,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
+                    #deprecations;
                     static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
                         methods: &[#(#default_methods),*],
                         slots: &[#(#default_slots),* #(#freelist_slots),*],
