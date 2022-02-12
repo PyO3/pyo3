@@ -111,7 +111,7 @@ macro_rules! bigint_conversion {
                     let num: Py<PyLong> =
                         Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))?;
                     let n_bits = ffi::_PyLong_NumBits(num.as_ptr());
-                    let n_bytes = if n_bits == usize::MAX {
+                    let n_bytes = if n_bits == (-1isize as usize) {
                         return Err(PyErr::fetch(py));
                     } else if n_bits == 0 {
                         0
