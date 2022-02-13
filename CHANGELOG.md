@@ -85,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed undefined behaviour caused by incorrect `ExactSizeIterator` implementations. [#2124](https://github.com/PyO3/pyo3/pull/2124)
 - Add missing FFI definitions `_PyLong_NumBits` and `_PyLong_AsByteArray` on PyPy. [#2146](https://github.com/PyO3/pyo3/pull/2146)
 - Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
+- Fix the signature of `_PyLong_NumBits` [#2161](https://github.com/PyO3/pyo3/pull/2161)
 
 ## [0.15.1] - 2021-11-19
 

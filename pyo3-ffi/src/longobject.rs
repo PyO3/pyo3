@@ -97,7 +97,7 @@ extern "C" {
     // skipped non-limited _PyLong_Sign
 
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
+    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 
     // skipped _PyLong_DivmodNear
 
