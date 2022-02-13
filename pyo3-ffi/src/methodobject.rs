@@ -31,7 +31,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 pub type PyCFunction =
     unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 pub type _PyCFunctionFast = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *mut *mut PyObject,
@@ -52,7 +52,14 @@ pub type _PyCFunctionFastWithKeywords = unsafe extern "C" fn(
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
-// skipped PyCMethod (since 3.9)
+#[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+pub type PyCMethod = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    defining_class: *mut PyTypeObject,
+    args: *const *mut PyObject,
+    nargs: crate::pyport::Py_ssize_t,
+    kwnames: *mut PyObject,
+) -> *mut PyObject;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
@@ -71,10 +78,43 @@ extern "C" {
 #[derive(Copy, Clone)]
 pub struct PyMethodDef {
     pub ml_name: *const c_char,
-    pub ml_meth: Option<PyCFunction>,
+    pub ml_meth: MlMeth,
     pub ml_flags: c_int,
     pub ml_doc: *const c_char,
 }
+
+/// Function types used to implement Python callables.
+///
+/// This union must be accompanied by the correct [ml_flags](PyMethodDef::ml_flags),
+/// otherwise the behavior is undefined.
+///
+/// See the [Python C API documentation][1] for more information.
+///
+/// [1]: https://docs.python.org/3/c-api/structures.html#implementing-functions-and-methods
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union MlMeth {
+    /// This variant corresponds with [`METH_VARARGS`] *or* [`METH_NOARGS`] *or* [`METH_O`].
+    pub PyCFunction: Option<PyCFunction>,
+
+    /// This variant corresponds with [`METH_VARARGS`] | [`METH_KEYWORDS`].
+    pub PyCFunctionWithKeywords: Option<PyCFunctionWithKeywords>,
+
+    /// This variant corresponds with [`METH_FASTCALL`].
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    pub _PyCFunctionFast: Option<_PyCFunctionFast>,
+
+    /// This variant corresponds with [`METH_FASTCALL`] | [`METH_KEYWORDS`].
+    #[cfg(not(Py_LIMITED_API))]
+    pub _PyCFunctionFastWithKeywords: Option<_PyCFunctionFastWithKeywords>,
+
+    /// This variant corresponds with [`METH_METHOD`] | [`METH_FASTCALL`] | [`METH_KEYWORDS`].
+    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    pub PyCMethod: Option<PyCMethod>,
+}
+
+// TODO: This can be a const assert on Rust 1.57
+const _: () = [()][mem::size_of::<MlMeth>() - mem::size_of::<Option<extern "C" fn()>>()];
 
 impl Default for PyMethodDef {
     fn default() -> PyMethodDef {
@@ -122,7 +162,9 @@ be specified alone or with METH_KEYWORDS. */
 pub const METH_FASTCALL: c_int = 0x0080;
 
 // skipped METH_STACKLESS
-// skipped METH_METHOD
+
+#[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+pub const METH_METHOD: c_int = 0x0200;
 
 extern "C" {
     #[cfg(not(Py_3_9))]
