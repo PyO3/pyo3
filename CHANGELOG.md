@@ -69,10 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyTZInfo_CheckExact`
   - `PyDateTime_FromTimestamp`
   - `PyDate_FromTimestamp`
+- The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
 
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
+- Remove `Default` impl for `PyMethodDef` [2166](https://github.com/PyO3/pyo3/pull/2166)
 
 ### Fixed
 
