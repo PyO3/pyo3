@@ -15,27 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==21.12b0
+      - run: pip install nox
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: rustfmt
       - name: Check python formatting (black)
-        run: make fmt_py
+        run: nox -s fmt-py
       - name: Check rust formatting (rustfmt)
-        run: make fmt_rust
+        run: nox -s fmt-rust
 
   clippy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - run: pip install nox
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: clippy
-      - run: make clippy
+      - run: nox -s clippy
 
   check-target:
     needs: [fmt]
