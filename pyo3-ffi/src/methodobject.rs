@@ -78,14 +78,14 @@ extern "C" {
 #[derive(Copy, Clone)]
 pub struct PyMethodDef {
     pub ml_name: *const c_char,
-    pub ml_meth: MlMeth,
+    pub ml_meth: PyMethodDefPointer,
     pub ml_flags: c_int,
     pub ml_doc: *const c_char,
 }
 
 /// Function types used to implement Python callables.
 ///
-/// This union must be accompanied by the correct [ml_flags](PyMethodDef::ml_flags),
+/// This function pointer must be accompanied by the correct [ml_flags](PyMethodDef::ml_flags),
 /// otherwise the behavior is undefined.
 ///
 /// See the [Python C API documentation][1] for more information.
@@ -93,34 +93,29 @@ pub struct PyMethodDef {
 /// [1]: https://docs.python.org/3/c-api/structures.html#implementing-functions-and-methods
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub union MlMeth {
+pub union PyMethodDefPointer {
     /// This variant corresponds with [`METH_VARARGS`] *or* [`METH_NOARGS`] *or* [`METH_O`].
-    pub PyCFunction: Option<PyCFunction>,
+    pub PyCFunction: PyCFunction,
 
     /// This variant corresponds with [`METH_VARARGS`] | [`METH_KEYWORDS`].
-    pub PyCFunctionWithKeywords: Option<PyCFunctionWithKeywords>,
+    pub PyCFunctionWithKeywords: PyCFunctionWithKeywords,
 
     /// This variant corresponds with [`METH_FASTCALL`].
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    pub _PyCFunctionFast: Option<_PyCFunctionFast>,
+    pub _PyCFunctionFast: _PyCFunctionFast,
 
     /// This variant corresponds with [`METH_FASTCALL`] | [`METH_KEYWORDS`].
     #[cfg(not(Py_LIMITED_API))]
-    pub _PyCFunctionFastWithKeywords: Option<_PyCFunctionFastWithKeywords>,
+    pub _PyCFunctionFastWithKeywords: _PyCFunctionFastWithKeywords,
 
     /// This variant corresponds with [`METH_METHOD`] | [`METH_FASTCALL`] | [`METH_KEYWORDS`].
     #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
-    pub PyCMethod: Option<PyCMethod>,
+    pub PyCMethod: PyCMethod,
 }
 
 // TODO: This can be a const assert on Rust 1.57
-const _: () = [()][mem::size_of::<MlMeth>() - mem::size_of::<Option<extern "C" fn()>>()];
-
-impl Default for PyMethodDef {
-    fn default() -> PyMethodDef {
-        unsafe { mem::zeroed() }
-    }
-}
+const _: () =
+    [()][mem::size_of::<PyMethodDefPointer>() - mem::size_of::<Option<extern "C" fn()>>()];
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]

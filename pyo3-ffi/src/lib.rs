@@ -113,8 +113,8 @@
 //!
 //!     let wrapped_sum_as_string = PyMethodDef {
 //!         ml_name: "sum_as_string\0".as_ptr() as *const c_char,
-//!         ml_meth: MlMeth {
-//!             _PyCFunctionFast: Some(sum_as_string)
+//!         ml_meth: PyMethodDefPointer {
+//!             _PyCFunctionFast: sum_as_string
 //!         },
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: "returns the sum of two integers as a string\0".as_ptr() as *const c_char,
