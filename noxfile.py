@@ -40,7 +40,7 @@ def fmt_rust(session: nox.Session):
 
 @nox.session(name="fmt-py")
 def fmt_py(session: nox.Session):
-    session.install("black==21.12b0")
+    session.install("black==22.1.0")
     session.run("black", ".", "--check")
 
 
