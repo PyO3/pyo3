@@ -1010,7 +1010,7 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
             items: _pyo3::impl_::pyclass::PyClassItems,
         }
         impl #inventory_class_name {
-            const fn new(items: _pyo3::impl_::pyclass::PyClassItems) -> Self {
+            pub const fn new(items: _pyo3::impl_::pyclass::PyClassItems) -> Self {
                 Self { items }
             }
         }
