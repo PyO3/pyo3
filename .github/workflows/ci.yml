@@ -70,7 +70,7 @@ jobs:
 
   build:
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
-    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} ${{ matrix.msrv }}
+    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
