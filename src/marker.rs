@@ -28,6 +28,10 @@
 //! unsafe impl<T: Send> Ungil for T {}
 //! ```
 //!
+//! We piggy-back off the `Send` auto trait because it is not possible to implement custom auto
+//! traits on stable Rust. This is the solution which enables it for as many types as possible while
+//! making the API usable.
+//!
 //! In practice this API works quite well, but it comes with some drawbacks:
 //!
 //! ## Drawbacks
@@ -135,9 +139,11 @@ use std::os::raw::c_int;
 /// the GIL is not held.
 ///
 /// See the [module-level documentation](self) for more information.
+#[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
 pub unsafe trait Ungil {}
 
+#[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
 unsafe impl<T: Send> Ungil for T {}
 
