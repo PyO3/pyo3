@@ -7,12 +7,22 @@ fn test_compile_errors() {
     _test_compile_errors()
 }
 
+#[cfg(not(feature = "nightly"))]
 #[rustversion::nightly]
 #[test]
 fn test_compile_errors() {
     // nightly - don't care if test output is potentially wrong, to avoid churn in PyO3's CI thanks
     // to diagnostics changing on nightly.
     let _ = std::panic::catch_unwind(_test_compile_errors);
+}
+
+#[cfg(feature = "nightly")]
+#[rustversion::nightly]
+#[test]
+fn test_compile_errors() {
+    // nightly - don't care if test output is potentially wrong, to avoid churn in PyO3's CI thanks
+    // to diagnostics changing on nightly.
+    _test_compile_errors()
 }
 
 #[cfg(not(feature = "nightly"))]
