@@ -149,9 +149,6 @@ pub trait PyClassImpl: Sized {
     /// Class doc string
     const DOC: &'static str = "\0";
 
-    /// #[pyclass(gc)]
-    const IS_GC: bool = false;
-
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
 

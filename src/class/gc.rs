@@ -83,4 +83,20 @@ impl<'p> PyVisit<'p> {
             Err(PyTraverseError(r))
         }
     }
+
+    /// Creates the PyVisit from the arguments to tp_traverse
+    #[doc(hidden)]
+    pub unsafe fn from_raw(visit: ffi::visitproc, arg: *mut c_void, _py: Python<'p>) -> Self {
+        Self { visit, arg, _py }
+    }
+}
+
+/// Unwraps the result of __traverse__ for tp_traverse
+#[doc(hidden)]
+#[inline]
+pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
+    match result {
+        Ok(()) => 0,
+        Err(PyTraverseError(value)) => value,
+    }
 }

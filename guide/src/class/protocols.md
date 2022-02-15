@@ -175,7 +175,8 @@ given signatures should be interpreted as follows:
 
 #### Garbage Collector Integration
 
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
+  - `__traverse__(<self>, visit: pyo3::class::gc::PyVisit) -> Result<(), pyo3::class::gc::PyTraverseError>`
+  - `__clear__(<self>) -> ()`
 
 ### `#[pyproto]` traits
 
@@ -442,19 +443,6 @@ impl PyGCProtocol for ClassWithGCSupport {
         self.obj = None;
     }
 }
-```
-
-Special protocol trait implementations have to be annotated with the `#[pyproto]` attribute.
-
-It is also possible to enable GC for custom classes using the `gc` parameter of the `pyclass` attribute.
-i.e. `#[pyclass(gc)]`. In that case instances of custom class participate in Python garbage
-collection, and it is possible to track them with `gc` module methods. When using the `gc` parameter,
-it is *required* to implement the `PyGCProtocol` trait, failure to do so will result in an error
-at compile time:
-
-```compile_fail
-#[pyclass(gc)]
-struct GCTracked {} // Fails because it does not implement PyGCProtocol
 ```
 
 #### Iterator Types

@@ -266,3 +266,18 @@ where
         R::ERR_VALUE
     })
 }
+
+/// Aborts if panic has occurred. Used inside `__traverse__` implementations, where panicking is not possible.
+#[doc(hidden)]
+#[inline]
+pub fn abort_on_traverse_panic(
+    panic_result: Result<c_int, Box<dyn Any + Send + 'static>>,
+) -> c_int {
+    match panic_result {
+        Ok(traverse_result) => traverse_result,
+        Err(_payload) => {
+            eprintln!("FATAL: panic inside __traverse__ handler; aborting.");
+            ::std::process::abort()
+        }
+    }
+}
