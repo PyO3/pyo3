@@ -51,6 +51,8 @@ impl PyMethodKind {
             "__anext__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ANEXT__)),
             "__len__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__LEN__)),
             "__contains__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONTAINS__)),
+            "__concat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONCAT__)),
+            "__repeat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPEAT__)),
             "__getitem__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETITEM__)),
             "__pos__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__POS__)),
             "__neg__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEG__)),
@@ -602,6 +604,8 @@ const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySs
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
+const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
+const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
 const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");

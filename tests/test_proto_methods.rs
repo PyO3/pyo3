@@ -608,6 +608,7 @@ fn getattr_doesnt_override_member() {
 
 /// Wraps a Python future and yield it once.
 #[pyclass]
+#[derive(Debug)]
 struct OnceFuture {
     future: PyObject,
     polled: bool,
@@ -645,26 +646,78 @@ fn test_await() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let once = py.get_type::<OnceFuture>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    let source = r#"
 import asyncio
 import sys
 
 async def main():
     res = await Once(await asyncio.sleep(0.1))
-    return res
+    assert res is None
+
 # For an odd error similar to https://bugs.python.org/issue38563
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-# get_event_loop can raise an error: https://github.com/PyO3/pyo3/pull/961#issuecomment-645238579
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-assert loop.run_until_complete(main()) is None
-loop.close()
-"#
-    );
+
+asyncio.run(main())
+"#;
     let globals = PyModule::import(py, "__main__").unwrap().dict();
     globals.set_item("Once", once).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}
+
+#[pyclass]
+struct AsyncIterator {
+    future: Option<Py<OnceFuture>>,
+}
+
+#[pymethods]
+impl AsyncIterator {
+    #[new]
+    fn new(future: Py<OnceFuture>) -> Self {
+        Self {
+            future: Some(future),
+        }
+    }
+
+    fn __aiter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __anext__(&mut self) -> Option<Py<OnceFuture>> {
+        self.future.take()
+    }
+}
+
+#[test]
+fn test_anext_aiter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let once = py.get_type::<OnceFuture>();
+    let source = r#"
+import asyncio
+import sys
+
+async def main():
+    count = 0
+    async for result in AsyncIterator(Once(await asyncio.sleep(0.1))):
+        # The Once is awaited as part of the `async for` and produces None
+        assert result is None
+        count +=1
+    assert count == 1
+
+# For an odd error similar to https://bugs.python.org/issue38563
+if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+asyncio.run(main())
+"#;
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Once", once).unwrap();
+    globals
+        .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+        .unwrap();
     py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();
