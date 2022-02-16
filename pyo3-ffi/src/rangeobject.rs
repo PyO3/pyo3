@@ -11,5 +11,5 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyRange_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyRange_Type)) as c_int
 }

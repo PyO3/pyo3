@@ -100,7 +100,27 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", line);
     }
 
+    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+
+    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=addr_of");
+    }
+
     Ok(())
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    use std::{env, process::Command};
+
+    let rustc = env::var_os("RUSTC")?;
+    let output = Command::new(rustc).arg("--version").output().ok()?;
+    let version = core::str::from_utf8(&output.stdout).ok()?;
+    let mut pieces = version.split('.');
+    if pieces.next() != Some("rustc 1") {
+        return None;
+    }
+    pieces.next()?.parse().ok()
 }
 
 fn print_config_and_exit(config: &InterpreterConfig) {

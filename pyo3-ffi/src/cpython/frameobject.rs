@@ -60,7 +60,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyFrame_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyFrame_Type)) as c_int
 }
 
 extern "C" {

@@ -16,7 +16,7 @@ pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyBytes_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyBytes_Type)) as c_int
 }
 
 extern "C" {

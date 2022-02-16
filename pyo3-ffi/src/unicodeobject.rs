@@ -34,7 +34,7 @@ pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyUnicode_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyUnicode_Type)) as c_int
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
