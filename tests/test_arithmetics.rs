@@ -53,6 +53,39 @@ fn unary_arithmetic() {
 }
 
 #[pyclass]
+struct Indexable(i32);
+
+#[pymethods]
+impl Indexable {
+    fn __index__(&self) -> i32 {
+        self.0
+    }
+
+    fn __int__(&self) -> i32 {
+        self.0
+    }
+
+    fn __float__(&self) -> f64 {
+        f64::from(self.0)
+    }
+
+    fn __invert__(&self) -> Self {
+        Self(!self.0)
+    }
+}
+
+#[test]
+fn indexable() {
+    Python::with_gil(|py| {
+        let i = PyCell::new(py, Indexable(5)).unwrap();
+        py_run!(py, i, "assert int(i) == 5");
+        py_run!(py, i, "assert [0, 1, 2, 3, 4, 5][i] == 5");
+        py_run!(py, i, "assert float(i) == 5.0");
+        py_run!(py, i, "assert int(~i) == -6");
+    })
+}
+
+#[pyclass]
 struct InPlaceOperations {
     value: u32,
 }
