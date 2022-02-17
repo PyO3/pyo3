@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated)]
 
 use std::collections::HashMap;
 

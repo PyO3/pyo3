@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python Mapping Interface
@@ -8,6 +9,7 @@ use crate::{FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyMappingProtocol<'p>: PyClass {
     fn __len__(&'p self) -> Self::Result
     where

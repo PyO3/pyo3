@@ -11,6 +11,7 @@ use std::os::raw::c_int;
 
 /// Sequence interface
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PySequenceProtocol<'p>: PyClass + Sized {
     fn __len__(&'p self) -> Self::Result
     where

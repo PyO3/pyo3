@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
@@ -43,6 +44,7 @@ use crate::{PyClass, PyObject};
 /// # }); // test of StopIteration is done in pytests/src/pyclasses.rs
 /// ```
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyIterProtocol<'p>: PyClass {
     fn __iter__(slf: Self::Receiver) -> Self::Result
     where

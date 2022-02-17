@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python object protocols
