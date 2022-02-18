@@ -1,5 +1,5 @@
 use pyo3_build_config::{
-    bail, ensure,
+    bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, resolve_interpreter_config, InterpreterConfig,
         PythonVersion,
@@ -100,27 +100,10 @@ fn configure_pyo3() -> Result<()> {
         println!("{}", line);
     }
 
-    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
-
-    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=addr_of");
-    }
+    // Emit cfgs like `addr_of` and `min_const_generics`
+    print_feature_cfgs();
 
     Ok(())
-}
-
-fn rustc_minor_version() -> Option<u32> {
-    use std::{env, process::Command};
-
-    let rustc = env::var_os("RUSTC")?;
-    let output = Command::new(rustc).arg("--version").output().ok()?;
-    let version = core::str::from_utf8(&output.stdout).ok()?;
-    let mut pieces = version.split('.');
-    if pieces.next() != Some("rustc 1") {
-        return None;
-    }
-    pieces.next()?.parse().ok()
 }
 
 fn print_config_and_exit(config: &InterpreterConfig) {

@@ -1,7 +1,7 @@
-use std::{env, process::Command};
+use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
-use pyo3_build_config::{bail, InterpreterConfig};
+use pyo3_build_config::{bail, print_feature_cfgs, InterpreterConfig};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
@@ -32,17 +32,6 @@ fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<(
     Ok(())
 }
 
-fn rustc_minor_version() -> Option<u32> {
-    let rustc = env::var_os("RUSTC")?;
-    let output = Command::new(rustc).arg("--version").output().ok()?;
-    let version = core::str::from_utf8(&output.stdout).ok()?;
-    let mut pieces = version.split('.');
-    if pieces.next() != Some("rustc 1") {
-        return None;
-    }
-    pieces.next()?.parse().ok()
-}
-
 /// Prepares the PyO3 crate for compilation.
 ///
 /// This loads the config from pyo3-build-config and then makes some additional checks to improve UX
@@ -55,18 +44,10 @@ fn configure_pyo3() -> Result<()> {
 
     interpreter_config.emit_pyo3_cfgs();
 
-    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
     ensure_auto_initialize_ok(interpreter_config)?;
 
-    // Enable use of const generics on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=min_const_generics");
-    }
-
-    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
-    if rustc_minor_version >= 51 {
-        println!("cargo:rustc-cfg=addr_of");
-    }
+    // Emit cfgs like `addr_of` and `min_const_generics`
+    print_feature_cfgs();
 
     Ok(())
 }
