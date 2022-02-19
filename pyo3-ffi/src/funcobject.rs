@@ -12,7 +12,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyFunction_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyFunction_Type)) as c_int
 }
 
 extern "C" {

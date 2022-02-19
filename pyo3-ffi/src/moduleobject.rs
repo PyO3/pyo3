@@ -11,12 +11,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &mut PyModule_Type)
+    PyObject_TypeCheck(op, addr_of_mut_shim!(PyModule_Type))
 }
 
 #[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyModule_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyModule_Type)) as c_int
 }
 
 extern "C" {

@@ -12,7 +12,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyMemoryView_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyMemoryView_Type)) as c_int
 }
 
 // skipped non-limited PyMemoryView_GET_BUFFER

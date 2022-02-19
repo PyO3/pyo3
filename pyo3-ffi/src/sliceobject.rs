@@ -9,7 +9,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
-    &mut _Py_EllipsisObject
+    addr_of_mut_shim!(_Py_EllipsisObject)
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -30,7 +30,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PySlice_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PySlice_Type)) as c_int
 }
 
 extern "C" {

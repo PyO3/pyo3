@@ -20,7 +20,7 @@ pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyLong_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyLong_Type)) as c_int
 }
 
 extern "C" {

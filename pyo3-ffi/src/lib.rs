@@ -263,6 +263,19 @@ macro_rules! opaque_struct {
     };
 }
 
+macro_rules! addr_of_mut_shim {
+    ($place:expr) => {{
+        #[cfg(addr_of)]
+        {
+            ::std::ptr::addr_of_mut!($place)
+        }
+        #[cfg(not(addr_of))]
+        {
+            &mut $place as *mut _
+        }
+    }};
+}
+
 pub use self::abstract_::*;
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;

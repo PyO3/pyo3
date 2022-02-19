@@ -10,6 +10,7 @@ mod impl_;
 
 #[cfg(feature = "resolve-config")]
 use std::io::Cursor;
+use std::{env, process::Command};
 
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
@@ -113,6 +114,36 @@ fn abi3_config() -> InterpreterConfig {
         interpreter_config.lib_name = Some("python3".to_owned())
     }
     interpreter_config
+}
+
+/// Use certain features if we detect the compiler being used supports them.
+///
+/// Features may be removed or added as MSRV gets bumped or new features become available,
+/// so this function is unstable.
+#[doc(hidden)]
+pub fn print_feature_cfgs() {
+    fn rustc_minor_version() -> Option<u32> {
+        let rustc = env::var_os("RUSTC")?;
+        let output = Command::new(rustc).arg("--version").output().ok()?;
+        let version = core::str::from_utf8(&output.stdout).ok()?;
+        let mut pieces = version.split('.');
+        if pieces.next() != Some("rustc 1") {
+            return None;
+        }
+        pieces.next()?.parse().ok()
+    }
+
+    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+
+    // Enable use of const generics on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=min_const_generics");
+    }
+
+    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=addr_of");
+    }
 }
 
 /// Private exports used in PyO3's build.rs

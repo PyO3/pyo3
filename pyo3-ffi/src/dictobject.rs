@@ -15,7 +15,7 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyDict_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyDict_Type)) as c_int
 }
 
 extern "C" {
@@ -76,17 +76,17 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyDictKeys_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyDictKeys_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyDictValues_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyDictValues_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyDictItems_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyDictItems_Type)) as c_int
 }
 
 #[inline]
