@@ -259,6 +259,66 @@ impl PyAny {
         }
     }
 
+    /// Tests whether this object is less than another.
+    ///
+    /// This is equivalent to the Python expression `self < other`.
+    pub fn is_lt<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Lt)
+    }
+
+    /// Tests whether this object is less than or equal to another.
+    ///
+    /// This is equivalent to the Python expression `self <= other`.
+    pub fn is_le<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Le)
+    }
+
+    /// Tests whether this object is equal to another.
+    ///
+    /// This is equivalent to the Python expression `self == other`.
+    pub fn is_eq<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Eq)
+    }
+
+    /// Tests whether this object is not equal to another.
+    ///
+    /// This is equivalent to the Python expression `self != other`.
+    pub fn is_ne<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Ne)
+    }
+
+    /// Tests whether this object is greater than another.
+    ///
+    /// This is equivalent to the Python expression `self > other`.
+    pub fn is_gt<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Gt)
+    }
+
+    /// Tests whether this object is greater than or equal to another.
+    ///
+    /// This is equivalent to the Python expression `self >= other`.
+    pub fn is_ge<O>(&self, other: O) -> PyResult<&PyAny>
+    where
+        O: ToPyObject,
+    {
+        self.rich_compare(other, CompareOp::Ge)
+    }
+
     /// Determines whether this object appears callable.
     ///
     /// This is equivalent to Python's [`callable()`][1] function.
