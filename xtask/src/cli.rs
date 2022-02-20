@@ -21,8 +21,8 @@ pub struct CoverageOpts {
 impl Subcommand {
     pub fn execute(self) -> Result<()> {
         match self {
-            Subcommand::Coverage(opts) => crate::llvm_cov::subcommand_coverage(opts),
-            Subcommand::TestPy => crate::pytests::run_python_tests(None),
+            Subcommand::Coverage(opts) => crate::llvm_cov::run(opts),
+            Subcommand::TestPy => crate::pytests::run(None),
         }
     }
 }

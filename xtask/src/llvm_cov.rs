@@ -5,7 +5,7 @@ use crate::cli::CoverageOpts;
 use crate::utils::*;
 
 /// Runs `cargo llvm-cov` for the PyO3 codebase.
-pub fn subcommand_coverage(opts: CoverageOpts) -> Result<()> {
+pub fn run(opts: CoverageOpts) -> Result<()> {
     let env = get_coverage_env()?;
 
     cli::run(llvm_cov_command(&["clean", "--workspace"]).envs(&env))?;
@@ -31,7 +31,7 @@ pub fn subcommand_coverage(opts: CoverageOpts) -> Result<()> {
         .args(&["test", "--features", "abi3 full"])
         .envs(&env))?;
 
-        crate::pytests::run_python_tests(&env)?;
+        crate::pytests::run(&env)?;
 
     match opts.output_lcov {
         Some(path) => {

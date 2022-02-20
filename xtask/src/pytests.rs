@@ -2,7 +2,7 @@ use anyhow::{Result};
 use std::{path::Path, process::Command};
 use crate::cli;
 
-pub fn run_python_tests<'a>(
+pub fn run<'a>(
     env: impl IntoIterator<Item = (&'a String, &'a String)> + Copy,
 ) -> Result<()> {
     cli::run(Command::new("nox")
