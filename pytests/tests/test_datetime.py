@@ -227,7 +227,7 @@ def test_datetime_typeerror():
 
 
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
-@example(dt=pdt.datetime(1970, 1, 2, 0, 0))
+@example(dt=pdt.datetime(1971, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):
         pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
