@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
-use std::{collections::HashMap, process::Command};
 use crate::cli;
 use crate::cli::CoverageOpts;
 use crate::utils::*;
+use anyhow::{Context, Result};
+use std::{collections::HashMap, process::Command};
 
 /// Runs `cargo llvm-cov` for the PyO3 codebase.
 pub fn run(opts: CoverageOpts) -> Result<()> {
@@ -10,28 +10,40 @@ pub fn run(opts: CoverageOpts) -> Result<()> {
 
     cli::run(llvm_cov_command(&["clean", "--workspace"]).envs(&env))?;
 
-    cli::run(Command::new("cargo")
-        .args(&["test", "--manifest-path", "pyo3-build-config/Cargo.toml"])
-        .envs(&env))?;
-        cli::run(Command::new("cargo")
-        .args(&["test", "--manifest-path", "pyo3-macros-backend/Cargo.toml"])
-        .envs(&env))?;
-        cli::run(Command::new("cargo")
-        .args(&["test", "--manifest-path", "pyo3-macros/Cargo.toml"])
-        .envs(&env))?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--manifest-path", "pyo3-build-config/Cargo.toml"])
+            .envs(&env),
+    )?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--manifest-path", "pyo3-macros-backend/Cargo.toml"])
+            .envs(&env),
+    )?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--manifest-path", "pyo3-macros/Cargo.toml"])
+            .envs(&env),
+    )?;
 
-        cli::run(Command::new("cargo").arg("test").envs(&env))?;
-        cli::run(Command::new("cargo")
-        .args(&["test", "--features", "abi3"])
-        .envs(&env))?;
-        cli::run(Command::new("cargo")
-        .args(&["test", "--features", "full"])
-        .envs(&env))?;
-        cli::run(Command::new("cargo")
-        .args(&["test", "--features", "abi3 full"])
-        .envs(&env))?;
+    cli::run(Command::new("cargo").arg("test").envs(&env))?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--features", "abi3"])
+            .envs(&env),
+    )?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--features", "full"])
+            .envs(&env),
+    )?;
+    cli::run(
+        Command::new("cargo")
+            .args(&["test", "--features", "abi3 full"])
+            .envs(&env),
+    )?;
 
-        crate::pytests::run(&env)?;
+    crate::pytests::run(&env)?;
 
     match opts.output_lcov {
         Some(path) => {
@@ -57,7 +69,6 @@ fn llvm_cov_command(args: &[&str]) -> Command {
         .args(args);
     command
 }
-
 
 fn get_coverage_env() -> Result<HashMap<String, String>> {
     let mut env = HashMap::new();

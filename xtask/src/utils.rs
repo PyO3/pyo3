@@ -1,6 +1,5 @@
-use std::process::Command;
 use anyhow::ensure;
-
+use std::process::Command;
 
 // Replacement for str.split_once() on Rust older than 1.52
 #[rustversion::before(1.52)]
@@ -13,7 +12,6 @@ pub fn split_once(s: &str, pat: char) -> Option<(&str, &str)> {
 pub fn split_once(s: &str, pat: char) -> Option<(&str, &str)> {
     s.split_once(pat)
 }
-
 
 #[rustversion::since(1.57)]
 pub fn format_command(command: &Command) -> String {
@@ -46,4 +44,22 @@ pub fn get_output(command: &mut Command) -> anyhow::Result<std::process::Output>
         command = format_command(command),
     };
     Ok(output)
+}
+
+pub fn print_metadata() -> anyhow::Result<()> {
+    let rustc_output = std::process::Command::new("rustc")
+        .arg("--version")
+        .arg("--verbose")
+        .output()?;
+    let rustc_version = core::str::from_utf8(&rustc_output.stdout).unwrap();
+    println!("Metadata: \n\n{}", rustc_version);
+
+    let py_output = std::process::Command::new("python")
+        .arg("--version")
+        .arg("-V")
+        .output()?;
+    let py_version = core::str::from_utf8(&py_output.stdout).unwrap();
+    println!("{}", py_version);
+
+    Ok(())
 }
