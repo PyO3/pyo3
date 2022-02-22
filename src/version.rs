@@ -1,12 +1,9 @@
-use std::convert::TryFrom;
-
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
 /// This struct is usually created with [`Python::version`].
 ///
 /// # Examples
 ///
-
 /// ```rust
 /// # use pyo3::Python;
 /// Python::with_gil(|py| {
@@ -29,10 +26,9 @@ pub struct PythonVersionInfo<'py> {
     pub suffix: Option<&'py str>,
 }
 
-impl<'py> TryFrom<&'py str> for PythonVersionInfo<'py> {
-    type Error = &'static str;
+impl<'py> PythonVersionInfo<'py> {
     /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
-    fn try_from(version_number_str: &'py str) -> Result<Self, Self::Error> {
+    pub(crate) fn from_str(version_number_str: &'py str) -> Result<Self, &str> {
         fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
             match version_part.find(|c: char| !c.is_ascii_digit()) {
                 None => (version_part.parse().unwrap(), None),
@@ -133,15 +129,15 @@ mod test {
 
     #[test]
     fn test_python_version_info_parse() {
-        assert!(PythonVersionInfo::try_from("3.5.0a1").unwrap() >= (3, 5, 0));
-        assert!(PythonVersionInfo::try_from("3.5+").unwrap() >= (3, 5, 0));
-        assert!(PythonVersionInfo::try_from("3.5+").unwrap() == (3, 5, 0));
-        assert!(PythonVersionInfo::try_from("3.5+").unwrap() != (3, 5, 1));
-        assert!(PythonVersionInfo::try_from("3.5.2a1+").unwrap() < (3, 5, 3));
-        assert!(PythonVersionInfo::try_from("3.5.2a1+").unwrap() == (3, 5, 2));
-        assert!(PythonVersionInfo::try_from("3.5.2a1+").unwrap() == (3, 5));
-        assert!(PythonVersionInfo::try_from("3.5+").unwrap() == (3, 5));
-        assert!(PythonVersionInfo::try_from("3.5.2a1+").unwrap() < (3, 6));
-        assert!(PythonVersionInfo::try_from("3.5.2a1+").unwrap() > (3, 4));
+        assert!(PythonVersionInfo::from_str("3.5.0a1").unwrap() >= (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+").unwrap() >= (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+").unwrap() == (3, 5, 0));
+        assert!(PythonVersionInfo::from_str("3.5+").unwrap() != (3, 5, 1));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() < (3, 5, 3));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() == (3, 5, 2));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() == (3, 5));
+        assert!(PythonVersionInfo::from_str("3.5+").unwrap() == (3, 5));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() < (3, 6));
+        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() > (3, 4));
     }
 }
