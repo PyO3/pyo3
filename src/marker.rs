@@ -126,7 +126,6 @@ use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::version::PythonVersionInfo;
 use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
-use std::convert::TryFrom;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -159,10 +158,33 @@ unsafe impl<T: Send> Ungil for T {}
 pub unsafe auto trait Ungil {}
 
 #[cfg(feature = "nightly")]
-impl !Ungil for Python<'_> {}
+mod negative_impls {
+    use super::Ungil;
 
-#[cfg(feature = "nightly")]
-impl !Ungil for ffi::PyObject {}
+    impl !Ungil for crate::Python<'_> {}
+
+    // This means that PyString, PyList, etc all inherit !Ungil from  this.
+    impl !Ungil for crate::PyAny {}
+
+    // All the borrowing wrappers
+    impl<T> !Ungil for crate::PyCell<T> {}
+    impl<T> !Ungil for crate::PyRef<'_, T> {}
+    impl<T> !Ungil for crate::PyRefMut<'_, T> {}
+
+    // FFI pointees
+    impl !Ungil for crate::ffi::PyObject {}
+    impl !Ungil for crate::ffi::PyLongObject {}
+
+    impl !Ungil for crate::ffi::PyThreadState {}
+    impl !Ungil for crate::ffi::PyInterpreterState {}
+    impl !Ungil for crate::ffi::PyWeakReference {}
+    impl !Ungil for crate::ffi::PyFrameObject {}
+    impl !Ungil for crate::ffi::PyCodeObject {}
+    #[cfg(not(Py_LIMITED_API))]
+    impl !Ungil for crate::ffi::PyDictKeysObject {}
+    #[cfg(not(Py_LIMITED_API))]
+    impl !Ungil for crate::ffi::PyArena {}
+}
 
 /// A marker token that represents holding the GIL.
 ///
@@ -623,7 +645,7 @@ impl<'py> Python<'py> {
         // version number.
         let version_number_str = version_str.split(' ').next().unwrap_or(version_str);
 
-        TryFrom::try_from(version_number_str).unwrap()
+        PythonVersionInfo::from_str(version_number_str).unwrap()
     }
 
     /// Registers the object in the release pool, and tries to downcast to specific type.

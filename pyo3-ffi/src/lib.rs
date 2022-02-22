@@ -261,7 +261,7 @@
 macro_rules! opaque_struct {
     ($name:ident) => {
         #[repr(C)]
-        pub struct $name([u8; 0], ::std::marker::PhantomData<$crate::PyObject>);
+        pub struct $name([u8; 0]);
     };
 }
 

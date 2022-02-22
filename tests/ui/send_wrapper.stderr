@@ -1,17 +1,15 @@
-error[E0277]: the trait bound `PyObject: Ungil` is not satisfied in `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
+error[E0277]: the trait bound `PyAny: Ungil` is not satisfied in `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
    --> tests/ui/send_wrapper.rs:11:12
     |
 11  |           py.allow_threads(|| {
     |  ____________^^^^^^^^^^^^^_-
     | |            |
-    | |            within `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`, the trait `Ungil` is not implemented for `PyObject`
+    | |            within `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`, the trait `Ungil` is not implemented for `PyAny`
 12  | |             let smuggled: &PyString = *wrapped;
 13  | |             println!("{:?}", smuggled);
 14  | |         });
     | |_________- within this `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
     |
-    = note: required because it appears within the type `UnsafeCell<PyObject>`
-    = note: required because it appears within the type `PyAny`
     = note: required because it appears within the type `PyString`
     = note: required because it appears within the type `&PyString`
     = note: required because it appears within the type `*mut &PyString`
