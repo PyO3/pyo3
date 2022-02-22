@@ -165,17 +165,20 @@ fn test_function_with_custom_conversion_error() {
     );
 }
 
+#[pyclass]
 #[derive(Debug, FromPyObject)]
 struct ValueClass {
+    #[pyo3(get)]
     value: usize,
 }
 
 #[pyfunction]
-fn conversion_error(str_arg: &str,
-                    int_arg: i64,
-                    tuple_arg: (&str, f64),
-                    option_arg: Option<i64>,
-                    struct_arg: Option<ValueClass>
+fn conversion_error(
+    str_arg: &str,
+    int_arg: i64,
+    tuple_arg: (&str, f64),
+    option_arg: Option<i64>,
+    struct_arg: Option<ValueClass>,
 ) {
     println!(
         "{:?} {:?} {:?} {:?} {:?}",
@@ -224,7 +227,7 @@ fn test_conversion_error() {
         PyTypeError,
         "argument 'option_arg': 'str' object cannot be interpreted as an integer"
     );
-    py_expect_exception!(
+    let exception = py_expect_exception!(
         py,
         conversion_error,
         "
@@ -232,11 +235,15 @@ class ValueClass:
     def __init__(self, value):
         self.value = value
 conversion_error('string1', -100, ('string2', 10.), None, ValueClass(\"no_expected_type\"))",
-        PyTypeError,
-        "argument 'struct_arg': failed to extract field ValueClass.value:\n\tTypeError: 'str' \
-        object cannot be interpreted as an integer"
+        PyTypeError
     );
-    py_expect_exception!(
+    assert_eq!(
+        extract_traceback(py, exception),
+        "TypeError: argument 'struct_arg': failed to \
+    extract field ValueClass.value: TypeError: 'str' object cannot be interpreted as an integer"
+    );
+
+    let exception = py_expect_exception!(
         py,
         conversion_error,
         "
@@ -244,10 +251,26 @@ class ValueClass:
     def __init__(self, value):
         self.value = value
 conversion_error('string1', -100, ('string2', 10.), None, ValueClass(-5))",
-        PyTypeError,
-        "argument 'struct_arg': failed to extract field ValueClass.value:\n\tOverflowError: can't \
-        convert negative int to unsigned"
+        PyTypeError
     );
+    assert_eq!(
+        extract_traceback(py, exception),
+        "TypeError: argument 'struct_arg': failed to \
+    extract field ValueClass.value: OverflowError: can't convert negative int to unsigned"
+    );
+}
+
+/// Helper function that concatenates the error message from
+/// each error in the traceback into a single string that can
+/// be tested.
+fn extract_traceback(py: Python, mut error: PyErr) -> String {
+    let mut error_msg = error.to_string();
+    while let Some(cause) = error.cause(py) {
+        error_msg.push_str(": ");
+        error_msg.push_str(&cause.to_string());
+        error = cause
+    }
+    error_msg
 }
 
 #[test]

@@ -101,21 +101,12 @@ pub fn from_py_with_with_default<'py, T>(
 /// single string.)
 #[doc(hidden)]
 #[cold]
-pub fn argument_extraction_error(py: Python, arg_name: &str, mut error: PyErr) -> PyErr {
+pub fn argument_extraction_error(py: Python, arg_name: &str, error: PyErr) -> PyErr {
     if error.get_type(py) == PyTypeError::type_object(py) {
-        let mut reason = error
-            .value(py)
-            .str()
-            .unwrap_or_else(|_| PyString::new(py, ""))
-            .to_string();
-
-        while let Some(cause) = error.cause(py) {
-            reason.push_str(":\n\t");
-            reason.push_str(&cause.to_string());
-            error = cause
-        }
-
-        PyTypeError::new_err(format!("argument '{}': {}", arg_name, reason))
+        let remapped_error =
+            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+        remapped_error.set_cause(py, error.cause(py));
+        remapped_error
     } else {
         error
     }
