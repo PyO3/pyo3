@@ -333,7 +333,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
-            if #[cfg(Py_3_9)] {
+            if #[cfg(all(Py_3_9, not(PyPy)))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     self.py().from_owned_ptr_or_err(ffi::PyObject_CallNoArgs(self.as_ptr()))
@@ -461,7 +461,7 @@ impl PyAny {
     /// ```
     pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     let name = name.into_py(self.py());
