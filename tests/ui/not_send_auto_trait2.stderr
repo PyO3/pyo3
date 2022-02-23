@@ -1,0 +1,20 @@
+error[E0277]: the trait bound `PyAny: Ungil` is not satisfied in `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 10:10]`
+   --> tests/ui/not_send_auto_trait2.rs:8:12
+    |
+8   |           py.allow_threads(|| {
+    |  ____________^^^^^^^^^^^^^_-
+    | |            |
+    | |            within `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 10:10]`, the trait `Ungil` is not implemented for `PyAny`
+9   | |             println!("{:?}", string);
+10  | |         });
+    | |_________- within this `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 10:10]`
+    |
+    = note: required because it appears within the type `PyString`
+    = note: required because it appears within the type `&PyString`
+    = note: required because it appears within the type `&&PyString`
+    = note: required because it appears within the type `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 10:10]`
+note: required by a bound in `pyo3::Python::<'py>::allow_threads`
+   --> src/marker.rs
+    |
+    |         F: Ungil + FnOnce() -> T,
+    |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`
