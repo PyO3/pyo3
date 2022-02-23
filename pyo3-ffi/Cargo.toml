@@ -1,0 +1,39 @@
+[package]
+name = "pyo3-ffi"
+version = "0.15.1"
+description = "Python-API bindings for the PyO3 ecosystem"
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+keywords = ["pyo3", "python", "cpython", "ffi"]
+homepage = "https://github.com/pyo3/pyo3"
+repository = "https://github.com/pyo3/pyo3"
+categories = ["api-bindings", "development-tools::ffi"]
+license = "Apache-2.0"
+edition = "2018"
+
+[dependencies]
+libc = "0.2.62"
+
+[features]
+
+default = []
+
+# Use this feature when building an extension module.
+# It tells the linker to keep the python symbols unresolved,
+# so that the module can also be used with statically linked python interpreters.
+extension-module = []
+
+# Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
+abi3 = ["pyo3-build-config/abi3"]
+
+# With abi3, we can manually set the minimum Python version.
+abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37"]
+abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
+abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
+abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310"]
+
+
+
+[build-dependencies]
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
+
+

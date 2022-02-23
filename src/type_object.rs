@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
+use crate::impl_::pyclass::PyClassItems;
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
@@ -108,7 +109,7 @@ impl LazyStaticType {
 
     pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
         let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
-        self.ensure_init(py, type_object, T::NAME, &T::for_each_method_def);
+        self.ensure_init(py, type_object, T::NAME, &T::for_all_items);
         type_object
     }
 
@@ -117,7 +118,7 @@ impl LazyStaticType {
         py: Python,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
-        for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+        for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     ) {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
@@ -151,8 +152,8 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for_each_method_def(&mut |method_defs| {
-            items.extend(method_defs.iter().filter_map(|def| {
+        for_all_items(&mut |class_items| {
+            items.extend(class_items.methods.iter().filter_map(|def| {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
                     let key = extract_cstr_or_leak_cstring(
                         attr.name,

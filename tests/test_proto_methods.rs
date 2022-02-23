@@ -1,9 +1,9 @@
 #![cfg(feature = "macros")]
 
-use pyo3::exceptions::PyValueError;
-use pyo3::types::{PyList, PySlice, PyType};
+use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{exceptions::PyAttributeError, prelude::*};
-use pyo3::{ffi, py_run, AsPyPointer, PyCell};
+use pyo3::{py_run, PyCell};
 use std::{isize, iter};
 
 mod common;
@@ -166,37 +166,198 @@ fn test_bool() {
 }
 
 #[pyclass]
-pub struct Len {
-    l: usize,
-}
+pub struct LenOverflow;
 
 #[pymethods]
-impl Len {
+impl LenOverflow {
     fn __len__(&self) -> usize {
-        self.l
+        (isize::MAX as usize) + 1
     }
 }
 
 #[test]
-fn len() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+fn len_overflow() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, LenOverflow).unwrap();
+        py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+    });
+}
 
-    let inst = Py::new(py, Len { l: 10 }).unwrap();
-    py_assert!(py, inst, "len(inst) == 10");
-    unsafe {
-        assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
-        assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
+#[pyclass]
+pub struct Mapping {
+    values: Py<PyDict>,
+}
+
+#[pymethods]
+impl Mapping {
+    fn __len__(&self, py: Python) -> usize {
+        self.values.as_ref(py).len()
     }
 
-    let inst = Py::new(
-        py,
-        Len {
-            l: (isize::MAX as usize) + 1,
-        },
-    )
-    .unwrap();
-    py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+    fn __getitem__<'a>(&'a self, key: &'a PyAny) -> PyResult<&'a PyAny> {
+        let any: &PyAny = self.values.as_ref(key.py()).as_ref();
+        any.get_item(key)
+    }
+
+    fn __setitem__(&self, key: &PyAny, value: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).set_item(key, value)
+    }
+
+    fn __delitem__(&self, key: &PyAny) -> PyResult<()> {
+        self.values.as_ref(key.py()).del_item(key)
+    }
+}
+
+#[test]
+fn mapping() {
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            Mapping {
+                values: PyDict::new(py).into(),
+            },
+        )
+        .unwrap();
+
+        //
+        let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
+
+        py_assert!(py, inst, "len(inst) == 0");
+
+        py_run!(py, inst, "inst['foo'] = 'foo'");
+        py_assert!(py, inst, "inst['foo'] == 'foo'");
+        py_run!(py, inst, "del inst['foo']");
+        py_expect_exception!(py, inst, "inst['foo']", PyKeyError);
+
+        // Default iteration will call __getitem__ with integer indices
+        // which fails with a KeyError
+        py_expect_exception!(py, inst, "[*inst] == []", PyKeyError, "0");
+
+        // check mapping protocol
+        assert_eq!(mapping.len().unwrap(), 0);
+
+        mapping.set_item(0, 5).unwrap();
+        assert_eq!(mapping.len().unwrap(), 1);
+
+        assert_eq!(mapping.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+
+        mapping.del_item(0).unwrap();
+        assert_eq!(mapping.len().unwrap(), 0);
+    });
+}
+
+#[derive(FromPyObject)]
+enum SequenceIndex<'a> {
+    Integer(isize),
+    Slice(&'a PySlice),
+}
+
+#[pyclass]
+pub struct Sequence {
+    values: Vec<PyObject>,
+}
+
+#[pymethods]
+impl Sequence {
+    fn __len__(&self) -> usize {
+        self.values.len()
+    }
+
+    fn __getitem__(&self, index: SequenceIndex) -> PyResult<PyObject> {
+        match index {
+            SequenceIndex::Integer(index) => {
+                let uindex = self.usize_index(index)?;
+                self.values
+                    .get(uindex)
+                    .map(Clone::clone)
+                    .ok_or_else(|| PyIndexError::new_err(index))
+            }
+            // Just to prove that slicing can be implemented
+            SequenceIndex::Slice(s) => Ok(s.into()),
+        }
+    }
+
+    fn __setitem__(&mut self, index: isize, value: PyObject) -> PyResult<()> {
+        let uindex = self.usize_index(index)?;
+        self.values
+            .get_mut(uindex)
+            .map(|place| *place = value)
+            .ok_or_else(|| PyIndexError::new_err(index))
+    }
+
+    fn __delitem__(&mut self, index: isize) -> PyResult<()> {
+        let uindex = self.usize_index(index)?;
+        if uindex >= self.values.len() {
+            Err(PyIndexError::new_err(index))
+        } else {
+            self.values.remove(uindex);
+            Ok(())
+        }
+    }
+
+    fn append(&mut self, value: PyObject) {
+        self.values.push(value);
+    }
+}
+
+impl Sequence {
+    fn usize_index(&self, index: isize) -> PyResult<usize> {
+        if index < 0 {
+            let corrected_index = index + self.values.len() as isize;
+            if corrected_index < 0 {
+                Err(PyIndexError::new_err(index))
+            } else {
+                Ok(corrected_index as usize)
+            }
+        } else {
+            Ok(index as usize)
+        }
+    }
+}
+
+#[test]
+fn sequence() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
+
+        let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
+
+        py_assert!(py, inst, "len(inst) == 0");
+
+        py_expect_exception!(py, inst, "inst[0]", PyIndexError);
+        py_run!(py, inst, "inst.append('foo')");
+
+        py_assert!(py, inst, "inst[0] == 'foo'");
+        py_assert!(py, inst, "inst[-1] == 'foo'");
+
+        py_expect_exception!(py, inst, "inst[1]", PyIndexError);
+        py_expect_exception!(py, inst, "inst[-2]", PyIndexError);
+
+        py_assert!(py, inst, "[*inst] == ['foo']");
+
+        py_run!(py, inst, "del inst[0]");
+
+        py_expect_exception!(py, inst, "inst['foo']", PyTypeError);
+
+        py_assert!(py, inst, "inst[0:2] == slice(0, 2)");
+
+        // check sequence protocol
+
+        // we don't implement sequence length so that CPython doesn't attempt to correct negative
+        // indices.
+        assert!(sequence.len().is_err());
+        // however regular python len() works thanks to mp_len slot
+        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+
+        py_run!(py, inst, "inst.append(0)");
+        sequence.set_item(0, 5).unwrap();
+        assert_eq!(inst.as_ref(py).len().unwrap(), 1);
+
+        assert_eq!(sequence.get_item(0).unwrap().extract::<u8>().unwrap(), 5);
+        sequence.del_item(0).unwrap();
+
+        assert_eq!(inst.as_ref(py).len().unwrap(), 0);
+    });
 }
 
 #[pyclass]
@@ -447,6 +608,7 @@ fn getattr_doesnt_override_member() {
 
 /// Wraps a Python future and yield it once.
 #[pyclass]
+#[derive(Debug)]
 struct OnceFuture {
     future: PyObject,
     polled: bool,
@@ -484,26 +646,78 @@ fn test_await() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let once = py.get_type::<OnceFuture>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    let source = r#"
 import asyncio
 import sys
 
 async def main():
     res = await Once(await asyncio.sleep(0.1))
-    return res
+    assert res is None
+
 # For an odd error similar to https://bugs.python.org/issue38563
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-# get_event_loop can raise an error: https://github.com/PyO3/pyo3/pull/961#issuecomment-645238579
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-assert loop.run_until_complete(main()) is None
-loop.close()
-"#
-    );
+
+asyncio.run(main())
+"#;
     let globals = PyModule::import(py, "__main__").unwrap().dict();
     globals.set_item("Once", once).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}
+
+#[pyclass]
+struct AsyncIterator {
+    future: Option<Py<OnceFuture>>,
+}
+
+#[pymethods]
+impl AsyncIterator {
+    #[new]
+    fn new(future: Py<OnceFuture>) -> Self {
+        Self {
+            future: Some(future),
+        }
+    }
+
+    fn __aiter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __anext__(&mut self) -> Option<Py<OnceFuture>> {
+        self.future.take()
+    }
+}
+
+#[test]
+fn test_anext_aiter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let once = py.get_type::<OnceFuture>();
+    let source = r#"
+import asyncio
+import sys
+
+async def main():
+    count = 0
+    async for result in AsyncIterator(Once(await asyncio.sleep(0.1))):
+        # The Once is awaited as part of the `async for` and produces None
+        assert result is None
+        count +=1
+    assert count == 1
+
+# For an odd error similar to https://bugs.python.org/issue38563
+if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+asyncio.run(main())
+"#;
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Once", once).unwrap();
+    globals
+        .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+        .unwrap();
     py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();

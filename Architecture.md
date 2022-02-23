@@ -19,7 +19,7 @@ Since implementing `PyClass` requires lots of boilerplate, we have a proc-macro 
 To summarize, there are six main parts to the PyO3 codebase.
 
 1. [Low-level bindings of Python/C API.](#1-low-level-bindings-of-python-capi)
-   - [`src/ffi`]
+   - [`pyo3-ffi`] and [`src/ffi`]
 2. [Bindings to Python objects.](#2-bindings-to-python-objects)
    - [`src/instance.rs`] and [`src/types`]
 3. [`PyClass` and related functionalities.](#3-pyclass-and-related-functionalities)
@@ -34,7 +34,7 @@ To summarize, there are six main parts to the PyO3 codebase.
 
 ## 1. Low-level bindings of Python/C API
 
-[`src/ffi`] contains wrappers of [Python/C API].
+[`pyo3-ffi`] contains wrappers of [Python/C API].
 
 We aim to provide straight-forward Rust wrappers resembling the file structure of
 [`cpython/Include`](https://github.com/python/cpython/tree/v3.9.2/Include).
@@ -43,7 +43,7 @@ However, we still lack some APIs and are continuously updating the module to mat
 the file contents upstream in CPython.
 The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
-In the [`src/ffi`] module, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
+In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
 `#[cfg(Py_37)]`, and `#[cfg(PyPy)]`.
 `Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python/C API.
 With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
@@ -208,6 +208,7 @@ Some of the functionality of `pyo3-build-config`:
 [`pyo3-macros`]: https://github.com/PyO3/pyo3/tree/main/pyo3-macros
 [`pyo3-macros-backend`]: https://github.com/PyO3/pyo3/tree/main/pyo3-macros-backend
 [`pyo3-build-config`]: https://github.com/PyO3/pyo3/tree/main/pyo3-build-config
+[`pyo3-ffi`]: https://github.com/PyO3/pyo3/tree/main/pyo3-ffi
 
 <!-- Directories -->
 

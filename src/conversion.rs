@@ -44,7 +44,7 @@ where
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.as_ref()
-            .map_or_else(std::ptr::null_mut, |t| t.into_ptr())
+            .map_or_else(std::ptr::null_mut, |t| t.as_ptr())
     }
 }
 
@@ -97,38 +97,7 @@ pub trait ToBorrowedObject: ToPyObject {
     }
 }
 
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject,
-{
-    #[cfg(feature = "nightly")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-    default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        let ptr = self.to_object(py).into_ptr();
-        let result = f(ptr);
-        unsafe {
-            ffi::Py_XDECREF(ptr);
-        }
-        result
-    }
-}
-
-#[cfg(feature = "nightly")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject + AsPyPointer,
-{
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        f(self.as_ptr())
-    }
-}
+impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 /// Defines a conversion from a Rust type to a Python object.
 ///
@@ -555,7 +524,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-    use crate::{Python, ToPyObject};
+    use crate::{AsPyPointer, PyObject, Python, ToPyObject};
 
     use super::PyTryFrom;
 
@@ -593,6 +562,23 @@ mod tests {
             let list = PyList::new(py, &[1, 2, 3]);
             let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
             assert_eq!(list, val);
+        });
+    }
+
+    #[test]
+    fn test_option_as_ptr() {
+        Python::with_gil(|py| {
+            let mut option: Option<PyObject> = None;
+            assert_eq!(option.as_ptr(), std::ptr::null_mut());
+
+            let none = py.None();
+            option = Some(none.clone());
+
+            let ref_cnt = none.get_refcnt(py);
+            assert_eq!(option.as_ptr(), none.as_ptr());
+
+            // Ensure ref count not changed by as_ptr call
+            assert_eq!(none.get_refcnt(py), ref_cnt);
         });
     }
 }

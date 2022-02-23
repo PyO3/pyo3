@@ -9,7 +9,7 @@ If you want to become familiar with the codebase, see
 
 ## Getting started contributing
 
-Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it. 
+Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
 
 You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/doc/pyo3/index.html).
 
@@ -47,7 +47,7 @@ There are some specific areas of focus where help is currently needed for the do
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
-You can build the docs (including all features) with 
+You can build the docs (including all features) with
 ```cargo +nightly pyo3_doc_scrape```
 
 #### Doctests
@@ -115,7 +115,7 @@ First, there are Rust-based benchmarks located in the `benches` subdirectory. As
 
     cargo +nightly bench
 
-Second, there is a Python-based benchmark contained in the `pyo3-benchmarks` example. You can read more about it [here](examples/pyo3-benchmarks).
+Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
 
 ## Sponsor this project
 

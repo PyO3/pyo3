@@ -1,9 +1,14 @@
 //! `PyClass` and related traits.
 use crate::{
-    class::impl_::{fallback_new, tp_dealloc, PyClassImpl},
+    callback::IntoPyCallbackOutput,
+    exceptions::PyTypeError,
     ffi,
-    impl_::pyclass::{PyClassDict, PyClassWeakRef},
-    PyCell, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    impl_::pyclass::{
+        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
+        PyClassImpl, PyClassItems, PyClassWeakRef,
+    },
+    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
+    PyTypeInfo, Python,
 };
 use std::{
     convert::TryInto,
@@ -45,15 +50,10 @@ where
             T::NAME,
             T::BaseType::type_object_raw(py),
             std::mem::size_of::<T::Layout>(),
-            T::get_new(),
             tp_dealloc::<T>,
-            T::get_alloc(),
-            T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
-            &T::for_each_method_def,
-            &T::for_each_proto_slot,
-            T::IS_GC,
+            &T::for_all_items,
             T::IS_BASETYPE,
         )
     } {
@@ -70,15 +70,10 @@ unsafe fn create_type_object_impl(
     name: &str,
     base_type_object: *mut ffi::PyTypeObject,
     basicsize: usize,
-    tp_new: Option<ffi::newfunc>,
     tp_dealloc: ffi::destructor,
-    tp_alloc: Option<ffi::allocfunc>,
-    tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-    for_each_proto_slot: &dyn Fn(&mut dyn FnMut(&[ffi::PyType_Slot])),
-    is_gc: bool,
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     is_basetype: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
@@ -92,19 +87,7 @@ unsafe fn create_type_object_impl(
         push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
     }
 
-    push_slot(
-        &mut slots,
-        ffi::Py_tp_new,
-        tp_new.unwrap_or(fallback_new) as _,
-    );
     push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
-
-    if let Some(alloc) = tp_alloc {
-        push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
-    }
-    if let Some(free) = tp_free {
-        push_slot(&mut slots, ffi::Py_tp_free, free as _);
-    }
 
     #[cfg(Py_3_9)]
     {
@@ -114,49 +97,97 @@ unsafe fn create_type_object_impl(
         }
     }
 
+    let PyClassInfo {
+        method_defs,
+        property_defs,
+    } = method_defs_to_pyclass_info(for_all_items, dict_offset.is_none());
+
     // normal methods
-    let methods = py_class_method_defs(for_each_method_def);
-    if !methods.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(methods));
+    if !method_defs.is_empty() {
+        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(method_defs));
     }
 
     // properties
-    let props = py_class_properties(dict_offset.is_none(), for_each_method_def);
-    if !props.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(props));
+    if !property_defs.is_empty() {
+        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(property_defs));
     }
 
     // protocol methods
-    let mut has_gc_methods = false;
+    let mut has_new = false;
+    let mut has_getitem = false;
+    let mut has_setitem = false;
+    let mut has_traverse = false;
+    let mut has_clear = false;
+
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
     let mut buffer_procs: ffi::PyBufferProcs = Default::default();
 
-    for_each_proto_slot(&mut |proto_slots| {
-        for slot in proto_slots {
-            has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
-
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_getbuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
-            }
-
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_releasebuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+    for_all_items(&mut |items| {
+        for slot in items.slots {
+            match slot.slot {
+                ffi::Py_tp_new => has_new = true,
+                ffi::Py_mp_subscript => has_getitem = true,
+                ffi::Py_mp_ass_subscript => has_setitem = true,
+                ffi::Py_tp_traverse => has_traverse = true,
+                ffi::Py_tp_clear => has_clear = true,
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_getbuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_releasebuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                _ => {}
             }
         }
-        slots.extend_from_slice(proto_slots);
+        slots.extend_from_slice(items.slots);
     });
 
+    // If mapping methods implemented, define sequence methods get implemented too.
+    // CPython does the same for Python `class` statements.
+
+    // NB we don't implement sq_length to avoid annoying CPython behaviour of automatically adding
+    // the length to negative indices.
+
+    if has_getitem {
+        push_slot(
+            &mut slots,
+            ffi::Py_sq_item,
+            get_sequence_item_from_mapping as _,
+        );
+    }
+
+    if has_setitem {
+        push_slot(
+            &mut slots,
+            ffi::Py_sq_ass_item,
+            assign_sequence_item_from_mapping as _,
+        );
+    }
+
+    if !has_new {
+        push_slot(&mut slots, ffi::Py_tp_new, no_constructor_defined as _);
+    }
+
+    if has_clear && !has_traverse {
+        return Err(PyTypeError::new_err(format!(
+            "`#[pyclass]` {} implements __clear__ without __traverse__",
+            name
+        )));
+    }
+
+    // Add empty sentinel at the end
     push_slot(&mut slots, 0, ptr::null_mut());
+
     let mut spec = ffi::PyType_Spec {
         name: py_class_qualified_name(module_name, name)?,
         basicsize: basicsize as c_int,
         itemsize: 0,
-        flags: py_class_flags(has_gc_methods, is_gc, is_basetype),
+        flags: py_class_flags(has_traverse, is_basetype),
         slots: slots.as_mut_ptr(),
     };
 
@@ -266,12 +297,13 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
     .into_raw())
 }
 
-fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uint {
-    let mut flags = if has_gc_methods || is_gc {
-        ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
-    } else {
-        ffi::Py_TPFLAGS_DEFAULT
-    };
+fn py_class_flags(is_gc: bool, is_basetype: bool) -> c_uint {
+    let mut flags = ffi::Py_TPFLAGS_DEFAULT;
+
+    if is_gc {
+        flags |= ffi::Py_TPFLAGS_HAVE_GC;
+    }
+
     if is_basetype {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
@@ -282,26 +314,76 @@ fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uin
     flags.try_into().unwrap()
 }
 
-fn py_class_method_defs(
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-) -> Vec<ffi::PyMethodDef> {
-    let mut defs = Vec::new();
+struct PyClassInfo {
+    method_defs: Vec<ffi::PyMethodDef>,
+    property_defs: Vec<ffi::PyGetSetDef>,
+}
 
-    for_each_method_def(&mut |method_defs| {
-        defs.extend(method_defs.iter().filter_map(|def| match def {
-            PyMethodDefType::Method(def)
-            | PyMethodDefType::Class(def)
-            | PyMethodDefType::Static(def) => Some(def.as_method_def().unwrap()),
-            _ => None,
-        }));
+fn method_defs_to_pyclass_info(
+    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
+    has_dict: bool,
+) -> PyClassInfo {
+    let mut method_defs = Vec::new();
+    let mut property_defs_map = std::collections::HashMap::new();
+
+    for_all_items(&mut |items| {
+        for def in items.methods {
+            match def {
+                PyMethodDefType::Getter(getter) => {
+                    getter.copy_to(
+                        property_defs_map
+                            .entry(getter.name)
+                            .or_insert(PY_GET_SET_DEF_INIT),
+                    );
+                }
+                PyMethodDefType::Setter(setter) => {
+                    setter.copy_to(
+                        property_defs_map
+                            .entry(setter.name)
+                            .or_insert(PY_GET_SET_DEF_INIT),
+                    );
+                }
+                PyMethodDefType::Method(def)
+                | PyMethodDefType::Class(def)
+                | PyMethodDefType::Static(def) => method_defs.push(def.as_method_def().unwrap()),
+                PyMethodDefType::ClassAttribute(_) => {}
+            }
+        }
     });
 
-    if !defs.is_empty() {
+    // TODO: use into_values when on MSRV Rust >= 1.54
+    let mut property_defs: Vec<_> = property_defs_map
+        .into_iter()
+        .map(|(_, value)| value)
+        .collect();
+
+    if !method_defs.is_empty() {
         // Safety: Python expects a zeroed entry to mark the end of the defs
-        defs.push(unsafe { std::mem::zeroed() });
+        method_defs.push(unsafe { std::mem::zeroed() });
     }
 
-    defs
+    // PyPy doesn't automatically add __dict__ getter / setter.
+    // PyObject_GenericGetDict not in the limited API until Python 3.10.
+    if !has_dict {
+        #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+        property_defs.push(ffi::PyGetSetDef {
+            name: "__dict__\0".as_ptr() as *mut c_char,
+            get: Some(ffi::PyObject_GenericGetDict),
+            set: Some(ffi::PyObject_GenericSetDict),
+            doc: ptr::null_mut(),
+            closure: ptr::null_mut(),
+        });
+    }
+
+    if !property_defs.is_empty() {
+        // Safety: Python expects a zeroed entry to mark the end of the defs
+        property_defs.push(unsafe { std::mem::zeroed() });
+    }
+
+    PyClassInfo {
+        method_defs,
+        property_defs,
+    }
 }
 
 /// Generates the __dictoffset__ and __weaklistoffset__ members, to set tp_dictoffset and
@@ -352,51 +434,142 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
-fn py_class_properties(
-    is_dummy: bool,
-    for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
-) -> Vec<ffi::PyGetSetDef> {
-    let mut defs = std::collections::HashMap::new();
+/// Operators for the `__richcmp__` method
+#[derive(Debug, Clone, Copy)]
+pub enum CompareOp {
+    /// The *less than* operator.
+    Lt = ffi::Py_LT as isize,
+    /// The *less than or equal to* operator.
+    Le = ffi::Py_LE as isize,
+    /// The equality operator.
+    Eq = ffi::Py_EQ as isize,
+    /// The *not equal to* operator.
+    Ne = ffi::Py_NE as isize,
+    /// The *greater than* operator.
+    Gt = ffi::Py_GT as isize,
+    /// The *greater than or equal to* operator.
+    Ge = ffi::Py_GE as isize,
+}
 
-    for_each_method_def(&mut |method_defs| {
-        for def in method_defs {
-            match def {
-                PyMethodDefType::Getter(getter) => {
-                    getter.copy_to(defs.entry(getter.name).or_insert(PY_GET_SET_DEF_INIT));
-                }
-                PyMethodDefType::Setter(setter) => {
-                    setter.copy_to(defs.entry(setter.name).or_insert(PY_GET_SET_DEF_INIT));
-                }
-                _ => (),
+impl CompareOp {
+    pub fn from_raw(op: c_int) -> Option<Self> {
+        match op {
+            ffi::Py_LT => Some(CompareOp::Lt),
+            ffi::Py_LE => Some(CompareOp::Le),
+            ffi::Py_EQ => Some(CompareOp::Eq),
+            ffi::Py_NE => Some(CompareOp::Ne),
+            ffi::Py_GT => Some(CompareOp::Gt),
+            ffi::Py_GE => Some(CompareOp::Ge),
+            _ => None,
+        }
+    }
+}
+
+/// Output of `__next__` which can either `yield` the next value in the iteration, or
+/// `return` a value to raise `StopIteration` in Python.
+///
+/// See [`PyIterProtocol`](trait.PyIterProtocol.html) for an example.
+pub enum IterNextOutput<T, U> {
+    /// The value yielded by the iterator.
+    Yield(T),
+    /// The `StopIteration` object.
+    Return(U),
+}
+
+pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
+        }
+    }
+}
+
+impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
+            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+        match self {
+            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterNextOutput::Return(py.None())),
+        }
+    }
+}
+
+/// Output of `__anext__`.
+///
+/// <https://docs.python.org/3/reference/expressions.html#agen.__anext__>
+pub enum IterANextOutput<T, U> {
+    /// An expression which the generator yielded.
+    Yield(T),
+    /// A `StopAsyncIteration` object.
+    Return(U),
+}
+
+/// An [IterANextOutput] of Python objects.
+pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
+
+impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
+    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(o.into_ptr()),
+            IterANextOutput::Return(opt) => {
+                Err(crate::exceptions::PyStopAsyncIteration::new_err((opt,)))
             }
         }
-    });
-
-    let mut props: Vec<_> = defs.values().cloned().collect();
-
-    // PyPy doesn't automatically adds __dict__ getter / setter.
-    // PyObject_GenericGetDict not in the limited API until Python 3.10.
-    push_dict_getset(&mut props, is_dummy);
-
-    if !props.is_empty() {
-        // Safety: Python expects a zeroed entry to mark the end of the defs
-        props.push(unsafe { std::mem::zeroed() });
-    }
-    props
-}
-
-#[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
-fn push_dict_getset(props: &mut Vec<ffi::PyGetSetDef>, is_dummy: bool) {
-    if !is_dummy {
-        props.push(ffi::PyGetSetDef {
-            name: "__dict__\0".as_ptr() as *mut c_char,
-            get: Some(ffi::PyObject_GenericGetDict),
-            set: Some(ffi::PyObject_GenericSetDict),
-            doc: ptr::null_mut(),
-            closure: ptr::null_mut(),
-        });
     }
 }
 
-#[cfg(any(PyPy, all(Py_LIMITED_API, not(Py_3_10))))]
-fn push_dict_getset(_: &mut Vec<ffi::PyGetSetDef>, _is_dummy: bool) {}
+impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
+where
+    T: IntoPy<PyObject>,
+    U: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
+            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+        }
+    }
+}
+
+impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+        match self {
+            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
+            None => Ok(PyIterANextOutput::Return(py.None())),
+        }
+    }
+}
+
+/// Default new implementation
+pub(crate) unsafe extern "C" fn no_constructor_defined(
+    _subtype: *mut ffi::PyTypeObject,
+    _args: *mut ffi::PyObject,
+    _kwds: *mut ffi::PyObject,
+) -> *mut ffi::PyObject {
+    crate::callback_body!(py, {
+        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+            "No constructor defined",
+        ))
+    })
+}

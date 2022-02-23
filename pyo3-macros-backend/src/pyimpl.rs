@@ -108,10 +108,6 @@ pub fn impl_methods(
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::TraitImpl(token_stream) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        trait_impls.push(quote!(#(#attrs)* #token_stream));
-                    }
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
@@ -150,35 +146,19 @@ pub fn impl_methods(
 
     let krate = get_pyo3_crate(&options.krate);
 
-    Ok(match methods_type {
-        PyClassMethodsType::Specialization => {
-            let methods_registration = impl_py_methods(ty, methods);
-            let protos_registration = impl_protos(ty, proto_impls);
+    let items = match methods_type {
+        PyClassMethodsType::Specialization => impl_py_methods(ty, methods, proto_impls),
+        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls),
+    };
 
-            quote! {
-                const _: () = {
-                    use #krate as _pyo3;
+    Ok(quote! {
+        const _: () = {
+            use #krate as _pyo3;
 
-                    #(#trait_impls)*
+            #(#trait_impls)*
 
-                    #protos_registration
-
-                    #methods_registration
-                };
-            }
-        }
-        PyClassMethodsType::Inventory => {
-            let inventory = submit_methods_inventory(ty, methods, proto_impls);
-            quote! {
-                const _: () = {
-                    use #krate as _pyo3;
-
-                    #(#trait_impls)*
-
-                    #inventory
-                };
-            }
-        }
+            #items
+        };
     })
 }
 
@@ -190,7 +170,7 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
         _pyo3::class::PyMethodDefType::ClassAttribute({
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                _pyo3::class::methods::PyClassAttributeFactory({
+                _pyo3::impl_::pymethods::PyClassAttributeFactory({
                     fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
                         #deprecations
                         _pyo3::IntoPy::into_py(#cls::#member, py)
@@ -202,55 +182,46 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     }
 }
 
-pub fn gen_default_slot_impls(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
+pub fn gen_default_items<'a>(
+    cls: &syn::Ident,
+    method_defs: &'a mut [syn::ImplItemMethod],
+) -> impl Iterator<Item = TokenStream> + 'a {
     // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
     // all succeed.
     let ty: syn::Type = syn::parse_quote!(#cls);
 
-    let mut method_defs: Vec<_> = method_defs
-        .into_iter()
-        .map(|token| syn::parse2::<syn::ImplItemMethod>(token).unwrap())
-        .collect();
-
-    let mut proto_impls = Vec::new();
-
-    for meth in &mut method_defs {
+    method_defs.iter_mut().map(move |meth| {
         let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
         match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
             GeneratedPyMethod::Proto(token_stream) => {
                 let attrs = get_cfg_attributes(&meth.attrs);
-                proto_impls.push(quote!(#(#attrs)* #token_stream))
+                quote!(#(#attrs)* #token_stream)
             }
             GeneratedPyMethod::SlotTraitImpl(..) => {
                 panic!("SlotFragment methods cannot have default implementation!")
             }
-            GeneratedPyMethod::Method(_) | GeneratedPyMethod::TraitImpl(_) => {
+            GeneratedPyMethod::Method(_) => {
                 panic!("Only protocol methods can have default implementation!")
             }
         }
-    }
-
-    quote! {
-        impl #cls {
-            #(#method_defs)*
-        }
-        impl ::pyo3::class::impl_::PyClassDefaultSlots<#cls>
-            for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-                fn py_class_default_slots(self) -> &'static [::pyo3::ffi::PyType_Slot] {
-                    &[#(#proto_impls),*]
-                }
-        }
-    }
+    })
 }
 
-fn impl_py_methods(ty: &syn::Type, methods: Vec<TokenStream>) -> TokenStream {
+fn impl_py_methods(
+    ty: &syn::Type,
+    methods: Vec<TokenStream>,
+    proto_impls: Vec<TokenStream>,
+) -> TokenStream {
     quote! {
-        impl _pyo3::class::impl_::PyMethods<#ty>
-            for _pyo3::class::impl_::PyClassImplCollector<#ty>
+        impl _pyo3::impl_::pyclass::PyMethods<#ty>
+            for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
-            fn py_methods(self) -> &'static [_pyo3::class::methods::PyMethodDefType] {
-                static METHODS: &[_pyo3::class::methods::PyMethodDefType] = &[#(#methods),*];
-                METHODS
+            fn py_methods(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
+                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
+                    methods: &[#(#methods),*],
+                    slots: &[#(#proto_impls),*]
+                };
+                &ITEMS
             }
         }
     }
@@ -266,7 +237,7 @@ fn add_shared_proto_slots(
             let first_implemented = implemented_proto_fragments.remove($first);
             let second_implemented = implemented_proto_fragments.remove($second);
             if first_implemented || second_implemented {
-                proto_impls.push(quote! { _pyo3::class::impl_::$slot!(#ty) })
+                proto_impls.push(quote! { _pyo3::impl_::pyclass::$slot!(#ty) })
             }
         }};
     }
@@ -293,19 +264,9 @@ fn add_shared_proto_slots(
     );
     try_add_shared_slot!("__pow__", "__rpow__", generate_pyclass_pow_slot);
 
+    // if this assertion trips, a slot fragment has been implemented which has not been added in the
+    // list above
     assert!(implemented_proto_fragments.is_empty());
-}
-
-fn impl_protos(ty: &syn::Type, proto_impls: Vec<TokenStream>) -> TokenStream {
-    quote! {
-        impl _pyo3::class::impl_::PyMethodsProtocolSlots<#ty>
-            for _pyo3::class::impl_::PyClassImplCollector<#ty>
-        {
-            fn methods_protocol_slots(self) -> &'static [_pyo3::ffi::PyType_Slot] {
-                &[#(#proto_impls),*]
-            }
-        }
-    }
 }
 
 fn submit_methods_inventory(
@@ -315,8 +276,8 @@ fn submit_methods_inventory(
 ) -> TokenStream {
     quote! {
         _pyo3::inventory::submit! {
-            type Inventory = <#ty as _pyo3::class::impl_::PyClassImpl>::Inventory;
-            Inventory::new(&[#(#methods),*], &[#(#proto_impls),*])
+            type Inventory = <#ty as _pyo3::impl_::pyclass::PyClassImpl>::Inventory;
+            Inventory::new(_pyo3::impl_::pyclass::PyClassItems { methods: &[#(#methods),*], slots: &[#(#proto_impls),*] })
         }
     }
 }

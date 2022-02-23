@@ -65,11 +65,15 @@ Most users should only need a single `#[pymethods]` per `#[pyclass]`. In additio
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 
+### `pyproto`
+
+This feature enables the `#[pyproto]` macro, which is an alternative (older, soon-to-be-deprecated) to `#[pymethods]` for defining magic methods such as `__eq__`.
+
+> This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
+
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
-- `FromPyObject` for `Vec` and `[T;N]` can perform a `memcpy` when the object supports the Python buffer protocol.
-- `ToBorrowedObject` can skip a reference count increase when the provided object is a Python native type.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the `Python::allow_threads` function.
 
 ### `resolve-config`
 

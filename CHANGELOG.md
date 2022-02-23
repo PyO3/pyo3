@@ -16,19 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pyo3-build-config` no longer enables the `resolve-config` feature by default. [#2008](https://github.com/PyO3/pyo3/pull/2008)
 - Update `inventory` optional dependency to 0.2. [#2019](https://github.com/PyO3/pyo3/pull/2019)
 - Drop `paste` dependency. [#2081](https://github.com/PyO3/pyo3/pull/2081)
+- The bindings found `pyo3::ffi` are now a re-export of the new `pyo3-ffi` crate. [#2126](https://github.com/PyO3/pyo3/pull/2126)
 
 ### Added
 
 - Add `Py::setattr` method. [#2009](https://github.com/PyO3/pyo3/pull/2009)
 - Add `PyCapsule`, exposing the [Capsule API](https://docs.python.org/3/c-api/capsule.html#capsules). [#1980](https://github.com/PyO3/pyo3/pull/1980)
-- All PyO3 proc-macros except the deprecated `#[pyproto]` now accept a supplemental attribute `#[pyo3(crate = "some::path")]` that specifies
-  where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
 - Expose `pyo3-build-config` APIs for cross-compiling and Python configuration discovery for use in other projects. [#1996](https://github.com/PyO3/pyo3/pull/1996)
+- All PyO3 proc-macros except the deprecated `#[pyproto]` now accept a supplemental attribute `#[pyo3(crate = "some::path")]` that specifies where to find the `pyo3` crate, in case it has been renamed or is re-exported and not found at the crate root. [#2022](https://github.com/PyO3/pyo3/pull/2022)
+- Enable `#[pyclass]` for fieldless (aka C-like) enums. [#2034](https://github.com/PyO3/pyo3/pull/2034)
 - Add buffer magic methods `__getbuffer__` and `__releasebuffer__` to `#[pymethods]`. [#2067](https://github.com/PyO3/pyo3/pull/2067)
 - Accept paths in `wrap_pyfunction` and `wrap_pymodule`. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - Add check for correct number of arguments on magic methods. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 - `wrap_pyfunction!` can now wrap a `#[pyfunction]` which is implemented in a different Rust module or crate. [#2091](https://github.com/PyO3/pyo3/pull/2091)
 - Add `PyAny::contains` method (`in` operator for `PyAny`). [#2115](https://github.com/PyO3/pyo3/pull/2115)
+- Add `PyMapping::contains` method (`in` operator for `PyMapping`). [#2133](https://github.com/PyO3/pyo3/pull/2133)
+- Add garbage collection magic methods `__traverse__` and `__clear__` to `#[pymethods]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
 
 ### Changed
 
@@ -43,17 +46,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PyErr::new_type` now takes an optional docstring and now returns `PyResult<Py<PyType>>` rather than a `ffi::PyTypeObject` pointer.
 - The `create_exception!` macro can now take an optional docstring. This docstring, if supplied, is visible to users (with `.__doc__` and `help()`) and
   accompanies your error type in your crate's documentation.
+- `__getitem__`, `__setitem__` and `__delitem__` in `#[pymethods]` now implement both a Python mapping and sequence by default. [#2065](https://github.com/PyO3/pyo3/pull/2065)
 - Improve performance and error messages for `#[derive(FromPyObject)]` for enums. [#2068](https://github.com/PyO3/pyo3/pull/2068)
 - Reduce generated LLVM code size (to improve compile times) for:
-  - internal `handle_panic` helper [#2074](https://github.com/PyO3/pyo3/pull/2074)
+  - internal `handle_panic` helper [#2074](https://github.com/PyO3/pyo3/pull/2074) [#2158](https://github.com/PyO3/pyo3/pull/2158)
   - `#[pyfunction]` and `#[pymethods]` argument extraction [#2075](https://github.com/PyO3/pyo3/pull/2075) [#2085](https://github.com/PyO3/pyo3/pull/2085)
-  - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081)
+  - `#[pyclass]` type object creation [#2076](https://github.com/PyO3/pyo3/pull/2076) [#2081](https://github.com/PyO3/pyo3/pull/2081) [#2157](https://github.com/PyO3/pyo3/pull/2157)
 - `__ipow__` now supports modulo argument on Python 3.8+. [#2083](https://github.com/PyO3/pyo3/pull/2083)
 - `pyo3-macros-backend` is now compiled with PyO3 cfgs to enable different magic method definitions based on version. [#2083](https://github.com/PyO3/pyo3/pull/2083)
+- `_PyCFunctionFast` now correctly reflects the signature defined in the [Python docs](https://docs.python.org/3/c-api/structures.html#c._PyCFunctionFast). [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- `PyDateTimeAPI` and `PyDateTime_TimeZone_UTC` are are now unsafe functions instead of statics. [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- `PyDateTimeAPI` does not implicitly call `PyDateTime_IMPORT` anymore to reflect the original Python API more closely. Before the first call to `PyDateTime_IMPORT` a null pointer is returned. Therefore before calling any of the following FFI functions `PyDateTime_IMPORT` must be called to avoid undefined behaviour: [#2126](https://github.com/PyO3/pyo3/pull/2126)
+  - `PyDateTime_TimeZone_UTC`
+  - `PyDate_Check`
+  - `PyDate_CheckExact`
+  - `PyDateTime_Check`
+  - `PyDateTime_CheckExact`
+  - `PyTime_Check`
+  - `PyTime_CheckExact`
+  - `PyDelta_Check`
+  - `PyDelta_CheckExact`
+  - `PyTZInfo_Check`
+  - `PyTZInfo_CheckExact`
+  - `PyDateTime_FromTimestamp`
+  - `PyDate_FromTimestamp`
+- Deprecate the `gc` option for `pyclass` (e.g. `#[pyclass(gc)]`). Just implement a `__traverse__` `#[pymethod]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
+- The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
+- The `PyTypeError` thrown when argument parsing failed now contains the nested causes [2177](https://github.com/PyO3/pyo3/pull/2178)
 
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
+- Remove `Default` impl for `PyMethodDef` [2166](https://github.com/PyO3/pyo3/pull/2166)
 
 ### Fixed
 
@@ -64,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use the Rust function path for `wrap_pymodule!` of a `#[pymodule]` with a `#[pyo3(name = "..")]` attribute, not the Python name. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - Fix panic in `#[pyfunction]` generated code when a required argument following an `Option` was not provided.  [#2093](https://github.com/PyO3/pyo3/pull/2093)
 - Fixed undefined behaviour caused by incorrect `ExactSizeIterator` implementations. [#2124](https://github.com/PyO3/pyo3/pull/2124)
+- Add missing FFI definitions `_PyLong_NumBits` and `_PyLong_AsByteArray` on PyPy. [#2146](https://github.com/PyO3/pyo3/pull/2146)
+- Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
+- Fix the signature of `_PyLong_NumBits` [#2161](https://github.com/PyO3/pyo3/pull/2161)
 
 ## [0.15.1] - 2021-11-19
 

@@ -1,25 +1,11 @@
-error[E0495]: cannot infer an appropriate lifetime for lifetime parameter 'py in function call due to conflicting requirements
+error[E0597]: `gil` does not live long enough
  --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
-  | ^^^^^^^^^^^^^
+  | ^^^^^^^^^^^^-
+  | |           |
+  | |           `gil` dropped here while still borrowed
+  | borrowed value does not live long enough
+  | cast requires that `gil` is borrowed for `'static`
   |
-note: first, the lifetime cannot outlive the anonymous lifetime #1 defined here...
- --> tests/ui/static_ref.rs:4:1
-  |
-4 | #[pyfunction]
-  | ^^^^^^^^^^^^^
-note: ...so that the expression is assignable
- --> tests/ui/static_ref.rs:4:1
-  |
-4 | #[pyfunction]
-  | ^^^^^^^^^^^^^
-  = note: expected `pyo3::Python<'_>`
-             found `pyo3::Python<'_>`
-  = note: but, the lifetime must be valid for the static lifetime...
-note: ...so that reference does not outlive borrowed content
- --> tests/ui/static_ref.rs:4:1
-  |
-4 | #[pyfunction]
-  | ^^^^^^^^^^^^^
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

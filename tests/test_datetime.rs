@@ -2,6 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use pyo3_ffi::PyDateTime_IMPORT;
 
 fn _get_subclasses<'p>(
     py: &'p Python,
@@ -57,7 +58,7 @@ fn test_date_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "date", "2018, 1, 1").unwrap();
-
+    unsafe { PyDateTime_IMPORT() }
     assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
     assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
     assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_sub_obj);
@@ -68,6 +69,7 @@ fn test_time_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "time", "12, 30, 15").unwrap();
+    unsafe { PyDateTime_IMPORT() }
 
     assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
     assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_obj);
@@ -81,6 +83,7 @@ fn test_datetime_check() {
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "datetime", "2018, 1, 1, 13, 30, 15")
         .map_err(|e| e.print(py))
         .unwrap();
+    unsafe { PyDateTime_IMPORT() }
 
     assert_check_only!(PyDate_Check, PyDate_CheckExact, obj);
     assert_check_exact!(PyDateTime_Check, PyDateTime_CheckExact, obj);
@@ -93,6 +96,7 @@ fn test_delta_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "timedelta", "1, -3").unwrap();
+    unsafe { PyDateTime_IMPORT() }
 
     assert_check_exact!(PyDelta_Check, PyDelta_CheckExact, obj);
     assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_obj);

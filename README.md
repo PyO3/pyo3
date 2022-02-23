@@ -56,6 +56,9 @@ version = "0.1.0"
 edition = "2018"
 
 [lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import string_sum`). If you change this, you must also change the name of the
+# `#[pymodule]` in `src/lib.rs`.
 name = "string_sum"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 #
@@ -159,7 +162,7 @@ about this topic.
 
 ## Tools and libraries
 
-- [maturin](https://github.com/PyO3/maturin) _Zero configuration build tool for Rust-made Python extensions_.
+- [maturin](https://github.com/PyO3/maturin) _Build and publish crates with pyo3, rust-cpython or cffi bindings as well as rust binaries as python packages_
 - [setuptools-rust](https://github.com/PyO3/setuptools-rust) _Setuptools plugin for Rust support_.
 - [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://docs.rs/pyo3/*/pyo3/types/struct.PyDict.html)_
 - [rust-numpy](https://github.com/PyO3/rust-numpy) _Rust binding of NumPy C-API_

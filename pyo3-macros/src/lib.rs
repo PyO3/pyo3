@@ -9,9 +9,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    build_py_proto, get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl,
-    wrap_pymodule_impl, PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
-    WrapPyFunctionArgs,
+    get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl, wrap_pymodule_impl,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, WrapPyFunctionArgs,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -68,9 +67,10 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 /// [4]: ../class/gc/trait.PyGCProtocol.html
 /// [5]: ../class/iter/trait.PyIterProtocol.html
 #[proc_macro_attribute]
+#[cfg(feature = "pyproto")]
 pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_proto(&mut ast).unwrap_or_compile_error();
+    let expanded = pyo3_macros_backend::build_py_proto(&mut ast).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -79,19 +79,18 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// A proc macro used to expose Rust structs as Python objects.
+/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
 /// `#[pyclass]` accepts the following [parameters][2]:
 ///
 /// |  Parameter  |  Description |
 /// | :-  | :- |
 /// | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][10] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
-/// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
+/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][9] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
 /// | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][4] |
-/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
-/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
+/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
+/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][7] with [`Arc`][8]. By using `unsendable`, your class will panic when accessed by another thread.|
 /// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
 /// For more on creating Python classes,
@@ -103,10 +102,9 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// [4]: ../prelude/struct.PyAny.html
 /// [5]: https://pyo3.rs/latest/class/protocols.html#garbage-collector-integration
 /// [6]: https://docs.python.org/3/library/weakref.html
-/// [7]: https://doc.rust-lang.org/nomicon/leaking.html
-/// [8]: std::rc::Rc
-/// [9]: std::sync::Arc
-/// [10]: https://en.wikipedia.org/wiki/Free_list
+/// [7]: std::rc::Rc
+/// [8]: std::sync::Arc
+/// [9]: https://en.wikipedia.org/wiki/Free_list
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     use syn::Item;

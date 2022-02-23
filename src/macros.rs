@@ -5,7 +5,7 @@
 /// This macro internally calls [`Python::run`](crate::Python::run) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run`](crate::python::Python::run) instead.
+/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
 ///
 /// # Examples
 /// ```

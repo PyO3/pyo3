@@ -70,7 +70,7 @@ pub fn impl_arg_params(
             arg_convert.push(impl_arg_param(arg, spec, i, None, &mut 0, py, &args_array)?);
         }
         return Ok(quote! {
-            let _args = ::std::option::Option::Some(#py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args));
+            let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
             let _kwargs: ::std::option::Option<&_pyo3::types::PyDict> = #py.from_borrowed_ptr_or_opt(_kwargs);
             #(#arg_convert)*
         });
@@ -126,6 +126,16 @@ pub fn impl_arg_params(
     }
 
     let (accept_args, accept_kwargs) = accept_args_kwargs(&spec.attrs);
+    let args_handler = if accept_args {
+        quote! { _pyo3::impl_::extract_argument::TupleVarargs }
+    } else {
+        quote! { _pyo3::impl_::extract_argument::NoVarargs }
+    };
+    let kwargs_handler = if accept_kwargs {
+        quote! { _pyo3::impl_::extract_argument::DictVarkeywords }
+    } else {
+        quote! { _pyo3::impl_::extract_argument::NoVarkeywords }
+    };
 
     let cls_name = if let Some(cls) = self_ {
         quote! { ::std::option::Option::Some(<#cls as _pyo3::type_object::PyTypeInfo>::NAME) }
@@ -136,7 +146,7 @@ pub fn impl_arg_params(
 
     let extract_expression = if fastcall {
         quote! {
-            DESCRIPTION.extract_arguments_fastcall(
+            DESCRIPTION.extract_arguments_fastcall::<#args_handler, #kwargs_handler>(
                 #py,
                 _args,
                 _nargs,
@@ -146,7 +156,7 @@ pub fn impl_arg_params(
         }
     } else {
         quote! {
-            DESCRIPTION.extract_arguments_tuple_dict(
+            DESCRIPTION.extract_arguments_tuple_dict::<#args_handler, #kwargs_handler>(
                 #py,
                 _args,
                 _kwargs,
@@ -164,8 +174,6 @@ pub fn impl_arg_params(
                 positional_only_parameters: #positional_only_parameters,
                 required_positional_parameters: #required_positional_parameters,
                 keyword_only_parameters: &[#(#keyword_only_parameters),*],
-                accept_varargs: #accept_args,
-                accept_varkeywords: #accept_kwargs,
             };
 
             let mut #args_array = [::std::option::Option::None; #num_params];
@@ -201,9 +209,6 @@ fn impl_arg_param(
     let ty = arg.ty;
     let name = arg.name;
     let name_str = name.to_string();
-    let transform_error = quote! {
-        |e| _pyo3::impl_::extract_argument::argument_extraction_error(#py, #name_str, e)
-    };
 
     if is_args(&spec.attrs, name) {
         ensure_spanned!(
@@ -211,7 +216,7 @@ fn impl_arg_param(
             arg.name.span() => "args cannot be optional"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _pyo3::impl_::extract_argument::extract_argument(_args.unwrap(), #name_str)?;
+            let #arg_name = _pyo3::impl_::extract_argument::extract_argument(_args, #name_str)?;
         });
     } else if is_kwargs(&spec.attrs, name) {
         ensure_spanned!(
@@ -219,43 +224,64 @@ fn impl_arg_param(
             arg.name.span() => "kwargs must be Option<_>"
         );
         return Ok(quote_arg_span! {
-            let #arg_name = _kwargs.map(|kwargs| _pyo3::impl_::extract_argument::extract_argument(kwargs, #name_str))
-                .transpose()?;
+            let #arg_name = _pyo3::impl_::extract_argument::extract_optional_argument(_kwargs.map(|kwargs| kwargs.as_ref()), #name_str)?;
         });
     }
 
     let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
-    let extract = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with {
-        quote_arg_span! { #expr_path(_obj).map_err(#transform_error) }
+    let arg_value_or_default = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with
+    {
+        match (spec.default_value(name), arg.optional.is_some()) {
+            (Some(default), true) if default.to_string() != "None" => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || Some(#default))
+                }
+            }
+            (Some(default), _) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)
+                }
+            }
+            (None, true) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || Some(None))
+                }
+            }
+            (None, false) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::from_py_with(
+                        _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                        #name_str,
+                        #expr_path,
+                    )
+                }
+            }
+        }
     } else {
-        quote_arg_span! { _pyo3::impl_::extract_argument::extract_argument(_obj, #name_str) }
-    };
-
-    let arg_value_or_default = match (spec.default_value(name), arg.optional.is_some()) {
-        (Some(default), true) if default.to_string() != "None" => {
-            quote_arg_span! {
-                #arg_value.map_or_else(|| ::std::result::Result::Ok(::std::option::Option::Some(#default)),
-                                       |_obj| #extract)?
+        match (spec.default_value(name), arg.optional.is_some()) {
+            (Some(default), true) if default.to_string() != "None" => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::extract_argument_with_default(#arg_value, #name_str, || Some(#default))
+                }
             }
-        }
-        (Some(default), _) => {
-            quote_arg_span! {
-                #arg_value.map_or_else(|| ::std::result::Result::Ok(#default), |_obj| #extract)?
+            (Some(default), _) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::extract_argument_with_default(#arg_value, #name_str, || #default)
+                }
             }
-        }
-        (None, true) => {
-            quote_arg_span! {
-                #arg_value.map_or(::std::result::Result::Ok(::std::option::Option::None),
-                                  |_obj| #extract)?
+            (None, true) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::extract_optional_argument(#arg_value, #name_str)
+                }
             }
-        }
-        (None, false) => {
-            quote_arg_span! {
-                {
-                    let _obj = #arg_value.expect("Failed to extract required method argument");
-                    #extract?
+            (None, false) => {
+                quote_arg_span! {
+                    _pyo3::impl_::extract_argument::extract_argument(
+                        _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                        #name_str
+                    )
                 }
             }
         }
@@ -286,13 +312,13 @@ fn impl_arg_param(
         };
 
         Ok(quote_arg_span! {
-            let #mut_ _tmp: #target_ty = #arg_value_or_default;
+            let #mut_ _tmp: #target_ty = #arg_value_or_default?;
             #[allow(clippy::needless_option_as_deref)]
             let #arg_name = #borrow_tmp;
         })
     } else {
         Ok(quote_arg_span! {
-            let #arg_name = #arg_value_or_default;
+            let #arg_name = #arg_value_or_default?;
         })
     };
 }

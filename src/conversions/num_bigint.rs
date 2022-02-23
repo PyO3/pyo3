@@ -111,12 +111,12 @@ macro_rules! bigint_conversion {
                     let num: Py<PyLong> =
                         Py::from_owned_ptr_or_err(py, ffi::PyNumber_Index(ob.as_ptr()))?;
                     let n_bits = ffi::_PyLong_NumBits(num.as_ptr());
-                    let n_bytes = if n_bits == -1 {
+                    let n_bytes = if n_bits == (-1isize as usize) {
                         return Err(PyErr::fetch(py));
                     } else if n_bits == 0 {
                         0
                     } else {
-                        (n_bits as usize - 1 + $is_signed) / 8 + 1
+                        (n_bits - 1 + $is_signed) / 8 + 1
                     };
                     if n_bytes <= 128 {
                         let mut buffer = [0; 128];

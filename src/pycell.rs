@@ -175,12 +175,11 @@
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
-use crate::impl_::pyclass::{PyClassDict, PyClassWeakRef};
+use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
-use crate::{class::impl_::PyClassBaseType, class::impl_::PyClassThreadChecker};
 use crate::{
     conversion::{AsPyPointer, FromPyPointer, ToPyObject},
     ffi::PyBaseObject_Type,
