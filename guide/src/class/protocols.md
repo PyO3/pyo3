@@ -243,6 +243,18 @@ and `Return` a final value - see its docs for further details and an example.
     Used by the `*` operator, after trying the numeric multiplication via
     the `__mul__` and `__rmul__` methods.
 
+  * `fn __inplace_concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+
+    Concatenates two sequences.
+    Used by the `+=` operator, after trying the numeric addition via
+    the `__iadd__` method.
+
+  * `fn __inplace_repeat__(&self, count: isize) -> PyResult<impl ToPyObject>`
+
+    Concatenates two sequences.
+    Used by the `*=` operator, after trying the numeric multiplication via
+    the `__imul__` method.
+
 
 ### Descriptors
 
