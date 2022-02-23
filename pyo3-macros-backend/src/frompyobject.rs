@@ -106,8 +106,8 @@ enum ContainerType<'a> {
     StructNewtype(&'a Ident),
     /// Tuple struct, e.g. `struct Foo(String)`.
     ///
-    /// Fields are extracted from a tuple.
-    Tuple(usize),
+    /// Fields are extracted from a tuple where the variant contains the list of extraction calls.
+    Tuple(Vec<FieldPyO3Attributes>),
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
     /// The wrapped field is directly extracted from the object.
@@ -149,7 +149,15 @@ impl<'a> Container<'a> {
             (Fields::Unnamed(_), true) => ContainerType::TupleNewtype,
             (Fields::Unnamed(unnamed), false) => match unnamed.unnamed.len() {
                 1 => ContainerType::TupleNewtype,
-                len => ContainerType::Tuple(len),
+                _ => {
+                    let mut fields = Vec::new();
+                    for field in unnamed.unnamed.iter() {
+                        let attrs = FieldPyO3Attributes::from_attrs(&field.attrs)?;
+                        fields.push(attrs)
+                    }
+
+                    ContainerType::Tuple(fields)
+                }
             },
             (Fields::Named(named), true) => {
                 let field = named
@@ -196,7 +204,7 @@ impl<'a> Container<'a> {
         match &self.ty {
             ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(ident)),
             ContainerType::TupleNewtype => self.build_newtype_struct(None),
-            ContainerType::Tuple(len) => self.build_tuple_struct(*len),
+            ContainerType::Tuple(tups) => self.build_tuple_struct(tups),
             ContainerType::Struct(tups) => self.build_struct(tups),
         }
     }
@@ -233,19 +241,33 @@ impl<'a> Container<'a> {
         }
     }
 
-    fn build_tuple_struct(&self, len: usize) -> TokenStream {
+    fn build_tuple_struct(&self, tups: &[FieldPyO3Attributes]) -> TokenStream {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-        for i in 0..len {
-            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
-            fields.push(quote!(
-                s.get_item(#i).and_then(_pyo3::types::PyAny::extract).map_err(|inner| {
-                let py = _pyo3::PyNativeType::py(obj);
-                let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                new_err.set_cause(py, ::std::option::Option::Some(inner));
-                new_err
-                })?));
+        for (index, attrs) in tups.iter().enumerate() {
+            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), index);
+
+            let extractor = match &attrs.from_py_with {
+                None => quote!(
+                    obj.get_item(#index)?.extract().map_err(|inner| {
+                    let py = _pyo3::PyNativeType::py(obj);
+                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                    new_err.set_cause(py, ::std::option::Option::Some(inner));
+                    new_err
+                })?),
+                Some(FromPyWithAttribute(expr_path)) => quote! (
+                    #expr_path(obj.get_item(#index)?).map_err(|inner| {
+                        let py = _pyo3::PyNativeType::py(obj);
+                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                        new_err.set_cause(py, ::std::option::Option::Some(inner));
+                        new_err
+                    })?
+                ),
+            };
+
+            fields.push(quote!(#extractor));
         }
+        let len = tups.len();
         let msg = if self.is_enum_variant {
             quote!(::std::format!(
                 "expected tuple of length {}, but got length {}",
