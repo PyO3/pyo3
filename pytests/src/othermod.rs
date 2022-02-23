@@ -1,4 +1,4 @@
-//! https://github.com/PyO3/pyo3/issues/233
+//! <https://github.com/PyO3/pyo3/issues/233>
 //!
 //! The code below just tries to use the most important code generation paths
 

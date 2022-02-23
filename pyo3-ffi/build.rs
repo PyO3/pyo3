@@ -1,5 +1,5 @@
 use pyo3_build_config::{
-    bail, ensure,
+    bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, resolve_interpreter_config, InterpreterConfig,
         PythonVersion,
@@ -99,6 +99,9 @@ fn configure_pyo3() -> Result<()> {
     for line in &interpreter_config.extra_build_script_lines {
         println!("{}", line);
     }
+
+    // Emit cfgs like `addr_of` and `min_const_generics`
+    print_feature_cfgs();
 
     Ok(())
 }

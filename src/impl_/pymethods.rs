@@ -163,17 +163,21 @@ impl PyMethodDef {
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub(crate) fn as_method_def(&self) -> Result<ffi::PyMethodDef, NulByteInString> {
         let meth = match self.ml_meth {
-            PyMethodType::PyCFunction(meth) => meth.0,
-            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth.0) },
+            PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer {
+                PyCFunction: meth.0,
+            },
+            PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
+                PyCFunctionWithKeywords: meth.0,
+            },
             #[cfg(not(Py_LIMITED_API))]
-            PyMethodType::PyCFunctionFastWithKeywords(meth) => unsafe {
-                std::mem::transmute(meth.0)
+            PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
+                _PyCFunctionFastWithKeywords: meth.0,
             },
         };
 
         Ok(ffi::PyMethodDef {
             ml_name: get_name(self.ml_name)?.as_ptr(),
-            ml_meth: Some(meth),
+            ml_meth: meth,
             ml_flags: self.ml_flags,
             ml_doc: get_doc(self.ml_doc)?.as_ptr(),
         })

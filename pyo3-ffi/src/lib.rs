@@ -83,8 +83,8 @@
 //!
 //! **`src/lib.rs`**
 //! ```rust
-//! use std::mem::transmute;
 //! use std::os::raw::c_char;
+//! use std::ptr;
 //!
 //! use pyo3_ffi::*;
 //!
@@ -111,13 +111,11 @@
 //!         PyUnicode_FromStringAndSize(version.as_ptr() as *const c_char, version.len() as isize),
 //!     );
 //!
-//!     // It's necessary to transmute `sum_as_string` here because functions marked with `METH_FASTCALL`
-//!     // have a different signature. However the `PyMethodDef` struct currently represents all
-//!     // functions as a `PyCFunction`. The python interpreter will cast the function pointer back
-//!     // to `_PyCFunctionFast`.
 //!     let wrapped_sum_as_string = PyMethodDef {
 //!         ml_name: "sum_as_string\0".as_ptr() as *const c_char,
-//!         ml_meth: Some(transmute::<_PyCFunctionFast, PyCFunction>(sum_as_string)),
+//!         ml_meth: PyMethodDefPointer {
+//!             _PyCFunctionFast: sum_as_string
+//!         },
 //!         ml_flags: METH_FASTCALL,
 //!         ml_doc: "returns the sum of two integers as a string\0".as_ptr() as *const c_char,
 //!     };
@@ -166,7 +164,7 @@
 //!
 //!     let arg1 = PyLong_AsLong(arg1);
 //!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null()
+//!         return ptr::null_mut()
 //!     }
 //!
 //!     let arg2 = *args.add(1);
@@ -176,7 +174,7 @@
 //!
 //!     let arg2 = PyLong_AsLong(arg2);
 //!     if !PyErr_Occurred().is_null() {
-//!         return ptr::null()
+//!         return ptr::null_mut()
 //!     }
 //!     let res = (arg1 + arg2).to_string();
 //!     PyUnicode_FromStringAndSize(res.as_ptr() as *const c_char, res.len() as isize)
@@ -263,6 +261,19 @@ macro_rules! opaque_struct {
         #[repr(C)]
         pub struct $name([u8; 0]);
     };
+}
+
+macro_rules! addr_of_mut_shim {
+    ($place:expr) => {{
+        #[cfg(addr_of)]
+        {
+            ::std::ptr::addr_of_mut!($place)
+        }
+        #[cfg(not(addr_of))]
+        {
+            &mut $place as *mut _
+        }
+    }};
 }
 
 pub use self::abstract_::*;

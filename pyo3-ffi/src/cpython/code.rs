@@ -84,7 +84,7 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyCode_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyCode_Type)) as c_int
 }
 
 #[inline]

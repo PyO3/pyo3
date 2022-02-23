@@ -10,7 +10,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyBool_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyBool_Type)) as c_int
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -23,12 +23,12 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    &mut _Py_FalseStruct as *mut PyLongObject as *mut PyObject
+    addr_of_mut_shim!(_Py_FalseStruct) as *mut PyLongObject as *mut PyObject
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    &mut _Py_TrueStruct as *mut PyLongObject as *mut PyObject
+    addr_of_mut_shim!(_Py_TrueStruct) as *mut PyLongObject as *mut PyObject
 }
 
 #[inline]

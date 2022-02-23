@@ -56,6 +56,9 @@ version = "0.1.0"
 edition = "2018"
 
 [lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import string_sum`). If you change this, you must also change the name of the
+# `#[pymodule]` in `src/lib.rs`.
 name = "string_sum"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 #

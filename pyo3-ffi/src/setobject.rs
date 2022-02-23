@@ -82,7 +82,7 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
+    (Py_TYPE(ob) == addr_of_mut_shim!(PyFrozenSet_Type)) as c_int
 }
 
 extern "C" {
@@ -94,8 +94,8 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == &mut PyFrozenSet_Type
-        || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
+    (Py_TYPE(ob) == addr_of_mut_shim!(PyFrozenSet_Type)
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut_shim!(PyFrozenSet_Type)) != 0) as c_int
 }
 
 extern "C" {
@@ -107,20 +107,21 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == &mut PySet_Type || Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
+    (Py_TYPE(ob) == addr_of_mut_shim!(PySet_Type)
+        || Py_TYPE(ob) == addr_of_mut_shim!(PyFrozenSet_Type)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
     (PyAnySet_CheckExact(ob) != 0
-        || PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0
-        || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut_shim!(PySet_Type)) != 0
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut_shim!(PyFrozenSet_Type)) != 0) as c_int
 }
 
 #[inline]
 #[cfg(Py_3_10)]
 pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
-    crate::Py_IS_TYPE(op, &mut PySet_Type)
+    crate::Py_IS_TYPE(op, addr_of_mut_shim!(PySet_Type))
 }
 
 extern "C" {
@@ -132,5 +133,6 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == &mut PySet_Type || PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0) as c_int
+    (Py_TYPE(ob) == addr_of_mut_shim!(PySet_Type)
+        || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut_shim!(PySet_Type)) != 0) as c_int
 }

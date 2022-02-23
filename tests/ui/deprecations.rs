@@ -11,6 +11,9 @@ impl DeprecatedCall {
     fn deprecated_call(&self) {}
 }
 
+#[pyclass(gc)]
+struct DeprecatedGc;
+
 fn main() {
 
 }

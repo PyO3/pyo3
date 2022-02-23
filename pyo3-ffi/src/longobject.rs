@@ -20,7 +20,7 @@ pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyLong_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyLong_Type)) as c_int
 }
 
 extern "C" {
@@ -97,7 +97,7 @@ extern "C" {
     // skipped non-limited _PyLong_Sign
 
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
+    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 
     // skipped _PyLong_DivmodNear
 

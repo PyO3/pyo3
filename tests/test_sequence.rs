@@ -1,7 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(feature = "pyproto")] // FIXME: change this to use #[pymethods] once supports sequence protocol
 
-use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList};
@@ -32,10 +30,7 @@ impl ByteSequence {
             })
         }
     }
-}
 
-#[pyproto]
-impl PySequenceProtocol for ByteSequence {
     fn __len__(&self) -> usize {
         self.elements.len()
     }
@@ -51,8 +46,12 @@ impl PySequenceProtocol for ByteSequence {
         self.elements[idx as usize] = value;
     }
 
-    fn __delitem__(&mut self, idx: isize) -> PyResult<()> {
-        if (idx < self.elements.len() as isize) && (idx >= 0) {
+    fn __delitem__(&mut self, mut idx: isize) -> PyResult<()> {
+        let self_len = self.elements.len() as isize;
+        if idx < 0 {
+            idx += self_len;
+        }
+        if (idx < self_len) && (idx >= 0) {
             self.elements.remove(idx as usize);
             Ok(())
         } else {
@@ -67,7 +66,7 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: PyRef<'p, Self>) -> Self {
+    fn __concat__(&self, other: PyRef<Self>) -> Self {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Self { elements }
@@ -274,8 +273,8 @@ struct OptionList {
     items: Vec<Option<i64>>,
 }
 
-#[pyproto]
-impl PySequenceProtocol for OptionList {
+#[pymethods]
+impl OptionList {
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),

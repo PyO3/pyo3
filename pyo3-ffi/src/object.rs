@@ -412,7 +412,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 }
 
 #[inline]
-pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
+pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
     let tmp = *op;
     if !tmp.is_null() {
         *op = ptr::null_mut();
@@ -470,7 +470,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
-    &mut _Py_NoneStruct
+    addr_of_mut_shim!(_Py_NoneStruct)
 }
 
 #[inline]
@@ -488,7 +488,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
-    &mut _Py_NotImplementedStruct
+    addr_of_mut_shim!(_Py_NotImplementedStruct)
 }
 
 // skipped Py_RETURN_NOTIMPLEMENTED
@@ -536,5 +536,5 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyType_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyType_Type)) as c_int
 }

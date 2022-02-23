@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `wrap_pyfunction!` can now wrap a `#[pyfunction]` which is implemented in a different Rust module or crate. [#2091](https://github.com/PyO3/pyo3/pull/2091)
 - Add `PyAny::contains` method (`in` operator for `PyAny`). [#2115](https://github.com/PyO3/pyo3/pull/2115)
 - Add `PyMapping::contains` method (`in` operator for `PyMapping`). [#2133](https://github.com/PyO3/pyo3/pull/2133)
+- Add garbage collection magic methods `__traverse__` and `__clear__` to `#[pymethods]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
 
 ### Changed
 
@@ -69,10 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyTZInfo_CheckExact`
   - `PyDateTime_FromTimestamp`
   - `PyDate_FromTimestamp`
+- Deprecate the `gc` option for `pyclass` (e.g. `#[pyclass(gc)]`). Just implement a `__traverse__` `#[pymethod]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
+- The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
+- The `PyTypeError` thrown when argument parsing failed now contains the nested causes [2177](https://github.com/PyO3/pyo3/pull/2178)
 
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.14. [#2007](https://github.com/PyO3/pyo3/pull/2007)
+- Remove `Default` impl for `PyMethodDef` [2166](https://github.com/PyO3/pyo3/pull/2166)
 
 ### Fixed
 
@@ -85,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed undefined behaviour caused by incorrect `ExactSizeIterator` implementations. [#2124](https://github.com/PyO3/pyo3/pull/2124)
 - Add missing FFI definitions `_PyLong_NumBits` and `_PyLong_AsByteArray` on PyPy. [#2146](https://github.com/PyO3/pyo3/pull/2146)
 - Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
+- Fix the signature of `_PyLong_NumBits` [#2161](https://github.com/PyO3/pyo3/pull/2161)
 
 ## [0.15.1] - 2021-11-19
 
