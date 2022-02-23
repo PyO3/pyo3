@@ -86,7 +86,7 @@ jobs:
           "3.11-dev",
           "pypy-3.7-v7.3.7",
           "pypy-3.8",
-          "pypy-3.9-v7.3.8rc1"
+          "pypy-3.9"
         ]
         platform:
           [
@@ -116,6 +116,8 @@ jobs:
           - python-version: pypy-3.7-v7.3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
+            platform: { os: "windows-latest", python-architecture: "x86" }
+          - python-version: pypy-3.9
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # Test minimal supported Rust version

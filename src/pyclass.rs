@@ -218,7 +218,7 @@ fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
 /// Additional type initializations necessary before Python 3.10
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 unsafe fn tp_init_additional(
-    type_object: *mut ffi::PyTypeObject,
+    _type_object: *mut ffi::PyTypeObject,
     _tp_doc: &str,
     #[cfg(not(Py_3_9))] buffer_procs: &ffi::PyBufferProcs,
     #[cfg(not(Py_3_9))] dict_offset: Option<ffi::Py_ssize_t>,
@@ -236,10 +236,10 @@ unsafe fn tp_init_additional(
             // heap-types, and it removed the text_signature value from it.
             // We go in after the fact and replace tp_doc with something
             // that _does_ include the text_signature value!
-            ffi::PyObject_Free((*type_object).tp_doc as _);
+            ffi::PyObject_Free((*_type_object).tp_doc as _);
             let data = ffi::PyObject_Malloc(_tp_doc.len());
             data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
-            (*type_object).tp_doc = data as _;
+            (*_type_object).tp_doc = data as _;
         }
     }
 

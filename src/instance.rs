@@ -583,7 +583,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
         cfg_if::cfg_if! {
-            if #[cfg(Py_3_9)] {
+            if #[cfg(all(Py_3_9, not(PyPy)))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     PyObject::from_owned_ptr_or_err(py, ffi::PyObject_CallNoArgs(self.as_ptr()))
@@ -636,7 +636,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self.name()`.
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
         cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     let name = name.into_py(py);

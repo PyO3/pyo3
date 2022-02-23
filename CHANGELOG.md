@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `inventory` optional dependency to 0.2. [#2019](https://github.com/PyO3/pyo3/pull/2019)
 - Drop `paste` dependency. [#2081](https://github.com/PyO3/pyo3/pull/2081)
 - The bindings found `pyo3::ffi` are now a re-export of the new `pyo3-ffi` crate. [#2126](https://github.com/PyO3/pyo3/pull/2126)
+- Support PyPy 3.9. [#2143](https://github.com/PyO3/pyo3/pull/2143)
+
 
 ### Added
 
