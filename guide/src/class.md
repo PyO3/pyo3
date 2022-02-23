@@ -42,6 +42,12 @@ enum HttpResponse {
     Teapot = 418,
     // ...
 }
+
+#[pyclass]
+enum MyEnum {
+    Variant,
+    OtherVariant = 30, // PyO3 supports custom discriminants.
+}
 ```
 
 Because Python objects are freely shared between threads by the Python interpreter, all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
