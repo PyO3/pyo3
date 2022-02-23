@@ -447,6 +447,8 @@ pub mod doc_test {
         "guide/src/python_typing_hints.md",
         guide_python_typing_hints
     );
+    doctest!("guide/src/class/object.md", guide_class_object);
+    doctest!("guide/src/class/numeric.md", guide_class_numeric);
 
     // deliberate choice not to test guide/ecosystem because those pages depend on external crates
     // such as pyo3_asyncio.

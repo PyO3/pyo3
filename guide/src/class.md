@@ -23,11 +23,24 @@ This chapter will discuss the functionality and configuration these attributes o
 To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or a fieldless enum.
 ```rust
 # #![allow(dead_code)]
-# use pyo3::prelude::*;
+use pyo3::prelude::*;
+
 #[pyclass]
-struct MyClass {
-    # #[pyo3(get)]
-    num: i32,
+struct Integer{
+    inner: i32
+}
+
+// A "tuple" struct
+#[pyclass]
+struct Number(i32);
+
+// PyO3 supports custom discriminants in enums
+#[pyclass]
+enum HttpResponse {
+    Ok = 200,
+    NotFound = 404,
+    Teapot = 418,
+    // ...
 }
 
 #[pyclass]
@@ -41,20 +54,59 @@ Because Python objects are freely shared between threads by the Python interpret
 
 The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
-## Adding the class to a module
+## Constructor
 
-Custom Python classes can then be added to a module using `add_class()`.
+By default it is not possible to create an instance of a custom class from Python code.
+To declare a constructor, you need to define a method and annotate it with the `#[new]`
+attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
 
 ```rust
 # use pyo3::prelude::*;
 # #[pyclass]
-# struct MyClass {
-#    #[allow(dead_code)]
-#    num: i32,
-# }
+# struct Number(i32);
+#
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(value: i32) -> Self {
+        Number(value)
+    }
+}
+```
+
+Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct Number(i32);
+#
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(value: i32) -> Self {
+        Number(value)
+    }
+}
+```
+
+If no method marked with `#[new]` is declared, object instances can only be
+created from Rust, but not from Python.
+
+For arguments, see the `Method arguments` section below.
+
+## Adding the class to a module
+
+The next step is to create the module initializer and add our class to it
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct Number(i32);
+#
 #[pymodule]
-fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<MyClass>()?;
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Number>()?;
     Ok(())
 }
 ```
@@ -151,52 +203,6 @@ If a custom class contains references to other Python objects that can be collec
    by multiple threads. A class marked with `unsendable` panics when accessed by another thread.
 * `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
   will be a virtual member of the `builtins` module.
-
-## Constructor
-
-By default it is not possible to create an instance of a custom class from Python code.
-To declare a constructor, you need to define a method and annotate it with the `#[new]`
-attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
-
-```rust
-# use pyo3::prelude::*;
-#[pyclass]
-struct MyClass {
-    # #[allow(dead_code)]
-    num: i32,
-}
-
-#[pymethods]
-impl MyClass {
-    #[new]
-    fn new(num: i32) -> Self {
-        MyClass { num }
-    }
-}
-```
-
-Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
-```rust
-# use pyo3::prelude::*;
-#[pyclass]
-struct MyClass {
-    # #[allow(dead_code)]
-    num: i32,
-}
-
-#[pymethods]
-impl MyClass {
-    #[new]
-    fn new(num: i32) -> PyResult<Self> {
-        Ok(MyClass { num })
-    }
-}
-```
-
-If no method marked with `#[new]` is declared, object instances can only be
-created from Rust, but not from Python.
-
-For arguments, see the `Method arguments` section below.
 
 ### Return type
 
