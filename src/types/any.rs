@@ -262,7 +262,7 @@ impl PyAny {
     /// Tests whether this object is less than another.
     ///
     /// This is equivalent to the Python expression `self < other`.
-    pub fn is_lt<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn lt<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
@@ -272,7 +272,7 @@ impl PyAny {
     /// Tests whether this object is less than or equal to another.
     ///
     /// This is equivalent to the Python expression `self <= other`.
-    pub fn is_le<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn le<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
@@ -282,7 +282,7 @@ impl PyAny {
     /// Tests whether this object is equal to another.
     ///
     /// This is equivalent to the Python expression `self == other`.
-    pub fn is_eq<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn eq<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
@@ -292,7 +292,7 @@ impl PyAny {
     /// Tests whether this object is not equal to another.
     ///
     /// This is equivalent to the Python expression `self != other`.
-    pub fn is_ne<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn ne<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
@@ -302,7 +302,7 @@ impl PyAny {
     /// Tests whether this object is greater than another.
     ///
     /// This is equivalent to the Python expression `self > other`.
-    pub fn is_gt<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn gt<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
@@ -312,7 +312,7 @@ impl PyAny {
     /// Tests whether this object is greater than or equal to another.
     ///
     /// This is equivalent to the Python expression `self >= other`.
-    pub fn is_ge<O>(&self, other: O) -> PyResult<&PyAny>
+    pub fn ge<O>(&self, other: O) -> PyResult<&PyAny>
     where
         O: ToPyObject,
     {
