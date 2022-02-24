@@ -493,7 +493,7 @@ fn test_from_py_with_tuple_struct() {
     Python::with_gil(|py| {
         let py_zap = py
             .eval(r#"("whatever", [1, 2, 3])"#, None, None)
-            .expect("failed to create dict");
+            .expect("failed to create tuple");
 
         let zap = ZapTuple::extract(py_zap).unwrap();
 
@@ -513,7 +513,7 @@ fn test_from_py_with_enum() {
     Python::with_gil(|py| {
         let py_zap = py
             .eval(r#"("whatever", [1, 2, 3])"#, None, None)
-            .expect("failed to create dict");
+            .expect("failed to create tuple");
 
         let zap = ZapEnum::extract(py_zap).unwrap();
         let expected_zap = ZapEnum::Zap(String::from("whatever"), 3usize);

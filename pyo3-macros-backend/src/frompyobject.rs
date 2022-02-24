@@ -106,7 +106,8 @@ enum ContainerType<'a> {
     StructNewtype(&'a Ident),
     /// Tuple struct, e.g. `struct Foo(String)`.
     ///
-    /// Fields are extracted from a tuple where the variant contains the list of extraction calls.
+    /// Variant contains a list of conversion methods for each of the fields that are directly
+    ///  extracted from the tuple.
     Tuple(Vec<FieldPyO3Attributes>),
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
@@ -150,11 +151,11 @@ impl<'a> Container<'a> {
             (Fields::Unnamed(unnamed), false) => match unnamed.unnamed.len() {
                 1 => ContainerType::TupleNewtype,
                 _ => {
-                    let mut fields = Vec::new();
-                    for field in unnamed.unnamed.iter() {
-                        let attrs = FieldPyO3Attributes::from_attrs(&field.attrs)?;
-                        fields.push(attrs)
-                    }
+                    let fields = unnamed
+                        .unnamed
+                        .iter()
+                        .map(|field| FieldPyO3Attributes::from_attrs(&field.attrs))
+                        .collect::<Result<Vec<_>>>()?;
 
                     ContainerType::Tuple(fields)
                 }
@@ -247,23 +248,23 @@ impl<'a> Container<'a> {
         for (index, attrs) in tups.iter().enumerate() {
             let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), index);
 
-            let extractor = match &attrs.from_py_with {
+            let parsed_item = match &attrs.from_py_with {
                 None => quote!(
-                    obj.get_item(#index)?.extract().map_err(|inner| {
+                    obj.get_item(#index)?.extract()
+                ),
+                Some(FromPyWithAttribute(expr_path)) => quote! (
+                    #expr_path(obj.get_item(#index)?)
+                ),
+            };
+
+            let extractor = quote!(
+                #parsed_item.map_err(|inner| {
                     let py = _pyo3::PyNativeType::py(obj);
                     let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
                     new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
-                })?),
-                Some(FromPyWithAttribute(expr_path)) => quote! (
-                    #expr_path(obj.get_item(#index)?).map_err(|inner| {
-                        let py = _pyo3::PyNativeType::py(obj);
-                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                        new_err.set_cause(py, ::std::option::Option::Some(inner));
-                        new_err
-                    })?
-                ),
-            };
+                })?
+            );
 
             fields.push(quote!(#extractor));
         }
