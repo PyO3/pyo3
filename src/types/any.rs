@@ -769,7 +769,7 @@ mod tests {
     use crate::{
         type_object::PyTypeObject,
         types::{IntoPyDict, PyList, PyLong, PyModule},
-        Python, ToPyObject,
+        PyAny, PyResult, Python, ToPyObject,
     };
 
     #[test]
@@ -893,5 +893,84 @@ class SimpleClass:
             let irrelevant_needle = 0i32.to_object(py);
             assert!(bad_haystack.contains(&irrelevant_needle).is_err());
         });
+    }
+
+    // This is intentionally not a test, it's a generic function used by the tests below.
+    fn test_eq_methods_generic<T>(list: &[T])
+    where
+        T: PartialEq + PartialOrd + ToPyObject,
+    {
+        Python::with_gil(|py| {
+            for a in list {
+                for b in list {
+                    let a_py = a.to_object(py).into_ref(py);
+                    let b_py = b.to_object(py).into_ref(py);
+                    let unwrap_cmp = |cmp: PyResult<&PyAny>| cmp.unwrap().is_true().unwrap();
+                    assert_eq!(
+                        a.lt(b),
+                        unwrap_cmp(a_py.lt(b_py)),
+                        "{a_py} should be less than {b_py}"
+                    );
+                    assert_eq!(
+                        a.le(b),
+                        unwrap_cmp(a_py.le(b_py)),
+                        "{a_py} should be less than or equal to {b_py}"
+                    );
+                    assert_eq!(
+                        a.eq(b),
+                        unwrap_cmp(a_py.eq(b_py)),
+                        "{a_py} should be equal to {b_py}"
+                    );
+                    assert_eq!(
+                        a.ne(b),
+                        unwrap_cmp(a_py.ne(b_py)),
+                        "{a_py} should not be equal to {b_py}"
+                    );
+                    assert_eq!(
+                        a.gt(b),
+                        unwrap_cmp(a_py.gt(b_py)),
+                        "{a_py} should be greater than {b_py}"
+                    );
+                    assert_eq!(
+                        a.ge(b),
+                        unwrap_cmp(a_py.ge(b_py)),
+                        "{a_py} should be greater than or equal to {b_py}"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn test_eq_methods_integers() {
+        let ints = [-4, -4, 1, 2, 0, -100, 1_000_000];
+        test_eq_methods_generic(&ints);
+    }
+
+    #[test]
+    fn test_eq_methods_strings() {
+        let strings = ["Let's", "test", "some", "eq", "methods"];
+        test_eq_methods_generic(&strings);
+    }
+
+    #[test]
+    fn test_eq_methods_floats() {
+        let floats = [
+            -1.0,
+            2.5,
+            0.0,
+            3.0,
+            std::f64::consts::PI,
+            10.0,
+            10.0 / 3.0,
+            -1_000_000.0,
+        ];
+        test_eq_methods_generic(&floats);
+    }
+
+    #[test]
+    fn test_eq_methods_bools() {
+        let bools = [true, false];
+        test_eq_methods_generic(&bools);
     }
 }
