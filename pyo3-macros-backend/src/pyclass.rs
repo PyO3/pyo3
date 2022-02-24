@@ -71,7 +71,7 @@ impl PyClassArgs {
         }
     }
 
-    /// Adda single expression from the comma separated list in the attribute, which is
+    /// Add a single expression from the comma separated list in the attribute, which is
     /// either a single word or an assignment expression
     fn add_expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
