@@ -165,7 +165,7 @@ quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyCell, PyObjectProtocol, py_run};
+use pyo3::{PyCell, py_run};
 
 # fn main() {
 #[pyclass]
@@ -179,10 +179,7 @@ impl UserData {
     fn as_tuple(&self) -> (u32, String) {
         (self.id, self.name.clone())
     }
-}
 
-#[pyproto]
-impl PyObjectProtocol for UserData {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("User {}(id: {})", self.name, self.id))
     }

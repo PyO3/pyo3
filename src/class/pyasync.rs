@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python Async/Await Interface.
@@ -15,6 +16,7 @@ use crate::{PyClass, PyObject};
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyAsyncProtocol<'p>: PyClass {
     fn __await__(slf: Self::Receiver) -> Self::Result
     where

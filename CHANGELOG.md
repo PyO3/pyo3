@@ -73,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyDate_FromTimestamp`
 - Deprecate the `gc` option for `pyclass` (e.g. `#[pyclass(gc)]`). Just implement a `__traverse__` `#[pymethod]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
 - The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
-- The `PyTypeError` thrown when argument parsing failed now contains the nested causes [2177](https://github.com/PyO3/pyo3/pull/2178)
+- Deprecate the `#[pyproto]` traits. [#2173](https://github.com/PyO3/pyo3/pull/2173)
 
 ### Removed
 
@@ -92,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add missing FFI definitions `_PyLong_NumBits` and `_PyLong_AsByteArray` on PyPy. [#2146](https://github.com/PyO3/pyo3/pull/2146)
 - Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
 - Fix the signature of `_PyLong_NumBits` [#2161](https://github.com/PyO3/pyo3/pull/2161)
+- Fix `TypeError` thrown when argument parsing failed missing the originating causes. [2177](https://github.com/PyO3/pyo3/pull/2178)
 
 ## [0.15.1] - 2021-11-19
 

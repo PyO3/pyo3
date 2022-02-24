@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Represent Python Buffer protocol implementation
@@ -13,6 +14,7 @@ use std::os::raw::c_int;
 /// For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 /// c-api.
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyBufferProtocol<'p>: PyClass {
     // No default implementations so that implementors of this trait provide both methods.
 

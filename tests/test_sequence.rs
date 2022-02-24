@@ -66,10 +66,15 @@ impl ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: PyRef<Self>) -> Self {
+    fn __concat__(&self, other: &Self) -> Self {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Self { elements }
+    }
+
+    fn __inplace_concat__(mut slf: PyRefMut<Self>, other: &Self) -> Py<Self> {
+        slf.elements.extend_from_slice(&other.elements);
+        slf.into()
     }
 
     fn __repeat__(&self, count: isize) -> PyResult<Self> {
@@ -79,6 +84,19 @@ impl ByteSequence {
                 elements.extend(&self.elements);
             }
             Ok(Self { elements })
+        } else {
+            Err(PyValueError::new_err("invalid repeat count"))
+        }
+    }
+
+    fn __inplace_repeat__(mut slf: PyRefMut<Self>, count: isize) -> PyResult<Py<Self>> {
+        if count >= 0 {
+            let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
+            for _ in 0..count {
+                elements.extend(&slf.elements);
+            }
+            slf.elements = elements;
+            Ok(slf.into())
         } else {
             Err(PyValueError::new_err("invalid repeat count"))
         }

@@ -7,7 +7,60 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Drop support for older technologies
 
-PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables ore use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+
+### `#[pyproto]` has been deprecated
+
+In PyO3 0.15, the `#[pymethods]` attribute macro gained support for implementing "magic methods" such as `__str__` (aka "dunder" methods). This implementation was not quite finalized at the time, with a few edge cases to be decided upon. The existing `#[pyproto]` attribute macro was left untouched, because it covered these edge cases.
+
+In PyO3 0.16, the `#[pymethods]` implementation has been completed and is now the preferred way to implement magic methods. To allow the PyO3 project to move forward, `#[pyproto]` has been deprecated (with expected removal in PyO3 0.18).
+
+Migration from `#[pyproto]` to `#[pymethods]` is straightforward; copying the existing methods directly from the `#[pyproto]` trait implementation is all that is needed in most cases.
+
+Before:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::class::{PyBasicProtocol, PyIterProtocol};
+use pyo3::types::PyString;
+
+#[pyclass]
+struct MyClass { }
+
+#[pyproto]
+impl PyBasicProtocol for MyClass {
+    fn __str__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+}
+
+#[pyproto]
+impl PyIterProtocol for MyClass {
+    fn __iter__(slf: PyRef<self>) -> PyResult<&PyAny> {
+        PyString::new(slf.py(), "hello, world").iter()
+    }
+}
+```
+
+After
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::types::PyString;
+
+#[pyclass]
+struct MyClass { }
+
+impl MyClass {
+    fn __str__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+
+    fn __iter__(slf: PyRef<self>) -> PyResult<&PyAny> {
+        PyString::new(slf.py(), "hello, world").iter()
+    }
+}
+```
 
 ### Container magic methods now match Python behavior
 
@@ -593,7 +646,7 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
