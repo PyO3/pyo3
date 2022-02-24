@@ -484,7 +484,7 @@ fn test_from_py_with() {
 
 #[derive(Debug, FromPyObject)]
 pub struct ZapTuple(
-    #[pyo3(item)] String,
+    String,
     #[pyo3(from_py_with = "PyAny::len")] usize,
 );
 
