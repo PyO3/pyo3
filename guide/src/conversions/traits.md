@@ -442,6 +442,10 @@ If the input is neither a string nor an integer, the error message will be:
 - `pyo3(item)`, `pyo3(item("key"))`
     - retrieve the field from a mapping, possibly with the custom key specified as an argument.
     - can be any literal that implements `ToBorrowedObject`
+- `pyo3(from_py_with = "...")`
+    - apply a custom function to convert the field from Python the desired Rust type. 
+    - the argument must be the name of the function as a string.
+    - the function signature must be `fn(&PyAny) -> PyResult<T>` where `T` is the Rust type of the argument.
 
 ### `IntoPy<T>`
 
