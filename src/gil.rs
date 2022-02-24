@@ -704,16 +704,14 @@ mod tests {
         assert!(gil_is_acquired());
     }
 
-    #[allow(clippy::needless_late_init)]
     #[test]
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let obj;
 
         let gil2 = Python::acquire_gil();
-        obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval("object()", None, None).unwrap();
         drop(gil2);
 
         // After gil2 drops, obj should still have a reference count of one
