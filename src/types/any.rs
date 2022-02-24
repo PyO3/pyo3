@@ -87,6 +87,15 @@ impl PyAny {
         <T as PyTryFrom>::try_from(self)
     }
 
+    /// Returns whether `self` and `other` point to the same object. To compare
+    /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
+    ///
+    /// This is equivalent to the Python expression `self is other`.
+    #[inline]
+    pub fn is<T: AsPyPointer>(&self, other: &T) -> bool {
+        self.as_ptr() == other.as_ptr()
+    }
+
     /// Determines whether this object has the given attribute.
     ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.

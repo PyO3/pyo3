@@ -64,15 +64,6 @@ macro_rules! pyobject_native_type_base(
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
-
-        impl<$($generics,)*> ::std::cmp::PartialEq for $name {
-            #[inline]
-            fn eq(&self, o: &$name) -> bool {
-                use $crate::AsPyPointer;
-
-                self.as_ptr() == o.as_ptr()
-            }
-        }
     };
 );
 

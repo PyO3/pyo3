@@ -187,7 +187,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert_eq!(err.get_type(py), PyType::new::<PyTypeError>(py));
+    ///     assert!(err.get_type(py).is(PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type<'py>(&'py self, py: Python<'py>) -> &'py PyType {
@@ -231,7 +231,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
-    ///     assert_eq!(err.traceback(py), None);
+    ///     assert!(err.traceback(py).is_none());
     /// });
     /// ```
     pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
@@ -469,9 +469,12 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
-    ///     assert_eq!(err.get_type(py), err_clone.get_type(py));
-    ///     assert_eq!(err.value(py), err_clone.value(py));
-    ///     assert_eq!(err.traceback(py), err_clone.traceback(py));
+    ///     assert!(err.get_type(py).is(err_clone.get_type(py)));
+    ///     assert!(err.value(py).is(err_clone.value(py)));
+    ///     match err.traceback(py) {
+    ///         None => assert!(err_clone.traceback(py).is_none()),
+    ///         Some(tb) => assert!(err_clone.traceback(py).unwrap().is(tb)),
+    ///     }
     /// });
     /// ```
     #[inline]
@@ -706,7 +709,7 @@ fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::{PyErr, Python};
+    use crate::{AsPyPointer, PyErr, Python};
 
     #[test]
     fn no_error() {
@@ -857,16 +860,22 @@ mod tests {
     fn deprecations() {
         let err = exceptions::PyValueError::new_err("an error");
         Python::with_gil(|py| {
-            assert_eq!(err.ptype(py), err.get_type(py));
-            assert_eq!(err.pvalue(py), err.value(py));
-            assert_eq!(err.instance(py), err.value(py));
-            assert_eq!(err.ptraceback(py), err.traceback(py));
+            assert_eq!(err.ptype(py).as_ptr(), err.get_type(py).as_ptr());
+            assert_eq!(err.pvalue(py).as_ptr(), err.value(py).as_ptr());
+            assert_eq!(err.instance(py).as_ptr(), err.value(py).as_ptr());
+            assert_eq!(
+                err.ptraceback(py).map(|t| t.as_ptr()),
+                err.traceback(py).map(|t| t.as_ptr())
+            );
 
             assert_eq!(
-                err.clone_ref(py).into_instance(py).as_ref(py),
-                err.value(py)
+                err.clone_ref(py).into_instance(py).as_ref(py).as_ptr(),
+                err.value(py).as_ptr()
             );
-            assert_eq!(PyErr::from_instance(err.value(py)).value(py), err.value(py));
+            assert_eq!(
+                PyErr::from_instance(err.value(py)).value(py).as_ptr(),
+                err.value(py).as_ptr()
+            );
         });
     }
 }

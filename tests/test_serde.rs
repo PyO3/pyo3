@@ -59,12 +59,12 @@ mod test_serde {
 
     #[test]
     fn test_deserialize() {
-        let serialized = r#"{"username": "danya", "friends": 
+        let serialized = r#"{"username": "danya", "friends":
         [{"username": "friend", "group": {"name": "danya's friends"}, "friends": []}]}"#;
         let user: User = serde_json::from_str(serialized).expect("failed to deserialize");
 
         assert_eq!(user.username, "danya");
-        assert_eq!(user.group, None);
+        assert!(user.group.is_none());
         assert_eq!(user.friends.len(), 1usize);
         let friend = user.friends.get(0).unwrap();
 

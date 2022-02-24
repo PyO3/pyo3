@@ -62,6 +62,19 @@ impl MyClass {
 }
 ```
 
+### Removed `PartialEq` for object wrappers
+
+The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
+so that `object_a == object_b` would compare the Python objects for pointer
+equality, which corresponds to the `is` operator, not the `==` operator in
+Python.  This has been removed in favor of a new method: use
+`object_a.is(object_b)`.  This also has the advantage of not requiring the same
+wrapper type for `object_a` and `object_b`; you can now directly compare a
+`Py<T>` with a `&PyAny` without having to convert.
+
+To check for Python object equality (the Python `==` operator), use the new
+method `eq()`.
+
 ### Container magic methods now match Python behavior
 
 In PyO3 0.15, `__getitem__`, `__setitem__` and `__delitem__` in `#[pymethods]` would generate only the _mapping_ implementation for a `#[pyclass]`. To match the Python behavior, these methods now generate both the _mapping_ **and** _sequence_ implementations.

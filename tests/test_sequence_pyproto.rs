@@ -263,10 +263,12 @@ fn test_generic_list_set() {
     let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
     py_run!(py, list, "list.items = [1, 2, 3]");
-    assert_eq!(
-        list.borrow().items,
-        vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
-    );
+    assert!(list
+        .borrow()
+        .items
+        .iter()
+        .zip(&[1u32, 2, 3])
+        .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
 }
 
 #[pyclass]

@@ -463,6 +463,15 @@ where
 }
 
 impl<T> Py<T> {
+    /// Returns whether `self` and `other` point to the same object. To compare
+    /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
+    ///
+    /// This is equivalent to the Python expression `self is other`.
+    #[inline]
+    pub fn is<U: AsPyPointer>(&self, o: &U) -> bool {
+        self.as_ptr() == o.as_ptr()
+    }
+
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
     pub fn get_refcnt(&self, _py: Python) -> isize {
@@ -826,13 +835,6 @@ where
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
-    }
-}
-
-impl<T> PartialEq for Py<T> {
-    #[inline]
-    fn eq(&self, o: &Py<T>) -> bool {
-        self.0 == o.0
     }
 }
 
