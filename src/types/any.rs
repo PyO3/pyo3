@@ -769,9 +769,8 @@ mod tests {
     use crate::{
         type_object::PyTypeObject,
         types::{IntoPyDict, PyList, PyLong, PyModule},
-        PyAny, PyResult, Python, ToPyObject,
+        Python, ToPyObject,
     };
-
     #[test]
     fn test_call_for_non_existing_method() {
         Python::with_gil(|py| {
@@ -905,36 +904,54 @@ class SimpleClass:
                 for b in list {
                     let a_py = a.to_object(py).into_ref(py);
                     let b_py = b.to_object(py).into_ref(py);
-                    let unwrap_cmp = |cmp: PyResult<&PyAny>| cmp.unwrap().is_true().unwrap();
+
                     assert_eq!(
                         a.lt(b),
-                        unwrap_cmp(a_py.lt(b_py)),
-                        "{a_py} should be less than {b_py}"
+                        a_py.lt(b_py).unwrap(),
+                        "{} < {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.lt(b)
                     );
                     assert_eq!(
                         a.le(b),
-                        unwrap_cmp(a_py.le(b_py)),
-                        "{a_py} should be less than or equal to {b_py}"
+                        a_py.le(b_py).unwrap(),
+                        "{} <= {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.le(b)
                     );
                     assert_eq!(
                         a.eq(b),
-                        unwrap_cmp(a_py.eq(b_py)),
-                        "{a_py} should be equal to {b_py}"
+                        a_py.eq(b_py).unwrap(),
+                        "{} == {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.eq(b)
                     );
                     assert_eq!(
                         a.ne(b),
-                        unwrap_cmp(a_py.ne(b_py)),
-                        "{a_py} should not be equal to {b_py}"
+                        a_py.ne(b_py).unwrap(),
+                        "{} != {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.ne(b)
                     );
                     assert_eq!(
                         a.gt(b),
-                        unwrap_cmp(a_py.gt(b_py)),
-                        "{a_py} should be greater than {b_py}"
+                        a_py.gt(b_py).unwrap(),
+                        "{} > {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.gt(b)
                     );
                     assert_eq!(
                         a.ge(b),
-                        unwrap_cmp(a_py.ge(b_py)),
-                        "{a_py} should be greater than or equal to {b_py}"
+                        a_py.ge(b_py).unwrap(),
+                        "{} >= {} should be {}.",
+                        a_py,
+                        b_py,
+                        a.ge(b)
                     );
                 }
             }
