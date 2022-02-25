@@ -72,13 +72,13 @@ jobs:
 
   build:
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
-    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} ${{ matrix.msrv }}
+    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", "pypy-3.7", "pypy-3.8"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", "pypy-3.7-v7.3.7", "pypy-3.8"]
         platform:
           [
             {
@@ -104,7 +104,7 @@ jobs:
           ]
         exclude:
           # PyPy doesn't release 32-bit Windows builds any more
-          - python-version: pypy-3.7
+          - python-version: pypy-3.7-v7.3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
             platform: { os: "windows-latest", python-architecture: "x86" }
@@ -120,6 +120,16 @@ jobs:
               }
             msrv: "MSRV"
 
+          # Test the `nightly` feature
+          - rust: nightly
+            python-version: "3.10"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+            extra_features: "nightly"
     steps:
       - uses: actions/checkout@v2
 
@@ -155,7 +165,7 @@ jobs:
           cargo update -p hashbrown:0.11.2 --precise 0.9.1
 
       - name: Build docs
-        run: cargo doc --no-deps --no-default-features --features full
+        run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
 
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
@@ -178,26 +188,26 @@ jobs:
           cargo test --no-default-features
 
       - name: Build (all additive features)
-        run: cargo build --lib --tests --no-default-features --features full
+        run: cargo build --lib --tests --no-default-features --features "full ${{ matrix.extra_features }}"
 
       - if: ${{ startsWith(matrix.python-version, 'pypy') }}
         name: Build PyPy (abi3-py37)
-        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full"
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ matrix.extra_features }}"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
-        run: cargo test --no-default-features --features full
+        run: cargo test --no-default-features --features "full ${{ matrix.extra_features }}"
 
       # Run tests again, but in abi3 mode
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 full"
+        run: cargo test --no-default-features --features "abi3 full ${{ matrix.extra_features }}"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
       - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
         name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "abi3-py37 full"
+        run: cargo test --no-default-features --features "abi3-py37 full ${{ matrix.extra_features }}"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml

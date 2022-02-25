@@ -269,33 +269,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
 {
-    #[cfg(not(feature = "nightly"))]
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        extract_sequence(obj)
-    }
-    #[cfg(feature = "nightly")]
-    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        extract_sequence(obj)
-    }
-}
-
-#[cfg(all(feature = "nightly", not(Py_LIMITED_API)))]
-impl<'source, T> FromPyObject<'source> for Vec<T>
-where
-    for<'a> T: FromPyObject<'a> + crate::buffer::Element,
-{
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        // first try buffer protocol
-        if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
-            if buf.dimensions() == 1 {
-                if let Ok(v) = buf.to_vec(obj.py()) {
-                    buf.release(obj.py());
-                    return Ok(v);
-                }
-            }
-            buf.release(obj.py());
-        }
-        // fall back to sequence protocol
         extract_sequence(obj)
     }
 }

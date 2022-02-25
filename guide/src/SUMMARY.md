@@ -8,6 +8,8 @@
 - [Python Functions](function.md)
 - [Python Classes](class.md)
   - [Class customizations](class/protocols.md)
+    - [Basic object customization](class/object.md)
+    - [Emulating numeric types](class/numeric.md)
     - [Emulating callable objects](class/call.md)
 - [Type Conversions](conversions.md)
   - [Mapping of Rust types to Python types](conversions/tables.md)]

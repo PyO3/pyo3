@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use pyo3::{class::PyObjectProtocol, prelude::*, type_object::LazyStaticType};
+use pyo3::{prelude::*, type_object::LazyStaticType};
 
 /// This is a feature-rich class instance used to benchmark various parts of the pyclass lifecycle.
 #[pyclass]
@@ -19,10 +19,7 @@ impl MyClass {
         self.elements.push(new_element);
         self.elements.len()
     }
-}
 
-#[pyproto]
-impl PyObjectProtocol for MyClass {
     /// A basic __str__ implementation.
     fn __str__(&self) -> &'static str {
         "MyClass"

@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "nightly", feature(specialization))]
+#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
     docsrs, // rustdoc:: is not supported on msrv
@@ -94,9 +94,7 @@
 //!
 //! ## Unstable features
 //!
-//! - `nightly`: Gates some optimizations that rely on
-//! [`#![feature(specialization)]`](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md),
-//! for which you'd also need nightly Rust. You should not use this feature.
+//! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
 //!
@@ -283,6 +281,7 @@
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
+//! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
@@ -293,12 +292,13 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
+pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
+pub use crate::version::PythonVersionInfo;
 
 // Old directory layout, to be rethought?
 #[cfg(not(feature = "pyproto"))]
@@ -355,6 +355,7 @@ mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+pub mod marker;
 pub mod marshal;
 pub mod once_cell;
 pub mod panic;
@@ -362,9 +363,10 @@ pub mod prelude;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
-mod python;
+
 pub mod type_object;
 pub mod types;
+mod version;
 
 pub use crate::conversions::*;
 
@@ -445,6 +447,8 @@ pub mod doc_test {
         "guide/src/python_typing_hints.md",
         guide_python_typing_hints
     );
+    doctest!("guide/src/class/object.md", guide_class_object);
+    doctest!("guide/src/class/numeric.md", guide_class_numeric);
 
     // deliberate choice not to test guide/ecosystem because those pages depend on external crates
     // such as pyo3_asyncio.
