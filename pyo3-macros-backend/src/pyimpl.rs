@@ -242,6 +242,11 @@ fn add_shared_proto_slots(
         }};
     }
 
+    try_add_shared_slot!(
+        "__getattribute__",
+        "__getattr__",
+        generate_pyclass_getattro_slot
+    );
     try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
     try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
     try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);

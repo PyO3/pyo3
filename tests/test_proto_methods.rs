@@ -1,9 +1,8 @@
 #![cfg(feature = "macros")]
 
-use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{exceptions::PyAttributeError, prelude::*};
-use pyo3::{py_run, PyCell};
+use pyo3::{prelude::*, py_run, PyCell};
 use std::{isize, iter};
 
 mod common;
@@ -604,6 +603,63 @@ fn getattr_doesnt_override_member() {
     let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
     py_assert!(py, inst, "inst.data == 4");
     py_assert!(py, inst, "inst.a == 8");
+}
+
+#[pyclass]
+struct ClassWithGetAttribute {
+    #[pyo3(get, set)]
+    data: u32,
+}
+
+#[pymethods]
+impl ClassWithGetAttribute {
+    fn __getattribute__(&self, _name: &str) -> u32 {
+        self.data * 2
+    }
+}
+
+#[test]
+fn getattribute_overrides_member() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+    py_assert!(py, inst, "inst.data == 8");
+    py_assert!(py, inst, "inst.y == 8");
+}
+
+#[pyclass]
+struct ClassWithGetAttrAndGetAttribute;
+
+#[pymethods]
+impl ClassWithGetAttrAndGetAttribute {
+    fn __getattribute__(&self, name: &str) -> PyResult<u32> {
+        if name == "exists" {
+            Ok(42)
+        } else if name == "error" {
+            Err(PyValueError::new_err("bad"))
+        } else {
+            Err(PyAttributeError::new_err("fallback"))
+        }
+    }
+
+    fn __getattr__(&self, name: &str) -> PyResult<u32> {
+        if name == "lucky" {
+            Ok(57)
+        } else {
+            Err(PyAttributeError::new_err("no chance"))
+        }
+    }
+}
+
+#[test]
+fn getattr_and_getattribute() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+    py_assert!(py, inst, "inst.exists == 42");
+    py_assert!(py, inst, "inst.lucky == 57");
+    py_expect_exception!(py, inst, "inst.error", PyValueError);
+    py_expect_exception!(py, inst, "inst.unlucky", PyAttributeError);
 }
 
 /// Wraps a Python future and yield it once.
