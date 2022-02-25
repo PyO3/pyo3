@@ -725,11 +725,11 @@ mod tests {
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             let rep_seq = seq.in_place_repeat(3).unwrap();
             assert_eq!(6, seq.len().unwrap());
-            assert_eq!(seq, rep_seq);
+            assert!(seq.is(rep_seq));
 
             let conc_seq = seq.in_place_concat(seq).unwrap();
             assert_eq!(12, seq.len().unwrap());
-            assert_eq!(seq, conc_seq);
+            assert!(seq.is(conc_seq));
         });
     }
 

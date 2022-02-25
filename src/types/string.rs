@@ -504,7 +504,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -546,7 +546,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -585,7 +585,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));

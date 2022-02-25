@@ -213,7 +213,7 @@ def fibonacci(target):
         Python::with_gil(|py| {
             let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
             let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
-            assert_eq!(obj, iter.into());
+            assert!(obj.is(iter));
         });
     }
 

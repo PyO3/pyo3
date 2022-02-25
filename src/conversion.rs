@@ -561,7 +561,7 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[1, 2, 3]);
             let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-            assert_eq!(list, val);
+            assert!(list.is(val));
         });
     }
 

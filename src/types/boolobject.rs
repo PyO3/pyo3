@@ -69,7 +69,7 @@ mod tests {
             assert!(PyBool::new(py, true).is_true());
             let t: &PyAny = PyBool::new(py, true).into();
             assert!(t.extract::<bool>().unwrap());
-            assert_eq!(true.to_object(py), PyBool::new(py, true).into());
+            assert!(true.to_object(py).is(PyBool::new(py, true)));
         });
     }
 
@@ -79,7 +79,7 @@ mod tests {
             assert!(!PyBool::new(py, false).is_true());
             let t: &PyAny = PyBool::new(py, false).into();
             assert!(!t.extract::<bool>().unwrap());
-            assert_eq!(false.to_object(py), PyBool::new(py, false).into());
+            assert!(false.to_object(py).is(PyBool::new(py, false)));
         });
     }
 }
