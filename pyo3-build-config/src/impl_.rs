@@ -1177,6 +1177,11 @@ fn fixup_config_for_abi3(
     config: &mut InterpreterConfig,
     abi3_version: Option<PythonVersion>,
 ) -> Result<()> {
+    // PyPy doesn't support abi3; don't adjust the version
+    if config.implementation.is_pypy() {
+        return Ok(());
+    }
+
     if let Some(version) = abi3_version {
         ensure!(
             version <= config.version,
