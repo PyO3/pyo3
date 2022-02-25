@@ -97,38 +97,7 @@ pub trait ToBorrowedObject: ToPyObject {
     }
 }
 
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject,
-{
-    #[cfg(feature = "nightly")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-    default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        let ptr = self.to_object(py).into_ptr();
-        let result = f(ptr);
-        unsafe {
-            ffi::Py_XDECREF(ptr);
-        }
-        result
-    }
-}
-
-#[cfg(feature = "nightly")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject + AsPyPointer,
-{
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        f(self.as_ptr())
-    }
-}
+impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 /// Defines a conversion from a Rust type to a Python object.
 ///

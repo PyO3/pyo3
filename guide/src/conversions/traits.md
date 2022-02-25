@@ -35,7 +35,7 @@ structs is not supported.
 The derivation generates code that will attempt to access the attribute  `my_string` on
 the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -65,7 +65,7 @@ struct RustyStruct {
 
 By setting the `#[pyo3(item)]` attribute on the field, PyO3 will attempt to extract the value by calling the `get_item` method on the Python object.
 
-```
+```rust
 use pyo3::prelude::*;
 
 
@@ -90,7 +90,7 @@ struct RustyStruct {
 
 The argument passed to `getattr` and `get_item` can also be configured:
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -135,7 +135,7 @@ Tuple structs are also supported but do not allow customizing the extraction. Th
 always assumed to be a Python tuple with the same length as the Rust type, the `n`th field
 is extracted from the `n`th item in the Python tuple.
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -158,7 +158,7 @@ struct RustyTuple(String, String);
 Tuple structs with a single field are treated as wrapper types which are described in the
 following section. To override this behaviour and ensure that the input is in fact a tuple,
 specify the struct as
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -184,7 +184,7 @@ in extracting directly from the input object, i.e. `obj.extract()`, rather than 
 an item or attribute. This behaviour is enabled per default for newtype structs and tuple-variants
 with a single field.
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -223,7 +223,7 @@ i.e. a tuple variant assumes that the input is a Python tuple, and a struct vari
 extracting fields as attributes but can be configured in the same manner. The `transparent`
 attribute can be applied to single-field-variants.
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -370,7 +370,7 @@ tested variants is returned. The names reported in the error message can be cust
 through the `#[pyo3(annotation = "name")]` attribute, e.g. to use conventional Python type
 names:
 
-```
+```rust
 use pyo3::prelude::*;
 
 #[derive(FromPyObject)]
@@ -442,6 +442,10 @@ If the input is neither a string nor an integer, the error message will be:
 - `pyo3(item)`, `pyo3(item("key"))`
     - retrieve the field from a mapping, possibly with the custom key specified as an argument.
     - can be any literal that implements `ToBorrowedObject`
+- `pyo3(from_py_with = "...")`
+    - apply a custom function to convert the field from Python the desired Rust type. 
+    - the argument must be the name of the function as a string.
+    - the function signature must be `fn(&PyAny) -> PyResult<T>` where `T` is the Rust type of the argument.
 
 ### `IntoPy<T>`
 
@@ -454,7 +458,7 @@ All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use
 Occasionally you may choose to implement this for custom types which are mapped to Python types
 _without_ having a unique python type.
 
-```
+```rust
 use pyo3::prelude::*;
 
 struct MyPyObjectWrapper(PyObject);

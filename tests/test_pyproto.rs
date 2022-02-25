@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated)]
 
 use pyo3::class::{
     PyAsyncProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol,

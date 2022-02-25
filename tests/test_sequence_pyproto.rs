@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated)]
 
 use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};

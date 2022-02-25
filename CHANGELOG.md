@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PyAny::contains` method (`in` operator for `PyAny`). [#2115](https://github.com/PyO3/pyo3/pull/2115)
 - Add `PyMapping::contains` method (`in` operator for `PyMapping`). [#2133](https://github.com/PyO3/pyo3/pull/2133)
 - Add garbage collection magic methods `__traverse__` and `__clear__` to `#[pymethods]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
+- Add support for `from_py_with` on struct tuples and enums to override the default from-Python conversion. [#2181](https://github.com/PyO3/pyo3/pull/2181)
 - Add `eq`, `ne`, `lt`, `le`, `gt`, `ge` methods to `PyAny` that wrap `rich_compare`.
 
 ### Changed
@@ -73,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyDate_FromTimestamp`
 - Deprecate the `gc` option for `pyclass` (e.g. `#[pyclass(gc)]`). Just implement a `__traverse__` `#[pymethod]`. [#2159](https://github.com/PyO3/pyo3/pull/2159)
 - The `ml_meth` field of `PyMethodDef` is now represented by the `PyMethodDefPointer` union [2166](https://github.com/PyO3/pyo3/pull/2166)
+- Deprecate the `#[pyproto]` traits. [#2173](https://github.com/PyO3/pyo3/pull/2173)
 
 ### Removed
 
@@ -91,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add missing FFI definitions `_PyLong_NumBits` and `_PyLong_AsByteArray` on PyPy. [#2146](https://github.com/PyO3/pyo3/pull/2146)
 - Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
 - Fix the signature of `_PyLong_NumBits` [#2161](https://github.com/PyO3/pyo3/pull/2161)
+- Fix `TypeError` thrown when argument parsing failed missing the originating causes. [2177](https://github.com/PyO3/pyo3/pull/2178)
 
 ## [0.15.1] - 2021-11-19
 

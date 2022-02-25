@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python Description Interface
@@ -11,6 +12,7 @@ use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyDescrProtocol<'p>: PyClass {
     fn __get__(
         slf: Self::Receiver,

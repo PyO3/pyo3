@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python GC support
@@ -9,6 +10,7 @@ use std::os::raw::{c_int, c_void};
 pub struct PyTraverseError(c_int);
 
 /// GC support
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyGCProtocol<'p>: PyClass {
     fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
