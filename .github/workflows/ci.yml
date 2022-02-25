@@ -78,7 +78,16 @@ jobs:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", "pypy-3.7-v7.3.7", "pypy-3.8"]
+        python-version: [
+          "3.7",
+          "3.8",
+          "3.9",
+          "3.10",
+          "3.11-dev",
+          "pypy-3.7-v7.3.7",
+          "pypy-3.8",
+          "pypy-3.9"
+        ]
         platform:
           [
             {
@@ -107,6 +116,8 @@ jobs:
           - python-version: pypy-3.7-v7.3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
+            platform: { os: "windows-latest", python-architecture: "x86" }
+          - python-version: pypy-3.9
             platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # Test minimal supported Rust version

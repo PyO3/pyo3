@@ -1131,7 +1131,16 @@ fn default_lib_name_unix(
             Some(ld_version) => format!("python{}", ld_version),
             None => format!("python{}.{}", version.major, version.minor),
         },
-        PythonImplementation::PyPy => format!("pypy{}-c", version.major),
+        PythonImplementation::PyPy => {
+            if version >= (PythonVersion { major: 3, minor: 9 }) {
+                match ld_version {
+                    Some(ld_version) => format!("pypy{}-c", ld_version),
+                    None => format!("pypy{}.{}-c", version.major, version.minor),
+                }
+            } else {
+                format!("pypy{}-c", version.major)
+            }
+        }
     }
 }
 
@@ -1237,6 +1246,11 @@ fn fixup_config_for_abi3(
     config: &mut InterpreterConfig,
     abi3_version: Option<PythonVersion>,
 ) -> Result<()> {
+    // PyPy doesn't support abi3; don't adjust the version
+    if config.implementation.is_pypy() {
+        return Ok(());
+    }
+
     if let Some(version) = abi3_version {
         ensure!(
             version <= config.version,
@@ -1567,10 +1581,16 @@ mod tests {
             "python3.7md",
         );
 
-        // PyPy ignores ldversion
+        // PyPy 3.7 ignores ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.7md")),
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, PyPy, Some("3.7md")),
             "pypy3-c",
+        );
+
+        // PyPy 3.9 includes ldversion
+        assert_eq!(
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.9d")),
+            "pypy3.9d-c",
         );
     }
 
