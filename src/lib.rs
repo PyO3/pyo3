@@ -62,7 +62,10 @@
 //! ## Default feature flags
 //!
 //! The following features are turned on by default:
-//! - `macros`: Enables various macros, including all the attribute macros.
+//! - `macros`: Enables various macros, including all the attribute macros excluding the deprecated
+//! `#[pyproto]` attribute.
+//! - `pyproto`: Adds the deprecated `#[pyproto]` attribute macro. Likely to become optional and
+//! then removed in the future.
 //!
 //! ## Optional feature flags
 //!
@@ -306,6 +309,8 @@ pub mod class {
     #[doc(hidden)]
     pub use crate::impl_::pymethods as methods;
 
+    pub use self::gc::{PyTraverseError, PyVisit};
+
     #[doc(hidden)]
     pub use self::methods::{
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
@@ -321,6 +326,10 @@ pub mod class {
 
     pub mod iter {
         pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
+    }
+
+    pub mod gc {
+        pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
     }
 }
 

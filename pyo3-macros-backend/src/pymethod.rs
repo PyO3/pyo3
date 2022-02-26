@@ -324,7 +324,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
                 let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
                 let borrow = slf.try_borrow();
                 if let ::std::result::Result::Ok(borrow) = borrow {
-                    _pyo3::class::gc::unwrap_traverse_result(borrow.#ident(visit))
+                    _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
                 } else {
                     0
                 }

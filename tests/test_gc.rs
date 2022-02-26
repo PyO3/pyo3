@@ -278,3 +278,47 @@ fn gc_during_borrow() {
         drop(guard);
     }
 }
+
+#[pyclass]
+struct PanickyTraverse {
+    member: PyObject,
+}
+
+impl PanickyTraverse {
+    fn new(py: Python) -> Self {
+        Self { member: py.None() }
+    }
+}
+
+#[pymethods]
+impl PanickyTraverse {
+    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+        visit.call(&self.member)?;
+        // In the test, we expect this to never be hit
+        unreachable!()
+    }
+}
+
+#[test]
+fn traverse_error() {
+    Python::with_gil(|py| unsafe {
+        // declare a visitor function which errors (returns nonzero code)
+        extern "C" fn visit_error(
+            _object: *mut pyo3::ffi::PyObject,
+            _arg: *mut core::ffi::c_void,
+        ) -> std::os::raw::c_int {
+            -1
+        }
+
+        // get the traverse function
+        let ty = PanickyTraverse::type_object(py).as_type_ptr();
+        let traverse = get_type_traverse(ty).unwrap();
+
+        // confirm that traversing errors
+        let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
+        assert_eq!(
+            traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()),
+            -1
+        );
+    })
+}
