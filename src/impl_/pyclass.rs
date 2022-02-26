@@ -210,8 +210,11 @@ slot_fragment_trait! {
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         let res = ffi::PyObject_GenericGetAttr(slf, attr);
-        if res.is_null() { Err(PyErr::fetch(py)) }
-        else { Ok(res) }
+        if res.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(res)
+        }
     }
 }
 
@@ -225,8 +228,10 @@ slot_fragment_trait! {
         py: Python,
         _slf: *mut ffi::PyObject,
         attr: *mut ffi::PyObject,
-        ) -> PyResult<*mut ffi::PyObject> {
-        Err(PyErr::new::<PyAttributeError, _>((Py::<PyAny>::from_owned_ptr(py, attr),)))
+    ) -> PyResult<*mut ffi::PyObject> {
+        Err(PyErr::new::<PyAttributeError, _>(
+            (Py::<PyAny>::from_borrowed_ptr(py, attr),)
+        ))
     }
 }
 
@@ -239,7 +244,6 @@ macro_rules! generate_pyclass_getattro_slot {
             attr: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
             use ::std::result::Result::*;
-            use $crate::callback::IntoPyCallbackOutput;
             use $crate::impl_::pyclass::*;
             let gil = $crate::GILPool::new();
             let py = gil.python();
@@ -254,9 +258,9 @@ macro_rules! generate_pyclass_getattro_slot {
                     // - If it fails with AttributeError, try __getattr__.
                     // - If it fails otherwise, reraise.
                     match collector.__getattribute__(py, _slf, attr) {
-                        Ok(obj) => obj.convert(py),
+                        Ok(obj) => Ok(obj),
                         Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => {
-                            collector.__getattr__(py, _slf, attr).convert(py)
+                            collector.__getattr__(py, _slf, attr)
                         }
                         Err(e) => Err(e),
                     }
