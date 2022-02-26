@@ -38,7 +38,6 @@ impl PyMethodKind {
     fn from_name(name: &str) -> Self {
         match name {
             // Protocol implemented through slots
-            "__getattr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETATTR__)),
             "__str__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__STR__)),
             "__repr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPR__)),
             "__hash__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__HASH__)),
@@ -85,6 +84,10 @@ impl PyMethodKind {
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
             "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CLEAR__)),
             // Protocols implemented through traits
+            "__getattribute__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
+            }
+            "__getattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTR__)),
             "__setattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SETATTR__)),
             "__delattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DELATTR__)),
             "__set__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SET__)),
@@ -570,21 +573,6 @@ impl PropertyType<'_> {
     }
 }
 
-const __GETATTR__: SlotDef = SlotDef::new("Py_tp_getattro", "getattrofunc")
-    .arguments(&[Ty::Object])
-    .before_call_method(TokenGenerator(|| {
-        quote! {
-            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-            // for existing fields and methods first
-            let existing = _pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
-            if existing.is_null() {
-                // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                _pyo3::ffi::PyErr_Clear();
-            } else {
-                return existing;
-            }
-        }
-    }));
 const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
@@ -870,7 +858,6 @@ struct SlotDef {
     func_ty: StaticIdent,
     arguments: &'static [Ty],
     ret_ty: Ty,
-    before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
@@ -885,7 +872,6 @@ impl SlotDef {
             func_ty: StaticIdent(func_ty),
             arguments: NO_ARGUMENTS,
             ret_ty: Ty::Object,
-            before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
@@ -899,11 +885,6 @@ impl SlotDef {
 
     const fn ret_ty(mut self, ret_ty: Ty) -> Self {
         self.ret_ty = ret_ty;
-        self
-    }
-
-    const fn before_call_method(mut self, before_call_method: TokenGenerator) -> Self {
-        self.before_call_method = Some(before_call_method);
         self
     }
 
@@ -936,7 +917,6 @@ impl SlotDef {
         let SlotDef {
             slot,
             func_ty,
-            before_call_method,
             arguments,
             extract_error_mode,
             ret_ty,
@@ -963,7 +943,6 @@ impl SlotDef {
         Ok(quote!({
             unsafe extern "C" fn __wrap(_raw_slf: *mut _pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
-                #before_call_method
                 let gil = _pyo3::GILPool::new();
                 let #py = gil.python();
                 _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
@@ -1074,6 +1053,10 @@ impl SlotFragmentDef {
     }
 }
 
+const __GETATTRIBUTE__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattribute__", &[Ty::Object]).ret_ty(Ty::Object);
+const __GETATTR__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattr__", &[Ty::Object]).ret_ty(Ty::Object);
 const __SETATTR__: SlotFragmentDef =
     SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
 const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object]);

@@ -75,6 +75,16 @@ given signatures should be interpreted as follows:
     </details>
 
   - `__getattr__(<self>, object) -> object`
+  - `__getattribute__(<self>, object) -> object`
+    <details>
+    <summary>Differences between `__getattr__` and `__getattribute__`</summary>
+    As in Python, `__getattr__` is only called if the attribute is not found
+    by normal attribute lookup.  `__getattribute__`, on the other hand, is
+    called for *every* attribute access.  If it wants to access existing
+    attributes on `self`, it needs to be very careful not to introduce
+    infinite recursion, and use `baseclass.__getattribute__()`.
+    </details>
+
   - `__setattr__(<self>, value: object) -> ()`
   - `__delattr__(<self>, object) -> ()`
 
