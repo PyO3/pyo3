@@ -1,3 +1,4 @@
+use clap::ErrorKind::MissingArgumentOrSubcommand;
 use structopt::StructOpt;
 
 pub mod cli;
@@ -16,6 +17,10 @@ fn main() -> anyhow::Result<()> {
     // For some reason this is automatically enabled on nightly compilers...
     std::env::set_var("RUST_LIB_BACKTRACE", "0");
 
-    cli::Subcommand::from_args().execute()?;
+    match cli::Subcommand::from_args_safe() {
+        Ok(c) => c.execute()?,
+        Err(e) if e.kind == MissingArgumentOrSubcommand => cli::Subcommand::All.execute()?,
+        Err(e) => return Err(e)?,
+    }
     Ok(())
 }

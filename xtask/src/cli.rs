@@ -78,12 +78,6 @@ impl Subcommand {
                 } else {
                     Installed::warn_nox()
                 };
-                if installed.llvm_cov {
-                    crate::llvm_cov::run(CoverageOpts::default())?
-                } else {
-                    Installed::warn_llvm_cov()
-                };
-
                 installed.assert()?
             }
 
@@ -121,7 +115,6 @@ pub fn run(command: &mut Command) -> Result<()> {
 pub struct Installed {
     pub nox: bool,
     pub black: bool,
-    pub llvm_cov: bool,
 }
 
 impl Installed {
@@ -129,7 +122,6 @@ impl Installed {
         Ok(Self {
             nox: Self::nox()?,
             black: Self::black()?,
-            llvm_cov: Self::llvm_cov()?,
         })
     }
 
@@ -161,24 +153,8 @@ impl Installed {
         eprintln!("Skipping: Python code formatting, because `black` was not found.");
     }
 
-    pub fn llvm_cov() -> anyhow::Result<bool> {
-        let output = std::process::Command::new("cargo")
-            .arg("llvm-cov")
-            .arg("--version")
-            .output();
-
-        match output {
-            Ok(_) => Ok(true),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
-            Err(other) => Err(other)?,
-        }
-    }
-    pub fn warn_llvm_cov() {
-        eprintln!("Skipping: code coverage, because `llvm-cov` was not found");
-    }
-
     pub fn assert(&self) -> anyhow::Result<()> {
-        if self.nox && self.black && self.llvm_cov {
+        if self.nox && self.black {
             Ok(())
         } else {
             let mut err =
@@ -188,9 +164,6 @@ impl Installed {
             }
             if !self.nox {
                 err.push_str("\n`nox` was not installed. (`pip install nox`)");
-            }
-            if !self.llvm_cov {
-                err.push_str("\n`llvm-cov` was not installed. (`cargo install llvm-cov`)");
             }
 
             Err(anyhow::anyhow!(err))
