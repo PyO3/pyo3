@@ -105,6 +105,55 @@ Because there is no such distinction from Python, implementing these methods wil
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
 
+### `wrap_pymodule!` now respects privacy correctly
+
+Prior to PyO3 0.16 the `wrap_pymodule!` macro could use modules declared in Rust modules which were not reachable.
+
+For example, the following code was legal before 0.16, but in 0.16 is rejected because the `wrap_pymodule!` macro cannot access the `private_submodule` function:
+
+```rust,compile_fail
+mod foo {
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+use pyo3::prelude::*;
+use foo::*;
+
+#[pymodule]
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(private_submodule))?;
+    Ok(())
+}
+```
+
+To fix it, make the private submodule visible, e.g. with `pub` or `pub(crate)`.
+
+```rust
+mod foo {
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    pub(crate) fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+use pyo3::prelude::*;
+use pyo3::wrap_pymodule;
+use foo::*;
+
+#[pymodule]
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(private_submodule))?;
+    Ok(())
+}
+```
+
 ## from 0.14.* to 0.15
 
 ### Changes in sequence indexing
