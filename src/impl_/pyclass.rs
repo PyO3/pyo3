@@ -847,12 +847,12 @@ pub struct ThreadCheckerImpl<T>(thread::ThreadId, PhantomData<T>);
 
 impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
     fn ensure(&self) {
-        if thread::current().id() != self.0 {
-            panic!(
-                "{} is unsendable, but sent to another thread!",
-                std::any::type_name::<T>()
-            );
-        }
+        assert_eq!(
+            thread::current().id(),
+            self.0,
+            "{} is unsendable, but sent to another thread!",
+            std::any::type_name::<T>()
+        );
     }
     fn new() -> Self {
         ThreadCheckerImpl(thread::current().id(), PhantomData)

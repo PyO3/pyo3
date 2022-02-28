@@ -35,7 +35,10 @@ impl ToTokens for Deprecations {
             let ident = deprecation.ident(*span);
             quote_spanned!(
                 *span =>
-                let _ = _pyo3::impl_::deprecations::#ident;
+                #[allow(clippy::let_unit_value)]
+                {
+                    let _ = _pyo3::impl_::deprecations::#ident;
+                }
             )
             .to_tokens(tokens)
         }

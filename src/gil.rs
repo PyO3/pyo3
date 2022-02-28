@@ -241,6 +241,7 @@ impl GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         // First up, try to detect if the order of destruction is correct.
+        #[allow(clippy::manual_assert)]
         let _ = GIL_COUNT.try_with(|c| {
             if self.gstate == ffi::PyGILState_STATE::PyGILState_UNLOCKED && c.get() != 1 {
                 // XXX: this panic commits to leaking all objects in the pool as well as

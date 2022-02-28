@@ -63,9 +63,7 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    if ob.is_null() {
-        panic!();
-    }
+    assert!(!ob.is_null());
     (*ob).ob_refcnt
 }
 

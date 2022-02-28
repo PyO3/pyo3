@@ -420,7 +420,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             match s {
                 Argument::Arg(path, opt) | Argument::Kwarg(path, opt) => {
                     if path.is_ident(name) {
@@ -437,7 +437,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn is_pos_only(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             if let Argument::PosOnlyArg(path, _) = s {
                 if path.is_ident(name) {
                     return true;
@@ -448,7 +448,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             if let Argument::Kwarg(path, _) = s {
                 if path.is_ident(name) {
                     return true;

@@ -1,5 +1,5 @@
 #![no_implicit_prelude]
-#![allow(unused_variables)]
+#![allow(unused_variables, clippy::unnecessary_wraps)]
 
 #[crate::pyfunction]
 #[pyo3(crate = "crate")]

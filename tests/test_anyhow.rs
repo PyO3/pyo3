@@ -5,6 +5,7 @@ fn test_anyhow_py_function_ok_result() {
     use pyo3::{py_run, pyfunction, wrap_pyfunction, Python};
 
     #[pyfunction]
+    #[allow(clippy::unnecessary_wraps)]
     fn produce_ok_result() -> anyhow::Result<String> {
         Ok(String::from("OK buddy"))
     }

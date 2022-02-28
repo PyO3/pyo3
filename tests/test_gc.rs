@@ -120,31 +120,14 @@ fn gc_integration() {
 
         let mut borrow = inst.borrow_mut();
         borrow.self_ref = inst.to_object(py);
+
+        py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
     }
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     py.run("import gc; gc.collect()", None, None).unwrap();
     assert!(drop_called.load(Ordering::Relaxed));
-}
-
-#[pyclass]
-struct GcIntegration2 {}
-
-#[pymethods]
-impl GcIntegration2 {
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
-        Ok(())
-    }
-    fn __clear__(&mut self) {}
-}
-
-#[test]
-fn gc_integration2() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, GcIntegration2 {}).unwrap();
-    py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
 #[pyclass(subclass)]
@@ -231,6 +214,8 @@ impl TraversableClass {
 #[pymethods]
 impl TraversableClass {
     fn __clear__(&mut self) {}
+
+    #[allow(clippy::unnecessary_wraps)]
     fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         self.traversed.store(true, Ordering::Relaxed);
         Ok(())

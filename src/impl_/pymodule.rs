@@ -138,6 +138,7 @@ mod tests {
 
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
+        #[allow(clippy::unnecessary_wraps)]
         fn init(_: Python, _: &PyModule) -> PyResult<()> {
             INIT_CALLED.store(true, Ordering::SeqCst);
             Ok(())

@@ -97,6 +97,7 @@ mod min_const_generics {
             }
             let _ = catch_unwind_silent(move || {
                 let _: Result<[CountDrop; 4], ()> = super::array_try_from_fn(|idx| {
+                    #[allow(clippy::manual_assert)]
                     if idx == 2 {
                         panic!("peek a boo");
                     }
