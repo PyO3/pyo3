@@ -25,3 +25,6 @@ abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3-py310"]
 abi3-py310 = ["abi3"]
+
+[package.metadata.docs.rs]
+features = ["resolve-config"]
