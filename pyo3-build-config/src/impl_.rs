@@ -188,7 +188,7 @@ def print_if_set(varname, value):
         print(varname, value)
 
 # Windows always uses shared linking
-WINDOWS = hasattr(platform, "win32_ver")
+WINDOWS = platform.system() == "Windows"
 
 # macOS framework packages use shared linking
 FRAMEWORK = bool(get_config_var("PYTHONFRAMEWORK"))
