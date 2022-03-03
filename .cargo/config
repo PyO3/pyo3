@@ -6,3 +6,19 @@ pyo3_doc_internal = "doc --lib --no-default-features --features=full --no-deps -
 
 [build]
 rustdocflags = ["--cfg", "docsrs"]
+
+[target.'cfg(feature = "cargo-clippy")']
+rustflags = [
+    "-Dclippy::checked_conversions",
+    "-Dclippy::dbg_macro",
+    "-Dclippy::explicit_into_iter_loop",
+    "-Dclippy::explicit_iter_loop",
+    "-Dclippy::filter_map_next",
+    "-Dclippy::flat_map_option",
+    "-Dclippy::let_unit_value",
+    "-Dclippy::manual_assert",
+    "-Dclippy::manual_ok_or",
+    "-Dclippy::todo",
+    "-Dclippy::unnecessary_wraps",
+    "-Dclippy::useless_transmute",
+]

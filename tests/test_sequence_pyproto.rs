@@ -22,7 +22,7 @@ impl ByteSequence {
     fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
-            for pyelem in pylist.into_iter() {
+            for pyelem in pylist {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }

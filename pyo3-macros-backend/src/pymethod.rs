@@ -193,7 +193,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec)?)
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
@@ -307,9 +307,9 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
     }})
 }
 
-fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
+fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> TokenStream {
     let ident = spec.name;
-    Ok(quote! {{
+    quote! {{
         pub unsafe extern "C" fn __wrap_(
             slf: *mut _pyo3::ffi::PyObject,
             visit: _pyo3::ffi::visitproc,
@@ -334,7 +334,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
             slot: _pyo3::ffi::Py_tp_traverse,
             pfunc: __wrap_ as _pyo3::ffi::traverseproc as _
         }
-    }})
+    }}
 }
 
 fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
