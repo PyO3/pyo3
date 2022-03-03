@@ -778,7 +778,7 @@ mod tests {
         // Some spinlocks for synchronizing
         static OBJECT_CLONED: AtomicBool = AtomicBool::new(false);
 
-        let (obj, count) = Python::with_gil(|py| {
+        let (obj, count, ptr) = Python::with_gil(|py| {
             let obj = Arc::new(get_object(py));
             let count = obj.get_refcnt(py);
             let thread_obj = Arc::clone(&obj);
@@ -799,17 +799,16 @@ mod tests {
 
             // The pointer should appear once in the incref pool, and once in the
             // decref pool (for the clone being created and also dropped)
-            assert_eq!(&*POOL.pointer_ops.lock().0, &[ptr]);
-            assert_eq!(&*POOL.pointer_ops.lock().1, &[ptr]);
+            assert!(POOL.pointer_ops.lock().0.contains(&ptr));
+            assert!(POOL.pointer_ops.lock().1.contains(&ptr));
 
-            // Re-acquring GIL will clear these pending changes
-            (obj, count)
+            (obj, count, ptr)
         });
 
         Python::with_gil(|py| {
             // Acquiring the gil clears the pool
-            assert!(POOL.pointer_ops.lock().0.is_empty());
-            assert!(POOL.pointer_ops.lock().1.is_empty());
+            assert!(!POOL.pointer_ops.lock().0.contains(&ptr));
+            assert!(!POOL.pointer_ops.lock().1.contains(&ptr));
 
             // Overall count is still unchanged
             assert_eq!(count, obj.get_refcnt(py));
