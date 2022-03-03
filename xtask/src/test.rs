@@ -14,7 +14,24 @@ pub fn run() -> anyhow::Result<()> {
         Command::new("cargo")
             .arg("test")
             .arg("--no-default-features")
-            .arg("--features=full"),
+            .arg("--features=full")
+    )?;
+
+    // Install 1.48 for testing msrv
+    cli::run(
+        Command::new("rustup")
+            .arg("toolchain")
+            .arg("install")
+            .arg("1.48"),
+    )?;
+
+    // Test msrv
+    cli::run(
+        Command::new("cargo")
+            .arg("+1.48")
+            .arg("test")
+            .arg("--no-default-features")
+            .arg("--features=full,auto-initialize"),
     )?;
 
     cli::run(
