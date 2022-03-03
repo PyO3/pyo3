@@ -6,6 +6,12 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Fix incorrect platform detection for Windows in `pyo3-build-config`. [#2198](https://github.com/PyO3/pyo3/pull/2198)
+
 ## [0.16.0] - 2022-02-27
 
 ### Packaging
