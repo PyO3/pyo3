@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- Extend `hashbrown` optional dependency supported versions to include 0.12. [#2197]https://github.com/PyO3/pyo3/pull/2197)
+- Extend `hashbrown` optional dependency supported versions to include 0.12. [#2197](https://github.com/PyO3/pyo3/pull/2197)
 
 ### Fixed
 
