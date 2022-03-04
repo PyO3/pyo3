@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Packaging
+
+- Extend `hashbrown` optional dependency supported versions to include 0.12. [#2197]https://github.com/PyO3/pyo3/pull/2197)
+
 ### Fixed
 
 - Fix incorrect platform detection for Windows in `pyo3-build-config`. [#2198](https://github.com/PyO3/pyo3/pull/2198)
