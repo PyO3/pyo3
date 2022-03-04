@@ -105,9 +105,9 @@ Because there is no such distinction from Python, implementing these methods wil
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
 
-### `wrap_pymodule!` now respects privacy correctly
+### `wrap_pymodule!` and `wrap_pyfunction!` now respect privacy correctly
 
-Prior to PyO3 0.16 the `wrap_pymodule!` macro could use modules declared in Rust modules which were not reachable.
+Prior to PyO3 0.16 the `wrap_pymodule!` and `wrap_pyfunction!` macros could use modules and functions whose defining `fn` was not reachable according Rust privacy rules.
 
 For example, the following code was legal before 0.16, but in 0.16 is rejected because the `wrap_pymodule!` macro cannot access the `private_submodule` function:
 
