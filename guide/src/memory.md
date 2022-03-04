@@ -23,11 +23,16 @@ held. (If PyO3 could not assume this, every PyO3 API would need to take a
 very simple and easy-to-understand programs like this:
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
     println!("Python says: {}", hello);
     Ok(())
 })?;
+# Ok(())
+# }
 ```
 
 Internally, calling `Python::with_gil()` or `Python::acquire_gil()` creates a
@@ -39,6 +44,9 @@ it owns are decreased, releasing them to the Python garbage collector.  Most
 of the time we don't have to think about this, but consider the following:
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
@@ -47,6 +55,8 @@ Python::with_gil(|py| -> PyResult<()> {
     // There are 10 copies of `hello` on Python's heap here.
     Ok(())
 })?;
+# Ok(())
+# }
 ```
 
 We might assume that the `hello` variable's memory is freed at the end of each
@@ -62,6 +72,9 @@ In general we don't want unbounded memory growth during loops!  One workaround
 is to acquire and release the GIL with each iteration of the loop.
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 for _ in 0..10 {
     Python::with_gil(|py| -> PyResult<()> {
         let hello: &PyString = py.eval("\"Hello World!\"", None, None)?.extract()?;
@@ -69,6 +82,8 @@ for _ in 0..10 {
         Ok(())
     })?; // only one copy of `hello` at a time
 }
+# Ok(())
+# }
 ```
 
 It might not be practical or performant to acquire and release the GIL so many
@@ -76,6 +91,9 @@ times.  Another workaround is to work with the `GILPool` object directly, but
 this is unsafe.
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
     for _ in 0..10 {
         let pool = unsafe { py.new_pool() };
@@ -85,6 +103,8 @@ Python::with_gil(|py| -> PyResult<()> {
     }
     Ok(())
 })?;
+# Ok(())
+# }
 ```
 
 The unsafe method `Python::new_pool` allows you to create a nested `GILPool`
@@ -112,11 +132,16 @@ What happens to the memory when the last `Py<PyAny>` is dropped and its
 reference count reaches zero?  It depends whether or not we are holding the GIL.
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 Python::with_gil(|py| -> PyResult<()> {
-    let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract())?;
+    let hello: Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract()?;
     println!("Python says: {}", hello.as_ref(py));
     Ok(())
-});
+})?;
+# Ok(())
+# }
 ```
 
 At the end of the `Python::with_gil()` closure `hello` is dropped, and then the
@@ -129,8 +154,11 @@ This example wasn't very interesting.  We could have just used a GIL-bound
 we are *not* holding the GIL?
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
 // Now sometime later in the program we want to access `hello`.
@@ -142,7 +170,10 @@ drop(hello); // Memory *not* released here.
 // Sometime later we need the GIL again for something...
 Python::with_gil(|py|
     // Memory for `hello` is released here.
+# ()
 );
+# Ok(())
+# }
 ```
 
 When `hello` is dropped *nothing* happens to the pointed-to memory on Python's
@@ -154,8 +185,11 @@ We can avoid the delay in releasing memory if we are careful to drop the
 `Py<Any>` while the GIL is held.
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
 // Now sometime later in the program:
@@ -163,6 +197,8 @@ Python::with_gil(|py| {
     println!("Python says: {}", hello.as_ref(py));
     drop(hello); // Memory released here.
 });
+# Ok(())
+# }
 ```
 
 We could also have used `Py::into_ref()`, which consumes `self`, instead of
@@ -172,8 +208,11 @@ that rather than being released immediately, the memory will not be released
 until the GIL is dropped.
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyString;
+# fn main() -> PyResult<()> {
 let hello: Py<PyString> = Python::with_gil(|py| {
-    py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract()
 })?;
 // Do some stuff...
 // Now sometime later in the program:
@@ -183,4 +222,6 @@ Python::with_gil(|py| {
     // Do more stuff...
     // Memory released here at end of `with_gil()` closure.
 });
+# Ok(())
+# }
 ```

@@ -47,6 +47,7 @@ rustversion = "1.0"
 # 1.0.0 requires Rust 1.50
 proptest = { version = "0.10.1", default-features = false, features = ["std"] }
 send_wrapper = "0.5"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 
 [build-dependencies]
