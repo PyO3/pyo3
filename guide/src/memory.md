@@ -130,7 +130,7 @@ we are *not* holding the GIL?
 
 ```rust
 let hello: Py<PyString> = Python::with_gil(|py| {
-    Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract())
 })?;
 // Do some stuff...
 // Now sometime later in the program we want to access `hello`.
@@ -155,7 +155,7 @@ We can avoid the delay in releasing memory if we are careful to drop the
 
 ```rust
 let hello: Py<PyString> = Python::with_gil(|py| {
-    Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract())
 })?;
 // Do some stuff...
 // Now sometime later in the program:
@@ -173,7 +173,7 @@ until the GIL is dropped.
 
 ```rust
 let hello: Py<PyString> = Python::with_gil(|py| {
-    Py<PyString> = py.eval("\"Hello World!\"", None, None)?.extract())
+    py.eval("\"Hello World!\"", None, None)?.extract())
 })?;
 // Do some stuff...
 // Now sometime later in the program:
