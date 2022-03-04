@@ -623,7 +623,16 @@ pub fn cross_compiling(
     let cross_lib_dir = env_var("PYO3_CROSS_LIB_DIR");
     let cross_python_version = env_var("PYO3_CROSS_PYTHON_VERSION");
 
-    let target_triple = format!("{}-{}-{}", target_arch, target_vendor, target_os);
+    let target_triple = format!(
+        "{}-{}-{}",
+        target_arch,
+        target_vendor,
+        if target_os == "macos" {
+            "darwin"
+        } else {
+            target_os
+        }
+    );
 
     if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
         // No cross-compiling environment variables set; try to determine if this is a known case

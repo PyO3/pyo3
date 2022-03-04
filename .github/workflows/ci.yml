@@ -244,6 +244,13 @@ jobs:
           manylinux: auto
           args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
 
+      - name: Test cross compilation
+        if: ${{ matrix.platform.os == 'macos-latest' && matrix.python-version == '3.9' }}
+        uses: messense/maturin-action@v1
+        with:
+          target: aarch64-apple-darwin
+          args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
+
     env:
       CARGO_TERM_VERBOSE: true
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}

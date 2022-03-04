@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix incorrect platform detection for Windows in `pyo3-build-config`. [#2198](https://github.com/PyO3/pyo3/pull/2198)
+- Fix cross compiling to aarch64 macOS. [#2201](https://github.com/PyO3/pyo3/pull/2201)
 
 ## [0.16.0] - 2022-02-27
 
