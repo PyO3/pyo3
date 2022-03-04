@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-ffi"
-version = "0.16.0"
+version = "0.16.1"
 description = "Python-API bindings for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -34,4 +34,4 @@ abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310"]
 
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.0", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.1", features = ["resolve-config"] }
