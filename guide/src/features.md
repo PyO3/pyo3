@@ -115,6 +115,11 @@ Enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust
+# #[cfg(feature = "serde")]
+# #[allow(dead_code)]
+# mod serde_only {
+# use pyo3::prelude::*;
+# use serde::{Deserialize, Serialize};
 
 #[pyclass]
 #[derive(Serialize, Deserialize)]
@@ -128,4 +133,5 @@ struct User {
     username: String,
     permissions: Vec<Py<Permission>>
 }
+# }
 ```

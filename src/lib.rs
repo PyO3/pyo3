@@ -417,48 +417,42 @@ pub mod doc_test {
         };
     }
 
-    macro_rules! doctest {
-        ($path:expr, $mod:ident) => {
-            doctest_impl!(include_str!(concat!("../", $path)), $mod);
+    macro_rules! doctests {
+        ($($path:expr => $mod:ident),* $(,)?) => {
+            $(doctest_impl!(include_str!(concat!("../", $path)), $mod);)*
         };
     }
 
-    doctest!("README.md", readme_md);
-    doctest!("guide/src/advanced.md", guide_advanced_md);
-    doctest!(
-        "guide/src/building_and_distribution.md",
-        guide_building_and_distribution_md
-    );
-    doctest!("guide/src/class.md", guide_class_md);
-    doctest!("guide/src/class/protocols.md", guide_class_protocols_md);
-    doctest!("guide/src/conversions.md", guide_conversions_md);
-    doctest!(
-        "guide/src/conversions/tables.md",
-        guide_conversions_tables_md
-    );
+    doctests! {
+        "README.md" => readme_md,
+        "guide/src/advanced.md" => guide_advanced_md,
+        "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
+        "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
+        "guide/src/class.md" => guide_class_md,
+        "guide/src/class/call.md" => guide_class_call,
+        "guide/src/class/object.md" => guide_class_object,
+        "guide/src/class/numeric.md" => guide_class_numeric,
+        "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/conversions.md" => guide_conversions_md,
+        "guide/src/conversions/tables.md" => guide_conversions_tables_md,
+        "guide/src/conversions/traits.md" => guide_conversions_traits_md,
+        "guide/src/debugging.md" => guide_debugging_md,
 
-    doctest!(
-        "guide/src/conversions/traits.md",
-        guide_conversions_traits_md
-    );
-    doctest!("guide/src/debugging.md", guide_debugging_md);
-    doctest!("guide/src/exception.md", guide_exception_md);
-    doctest!("guide/src/function.md", guide_function_md);
-    doctest!("guide/src/migration.md", guide_migration_md);
-    doctest!("guide/src/module.md", guide_module_md);
-    doctest!("guide/src/parallelism.md", guide_parallelism_md);
-    doctest!("guide/src/python_from_rust.md", guide_python_from_rust_md);
-    doctest!("guide/src/rust_cpython.md", guide_rust_cpython_md);
-    doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
-    doctest!("guide/src/types.md", guide_types_md);
-    doctest!("guide/src/faq.md", faq);
-    doctest!(
-        "guide/src/python_typing_hints.md",
-        guide_python_typing_hints
-    );
-    doctest!("guide/src/class/object.md", guide_class_object);
-    doctest!("guide/src/class/numeric.md", guide_class_numeric);
+        // deliberate choice not to test guide/ecosystem because those pages depend on external
+        // crates such as pyo3_asyncio.
 
-    // deliberate choice not to test guide/ecosystem because those pages depend on external crates
-    // such as pyo3_asyncio.
+        "guide/src/exception.md" => guide_exception_md,
+        "guide/src/faq.md" => guide_faq_md,
+        "guide/src/features.md" => guide_features_md,
+        "guide/src/function.md" => guide_function_md,
+        "guide/src/memory.md" => guide_memory_md,
+        "guide/src/migration.md" => guide_migration_md,
+        "guide/src/module.md" => guide_module_md,
+        "guide/src/parallelism.md" => guide_parallelism_md,
+        "guide/src/python_from_rust.md" => guide_python_from_rust_md,
+        "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
+        "guide/src/rust_cpython.md" => guide_rust_cpython_md,
+        "guide/src/trait_bounds.md" => guide_trait_bounds_md,
+        "guide/src/types.md" => guide_types_md,
+    }
 }

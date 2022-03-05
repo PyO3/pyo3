@@ -14,7 +14,7 @@ is linked at the end.
 
 An example crate containing this pyclass can be found [here](https://github.com/PyO3/pyo3/tree/main/examples/decorator)
 
-```rust
+```rust,ignore
 {{#include ../../../examples/decorator/src/lib.rs}}
 ```
 
