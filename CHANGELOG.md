@@ -6,7 +6,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.1] - 2022-03-05
 
 ### Packaging
 
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix incorrect platform detection for Windows in `pyo3-build-config`. [#2198](https://github.com/PyO3/pyo3/pull/2198)
-- Fix cross compiling to aarch64 macOS. [#2201](https://github.com/PyO3/pyo3/pull/2201)
+- Fix regression from 0.16 preventing cross compiling to aarch64 macOS. [#2201](https://github.com/PyO3/pyo3/pull/2201)
 
 ## [0.16.0] - 2022-02-27
 
@@ -1091,7 +1091,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/pyo3/pyo3/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/pyo3/pyo3/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/pyo3/pyo3/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/pyo3/pyo3/compare/v0.14.5...v0.15.0
