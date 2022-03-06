@@ -78,17 +78,25 @@ Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
 
 ```rust
 # use pyo3::prelude::*;
+# use pyo3::exceptions::PyValueError;
 # #[pyclass]
-# struct Number(i32);
+# struct Nonzero(i32);
 #
 #[pymethods]
-impl Number {
+impl Nonzero {
     #[new]
-    fn new(value: i32) -> Self {
-        Number(value)
+    fn py_new(value: i32) -> PyResult<Self> {
+        if value == 0 {
+            Err(PyValueError::new_err("cannot be zero"))
+        } else {
+            Ok(Nonzero(value))
+        }
     }
 }
 ```
+
+As you can see, the Rust method name is not important here; this way you can
+still use `new()` for a Rust-level constructor.
 
 If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
