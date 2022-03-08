@@ -41,7 +41,6 @@ fn test_date_fromtimestamp() {
 }
 
 #[test]
-#[cfg(not(all(PyPy, not(Py_3_8))))]
 fn test_utc_timezone() {
     Python::with_gil(|py| {
         let utc_timezone = unsafe {

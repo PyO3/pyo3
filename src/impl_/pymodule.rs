@@ -71,6 +71,21 @@ impl ModuleDef {
         panic_result_into_callback_output(
             py,
             std::panic::catch_unwind(move || -> PyResult<_> {
+                #[cfg(all(PyPy, not(Py_3_8)))]
+                {
+                    const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
+                    let version = py
+                        .import("sys")?
+                        .getattr("implementation")?
+                        .getattr("version")?;
+                    if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
+                        let warn = py.import("warnings")?.getattr("warn")?;
+                        warn.call1((
+                            "PyPy 3.7 versions older than 7.3.8 are known to have binary \
+                             compatibility issues which may cause segfaults. Please upgrade.",
+                        ))?;
+                    }
+                }
                 Ok(unwind_safe_self.make_module(py)?.into_ptr())
             }),
         )
