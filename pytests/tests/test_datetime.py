@@ -54,8 +54,9 @@ elif _pointer_size == 4:
 else:
     raise RuntimeError("unexpected pointer size: " + repr(_pointer_size))
 IS_WINDOWS = sys.platform == "win32"
+
 if IS_WINDOWS:
-    MIN_DATETIME = pdt.datetime(1970, 1, 2, 0, 0)
+    MIN_DATETIME = pdt.datetime(1971, 1, 2, 0, 0)
     if IS_32_BIT:
         MAX_DATETIME = pdt.datetime(3001, 1, 19, 4, 59, 59)
     else:

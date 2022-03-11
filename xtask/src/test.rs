@@ -14,7 +14,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::new("cargo")
             .arg("test")
             .arg("--no-default-features")
-            .arg("--features=full")
+            .arg("--features=full"),
     )?;
 
     // Install 1.48 for testing msrv
