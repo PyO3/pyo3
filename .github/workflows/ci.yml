@@ -47,7 +47,8 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # If one platform fails, allow the rest to keep testing.
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         target: [powerpc64le-unknown-linux-gnu, s390x-unknown-linux-gnu, wasm32-wasi]
     name: check-${{ matrix.target }}
@@ -79,7 +80,8 @@ jobs:
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
-      fail-fast: false # If one platform fails, allow the rest to keep testing.
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
         python-version: [
