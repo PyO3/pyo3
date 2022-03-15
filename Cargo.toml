@@ -12,7 +12,6 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".cargo/config", "/codecov.yml", "/Makefile", "/pyproject.toml", "/noxfile.py"]
 edition = "2018"
-links = "python"
 
 [dependencies]
 cfg-if = "1.0"
@@ -51,7 +50,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
 
 [build-dependencies]
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.16.1" }
 pyo3-build-config = { path = "pyo3-build-config", version = "0.16.1", features = ["resolve-config"] }
 
 [features]
