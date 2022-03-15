@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -105,20 +109,7 @@ jobs:
               python-architecture: "x64",
               rust-target: "x86_64-pc-windows-msvc",
             },
-            {
-              os: "windows-latest",
-              python-architecture: "x86",
-              rust-target: "i686-pc-windows-msvc",
-            },
           ]
-        exclude:
-          # PyPy doesn't release 32-bit Windows builds any more
-          - python-version: pypy-3.7
-            platform: { os: "windows-latest", python-architecture: "x86" }
-          - python-version: pypy-3.8
-            platform: { os: "windows-latest", python-architecture: "x86" }
-          - python-version: pypy-3.9
-            platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # Test minimal supported Rust version
           - rust: 1.48.0
@@ -141,6 +132,16 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
             extra_features: "nightly"
+
+          # Test 32-bit Windows only with the latest Python version
+          - rust: stable
+            python-version: "3.10"
+            platform:
+              {
+                os: "windows-latest",
+                python-architecture: "x86",
+                rust-target: "i686-pc-windows-msvc",
+              }
     steps:
       - uses: actions/checkout@v2
 
