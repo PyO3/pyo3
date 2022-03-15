@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Packaging
 
 - Warn when modules are imported on PyPy 3.7 versions older than PyPy 7.3.8, as they are known to have binary compatibility issues. [#2217](https://github.com/PyO3/pyo3/pull/2217)
+- Ensure build script of `pyo3-ffi` runs before that of `pyo3` to fix cross compilation. [#2224](https://github.com/PyO3/pyo3/pull/2224)
 
 ## [0.16.1] - 2022-03-05
 
