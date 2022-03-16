@@ -540,6 +540,54 @@ fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
 }
 
+#[derive(Debug, PartialEq)]
+struct TargetInfo {
+    /// The `arch` component of the compilation target triple.
+    ///
+    /// e.g. x86_64, i386, arm, thumb, mips, etc.
+    arch: String,
+
+    /// The `vendor` component of the compilation target triple.
+    ///
+    /// e.g. apple, pc, unknown, etc.
+    vendor: String,
+
+    /// The `os` component of the compilation target triple.
+    ///
+    /// e.g. darwin, freebsd, linux, windows, etc.
+    os: String,
+}
+
+impl TargetInfo {
+    fn from_cargo_env() -> Result<Self> {
+        Ok(Self {
+            arch: cargo_env_var("CARGO_CFG_TARGET_ARCH")
+                .ok_or("expected CARGO_CFG_TARGET_ARCH env var")?,
+            vendor: cargo_env_var("CARGO_CFG_TARGET_VENDOR")
+                .ok_or("expected CARGO_CFG_TARGET_VENDOR env var")?,
+            os: cargo_env_var("CARGO_CFG_TARGET_OS")
+                .ok_or("expected CARGO_CFG_TARGET_OS env var")?,
+        })
+    }
+
+    fn to_target_triple(&self) -> String {
+        format!(
+            "{}-{}-{}",
+            if self.arch == "x86" {
+                "i686"
+            } else {
+                &self.arch
+            },
+            self.vendor,
+            if self.os == "macos" {
+                "darwin"
+            } else {
+                &self.os
+            }
+        )
+    }
+}
+
 /// Configuration needed by PyO3 to cross-compile for a target platform.
 ///
 /// Usually this is collected from the environment (i.e. `PYO3_CROSS_*` and `CARGO_CFG_TARGET_*`)
@@ -552,51 +600,55 @@ pub struct CrossCompileConfig {
     /// The version of the Python library to link against.
     version: Option<PythonVersion>,
 
-    /// The `arch` component of the compilaton target triple.
-    ///
-    /// e.g. x86_64, i386, arm, thumb, mips, etc.
-    arch: String,
-
-    /// The `vendor` component of the compilaton target triple.
-    ///
-    /// e.g. apple, pc, unknown, etc.
-    vendor: String,
-
-    /// The `os` component of the compilaton target triple.
-    ///
-    /// e.g. darwin, freebsd, linux, windows, etc.
-    os: String,
+    /// The target information
+    target_info: TargetInfo,
 }
 
-#[allow(unused)]
-pub fn any_cross_compiling_env_vars_set() -> bool {
-    env::var_os("PYO3_CROSS").is_some()
-        || env::var_os("PYO3_CROSS_LIB_DIR").is_some()
-        || env::var_os("PYO3_CROSS_PYTHON_VERSION").is_some()
+impl CrossCompileConfig {
+    fn from_env_vars(env_vars: CrossCompileEnvVars, target_info: TargetInfo) -> Result<Self> {
+        Ok(CrossCompileConfig {
+            lib_dir: env_vars
+                .pyo3_cross_lib_dir
+                .ok_or(
+                    "The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling",
+                )?
+                .into(),
+            target_info,
+            version: env_vars
+                .pyo3_cross_python_version
+                .map(|os_string| {
+                    let utf8_str = os_string
+                        .to_str()
+                        .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid utf-8.")?;
+                    utf8_str
+                        .parse()
+                        .context("failed to parse PYO3_CROSS_PYTHON_VERSION")
+                })
+                .transpose()?,
+        })
+    }
 }
 
-fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
-    let host = cargo_env_var("HOST").ok_or("expected HOST env var")?;
-    let target = cargo_env_var("TARGET").ok_or("expected TARGET env var")?;
+pub(crate) struct CrossCompileEnvVars {
+    pyo3_cross: Option<OsString>,
+    pyo3_cross_lib_dir: Option<OsString>,
+    pyo3_cross_python_version: Option<OsString>,
+}
 
-    if host == target {
-        // Definitely not cross compiling if the host matches the target
-        return Ok(None);
+impl CrossCompileEnvVars {
+    pub fn any(&self) -> bool {
+        self.pyo3_cross.is_some()
+            || self.pyo3_cross_lib_dir.is_some()
+            || self.pyo3_cross_python_version.is_some()
     }
+}
 
-    if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
-        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
-        return Ok(None);
+pub(crate) fn cross_compile_env_vars() -> CrossCompileEnvVars {
+    CrossCompileEnvVars {
+        pyo3_cross: env::var_os("PYO3_CROSS"),
+        pyo3_cross_lib_dir: env::var_os("PYO3_CROSS_LIB_DIR"),
+        pyo3_cross_python_version: env::var_os("PYO3_CROSS_PYTHON_VERSION"),
     }
-
-    let target_arch =
-        cargo_env_var("CARGO_CFG_TARGET_ARCH").ok_or("expected CARGO_CFG_TARGET_ARCH env var")?;
-    let target_vendor = cargo_env_var("CARGO_CFG_TARGET_VENDOR")
-        .ok_or("expected CARGO_CFG_TARGET_VENDOR env var")?;
-    let target_os =
-        cargo_env_var("CARGO_CFG_TARGET_OS").ok_or("expected CARGO_CFG_TARGET_OS env var")?;
-
-    cross_compiling(&host, &target_arch, &target_vendor, &target_os)
 }
 
 /// Detect whether we are cross compiling and return an assembled CrossCompileConfig if so.
@@ -619,62 +671,33 @@ pub fn cross_compiling(
     target_vendor: &str,
     target_os: &str,
 ) -> Result<Option<CrossCompileConfig>> {
-    let cross = env_var("PYO3_CROSS");
-    let cross_lib_dir = env_var("PYO3_CROSS_LIB_DIR");
-    let cross_python_version = env_var("PYO3_CROSS_PYTHON_VERSION");
+    let env_vars = cross_compile_env_vars();
 
-    let target_triple = format!(
-        "{}-{}-{}",
-        target_arch,
-        target_vendor,
-        if target_os == "macos" {
-            "darwin"
-        } else {
-            target_os
-        }
-    );
+    let target_info = TargetInfo {
+        arch: target_arch.to_owned(),
+        vendor: target_vendor.to_owned(),
+        os: target_os.to_owned(),
+    };
 
-    if cross.is_none() && cross_lib_dir.is_none() && cross_python_version.is_none() {
-        // No cross-compiling environment variables set; try to determine if this is a known case
-        // which is not cross-compilation.
-
-        if target_triple == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
-            // Not cross-compiling to compile for x86-64 Python from macOS arm64
-            return Ok(None);
-        }
-
-        if target_triple == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
-            // Not cross-compiling to compile for arm64 Python from macOS x86_64
-            return Ok(None);
-        }
-
-        if host.starts_with(&target_triple) {
-            // Not cross-compiling if arch-vendor-os is all the same
-            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
-            return Ok(None);
-        }
+    if !env_vars.any() && is_not_cross_compiling(host, &target_info) {
+        return Ok(None);
     }
 
-    // At this point we assume that we are cross compiling.
+    CrossCompileConfig::from_env_vars(env_vars, target_info).map(Some)
+}
 
-    Ok(Some(CrossCompileConfig {
-        lib_dir: cross_lib_dir
-            .ok_or("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")?
-            .into(),
-        arch: target_arch.into(),
-        vendor: target_vendor.into(),
-        os: target_os.into(),
-        version: cross_python_version
-            .map(|os_string| {
-                let utf8_str = os_string
-                    .to_str()
-                    .ok_or("PYO3_CROSS_PYTHON_VERSION is not valid utf-8.")?;
-                utf8_str
-                    .parse()
-                    .context("failed to parse PYO3_CROSS_PYTHON_VERSION")
-            })
-            .transpose()?,
-    }))
+fn is_not_cross_compiling(host: &str, target_info: &TargetInfo) -> bool {
+    let target_triple = target_info.to_target_triple();
+    // Not cross-compiling if arch-vendor-os is all the same
+    // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
+    //      x86_64-pc-windows-gnu on x86_64-pc-windows-msvc host
+    host.starts_with(&target_triple)
+        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
+        || (target_triple == "i686-pc-windows" && host.starts_with("x86_64-pc-windows"))
+        // Not cross-compiling to compile for x86-64 Python from macOS arm64
+        || (target_triple == "x86_64-apple-darwin" && host == "aarch64-apple-darwin")
+        // Not cross-compiling to compile for arm64 Python from macOS x86_64
+        || (target_triple == "aarch64-apple-darwin" && host == "x86_64-apple-darwin")
 }
 
 #[allow(non_camel_case_types)]
@@ -1000,15 +1023,15 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
                     search_lib_dir(f.path(), cross)
                 } else if file_name.starts_with("lib.") {
                     // check if right target os
-                    if !file_name.contains(if cross.os == "android" {
+                    if !file_name.contains(if cross.target_info.os == "android" {
                         "linux"
                     } else {
-                        &cross.os
+                        &cross.target_info.os
                     }) {
                         continue;
                     }
                     // Check if right arch
-                    if !file_name.contains(&cross.arch) {
+                    if !file_name.contains(&cross.target_info.arch) {
                         continue;
                     }
                     search_lib_dir(f.path(), cross)
@@ -1033,7 +1056,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
     if sysconfig_paths.len() > 1 {
         let temp = sysconfig_paths
             .iter()
-            .filter(|p| p.to_string_lossy().contains(&cross.arch))
+            .filter(|p| p.to_string_lossy().contains(&cross.target_info.arch))
             .cloned()
             .collect::<Vec<PathBuf>>();
         if !temp.is_empty() {
@@ -1049,7 +1072,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
-fn load_cross_compile_from_sysconfigdata(
+fn cross_compile_from_sysconfigdata(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
     let sysconfigdata_path = find_sysconfigdata(&cross_compile_config)?;
@@ -1090,11 +1113,11 @@ fn load_cross_compile_config(
 ) -> Result<InterpreterConfig> {
     match cargo_env_var("CARGO_CFG_TARGET_FAMILY") {
         // Configure for unix platforms using the sysconfigdata file
-        Some(os) if os == "unix" => load_cross_compile_from_sysconfigdata(cross_compile_config),
+        Some(os) if os == "unix" => cross_compile_from_sysconfigdata(cross_compile_config),
         // Use hardcoded interpreter config when targeting Windows
         Some(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
         // sysconfigdata works fine on wasm/wasi
-        Some(os) if os == "wasm" => load_cross_compile_from_sysconfigdata(cross_compile_config),
+        Some(os) if os == "wasm" => cross_compile_from_sysconfigdata(cross_compile_config),
         // Waiting for users to tell us what they expect on their target platform
         Some(os) => bail!(
             "Unknown target OS family for cross-compilation: {:?}.\n\
@@ -1104,7 +1127,7 @@ fn load_cross_compile_config(
             os
         ),
         // Unknown os family - try to do something useful
-        None => load_cross_compile_from_sysconfigdata(cross_compile_config),
+        None => cross_compile_from_sysconfigdata(cross_compile_config),
     }
 }
 
@@ -1280,13 +1303,30 @@ fn fixup_config_for_abi3(
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
-    let mut interpreter_config = if let Some(paths) = cross_compiling_from_cargo_env()? {
-        load_cross_compile_config(paths)?
+    let env_vars = cross_compile_env_vars();
+
+    let host = cargo_env_var("HOST").ok_or("expected HOST env var")?;
+    let target = cargo_env_var("TARGET").ok_or("expected TARGET env var")?;
+
+    let target_info = TargetInfo::from_cargo_env()?;
+
+    let interpreter_config = if env_vars.any() {
+        let cross_config = CrossCompileConfig::from_env_vars(env_vars, target_info)?;
+        let mut interpreter_config = load_cross_compile_config(cross_config)?;
+        fixup_config_for_abi3(&mut interpreter_config, get_abi3_version())?;
+        Some(interpreter_config)
     } else {
-        return Ok(None);
+        ensure!(
+            host == target || is_not_cross_compiling(&host, &target_info),
+            "PyO3 detected compile host {host} and build target {target}, but none of PYO3_CROSS, PYO3_CROSS_LIB_DIR \
+             or PYO3_CROSS_PYTHON_VERSION environment variables are set.",
+            host=host,
+            target=target,
+        );
+        None
     };
-    fixup_config_for_abi3(&mut interpreter_config, get_abi3_version())?;
-    Ok(Some(interpreter_config))
+
+    Ok(interpreter_config)
 }
 
 /// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
@@ -1495,9 +1535,11 @@ mod tests {
         let cross_config = CrossCompileConfig {
             lib_dir: "C:\\some\\path".into(),
             version: Some(PythonVersion { major: 3, minor: 7 }),
-            os: "os".into(),
-            arch: "arch".into(),
-            vendor: "vendor".into(),
+            target_info: TargetInfo {
+                os: "os".into(),
+                arch: "arch".into(),
+                vendor: "vendor".into(),
+            },
         };
 
         assert_eq!(
@@ -1669,9 +1711,11 @@ mod tests {
         let cross = CrossCompileConfig {
             lib_dir: lib_dir.into(),
             version: Some(interpreter_config.version),
-            arch: "x86_64".into(),
-            vendor: "unknown".into(),
-            os: "linux".into(),
+            target_info: TargetInfo {
+                arch: "x86_64".into(),
+                vendor: "unknown".into(),
+                os: "linux".into(),
+            },
         };
 
         let sysconfigdata_path = match find_sysconfigdata(&cross) {

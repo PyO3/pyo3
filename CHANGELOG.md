@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Panic during compilation when `PYO3_CROSS_LIB_DIR` is set for some host/target combinations. [#2232](https://github.com/PyO3/pyo3/pull/2232)
+
 ## [0.16.2] - 2022-03-15
 
 ### Packaging
