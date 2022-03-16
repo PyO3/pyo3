@@ -12,8 +12,8 @@ impl Subclassable {
         Subclassable {}
     }
 
-    fn __str__(&self) -> PyResult<&'static str> {
-        Ok("Subclassable")
+    fn __str__(&self) -> &'static str {
+        "Subclassable"
     }
 }
 

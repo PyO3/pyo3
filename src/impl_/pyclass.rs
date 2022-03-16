@@ -5,7 +5,7 @@ use crate::{
     pycell::PyCellLayout,
     pyclass_init::PyObjectInit,
     type_object::{PyLayout, PyTypeObject},
-    PyCell, PyClass, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
     marker::PhantomData,
@@ -197,6 +197,84 @@ macro_rules! slot_fragment_trait {
         impl<T> $trait_name<T> for &'_ PyClassImplCollector<T> {}
     }
 }
+
+slot_fragment_trait! {
+    PyClass__getattribute__SlotFragment,
+
+    /// # Safety: _slf and _attr must be valid non-null Python objects
+    #[inline]
+    unsafe fn __getattribute__(
+        self,
+        py: Python,
+        slf: *mut ffi::PyObject,
+        attr: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        let res = ffi::PyObject_GenericGetAttr(slf, attr);
+        if res.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(res)
+        }
+    }
+}
+
+slot_fragment_trait! {
+    PyClass__getattr__SlotFragment,
+
+    /// # Safety: _slf and _attr must be valid non-null Python objects
+    #[inline]
+    unsafe fn __getattr__(
+        self,
+        py: Python,
+        _slf: *mut ffi::PyObject,
+        attr: *mut ffi::PyObject,
+    ) -> PyResult<*mut ffi::PyObject> {
+        Err(PyErr::new::<PyAttributeError, _>(
+            (Py::<PyAny>::from_borrowed_ptr(py, attr),)
+        ))
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_pyclass_getattro_slot {
+    ($cls:ty) => {{
+        unsafe extern "C" fn __wrap(
+            _slf: *mut $crate::ffi::PyObject,
+            attr: *mut $crate::ffi::PyObject,
+        ) -> *mut $crate::ffi::PyObject {
+            use ::std::result::Result::*;
+            use $crate::impl_::pyclass::*;
+            let gil = $crate::GILPool::new();
+            let py = gil.python();
+            $crate::callback::panic_result_into_callback_output(
+                py,
+                ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+                    let collector = PyClassImplCollector::<$cls>::new();
+
+                    // Strategy:
+                    // - Try __getattribute__ first.  Its default is PyObject_GenericGetAttr.
+                    // - If it returns a result, use it.
+                    // - If it fails with AttributeError, try __getattr__.
+                    // - If it fails otherwise, reraise.
+                    match collector.__getattribute__(py, _slf, attr) {
+                        Ok(obj) => Ok(obj),
+                        Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => {
+                            collector.__getattr__(py, _slf, attr)
+                        }
+                        Err(e) => Err(e),
+                    }
+                }),
+            )
+        }
+        $crate::ffi::PyType_Slot {
+            slot: $crate::ffi::Py_tp_getattro,
+            pfunc: __wrap as $crate::ffi::getattrofunc as _,
+        }
+    }};
+}
+
+pub use generate_pyclass_getattro_slot;
 
 /// Macro which expands to three items
 /// - Trait for a __setitem__ dunder
@@ -769,12 +847,12 @@ pub struct ThreadCheckerImpl<T>(thread::ThreadId, PhantomData<T>);
 
 impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
     fn ensure(&self) {
-        if thread::current().id() != self.0 {
-            panic!(
-                "{} is unsendable, but sent to another thread!",
-                std::any::type_name::<T>()
-            );
-        }
+        assert_eq!(
+            thread::current().id(),
+            self.0,
+            "{} is unsendable, but sent to another thread!",
+            std::any::type_name::<T>()
+        );
     }
     fn new() -> Self {
         ThreadCheckerImpl(thread::current().id(), PhantomData)

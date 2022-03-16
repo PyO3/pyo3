@@ -81,7 +81,7 @@ pub fn impl_arg_params(
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
 
-    for arg in spec.args.iter() {
+    for arg in &spec.args {
         if arg.py || is_args(&spec.attrs, arg.name) || is_kwargs(&spec.attrs, arg.name) {
             continue;
         }

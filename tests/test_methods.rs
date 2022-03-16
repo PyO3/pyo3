@@ -842,12 +842,12 @@ impl r#RawIdents {
         r#type: PyObject,
         r#subtype: PyObject,
         r#subsubtype: PyObject,
-    ) -> PyResult<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             r#type,
             r#subtype,
             r#subsubtype,
-        })
+        }
     }
 
     #[getter(r#subtype)]
