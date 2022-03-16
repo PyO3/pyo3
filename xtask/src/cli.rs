@@ -1,30 +1,35 @@
 use crate::utils::*;
 use anyhow::{ensure, Result};
 use std::io;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::Instant;
 use structopt::StructOpt;
+
+pub const MSRV: &'static str = "1.48";
 
 #[derive(StructOpt)]
 pub enum Subcommand {
+    /// Only runs the fast things (this is used if no command is specified)
+    Default,
     /// Runs everything
-    All,
+    Ci,
     /// Checks Rust and Python code formatting with `rustfmt` and `black`
     Fmt,
-    /// Runs clippy, denying all warnings.
+    /// Runs `clippy`, denying all warnings.
     Clippy,
     /// Runs `cargo llvm-cov` for the PyO3 codebase.
     Coverage(CoverageOpts),
-    /// Render documentation
+    /// Attempts to render the documentation.
     Doc(DocOpts),
-    /// Runs various incantations of `cargo test`
+    /// Runs various variations on `cargo test`
     Test,
-    /// Runs tests in examples/ and pytests/
+    /// Runs the tests in examples/ and pytests/
     TestPy,
 }
 
 impl Default for Subcommand {
     fn default() -> Self {
-        Self::All
+        Self::Default
     }
 }
 
@@ -60,10 +65,19 @@ impl Default for DocOpts {
 
 impl Subcommand {
     pub fn execute(self) -> Result<()> {
-        let installed = Installed::new()?;
+        print_metadata()?;
+
+        let start = Instant::now();
 
         match self {
-            Subcommand::All => {
+            Subcommand::Default => {
+                crate::fmt::rust::run()?;
+                crate::clippy::run()?;
+                crate::test::run()?;
+                crate::doc::run(DocOpts::default())?;
+            }
+            Subcommand::Ci => {
+                let installed = Installed::new()?;
                 crate::fmt::rust::run()?;
                 if installed.black {
                     crate::fmt::python::run()?;
@@ -78,6 +92,7 @@ impl Subcommand {
                 } else {
                     Installed::warn_nox()
                 };
+                crate::llvm_cov::run(CoverageOpts::default())?;
                 installed.assert()?
             }
 
@@ -92,21 +107,36 @@ impl Subcommand {
             Subcommand::Test => crate::test::run()?,
         };
 
+        let dt = start.elapsed();
+        println!("\nFinished program in {} s.", dt.as_secs());
+
         Ok(())
     }
 }
 
 pub fn run(command: &mut Command) -> Result<()> {
     println!("Running: {}", format_command(command));
-    let status = command.spawn()?.wait()?;
+
+    let output = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?
+        .wait_with_output()?;
+
+    // io::stdout().write_all(&output.stdout).unwrap();
+    //  io::stdout().write_all(&output.stderr).unwrap();
+
     ensure! {
-        status.success(),
-        "process did not run successfully ({exit}): {command}",
-        exit = match status.code() {
+        output.status.success(),
+        "process did not run successfully ({exit}): {command}/n {out} {err}",
+        exit = match output.status.code() {
             Some(code) => format!("exit code {}", code),
             None => "terminated by signal".into(),
         },
         command = format_command(command),
+        out = String::from_utf8_lossy(&output.stdout),
+        err = String::from_utf8_lossy(&output.stderr)
+
     };
     Ok(())
 }
