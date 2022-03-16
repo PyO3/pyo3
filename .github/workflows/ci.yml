@@ -247,6 +247,18 @@ jobs:
           manylinux: auto
           args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
 
+      - run: sudo rm -rf examples/maturin-starter/target
+        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
+      - name: Test cross compile to same architecture
+        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
+        uses: messense/maturin-action@v1
+        env:
+          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
+        with:
+          target: x86_64-unknown-linux-gnu
+          manylinux: auto
+          args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
+
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'macos-latest' && matrix.python-version == '3.9' }}
         uses: messense/maturin-action@v1
