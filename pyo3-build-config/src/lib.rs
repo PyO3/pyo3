@@ -70,7 +70,7 @@ pub fn get() -> &'static InterpreterConfig {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
-        } else if impl_::any_cross_compiling_env_vars_set() {
+        } else if impl_::cross_compile_env_vars().any() {
             InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
