@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
     match cli::Subcommand::from_args_safe() {
         Ok(c) => c.execute()?,
         Err(e) if e.kind == MissingArgumentOrSubcommand => cli::Subcommand::default().execute()?,
-        Err(e) => return Err(e)?,
+        Err(e) => return Err(e.into()),
     }
     Ok(())
 }

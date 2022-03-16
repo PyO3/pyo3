@@ -7,7 +7,74 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Drop support for older technologies
 
-PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables ore use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
+
+### `#[pyproto]` has been deprecated
+
+In PyO3 0.15, the `#[pymethods]` attribute macro gained support for implementing "magic methods" such as `__str__` (aka "dunder" methods). This implementation was not quite finalized at the time, with a few edge cases to be decided upon. The existing `#[pyproto]` attribute macro was left untouched, because it covered these edge cases.
+
+In PyO3 0.16, the `#[pymethods]` implementation has been completed and is now the preferred way to implement magic methods. To allow the PyO3 project to move forward, `#[pyproto]` has been deprecated (with expected removal in PyO3 0.18).
+
+Migration from `#[pyproto]` to `#[pymethods]` is straightforward; copying the existing methods directly from the `#[pyproto]` trait implementation is all that is needed in most cases.
+
+Before:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::class::{PyBasicProtocol, PyIterProtocol};
+use pyo3::types::PyString;
+
+#[pyclass]
+struct MyClass { }
+
+#[pyproto]
+impl PyBasicProtocol for MyClass {
+    fn __str__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+}
+
+#[pyproto]
+impl PyIterProtocol for MyClass {
+    fn __iter__(slf: PyRef<self>) -> PyResult<&PyAny> {
+        PyString::new(slf.py(), "hello, world").iter()
+    }
+}
+```
+
+After
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::types::PyString;
+
+#[pyclass]
+struct MyClass { }
+
+#[pymethods]
+impl MyClass {
+    fn __str__(&self) -> &'static [u8] {
+        b"hello, world"
+    }
+
+    fn __iter__(slf: PyRef<self>) -> PyResult<&PyAny> {
+        PyString::new(slf.py(), "hello, world").iter()
+    }
+}
+```
+
+### Removed `PartialEq` for object wrappers
+
+The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq`
+so that `object_a == object_b` would compare the Python objects for pointer
+equality, which corresponds to the `is` operator, not the `==` operator in
+Python.  This has been removed in favor of a new method: use
+`object_a.is(object_b)`.  This also has the advantage of not requiring the same
+wrapper type for `object_a` and `object_b`; you can now directly compare a
+`Py<T>` with a `&PyAny` without having to convert.
+
+To check for Python object equality (the Python `==` operator), use the new
+method `eq()`.
 
 ### Container magic methods now match Python behavior
 
@@ -38,6 +105,55 @@ The `__len__` and `__getitem__` methods are also used to implement a Python [map
 Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_len` and `mp_len` slots filled.
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
+
+### `wrap_pymodule!` and `wrap_pyfunction!` now respect privacy correctly
+
+Prior to PyO3 0.16 the `wrap_pymodule!` and `wrap_pyfunction!` macros could use modules and functions whose defining `fn` was not reachable according Rust privacy rules.
+
+For example, the following code was legal before 0.16, but in 0.16 is rejected because the `wrap_pymodule!` macro cannot access the `private_submodule` function:
+
+```rust,compile_fail
+mod foo {
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+use pyo3::prelude::*;
+use foo::*;
+
+#[pymodule]
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(private_submodule))?;
+    Ok(())
+}
+```
+
+To fix it, make the private submodule visible, e.g. with `pub` or `pub(crate)`.
+
+```rust
+mod foo {
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    pub(crate) fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+use pyo3::prelude::*;
+use pyo3::wrap_pymodule;
+use foo::*;
+
+#[pymodule]
+fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(private_submodule))?;
+    Ok(())
+}
+```
 
 ## from 0.14.* to 0.15
 
@@ -593,7 +709,7 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 After:
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]

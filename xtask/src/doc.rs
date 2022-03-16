@@ -26,9 +26,9 @@ pub fn run(opts: DocOpts) -> anyhow::Result<()> {
             .arg("--no-deps")
             .arg("--workspace")
             .args(if opts.internal {
-                ["--document-private-items"].as_slice()
+                &["--document-private-items"][..]
             } else {
-                ["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"].as_slice()
+                &["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"][..]
             })
             .args(if opts.stable {
                 &[][..]

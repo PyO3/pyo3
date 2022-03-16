@@ -38,7 +38,6 @@ impl PyMethodKind {
     fn from_name(name: &str) -> Self {
         match name {
             // Protocol implemented through slots
-            "__getattr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETATTR__)),
             "__str__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__STR__)),
             "__repr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPR__)),
             "__hash__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__HASH__)),
@@ -53,6 +52,12 @@ impl PyMethodKind {
             "__contains__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONTAINS__)),
             "__concat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONCAT__)),
             "__repeat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPEAT__)),
+            "__inplace_concat__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INPLACE_CONCAT__))
+            }
+            "__inplace_repeat__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INPLACE_REPEAT__))
+            }
             "__getitem__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETITEM__)),
             "__pos__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__POS__)),
             "__neg__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEG__)),
@@ -79,6 +84,10 @@ impl PyMethodKind {
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
             "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CLEAR__)),
             // Protocols implemented through traits
+            "__getattribute__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
+            }
+            "__getattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTR__)),
             "__setattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SETATTR__)),
             "__delattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DELATTR__)),
             "__set__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SET__)),
@@ -184,7 +193,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec)?)
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
@@ -298,9 +307,9 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
     }})
 }
 
-fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
+fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> TokenStream {
     let ident = spec.name;
-    Ok(quote! {{
+    quote! {{
         pub unsafe extern "C" fn __wrap_(
             slf: *mut _pyo3::ffi::PyObject,
             visit: _pyo3::ffi::visitproc,
@@ -315,7 +324,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
                 let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
                 let borrow = slf.try_borrow();
                 if let ::std::result::Result::Ok(borrow) = borrow {
-                    _pyo3::class::gc::unwrap_traverse_result(borrow.#ident(visit))
+                    _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
                 } else {
                     0
                 }
@@ -325,7 +334,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> Result<TokenStream> {
             slot: _pyo3::ffi::Py_tp_traverse,
             pfunc: __wrap_ as _pyo3::ffi::traverseproc as _
         }
-    }})
+    }}
 }
 
 fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
@@ -564,21 +573,6 @@ impl PropertyType<'_> {
     }
 }
 
-const __GETATTR__: SlotDef = SlotDef::new("Py_tp_getattro", "getattrofunc")
-    .arguments(&[Ty::Object])
-    .before_call_method(TokenGenerator(|| {
-        quote! {
-            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-            // for existing fields and methods first
-            let existing = _pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
-            if existing.is_null() {
-                // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                _pyo3::ffi::PyErr_Clear();
-            } else {
-                return existing;
-            }
-        }
-    }));
 const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
@@ -606,6 +600,10 @@ const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .ret_ty(Ty::Int);
 const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
 const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
+const __INPLACE_CONCAT__: SlotDef =
+    SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
+const __INPLACE_REPEAT__: SlotDef =
+    SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
 const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
@@ -860,7 +858,6 @@ struct SlotDef {
     func_ty: StaticIdent,
     arguments: &'static [Ty],
     ret_ty: Ty,
-    before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
@@ -875,7 +872,6 @@ impl SlotDef {
             func_ty: StaticIdent(func_ty),
             arguments: NO_ARGUMENTS,
             ret_ty: Ty::Object,
-            before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
@@ -889,11 +885,6 @@ impl SlotDef {
 
     const fn ret_ty(mut self, ret_ty: Ty) -> Self {
         self.ret_ty = ret_ty;
-        self
-    }
-
-    const fn before_call_method(mut self, before_call_method: TokenGenerator) -> Self {
-        self.before_call_method = Some(before_call_method);
         self
     }
 
@@ -926,7 +917,6 @@ impl SlotDef {
         let SlotDef {
             slot,
             func_ty,
-            before_call_method,
             arguments,
             extract_error_mode,
             ret_ty,
@@ -953,7 +943,6 @@ impl SlotDef {
         Ok(quote!({
             unsafe extern "C" fn __wrap(_raw_slf: *mut _pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
-                #before_call_method
                 let gil = _pyo3::GILPool::new();
                 let #py = gil.python();
                 _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
@@ -1064,6 +1053,10 @@ impl SlotFragmentDef {
     }
 }
 
+const __GETATTRIBUTE__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattribute__", &[Ty::Object]).ret_ty(Ty::Object);
+const __GETATTR__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattr__", &[Ty::Object]).ret_ty(Ty::Object);
 const __SETATTR__: SlotFragmentDef =
     SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
 const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object]);

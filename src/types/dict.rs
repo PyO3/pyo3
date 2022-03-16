@@ -387,7 +387,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = [(7, 32)].into_py_dict(py);
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, dict.get_item(8i32));
+            assert!(dict.get_item(8i32).is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
@@ -426,7 +426,7 @@ mod tests {
 
             let ndict = dict.copy().unwrap();
             assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, ndict.get_item(8i32));
+            assert!(ndict.get_item(8i32).is_none());
         });
     }
 
@@ -464,7 +464,7 @@ mod tests {
             let ob = v.to_object(py);
             let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, dict.get_item(8i32));
+            assert!(dict.get_item(8i32).is_none());
         });
     }
 
@@ -527,7 +527,7 @@ mod tests {
             let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
-            assert_eq!(None, dict.get_item(7i32));
+            assert!(dict.get_item(7i32).is_none());
         });
     }
 

@@ -481,3 +481,40 @@ fn test_from_py_with() {
         assert_eq!(zap.some_object_length, 3usize);
     });
 }
+
+#[derive(Debug, FromPyObject)]
+pub struct ZapTuple(String, #[pyo3(from_py_with = "PyAny::len")] usize);
+
+#[test]
+fn test_from_py_with_tuple_struct() {
+    Python::with_gil(|py| {
+        let py_zap = py
+            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .expect("failed to create tuple");
+
+        let zap = ZapTuple::extract(py_zap).unwrap();
+
+        assert_eq!(zap.0, "whatever");
+        assert_eq!(zap.1, 3usize);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq)]
+pub enum ZapEnum {
+    Zip(#[pyo3(from_py_with = "PyAny::len")] usize),
+    Zap(String, #[pyo3(from_py_with = "PyAny::len")] usize),
+}
+
+#[test]
+fn test_from_py_with_enum() {
+    Python::with_gil(|py| {
+        let py_zap = py
+            .eval(r#"("whatever", [1, 2, 3])"#, None, None)
+            .expect("failed to create tuple");
+
+        let zap = ZapEnum::extract(py_zap).unwrap();
+        let expected_zap = ZapEnum::Zap(String::from("whatever"), 3usize);
+
+        assert_eq!(zap, expected_zap);
+    });
+}

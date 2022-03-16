@@ -71,7 +71,7 @@ impl PyClassArgs {
         }
     }
 
-    /// Adda single expression from the comma separated list in the attribute, which is
+    /// Add a single expression from the comma separated list in the attribute, which is
     /// either a single word or an assignment expression
     fn add_expr(&mut self, expr: &Expr) -> Result<()> {
         match expr {
@@ -474,7 +474,7 @@ pub fn build_py_enum(
             .map(|attr| (get_class_python_name(&enum_.ident, args), attr)),
     );
     let enum_ = PyClassEnum::new(enum_)?;
-    impl_enum(enum_, args, doc, method_type, options)
+    Ok(impl_enum(enum_, args, doc, method_type, options))
 }
 
 fn impl_enum(
@@ -483,7 +483,7 @@ fn impl_enum(
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
     options: PyClassPyO3Options,
-) -> syn::Result<TokenStream> {
+) -> TokenStream {
     let krate = get_pyo3_crate(&options.krate);
     impl_enum_class(enum_, args, doc, methods_type, krate)
 }
@@ -494,7 +494,7 @@ fn impl_enum_class(
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
     krate: syn::Path,
-) -> syn::Result<TokenStream> {
+) -> TokenStream {
     let cls = enum_.ident;
     let variants = enum_.variants;
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
@@ -589,7 +589,7 @@ fn impl_enum_class(
     .doc(doc)
     .impl_all();
 
-    Ok(quote! {
+    quote! {
         const _: () = {
             use #krate as _pyo3;
 
@@ -601,7 +601,7 @@ fn impl_enum_class(
                 #(#default_methods)*
             }
         };
-    })
+    }
 }
 
 fn enum_default_methods<'a>(

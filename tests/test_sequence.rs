@@ -19,7 +19,7 @@ impl ByteSequence {
     fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
-            for pyelem in pylist.into_iter() {
+            for pyelem in pylist {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }
@@ -66,10 +66,15 @@ impl ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: PyRef<Self>) -> Self {
+    fn __concat__(&self, other: &Self) -> Self {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Self { elements }
+    }
+
+    fn __inplace_concat__(mut slf: PyRefMut<Self>, other: &Self) -> Py<Self> {
+        slf.elements.extend_from_slice(&other.elements);
+        slf.into()
     }
 
     fn __repeat__(&self, count: isize) -> PyResult<Self> {
@@ -79,6 +84,19 @@ impl ByteSequence {
                 elements.extend(&self.elements);
             }
             Ok(Self { elements })
+        } else {
+            Err(PyValueError::new_err("invalid repeat count"))
+        }
+    }
+
+    fn __inplace_repeat__(mut slf: PyRefMut<Self>, count: isize) -> PyResult<Py<Self>> {
+        if count >= 0 {
+            let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
+            for _ in 0..count {
+                elements.extend(&slf.elements);
+            }
+            slf.elements = elements;
+            Ok(slf.into())
         } else {
             Err(PyValueError::new_err("invalid repeat count"))
         }
@@ -261,10 +279,12 @@ fn test_generic_list_set() {
     let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
     py_run!(py, list, "list.items = [1, 2, 3]");
-    assert_eq!(
-        list.borrow().items,
-        vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
-    );
+    assert!(list
+        .borrow()
+        .items
+        .iter()
+        .zip(&[1u32, 2, 3])
+        .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
 }
 
 #[pyclass]

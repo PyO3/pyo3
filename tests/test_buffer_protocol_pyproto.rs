@@ -1,6 +1,7 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![allow(deprecated)]
 
 use pyo3::buffer::PyBuffer;
 use pyo3::class::PyBufferProtocol;

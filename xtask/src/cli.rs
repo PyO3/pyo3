@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 use structopt::StructOpt;
 
-pub const MSRV: &'static str = "1.48";
+pub const MSRV: &str = "1.48";
 
 #[derive(StructOpt)]
 pub enum Subcommand {
@@ -160,7 +160,7 @@ impl Installed {
         match output {
             Ok(_) => Ok(true),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
-            Err(other) => Err(other)?,
+            Err(other) => Err(other.into()),
         }
     }
 
@@ -175,7 +175,7 @@ impl Installed {
         match output {
             Ok(_) => Ok(true),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
-            Err(other) => Err(other)?,
+            Err(other) => Err(other.into()),
         }
     }
 
