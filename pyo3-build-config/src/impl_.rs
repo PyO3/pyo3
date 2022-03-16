@@ -577,17 +577,6 @@ pub fn any_cross_compiling_env_vars_set() -> bool {
 
 fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let host = cargo_env_var("HOST").ok_or("expected HOST env var")?;
-    let target = cargo_env_var("TARGET").ok_or("expected TARGET env var")?;
-
-    if host == target {
-        // Definitely not cross compiling if the host matches the target
-        return Ok(None);
-    }
-
-    if target == "i686-pc-windows-msvc" && host == "x86_64-pc-windows-msvc" {
-        // Not cross-compiling to compile for 32-bit Python from windows 64-bit
-        return Ok(None);
-    }
 
     let target_arch =
         cargo_env_var("CARGO_CFG_TARGET_ARCH").ok_or("expected CARGO_CFG_TARGET_ARCH env var")?;
@@ -638,6 +627,18 @@ pub fn cross_compiling(
         // No cross-compiling environment variables set; try to determine if this is a known case
         // which is not cross-compilation.
 
+        if host.starts_with(&target_triple) {
+            // Not cross-compiling if arch-vendor-os is all the same
+            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
+            //      x86_64-pc-windows-gnu on x86_64-pc-windows-msvc host
+            return Ok(None);
+        }
+
+        if target_triple == "i686-pc-windows" && host.starts_with("x86_64-pc-windows") {
+            // Not cross-compiling to compile for 32-bit Python from windows 64-bit
+            return Ok(None);
+        }
+
         if target_triple == "x86_64-apple-darwin" && host == "aarch64-apple-darwin" {
             // Not cross-compiling to compile for x86-64 Python from macOS arm64
             return Ok(None);
@@ -645,12 +646,6 @@ pub fn cross_compiling(
 
         if target_triple == "aarch64-apple-darwin" && host == "x86_64-apple-darwin" {
             // Not cross-compiling to compile for arm64 Python from macOS x86_64
-            return Ok(None);
-        }
-
-        if host.starts_with(&target_triple) {
-            // Not cross-compiling if arch-vendor-os is all the same
-            // e.g. x86_64-unknown-linux-musl on x86_64-unknown-linux-gnu host
             return Ok(None);
         }
     }
