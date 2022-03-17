@@ -61,7 +61,6 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 /// Loads the configuration determined from the build environment.
 ///
 /// Because this will never change in a given compilation run, this is cached in a `once_cell`.
-#[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
@@ -72,6 +71,8 @@ pub fn get() -> &'static InterpreterConfig {
             Ok(abi3_config())
         } else if impl_::cross_compile_env_vars().any() {
             InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
+        } else if impl_::link_env_var_set() {
+            InterpreterConfig::from_cargo_link_env()
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }

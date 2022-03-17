@@ -69,6 +69,9 @@ fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
         }
     }
 
+    // serialize the whole interpreter config in DEP_PYTHON_PYO3_CONFIG
+    interpreter_config.to_cargo_link_env()?;
+
     Ok(())
 }
 

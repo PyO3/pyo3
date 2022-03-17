@@ -4,10 +4,11 @@ use std::{
     env,
     ffi::{OsStr, OsString},
     fmt::Display,
-    fs::{self, DirEntry, File},
+    fs::{self, DirEntry},
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    str,
     str::FromStr,
 };
 
@@ -21,8 +22,6 @@ use crate::{
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 const ABI3_MAX_MINOR: u8 = 9;
-/// Name of config file exported by "export-config" feature.
-const EXPORT_CONFIG_FILENAME: &str = ".pyo3-export-config";
 
 /// Gets an environment variable owned by cargo.
 ///
@@ -155,25 +154,7 @@ impl InterpreterConfig {
         }
 
         for flag in &self.build_flags.0 {
-            println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)
-        }
-
-        if cfg!(feature = "export-config") {
-            let output_path =
-                Path::new(&cargo_env_var("OUT_DIR").unwrap()).join(EXPORT_CONFIG_FILENAME);
-            if let Ok(config_file) = File::create(&output_path) {
-                if self.to_writer(config_file).is_err() {
-                    warn!(
-                        "Failed to export build config - this may be a problem for external crates that \
-                        depend on the pyo3 config."
-                    );
-                } else {
-                    println!(
-                        "cargo:PYO3_EXPORT_CONFIG={}",
-                        output_path.canonicalize().unwrap().to_str().unwrap()
-                    );
-                }
-            }
+            println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag);
         }
     }
 
@@ -359,13 +340,13 @@ print("mingw", get_platform().startswith("mingw"))
         InterpreterConfig::from_reader(reader)
     }
 
-    /// Create an InterpreterConfig generated from pyo3-build-config using the "export-config"
-    /// feature
-    #[cfg(feature = "export-config")]
-    pub fn from_pyo3_export_config() -> Result<Self> {
-        InterpreterConfig::from_path(Path::new(
-            &cargo_env_var("DEP_PYTHON_PYO3_EXPORT_CONFIG").unwrap(),
-        ))
+    #[doc(hidden)]
+    pub fn from_cargo_link_env() -> Result<Self> {
+        // un-escape any newlines in the exported config
+        let buf = cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+            .unwrap()
+            .replace("\\n", "\n");
+        InterpreterConfig::from_reader(buf.as_bytes())
     }
 
     #[doc(hidden)]
@@ -449,6 +430,19 @@ print("mingw", get_platform().startswith("mingw"))
     }
 
     #[doc(hidden)]
+    pub fn to_cargo_link_env(&self) -> Result<()> {
+        let mut buf = Vec::new();
+        self.to_writer(&mut buf)?;
+        // escape newlines in env var
+        if let Ok(config) = str::from_utf8(&buf) {
+            println!("cargo:PYO3_CONFIG={}", config.replace('\n', "\\n"));
+        } else {
+            bail!("unable to emit interpreter config to link env for downstream use");
+        }
+        Ok(())
+    }
+
+    #[doc(hidden)]
     pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
         macro_rules! write_line {
             ($value:ident) => {
@@ -500,11 +494,7 @@ print("mingw", get_platform().startswith("mingw"))
         V: AsRef<OsStr>,
     {
         run_python_script_with_envs(
-            Path::new(
-                self.executable
-                    .as_ref()
-                    .expect("No interpreter executable!"),
-            ),
+            Path::new(self.executable.as_ref().expect("no interpreter executable")),
             script,
             envs,
         )
@@ -512,13 +502,10 @@ print("mingw", get_platform().startswith("mingw"))
 
     /// Run a python script using the executable of this InterpreterConfig.
     pub fn run_python_script(&self, script: &str) -> Result<String> {
-        run_python_script(
-            Path::new(
-                self.executable
-                    .as_ref()
-                    .expect("No interpreter executable!"),
-            ),
+        run_python_script_with_envs(
+            Path::new(self.executable.as_ref().expect("no interpreter executable")),
             script,
+            std::iter::empty::<(&str, &str)>(),
         )
     }
 }
@@ -603,6 +590,11 @@ impl FromStr for PythonImplementation {
 
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
+}
+
+#[allow(unused)]
+pub fn link_env_var_set() -> bool {
+    cargo_env_var("DEP_PYTHON_PYO3_CONFIG").is_some()
 }
 
 #[derive(Debug, PartialEq)]
@@ -1944,20 +1936,5 @@ mod tests {
             )
             .expect("failed to run Python script");
         assert_eq!(out.trim_end(), "42");
-    }
-
-    #[test]
-    #[cfg(feature = "export-config")]
-    fn test_emit_pyo3_configs_roundtrip() {
-        let interpreter = make_interpreter_config()
-            .expect("could not get InterpreterConfig from installed interpreter");
-        interpreter.emit_pyo3_cfgs();
-        // config path env var is not set during testing of this crate alone, as it relies on the
-        // pyo3 python links manifest key, so we have to hard-code the same path
-        let output_path =
-            Path::new(&cargo_env_var("OUT_DIR").unwrap()).join(EXPORT_CONFIG_FILENAME);
-        let reimported_interpreter = InterpreterConfig::from_path(output_path)
-            .expect("could not generated InterpreterConfig from exported config");
-        assert_eq!(interpreter, reimported_interpreter);
     }
 }

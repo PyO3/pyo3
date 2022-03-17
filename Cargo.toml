@@ -98,7 +98,6 @@ full = [
     "indexmap",
     "eyre",
     "anyhow",
-    "pyo3-build-config/export-config"
 ]
 
 [[bench]]
