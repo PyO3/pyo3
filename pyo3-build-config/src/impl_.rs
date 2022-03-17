@@ -299,6 +299,11 @@ print("mingw", get_platform().startswith("mingw"))
             Some("0") | Some("false") | Some("False") => false,
             _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
         };
+        // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
+        let framework = match sysconfigdata.get_value("PYTHONFRAMEWORK") {
+            Some(s) => !s.is_empty(),
+            _ => false,
+        };
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let lib_name = Some(default_lib_name_unix(
             version,
@@ -313,7 +318,7 @@ print("mingw", get_platform().startswith("mingw"))
         Ok(InterpreterConfig {
             implementation,
             version,
-            shared,
+            shared: shared || framework,
             abi3: is_abi3(),
             lib_dir,
             lib_name,
