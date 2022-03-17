@@ -299,6 +299,11 @@ print("mingw", get_platform().startswith("mingw"))
             Some("0") | Some("false") | Some("False") => false,
             _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
         };
+        // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
+        let framework = match sysconfigdata.get_value("PYTHONFRAMEWORK") {
+            Some(s) => !s.is_empty(),
+            _ => false,
+        };
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let lib_name = Some(default_lib_name_unix(
             version,
@@ -313,7 +318,7 @@ print("mingw", get_platform().startswith("mingw"))
         Ok(InterpreterConfig {
             implementation,
             version,
-            shared,
+            shared: shared || framework,
             abi3: is_abi3(),
             lib_dir,
             lib_name,
@@ -1523,6 +1528,61 @@ mod tests {
                 lib_dir: Some("/usr/lib".into()),
                 lib_name: Some("python3.7m".into()),
                 shared: true,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn config_from_sysconfigdata_framework() {
+        let mut sysconfigdata = Sysconfigdata::new();
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
+        sysconfigdata.insert("Py_ENABLE_SHARED", "0");
+        sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
+        sysconfigdata.insert("LIBDIR", "/usr/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/usr/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: true,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+
+        sysconfigdata = Sysconfigdata::new();
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        // An empty PYTHONFRAMEWORK means it is not a framework
+        sysconfigdata.insert("Py_ENABLE_SHARED", "0");
+        sysconfigdata.insert("PYTHONFRAMEWORK", "");
+        sysconfigdata.insert("LIBDIR", "/usr/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/usr/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: false,
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
