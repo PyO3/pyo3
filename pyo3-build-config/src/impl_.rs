@@ -1536,6 +1536,61 @@ mod tests {
     }
 
     #[test]
+    fn config_from_sysconfigdata_framework() {
+        let mut sysconfigdata = Sysconfigdata::new();
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
+        sysconfigdata.insert("Py_ENABLE_SHARED", "0");
+        sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
+        sysconfigdata.insert("LIBDIR", "/usr/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/usr/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: true,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+
+        sysconfigdata = Sysconfigdata::new();
+        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.7");
+        // An empty PYTHONFRAMEWORK means it is not a framework
+        sysconfigdata.insert("Py_ENABLE_SHARED", "0");
+        sysconfigdata.insert("PYTHONFRAMEWORK", "");
+        sysconfigdata.insert("LIBDIR", "/usr/lib");
+        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        assert_eq!(
+            InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
+            InterpreterConfig {
+                abi3: false,
+                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
+                pointer_width: Some(64),
+                executable: None,
+                implementation: PythonImplementation::CPython,
+                lib_dir: Some("/usr/lib".into()),
+                lib_name: Some("python3.7m".into()),
+                shared: false,
+                version: PythonVersion::PY37,
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+    }
+
+    #[test]
     fn windows_hardcoded_cross_compile() {
         let cross_config = CrossCompileConfig {
             lib_dir: "C:\\some\\path".into(),
