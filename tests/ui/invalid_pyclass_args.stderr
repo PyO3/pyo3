@@ -1,40 +1,40 @@
-error: expected one of freelist/name/extends/module
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
   |           ^^^^^^
 
-error: expected type path (e.g., my_mod::BaseClass)
+error: expected identifier
  --> tests/ui/invalid_pyclass_args.rs:6:21
   |
 6 | #[pyclass(extends = "PyDict")]
   |                     ^^^^^^^^
 
-error: expected type name (e.g. "Name")
+error: expected string literal
  --> tests/ui/invalid_pyclass_args.rs:9:18
   |
 9 | #[pyclass(name = m::MyClass)]
   |                  ^
 
-error: expected a single identifier in double-quotes
+error: expected a single identifier in double quotes
   --> tests/ui/invalid_pyclass_args.rs:12:18
    |
 12 | #[pyclass(name = "Custom Name")]
    |                  ^^^^^^^^^^^^^
 
-error: since PyO3 0.13 a pyclass name should be in double-quotes, e.g. "CustomName"
+error: expected string literal
   --> tests/ui/invalid_pyclass_args.rs:15:18
    |
 15 | #[pyclass(name = CustomName)]
    |                  ^^^^^^^^^^
 
-error: expected string literal (e.g., "my_mod")
+error: expected string literal
   --> tests/ui/invalid_pyclass_args.rs:18:20
    |
 18 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of gc/weakref/subclass/dict/unsendable
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
   --> tests/ui/invalid_pyclass_args.rs:21:11
    |
 21 | #[pyclass(weakrev)]

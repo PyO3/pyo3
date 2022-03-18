@@ -2,14 +2,14 @@ use pyo3::prelude::*;
 
 #[pyclass(subclass)]
 enum NotBaseClass {
-    x,
-    y,
+    X,
+    Y,
 }
 
 #[pyclass(extends = PyList)]
 enum NotDrivedClass {
-    x,
-    y,
+    X,
+    Y,
 }
 
 #[pyclass]

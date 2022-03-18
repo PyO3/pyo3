@@ -21,7 +21,7 @@ pub struct ConstSpec {
 impl ConstSpec {
     pub fn python_name(&self) -> Cow<Ident> {
         if let Some(name) = &self.attributes.name {
-            Cow::Borrowed(&name.0)
+            Cow::Borrowed(&name.value.0)
         } else {
             Cow::Owned(self.rust_ident.unraw())
         }
@@ -89,7 +89,7 @@ impl ConstAttributes {
     fn set_name(&mut self, name: NameAttribute) -> Result<()> {
         ensure_spanned!(
             self.name.is_none(),
-            name.0.span() => "`name` may only be specified once"
+            name.span() => "`name` may only be specified once"
         );
         self.name = Some(name);
         Ok(())
