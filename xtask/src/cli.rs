@@ -107,8 +107,10 @@ impl Subcommand {
             Subcommand::Test => crate::test::run()?,
         };
 
-        let dt = start.elapsed();
-        println!("\nFinished program in {} s.", dt.as_secs());
+        let dt = start.elapsed().as_secs();
+        let minutes = dt / 60;
+        let seconds = dt % 60;
+        println!("\nxtask finished in {}m {}s.", minutes, seconds);
 
         Ok(())
     }
@@ -122,9 +124,6 @@ pub fn run(command: &mut Command) -> Result<()> {
         .stderr(Stdio::piped())
         .spawn()?
         .wait_with_output()?;
-
-    // io::stdout().write_all(&output.stdout).unwrap();
-    //  io::stdout().write_all(&output.stderr).unwrap();
 
     ensure! {
         output.status.success(),

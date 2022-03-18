@@ -1,6 +1,6 @@
 ## Commands to test PyO3.
 
-To run these commands, you should be in PyO3's root directory, and run (for example) `cargo xtask all`.
+To run these commands, you should be in PyO3's root directory, and run (for example) `cargo xtask ci`.
 
 ```
 USAGE:

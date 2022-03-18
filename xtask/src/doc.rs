@@ -45,10 +45,3 @@ pub fn run(opts: DocOpts) -> anyhow::Result<()> {
 
     Ok(())
 }
-
-// " --lib  --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend"
-/*
-pyo3_doc =      "
-pyo3_doc_scrape = "doc --lib --no-default-features --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend
- "
-*/
