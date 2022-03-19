@@ -97,6 +97,24 @@ impl PyBytes {
     }
 }
 
+impl Py<PyBytes> {
+    /// Gets the Python bytes as a byte slice. Because Python bytes are
+    /// immutable, the result may be used for as long as the reference to
+    /// `self` is held, including when the GIL is released.
+    pub fn as_bytes<'a>(&'a self, _py: Python<'_>) -> &'a [u8] {
+        // py is required here because `PyBytes_AsString` and `PyBytes_Size`
+        // can both technically raise exceptions which require the GIL to be
+        // held. The only circumstance in which they raise is if the value
+        // isn't really a `PyBytes`, but better safe than sorry.
+        unsafe {
+            let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
+            let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
+            debug_assert!(!buffer.is_null());
+            std::slice::from_raw_parts(buffer, length)
+        }
+    }
+}
+
 /// This is the same way [Vec] is indexed.
 impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     type Output = I::Output;
