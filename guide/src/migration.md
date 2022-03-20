@@ -9,7 +9,7 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 PyO3 0.16 has increased minimum Rust version to 1.48 and minimum Python version to 3.7. This enables use of newer language features (enabling some of the other additions in 0.16) and simplifies maintenance of the project.
 
-### `#[pyproto]` has been deprecated
+### `#[pyproto]` has been deprecated
 
 In PyO3 0.15, the `#[pymethods]` attribute macro gained support for implementing "magic methods" such as `__str__` (aka "dunder" methods). This implementation was not quite finalized at the time, with a few edge cases to be decided upon. The existing `#[pyproto]` attribute macro was left untouched, because it covered these edge cases.
 
