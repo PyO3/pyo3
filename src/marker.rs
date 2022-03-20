@@ -994,9 +994,6 @@ mod tests {
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
 
-        let state = unsafe { crate::ffi::PyGILState_Check() };
-        assert_eq!(state, GIL_NOT_HELD);
-
         {
             let gil = Python::acquire_gil();
             let _py = gil.python();
