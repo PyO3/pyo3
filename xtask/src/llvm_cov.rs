@@ -12,44 +12,59 @@ pub fn run(opts: CoverageOpts) -> Result<()> {
 
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--manifest-path", "pyo3-build-config/Cargo.toml"])
+            .args(&[
+                "nextest",
+                "run",
+                "--manifest-path",
+                "pyo3-build-config/Cargo.toml",
+            ])
             .envs(&env),
     )?;
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--manifest-path", "pyo3-macros-backend/Cargo.toml"])
+            .args(&[
+                "nextest",
+                "run",
+                "--manifest-path",
+                "pyo3-macros-backend/Cargo.toml",
+            ])
             .envs(&env),
     )?;
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--manifest-path", "pyo3-macros/Cargo.toml"])
+            .args(&[
+                "nextest",
+                "run",
+                "--manifest-path",
+                "pyo3-macros/Cargo.toml",
+            ])
             .envs(&env),
     )?;
 
-    cli::run(Command::new("cargo").arg("test").envs(&env))?;
+    cli::run(Command::new("cargo").arg("nextest").arg("run").envs(&env))?;
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--features", "abi3"])
+            .args(&["nextest", "run", "--features", "abi3"])
             .envs(&env),
     )?;
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--features", "full"])
+            .args(&["nextest", "run", "--features", "full"])
             .envs(&env),
     )?;
     cli::run(
         Command::new("cargo")
-            .args(&["test", "--features", "abi3 full"])
+            .args(&["nextest", "run", "--features", "abi3 full"])
             .envs(&env),
     )?;
 
     crate::pytests::run(&env)?;
 
     match opts.output_lcov {
-        Some(path) => {
-            cli::run(llvm_cov_command(&["--no-run", "--lcov", "--output-path", &path]).envs(&env))?
-        }
-        None => cli::run(llvm_cov_command(&["--no-run", "--summary-only"]).envs(&env))?,
+        Some(path) => cli::run(
+            llvm_cov_command(&["nextest", "--no-run", "--lcov", "--output-path", &path]).envs(&env),
+        )?,
+        None => cli::run(llvm_cov_command(&["nextest", "--no-run", "--summary-only"]).envs(&env))?,
     }
 
     Ok(())
