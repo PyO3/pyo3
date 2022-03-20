@@ -163,6 +163,9 @@ jobs:
           # needed to correctly format errors, see #1865
           components: rust-src
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
       - uses: Swatinem/rust-cache@v1
         with:
           key: cargo-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}
@@ -193,13 +196,13 @@ jobs:
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
-        run: cargo test --no-default-features --lib --tests
+        run: cargo nextest run --no-default-features --lib --tests
 
       # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
       - name: Test pyo3-build-config (no features)
         run: |
           cd pyo3-build-config
-          cargo test --no-default-features
+          cargo nextest run --no-default-features
 
       - name: Build (all additive features)
         run: cargo build --lib --tests --no-default-features --features "full ${{ matrix.extra_features }}"
@@ -211,23 +214,23 @@ jobs:
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
-        run: cargo test --no-default-features --features "full ${{ matrix.extra_features }}"
+        run: cargo nextest run --no-default-features --features "full ${{ matrix.extra_features }}"
 
       # Run tests again, but in abi3 mode
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 full ${{ matrix.extra_features }}"
+        run: cargo nextest run --no-default-features --features "abi3 full ${{ matrix.extra_features }}"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
       - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
         name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "abi3-py37 full ${{ matrix.extra_features }}"
+        run: cargo nextest run --no-default-features --features "abi3-py37 full ${{ matrix.extra_features }}"
 
       - name: Test proc-macro code
-        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
+        run: cargo nextest run --manifest-path=pyo3-macros-backend/Cargo.toml
 
       - name: Test build config
-        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
+        run: cargo nextest run --manifest-path=pyo3-build-config/Cargo.toml
 
       - name: Test python examples and tests
         shell: bash

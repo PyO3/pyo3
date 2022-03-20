@@ -1,0 +1,64 @@
+[store]
+# The directory under the workspace root at which nextest-related files are
+# written. Profile-specific storage is currently written to dir/<profile-name>.
+dir = "target/nextest"
+
+# This section defines the default nextest profile. Custom profiles are layered
+# on top of the default profile.
+[profile.default]
+# "retries" defines the number of times a test should be retried. If set to a
+# non-zero value, tests that succeed on a subsequent attempt will be marked as
+# non-flaky. Can be overridden through the `--retries` option.
+retries = 2
+
+# Show these test statuses in the output.
+#
+# The possible values this can take are:
+# * none: no output
+# * fail: show failed (including exec-failed) tests
+# * retry: show flaky and retried tests
+# * slow: show slow tests
+# * pass: show passed tests
+# * skip: show skipped tests (most useful for CI)
+# * all: all of the above
+#
+# Each value includes all the values above it; for example, "slow" includes
+# failed and retried tests.
+#
+# Can be overridden through the `--status-level` flag.
+status-level = "pass"
+
+# "failure-output" defines when test failures are output to standard output.
+# Accepted values are
+# * "immediate": output failures as soon as they happen
+# * "final": output failures at the end of the test run
+# * "immediate-final": output failures as soon as they happen and at the end of
+#   the test run
+# * "never": don't output failures at all
+#
+# For large test suites and CI it is generally useful to use "immediate-final".
+#
+# Can be overridden through the `--failure-output` option.
+failure-output = "immediate"
+
+# "success-output" controls output on success. This should generally be set to
+# "never".
+success-output = "never"
+
+# Cancel the test run on the first failure. For CI runs, consider setting this
+# to false.
+fail-fast = false
+
+# Treat a test that takes longer than this as slow, and print a message.
+slow-timeout = "60s"
+
+[profile.default.junit]
+# Output a JUnit report into the given file inside 'store.dir/<profile-name>'.
+# If unspecified, JUnit is not written out.
+
+# path = "junit.xml"
+
+# The name of the top-level "report" element in JUnit report. If aggregating
+# reports across different test runs, it may be useful to provide separate names
+# for each report.
+report-name = "nextest-run"
