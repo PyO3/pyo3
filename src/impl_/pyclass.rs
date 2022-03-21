@@ -155,6 +155,9 @@ pub trait PyClassImpl: Sized {
     /// #[pyclass(extends=...)]
     const IS_SUBCLASS: bool = false;
 
+    /// #[pyclass(mapping)]
+    const IS_MAPPING: bool = false;
+
     /// Layout
     type Layout: PyLayout<Self>;
 

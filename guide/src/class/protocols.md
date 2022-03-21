@@ -192,6 +192,16 @@ and `Return` a final value - see its docs for further details and an example.
 
 ### Mapping & Sequence types
 
+The magic methods in this section can be used to implement Python container types. They are two main categories of container in Python: "mappings" such as `dict`, with arbitrary keys, and "sequences" such as `list` and `tuple`, with integer keys.
+
+The Python C-API which PyO3 is built upon has separate "slots" for sequences and mappings. When writing a `class` in pure Python, there is no such distinction in the implementation - a `__getitem__` implementation will fill the slots for both the mapping and sequence forms, for example.
+
+By default PyO3 reproduces the Python behaviour of filling both mapping and sequence slots. This makes sense for the "simple" case which matches Python, and also for sequences, where the mapping slot is used anyway to implement slice indexing.
+
+For mapping types, it may be desirable to not have the sequence slots filled. Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty.
+
+This behaviour affects the implementation of `__getitem__`, `__setitem__`, and `__delitem__`.
+
   - `__len__(<self>) -> usize`
 
     Implements the built-in function `len()` for the sequence.
@@ -264,7 +274,6 @@ and `Return` a final value - see its docs for further details and an example.
     Concatenates two sequences.
     Used by the `*=` operator, after trying the numeric multiplication via
     the `__imul__` method.
-
 
 ### Descriptors
 

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `as_bytes` on `Py<PyBytes>`. [#2235](https://github.com/PyO3/pyo3/pull/2235)
+- Add `#[pyclass(mapping)]` option to leave sequence slots empty in container implementations. [#2265](https://github.com/PyO3/pyo3/pull/2265)
 
 ### Packaging
 

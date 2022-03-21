@@ -203,6 +203,7 @@ Python::with_gil(|py|{
 [params-4]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
 [params-5]: https://doc.rust-lang.org/stable/std/sync/struct.Rc.html
 [params-6]: https://docs.python.org/3/library/weakref.html
+[params-mapping]: ./class/protocols.md#mapping--sequence-types
 
 These parameters are covered in various sections of this guide.
 
