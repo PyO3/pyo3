@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow to allow dependent crates to access values from `pyo3-build-config` via cargo link env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
+- Allow dependent crates to access config values from `pyo3-build-config` via cargo link dep env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
+- Added methods on `InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 
 ### Fixed
 

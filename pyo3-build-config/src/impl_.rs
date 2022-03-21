@@ -341,12 +341,9 @@ print("mingw", get_platform().startswith("mingw"))
     }
 
     #[doc(hidden)]
-    pub fn from_cargo_link_env() -> Result<Self> {
-        // un-escape any newlines in the exported config
-        let buf = cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
-            .unwrap()
-            .replace("\\n", "\n");
-        InterpreterConfig::from_reader(buf.as_bytes())
+    pub fn from_cargo_dep_env() -> Option<Result<Self>> {
+        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+            .map(|buf| InterpreterConfig::from_reader(buf.replace("\\n", "\n").as_bytes()))
     }
 
     #[doc(hidden)]
@@ -430,7 +427,17 @@ print("mingw", get_platform().startswith("mingw"))
     }
 
     #[doc(hidden)]
-    pub fn to_cargo_link_env(&self) -> Result<()> {
+    /// Serialize the `InterpreterConfig` and print it to the environment for Cargo to pass along
+    /// to dependent packages during build time.
+    ///
+    /// NB: writing to the cargo environment requires the
+    /// [`links`](https://doc.rust-lang.org/cargo/reference/build-scripts.html#the-links-manifest-key)
+    /// manifest key to be set. In this case that means this is called by the `pyo3-ffi` crate and
+    /// available for dependent package build scripts in `DEP_PYTHON_PYO3_CONFIG`. See
+    /// documentation for the
+    /// [`DEP_<name>_<key>`](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts)
+    /// environment variable.
+    pub fn to_cargo_dep_env(&self) -> Result<()> {
         let mut buf = Vec::new();
         self.to_writer(&mut buf)?;
         // escape newlines in env var
@@ -485,8 +492,25 @@ print("mingw", get_platform().startswith("mingw"))
         Ok(())
     }
 
-    /// Run a python script using the executable of this InterpreterConfig with additional
+    /// Run a python script using the [`InterpreterConfig::executable`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`executable`](InterpreterConfig::executable) is `None`.
+    pub fn run_python_script(&self, script: &str) -> Result<String> {
+        run_python_script_with_envs(
+            Path::new(self.executable.as_ref().expect("no interpreter executable")),
+            script,
+            std::iter::empty::<(&str, &str)>(),
+        )
+    }
+
+    /// Run a python script using the [`InterpreterConfig::executable`] with additional
     /// environment variables (e.g. PYTHONPATH) set.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`executable`](InterpreterConfig::executable) is `None`.
     pub fn run_python_script_with_envs<I, K, V>(&self, script: &str, envs: I) -> Result<String>
     where
         I: IntoIterator<Item = (K, V)>,
@@ -497,15 +521,6 @@ print("mingw", get_platform().startswith("mingw"))
             Path::new(self.executable.as_ref().expect("no interpreter executable")),
             script,
             envs,
-        )
-    }
-
-    /// Run a python script using the executable of this InterpreterConfig.
-    pub fn run_python_script(&self, script: &str) -> Result<String> {
-        run_python_script_with_envs(
-            Path::new(self.executable.as_ref().expect("no interpreter executable")),
-            script,
-            std::iter::empty::<(&str, &str)>(),
         )
     }
 }
@@ -590,11 +605,6 @@ impl FromStr for PythonImplementation {
 
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-}
-
-#[allow(unused)]
-pub fn link_env_var_set() -> bool {
-    cargo_env_var("DEP_PYTHON_PYO3_CONFIG").is_some()
 }
 
 #[derive(Debug, PartialEq)]

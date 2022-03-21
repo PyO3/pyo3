@@ -65,18 +65,18 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
-        if !CONFIG_FILE.is_empty() {
+        if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
+            interpreter_config
+        } else if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
         } else if impl_::cross_compile_env_vars().any() {
             InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
-        } else if impl_::link_env_var_set() {
-            InterpreterConfig::from_cargo_link_env()
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
-        .expect("failed to parse PyO3 config file")
+        .expect("failed to parse PyO3 config")
     })
 }
 
