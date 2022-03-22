@@ -38,11 +38,11 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
-        Err(e) => return e.to_compile_error().into(),
+        Err(e) => return e.into_compile_error().into(),
     };
 
     if let Err(err) = process_functions_in_module(&mut ast) {
-        return err.to_compile_error().into();
+        return err.into_compile_error().into();
     }
 
     let doc = get_doc(&ast.attrs, None);
@@ -114,7 +114,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
         Item::Enum(enum_) => pyclass_enum_impl(attr, enum_, methods_type()),
         unsupported => {
             syn::Error::new_spanned(unsupported, "#[pyclass] only supports structs and enums.")
-                .to_compile_error()
+                .into_compile_error()
                 .into()
         }
     }

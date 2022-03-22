@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Considered `PYTHONFRAMEWORK` when cross compiling in order that on macos cross compiling against a [Framework bundle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html) is considered shared. [#2233](https://github.com/PyO3/pyo3/pull/2233)
-
 - Panic during compilation when `PYO3_CROSS_LIB_DIR` is set for some host/target combinations. [#2232](https://github.com/PyO3/pyo3/pull/2232)
+- Correct dependency version for `syn` to require correct minimal patch version 1.0.56. [#2240](https://github.com/PyO3/pyo3/pull/2240)
 
 ### Added
 
