@@ -40,7 +40,7 @@ pub struct PyFunctionSignature {
     has_kwargs: bool,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
     pub from_py_with: Option<FromPyWithAttribute>,
 }
@@ -71,7 +71,7 @@ impl PyFunctionArgPyO3Attributes {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
                             ensure_spanned!(
                                 attributes.from_py_with.is_none(),
-                                from_py_with.0.span() => "`from_py_with` may only be specified once per argument"
+                                from_py_with.span() => "`from_py_with` may only be specified once per argument"
                             );
                             attributes.from_py_with = Some(from_py_with);
                         }
@@ -339,7 +339,7 @@ impl PyFunctionOptions {
                 PyFunctionOption::Crate(path) => {
                     ensure_spanned!(
                         self.krate.is_none(),
-                        path.0.span() => "`crate` may only be specified once"
+                        path.span() => "`crate` may only be specified once"
                     );
                     self.krate = Some(path);
                 }
@@ -351,7 +351,7 @@ impl PyFunctionOptions {
     pub fn set_name(&mut self, name: NameAttribute) -> Result<()> {
         ensure_spanned!(
             self.name.is_none(),
-            name.0.span() => "`name` may only be specified once"
+            name.span() => "`name` may only be specified once"
         );
         self.name = Some(name);
         Ok(())
@@ -377,7 +377,7 @@ pub fn impl_wrap_pyfunction(
 
     let python_name = options
         .name
-        .map_or_else(|| func.sig.ident.unraw(), |name| name.0);
+        .map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
 
     let signature = options.signature.unwrap_or_default();
 

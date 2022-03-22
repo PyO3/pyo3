@@ -195,22 +195,16 @@ Python::with_gil(|py|{
 
 ## Customizing the class
 
-The `#[pyclass]` macro accepts the following parameters:
+{{#include ../../pyo3-macros/docs/pyclass_parameters.md}}
 
-* `name="XXX"` - Set the class name shown in Python code. By default, the struct name is used as the class name.
-* `freelist=XXX` - The `freelist` parameter adds support of free allocation list to custom class.
-The performance improvement applies to types that are often created and deleted in a row,
-so that they can benefit from a freelist. `XXX` is a number of items for the free list.
-* `gc` - Classes with the `gc` parameter participate in Python garbage collection.
-If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
-* `weakref` - Adds support for Python weak references.
-* `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`. `enum` pyclasses can't use a custom base class.
-* `subclass` - Allows Python classes to inherit from this class. `enum` pyclasses can't be inherited from.
-* `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
-* `unsendable` - Making it safe to expose `!Send` structs to Python, where all object can be accessed
-   by multiple threads. A class marked with `unsendable` panics when accessed by another thread.
-* `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
-  will be a virtual member of the `builtins` module.
+[params-1]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyAny.html
+[params-2]: https://en.wikipedia.org/wiki/Free_list
+[params-3]: https://doc.rust-lang.org/stable/std/marker/trait.Send.html
+[params-4]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
+[params-5]: https://doc.rust-lang.org/stable/std/sync/struct.Rc.html
+[params-6]: https://docs.python.org/3/library/weakref.html
+
+These parameters are covered in various sections of this guide.
 
 ### Return type
 
@@ -716,7 +710,7 @@ num=-1
 
 ## Making class method signatures available to Python
 
-The [`#[pyo3(text_signature = "...")]`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
+The [`text_signature = "..."`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
 
 ```rust
 # #![allow(dead_code)]
@@ -724,8 +718,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 // it works even if the item is not documented:
-#[pyclass]
-#[pyo3(text_signature = "(c, d, /)")]
+#[pyclass(text_signature = "(c, d, /)")]
 struct MyClass {}
 
 #[pymethods]
