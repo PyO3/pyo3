@@ -45,7 +45,7 @@ jobs:
           mkdir target
           mkdir -p gh-pages-build/internal
           echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > target/banner.html
-          cargo +nightly pyo3_doc_internal
+          cargo xtask doc --internal
           cp -r target/doc gh-pages-build/internal
         env:
           RUSTDOCFLAGS: "--cfg docsrs --Z unstable-options --document-hidden-items --html-before-content target/banner.html"
@@ -71,7 +71,7 @@ jobs:
         # This adds the docs to gh-pages-build/doc
       - name: Build the doc
         run: |
-          cargo +nightly pyo3_doc_scrape
+          cargo xtask doc
           cp -r target/doc gh-pages-build/doc
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
 

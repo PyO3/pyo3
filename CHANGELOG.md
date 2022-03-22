@@ -13,11 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow dependent crates to access config values from `pyo3-build-config` via cargo link dep env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 - Added methods on `InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 
+### Changed
+
+- Allow `#[pyo3(crate = "...", text_signature = "...")]` options to be used directly in `#[pyclass(crate = "...", text_signature = "...")]`. [#2234](https://github.com/PyO3/pyo3/pull/2234)
+
 ### Fixed
 
 - Considered `PYTHONFRAMEWORK` when cross compiling in order that on macos cross compiling against a [Framework bundle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html) is considered shared. [#2233](https://github.com/PyO3/pyo3/pull/2233)
-
 - Panic during compilation when `PYO3_CROSS_LIB_DIR` is set for some host/target combinations. [#2232](https://github.com/PyO3/pyo3/pull/2232)
+- Correct dependency version for `syn` to require correct minimal patch version 1.0.56. [#2240](https://github.com/PyO3/pyo3/pull/2240)
+
+### Added
+
+- Added `as_bytes` on `Py<PyBytes>`. [#2235](https://github.com/PyO3/pyo3/pull/2235)
+
+### Packaging
+
+- Extend `parking_lot` dependency supported versions to include 0.12. [#2239](https://github.com/PyO3/pyo3/pull/2239)
 
 ## [0.16.2] - 2022-03-15
 

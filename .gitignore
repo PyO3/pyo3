@@ -20,3 +20,4 @@ guide/book/
 extensions/stamps/
 pip-wheel-metadata
 valgrind-python.supp
+*.pyd

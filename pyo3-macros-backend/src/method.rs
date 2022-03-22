@@ -14,7 +14,7 @@ use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::Result;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
     pub by_ref: &'a Option<syn::token::Ref>,
@@ -273,7 +273,7 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.0), &mut deprecations)?;
+        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;

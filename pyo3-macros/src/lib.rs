@@ -38,11 +38,11 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let options = match PyModuleOptions::from_attrs(&mut ast.attrs) {
         Ok(options) => options,
-        Err(e) => return e.to_compile_error().into(),
+        Err(e) => return e.into_compile_error().into(),
     };
 
     if let Err(err) = process_functions_in_module(&mut ast) {
-        return err.to_compile_error().into();
+        return err.into_compile_error().into();
     }
 
     let doc = get_doc(&ast.attrs, None);
@@ -81,30 +81,18 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
-/// `#[pyclass]` accepts the following [parameters][2]:
-///
-/// |  Parameter  |  Description |
-/// | :-  | :- |
-/// | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-/// | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][9] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
-/// | `weakref` | Allows this class to be [weakly referenceable][6]. |
-/// | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][4] |
-/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
-/// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][7] with [`Arc`][8]. By using `unsendable`, your class will panic when accessed by another thread.|
-/// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
+#[cfg_attr(docsrs, cfg_attr(docsrs, doc = include_str!("../docs/pyclass_parameters.md")))]
 ///
 /// For more on creating Python classes,
 /// see the [class section of the guide][1].
 ///
 /// [1]: https://pyo3.rs/latest/class.html
-/// [2]: https://pyo3.rs/latest/class.html#customizing-the-class
-/// [3]: std::marker::Send
-/// [4]: ../prelude/struct.PyAny.html
-/// [5]: https://pyo3.rs/latest/class/protocols.html#garbage-collector-integration
-/// [6]: https://docs.python.org/3/library/weakref.html
-/// [7]: std::rc::Rc
-/// [8]: std::sync::Arc
-/// [9]: https://en.wikipedia.org/wiki/Free_list
+/// [params-1]: ../prelude/struct.PyAny.html
+/// [params-2]: https://en.wikipedia.org/wiki/Free_list
+/// [params-3]: std::marker::Send
+/// [params-4]: std::rc::Rc
+/// [params-5]: std::sync::Arc
+/// [params-6]: https://docs.python.org/3/library/weakref.html
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     use syn::Item;
@@ -114,7 +102,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
         Item::Enum(enum_) => pyclass_enum_impl(attr, enum_, methods_type()),
         unsupported => {
             syn::Error::new_spanned(unsupported, "#[pyclass] only supports structs and enums.")
-                .to_compile_error()
+                .into_compile_error()
                 .into()
         }
     }
@@ -230,7 +218,7 @@ fn pyclass_impl(
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
     let args = parse_macro_input!(attrs with PyClassArgs::parse_stuct_args);
-    let expanded = build_py_class(&mut ast, &args, methods_type).unwrap_or_compile_error();
+    let expanded = build_py_class(&mut ast, args, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -245,7 +233,7 @@ fn pyclass_enum_impl(
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
     let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
-    let expanded = build_py_enum(&mut ast, &args, methods_type).unwrap_or_compile_error();
+    let expanded = build_py_enum(&mut ast, args, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast

@@ -544,7 +544,7 @@ impl PropertyType<'_> {
                 field, python_name, ..
             } => {
                 let name = match (python_name, &field.ident) {
-                    (Some(name), _) => name.0.to_string(),
+                    (Some(name), _) => name.value.0.to_string(),
                     (None, Some(field_name)) => format!("{}\0", field_name.unraw()),
                     (None, None) => {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");

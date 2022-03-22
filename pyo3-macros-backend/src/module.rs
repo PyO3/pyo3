@@ -31,7 +31,7 @@ impl PyModuleOptions {
 
         for option in take_pyo3_options(attrs)? {
             match option {
-                PyModulePyO3Option::Name(name) => options.set_name(name.0)?,
+                PyModulePyO3Option::Name(name) => options.set_name(name.value.0)?,
                 PyModulePyO3Option::Crate(path) => options.set_crate(path)?,
             }
         }
@@ -52,7 +52,7 @@ impl PyModuleOptions {
     fn set_crate(&mut self, path: CrateAttribute) -> Result<()> {
         ensure_spanned!(
             self.krate.is_none(),
-            path.0.span() => "`crate` may only be specified once"
+            path.span() => "`crate` may only be specified once"
         );
 
         self.krate = Some(path);
