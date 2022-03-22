@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `as_bytes` on `Py<PyBytes>`. [#2235](https://github.com/PyO3/pyo3/pull/2235)
 
+### Packaging
+
+- Extend `parking_lot` dependency supported versions to include 0.12. [#2239](https://github.com/PyO3/pyo3/pull/2239)
+
 ## [0.16.2] - 2022-03-15
 
 ### Packaging

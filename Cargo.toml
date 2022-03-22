@@ -16,7 +16,7 @@ edition = "2018"
 [dependencies]
 cfg-if = "1.0"
 libc = "0.2.62"
-parking_lot = "0.11.0"
+parking_lot = ">= 0.11, < 0.13"
 
 # ffi bindings to the python interpreter, split into a seperate crate so they can be used independently
 pyo3-ffi = { path = "pyo3-ffi", version = "=0.16.2" }
