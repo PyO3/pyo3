@@ -19,8 +19,9 @@ use crate::{
 
 /// Minimum Python version PyO3 supports.
 const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-const ABI3_MAX_MINOR: u8 = 9;
+const ABI3_MAX_MINOR: u8 = 10;
 
 /// Gets an environment variable owned by cargo.
 ///
