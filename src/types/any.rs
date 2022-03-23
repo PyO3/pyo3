@@ -80,7 +80,7 @@ impl PyAny {
     ///     assert!(any.downcast::<PyList>().is_err());
     /// });
     /// ```
-    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
+    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
     where
         for<'py> T: PyTryFrom<'py>,
     {
@@ -658,11 +658,11 @@ impl PyAny {
     /// Casts the PyObject to a concrete Python object type.
     ///
     /// This can cast only to native Python types, not types implemented in Rust.
-    pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
+    pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'_>>
     where
         D: PyTryFrom<'a>,
     {
-        D::try_from(self)
+        <D as PyTryFrom<'_>>::try_from(self)
     }
 
     /// Extracts some type from the Python object.

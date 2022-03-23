@@ -90,7 +90,7 @@ struct GcIntegration {
 
 #[pymethods]
 impl GcIntegration {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         visit.call(&self.self_ref)
     }
 
@@ -187,7 +187,7 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
-        let obj: &PyCell<SubClassWithDrop> = inst.try_into().unwrap();
+        let obj: &PyCell<SubClassWithDrop> = PyTryInto::try_into(&*inst).unwrap();
         let mut obj_ref_mut = obj.borrow_mut();
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
         let base: &mut BaseClassWithDrop = obj_ref_mut.as_mut();
@@ -216,7 +216,7 @@ impl TraversableClass {
     fn __clear__(&mut self) {}
 
     #[allow(clippy::unnecessary_wraps)]
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.traversed.store(true, Ordering::Relaxed);
         Ok(())
     }
@@ -270,14 +270,14 @@ struct PanickyTraverse {
 }
 
 impl PanickyTraverse {
-    fn new(py: Python) -> Self {
+    fn new(py: Python<'_>) -> Self {
         Self { member: py.None() }
     }
 }
 
 #[pymethods]
 impl PanickyTraverse {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         visit.call(&self.member)?;
         // In the test, we expect this to never be hit
         unreachable!()

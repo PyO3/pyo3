@@ -7,7 +7,7 @@ use pyo3::types::{
 };
 
 #[pyfunction]
-fn make_date(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
+fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
     PyDate::new(py, year, month, day)
 }
 
@@ -20,7 +20,7 @@ fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn date_from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
+fn date_from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
     PyDate::from_timestamp(py, timestamp)
 }
 
@@ -94,7 +94,7 @@ fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
 }
 
 #[pyfunction]
-fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResult<&PyDelta> {
+fn make_delta(py: Python<'_>, days: i32, seconds: i32, microseconds: i32) -> PyResult<&PyDelta> {
     PyDelta::new(py, days, seconds, microseconds, true)
 }
 

@@ -330,7 +330,7 @@ impl Py<PySequence> {
     /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python) -> &PySequence {
+    pub fn into_ref(self, py: Python<'_>) -> &PySequence {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }

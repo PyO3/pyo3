@@ -29,7 +29,7 @@ fn test_optional_bool() {
 
 #[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
-fn buffer_inplace_add(py: Python, x: PyBuffer<i32>, y: PyBuffer<i32>) {
+fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     let x = x.as_mut_slice(py).unwrap();
     let y = y.as_slice(py).unwrap();
     for (xi, yi) in x.iter().zip(y) {
@@ -263,7 +263,7 @@ conversion_error('string1', -100, ('string2', 10.), None, ValueClass(-5))",
 /// Helper function that concatenates the error message from
 /// each error in the traceback into a single string that can
 /// be tested.
-fn extract_traceback(py: Python, mut error: PyErr) -> String {
+fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
         error_msg.push_str(": ");

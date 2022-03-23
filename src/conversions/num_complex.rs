@@ -49,7 +49,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_eigenvalues, m)?)?;
 //!     Ok(())
 //! }
@@ -107,7 +107,7 @@ use std::os::raw::c_double;
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
-    pub fn from_complex<F: Into<c_double>>(py: Python, complex: Complex<F>) -> &PyComplex {
+    pub fn from_complex<F: Into<c_double>>(py: Python<'_>, complex: Complex<F>) -> &PyComplex {
         unsafe {
             let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());
             py.from_owned_ptr(ptr)
@@ -120,14 +120,14 @@ macro_rules! complex_conversion {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl ToPyObject for Complex<$float> {
             #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
                 crate::IntoPy::<PyObject>::into_py(self.to_owned(), py)
             }
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
         impl crate::IntoPy<PyObject> for Complex<$float> {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe {
                     let raw_obj =
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);

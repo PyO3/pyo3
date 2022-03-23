@@ -55,9 +55,9 @@ Here is an example of the PyList API:
 ```rust,ignore
 impl PyList {
 
-   fn new(py: Python) -> PyList {...}
+   fn new(py: Python<'_>) -> PyList {...}
 
-   fn get_item(&self, py: Python, index: isize) -> PyObject {...}
+   fn get_item(&self, py: Python<'_>, index: isize) -> PyObject {...}
 }
 ```
 
@@ -66,7 +66,7 @@ impl PyList {
 ```rust,ignore
 impl PyList {
 
-   fn new(py: Python) -> &PyList {...}
+   fn new(py: Python<'_>) -> &PyList {...}
 
    fn get_item(&self, index: isize) -> &PyAny {...}
 }

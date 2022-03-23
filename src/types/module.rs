@@ -221,7 +221,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     ///     module.add("c", 299_792_458)?;
     ///     Ok(())
     /// }
@@ -265,7 +265,7 @@ impl PyModule {
     /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
-    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     ///     module.add_class::<Foo>()?;
     ///     Ok(())
     /// }
@@ -324,7 +324,7 @@ impl PyModule {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
-    /// fn my_module(py: Python, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
     ///
@@ -367,7 +367,7 @@ impl PyModule {
     ///     println!("Hello world!")
     /// }
     /// #[pymodule]
-    /// fn my_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    /// fn my_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
     /// ```

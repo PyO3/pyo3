@@ -19,7 +19,7 @@ struct ExampleClass {
 
 #[pymethods]
 impl ExampleClass {
-    fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
+    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
         if attr == "special_custom_attr" {
             Ok(self._custom_attr.into_py(py))
         } else {
@@ -63,7 +63,7 @@ impl ExampleClass {
     }
 }
 
-fn make_example(py: Python) -> &PyCell<ExampleClass> {
+fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
     Py::new(
         py,
         ExampleClass {
@@ -189,7 +189,7 @@ pub struct Mapping {
 
 #[pymethods]
 impl Mapping {
-    fn __len__(&self, py: Python) -> usize {
+    fn __len__(&self, py: Python<'_>) -> usize {
         self.values.as_ref(py).len()
     }
 
@@ -262,7 +262,7 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>) -> PyResult<PyObject> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
@@ -366,11 +366,11 @@ struct Iterator {
 
 #[pymethods]
 impl Iterator {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<i32> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
         slf.iter.next()
     }
 }
@@ -680,14 +680,14 @@ impl OnceFuture {
         }
     }
 
-    fn __await__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __await__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
         if !slf.polled {
             slf.polled = true;
             Some(slf.future.clone())
@@ -737,7 +737,7 @@ impl AsyncIterator {
         }
     }
 
-    fn __aiter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
@@ -876,7 +876,7 @@ struct DefaultedContains;
 
 #[pymethods]
 impl DefaultedContains {
-    fn __iter__(&self, py: Python) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, &["a", "b", "c"])
             .as_ref()
             .iter()
@@ -890,7 +890,7 @@ struct NoContains;
 
 #[pymethods]
 impl NoContains {
-    fn __iter__(&self, py: Python) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, &["a", "b", "c"])
             .as_ref()
             .iter()

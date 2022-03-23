@@ -21,7 +21,7 @@ use std::cell::UnsafeCell;
 ///
 /// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
 ///
-/// pub fn get_shared_list(py: Python) -> &PyList {
+/// pub fn get_shared_list(py: Python<'_>) -> &PyList {
 ///     LIST_CELL
 ///         .get_or_init(py, || PyList::empty(py).into())
 ///         .as_ref(py)
@@ -42,7 +42,7 @@ impl<T> GILOnceCell<T> {
     }
 
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
-    pub fn get(&self, _py: Python) -> Option<&T> {
+    pub fn get(&self, _py: Python<'_>) -> Option<&T> {
         // Safe because if the cell has not yet been written, None is returned.
         unsafe { &*self.0.get() }.as_ref()
     }
@@ -61,7 +61,7 @@ impl<T> GILOnceCell<T> {
     ///     exactly once, even if multiple threads attempt to call `get_or_init`
     ///  4) if f() can panic but still does not release the GIL, it may be called multiple times,
     ///     but it is guaranteed that f() will never be called concurrently
-    pub fn get_or_init<F>(&self, py: Python, f: F) -> &T
+    pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
     where
         F: FnOnce() -> T,
     {
@@ -90,7 +90,7 @@ impl<T> GILOnceCell<T> {
     ///
     /// If the cell has already been written, `Err(value)` will be returned containing the new
     /// value which was not written.
-    pub fn set(&self, _py: Python, value: T) -> Result<(), T> {
+    pub fn set(&self, _py: Python<'_>, value: T) -> Result<(), T> {
         // Safe because GIL is held, so no other thread can be writing to this cell concurrently.
         let inner = unsafe { &mut *self.0.get() };
         if inner.is_some() {

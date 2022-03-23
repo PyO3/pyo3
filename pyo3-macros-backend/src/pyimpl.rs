@@ -30,7 +30,7 @@ enum PyImplPyO3Option {
 }
 
 impl Parse for PyImplPyO3Option {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyImplPyO3Option::Crate)

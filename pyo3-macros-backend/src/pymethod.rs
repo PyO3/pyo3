@@ -249,7 +249,10 @@ fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()>
     Ok(())
 }
 
-fn ensure_no_forbidden_protocol_attributes(spec: &FnSpec, method_name: &str) -> syn::Result<()> {
+fn ensure_no_forbidden_protocol_attributes(
+    spec: &FnSpec<'_>,
+    method_name: &str,
+) -> syn::Result<()> {
     if let Some(text_signature) = &spec.text_signature {
         bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with `{}`", method_name));
     }
@@ -259,7 +262,7 @@ fn ensure_no_forbidden_protocol_attributes(spec: &FnSpec, method_name: &str) -> 
 /// Also used by pyfunction.
 pub fn impl_py_method_def(
     cls: &syn::Type,
-    spec: &FnSpec,
+    spec: &FnSpec<'_>,
     flags: Option<TokenStream>,
 ) -> Result<TokenStream> {
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
@@ -276,7 +279,7 @@ pub fn impl_py_method_def(
     })
 }
 
-fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
     let wrapper_ident = syn::Ident::new("__pymethod__new__", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {{
@@ -291,7 +294,7 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     }})
 }
 
-fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
+fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>) -> Result<TokenStream> {
     // HACK: __call__ proto slot must always use varargs calling convention, so change the spec.
     // Probably indicates there's a refactoring opportunity somewhere.
     spec.convention = CallingConvention::Varargs;
@@ -307,7 +310,7 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
     }})
 }
 
-fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> TokenStream {
+fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> TokenStream {
     let ident = spec.name;
     quote! {{
         pub unsafe extern "C" fn __wrap_(
@@ -337,7 +340,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec) -> TokenStream {
     }}
 }
 
-fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
+fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
@@ -357,7 +360,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     }
 }
 
-fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+fn impl_call_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
 
     if args.is_empty() {
@@ -380,7 +383,7 @@ fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
-pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
+pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -443,7 +446,7 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     })
 }
 
-fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+fn impl_call_getter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
     ensure_spanned!(
         args.is_empty(),
@@ -461,7 +464,7 @@ fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
-pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
+pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -518,7 +521,7 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
-fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
+fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg<'_>>, &[FnArg<'_>]) {
     match args {
         [py, args @ ..] if utils::is_python(py.ty) => (Some(py), args),
         args => (None, args),
@@ -563,7 +566,7 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self) -> Cow<PythonDoc> {
+    fn doc(&self) -> Cow<'_, PythonDoc> {
         match self {
             PropertyType::Descriptor { field, .. } => {
                 Cow::Owned(utils::get_doc(&field.attrs, None))
@@ -712,7 +715,7 @@ impl Ty {
         cls: &syn::Type,
         py: &syn::Ident,
         ident: &syn::Ident,
-        arg: &FnArg,
+        arg: &FnArg<'_>,
         extract_error_mode: ExtractErrorMode,
     ) -> TokenStream {
         match self {
@@ -911,7 +914,7 @@ impl SlotDef {
     fn generate_type_slot(
         &self,
         cls: &syn::Type,
-        spec: &FnSpec,
+        spec: &FnSpec<'_>,
         method_name: &str,
     ) -> Result<TokenStream> {
         let SlotDef {
@@ -969,7 +972,7 @@ fn generate_method_arguments(arguments: &[Ty]) -> impl Iterator<Item = TokenStre
 
 fn generate_method_body(
     cls: &syn::Type,
-    spec: &FnSpec,
+    spec: &FnSpec<'_>,
     py: &syn::Ident,
     arguments: &[Ty],
     extract_error_mode: ExtractErrorMode,
@@ -1022,7 +1025,7 @@ impl SlotFragmentDef {
         self
     }
 
-    fn generate_pyproto_fragment(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    fn generate_pyproto_fragment(&self, cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
         let SlotFragmentDef {
             fragment,
             arguments,
@@ -1111,7 +1114,7 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
 fn extract_proto_arguments(
     cls: &syn::Type,
     py: &syn::Ident,
-    method_args: &[FnArg],
+    method_args: &[FnArg<'_>],
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
 ) -> Result<(Vec<Ident>, usize, TokenStream)> {

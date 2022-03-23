@@ -15,7 +15,7 @@ pub struct ModuleDef {
 }
 
 /// Wrapper to enable initializer to be used in const fns.
-pub struct ModuleInitializer(pub fn(Python, &PyModule) -> PyResult<()>);
+pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &PyModule) -> PyResult<()>);
 
 unsafe impl Sync for ModuleDef {}
 
@@ -53,7 +53,7 @@ impl ModuleDef {
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python) -> PyResult<PyObject> {
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyObject> {
         let module = unsafe {
             Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
         };
@@ -154,7 +154,7 @@ mod tests {
         static INIT_CALLED: AtomicBool = AtomicBool::new(false);
 
         #[allow(clippy::unnecessary_wraps)]
-        fn init(_: Python, _: &PyModule) -> PyResult<()> {
+        fn init(_: Python<'_>, _: &PyModule) -> PyResult<()> {
             INIT_CALLED.store(true, Ordering::SeqCst);
             Ok(())
         }

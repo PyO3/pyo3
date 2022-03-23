@@ -8,9 +8,18 @@
         rustdoc::bare_urls
     )
 )]
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
-#![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
+#![doc(test(attr(
+    deny(
+        elided_lifetimes_in_paths,
+        unused_lifetimes,
+        rust_2021_prelude_collisions,
+        warnings
+    ),
+    allow(unused_variables, unused_assignments)
+)))]
 #![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
@@ -160,7 +169,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
+//! fn string_sum(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())

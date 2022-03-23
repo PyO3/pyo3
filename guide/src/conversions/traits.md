@@ -253,7 +253,7 @@ enum RustyEnum<'a> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         {
 #             let thing = 42_u8.to_object(py);
-#             let rust_thing: RustyEnum = thing.extract(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
 # 
 #             assert_eq!(
 #                 42,
@@ -265,7 +265,7 @@ enum RustyEnum<'a> {
 #         }
 #         {
 #             let thing = PyString::new(py, "text");
-#             let rust_thing: RustyEnum = thing.extract()?;
+#             let rust_thing: RustyEnum<'_> = thing.extract()?;
 # 
 #             assert_eq!(
 #                 "text",
@@ -277,7 +277,7 @@ enum RustyEnum<'a> {
 #         }
 #         {
 #             let thing = (32_u8, 73_u8).to_object(py);
-#             let rust_thing: RustyEnum = thing.extract(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
 # 
 #             assert_eq!(
 #                 (32, 73),
@@ -289,7 +289,7 @@ enum RustyEnum<'a> {
 #         }
 #         {
 #             let thing = ("foo", 73_u8).to_object(py);
-#             let rust_thing: RustyEnum = thing.extract(py)?;
+#             let rust_thing: RustyEnum<'_> = thing.extract(py)?;
 # 
 #             assert_eq!(
 #                 (String::from("foo"), 73),
@@ -313,7 +313,7 @@ enum RustyEnum<'a> {
 # 
 #             let class = module.getattr("Foo")?;
 #             let instance = class.call0()?;
-#             let rust_thing: RustyEnum = instance.extract()?;
+#             let rust_thing: RustyEnum<'_> = instance.extract()?;
 # 
 #             assert_eq!(
 #                 (0, 1, 2),
@@ -337,7 +337,7 @@ enum RustyEnum<'a> {
 # 
 #             let class = module.getattr("Foo")?;
 #             let instance = class.call0()?;
-#             let rust_thing: RustyEnum = instance.extract()?;
+#             let rust_thing: RustyEnum<'_> = instance.extract()?;
 # 
 #             assert_eq!(
 #                 (3, 4),
@@ -350,7 +350,7 @@ enum RustyEnum<'a> {
 # 
 #         {
 #             let thing = PyBytes::new(py, b"text");
-#             let rust_thing: RustyEnum = thing.extract()?;
+#             let rust_thing: RustyEnum<'_> = thing.extract()?;
 # 
 #             assert_eq!(
 #                 b"text",
@@ -464,7 +464,7 @@ use pyo3::prelude::*;
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.0
     }
 }

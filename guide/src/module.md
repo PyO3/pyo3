@@ -12,7 +12,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -34,7 +34,7 @@ fn double(x: usize) -> usize {
 
 #[pymodule]
 #[pyo3(name = "custom_name")]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -76,7 +76,7 @@ references to the `PyModule` so that each module registers its own FFI code. For
 use pyo3::prelude::*;
 
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     dirutil::register(py, m)?;
     osutil::register(py, m)?;
     Ok(())
@@ -86,7 +86,7 @@ fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
 # mod dirutil {
 use pyo3::prelude::*;
 
-pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
+pub(crate) fn register(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<SomeClass>()?;
     Ok(())
 }
@@ -99,7 +99,7 @@ struct SomeClass {/* ... */}
 # mod osutil {
 use pyo3::prelude::*;
 
-pub(crate) fn register(py: Python, m: &PyModule) -> PyResult<()> {
+pub(crate) fn register(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
     Ok(())
 }
@@ -120,7 +120,7 @@ use pyo3::prelude::*;
 use osutil::*;
 
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(determine_current_os, m)?)?;
     Ok(())
 }
@@ -146,12 +146,12 @@ For example, you could define the modules `parent_module` and `parent_module.chi
 use pyo3::prelude::*;
 
 #[pymodule]
-fn parent_module(py: Python, m: &PyModule) -> PyResult<()> {
+fn parent_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     register_child_module(py, m)?;
     Ok(())
 }
 
-fn register_child_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
+fn register_child_module(py: Python<'_>, parent_module: &PyModule) -> PyResult<()> {
     let child_module = PyModule::new(py, "child_module")?;
     child_module.add_function(wrap_pyfunction!(func, child_module)?)?;
     parent_module.add_submodule(child_module)?;

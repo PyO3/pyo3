@@ -11,7 +11,7 @@ pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
 /// GC support
 #[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyGCProtocol<'p>: PyClass {
-    fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
+    fn __traverse__(&'p self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
 }
 

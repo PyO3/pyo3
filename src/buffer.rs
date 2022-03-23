@@ -38,7 +38,7 @@ unsafe impl<T> Send for PyBuffer<T> {}
 unsafe impl<T> Sync for PyBuffer<T> {}
 
 impl<T> Debug for PyBuffer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PyBuffer")
             .field("buf", &self.0.buf)
             .field("obj", &self.0.obj)
@@ -459,7 +459,7 @@ impl<T: Element> PyBuffer<T> {
     /// To check whether the buffer format is compatible before calling this method,
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
-    pub fn copy_to_slice(&self, py: Python, target: &mut [T]) -> PyResult<()> {
+    pub fn copy_to_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
         self.copy_to_slice_impl(py, target, b'C')
     }
 
@@ -472,11 +472,11 @@ impl<T: Element> PyBuffer<T> {
     /// To check whether the buffer format is compatible before calling this method,
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
-    pub fn copy_to_fortran_slice(&self, py: Python, target: &mut [T]) -> PyResult<()> {
+    pub fn copy_to_fortran_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
         self.copy_to_slice_impl(py, target, b'F')
     }
 
-    fn copy_to_slice_impl(&self, py: Python, target: &mut [T], fort: u8) -> PyResult<()> {
+    fn copy_to_slice_impl(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
             return Err(PyBufferError::new_err(format!(
                 "slice to copy to (of length {}) does not match buffer length of {}",
@@ -506,7 +506,7 @@ impl<T: Element> PyBuffer<T> {
     /// If the buffer is multi-dimensional, the elements are written in C-style order.
     ///
     /// Fails if the buffer format is not compatible with type `T`.
-    pub fn to_vec(&self, py: Python) -> PyResult<Vec<T>> {
+    pub fn to_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
         self.to_vec_impl(py, b'C')
     }
 
@@ -514,11 +514,11 @@ impl<T: Element> PyBuffer<T> {
     /// If the buffer is multi-dimensional, the elements are written in Fortran-style order.
     ///
     /// Fails if the buffer format is not compatible with type `T`.
-    pub fn to_fortran_vec(&self, py: Python) -> PyResult<Vec<T>> {
+    pub fn to_fortran_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
         self.to_vec_impl(py, b'F')
     }
 
-    fn to_vec_impl(&self, py: Python, fort: u8) -> PyResult<Vec<T>> {
+    fn to_vec_impl(&self, py: Python<'_>, fort: u8) -> PyResult<Vec<T>> {
         let item_count = self.item_count();
         let mut vec: Vec<T> = Vec::with_capacity(item_count);
         unsafe {
@@ -554,7 +554,7 @@ impl<T: Element> PyBuffer<T> {
     /// To check whether the buffer format is compatible before calling this method,
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
-    pub fn copy_from_slice(&self, py: Python, source: &[T]) -> PyResult<()> {
+    pub fn copy_from_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
         self.copy_from_slice_impl(py, source, b'C')
     }
 
@@ -568,11 +568,11 @@ impl<T: Element> PyBuffer<T> {
     /// To check whether the buffer format is compatible before calling this method,
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
-    pub fn copy_from_fortran_slice(&self, py: Python, source: &[T]) -> PyResult<()> {
+    pub fn copy_from_fortran_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
         self.copy_from_slice_impl(py, source, b'F')
     }
 
-    fn copy_from_slice_impl(&self, py: Python, source: &[T], fort: u8) -> PyResult<()> {
+    fn copy_from_slice_impl(&self, py: Python<'_>, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
             return Err(PyBufferError::new_err("cannot write to read-only buffer"));
         } else if mem::size_of_val(source) != self.len_bytes() {
@@ -607,7 +607,7 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
-    pub fn release(self, _py: Python) {
+    pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would acquire the GIL and call PyBuffer_Release
         // again.)

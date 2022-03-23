@@ -37,7 +37,7 @@ impl PyCallbackOutput for () {
 
 /// Convert the result of callback function into the appropriate return value.
 pub trait IntoPyCallbackOutput<Target> {
-    fn convert(self, py: Python) -> PyResult<Target>;
+    fn convert(self, py: Python<'_>) -> PyResult<Target>;
 }
 
 impl<T, E, U> IntoPyCallbackOutput<U> for Result<T, E>
@@ -46,7 +46,7 @@ where
     E: Into<PyErr>,
 {
     #[inline]
-    fn convert(self, py: Python) -> PyResult<U> {
+    fn convert(self, py: Python<'_>) -> PyResult<U> {
         self.map_err(Into::into).and_then(|t| t.convert(py))
     }
 }
@@ -56,42 +56,42 @@ where
     T: IntoPy<PyObject>,
 {
     #[inline]
-    fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
+    fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         Ok(self.into_py(py).into_ptr())
     }
 }
 
 impl IntoPyCallbackOutput<Self> for *mut ffi::PyObject {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<Self> {
+    fn convert(self, _: Python<'_>) -> PyResult<Self> {
         Ok(self)
     }
 }
 
 impl IntoPyCallbackOutput<std::os::raw::c_int> for () {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<std::os::raw::c_int> {
+    fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
         Ok(0)
     }
 }
 
 impl IntoPyCallbackOutput<std::os::raw::c_int> for bool {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<std::os::raw::c_int> {
+    fn convert(self, _: Python<'_>) -> PyResult<std::os::raw::c_int> {
         Ok(self as c_int)
     }
 }
 
 impl IntoPyCallbackOutput<()> for () {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<()> {
+    fn convert(self, _: Python<'_>) -> PyResult<()> {
         Ok(())
     }
 }
 
 impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
     #[inline]
-    fn convert(self, _py: Python) -> PyResult<ffi::Py_ssize_t> {
+    fn convert(self, _py: Python<'_>) -> PyResult<ffi::Py_ssize_t> {
         if self <= (isize::MAX as usize) {
             Ok(self as isize)
         } else {
@@ -104,14 +104,14 @@ impl IntoPyCallbackOutput<ffi::Py_ssize_t> for usize {
 
 impl IntoPyCallbackOutput<bool> for bool {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<bool> {
+    fn convert(self, _: Python<'_>) -> PyResult<bool> {
         Ok(self)
     }
 }
 
 impl IntoPyCallbackOutput<usize> for usize {
     #[inline]
-    fn convert(self, _: Python) -> PyResult<usize> {
+    fn convert(self, _: Python<'_>) -> PyResult<usize> {
         Ok(self)
     }
 }
@@ -121,7 +121,7 @@ where
     T: IntoPy<PyObject>,
 {
     #[inline]
-    fn convert(self, py: Python) -> PyResult<PyObject> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyObject> {
         Ok(self.into_py(py))
     }
 }
@@ -155,7 +155,7 @@ pub struct HashCallbackOutput(Py_hash_t);
 
 impl IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput {
     #[inline]
-    fn convert(self, _py: Python) -> PyResult<Py_hash_t> {
+    fn convert(self, _py: Python<'_>) -> PyResult<Py_hash_t> {
         let hash = self.0;
         if hash == -1 {
             Ok(-2)
@@ -170,14 +170,14 @@ where
     T: WrappingCastTo<Py_hash_t>,
 {
     #[inline]
-    fn convert(self, _py: Python) -> PyResult<HashCallbackOutput> {
+    fn convert(self, _py: Python<'_>) -> PyResult<HashCallbackOutput> {
         Ok(HashCallbackOutput(self.wrapping_cast()))
     }
 }
 
 #[doc(hidden)]
 #[inline]
-pub fn convert<T, U>(py: Python, value: T) -> PyResult<U>
+pub fn convert<T, U>(py: Python<'_>, value: T) -> PyResult<U>
 where
     T: IntoPyCallbackOutput<U>,
 {
@@ -237,7 +237,7 @@ macro_rules! callback_body {
 #[inline]
 pub unsafe fn handle_panic<F, R>(body: F) -> R
 where
-    F: FnOnce(Python) -> PyResult<R> + UnwindSafe,
+    F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
 {
     let pool = GILPool::new();
@@ -250,7 +250,7 @@ where
 #[doc(hidden)]
 #[inline]
 pub fn panic_result_into_callback_output<R>(
-    py: Python,
+    py: Python<'_>,
     panic_result: Result<PyResult<R>, Box<dyn Any + Send + 'static>>,
 ) -> R
 where

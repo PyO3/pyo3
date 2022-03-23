@@ -33,7 +33,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -44,7 +44,7 @@ where
     V: IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -72,7 +72,7 @@ impl<T> ToPyObject for hashbrown::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -88,7 +88,7 @@ where
     K: IntoPy<PyObject> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
             for val in self {

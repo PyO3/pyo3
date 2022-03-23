@@ -28,7 +28,7 @@ impl std::convert::From<io::Error> for PyErr {
 }
 
 impl PyErrArguments for io::Error {
-    fn arguments(self, py: Python) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> PyObject {
         self.to_string().into_py(py)
     }
 }
@@ -42,7 +42,7 @@ impl<W: 'static + Send + Sync + std::fmt::Debug> std::convert::From<std::io::Int
 }
 
 impl<W: Send + Sync + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
-    fn arguments(self, py: Python) -> PyObject {
+    fn arguments(self, py: Python<'_>) -> PyObject {
         self.to_string().into_py(py)
     }
 }
@@ -56,7 +56,7 @@ impl std::convert::From<std::convert::Infallible> for PyErr {
 macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
-            fn arguments(self, py: Python) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> PyObject {
                 self.to_string().into_py(py)
             }
         }

@@ -21,7 +21,7 @@ impl ExampleClass {
 
 /// An example module implemented in Rust using PyO3.
 #[pymodule]
-fn _setuptools_rust_starter(py: Python, m: &PyModule) -> PyResult<()> {
+fn _setuptools_rust_starter(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<ExampleClass>()?;
     m.add_wrapped(wrap_pymodule!(submodule))?;
 

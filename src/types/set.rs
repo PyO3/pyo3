@@ -37,7 +37,7 @@ impl PySet {
     }
 
     /// Creates a new empty set.
-    pub fn empty(py: Python) -> PyResult<&PySet> {
+    pub fn empty(py: Python<'_>) -> PyResult<&PySet> {
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
     }
 
@@ -111,7 +111,7 @@ impl PySet {
     /// Returns an iterator of values in this set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    pub fn iter(&self) -> PySetIterator {
+    pub fn iter(&self) -> PySetIterator<'_> {
         PySetIterator::new(self)
     }
 }
@@ -123,7 +123,7 @@ pub struct PySetIterator<'p> {
 
 #[cfg(Py_LIMITED_API)]
 impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator {
+    fn new(set: &PyAny) -> PySetIterator<'_> {
         PySetIterator {
             it: PyIterator::from_object(set.py(), set).unwrap(),
         }
@@ -148,7 +148,7 @@ pub struct PySetIterator<'py> {
 
 #[cfg(not(Py_LIMITED_API))]
 impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator {
+    fn new(set: &PyAny) -> PySetIterator<'_> {
         PySetIterator { set, pos: 0 }
     }
 }
@@ -195,7 +195,7 @@ where
     T: hash::Hash + Eq + ToPyObject,
     S: hash::BuildHasher + Default,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -210,7 +210,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -226,7 +226,7 @@ where
     K: IntoPy<PyObject> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
             for val in self {
@@ -252,7 +252,7 @@ impl<K> IntoPy<PyObject> for BTreeSet<K>
 where
     K: IntoPy<PyObject> + cmp::Ord,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
             for val in self {
@@ -283,7 +283,7 @@ impl PyFrozenSet {
     }
 
     /// Creates a new empty frozen set
-    pub fn empty(py: Python) -> PyResult<&PyFrozenSet> {
+    pub fn empty(py: Python<'_>) -> PyResult<&PyFrozenSet> {
         unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
     }
 
@@ -317,7 +317,7 @@ impl PyFrozenSet {
     /// Returns an iterator of values in this frozen set.
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
-    pub fn iter(&self) -> PySetIterator {
+    pub fn iter(&self) -> PySetIterator<'_> {
         PySetIterator::new(self.as_ref())
     }
 }

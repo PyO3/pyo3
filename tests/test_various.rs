@@ -18,7 +18,7 @@ impl MutRefArg {
     fn get(&self) -> i32 {
         self.n
     }
-    fn set_other(&self, mut other: PyRefMut<MutRefArg>) {
+    fn set_other(&self, mut other: PyRefMut<'_, MutRefArg>) {
         other.n = 100;
     }
 }
@@ -137,7 +137,7 @@ impl PickleSupport {
     }
 }
 
-fn add_module(py: Python, module: &PyModule) -> PyResult<()> {
+fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     py.import("sys")?
         .dict()
         .get_item("modules")
@@ -182,7 +182,7 @@ struct MyError {
 }
 
 impl fmt::Display for MyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "My error message: {}", self.descr)
     }
 }

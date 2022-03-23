@@ -164,7 +164,7 @@ pub struct GILGuard {
 impl GILGuard {
     /// Retrieves the marker type that proves that the GIL was acquired.
     #[inline]
-    pub fn python(&self) -> Python {
+    pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 
@@ -298,7 +298,7 @@ impl ReferencePool {
         self.dirty.store(true, atomic::Ordering::Release);
     }
 
-    fn update_counts(&self, _py: Python) {
+    fn update_counts(&self, _py: Python<'_>) {
         let prev = self.dirty.swap(false, atomic::Ordering::Acquire);
         if !prev {
             return;
@@ -360,7 +360,7 @@ impl GILPool {
 
     /// Gets the Python token associated with this [`GILPool`].
     #[inline]
-    pub fn python(&self) -> Python {
+    pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -424,7 +424,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
+pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
     let _ = OWNED_OBJECTS.try_with(|holder| holder.borrow_mut().push(obj));
@@ -483,7 +483,7 @@ impl EnsureGIL {
     /// Thus this method could be used to get access to a GIL token while the GIL is not held.
     /// Care should be taken to only use the returned Python in contexts where it is certain the
     /// GIL continues to be held.
-    pub unsafe fn python(&self) -> Python {
+    pub unsafe fn python(&self) -> Python<'_> {
         match &self.0 {
             Some(gil) => gil.python(),
             None => Python::assume_gil_acquired(),
@@ -497,7 +497,7 @@ mod tests {
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
-    fn get_object(py: Python) -> PyObject {
+    fn get_object(py: Python<'_>) -> PyObject {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
         // the original pool state unchanged.
         let pool = unsafe { py.new_pool() };

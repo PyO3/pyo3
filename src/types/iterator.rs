@@ -99,7 +99,7 @@ impl Py<PyIterator> {
     /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python) -> &PyIterator {
+    pub fn into_ref(self, py: Python<'_>) -> &PyIterator {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
@@ -212,7 +212,8 @@ def fibonacci(target):
     fn iterator_try_from() {
         Python::with_gil(|py| {
             let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter: &PyIterator = PyIterator::try_from(obj.as_ref(py)).unwrap();
+            let iter: &PyIterator =
+                <PyIterator as PyTryFrom<'_>>::try_from(obj.as_ref(py)).unwrap();
             assert!(obj.is(iter));
         });
     }

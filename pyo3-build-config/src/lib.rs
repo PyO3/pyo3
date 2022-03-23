@@ -5,6 +5,8 @@
 //!
 //! It used internally by the PyO3 crate's build script to apply the same configuration.
 
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+
 mod errors;
 mod impl_;
 

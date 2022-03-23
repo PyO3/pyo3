@@ -5,7 +5,7 @@ struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-    fn __truediv__(&self, _py: Python) -> PyResult<()> {
+    fn __truediv__(&self, _py: Python<'_>) -> PyResult<()> {
         Ok(())
     }
 }

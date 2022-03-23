@@ -5,14 +5,14 @@ use pyo3::types::IntoPyDict;
 use pyo3_ffi::PyDateTime_IMPORT;
 
 fn _get_subclasses<'p>(
-    py: &'p Python,
+    py: Python<'p>,
     py_type: &str,
     args: &str,
 ) -> PyResult<(&'p PyAny, &'p PyAny, &'p PyAny)> {
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(*py);
+    let locals = [(py_type, datetime.getattr(py_type)?)].into_py_dict(py);
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
@@ -57,7 +57,7 @@ macro_rules! assert_check_only {
 fn test_date_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "date", "2018, 1, 1").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
     unsafe { PyDateTime_IMPORT() }
     assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
     assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
@@ -68,7 +68,7 @@ fn test_date_check() {
 fn test_time_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "time", "12, 30, 15").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
     unsafe { PyDateTime_IMPORT() }
 
     assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
@@ -80,7 +80,7 @@ fn test_time_check() {
 fn test_datetime_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "datetime", "2018, 1, 1, 13, 30, 15")
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
         .map_err(|e| e.print(py))
         .unwrap();
     unsafe { PyDateTime_IMPORT() }
@@ -95,7 +95,7 @@ fn test_datetime_check() {
 fn test_delta_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "timedelta", "1, -3").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
     unsafe { PyDateTime_IMPORT() }
 
     assert_check_exact!(PyDelta_Check, PyDelta_CheckExact, obj);

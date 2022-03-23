@@ -72,7 +72,7 @@ mod tests {
         });
     }
 
-    fn equal(_py: Python, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {
+    fn equal(_py: Python<'_>, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {
         unsafe { ffi::PyObject_RichCompareBool(a.as_ptr(), b.as_ptr(), ffi::Py_EQ) != 0 }
     }
 }

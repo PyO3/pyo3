@@ -22,8 +22,8 @@ When PyO3 handles a magic method, a couple of changes apply compared to other `#
 The following sections list of all magic methods PyO3 currently handles.  The
 given signatures should be interpreted as follows:
  - All methods take a receiver as first argument, shown as `<self>`. It can be
-   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<Self>` and
-   `self_: PyRefMut<Self>`, as described [here](../class.md#inheritance).
+   `&self`, `&mut self` or a `PyCell` reference like `self_: PyRef<'_, Self>` and
+   `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
  - An optional `Python<'py>` argument is always allowed as the first argument.
  - Return values can be optionally wrapped in `PyResult`.
  - `object` means that any type is allowed that can be extracted from a Python
@@ -118,10 +118,10 @@ struct MyIterator {
 
 #[pymethods]
 impl MyIterator {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
         slf.iter.next()
     }
 }
@@ -142,11 +142,11 @@ struct Iter {
 
 #[pymethods]
 impl Iter {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<usize> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<usize> {
         slf.inner.next()
     }
 }
@@ -158,7 +158,7 @@ struct Container {
 
 #[pymethods]
 impl Container {
-    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<Iter>> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Iter>> {
         let iter = Iter {
             inner: slf.iter.clone().into_iter(),
         };
@@ -355,7 +355,7 @@ object.  `__clear__` must clear out any mutable references to other Python
 objects (thus breaking reference cycles). Immutable references do not have to be
 cleared, as every cycle must contain at least one mutable reference.
 
-  - `__traverse__(<self>, pyo3::class::gc::PyVisit) -> Result<(), pyo3::class::gc::PyTraverseError>`
+  - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
   - `__clear__(<self>) -> ()`
 
 Example:
@@ -372,7 +372,7 @@ struct ClassWithGCSupport {
 
 #[pymethods]
 impl ClassWithGCSupport {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if let Some(obj) = &self.obj {
             visit.call(obj)?
         }
@@ -580,10 +580,10 @@ For a mapping, the keys may be Python objects of arbitrary type.
 
 Iterators can be defined using the [`PyIterProtocol`] trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
+  * `fn __iter__(slf: PyRefMut<'_, Self>) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __next__(slf: PyRefMut<'_, Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
-These two methods can be take either `PyRef<Self>` or `PyRefMut<Self>` as their
+These two methods can be take either `PyRef<'_, Self>` or `PyRefMut<'_, Self>` as their
 first argument, so that mutable borrow can be avoided if needed.
 
 For details, look at the `#[pymethods]` regarding iterator methods.

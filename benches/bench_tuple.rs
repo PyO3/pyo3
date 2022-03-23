@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
-fn iter_tuple(b: &mut Bencher) {
+fn iter_tuple(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -17,14 +17,14 @@ fn iter_tuple(b: &mut Bencher) {
     });
 }
 
-fn tuple_new(b: &mut Bencher) {
+fn tuple_new(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
     b.iter(|| PyTuple::new(py, 0..LEN));
 }
 
-fn tuple_get_item(b: &mut Bencher) {
+fn tuple_get_item(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
@@ -38,7 +38,7 @@ fn tuple_get_item(b: &mut Bencher) {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-fn tuple_get_item_unchecked(b: &mut Bencher) {
+fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;

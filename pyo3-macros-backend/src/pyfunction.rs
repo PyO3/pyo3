@@ -50,7 +50,7 @@ enum PyFunctionArgPyO3Attribute {
 }
 
 impl Parse for PyFunctionArgPyO3Attribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::from_py_with) {
             input.parse().map(PyFunctionArgPyO3Attribute::FromPyWith)
@@ -87,7 +87,7 @@ impl PyFunctionArgPyO3Attributes {
 }
 
 impl syn::parse::Parse for PyFunctionSignature {
-    fn parse(input: &ParseBuffer) -> syn::Result<Self> {
+    fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
         let attr = Punctuated::<NestedMeta, syn::Token![,]>::parse_terminated(input)?;
         Self::from_meta(&attr)
     }
@@ -243,7 +243,7 @@ pub struct PyFunctionOptions {
 }
 
 impl Parse for PyFunctionOptions {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let mut options = PyFunctionOptions::default();
 
         while !input.is_empty() {
@@ -282,7 +282,7 @@ pub enum PyFunctionOption {
 }
 
 impl Parse for PyFunctionOption {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(PyFunctionOption::Name)

@@ -32,7 +32,7 @@ pub trait PyClassDict {
     fn new() -> Self;
     /// Empties the dictionary of its key-value pairs.
     #[inline]
-    fn clear_dict(&mut self, _py: Python) {}
+    fn clear_dict(&mut self, _py: Python<'_>) {}
     private_decl! {}
 }
 
@@ -46,7 +46,7 @@ pub trait PyClassWeakRef {
     /// - `_obj` must be a pointer to the pyclass instance which contains `self`.
     /// - The GIL must be held.
     #[inline]
-    unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
+    unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python<'_>) {}
     private_decl! {}
 }
 
@@ -82,7 +82,7 @@ impl PyClassDict for PyClassDictSlot {
         Self(std::ptr::null_mut())
     }
     #[inline]
-    fn clear_dict(&mut self, _py: Python) {
+    fn clear_dict(&mut self, _py: Python<'_>) {
         if !self.0.is_null() {
             unsafe { ffi::PyDict_Clear(self.0) }
         }
@@ -102,7 +102,7 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
         Self(std::ptr::null_mut())
     }
     #[inline]
-    unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python) {
+    unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python<'_>) {
         if !self.0.is_null() {
             ffi::PyObject_ClearWeakRefs(obj)
         }
@@ -205,7 +205,7 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __getattribute__(
         self,
-        py: Python,
+        py: Python<'_>,
         slf: *mut ffi::PyObject,
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
@@ -225,7 +225,7 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __getattr__(
         self,
-        py: Python,
+        py: Python<'_>,
         _slf: *mut ffi::PyObject,
         attr: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
@@ -299,7 +299,7 @@ macro_rules! define_pyclass_setattr_slot {
             #[inline]
             unsafe fn $set(
                 self,
-                _py: Python,
+                _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
                 _value: NonNull<ffi::PyObject>,
@@ -315,7 +315,7 @@ macro_rules! define_pyclass_setattr_slot {
             #[inline]
             unsafe fn $del(
                 self,
-                _py: Python,
+                _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _attr: *mut ffi::PyObject,
             ) -> PyResult<()> {
@@ -416,7 +416,7 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $lhs(
                 self,
-                _py: Python,
+                _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
@@ -431,7 +431,7 @@ macro_rules! define_pyclass_binary_operator_slot {
             #[inline]
             unsafe fn $rhs(
                 self,
-                _py: Python,
+                _py: Python<'_>,
                 _slf: *mut ffi::PyObject,
                 _other: *mut ffi::PyObject,
             ) -> PyResult<*mut ffi::PyObject> {
@@ -611,7 +611,7 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __pow__(
         self,
-        _py: Python,
+        _py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
@@ -627,7 +627,7 @@ slot_fragment_trait! {
     #[inline]
     unsafe fn __rpow__(
         self,
-        _py: Python,
+        _py: Python<'_>,
         _slf: *mut ffi::PyObject,
         _other: *mut ffi::PyObject,
         _mod: *mut ffi::PyObject,
@@ -675,7 +675,7 @@ pub use generate_pyclass_pow_slot;
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList: PyClass {
-    fn get_free_list(py: Python) -> &mut FreeList<*mut ffi::PyObject>;
+    fn get_free_list(py: Python<'_>) -> &mut FreeList<*mut ffi::PyObject>;
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
@@ -737,7 +737,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
 /// Workaround for Python issue 35810; no longer necessary in Python 3.8
 #[inline]
 #[cfg(not(Py_3_8))]
-unsafe fn bpo_35810_workaround(_py: Python, ty: *mut ffi::PyTypeObject) {
+unsafe fn bpo_35810_workaround(_py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     #[cfg(Py_LIMITED_API)]
     {
         // Must check version at runtime for abi3 wheels - they could run against a higher version

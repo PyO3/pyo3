@@ -52,7 +52,7 @@ pub unsafe trait PyTypeInfo: Sized {
     type AsRefTarget: PyNativeType;
 
     /// PyTypeObject instance for this type.
-    fn type_object_raw(py: Python) -> *mut ffi::PyTypeObject;
+    fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     fn is_type_of(object: &PyAny) -> bool {
@@ -75,14 +75,14 @@ pub unsafe trait PyTypeInfo: Sized {
 /// See also [PyTypeInfo::type_object_raw](trait.PyTypeInfo.html#tymethod.type_object_raw).
 pub unsafe trait PyTypeObject {
     /// Returns the safe abstraction over the type object.
-    fn type_object(py: Python) -> &PyType;
+    fn type_object(py: Python<'_>) -> &PyType;
 }
 
 unsafe impl<T> PyTypeObject for T
 where
     T: PyTypeInfo,
 {
-    fn type_object(py: Python) -> &PyType {
+    fn type_object(py: Python<'_>) -> &PyType {
         unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
     }
 }
@@ -107,7 +107,7 @@ impl LazyStaticType {
         }
     }
 
-    pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
+    pub fn get_or_init<T: PyClass>(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
         let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
         self.ensure_init(py, type_object, T::NAME, &T::for_all_items);
         type_object
@@ -115,7 +115,7 @@ impl LazyStaticType {
 
     fn ensure_init(
         &self,
-        py: Python,
+        py: Python<'_>,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
         for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
@@ -188,7 +188,7 @@ impl LazyStaticType {
 }
 
 fn initialize_tp_dict(
-    py: Python,
+    py: Python<'_>,
     type_object: *mut ffi::PyObject,
     items: Vec<(&'static std::ffi::CStr, PyObject)>,
 ) -> PyResult<()> {
