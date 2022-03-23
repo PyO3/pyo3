@@ -42,7 +42,7 @@ pub struct KeywordAttribute<K, V> {
 pub struct LitStrValue<T>(pub T);
 
 impl<T: Parse> Parse for LitStrValue<T> {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lit_str: LitStr = input.parse()?;
         lit_str.parse().map(LitStrValue)
     }
@@ -59,7 +59,7 @@ impl<T: ToTokens> ToTokens for LitStrValue<T> {
 pub struct NameLitStr(pub Ident);
 
 impl Parse for NameLitStr {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let string_literal: LitStr = input.parse()?;
         if let Ok(ident) = string_literal.parse() {
             Ok(NameLitStr(ident))
@@ -82,7 +82,7 @@ pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, LitStr>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let kw: K = input.parse()?;
         let _: Token![=] = input.parse()?;
         let value = input.parse()?;
