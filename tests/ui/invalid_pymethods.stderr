@@ -102,10 +102,17 @@ error: `pass_module` cannot be used on Python methods
 112 |     #[pyo3(pass_module)]
     |            ^^^^^^^^^^^
 
-error[E0592]: duplicate definitions with name `__pymethod__new__`
-   --> tests/ui/invalid_pymethods.rs:124:1
+error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
+       Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
+   --> tests/ui/invalid_pymethods.rs:124:29
     |
-124 | #[pymethods]
+124 |     fn method_self_by_value(self){}
+    |                             ^^^^
+
+error[E0592]: duplicate definitions with name `__pymethod__new__`
+   --> tests/ui/invalid_pymethods.rs:129:1
+    |
+129 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | duplicate definitions for `__pymethod__new__`

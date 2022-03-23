@@ -157,14 +157,14 @@ impl SelfType {
                 quote! {
                     let _cell = #cell;
                     let _ref = _cell.try_borrow()?;
-                    let _slf = &_ref;
+                    let _slf: &#cls = &*_ref;
                 }
             }
             SelfType::Receiver { mutable: true } => {
                 quote! {
                     let _cell = #cell;
                     let mut _ref = _cell.try_borrow_mut()?;
-                    let _slf = &mut _ref;
+                    let _slf: &mut #cls = &mut *_ref;
                 }
             }
             SelfType::TryFromPyCell(span) => {
@@ -241,8 +241,15 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
     match arg {
-        syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
-            mutable: recv.mutability.is_some(),
+        syn::FnArg::Receiver(
+            recv @ syn::Receiver {
+                reference: None, ..
+            },
+        ) => {
+            bail_spanned!(recv.span() => RECEIVER_BY_VALUE_ERR);
+        }
+        syn::FnArg::Receiver(syn::Receiver { mutability, .. }) => Ok(SelfType::Receiver {
+            mutable: mutability.is_some(),
         }),
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {
             if let syn::Type::ImplTrait(_) = &**ty {
@@ -735,3 +742,6 @@ fn parse_method_attributes(
 }
 
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
+const RECEIVER_BY_VALUE_ERR: &str =
+    "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
+Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";
