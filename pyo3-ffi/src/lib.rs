@@ -252,6 +252,7 @@
     clippy::upper_case_acronyms,
     clippy::missing_safety_doc
 )]
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:

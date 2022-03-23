@@ -8,6 +8,7 @@
         rustdoc::bare_urls
     )
 )]
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -234,7 +235,7 @@
 //!         let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
 //!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
-//!         println!("Hello {}, I'm Python<'_> {}", user, version);
+//!         println!("Hello {}, I'm Python {}", user, version);
 //!         Ok(())
 //!     })
 //! }
