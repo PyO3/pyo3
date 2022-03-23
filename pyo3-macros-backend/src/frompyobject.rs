@@ -252,7 +252,9 @@ impl<'a> Container<'a> {
                 None => quote!(
                     obj.get_item(#index)?.extract()
                 ),
-                Some(FromPyWithAttribute(expr_path)) => quote! (
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! (
                     #expr_path(obj.get_item(#index)?)
                 ),
             };
@@ -308,7 +310,9 @@ impl<'a> Container<'a> {
                     new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?),
-                Some(FromPyWithAttribute(expr_path)) => quote! (
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
                         let py = _pyo3::PyNativeType::py(obj);
                         let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
@@ -388,7 +392,7 @@ impl ContainerOptions {
                         ContainerPyO3Attribute::Crate(path) => {
                             ensure_spanned!(
                                 options.krate.is_none(),
-                                path.0.span() => "`crate` may only be provided once"
+                                path.span() => "`crate` may only be provided once"
                             );
                             options.krate = Some(path);
                         }

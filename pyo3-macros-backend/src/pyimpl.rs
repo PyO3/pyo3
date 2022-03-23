@@ -61,7 +61,7 @@ impl PyImplOptions {
     fn set_crate(&mut self, path: CrateAttribute) -> Result<()> {
         ensure_spanned!(
             self.krate.is_none(),
-            path.0.span() => "`crate` may only be specified once"
+            path.span() => "`crate` may only be specified once"
         );
 
         self.krate = Some(path);

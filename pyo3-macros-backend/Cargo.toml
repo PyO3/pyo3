@@ -16,12 +16,12 @@ edition = "2018"
 [dependencies]
 quote = { version = "1", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.2", features = ["resolve-config"] }
 
 [dependencies.syn]
-version = "1"
+version = "1.0.56"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
 
 [features]
 pyproto = []
+abi3 = []

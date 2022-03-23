@@ -77,7 +77,8 @@ pub fn get_doc(
     syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
         if let Some((python_name, text_signature)) = text_signature {
             // create special doc string lines to set `__text_signature__`
-            let signature_lines = format!("{}{}\n--\n\n", python_name, text_signature.lit.value());
+            let signature_lines =
+                format!("{}{}\n--\n\n", python_name, text_signature.value.value());
             signature_lines.to_tokens(tokens);
             comma.to_tokens(tokens);
         }
@@ -154,13 +155,6 @@ pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
     Ok(())
 }
 
-pub fn unwrap_group(mut expr: &syn::Expr) -> &syn::Expr {
-    while let syn::Expr::Group(g) = expr {
-        expr = &*g.expr;
-    }
-    expr
-}
-
 pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     while let syn::Type::Group(g) = ty {
         ty = &*g.elem;
@@ -193,6 +187,6 @@ pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
 /// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
 pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
     attr.as_ref()
-        .map(|p| p.0.clone())
+        .map(|p| p.value.0.clone())
         .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
 }

@@ -231,7 +231,9 @@ fn impl_arg_param(
     let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
-    let arg_value_or_default = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with
+    let arg_value_or_default = if let Some(FromPyWithAttribute {
+        value: expr_path, ..
+    }) = &arg.attrs.from_py_with
     {
         match (spec.default_value(name), arg.optional.is_some()) {
             (Some(default), true) if default.to_string() != "None" => {

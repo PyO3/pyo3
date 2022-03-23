@@ -14,7 +14,7 @@ use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::Result;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
     pub by_ref: &'a Option<syn::token::Ref>,
@@ -183,7 +183,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS  (Py3.7+ and !abi3)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature)
     TpNew,    // special convention for tp_new
 }
 
@@ -199,19 +199,13 @@ impl CallingConvention {
         } else if accept_kwargs {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if can_use_fastcall() {
+        } else if cfg!(not(feature = "abi3")) {
+            // Not available in the Stable ABI as of Python 3.10
             Self::Fastcall
         } else {
             Self::Varargs
         }
     }
-}
-
-fn can_use_fastcall() -> bool {
-    const PY37: pyo3_build_config::PythonVersion =
-        pyo3_build_config::PythonVersion { major: 3, minor: 7 };
-    let config = pyo3_build_config::get();
-    config.version >= PY37 && !config.abi3
 }
 
 pub struct FnSpec<'a> {
@@ -273,7 +267,7 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.0), &mut deprecations)?;
+        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
