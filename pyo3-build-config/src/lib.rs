@@ -61,12 +61,13 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 /// Loads the configuration determined from the build environment.
 ///
 /// Because this will never change in a given compilation run, this is cached in a `once_cell`.
-#[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
-        if !CONFIG_FILE.is_empty() {
+        if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
+            interpreter_config
+        } else if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
@@ -75,7 +76,7 @@ pub fn get() -> &'static InterpreterConfig {
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
-        .expect("failed to parse PyO3 config file")
+        .expect("failed to parse PyO3 config")
     })
 }
 

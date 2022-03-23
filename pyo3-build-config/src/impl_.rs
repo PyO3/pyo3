@@ -8,6 +8,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    str,
     str::FromStr,
 };
 
@@ -154,7 +155,7 @@ impl InterpreterConfig {
         }
 
         for flag in &self.build_flags.0 {
-            println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag)
+            println!("cargo:rustc-cfg=py_sys_config=\"{}\"", flag);
         }
     }
 
@@ -341,6 +342,12 @@ print("mingw", get_platform().startswith("mingw"))
     }
 
     #[doc(hidden)]
+    pub fn from_cargo_dep_env() -> Option<Result<Self>> {
+        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+            .map(|buf| InterpreterConfig::from_reader(buf.replace("\\n", "\n").as_bytes()))
+    }
+
+    #[doc(hidden)]
     pub fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let lines = reader.lines();
@@ -421,6 +428,29 @@ print("mingw", get_platform().startswith("mingw"))
     }
 
     #[doc(hidden)]
+    /// Serialize the `InterpreterConfig` and print it to the environment for Cargo to pass along
+    /// to dependent packages during build time.
+    ///
+    /// NB: writing to the cargo environment requires the
+    /// [`links`](https://doc.rust-lang.org/cargo/reference/build-scripts.html#the-links-manifest-key)
+    /// manifest key to be set. In this case that means this is called by the `pyo3-ffi` crate and
+    /// available for dependent package build scripts in `DEP_PYTHON_PYO3_CONFIG`. See
+    /// documentation for the
+    /// [`DEP_<name>_<key>`](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts)
+    /// environment variable.
+    pub fn to_cargo_dep_env(&self) -> Result<()> {
+        let mut buf = Vec::new();
+        self.to_writer(&mut buf)?;
+        // escape newlines in env var
+        if let Ok(config) = str::from_utf8(&buf) {
+            println!("cargo:PYO3_CONFIG={}", config.replace('\n', "\\n"));
+        } else {
+            bail!("unable to emit interpreter config to link env for downstream use");
+        }
+        Ok(())
+    }
+
+    #[doc(hidden)]
     pub fn to_writer(&self, mut writer: impl Write) -> Result<()> {
         macro_rules! write_line {
             ($value:ident) => {
@@ -461,6 +491,38 @@ print("mingw", get_platform().startswith("mingw"))
                 .context("failed to write extra_build_script_line")?;
         }
         Ok(())
+    }
+
+    /// Run a python script using the [`InterpreterConfig::executable`].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`executable`](InterpreterConfig::executable) is `None`.
+    pub fn run_python_script(&self, script: &str) -> Result<String> {
+        run_python_script_with_envs(
+            Path::new(self.executable.as_ref().expect("no interpreter executable")),
+            script,
+            std::iter::empty::<(&str, &str)>(),
+        )
+    }
+
+    /// Run a python script using the [`InterpreterConfig::executable`] with additional
+    /// environment variables (e.g. PYTHONPATH) set.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the [`executable`](InterpreterConfig::executable) is `None`.
+    pub fn run_python_script_with_envs<I, K, V>(&self, script: &str, envs: I) -> Result<String>
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        run_python_script_with_envs(
+            Path::new(self.executable.as_ref().expect("no interpreter executable")),
+            script,
+            envs,
+        )
     }
 }
 
@@ -1184,8 +1246,20 @@ fn default_lib_name_unix(
 
 /// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter: &Path, script: &str) -> Result<String> {
+    run_python_script_with_envs(interpreter, script, std::iter::empty::<(&str, &str)>())
+}
+
+/// Run a python script using the specified interpreter binary with additional environment
+/// variables (e.g. PYTHONPATH) set.
+fn run_python_script_with_envs<I, K, V>(interpreter: &Path, script: &str, envs: I) -> Result<String>
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<OsStr>,
+    V: AsRef<OsStr>,
+{
     let out = Command::new(interpreter)
         .env("PYTHONIOENCODING", "utf-8")
+        .envs(envs)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -1848,5 +1922,30 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+    }
+
+    #[test]
+    fn test_run_python_script() {
+        // as above, this should be okay in CI where Python is presumed installed
+        let interpreter = make_interpreter_config()
+            .expect("could not get InterpreterConfig from installed interpreter");
+        let out = interpreter
+            .run_python_script("print(2 + 2)")
+            .expect("failed to run Python script");
+        assert_eq!(out.trim_end(), "4");
+    }
+
+    #[test]
+    fn test_run_python_script_with_envs() {
+        // as above, this should be okay in CI where Python is presumed installed
+        let interpreter = make_interpreter_config()
+            .expect("could not get InterpreterConfig from installed interpreter");
+        let out = interpreter
+            .run_python_script_with_envs(
+                "import os; print(os.getenv('PYO3_TEST'))",
+                vec![("PYO3_TEST", "42")],
+            )
+            .expect("failed to run Python script");
+        assert_eq!(out.trim_end(), "42");
     }
 }
