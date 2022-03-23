@@ -17,6 +17,7 @@ proc-macro = true
 multiple-pymethods = []
 
 pyproto = ["pyo3-macros-backend/pyproto"]
+abi3 = ["pyo3-macros-backend/abi3"]
 
 [dependencies]
 proc-macro2 = { version = "1", default-features = false }
