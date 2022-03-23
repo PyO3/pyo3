@@ -8,7 +8,7 @@ macro_rules! test_module {
     };
 }
 
-fn bench_call_0(b: &mut Bencher) {
+fn bench_call_0(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let module = test_module!(py, "def foo(): pass");
 
@@ -22,7 +22,7 @@ fn bench_call_0(b: &mut Bencher) {
     })
 }
 
-fn bench_call_method_0(b: &mut Bencher) {
+fn bench_call_method_0(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let module = test_module!(
             py,

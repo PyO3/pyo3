@@ -9,7 +9,7 @@ mod min_const_generics {
     where
         T: ToPyObject,
     {
-        fn into_py(self, py: Python) -> PyObject {
+        fn into_py(self, py: Python<'_>) -> PyObject {
             self.as_ref().to_object(py)
         }
     }
@@ -149,7 +149,7 @@ mod array_impls {
                 where
                     T: ToPyObject
                 {
-                    fn into_py(self, py: Python) -> PyObject {
+                    fn into_py(self, py: Python<'_>) -> PyObject {
                         self.as_ref().to_object(py)
                     }
                 }

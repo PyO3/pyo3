@@ -23,7 +23,7 @@ pub mod kw {
 pub struct FromPyWithAttribute(pub ExprPath);
 
 impl Parse for FromPyWithAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let _: kw::from_py_with = input.parse()?;
         let _: Token![=] = input.parse()?;
         let string_literal: LitStr = input.parse()?;
@@ -35,7 +35,7 @@ impl Parse for FromPyWithAttribute {
 pub struct NameAttribute(pub Ident);
 
 impl Parse for NameAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let _: kw::name = input.parse()?;
         let _: Token![=] = input.parse()?;
         let string_literal: LitStr = input.parse()?;
@@ -48,7 +48,7 @@ impl Parse for NameAttribute {
 pub struct CrateAttribute(pub Path);
 
 impl Parse for CrateAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let _: Token![crate] = input.parse()?;
         let _: Token![=] = input.parse()?;
         let string_literal: LitStr = input.parse()?;
@@ -64,7 +64,7 @@ pub struct TextSignatureAttribute {
 }
 
 impl Parse for TextSignatureAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         Ok(TextSignatureAttribute {
             kw: input.parse()?,
             eq_token: input.parse()?,

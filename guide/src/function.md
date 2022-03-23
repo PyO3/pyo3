@@ -13,7 +13,7 @@ fn double(x: usize) -> usize {
 }
 
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(double, m)?)?;
     Ok(())
 }
@@ -49,7 +49,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     fn no_args_py() -> usize { 42 }
 
     #[pymodule]
-    fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+    fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(no_args_py, m)?)?;
         Ok(())
     }
@@ -113,7 +113,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     }
 
     #[pymodule]
-    fn module_with_fn(py: Python, m: &PyModule) -> PyResult<()> {
+    fn module_with_fn(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)
     }
     ```
@@ -132,7 +132,7 @@ fn num_kwds(kwds: Option<&PyDict>) -> usize {
 }
 
 #[pymodule]
-fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
     Ok(())
 }
@@ -273,7 +273,7 @@ An example of `#[pyfn]` is below:
 use pyo3::prelude::*;
 
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m)]
     fn double(x: usize) -> usize {
@@ -291,7 +291,7 @@ documented in the rest of this chapter. The code above is expanded to the follow
 use pyo3::prelude::*;
 
 #[pymodule]
-fn my_extension(py: Python, m: &PyModule) -> PyResult<()> {
+fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     #[pyfunction]
     fn double(x: usize) -> usize {

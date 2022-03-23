@@ -50,7 +50,7 @@ impl PyBytes {
     /// })
     /// # }
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyBytes>
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyBytes>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -125,7 +125,7 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
 }
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).to_object(py)
     }
 }

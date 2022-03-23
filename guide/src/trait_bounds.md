@@ -133,7 +133,7 @@ struct UserModel {
 }
 
 #[pymodule]
-fn trait_exposure(_py: Python, m: &PyModule) -> PyResult<()> {
+fn trait_exposure(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<UserModel>()?;
     Ok(())
 }
@@ -487,7 +487,7 @@ pub struct UserModel {
 }
 
 #[pymodule]
-fn trait_exposure(_py: Python, m: &PyModule) -> PyResult<()> {
+fn trait_exposure(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<UserModel>()?;
     m.add_function(wrap_pyfunction!(solve_wrapper, m)?)?;
     Ok(())

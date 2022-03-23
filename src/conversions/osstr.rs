@@ -11,7 +11,7 @@ use std::ffi::{OsStr, OsString};
 use std::os::raw::c_char;
 
 impl ToPyObject for OsStr {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         // If the string is UTF-8, take the quick and easy shortcut
         if let Some(valid_utf8_path) = self.to_str() {
             return valid_utf8_path.to_object(py);
@@ -112,40 +112,40 @@ impl FromPyObject<'_> for OsString {
 
 impl IntoPy<PyObject> for &'_ OsStr {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
 
 impl ToPyObject for Cow<'_, OsStr> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         (self as &OsStr).to_object(py)
     }
 }
 
 impl IntoPy<PyObject> for Cow<'_, OsStr> {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
 
 impl ToPyObject for OsString {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         (self as &OsStr).to_object(py)
     }
 }
 
 impl IntoPy<PyObject> for OsString {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a OsString {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn test_topyobject_roundtrip() {
         Python::with_gil(|py| {
-            fn test_roundtrip<T: ToPyObject + AsRef<OsStr> + Debug>(py: Python, obj: T) {
+            fn test_roundtrip<T: ToPyObject + AsRef<OsStr> + Debug>(py: Python<'_>, obj: T) {
                 let pyobject = obj.to_object(py);
                 let pystring: &PyString = pyobject.extract(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
@@ -201,7 +201,7 @@ mod tests {
     fn test_intopy_roundtrip() {
         Python::with_gil(|py| {
             fn test_roundtrip<T: IntoPy<PyObject> + AsRef<OsStr> + Debug + Clone>(
-                py: Python,
+                py: Python<'_>,
                 obj: T,
             ) {
                 let pyobject = obj.clone().into_py(py);

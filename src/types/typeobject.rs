@@ -15,7 +15,7 @@ pyobject_native_type_core!(PyType, ffi::PyType_Type, #checkfunction=ffi::PyType_
 impl PyType {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>(py: Python) -> &PyType {
+    pub fn new<T: PyTypeObject>(py: Python<'_>) -> &PyType {
         T::type_object(py)
     }
 
@@ -31,7 +31,7 @@ impl PyType {
     /// - The pointer must be non-null.
     /// - The pointer must be valid for the entire of the lifetime for which the reference is used.
     #[inline]
-    pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType {
+    pub unsafe fn from_type_ptr(py: Python<'_>, p: *mut ffi::PyTypeObject) -> &PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 

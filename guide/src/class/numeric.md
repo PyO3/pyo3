@@ -134,7 +134,7 @@ impl Number {
 #
 #[pymethods]
 impl Number {
-    fn __pos__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
@@ -328,7 +328,7 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
@@ -426,7 +426,7 @@ use pyo3::ffi;
 use pyo3::conversion::AsPyPointer;
 
 fn wrap(obj: &PyAny) -> Result<i32, PyErr> {
-    let py: Python = obj.py();
+    let py: Python<'_> = obj.py();
 
     unsafe {
         let ptr = obj.as_ptr();

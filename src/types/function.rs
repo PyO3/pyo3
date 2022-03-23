@@ -104,7 +104,7 @@ impl PyCFunction {
     ///     py_run!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
-    pub fn new_closure<F, R>(f: F, py: Python) -> PyResult<&PyCFunction>
+    pub fn new_closure<F, R>(f: F, py: Python<'_>) -> PyResult<&PyCFunction>
     where
         F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
@@ -131,7 +131,7 @@ impl PyCFunction {
     #[doc(hidden)]
     fn internal_new_from_pointers(
         method_def: PyMethodDef,
-        py: Python,
+        py: Python<'_>,
         mod_ptr: *mut ffi::PyObject,
         module_name: *mut ffi::PyObject,
     ) -> PyResult<&Self> {
@@ -150,7 +150,7 @@ impl PyCFunction {
     #[doc(hidden)]
     pub fn internal_new(
         method_def: PyMethodDef,
-        py_or_module: PyFunctionArguments,
+        py_or_module: PyFunctionArguments<'_>,
     ) -> PyResult<&Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let (mod_ptr, module_name) = if let Some(m) = module {

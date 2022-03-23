@@ -44,7 +44,7 @@ impl PyByteArray {
     /// })
     /// # }
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {

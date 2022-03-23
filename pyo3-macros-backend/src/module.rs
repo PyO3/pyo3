@@ -120,7 +120,7 @@ pub struct PyFnArgs {
 }
 
 impl Parse for PyFnArgs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let modname = input.parse().map_err(
             |e| err_spanned!(e.span() => "expected module as first argument to #[pyfn()]"),
         )?;
@@ -173,7 +173,7 @@ enum PyModulePyO3Option {
 }
 
 impl Parse for PyModulePyO3Option {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(PyModulePyO3Option::Name)

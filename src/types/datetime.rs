@@ -26,7 +26,7 @@ use crate::types::PyTuple;
 use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_int;
 
-fn ensure_datetime_api(_py: Python) -> &'static PyDateTime_CAPI {
+fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
     unsafe {
         if pyo3_ffi::PyDateTimeAPI().is_null() {
             PyDateTime_IMPORT()
@@ -173,7 +173,7 @@ pyobject_native_type!(
 
 impl PyDate {
     /// Creates a new `datetime.date`.
-    pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
+    pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<&PyDate> {
         unsafe {
             let ptr = (ensure_datetime_api(py).Date_FromDate)(
                 year,
@@ -188,7 +188,7 @@ impl PyDate {
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<&PyDate> {
+    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<&PyDate> {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
         // safety ensure that the API is loaded
@@ -466,7 +466,7 @@ pyobject_native_type!(
 impl PyDelta {
     /// Creates a new `timedelta`.
     pub fn new(
-        py: Python,
+        py: Python<'_>,
         days: i32,
         seconds: i32,
         microseconds: i32,
@@ -501,7 +501,7 @@ impl PyDeltaAccess for PyDelta {
 }
 
 // Utility function
-fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
+fn opt_to_pyobj(py: Python<'_>, opt: Option<&PyObject>) -> *mut ffi::PyObject {
     // Convenience function for unpacking Options to either an Object or None
     match opt {
         Some(tzi) => tzi.as_ptr(),

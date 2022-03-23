@@ -133,7 +133,7 @@ struct DocArgs {
 }
 
 impl syn::parse::Parse for DocArgs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let this = Self {
             _eq_token: input.parse()?,
             token_stream: input.parse()?,

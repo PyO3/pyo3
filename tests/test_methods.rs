@@ -127,7 +127,7 @@ impl StaticMethod {
 
     #[staticmethod]
     /// Test static method.
-    fn method(_py: Python) -> &'static str {
+    fn method(_py: Python<'_>) -> &'static str {
         "StaticMethod.method()!"
     }
 }
@@ -152,7 +152,7 @@ struct StaticMethodWithArgs {}
 #[pymethods]
 impl StaticMethodWithArgs {
     #[staticmethod]
-    fn method(_py: Python, input: i32) -> String {
+    fn method(_py: Python<'_>, input: i32) -> String {
         format!("0x{:x}", input)
     }
 }
@@ -202,14 +202,14 @@ impl MethArgs {
         test
     }
     #[args(args = "*", kwargs = "**")]
-    fn get_kwargs(&self, py: Python, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_kwargs(&self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyObject {
         [args.into(), kwargs.to_object(py)].to_object(py)
     }
 
     #[args(args = "*", kwargs = "**")]
     fn get_pos_arg_kw(
         &self,
-        py: Python,
+        py: Python<'_>,
         a: i32,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
@@ -253,7 +253,12 @@ impl MethArgs {
     }
 
     #[args(a, "/", kwargs = "**")]
-    fn get_pos_only_with_kwargs(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_only_with_kwargs(
+        &self,
+        py: Python<'_>,
+        a: i32,
+        kwargs: Option<&PyDict>,
+    ) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
@@ -273,7 +278,7 @@ impl MethArgs {
     }
 
     #[args(args = "*", a)]
-    fn get_args_and_required_keyword(&self, py: Python, args: &PyTuple, a: i32) -> PyObject {
+    fn get_args_and_required_keyword(&self, py: Python<'_>, args: &PyTuple, a: i32) -> PyObject {
         (args, a).to_object(py)
     }
 
@@ -288,7 +293,7 @@ impl MethArgs {
     }
 
     #[args(kwargs = "**")]
-    fn get_pos_kw(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_kw(&self, py: Python<'_>, a: i32, kwargs: Option<&PyDict>) -> PyObject {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
     // "args" can be anything that can be extracted from PyTuple
@@ -690,7 +695,7 @@ impl MethodWithPyClassArg {
             value: self.value + other.value,
         }
     }
-    fn add_pyref(&self, other: PyRef<MethodWithPyClassArg>) -> MethodWithPyClassArg {
+    fn add_pyref(&self, other: PyRef<'_, MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.value,
         }
@@ -698,7 +703,7 @@ impl MethodWithPyClassArg {
     fn inplace_add(&self, other: &mut MethodWithPyClassArg) {
         other.value += self.value;
     }
-    fn inplace_add_pyref(&self, mut other: PyRefMut<MethodWithPyClassArg>) {
+    fn inplace_add_pyref(&self, mut other: PyRefMut<'_, MethodWithPyClassArg>) {
         other.value += self.value;
     }
     fn optional_add(&self, other: Option<&MethodWithPyClassArg>) -> MethodWithPyClassArg {
@@ -838,7 +843,7 @@ struct r#RawIdents {
 impl r#RawIdents {
     #[new]
     pub fn r#new(
-        r#_py: Python,
+        r#_py: Python<'_>,
         r#type: PyObject,
         r#subtype: PyObject,
         r#subsubtype: PyObject,

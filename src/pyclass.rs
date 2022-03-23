@@ -38,7 +38,7 @@ fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
 
-pub(crate) fn create_type_object<T>(py: Python) -> *mut ffi::PyTypeObject
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> *mut ffi::PyTypeObject
 where
     T: PyClass,
 {
@@ -64,7 +64,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 unsafe fn create_type_object_impl(
-    py: Python,
+    py: Python<'_>,
     tp_doc: &str,
     module_name: Option<&str>,
     name: &str,
@@ -210,7 +210,7 @@ unsafe fn create_type_object_impl(
 }
 
 #[cold]
-fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
+fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &'static str) -> ! {
     e.print(py);
     panic!("An error occurred while initializing class {}", name)
 }
@@ -479,7 +479,7 @@ pub enum IterNextOutput<T, U> {
 pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
-    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterNextOutput::Yield(o) => Ok(o.into_ptr()),
             IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
@@ -492,7 +492,7 @@ where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
             IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
@@ -504,7 +504,7 @@ impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
             None => Ok(PyIterNextOutput::Return(py.None())),
@@ -526,7 +526,7 @@ pub enum IterANextOutput<T, U> {
 pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
-    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterANextOutput::Yield(o) => Ok(o.into_ptr()),
             IterANextOutput::Return(opt) => {
@@ -541,7 +541,7 @@ where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
             IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
@@ -553,7 +553,7 @@ impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
             None => Ok(PyIterANextOutput::Return(py.None())),

@@ -38,7 +38,7 @@ pub struct PyClassArgs {
 }
 
 impl PyClassArgs {
-    fn parse(input: ParseStream, kind: PyClassKind) -> Result<Self> {
+    fn parse(input: ParseStream<'_>, kind: PyClassKind) -> Result<Self> {
         let mut slf = PyClassArgs::new(kind);
         let vars = Punctuated::<Expr, Token![,]>::parse_terminated(input)?;
         for expr in vars {
@@ -47,11 +47,11 @@ impl PyClassArgs {
         Ok(slf)
     }
 
-    pub fn parse_stuct_args(input: ParseStream) -> syn::Result<Self> {
+    pub fn parse_stuct_args(input: ParseStream<'_>) -> syn::Result<Self> {
         Self::parse(input, PyClassKind::Struct)
     }
 
-    pub fn parse_enum_args(input: ParseStream) -> syn::Result<Self> {
+    pub fn parse_enum_args(input: ParseStream<'_>) -> syn::Result<Self> {
         Self::parse(input, PyClassKind::Enum)
     }
 
@@ -197,7 +197,7 @@ enum PyClassPyO3Option {
 }
 
 impl Parse for PyClassPyO3Option {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyClassPyO3Option::TextSignature)
@@ -315,7 +315,7 @@ enum FieldPyO3Option {
 }
 
 impl Parse for FieldPyO3Option {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::get) {
             input.parse().map(FieldPyO3Option::Get)
@@ -478,7 +478,7 @@ pub fn build_py_enum(
 }
 
 fn impl_enum(
-    enum_: PyClassEnum,
+    enum_: PyClassEnum<'_>,
     args: &PyClassArgs,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
@@ -489,7 +489,7 @@ fn impl_enum(
 }
 
 fn impl_enum_class(
-    enum_: PyClassEnum,
+    enum_: PyClassEnum<'_>,
     args: &PyClassArgs,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
@@ -630,7 +630,7 @@ fn enum_default_slots(
     gen_default_items(cls, default_items).collect()
 }
 
-fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVariant> {
+fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVariant<'_>> {
     use syn::Fields;
     let ident = match variant.fields {
         Fields::Unit => &variant.ident,

@@ -40,7 +40,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
 //! }
@@ -82,7 +82,7 @@ macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: expr, $to_bytes: path, $from_bytes: path) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl ToPyObject for $rust_ty {
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
                 unsafe {
                     let bytes = $to_bytes(self);
                     let obj = ffi::_PyLong_FromByteArray(
@@ -98,7 +98,7 @@ macro_rules! bigint_conversion {
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl IntoPy<PyObject> for $rust_ty {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 self.to_object(py)
             }
         }
@@ -146,7 +146,7 @@ mod tests {
     use crate::types::{PyDict, PyModule};
     use indoc::indoc;
 
-    fn python_fib(py: Python) -> &PyModule {
+    fn python_fib(py: Python<'_>) -> &PyModule {
         let fib_code = indoc!(
             r#"
                 def fib(n):
@@ -224,7 +224,7 @@ mod tests {
         })
     }
 
-    fn python_index_class(py: Python) -> &PyModule {
+    fn python_index_class(py: Python<'_>) -> &PyModule {
         let index_code = indoc!(
             r#"
                 class C:

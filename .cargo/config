@@ -15,4 +15,7 @@ rustflags = [
     "-Dclippy::todo",
     "-Dclippy::unnecessary_wraps",
     "-Dclippy::useless_transmute",
+    "-Delided_lifetimes_in_paths",
+    "-Dunused_lifetimes",
+    "-Drust_2021_prelude_collisions"
 ]

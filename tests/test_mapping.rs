@@ -58,7 +58,7 @@ impl Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python) -> &pyo3::types::PyDict {
+fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d

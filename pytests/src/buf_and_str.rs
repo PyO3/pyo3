@@ -38,7 +38,7 @@ impl BytesExtractor {
 }
 
 #[pymodule]
-pub fn buf_and_str(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn buf_and_str(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<BytesExtractor>()?;
     Ok(())
 }

@@ -88,7 +88,7 @@ impl PySequenceProtocol for ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python) -> &pyo3::types::PyDict {
+fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");

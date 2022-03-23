@@ -103,9 +103,9 @@ let _: Py<MyClass> = obj.extract()?;
 // To MyClass with PyAny::extract, if MyClass: Clone
 let _: MyClass = obj.extract()?;
 
-// To PyRef<MyClass> or PyRefMut<MyClass> with PyAny::extract
-let _: PyRef<MyClass> = obj.extract()?;
-let _: PyRefMut<MyClass> = obj.extract()?;
+// To PyRef<'_, MyClass> or PyRefMut<'_, MyClass> with PyAny::extract
+let _: PyRef<'_, MyClass> = obj.extract()?;
+let _: PyRefMut<'_, MyClass> = obj.extract()?;
 # Ok(())
 # }).unwrap();
 ```
@@ -207,11 +207,11 @@ let _: &PyCell<MyClass> = my_class.into_ref(py);
 let _: Py<PyAny> = my_class.into_py(py);
 
 # let my_class = my_class_clone;
-// To PyRef<MyClass> with Py::borrow or Py::try_borrow
-let _: PyRef<MyClass> = my_class.try_borrow(py)?;
+// To PyRef<'_, MyClass> with Py::borrow or Py::try_borrow
+let _: PyRef<'_, MyClass> = my_class.try_borrow(py)?;
 
-// To PyRefMut<MyClass> with Py::borrow_mut or Py::try_borrow_mut
-let _: PyRefMut<MyClass> = my_class.try_borrow_mut(py)?;
+// To PyRefMut<'_, MyClass> with Py::borrow_mut or Py::try_borrow_mut
+let _: PyRefMut<'_, MyClass> = my_class.try_borrow_mut(py)?;
 # Ok(())
 # }).unwrap();
 # });
@@ -241,12 +241,12 @@ so it also exposes all of the methods on `PyAny`.
 let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
-let py_ref: PyRef<MyClass> = cell.try_borrow()?;
+let py_ref: PyRef<'_, MyClass> = cell.try_borrow()?;
 let _: &MyClass = &*py_ref;
 # drop(py_ref);
 
 // To PyRefMut<T> with .borrow_mut() or .try_borrow_mut()
-let mut py_ref_mut: PyRefMut<MyClass> = cell.try_borrow_mut()?;
+let mut py_ref_mut: PyRefMut<'_, MyClass> = cell.try_borrow_mut()?;
 let _: &mut MyClass = &mut *py_ref_mut;
 # Ok(())
 # }).unwrap();

@@ -28,7 +28,7 @@ struct TestBufferErrors {
 #[pymethods]
 impl TestBufferErrors {
     unsafe fn __getbuffer__(
-        slf: PyRefMut<Self>,
+        slf: PyRefMut<'_, Self>,
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {

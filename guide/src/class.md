@@ -113,7 +113,7 @@ The next step is to create the module initializer and add our class to it
 # struct Number(i32);
 #
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
@@ -273,7 +273,7 @@ impl SubClass {
         (SubClass { val2: 15 }, BaseClass::new())
     }
 
-    fn method2(self_: PyRef<Self>) -> PyResult<usize> {
+    fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let super_ = self_.as_ref();  // Get &BaseClass
         super_.method().map(|x| x * self_.val2)
     }
@@ -292,9 +292,9 @@ impl SubSubClass {
             .add_subclass(SubSubClass{val3: 20})
     }
 
-    fn method3(self_: PyRef<Self>) -> PyResult<usize> {
+    fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
-        let super_ = self_.into_super();  // Get PyRef<SubClass>
+        let super_ = self_.into_super();  // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 }
@@ -329,7 +329,7 @@ impl DictWithCounter {
     fn new() -> Self {
         Self::default()
     }
-    fn set(mut self_: PyRefMut<Self>, key: String, value: &PyAny) -> PyResult<()> {
+    fn set(mut self_: PyRefMut<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
         self_.counter.entry(key.clone()).or_insert(0);
         let py = self_.py();
         let dict: &PyDict = unsafe { py.from_borrowed_ptr_or_err(self_.as_ptr())? };
@@ -524,7 +524,7 @@ gets injected by the method wrapper, e.g.
 # }
 #[pymethods]
 impl MyClass {
-    fn method2(&self, py: Python) -> PyResult<i32> {
+    fn method2(&self, py: Python<'_>) -> PyResult<i32> {
         Ok(10)
     }
 }
@@ -960,7 +960,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     const MODULE: Option<&'static str> = None;
 
     #[inline]
-    fn type_object_raw(py: pyo3::Python) -> *mut pyo3::ffi::PyTypeObject {
+    fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         use pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)
@@ -974,7 +974,7 @@ impl pyo3::pyclass::PyClass for MyClass {
 }
 
 impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+    fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
         pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
     }
 }

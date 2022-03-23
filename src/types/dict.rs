@@ -27,7 +27,7 @@ pyobject_native_type!(
 
 impl PyDict {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python) -> &PyDict {
+    pub fn new(py: Python<'_>) -> &PyDict {
         unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
     }
 
@@ -39,7 +39,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
             err::error_on_minusone(
@@ -172,7 +172,7 @@ impl PyDict {
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter(&self) -> PyDictIterator {
+    pub fn iter(&self) -> PyDictIterator<'_> {
         PyDictIterator {
             dict: self.as_ref(),
             pos: 0,
@@ -236,7 +236,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -246,7 +246,7 @@ where
     K: cmp::Eq + ToPyObject,
     V: ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -257,7 +257,7 @@ where
     V: IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -270,7 +270,7 @@ where
     K: cmp::Eq + IntoPy<PyObject>,
     V: IntoPy<PyObject>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -283,7 +283,7 @@ where
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> &PyDict;
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict;
 }
 
 impl<T, I> IntoPyDict for I
@@ -291,7 +291,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python) -> &PyDict {
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())

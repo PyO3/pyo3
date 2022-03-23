@@ -17,7 +17,7 @@ use crate::{PyClass, PyObject};
 /// the integers 1 to 5, before raising `StopIteration("Ended")`.
 ///
 /// ```rust
-/// # #![allow(deprecated)]
+/// # #![allow(deprecated, elided_lifetimes_in_paths)]
 /// use pyo3::class::iter::IterNextOutput;
 /// use pyo3::prelude::*;
 /// use pyo3::PyIterProtocol;

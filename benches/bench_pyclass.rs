@@ -26,7 +26,7 @@ impl MyClass {
     }
 }
 
-pub fn first_time_init(b: &mut criterion::Bencher) {
+pub fn first_time_init(b: &mut criterion::Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     b.iter(|| {

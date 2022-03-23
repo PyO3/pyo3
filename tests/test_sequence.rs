@@ -72,7 +72,7 @@ impl ByteSequence {
         Self { elements }
     }
 
-    fn __inplace_concat__(mut slf: PyRefMut<Self>, other: &Self) -> Py<Self> {
+    fn __inplace_concat__(mut slf: PyRefMut<'_, Self>, other: &Self) -> Py<Self> {
         slf.elements.extend_from_slice(&other.elements);
         slf.into()
     }
@@ -89,7 +89,7 @@ impl ByteSequence {
         }
     }
 
-    fn __inplace_repeat__(mut slf: PyRefMut<Self>, count: isize) -> PyResult<Py<Self>> {
+    fn __inplace_repeat__(mut slf: PyRefMut<'_, Self>, count: isize) -> PyResult<Py<Self>> {
         if count >= 0 {
             let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
             for _ in 0..count {
@@ -104,7 +104,7 @@ impl ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python) -> &pyo3::types::PyDict {
+fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");

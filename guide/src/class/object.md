@@ -17,7 +17,7 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }
@@ -220,7 +220,7 @@ impl Number {
 }
 
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Number>()?;
     Ok(())
 }

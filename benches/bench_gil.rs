@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, BatchSize, Bencher, Criterion};
 
 use pyo3::{prelude::*, GILPool};
 
-fn bench_clean_gilpool_new(b: &mut Bencher) {
+fn bench_clean_gilpool_new(b: &mut Bencher<'_>) {
     Python::with_gil(|_py| {
         b.iter(|| {
             let _ = unsafe { GILPool::new() };
@@ -10,14 +10,14 @@ fn bench_clean_gilpool_new(b: &mut Bencher) {
     });
 }
 
-fn bench_clean_acquire_gil(b: &mut Bencher) {
+fn bench_clean_acquire_gil(b: &mut Bencher<'_>) {
     // Acquiring first GIL will also create a "clean" GILPool, so this measures the Python overhead.
     b.iter(|| {
         let _ = Python::acquire_gil();
     });
 }
 
-fn bench_dirty_acquire_gil(b: &mut Bencher) {
+fn bench_dirty_acquire_gil(b: &mut Bencher<'_>) {
     let obj = Python::with_gil(|py| py.None());
     b.iter_batched(
         || {

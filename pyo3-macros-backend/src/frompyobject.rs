@@ -346,7 +346,7 @@ enum ContainerPyO3Attribute {
 }
 
 impl Parse for ContainerPyO3Attribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::transparent) {
             let kw: attributes::kw::transparent = input.parse()?;
@@ -419,7 +419,7 @@ enum FieldPyO3Attribute {
 }
 
 impl Parse for FieldPyO3Attribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::attribute) {
             let _: attributes::kw::attribute = input.parse()?;

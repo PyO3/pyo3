@@ -117,7 +117,7 @@ mod foo {
     use pyo3::prelude::*;
 
     #[pymodule]
-    fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    fn private_submodule(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         Ok(())
     }
 }
@@ -126,7 +126,7 @@ use pyo3::prelude::*;
 use foo::*;
 
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(private_submodule))?;
     Ok(())
 }
@@ -139,7 +139,7 @@ mod foo {
     use pyo3::prelude::*;
 
     #[pymodule]
-    pub(crate) fn private_submodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    pub(crate) fn private_submodule(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         Ok(())
     }
 }
@@ -149,7 +149,7 @@ use pyo3::wrap_pymodule;
 use foo::*;
 
 #[pymodule]
-fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(private_submodule))?;
     Ok(())
 }
@@ -346,7 +346,7 @@ Before:
 struct MyPyObjectWrapper(PyObject);
 
 impl FromPy<MyPyObjectWrapper> for PyObject {
-    fn from_py(other: MyPyObjectWrapper, _py: Python) -> Self {
+    fn from_py(other: MyPyObjectWrapper, _py: Python<'_>) -> Self {
         other.0
     }
 }
@@ -358,7 +358,7 @@ After
 struct MyPyObjectWrapper(PyObject);
 
 impl IntoPy<PyObject> for MyPyObjectWrapper {
-    fn into_py(self, _py: Python) -> PyObject {
+    fn into_py(self, _py: Python<'_>) -> PyObject {
         self.0
     }
 }
@@ -676,10 +676,10 @@ let obj: &PyAny = create_obj();
 let obj_cell: &PyCell<MyClass> = obj.extract().unwrap();
 let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the object
 {
-    let obj_ref: PyRef<MyClass> = obj.extract().unwrap();
+    let obj_ref: PyRef<'_, MyClass> = obj.extract().unwrap();
     // we need to drop obj_ref before we can extract a PyRefMut due to Rust's rules of references
 }
-let obj_ref_mut: PyRefMut<MyClass> = obj.extract().unwrap();
+let obj_ref_mut: PyRefMut<'_, MyClass> = obj.extract().unwrap();
 # })
 ```
 

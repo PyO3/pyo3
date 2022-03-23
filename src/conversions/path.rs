@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 impl ToPyObject for Path {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
 }
@@ -34,40 +34,40 @@ impl FromPyObject<'_> for PathBuf {
 
 impl<'a> IntoPy<PyObject> for &'a Path {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
 }
 
 impl<'a> ToPyObject for Cow<'a, Path> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
 
 impl ToPyObject for PathBuf {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
 }
 
 impl IntoPy<PyObject> for PathBuf {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_os_string().to_object(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PathBuf {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
 }
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_topyobject_roundtrip() {
         Python::with_gil(|py| {
-            fn test_roundtrip<T: ToPyObject + AsRef<Path> + Debug>(py: Python, obj: T) {
+            fn test_roundtrip<T: ToPyObject + AsRef<Path> + Debug>(py: Python<'_>, obj: T) {
                 let pyobject = obj.to_object(py);
                 let pystring: &PyString = pyobject.extract(py).unwrap();
                 assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
@@ -122,7 +122,7 @@ mod tests {
     fn test_intopy_roundtrip() {
         Python::with_gil(|py| {
             fn test_roundtrip<T: IntoPy<PyObject> + AsRef<Path> + Debug + Clone>(
-                py: Python,
+                py: Python<'_>,
                 obj: T,
             ) {
                 let pyobject = obj.clone().into_py(py);

@@ -779,7 +779,7 @@ impl<'py> Python<'py> {
     ///
     /// # fn main(){
     /// #[pyfunction]
-    /// fn loop_forever(py: Python) -> PyResult<()> {
+    /// fn loop_forever(py: Python<'_>) -> PyResult<()> {
     ///     loop {
     ///         // As this loop is infinite it should check for signals every once in a while.
     ///         // Using `?` causes any `PyErr` (potentially containing `KeyboardInterrupt`)

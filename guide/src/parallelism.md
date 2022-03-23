@@ -23,7 +23,7 @@ fn search_sequential(contents: &str, needle: &str) -> usize {
 To enable parallel execution of this function, the [`Python::allow_threads`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::allow_threads`] to enable true parallelism:
 ```rust, ignore
 #[pyfunction]
-fn search_sequential_allow_threads(py: Python, contents: &str, needle: &str) -> usize {
+fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
     py.allow_threads(|| search_sequential(contents, needle))
 }
 ```

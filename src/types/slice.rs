@@ -39,7 +39,7 @@ impl PySliceIndices {
 
 impl PySlice {
     /// Constructs a new slice with the given elements.
-    pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
+    pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
             let ptr = ffi::PySlice_New(
                 ffi::PyLong_FromLong(start as c_long),
@@ -84,7 +84,7 @@ impl PySlice {
 }
 
 impl ToPyObject for PySliceIndices {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PySlice::new(py, self.start, self.stop, self.step).into()
     }
 }

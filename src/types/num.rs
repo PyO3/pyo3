@@ -14,12 +14,12 @@ macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
                 (*self as $larger_type).into_py(py)
             }
         }
         impl IntoPy<PyObject> for $rust_type {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 (self as $larger_type).into_py(py)
             }
         }
@@ -48,12 +48,12 @@ pyobject_native_type_core!(PyLong, ffi::PyLong_Type, #checkfunction=ffi::PyLong_
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
         impl ToPyObject for $rust_type {
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
         }
@@ -82,13 +82,13 @@ macro_rules! int_convert_u64_or_i64 {
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => {
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
             }
         }
@@ -152,12 +152,12 @@ mod fast_128bit_int_conversion {
         ($rust_type: ty, $is_signed: expr) => {
             impl ToPyObject for $rust_type {
                 #[inline]
-                fn to_object(&self, py: Python) -> PyObject {
+                fn to_object(&self, py: Python<'_>) -> PyObject {
                     (*self).into_py(py)
                 }
             }
             impl IntoPy<PyObject> for $rust_type {
-                fn into_py(self, py: Python) -> PyObject {
+                fn into_py(self, py: Python<'_>) -> PyObject {
                     unsafe {
                         // Always use little endian
                         let bytes = self.to_le_bytes();
@@ -211,13 +211,13 @@ mod slow_128bit_int_conversion {
         ($rust_type: ty, $half_type: ty) => {
             impl ToPyObject for $rust_type {
                 #[inline]
-                fn to_object(&self, py: Python) -> PyObject {
+                fn to_object(&self, py: Python<'_>) -> PyObject {
                     (*self).into_py(py)
                 }
             }
 
             impl IntoPy<PyObject> for $rust_type {
-                fn into_py(self, py: Python) -> PyObject {
+                fn into_py(self, py: Python<'_>) -> PyObject {
                     let lower = self as u64;
                     let upper = (self >> SHIFT) as $half_type;
                     unsafe {
@@ -262,7 +262,7 @@ mod slow_128bit_int_conversion {
 }
 
 fn err_if_invalid_value<T: PartialEq>(
-    py: Python,
+    py: Python<'_>,
     invalid_value: T,
     actual_value: T,
 ) -> PyResult<T> {

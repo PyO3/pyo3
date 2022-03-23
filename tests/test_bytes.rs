@@ -20,7 +20,7 @@ fn test_pybytes_bytes_conversion() {
 }
 
 #[pyfunction]
-fn bytes_vec_conversion(py: Python, bytes: Vec<u8>) -> &PyBytes {
+fn bytes_vec_conversion(py: Python<'_>, bytes: Vec<u8>) -> &PyBytes {
     PyBytes::new(py, bytes.as_slice())
 }
 
