@@ -19,7 +19,11 @@ unsafe impl Sync for ModuleDefSlot {}
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
+    initializer: ModuleInitializer,
 }
+
+/// Wrapper to enable initializer to be used in const fns.
+pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &PyModule) -> PyResult<()>);
 
 unsafe impl Sync for ModuleDef {}
 
@@ -39,6 +43,7 @@ impl ModuleDef {
         name: &'static str,
         doc: &'static str,
         slots: *mut ffi::PyModuleDef_Slot,
+        initializer: ModuleInitializer,
     ) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -59,7 +64,10 @@ impl ModuleDef {
             ..INIT
         });
 
-        ModuleDef { ffi_def }
+        ModuleDef {
+            ffi_def,
+            initializer,
+        }
     }
     /// Return module def
     pub fn module_def(&'static self) -> *mut ffi::PyModuleDef {
@@ -68,9 +76,11 @@ impl ModuleDef {
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyObject> {
         let module = unsafe {
-            Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
+            let mod_def = self.ffi_def.get();
+            (*mod_def).m_slots = std::ptr::null_mut();
+            Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(mod_def))?
         };
-        // (self.initializer.0)(py, module.as_ref(py))?;
+        (self.initializer.0)(py, module.as_ref(py))?;
         Ok(module.into())
     }
     /// Implementation of `PyInit_foo` functions generated in [`#[pymodule]`][crate::pymodule]..

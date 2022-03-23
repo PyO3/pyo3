@@ -119,6 +119,7 @@ pub fn pymodule_impl(
                 concat!(stringify!(#name), "\0"),
                 #doc,
                 &#slots_name as *const #krate::impl_::pymodule::ModuleDefSlot as *mut #krate::ffi::PyModuleDef_Slot,
+                #krate::impl_::pymodule::ModuleInitializer(#fnname),
             )
         };
     }
