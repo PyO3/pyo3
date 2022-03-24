@@ -759,7 +759,7 @@ pub(crate) struct CrossCompileEnvVars {
 }
 
 impl CrossCompileEnvVars {
-    pub fn any(&self) -> bool {
+    fn any(&self) -> bool {
         self.pyo3_cross.is_some()
             || self.pyo3_cross_lib_dir.is_some()
             || self.pyo3_cross_python_version.is_some()

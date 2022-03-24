@@ -11,7 +11,11 @@ mod errors;
 mod impl_;
 
 #[cfg(feature = "resolve-config")]
-use std::io::Cursor;
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+};
+
 use std::{env, process::Command};
 
 #[cfg(feature = "resolve-config")]
@@ -69,26 +73,27 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
+        // Check if we are in a build script and cross compiling to a different target.
+        let cross_compile_config_path = resolve_cross_compile_config_path();
+        let cross_compiling = cross_compile_config_path
+            .as_ref()
+            .map(|path| path.exists())
+            .unwrap_or(false);
+
         if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
             interpreter_config
         } else if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
-        } else if impl_::cross_compile_env_vars().any() {
-            InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
+        } else if cross_compiling {
+            InterpreterConfig::from_path(cross_compile_config_path.as_ref().unwrap())
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
         .expect("failed to parse PyO3 config")
     })
 }
-
-/// Path where PyO3's build.rs will write configuration by default.
-#[doc(hidden)]
-#[cfg(feature = "resolve-config")]
-const DEFAULT_CROSS_COMPILE_CONFIG_PATH: &str =
-    concat!(env!("OUT_DIR"), "/pyo3-cross-compile-config.txt");
 
 /// Build configuration provided by `PYO3_CONFIG_FILE`. May be empty if env var not set.
 #[doc(hidden)]
@@ -106,6 +111,22 @@ const ABI3_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-con
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config.txt"));
+
+/// Returns the path where PyO3's build.rs writes its cross compile configuration.
+///
+/// The config file will be named `$OUT_DIR/<triple>/pyo3-build-config.txt`.
+///
+/// Must be called from a build script, returns `None` if not.
+#[doc(hidden)]
+#[cfg(feature = "resolve-config")]
+fn resolve_cross_compile_config_path() -> Option<PathBuf> {
+    env::var_os("TARGET").map(|target| {
+        let mut path = PathBuf::from(env!("OUT_DIR"));
+        path.push(Path::new(&target));
+        path.push("pyo3-build-config.txt");
+        path
+    })
+}
 
 #[cfg(feature = "resolve-config")]
 fn abi3_config() -> InterpreterConfig {
@@ -158,8 +179,6 @@ pub fn print_feature_cfgs() {
 pub mod pyo3_build_script_impl {
     #[cfg(feature = "resolve-config")]
     use crate::errors::{Context, Result};
-    #[cfg(feature = "resolve-config")]
-    use std::path::Path;
 
     #[cfg(feature = "resolve-config")]
     use super::*;
@@ -185,7 +204,8 @@ pub mod pyo3_build_script_impl {
             Ok(abi3_config())
         } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
-            let path = Path::new(DEFAULT_CROSS_COMPILE_CONFIG_PATH);
+            let path = resolve_cross_compile_config_path()
+                .expect("resolve_interpreter_config() must be called from a build script");
             let parent_dir = path.parent().ok_or_else(|| {
                 format!(
                     "failed to resolve parent directory of config file {}",
