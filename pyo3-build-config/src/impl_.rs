@@ -1299,9 +1299,13 @@ fn cross_compile_from_sysconfigdata(
     }
 }
 
-fn windows_hardcoded_cross_compile(
-    cross_compile_config: CrossCompileConfig,
-) -> Result<InterpreterConfig> {
+/// Generates "default" cross compilation information for the target.
+///
+/// This should work for most CPython extension modules when targeting
+/// Windows, MacOS and Linux.
+///
+/// Must be called from a PyO3 crate build script.
+fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
         .or_else(get_abi3_version)
@@ -1312,7 +1316,21 @@ fn windows_hardcoded_cross_compile(
 
     let abi3 = is_abi3();
     let implementation = PythonImplementation::CPython;
-    let mingw = cross_compile_config.target.environment == Environment::Gnu;
+
+    let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
+        let mingw = cross_compile_config.target.environment == Environment::Gnu;
+
+        Some(default_lib_name_windows(
+            version,
+            implementation,
+            abi3,
+            mingw,
+        ))
+    } else if is_linking_libpython_for_target(&cross_compile_config.target) {
+        Some(default_lib_name_unix(version, implementation, None))
+    } else {
+        None
+    };
 
     let lib_dir = cross_compile_config.lib_dir_string();
 
@@ -1321,12 +1339,7 @@ fn windows_hardcoded_cross_compile(
         version,
         shared: true,
         abi3,
-        lib_name: Some(default_lib_name_windows(
-            version,
-            PythonImplementation::CPython,
-            abi3,
-            mingw,
-        )),
+        lib_name,
         lib_dir,
         executable: None,
         pointer_width: None,
@@ -1336,32 +1349,39 @@ fn windows_hardcoded_cross_compile(
     })
 }
 
+/// Detects the cross compilation target interpreter configuration from all
+/// available sources (PyO3 environment variables, Python sysconfigdata, etc.).
+///
+/// Returns the "default" target interpreter configuration for Windows and
+/// when no target Python interpreter is found.
+///
+/// Must be called from a PyO3 crate build script.
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
-    match cargo_env_var("CARGO_CFG_TARGET_FAMILY") {
-        // Configure for unix platforms using the sysconfigdata file
-        Some(os) if os == "unix" => cross_compile_from_sysconfigdata(&cross_compile_config)
-            .transpose()
-            .unwrap(),
-        // Use hardcoded interpreter config when targeting Windows
-        Some(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
-        // sysconfigdata works fine on wasm/wasi
-        Some(os) if os == "wasm" => cross_compile_from_sysconfigdata(&cross_compile_config)
-            .transpose()
-            .unwrap(),
-        // Waiting for users to tell us what they expect on their target platform
-        Some(os) => bail!(
-            "Unknown target OS family for cross-compilation: {:?}.\n\
-            \n\
-            Please set the PYO3_CONFIG_FILE environment variable to a config suitable for your \
-            target interpreter.",
-            os
-        ),
-        // Unknown os family - try to do something useful
-        None => cross_compile_from_sysconfigdata(&cross_compile_config)
-            .transpose()
-            .unwrap(),
+    // Load the defaults for Windows even when `PYO3_CROSS_LIB_DIR` is set
+    // since it has no sysconfigdata files in it.
+    if cross_compile_config.target.operating_system == OperatingSystem::Windows {
+        return default_cross_compile(&cross_compile_config);
+    }
+
+    // Try to find and parse sysconfigdata files on other targets
+    // and fall back to the defaults when none are found.
+    if let Some(config) = cross_compile_from_sysconfigdata(&cross_compile_config)? {
+        Ok(config)
+    } else {
+        let config = default_cross_compile(&cross_compile_config)?;
+
+        if config.lib_name.is_some() && config.lib_dir.is_none() {
+            warn!(
+                "The output binary will link to libpython, \
+                but PYO3_CROSS_LIB_DIR environment variable is not set. \
+                Ensure that the target Python library directory is \
+                in the rustc native library search path."
+            );
+        }
+
+        Ok(config)
     }
 }
 
@@ -1795,7 +1815,7 @@ mod tests {
         };
 
         assert_eq!(
-            super::windows_hardcoded_cross_compile(cross_config).unwrap(),
+            default_cross_compile(&cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 7 },
@@ -1821,7 +1841,7 @@ mod tests {
         };
 
         assert_eq!(
-            super::windows_hardcoded_cross_compile(cross_config).unwrap(),
+            default_cross_compile(&cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 8 },
@@ -1829,6 +1849,32 @@ mod tests {
                 abi3: false,
                 lib_name: Some("python3.8".into()),
                 lib_dir: Some("/usr/lib/mingw".into()),
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn unix_hardcoded_cross_compile() {
+        let cross_config = CrossCompileConfig {
+            lib_dir: Some("/usr/arm64/lib".into()),
+            version: Some(PythonVersion { major: 3, minor: 9 }),
+            target: triple!("aarch64-unknown-linux-gnu"),
+        };
+
+        assert_eq!(
+            default_cross_compile(&cross_config).unwrap(),
+            InterpreterConfig {
+                implementation: PythonImplementation::CPython,
+                version: PythonVersion { major: 3, minor: 9 },
+                shared: true,
+                abi3: false,
+                lib_name: Some("python3.9".into()),
+                lib_dir: Some("/usr/arm64/lib".into()),
                 executable: None,
                 pointer_width: None,
                 build_flags: BuildFlags::default(),
