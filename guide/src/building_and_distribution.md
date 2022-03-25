@@ -226,8 +226,8 @@ After you've obtained the above, you can build a cross-compiled PyO3 module by u
 When cross-compiling, PyO3's build script cannot execute the target Python interpreter to query the configuration, so there are a few additional environment variables you may need to set:
 
 * `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
-* `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import libraries for the Windows target.
-* `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
+* `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import libraries for the Windows target. This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Windows and Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
+* `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 
@@ -254,6 +254,7 @@ cargo build --target x86_64-pc-windows-gnu
 ```
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
+`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets.
 
 The following resources may also be useful for cross-compiling:
  - [github.com/japaric/rust-cross](https://github.com/japaric/rust-cross) is a primer on cross compiling Rust.

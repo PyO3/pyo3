@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make `PYO3_CROSS_LIB_DIR` environment variable optional when cross compiling. [#2241](https://github.com/PyO3/pyo3/pull/2241)
 - Allow `#[pyo3(crate = "...", text_signature = "...")]` options to be used directly in `#[pyclass(crate = "...", text_signature = "...")]`. [#2234](https://github.com/PyO3/pyo3/pull/2234)
 - Mark `METH_FASTCALL` calling convention as limited API on Python 3.10. [#2250](https://github.com/PyO3/pyo3/pull/2250)
 
