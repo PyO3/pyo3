@@ -1,12 +1,10 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
 use std::cell::UnsafeCell;
+use std::ffi::CStr;
 use std::os::raw::c_void;
 
-use crate::{
-    callback::panic_result_into_callback_output, ffi, types::PyModule, GILPool, IntoPyPointer, Py,
-    PyObject, PyResult, Python,
-};
+use crate::{ffi, types::PyModule, AsPyPointer, Py, PyErr, PyObject, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef_Slot`
 #[derive(Clone, Copy)]
@@ -19,11 +17,7 @@ unsafe impl Sync for ModuleDefSlot {}
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
-    initializer: ModuleInitializer,
 }
-
-/// Wrapper to enable initializer to be used in const fns.
-pub struct ModuleInitializer(pub for<'py> fn(Python<'py>, &PyModule) -> PyResult<()>);
 
 unsafe impl Sync for ModuleDef {}
 
@@ -43,7 +37,6 @@ impl ModuleDef {
         name: &'static str,
         doc: &'static str,
         slots: *mut ffi::PyModuleDef_Slot,
-        initializer: ModuleInitializer,
     ) -> Self {
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -64,10 +57,7 @@ impl ModuleDef {
             ..INIT
         });
 
-        ModuleDef {
-            ffi_def,
-            initializer,
-        }
+        ModuleDef { ffi_def }
     }
     /// Return module def
     pub fn module_def(&'static self) -> *mut ffi::PyModuleDef {
@@ -75,42 +65,23 @@ impl ModuleDef {
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
     pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyObject> {
+        let module_spec_type = py.import("importlib.machinery")?.getattr("ModuleSpec")?;
         let module = unsafe {
             let mod_def = self.ffi_def.get();
-            (*mod_def).m_slots = std::ptr::null_mut();
-            Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(mod_def))?
+            // Mock a ModuleSpec object just good enough for PyModule_FromDefAndSpec()
+            // an object with just a name attribute.
+            let module_name = CStr::from_ptr((*mod_def).m_name);
+            let args = (module_name.to_str()?, py.None());
+            let spec = module_spec_type.call1(args)?;
+            let module = Py::<PyModule>::from_owned_ptr_or_err(
+                py,
+                ffi::PyModule_FromDefAndSpec(mod_def, spec.as_ptr()),
+            )?;
+            if ffi::PyModule_ExecDef(module.as_ptr(), mod_def) != 0 {
+                return Err(PyErr::fetch(py));
+            }
+            module
         };
-        (self.initializer.0)(py, module.as_ref(py))?;
         Ok(module.into())
-    }
-    /// Implementation of `PyInit_foo` functions generated in [`#[pymodule]`][crate::pymodule]..
-    ///
-    /// # Safety
-    /// The Python GIL must be held.
-    pub unsafe fn module_init(&'static self) -> *mut ffi::PyObject {
-        let pool = GILPool::new();
-        let py = pool.python();
-        let unwind_safe_self = std::panic::AssertUnwindSafe(self);
-        panic_result_into_callback_output(
-            py,
-            std::panic::catch_unwind(move || -> PyResult<_> {
-                #[cfg(all(PyPy, not(Py_3_8)))]
-                {
-                    const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
-                    let version = py
-                        .import("sys")?
-                        .getattr("implementation")?
-                        .getattr("version")?;
-                    if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
-                        let warn = py.import("warnings")?.getattr("warn")?;
-                        warn.call1((
-                            "PyPy 3.7 versions older than 7.3.8 are known to have binary \
-                             compatibility issues which may cause segfaults. Please upgrade.",
-                        ))?;
-                    }
-                }
-                Ok(unwind_safe_self.make_module(py)?.into_ptr())
-            }),
-        )
     }
 }
