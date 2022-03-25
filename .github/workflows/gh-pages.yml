@@ -1,4 +1,4 @@
-name: guide
+name: gh-pages
 
 on:
   push:
@@ -16,7 +16,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  guide-build:
     runs-on: ubuntu-latest
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
@@ -59,7 +59,7 @@ jobs:
           destination_dir: internal
           full_commit_message: "Upload internal documentation"
 
-      - name: Clear the extra artefacts created earlier 
+      - name: Clear the extra artefacts created earlier
         run: rm -rf target
 
       # This builds the book in gh-pages-build. See https://github.com/rust-lang-nursery/mdBook/issues/698
@@ -83,8 +83,9 @@ jobs:
           publish_dir: ./gh-pages-build/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
-  release:
-    needs: build
+
+  guide-release:
+    needs: guide-build
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
     steps:
@@ -103,3 +104,94 @@ jobs:
           publish_dir: ./public/
           full_commit_message: "Release ${{ needs.build.outputs.tag_name }}"
           keep_files: true
+
+  cargo-benchmark:
+    if: ${{ github.ref_name == 'main' }}
+    name: Cargo benchmark
+    needs: guide-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-bench-${{ hashFiles('**/Cargo.toml') }}
+        continue-on-error: true
+
+      - name: Run benchmarks
+        run: |
+          for bench in call dict gil list pyclass pyobject set tuple; do
+            cargo bench --features hashbrown --bench "bench_$bench" -- --output-format bencher | tee -a output.txt
+          done
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v1
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      # Run `github-action-benchmark` action
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: pyo3-bench
+          # What benchmark tool the output.txt came from
+          tool: "cargo"
+          # Where the output from the benchmark tool is stored
+          output-file-path: output.txt
+          # GitHub API token to make a commit comment
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name != 'pull_request' }}
+
+  pytest-benchmark:
+    if: ${{ github.ref_name == 'main' }}
+    name: Pytest benchmark
+    needs: cargo-benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-pytest-bench-${{ hashFiles('**/Cargo.toml') }}
+        continue-on-error: true
+
+      - name: Download previous benchmark data
+        uses: actions/cache@v1
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-pytest-benchmark
+
+      - name: Run benchmarks
+        run: |
+          pip install nox
+          nox -f pytests/noxfile.py -s bench -- --benchmark-json $(pwd)/output.json
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: pytest-bench
+          tool: "pytest"
+          output-file-path: output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name != 'pull_request' }}
