@@ -15,6 +15,9 @@ pyo3-build-config = { path = "../pyo3-build-config" }
 name = "pyo3_pytests"
 crate-type = ["cdylib"]
 
+[features]
+pep489 = ["pyo3/pep489"]
+
 [package.metadata.maturin]
 classifier=[
     "License :: OSI Approved :: MIT License",

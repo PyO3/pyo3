@@ -4,10 +4,13 @@ nox.options.sessions = ["test"]
 
 
 @nox.session
-def test(session):
+@nox.parametrize("cargo_features", ['""', "pep489"])
+def test(session, cargo_features):
     session.install("-rrequirements-dev.txt")
     session.install("maturin")
-    session.run_always("maturin", "develop")
+    session.run_always(
+        "maturin", "develop", f"--cargo-extra-args=--features {cargo_features}"
+    )
     session.run("pytest")
 
 
