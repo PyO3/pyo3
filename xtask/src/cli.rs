@@ -117,24 +117,35 @@ impl Subcommand {
 }
 
 pub fn run(command: &mut Command) -> Result<()> {
-    println!("Running: {}", format_command(command));
+    let command_str = format_command(command);
+    println!("Running: {}", command_str);
 
     let output = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?
         .wait_with_output()?;
+    let out = String::from_utf8_lossy(&output.stdout);
+    let err = String::from_utf8_lossy(&output.stderr);
+
+    let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
+    if github_actions {
+        println!("::group::{}", command_str);
+        println!("{}", out);
+        println!("{}", err);
+        println!("::endgroup::")
+    }
 
     ensure! {
         output.status.success(),
-        "process did not run successfully ({exit}): {command}/n {out} {err}",
+        "process did not run successfully ({exit}): {command}\n {out} {err}",
         exit = match output.status.code() {
             Some(code) => format!("exit code {}", code),
             None => "terminated by signal".into(),
         },
-        command = format_command(command),
-        out = String::from_utf8_lossy(&output.stdout),
-        err = String::from_utf8_lossy(&output.stderr)
+        command = command_str,
+        out = if github_actions { "".into() } else { out },
+        err = if github_actions { "".into() } else { err },
 
     };
     Ok(())
