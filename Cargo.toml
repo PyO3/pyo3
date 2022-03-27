@@ -78,6 +78,9 @@ abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38", "pyo3-ffi/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
 
+# Enable PEP 489 - Multi-phase extension module initialization
+pep489 = ["pyo3-macros/pep489"]
+
 # Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
 # Python interpreter if needed.
 auto-initialize = []
@@ -98,6 +101,7 @@ full = [
     "indexmap",
     "eyre",
     "anyhow",
+    "pep489",
 ]
 
 [[bench]]
