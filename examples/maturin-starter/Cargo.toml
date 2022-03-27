@@ -10,4 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { path = "../../", features = ["extension-module"] }
 
+[features]
+pep489 = ["pyo3/pep489"]
+
 [workspace]

@@ -11,4 +11,7 @@ crate-type = ["cdylib"]
 pyo3 = { path = "../..", features = ["extension-module"] }
 rayon = "1.0.2"
 
+[features]
+pep489 = ["pyo3/pep489"]
+
 [workspace]
