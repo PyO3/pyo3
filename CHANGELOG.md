@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow dependent crates to access config values from `pyo3-build-config` via cargo link dep env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 - Added methods on `InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
+- Added FFI definitions for `PyType_FromModuleAndSpec`, `PyType_GetModule`, `PyType_GetModuleState` and `PyModule_AddType`. [#2250](https://github.com/PyO3/pyo3/pull/2250)
 
 ### Changed
 
 - Allow `#[pyo3(crate = "...", text_signature = "...")]` options to be used directly in `#[pyclass(crate = "...", text_signature = "...")]`. [#2234](https://github.com/PyO3/pyo3/pull/2234)
+- Mark `METH_FASTCALL` calling convention as limited API on Python 3.10. [#2250](https://github.com/PyO3/pyo3/pull/2250)
 
 ### Fixed
 

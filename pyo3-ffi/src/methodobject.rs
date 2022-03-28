@@ -179,7 +179,7 @@ pub const METH_COEXIST: c_int = 0x0040;
 
 /* METH_FASTCALL indicates the PEP 590 Vectorcall calling format. It may
 be specified alone or with METH_KEYWORDS. */
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 pub const METH_FASTCALL: c_int = 0x0080;
 
 // skipped METH_STACKLESS

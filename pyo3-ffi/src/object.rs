@@ -205,9 +205,21 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_GetSlot")]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int) -> *mut c_void;
 
-    // skipped non-limited / 3.9 PyType_FromModuleAndSpec
-    // skipped non-limited / 3.9 PyType_GetModule
-    // skipped non-limited / 3.9 PyType_GetModuleState
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_FromModuleAndSpec")]
+    pub fn PyType_FromModuleAndSpec(
+        module: *mut PyObject,
+        spec: *mut PyType_Spec,
+        bases: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModule")]
+    pub fn PyType_GetModule(arg1: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleState")]
+    pub fn PyType_GetModuleState(arg1: *mut PyTypeObject) -> *mut c_void;
 }
 
 extern "C" {
