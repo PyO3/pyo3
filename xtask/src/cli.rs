@@ -1,7 +1,7 @@
 use crate::utils::*;
 use anyhow::{ensure, Result};
 use std::io;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -118,36 +118,28 @@ impl Subcommand {
 
 pub fn run(command: &mut Command) -> Result<()> {
     let command_str = format_command(command);
-    println!("Running: {}", command_str);
-
-    let output = command
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?
-        .wait_with_output()?;
-    let out = String::from_utf8_lossy(&output.stdout);
-    let err = String::from_utf8_lossy(&output.stderr);
-
     let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
     if github_actions {
-        println!("::group::{}", command_str);
-        println!("{}", out);
-        println!("{}", err);
-        println!("::endgroup::")
+        println!("::group::Running: {}", command_str);
+    } else {
+        println!("Running: {}", command_str);
     }
 
+    let status = command.spawn()?.wait()?;
+
     ensure! {
-        output.status.success(),
-        "process did not run successfully ({exit}): {command}\n {out} {err}",
-        exit = match output.status.code() {
+        status.success(),
+        "process did not run successfully ({exit}): {command}",
+        exit = match status.code() {
             Some(code) => format!("exit code {}", code),
             None => "terminated by signal".into(),
         },
         command = command_str,
-        out = if github_actions { "".into() } else { out },
-        err = if github_actions { "".into() } else { err },
-
     };
+
+    if github_actions {
+        println!("::endgroup::")
+    }
     Ok(())
 }
 
