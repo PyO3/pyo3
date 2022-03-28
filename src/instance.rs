@@ -168,7 +168,6 @@ pub unsafe trait PyNativeType: Sized {
 /// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
 ///
 /// ```rust
-/// use pyo3::conversion::AsPyPointer;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
 ///
@@ -186,9 +185,9 @@ pub unsafe trait PyNativeType: Sized {
 ///     drop(first);
 ///
 ///     // They all point to the same object
-///     assert_eq!(second.as_ptr(), third.as_ptr());
-///     assert_eq!(fourth.as_ptr(), fifth.as_ptr());
-///     assert_eq!(second.as_ptr(), fourth.as_ptr());
+///     assert!(second.is(&third));
+///     assert!(fourth.is(&fifth));
+///     assert!(second.is(&fourth));
 /// });
 /// # }
 /// ```
@@ -197,8 +196,8 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
-/// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If your pyclass
-/// contains other Python objects you should implement this protocol to avoid leaking memory.
+/// [integrate with the garbage collector][gc]. If your pyclass contains other Python
+/// objects you should implement it to avoid leaking memory.
 ///
 /// # A note on Python reference counts
 ///
@@ -220,6 +219,7 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// [`Rc`]: std::rc::Rc
 /// [`RefCell`]: std::cell::RefCell
+/// [gc]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -487,7 +487,6 @@ impl<T> Py<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use pyo3::conversion::AsPyPointer;
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     ///
@@ -497,7 +496,7 @@ impl<T> Py<T> {
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
-    ///     assert_eq!(first.as_ptr(), second.as_ptr());
+    ///     assert!(first.is(&second));
     /// });
     /// # }
     /// ```

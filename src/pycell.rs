@@ -107,12 +107,11 @@
 //! fn swap_numbers(a: &mut Number, b: &mut Number) {
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
-//! # use pyo3::AsPyPointer;
 //! # fn main() {
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
-//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
 //! #     });
@@ -138,19 +137,18 @@
 //! #[pyfunction]
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
-//!     if a.as_ptr() != b.as_ptr() {
+//!     if !a.is(b) {
 //!         std::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
 //!     } else {
 //!         // Do nothing - they are the same object, so don't need swapping.
 //!     }
 //! }
-//! # use pyo3::AsPyPointer;
 //! # fn main() {
 //! #     // With duplicate numbers
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
-//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).unwrap();
 //! #     });
@@ -159,7 +157,7 @@
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
-//! #         assert_ne!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(!n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((&n, &n2)).unwrap();
 //! #         let n: u32 = n.borrow(py).inner;
