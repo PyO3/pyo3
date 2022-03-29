@@ -183,7 +183,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS
     TpNew,    // special convention for tp_new
 }
 
@@ -199,8 +199,8 @@ impl CallingConvention {
         } else if accept_kwargs {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if cfg!(not(feature = "abi3")) {
-            // Not available in the Stable ABI as of Python 3.10
+        } else if cfg!(not(feature = "abi3-py39")) {
+            // Not available in the Stable ABI until Python 3.10
             Self::Fastcall
         } else {
             Self::Varargs
