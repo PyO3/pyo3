@@ -806,22 +806,6 @@ impl<'py> Python<'py> {
         err::error_on_minusone(self, v)
     }
 
-    /// Retrieves a Python instance under the assumption that the GIL is already
-    /// acquired at this point, and stays acquired for the lifetime `'py`.
-    ///
-    /// Because the output lifetime `'py` is not connected to any input parameter,
-    /// care must be taken that the compiler infers an appropriate lifetime for `'py`
-    /// when calling this function.
-    ///
-    /// # Safety
-    ///
-    /// The lifetime `'py` must be shorter than the period you *assume* that you have GIL.
-    /// I.e., `Python<'static>` is always *really* unsafe.
-    #[inline]
-    pub unsafe fn assume_gil_acquired() -> Python<'py> {
-        Python(PhantomData)
-    }
-
     /// Create a new pool for managing PyO3's owned references.
     ///
     /// When this `GILPool` is dropped, all PyO3 owned references created after this `GILPool` will
@@ -879,6 +863,29 @@ impl<'py> Python<'py> {
     #[inline]
     pub unsafe fn new_pool(self) -> GILPool {
         GILPool::new()
+    }
+}
+
+impl<'unbound> Python<'unbound> {
+    /// Unsafely creates a Python token with an unbounded lifetime.
+    ///
+    /// Many of PyO3 APIs use `Python<'_>` as proof that the GIL is held, but this function can be
+    /// used to call them unsafely.
+    ///
+    /// # Safety
+    ///
+    /// - This token and any borrowed Python references derived from it can only be safely used
+    /// whilst the currently executing thread is actually holding the GIL.
+    /// - This function creates a token with an *unbounded* lifetime. Safe code can assume that
+    /// holding a `Python<'py>` token means the GIL is and stays acquired for the lifetime `'py`.
+    /// If you let it or borrowed Python references escape to safe code you are
+    /// responsible for bounding the lifetime `'unbound` appropriately. For more on unbounded
+    /// lifetimes, see the [nomicon].
+    ///
+    /// [nomicon]: https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html
+    #[inline]
+    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
+        Python(PhantomData)
     }
 }
 
