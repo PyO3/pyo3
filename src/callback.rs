@@ -244,6 +244,21 @@ where
     let unwind_safe_py = AssertUnwindSafe(pool.python());
     let panic_result = panic::catch_unwind(move || -> PyResult<_> {
         let py = *unwind_safe_py;
+        #[cfg(all(PyPy, not(Py_3_8)))]
+        {
+            const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
+            let version = py
+                .import("sys")?
+                .getattr("implementation")?
+                .getattr("version")?;
+            if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
+                let warn = py.import("warnings")?.getattr("warn")?;
+                warn.call1((
+                    "PyPy 3.7 versions older than 7.3.8 are known to have binary \
+                             compatibility issues which may cause segfaults. Please upgrade.",
+                ))?;
+            }
+        }
         body(py)
     });
 
