@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==20.8b1
+      - run: pip install black==22.3.0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
