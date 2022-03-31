@@ -251,7 +251,9 @@ where
                 .import("sys")?
                 .getattr("implementation")?
                 .getattr("version")?;
-            if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
+            if version.compare(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))?
+                == std::cmp::Ordering::Less
+            {
                 let warn = py.import("warnings")?.getattr("warn")?;
                 warn.call1((
                     "PyPy 3.7 versions older than 7.3.8 are known to have binary \
