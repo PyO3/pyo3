@@ -3,7 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
-    PyTzInfo,
+    PyTzInfo, PyTzInfoAccess,
 };
 
 #[pyfunction]
@@ -177,6 +177,16 @@ fn datetime_from_timestamp<'p>(
     tz: Option<&PyTzInfo>,
 ) -> PyResult<&'p PyDateTime> {
     PyDateTime::from_timestamp(py, ts, tz)
+}
+
+#[pyfunction]
+fn get_datetime_tzinfo(dt: &PyDateTime) -> Option<&PyTzInfo> {
+    dt.get_tzinfo()
+}
+
+#[pyfunction]
+fn get_time_tzinfo(dt: &PyTime) -> Option<&PyTzInfo> {
+    dt.get_tzinfo()
 }
 
 #[pyclass(extends=PyTzInfo)]

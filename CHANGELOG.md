@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add an experimental `generate-abi3-import-lib` feature to auto-generate `python3.dll` import libraries for Windows. [#2282](https://github.com/PyO3/pyo3/pull/2282)
 - Add FFI definitions for `PyDateTime_BaseTime` and `PyDateTime_BaseDateTime`. [#2294](https://github.com/PyO3/pyo3/pull/2294)
+- Added `PyTzInfoAccess`. [#2263](https://github.com/PyO3/pyo3/pull/2263)
 
 ### Changed
 
