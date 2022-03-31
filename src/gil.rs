@@ -704,6 +704,7 @@ mod tests {
         assert!(gil_is_acquired());
     }
 
+    #[allow(clippy::needless_late_init)]
     #[test]
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864

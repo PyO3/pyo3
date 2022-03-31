@@ -17,6 +17,10 @@ use std::ptr::NonNull;
 /// PyO3 is designed in a way that all references to those types are bound
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which cannot be accessed without the GIL.
 pub unsafe trait PyNativeType: Sized {
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]

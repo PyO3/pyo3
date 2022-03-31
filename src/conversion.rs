@@ -463,6 +463,10 @@ impl IntoPy<Py<PyTuple>> for () {
 }
 
 /// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
+///
+/// # Safety
+///
+/// See safety notes on individual functions.
 pub unsafe trait FromPyPointer<'p>: Sized {
     /// Convert from an arbitrary `PyObject`.
     ///

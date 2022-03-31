@@ -79,11 +79,7 @@ pub fn get_doc(
     syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
         if let Some((python_name, text_signature)) = text_signature {
             // create special doc string lines to set `__text_signature__`
-            let signature_lines = format!(
-                "{}{}\n--\n\n",
-                python_name.to_string(),
-                text_signature.lit.value()
-            );
+            let signature_lines = format!("{}{}\n--\n\n", python_name, text_signature.lit.value());
             signature_lines.to_tokens(tokens);
             comma.to_tokens(tokens);
         }

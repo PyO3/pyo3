@@ -1,5 +1,6 @@
 #![no_implicit_prelude]
 #![allow(unused_variables)]
+#![allow(clippy::needless_option_as_deref)]
 
 #[::pyo3::pyclass]
 pub struct Dummy;
