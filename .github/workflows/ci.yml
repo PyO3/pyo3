@@ -100,24 +100,7 @@ jobs:
               python-architecture: "x64",
               rust-target: "x86_64-pc-windows-msvc",
             },
-            {
-              os: "windows-latest",
-              python-architecture: "x86",
-              rust-target: "i686-pc-windows-msvc",
-            },
           ]
-        exclude:
-          # PyPy 3.6 is EOL and not working on macos-latest (now macos-11)
-          - python-version: pypy-3.6
-            platform: { os: "macos-latest", python-architecture: "x64" }
-          # There is no 64-bit pypy on windows for pypy-3.6
-          - python-version: pypy-3.6
-            platform: { os: "windows-latest", python-architecture: "x64" }
-          # PyPy 3.7 on Windows doesn't release 32-bit builds any more
-          - python-version: pypy-3.7
-            platform: { os: "windows-latest", python-architecture: "x86" }
-          - python-version: pypy-3.8
-            platform: { os: "windows-latest", python-architecture: "x86" }
         include:
           # PyPy3.6 still runs on macos-10.15
           - rust: stable
@@ -138,6 +121,15 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
             msrv: "MSRV"
+          # Test 32-bit Windows only with the latest Python version
+          - rust: stable
+            python-version: "3.10"
+            platform:
+              {
+                os: "windows-latest",
+                python-architecture: "x86",
+                rust-target: "i686-pc-windows-msvc",
+              }
 
     steps:
       - uses: actions/checkout@v2
