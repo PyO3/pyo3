@@ -182,6 +182,7 @@ jobs:
         run: |
           cargo update -p indexmap --precise 1.6.2
           cargo update -p hashbrown:0.11.2 --precise 0.9.1
+          cargo update -p clap --precise 2.33.4
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
