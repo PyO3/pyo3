@@ -1,19 +1,14 @@
 error[E0277]: the trait bound `i32: From<&PyCell<MyClass>>` is not satisfied
-   --> tests/ui/invalid_pymethod_receiver.rs:8:43
-    |
-8   |     fn method_with_invalid_self_type(slf: i32, py: Python, index: u32) {}
-    |                                           ^^^ the trait `From<&PyCell<MyClass>>` is not implemented for `i32`
-    |
-    = help: the following implementations were found:
-              <i32 as From<NonZeroI32>>
-              <i32 as From<bool>>
-              <i32 as From<i16>>
-              <i32 as From<i8>>
-            and 2 others
-    = note: required because of the requirements on the impl of `Into<i32>` for `&PyCell<MyClass>`
-    = note: required because of the requirements on the impl of `TryFrom<&PyCell<MyClass>>` for `i32`
-note: required by `std::convert::TryFrom::try_from`
-   --> $RUST/core/src/convert/mod.rs
-    |
-    |     fn try_from(value: T) -> Result<Self, Self::Error>;
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ --> tests/ui/invalid_pymethod_receiver.rs:8:43
+  |
+8 |     fn method_with_invalid_self_type(slf: i32, py: Python, index: u32) {}
+  |                                           ^^^ the trait `From<&PyCell<MyClass>>` is not implemented for `i32`
+  |
+  = help: the following implementations were found:
+            <i32 as From<NonZeroI32>>
+            <i32 as From<bool>>
+            <i32 as From<i16>>
+            <i32 as From<i8>>
+          and 2 others
+  = note: required because of the requirements on the impl of `Into<i32>` for `&PyCell<MyClass>`
+  = note: required because of the requirements on the impl of `TryFrom<&PyCell<MyClass>>` for `i32`

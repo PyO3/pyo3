@@ -4,7 +4,7 @@ error[E0495]: cannot infer an appropriate lifetime for lifetime parameter `'py` 
 4 | #[pyfunction]
   | ^^^^^^^^^^^^^
   |
-note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the body at 4:1...
+note: first, the lifetime cannot outlive the anonymous lifetime #1 defined here...
  --> tests/ui/static_ref.rs:4:1
   |
 4 | #[pyfunction]
