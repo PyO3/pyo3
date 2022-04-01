@@ -33,7 +33,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-fn module_with_functions(_py: Python, m: &PyModule) -> PyResult<()> {
+fn module_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     #[pyo3(name = "no_parameters")]
     fn function_with_name() -> usize {
@@ -116,7 +116,7 @@ fn test_module_with_functions() {
 
 #[pymodule]
 #[pyo3(name = "other_name")]
-fn some_name(_: Python, m: &PyModule) -> PyResult<()> {
+fn some_name(_: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("other_name", "other_name")?;
     Ok(())
 }
@@ -166,7 +166,7 @@ fn r#move() -> usize {
 }
 
 #[pymodule]
-fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
+fn raw_ident_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(r#move, module)?)
 }
 
@@ -189,7 +189,7 @@ fn custom_named_fn() -> usize {
 }
 
 #[pymodule]
-fn foobar_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn foobar_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
     m.dict().set_item("yay", "me")?;
     Ok(())
@@ -235,7 +235,7 @@ fn submodule(module: &PyModule) -> PyResult<()> {
 }
 
 #[pymodule]
-fn submodule_with_init_fn(_py: Python, module: &PyModule) -> PyResult<()> {
+fn submodule_with_init_fn(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(subfunction, module)?)?;
     Ok(())
 }
@@ -246,7 +246,7 @@ fn superfunction() -> String {
 }
 
 #[pymodule]
-fn supermodule(py: Python, module: &PyModule) -> PyResult<()> {
+fn supermodule(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
     let module_to_add = PyModule::new(py, "submodule")?;
     submodule(module_to_add)?;
@@ -285,14 +285,14 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(a = 5, vararg = "*")]
-fn ext_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+fn ext_vararg_fn(py: Python<'_>, a: i32, vararg: &PyTuple) -> PyObject {
     [a.to_object(py), vararg.into()].to_object(py)
 }
 
 #[pymodule]
-fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn vararg_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, a = 5, vararg = "*")]
-    fn int_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+    fn int_vararg_fn(py: Python<'_>, a: i32, vararg: &PyTuple) -> PyObject {
         ext_vararg_fn(py, a, vararg)
     }
 
@@ -318,7 +318,7 @@ fn test_module_with_constant() {
     // Regression test for #1102
 
     #[pymodule]
-    fn module_with_constant(_py: Python, m: &PyModule) -> PyResult<()> {
+    fn module_with_constant(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         const ANON: AnonClass = AnonClass {};
 
         m.add("ANON", ANON)?;
@@ -382,7 +382,7 @@ fn pyfunction_with_pass_module_in_attribute(module: &PyModule) -> PyResult<&str>
 }
 
 #[pymodule]
-fn module_with_functions_with_module(_py: Python, m: &PyModule) -> PyResult<()> {
+fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyfunction_with_module, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_py, m)?)?;
     m.add_function(wrap_pyfunction!(pyfunction_with_module_and_arg, m)?)?;
@@ -432,8 +432,9 @@ fn test_module_functions_with_module() {
 #[test]
 fn test_module_doc_hidden() {
     #[doc(hidden)]
+    #[allow(clippy::unnecessary_wraps)]
     #[pymodule]
-    fn my_module(_py: Python, _m: &PyModule) -> PyResult<()> {
+    fn my_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
         Ok(())
     }
 

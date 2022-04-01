@@ -76,7 +76,7 @@
 //! }
 //!
 //! #[pymodule]
-//! fn my_module(_py: Python, m: &PyModule) -> PyResult<()> {
+//! fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
 //!     Ok(())
 //! }
@@ -102,7 +102,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -113,7 +113,7 @@ where
     V: IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));

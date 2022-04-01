@@ -1,5 +1,5 @@
 #![no_implicit_prelude]
-#![allow(unused_variables)]
+#![allow(unused_variables, clippy::unnecessary_wraps)]
 
 #[crate::pyfunction]
 #[pyo3(crate = "crate")]
@@ -9,13 +9,13 @@ fn do_something(x: i32) -> crate::PyResult<i32> {
 
 #[crate::pymodule]
 #[pyo3(crate = "crate")]
-fn foo(_py: crate::Python, _m: &crate::types::PyModule) -> crate::PyResult<()> {
+fn foo(_py: crate::Python<'_>, _m: &crate::types::PyModule) -> crate::PyResult<()> {
     ::std::result::Result::Ok(())
 }
 
 #[crate::pymodule]
 #[pyo3(crate = "crate")]
-fn my_module(_py: crate::Python, m: &crate::types::PyModule) -> crate::PyResult<()> {
+fn my_module(_py: crate::Python<'_>, m: &crate::types::PyModule) -> crate::PyResult<()> {
     m.add_function(crate::wrap_pyfunction!(do_something, m)?)?;
     m.add_wrapped(crate::wrap_pymodule!(foo))?;
 

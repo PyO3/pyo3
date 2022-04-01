@@ -1,16 +1,17 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python GC support
 
-use crate::{ffi, pyclass::MutablePyClass, AsPyPointer, PyCell, Python};
+use crate::{ffi, pyclass::MutablePyClass, AsPyPointer, PyCell, Python, PyClass};
 use std::os::raw::{c_int, c_void};
 
-#[repr(transparent)]
-pub struct PyTraverseError(c_int);
+pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
 
 /// GC support
-pub trait PyGCProtocol<'p>: MutablePyClass {
-    fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
+pub trait PyGCProtocol<'p>: PyClass {
+    fn __traverse__(&'p self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
 }
 
@@ -57,30 +58,4 @@ where
 
     slf.borrow_mut().__clear__();
     0
-}
-
-/// Object visitor for GC.
-#[derive(Clone)]
-pub struct PyVisit<'p> {
-    visit: ffi::visitproc,
-    arg: *mut c_void,
-    /// VisitProc contains a Python instance to ensure that
-    /// 1) it is cannot be moved out of the traverse() call
-    /// 2) it cannot be sent to other threads
-    _py: Python<'p>,
-}
-
-impl<'p> PyVisit<'p> {
-    /// Visit `obj`.
-    pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
-    where
-        T: AsPyPointer,
-    {
-        let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
-        if r == 0 {
-            Ok(())
-        } else {
-            Err(PyTraverseError(r))
-        }
-    }
 }

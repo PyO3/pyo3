@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated, elided_lifetimes_in_paths)]
 
 use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
@@ -130,7 +131,7 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[pyclass]
 struct GcIntegration2 {}
 
 #[pyproto]
@@ -206,7 +207,7 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
-        let obj: &PyCell<SubClassWithDrop> = inst.try_into().unwrap();
+        let obj: &PyCell<SubClassWithDrop> = PyTryInto::try_into(&*inst).unwrap();
         let mut obj_ref_mut = obj.borrow_mut();
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
         let base: &mut BaseClassWithDrop = obj_ref_mut.as_mut();
@@ -217,7 +218,7 @@ fn inheritance_with_new_methods_with_drop() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[pyclass]
 struct TraversableClass {
     traversed: AtomicBool,
 }

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Python Number Interface
@@ -8,6 +9,7 @@ use crate::{ffi, pyclass::MutablePyClass, FromPyObject, PyClass, PyObject};
 
 /// Number interface
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyNumberProtocol<'p>: PyClass {
     fn __add__(lhs: Self::Left, rhs: Self::Right) -> Self::Result
     where

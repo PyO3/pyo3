@@ -119,4 +119,20 @@ impl MyClass {
     fn default_arg_before_required(&self, has_default: isize, required: isize) {}
 }
 
+#[pymethods]
+impl MyClass {
+    fn method_self_by_value(self){}
+}
+
+struct TwoNew { }
+
+#[pymethods]
+impl TwoNew {
+    #[new]
+    fn new_1() -> Self { Self { } }
+
+    #[new]
+    fn new_2() -> Self { Self { } }
+}
+
 fn main() {}

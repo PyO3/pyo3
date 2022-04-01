@@ -2,7 +2,7 @@
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
-The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or a fieldless `enum` (a.k.a. C-like enum) to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) Finally, there may be multiple `#[pyproto]` trait implementations for the struct, which are used to define certain python magic methods such as `__str__`.
+The main attribute is `#[pyclass]`, which is placed upon a Rust `struct` or a fieldless `enum` (a.k.a. C-like enum) to generate a Python type for it. They will usually also have *one* `#[pymethods]`-annotated `impl` block for the struct, which is used to define Python methods and constants for the generated Python type. (If the [`multiple-pymethods`] feature is enabled each `#[pyclass]` is allowed to have multiple `#[pymethods]` blocks.) `#[pymethods]` may also have implementations for Python magic methods such as `__str__`.
 
 This chapter will discuss the functionality and configuration these attributes offer. Below is a list of links to the relevant section of this chapter for each:
 
@@ -16,18 +16,31 @@ This chapter will discuss the functionality and configuration these attributes o
   - [`#[classmethod]`](#class-methods)
   - [`#[classattr]`](#class-attributes)
   - [`#[args]`](#method-arguments)
-- [`#[pyproto]`](class/protocols.html)
+- [Magic methods and slots](class/protocols.html)
 
 ## Defining a new class
 
 To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct or a fieldless enum.
 ```rust
 # #![allow(dead_code)]
-# use pyo3::prelude::*;
+use pyo3::prelude::*;
+
 #[pyclass]
-struct MyClass {
-    # #[pyo3(get)]
-    num: i32,
+struct Integer{
+    inner: i32
+}
+
+// A "tuple" struct
+#[pyclass]
+struct Number(i32);
+
+// PyO3 supports custom discriminants in enums
+#[pyclass]
+enum HttpResponse {
+    Ok = 200,
+    NotFound = 404,
+    Teapot = 418,
+    // ...
 }
 
 #[pyclass]
@@ -41,20 +54,67 @@ Because Python objects are freely shared between threads by the Python interpret
 
 The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
-## Adding the class to a module
+## Constructor
 
-Custom Python classes can then be added to a module using `add_class()`.
+By default it is not possible to create an instance of a custom class from Python code.
+To declare a constructor, you need to define a method and annotate it with the `#[new]`
+attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
 
 ```rust
 # use pyo3::prelude::*;
 # #[pyclass]
-# struct MyClass {
-#    #[allow(dead_code)]
-#    num: i32,
-# }
+# struct Number(i32);
+#
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(value: i32) -> Self {
+        Number(value)
+    }
+}
+```
+
+Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::exceptions::PyValueError;
+# #[pyclass]
+# struct Nonzero(i32);
+#
+#[pymethods]
+impl Nonzero {
+    #[new]
+    fn py_new(value: i32) -> PyResult<Self> {
+        if value == 0 {
+            Err(PyValueError::new_err("cannot be zero"))
+        } else {
+            Ok(Nonzero(value))
+        }
+    }
+}
+```
+
+As you can see, the Rust method name is not important here; this way you can
+still use `new()` for a Rust-level constructor.
+
+If no method marked with `#[new]` is declared, object instances can only be
+created from Rust, but not from Python.
+
+For arguments, see the `Method arguments` section below.
+
+## Adding the class to a module
+
+The next step is to create the module initializer and add our class to it
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct Number(i32);
+#
 #[pymodule]
-fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<MyClass>()?;
+fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Number>()?;
     Ok(())
 }
 ```
@@ -135,68 +195,16 @@ Python::with_gil(|py|{
 
 ## Customizing the class
 
-The `#[pyclass]` macro accepts the following parameters:
+{{#include ../../pyo3-macros/docs/pyclass_parameters.md}}
 
-* `name="XXX"` - Set the class name shown in Python code. By default, the struct name is used as the class name.
-* `freelist=XXX` - The `freelist` parameter adds support of free allocation list to custom class.
-The performance improvement applies to types that are often created and deleted in a row,
-so that they can benefit from a freelist. `XXX` is a number of items for the free list.
-* `gc` - Classes with the `gc` parameter participate in Python garbage collection.
-If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`]({{#PYO3_DOCS_URL}}/pyo3/class/gc/trait.PyGCProtocol.html) trait has to be implemented.
-* `weakref` - Adds support for Python weak references.
-* `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`. `enum` pyclasses can't use a custom base class.
-* `subclass` - Allows Python classes to inherit from this class. `enum` pyclasses can't be inherited from.
-* `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
-* `unsendable` - Making it safe to expose `!Send` structs to Python, where all object can be accessed
-   by multiple threads. A class marked with `unsendable` panics when accessed by another thread.
-* `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
-  will be a virtual member of the `builtins` module.
+[params-1]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyAny.html
+[params-2]: https://en.wikipedia.org/wiki/Free_list
+[params-3]: https://doc.rust-lang.org/stable/std/marker/trait.Send.html
+[params-4]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
+[params-5]: https://doc.rust-lang.org/stable/std/sync/struct.Rc.html
+[params-6]: https://docs.python.org/3/library/weakref.html
 
-## Constructor
-
-By default it is not possible to create an instance of a custom class from Python code.
-To declare a constructor, you need to define a method and annotate it with the `#[new]`
-attribute. Only Python's `__new__` method can be specified, `__init__` is not available.
-
-```rust
-# use pyo3::prelude::*;
-#[pyclass]
-struct MyClass {
-    # #[allow(dead_code)]
-    num: i32,
-}
-
-#[pymethods]
-impl MyClass {
-    #[new]
-    fn new(num: i32) -> Self {
-        MyClass { num }
-    }
-}
-```
-
-Alternatively, if your `new` method may fail you can return `PyResult<Self>`.
-```rust
-# use pyo3::prelude::*;
-#[pyclass]
-struct MyClass {
-    # #[allow(dead_code)]
-    num: i32,
-}
-
-#[pymethods]
-impl MyClass {
-    #[new]
-    fn new(num: i32) -> PyResult<Self> {
-        Ok(MyClass { num })
-    }
-}
-```
-
-If no method marked with `#[new]` is declared, object instances can only be
-created from Rust, but not from Python.
-
-For arguments, see the `Method arguments` section below.
+These parameters are covered in various sections of this guide.
 
 ### Return type
 
@@ -259,7 +267,7 @@ impl SubClass {
         (SubClass { val2: 15 }, BaseClass::new())
     }
 
-    fn method2(self_: PyRef<Self>) -> PyResult<usize> {
+    fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let super_ = self_.as_ref();  // Get &BaseClass
         super_.method().map(|x| x * self_.val2)
     }
@@ -278,9 +286,9 @@ impl SubSubClass {
             .add_subclass(SubSubClass{val3: 20})
     }
 
-    fn method3(self_: PyRef<Self>) -> PyResult<usize> {
+    fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
-        let super_ = self_.into_super();  // Get PyRef<SubClass>
+        let super_ = self_.into_super();  // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 }
@@ -315,7 +323,7 @@ impl DictWithCounter {
     fn new() -> Self {
         Self::default()
     }
-    fn set(mut self_: PyRefMut<Self>, key: String, value: &PyAny) -> PyResult<()> {
+    fn set(mut self_: PyRefMut<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
         self_.counter.entry(key.clone()).or_insert(0);
         let py = self_.py();
         let dict: &PyDict = unsafe { py.from_borrowed_ptr_or_err(self_.as_ptr())? };
@@ -510,7 +518,7 @@ gets injected by the method wrapper, e.g.
 # }
 #[pymethods]
 impl MyClass {
-    fn method2(&self, py: Python) -> PyResult<i32> {
+    fn method2(&self, py: Python<'_>) -> PyResult<i32> {
         Ok(10)
     }
 }
@@ -702,7 +710,7 @@ num=-1
 
 ## Making class method signatures available to Python
 
-The [`#[pyo3(text_signature = "...")]`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
+The [`text_signature = "..."`](./function.md#text_signature) option for `#[pyfunction]` also works for classes and methods:
 
 ```rust
 # #![allow(dead_code)]
@@ -710,8 +718,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 // it works even if the item is not documented:
-#[pyclass]
-#[pyo3(text_signature = "(c, d, /)")]
+#[pyclass(text_signature = "(c, d, /)")]
 struct MyClass {}
 
 #[pymethods]
@@ -920,9 +927,9 @@ enum BadSubclass{
 
 ## Implementation details
 
-The `#[pyclass]` macros rely on a lot of conditional code generation: each `#[pyclass]` can optionally have a `#[pymethods]` block as well as several different possible `#[pyproto]` trait implementations.
+The `#[pyclass]` macros rely on a lot of conditional code generation: each `#[pyclass]` can optionally have a `#[pymethods]` block.
 
-To support this flexibility the `#[pyclass]` macro expands to a blob of boilerplate code which sets up the structure for ["dtolnay specialization"](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md). This implementation pattern enables the Rust compiler to use `#[pymethods]` and `#[pyproto]` implementations when they are present, and fall back to default (empty) definitions when they are not.
+To support this flexibility the `#[pyclass]` macro expands to a blob of boilerplate code which sets up the structure for ["dtolnay specialization"](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md). This implementation pattern enables the Rust compiler to use `#[pymethods]` implementations when they are present, and fall back to default (empty) definitions when they are not.
 
 This simple technique works for the case when there is zero or one implementations. To support multiple `#[pymethods]` for a `#[pyclass]` (in the [`multiple-pymethods`] feature), a registry mechanism provided by the [`inventory`](https://github.com/dtolnay/inventory) crate is used instead. This collects `impl`s at library load time, but isn't supported on all platforms. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
 
@@ -941,8 +948,8 @@ unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
-    fn type_object_raw(py: ::pyo3::Python<'_>) -> *mut ::pyo3::ffi::PyTypeObject {
-        use ::pyo3::type_object::LazyStaticType;
+    fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
+        use pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
         TYPE_OBJECT.get_or_init::<Self>(py)
     }
@@ -964,15 +971,14 @@ impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a MyClass {
     type Target = ::pyo3::PyRef<'a, MyClass>;
 }
 
-impl ::pyo3::IntoPy<::pyo3::PyObject> for MyClass {
-    fn into_py(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
-        ::pyo3::IntoPy::into_py(::pyo3::Py::new(py, self).unwrap(), py)
+impl pyo3::IntoPy<PyObject> for MyClass {
+    fn into_py(self, py: pyo3::Python<'_>) -> pyo3::PyObject {
+        pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
     }
 }
 
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const DOC: &'static str = "Class for demonstration\u{0}";
-    const IS_GC: bool = false;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
     type Layout = PyCell<MyClass>;
@@ -986,21 +992,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         static INTRINSIC_ITEMS: PyClassItems = PyClassItems { slots: &[], methods: &[] };
         visitor(&INTRINSIC_ITEMS);
         visitor(collector.py_methods());
-    }
-    fn get_new() -> Option<pyo3::ffi::newfunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.new_impl()
-    }
-    fn get_alloc() -> Option<pyo3::ffi::allocfunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.alloc_impl()
-    }
-    fn get_free() -> Option<pyo3::ffi::freefunc> {
-        use pyo3::impl_::pyclass::*;
-        let collector = PyClassImplCollector::<Self>::new();
-        collector.free_impl()
     }
 }
 

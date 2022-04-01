@@ -2,7 +2,7 @@ use crate::{exceptions::PyTypeError, PyErr, Python};
 
 #[cold]
 pub fn failed_to_extract_enum(
-    py: Python,
+    py: Python<'_>,
     type_name: &str,
     variant_names: &[&str],
     error_names: &[&str],

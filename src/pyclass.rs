@@ -2,10 +2,11 @@
 use crate::pycell::{Immutable, Mutable};
 use crate::{
     callback::IntoPyCallbackOutput,
+    exceptions::PyTypeError,
     ffi,
     impl_::pyclass::{
-        assign_sequence_item_from_mapping, fallback_new, get_sequence_item_from_mapping,
-        tp_dealloc, PyClassDict, PyClassImpl, PyClassItems, PyClassWeakRef,
+        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
+        PyClassImpl, PyClassItems, PyClassWeakRef,
     },
     IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
     PyTypeInfo, Python,
@@ -46,7 +47,7 @@ fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
 }
 
-pub(crate) fn create_type_object<T>(py: Python) -> *mut ffi::PyTypeObject
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> *mut ffi::PyTypeObject
 where
     T: PyClass,
 {
@@ -58,14 +59,10 @@ where
             T::NAME,
             T::BaseType::type_object_raw(py),
             std::mem::size_of::<T::Layout>(),
-            T::get_new(),
             tp_dealloc::<T>,
-            T::get_alloc(),
-            T::get_free(),
             T::dict_offset(),
             T::weaklist_offset(),
             &T::for_all_items,
-            T::IS_GC,
             T::IS_BASETYPE,
         )
     } {
@@ -76,20 +73,16 @@ where
 
 #[allow(clippy::too_many_arguments)]
 unsafe fn create_type_object_impl(
-    py: Python,
+    py: Python<'_>,
     tp_doc: &str,
     module_name: Option<&str>,
     name: &str,
     base_type_object: *mut ffi::PyTypeObject,
     basicsize: usize,
-    tp_new: Option<ffi::newfunc>,
     tp_dealloc: ffi::destructor,
-    tp_alloc: Option<ffi::allocfunc>,
-    tp_free: Option<ffi::freefunc>,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
     for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
-    is_gc: bool,
     is_basetype: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
@@ -103,19 +96,7 @@ unsafe fn create_type_object_impl(
         push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
     }
 
-    push_slot(
-        &mut slots,
-        ffi::Py_tp_new,
-        tp_new.unwrap_or(fallback_new) as _,
-    );
     push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
-
-    if let Some(alloc) = tp_alloc {
-        push_slot(&mut slots, ffi::Py_tp_alloc, alloc as _);
-    }
-    if let Some(free) = tp_free {
-        push_slot(&mut slots, ffi::Py_tp_free, free as _);
-    }
 
     #[cfg(Py_3_9)]
     {
@@ -141,9 +122,11 @@ unsafe fn create_type_object_impl(
     }
 
     // protocol methods
+    let mut has_new = false;
     let mut has_getitem = false;
     let mut has_setitem = false;
-    let mut has_gc_methods = false;
+    let mut has_traverse = false;
+    let mut has_clear = false;
 
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -151,19 +134,23 @@ unsafe fn create_type_object_impl(
 
     for_all_items(&mut |items| {
         for slot in items.slots {
-            has_getitem |= slot.slot == ffi::Py_mp_subscript;
-            has_setitem |= slot.slot == ffi::Py_mp_ass_subscript;
-            has_gc_methods |= slot.slot == ffi::Py_tp_clear || slot.slot == ffi::Py_tp_traverse;
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_getbuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
-            }
-
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            if slot.slot == ffi::Py_bf_releasebuffer {
-                // Safety: slot.pfunc is a valid function pointer
-                buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+            match slot.slot {
+                ffi::Py_tp_new => has_new = true,
+                ffi::Py_mp_subscript => has_getitem = true,
+                ffi::Py_mp_ass_subscript => has_setitem = true,
+                ffi::Py_tp_traverse => has_traverse = true,
+                ffi::Py_tp_clear => has_clear = true,
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_getbuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                ffi::Py_bf_releasebuffer => {
+                    // Safety: slot.pfunc is a valid function pointer
+                    buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
+                }
+                _ => {}
             }
         }
         slots.extend_from_slice(items.slots);
@@ -191,6 +178,17 @@ unsafe fn create_type_object_impl(
         );
     }
 
+    if !has_new {
+        push_slot(&mut slots, ffi::Py_tp_new, no_constructor_defined as _);
+    }
+
+    if has_clear && !has_traverse {
+        return Err(PyTypeError::new_err(format!(
+            "`#[pyclass]` {} implements __clear__ without __traverse__",
+            name
+        )));
+    }
+
     // Add empty sentinel at the end
     push_slot(&mut slots, 0, ptr::null_mut());
 
@@ -198,7 +196,7 @@ unsafe fn create_type_object_impl(
         name: py_class_qualified_name(module_name, name)?,
         basicsize: basicsize as c_int,
         itemsize: 0,
-        flags: py_class_flags(has_gc_methods, is_gc, is_basetype),
+        flags: py_class_flags(has_traverse, is_basetype),
         slots: slots.as_mut_ptr(),
     };
 
@@ -221,7 +219,7 @@ unsafe fn create_type_object_impl(
 }
 
 #[cold]
-fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
+fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &'static str) -> ! {
     e.print(py);
     panic!("An error occurred while initializing class {}", name)
 }
@@ -229,7 +227,7 @@ fn type_object_creation_failed(py: Python, e: PyErr, name: &'static str) -> ! {
 /// Additional type initializations necessary before Python 3.10
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 unsafe fn tp_init_additional(
-    type_object: *mut ffi::PyTypeObject,
+    _type_object: *mut ffi::PyTypeObject,
     _tp_doc: &str,
     #[cfg(not(Py_3_9))] buffer_procs: &ffi::PyBufferProcs,
     #[cfg(not(Py_3_9))] dict_offset: Option<ffi::Py_ssize_t>,
@@ -247,10 +245,10 @@ unsafe fn tp_init_additional(
             // heap-types, and it removed the text_signature value from it.
             // We go in after the fact and replace tp_doc with something
             // that _does_ include the text_signature value!
-            ffi::PyObject_Free((*type_object).tp_doc as _);
+            ffi::PyObject_Free((*_type_object).tp_doc as _);
             let data = ffi::PyObject_Malloc(_tp_doc.len());
             data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
-            (*type_object).tp_doc = data as _;
+            (*_type_object).tp_doc = data as _;
         }
     }
 
@@ -258,15 +256,15 @@ unsafe fn tp_init_additional(
     // Python 3.9, so on older versions we must manually fixup the type object.
     #[cfg(not(Py_3_9))]
     {
-        (*(*type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
-        (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
+        (*(*_type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
+        (*(*_type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
 
         if let Some(dict_offset) = dict_offset {
-            (*type_object).tp_dictoffset = dict_offset;
+            (*_type_object).tp_dictoffset = dict_offset;
         }
 
         if let Some(weaklist_offset) = weaklist_offset {
-            (*type_object).tp_weaklistoffset = weaklist_offset;
+            (*_type_object).tp_weaklistoffset = weaklist_offset;
         }
     }
 }
@@ -308,12 +306,13 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
     .into_raw())
 }
 
-fn py_class_flags(has_gc_methods: bool, is_gc: bool, is_basetype: bool) -> c_uint {
-    let mut flags = if has_gc_methods || is_gc {
-        ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC
-    } else {
-        ffi::Py_TPFLAGS_DEFAULT
-    };
+fn py_class_flags(is_gc: bool, is_basetype: bool) -> c_uint {
+    let mut flags = ffi::Py_TPFLAGS_DEFAULT;
+
+    if is_gc {
+        flags |= ffi::Py_TPFLAGS_HAVE_GC;
+    }
+
     if is_basetype {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
@@ -489,7 +488,7 @@ pub enum IterNextOutput<T, U> {
 pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
-    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterNextOutput::Yield(o) => Ok(o.into_ptr()),
             IterNextOutput::Return(opt) => Err(crate::exceptions::PyStopIteration::new_err((opt,))),
@@ -502,7 +501,7 @@ where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
             IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
@@ -514,7 +513,7 @@ impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterNextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
             Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
             None => Ok(PyIterNextOutput::Return(py.None())),
@@ -536,7 +535,7 @@ pub enum IterANextOutput<T, U> {
 pub type PyIterANextOutput = IterANextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
-    fn convert(self, _py: Python) -> PyResult<*mut ffi::PyObject> {
+    fn convert(self, _py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
         match self {
             IterANextOutput::Yield(o) => Ok(o.into_ptr()),
             IterANextOutput::Return(opt) => {
@@ -551,7 +550,7 @@ where
     T: IntoPy<PyObject>,
     U: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
             IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
@@ -563,10 +562,23 @@ impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn convert(self, py: Python) -> PyResult<PyIterANextOutput> {
+    fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
             Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }
+}
+
+/// Default new implementation
+pub(crate) unsafe extern "C" fn no_constructor_defined(
+    _subtype: *mut ffi::PyTypeObject,
+    _args: *mut ffi::PyObject,
+    _kwds: *mut ffi::PyObject,
+) -> *mut ffi::PyObject {
+    crate::callback_body!(py, {
+        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+            "No constructor defined",
+        ))
+    })
 }

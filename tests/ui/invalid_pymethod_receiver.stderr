@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `i32: From<&PyCell<MyClass>>` is not satisfied
  --> tests/ui/invalid_pymethod_receiver.rs:8:43
   |
-8 |     fn method_with_invalid_self_type(slf: i32, py: Python, index: u32) {}
+8 |     fn method_with_invalid_self_type(slf: i32, py: Python<'_>, index: u32) {}
   |                                           ^^^ the trait `From<&PyCell<MyClass>>` is not implemented for `i32`
   |
   = help: the following implementations were found:

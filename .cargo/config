@@ -1,8 +1,21 @@
 [alias]
 xtask = "run --package xtask --"
-pyo3_doc = "doc --lib --no-default-features --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend"
-pyo3_doc_scrape = "doc --lib --no-default-features --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend -Z unstable-options -Z rustdoc-scrape-examples=examples"
-pyo3_doc_internal = "doc --lib --no-default-features --features=full --no-deps --workspace --open --document-private-items -Z unstable-options -Z rustdoc-scrape-examples=examples"
 
-[build]
-rustdocflags = ["--cfg", "docsrs"]
+[target.'cfg(feature = "cargo-clippy")']
+rustflags = [
+    "-Dclippy::checked_conversions",
+    "-Dclippy::dbg_macro",
+    "-Dclippy::explicit_into_iter_loop",
+    "-Dclippy::explicit_iter_loop",
+    "-Dclippy::filter_map_next",
+    "-Dclippy::flat_map_option",
+    "-Dclippy::let_unit_value",
+    "-Dclippy::manual_assert",
+    "-Dclippy::manual_ok_or",
+    "-Dclippy::todo",
+    "-Dclippy::unnecessary_wraps",
+    "-Dclippy::useless_transmute",
+    "-Delided_lifetimes_in_paths",
+    "-Dunused_lifetimes",
+    "-Drust_2021_prelude_collisions"
+]

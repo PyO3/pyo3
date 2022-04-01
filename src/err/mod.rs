@@ -38,6 +38,9 @@ pub struct PyErr {
     state: UnsafeCell<Option<PyErrState>>,
 }
 
+// The inner value is only accessed through ways that require proving the gil is held
+#[cfg(feature = "nightly")]
+unsafe impl crate::marker::Ungil for PyErr {}
 unsafe impl Send for PyErr {}
 unsafe impl Sync for PyErr {}
 
@@ -184,7 +187,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
-    ///     assert_eq!(err.get_type(py), PyType::new::<PyTypeError>(py));
+    ///     assert!(err.get_type(py).is(PyType::new::<PyTypeError>(py)));
     /// });
     /// ```
     pub fn get_type<'py>(&'py self, py: Python<'py>) -> &'py PyType {
@@ -211,7 +214,7 @@ impl PyErr {
     }
 
     /// Consumes self to take ownership of the exception value contained in this error.
-    pub fn into_value(self, py: Python) -> Py<PyBaseException> {
+    pub fn into_value(self, py: Python<'_>) -> Py<PyBaseException> {
         // NB technically this causes one reference count increase and decrease in quick succession
         // on pvalue, but it's probably not worth optimizing this right now for the additional code
         // complexity.
@@ -228,7 +231,7 @@ impl PyErr {
     ///
     /// Python::with_gil(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
-    ///     assert_eq!(err.traceback(py), None);
+    ///     assert!(err.traceback(py).is_none());
     /// });
     /// ```
     pub fn traceback<'py>(&'py self, py: Python<'py>) -> Option<&'py PyTraceback> {
@@ -240,7 +243,7 @@ impl PyErr {
 
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
-    pub fn occurred(_: Python) -> bool {
+    pub fn occurred(_: Python<'_>) -> bool {
         unsafe { !ffi::PyErr_Occurred().is_null() }
     }
 
@@ -253,7 +256,7 @@ impl PyErr {
     /// Use this function when it is not known if an error should be present. If the error is
     /// expected to have been set, for example from [`PyErr::occurred`] or by an error return value
     /// from a C FFI function, use [`PyErr::fetch`].
-    pub fn take(py: Python) -> Option<PyErr> {
+    pub fn take(py: Python<'_>) -> Option<PyErr> {
         let (ptype, pvalue, ptraceback) = unsafe {
             let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
             let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
@@ -324,7 +327,7 @@ impl PyErr {
     /// [PyErr::occurred] or by an error return value from a C FFI function.
     #[cfg_attr(all(debug_assertions, track_caller), track_caller)]
     #[inline]
-    pub fn fetch(py: Python) -> PyErr {
+    pub fn fetch(py: Python<'_>) -> PyErr {
         const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
         match PyErr::take(py) {
             Some(err) => err,
@@ -350,7 +353,7 @@ impl PyErr {
     ///
     /// This function will panic if  `name` or `doc` cannot be converted to [`CString`]s.
     pub fn new_type(
-        py: Python,
+        py: Python<'_>,
         name: &str,
         doc: Option<&str>,
         base: Option<&PyType>,
@@ -390,14 +393,14 @@ impl PyErr {
     }
 
     /// Prints a standard traceback to `sys.stderr`.
-    pub fn print(&self, py: Python) {
+    pub fn print(&self, py: Python<'_>) {
         self.clone_ref(py).restore(py);
         unsafe { ffi::PyErr_PrintEx(0) }
     }
 
     /// Prints a standard traceback to `sys.stderr`, and sets
     /// `sys.last_{type,value,traceback}` attributes to this exception's data.
-    pub fn print_and_set_sys_last_vars(&self, py: Python) {
+    pub fn print_and_set_sys_last_vars(&self, py: Python<'_>) {
         self.clone_ref(py).restore(py);
         unsafe { ffi::PyErr_PrintEx(1) }
     }
@@ -406,7 +409,7 @@ impl PyErr {
     ///
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
-    pub fn matches<T>(&self, py: Python, exc: T) -> bool
+    pub fn matches<T>(&self, py: Python<'_>, exc: T) -> bool
     where
         T: ToBorrowedObject,
     {
@@ -417,13 +420,13 @@ impl PyErr {
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
-    pub fn is_instance(&self, py: Python, typ: &PyType) -> bool {
+    pub fn is_instance(&self, py: Python<'_>, typ: &PyType) -> bool {
         unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), typ.as_ptr()) != 0 }
     }
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
-    pub fn is_instance_of<T>(&self, py: Python) -> bool
+    pub fn is_instance_of<T>(&self, py: Python<'_>) -> bool
     where
         T: PyTypeObject,
     {
@@ -433,7 +436,7 @@ impl PyErr {
     /// Writes the error back to the Python interpreter's global state.
     /// This is the opposite of `PyErr::fetch()`.
     #[inline]
-    pub fn restore(self, py: Python) {
+    pub fn restore(self, py: Python<'_>) {
         let (ptype, pvalue, ptraceback) = self
             .state
             .into_inner()
@@ -444,7 +447,7 @@ impl PyErr {
 
     /// Issues a warning message.
     /// May return a `PyErr` if warnings-as-errors is enabled.
-    pub fn warn(py: Python, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
+    pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
         unsafe {
             error_on_minusone(
@@ -466,26 +469,29 @@ impl PyErr {
     /// Python::with_gil(|py| {
     ///     let err: PyErr = PyTypeError::new_err(("some type error",));
     ///     let err_clone = err.clone_ref(py);
-    ///     assert_eq!(err.get_type(py), err_clone.get_type(py));
-    ///     assert_eq!(err.value(py), err_clone.value(py));
-    ///     assert_eq!(err.traceback(py), err_clone.traceback(py));
+    ///     assert!(err.get_type(py).is(err_clone.get_type(py)));
+    ///     assert!(err.value(py).is(err_clone.value(py)));
+    ///     match err.traceback(py) {
+    ///         None => assert!(err_clone.traceback(py).is_none()),
+    ///         Some(tb) => assert!(err_clone.traceback(py).unwrap().is(tb)),
+    ///     }
     /// });
     /// ```
     #[inline]
-    pub fn clone_ref(&self, py: Python) -> PyErr {
+    pub fn clone_ref(&self, py: Python<'_>) -> PyErr {
         PyErr::from_state(PyErrState::Normalized(self.normalized(py).clone()))
     }
 
     /// Return the cause (either an exception instance, or None, set by `raise ... from ...`)
     /// associated with the exception, as accessible from Python through `__cause__`.
-    pub fn cause(&self, py: Python) -> Option<PyErr> {
+    pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
         let ptr = unsafe { ffi::PyException_GetCause(self.value(py).as_ptr()) };
         let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
         obj.map(Self::from_value)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.
-    pub fn set_cause(&self, py: Python, cause: Option<Self>) {
+    pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
         unsafe {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
@@ -503,7 +509,7 @@ impl PyErr {
     }
 
     /// Returns borrowed reference to this Err's type
-    fn type_ptr(&self, py: Python) -> *mut ffi::PyObject {
+    fn type_ptr(&self, py: Python<'_>) -> *mut ffi::PyObject {
         match unsafe { &*self.state.get() } {
             // In lazy type case, normalize before returning ptype in case the type is not a valid
             // exception type.
@@ -516,7 +522,7 @@ impl PyErr {
     }
 
     #[inline]
-    fn normalized(&self, py: Python) -> &PyErrStateNormalized {
+    fn normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         if let Some(PyErrState::Normalized(n)) = unsafe {
             // Safety: self.state will never be written again once normalized.
             &*self.state.get()
@@ -528,7 +534,7 @@ impl PyErr {
     }
 
     #[cold]
-    fn make_normalized(&self, py: Python) -> &PyErrStateNormalized {
+    fn make_normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         // This process is safe because:
         // - Access is guaranteed not to be concurrent thanks to `Python` GIL token
         // - Write happens only once, and then never will change again.
@@ -605,13 +611,13 @@ impl PyErr {
         since = "0.16.0",
         note = "Use err.into_value(py) instead of err.into_instance(py)"
     )]
-    pub fn into_instance(self, py: Python) -> Py<PyBaseException> {
+    pub fn into_instance(self, py: Python<'_>) -> Py<PyBaseException> {
         self.into_value(py)
     }
 }
 
 impl std::fmt::Debug for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         Python::with_gil(|py| {
             f.debug_struct("PyErr")
                 .field("type", self.get_type(py))
@@ -623,7 +629,7 @@ impl std::fmt::Debug for PyErr {
 }
 
 impl std::fmt::Display for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Python::with_gil(|py| {
             let value = self.value(py);
             let type_name = value.get_type().name().map_err(|_| std::fmt::Error)?;
@@ -640,26 +646,26 @@ impl std::fmt::Display for PyErr {
 impl std::error::Error for PyErr {}
 
 impl IntoPy<PyObject> for PyErr {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_value(py).into()
     }
 }
 
 impl ToPyObject for PyErr {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.clone_ref(py).into_py(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.clone_ref(py).into_py(py)
     }
 }
 
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
-    fn from(err: PyDowncastError) -> PyErr {
+    fn from(err: PyDowncastError<'_>) -> PyErr {
         exceptions::PyTypeError::new_err(err.to_string())
     }
 }
@@ -667,7 +673,7 @@ impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
 impl<'a> std::error::Error for PyDowncastError<'a> {}
 
 impl<'a> std::fmt::Display for PyDowncastError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(
             f,
             "'{}' object cannot be converted to '{}'",
@@ -677,7 +683,7 @@ impl<'a> std::fmt::Display for PyDowncastError<'a> {
     }
 }
 
-pub fn panic_after_error(_py: Python) -> ! {
+pub fn panic_after_error(_py: Python<'_>) -> ! {
     unsafe {
         ffi::PyErr_Print();
     }
@@ -686,7 +692,7 @@ pub fn panic_after_error(_py: Python) -> ! {
 
 /// Returns Ok if the error code is not -1.
 #[inline]
-pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
+pub fn error_on_minusone(py: Python<'_>, result: c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {
@@ -695,7 +701,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
 }
 
 #[inline]
-fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
+fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
     PyErr::from_state(PyErrState::exceptions_must_derive_from_base_exception(py))
 }
 
@@ -703,7 +709,7 @@ fn exceptions_must_derive_from_base_exception(py: Python) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::{PyErr, Python};
+    use crate::{AsPyPointer, PyErr, Python};
 
     #[test]
     fn no_error() {
@@ -854,16 +860,22 @@ mod tests {
     fn deprecations() {
         let err = exceptions::PyValueError::new_err("an error");
         Python::with_gil(|py| {
-            assert_eq!(err.ptype(py), err.get_type(py));
-            assert_eq!(err.pvalue(py), err.value(py));
-            assert_eq!(err.instance(py), err.value(py));
-            assert_eq!(err.ptraceback(py), err.traceback(py));
+            assert_eq!(err.ptype(py).as_ptr(), err.get_type(py).as_ptr());
+            assert_eq!(err.pvalue(py).as_ptr(), err.value(py).as_ptr());
+            assert_eq!(err.instance(py).as_ptr(), err.value(py).as_ptr());
+            assert_eq!(
+                err.ptraceback(py).map(|t| t.as_ptr()),
+                err.traceback(py).map(|t| t.as_ptr())
+            );
 
             assert_eq!(
-                err.clone_ref(py).into_instance(py).as_ref(py),
-                err.value(py)
+                err.clone_ref(py).into_instance(py).as_ref(py).as_ptr(),
+                err.value(py).as_ptr()
             );
-            assert_eq!(PyErr::from_instance(err.value(py)).value(py), err.value(py));
+            assert_eq!(
+                PyErr::from_instance(err.value(py)).value(py).as_ptr(),
+                err.value(py).as_ptr()
+            );
         });
     }
 }

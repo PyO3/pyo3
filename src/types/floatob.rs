@@ -35,13 +35,13 @@ impl PyFloat {
 }
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, *self).into()
     }
 }
 
 impl IntoPy<PyObject> for f64 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, self).into()
     }
 }
@@ -63,13 +63,13 @@ impl<'source> FromPyObject<'source> for f64 {
 }
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, f64::from(*self)).into()
     }
 }
 
 impl IntoPy<PyObject> for f32 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, f64::from(self)).into()
     }
 }

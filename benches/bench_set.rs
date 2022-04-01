@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PySet;
 use std::collections::{BTreeSet, HashSet};
 
-fn iter_set(b: &mut Bencher) {
+fn iter_set(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -18,7 +18,7 @@ fn iter_set(b: &mut Bencher) {
     });
 }
 
-fn extract_hashset(b: &mut Bencher) {
+fn extract_hashset(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -26,7 +26,7 @@ fn extract_hashset(b: &mut Bencher) {
     b.iter(|| HashSet::<u64>::extract(set));
 }
 
-fn extract_btreeset(b: &mut Bencher) {
+fn extract_btreeset(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -35,7 +35,7 @@ fn extract_btreeset(b: &mut Bencher) {
 }
 
 #[cfg(feature = "hashbrown")]
-fn extract_hashbrown_set(b: &mut Bencher) {
+fn extract_hashbrown_set(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;

@@ -1,0 +1,15 @@
+error[E0277]: the trait bound `pyo3::Python<'_>: Ungil` is not satisfied in `[closure@$DIR/tests/ui/not_send_auto_trait.rs:4:22: 4:38]`
+   --> tests/ui/not_send_auto_trait.rs:4:8
+    |
+4   |     py.allow_threads(|| { drop(py); });
+    |        ^^^^^^^^^^^^^ ---------------- within this `[closure@$DIR/tests/ui/not_send_auto_trait.rs:4:22: 4:38]`
+    |        |
+    |        within `[closure@$DIR/tests/ui/not_send_auto_trait.rs:4:22: 4:38]`, the trait `Ungil` is not implemented for `pyo3::Python<'_>`
+    |
+    = note: required because it appears within the type `&pyo3::Python<'_>`
+    = note: required because it appears within the type `[closure@$DIR/tests/ui/not_send_auto_trait.rs:4:22: 4:38]`
+note: required by a bound in `pyo3::Python::<'py>::allow_threads`
+   --> src/marker.rs
+    |
+    |         F: Ungil + FnOnce() -> T,
+    |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`

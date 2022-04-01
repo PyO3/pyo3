@@ -44,7 +44,7 @@ impl PyByteArray {
     /// })
     /// # }
     /// ```
-    pub fn new_with<F>(py: Python, len: usize, init: F) -> PyResult<&PyByteArray>
+    pub fn new_with<F>(py: Python<'_>, len: usize, init: F) -> PyResult<&PyByteArray>
     where
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
@@ -63,7 +63,7 @@ impl PyByteArray {
         }
     }
 
-    /// Creates a new Python bytearray object from another PyObject that
+    /// Creates a new Python `bytearray` object from another Python object that
     /// implements the buffer protocol.
     pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
     where
@@ -84,46 +84,119 @@ impl PyByteArray {
         self.len() == 0
     }
 
-    /// Get the start of the buffer containing the contents of the bytearray.
+    /// Gets the start of the buffer containing the contents of the bytearray.
     ///
-    /// Note that this bytearray object is both shared and mutable, and the backing buffer may be
-    /// reallocated if the bytearray is resized. This can occur from Python code as well as from
-    /// Rust via [PyByteArray::resize].
+    /// # Safety
     ///
-    /// As a result, the returned pointer should be dereferenced only if since calling this method
-    /// no Python code has executed, [PyByteArray::resize] has not been called.
+    /// See the safety requirements of [`PyByteArray::as_bytes`] and [`PyByteArray::as_bytes_mut`].
     pub fn data(&self) -> *mut u8 {
         unsafe { ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8 }
     }
 
-    /// Get the contents of this buffer as a slice.
+    /// Extracts a slice of the `ByteArray`'s entire buffer.
     ///
     /// # Safety
-    /// This bytearray must not be resized or edited while holding the slice.
     ///
-    /// ## Safety Detail
-    /// This method is equivalent to `std::slice::from_raw_parts(self.data(), self.len())`, and so
-    /// all the safety notes of `std::slice::from_raw_parts` apply here.
+    /// Mutation of the `bytearray` invalidates the slice. If it is used afterwards, the behavior is
+    /// undefined.
     ///
-    /// In particular, note that this bytearray object is both shared and mutable, and the backing
-    /// buffer may be reallocated if the bytearray is resized. Mutations can occur from Python
-    /// code as well as from Rust, via [PyByteArray::as_bytes_mut] and [PyByteArray::resize].
+    /// These mutations may occur in Python code as well as from Rust:
+    /// - Calling methods like [`PyByteArray::as_bytes_mut`] and [`PyByteArray::resize`] will
+    /// invalidate the slice.
+    /// - Actions like dropping objects or raising exceptions can invoke `__del__`methods or signal
+    /// handlers, which may execute arbitrary Python code. This means that if Python code has a
+    /// reference to the `bytearray` you cannot safely use the vast majority of PyO3's API whilst
+    /// using the slice.
     ///
-    /// Extreme care should be exercised when using this slice, as the Rust compiler will
-    /// make optimizations based on the assumption the contents of this slice cannot change. This
-    /// can easily lead to undefined behavior.
+    /// As a result, this slice should only be used for short-lived operations without executing any
+    /// Python code, such as copying into a Vec.
     ///
-    /// As a result, this slice should only be used for short-lived operations to read this
-    /// bytearray without executing any Python code, such as copying into a Vec.
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyRuntimeError;
+    /// use pyo3::types::PyByteArray;
+    ///
+    /// #[pyfunction]
+    /// fn a_valid_function(bytes: &PyByteArray) -> PyResult<()> {
+    ///     let section = {
+    ///         // SAFETY: We promise to not let the interpreter regain control
+    ///         // or invoke any PyO3 APIs while using the slice.
+    ///         let slice = unsafe { bytes.as_bytes() };
+    ///
+    ///         // Copy only a section of `bytes` while avoiding
+    ///         // `to_vec` which copies the entire thing.
+    ///         let section = slice
+    ///             .get(6..11)
+    ///             .ok_or_else(|| PyRuntimeError::new_err("input is not long enough"))?;
+    ///         Vec::from(section)
+    ///     };
+    ///
+    ///     // Now we can do things with `section` and call PyO3 APIs again.
+    ///     // ...
+    ///     # assert_eq!(&section, b"world");
+    ///
+    ///     Ok(())
+    /// }
+    /// # fn main() -> PyResult<()> {
+    /// #     Python::with_gil(|py| -> PyResult<()> {
+    /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
+    /// #         let locals = pyo3::types::PyDict::new(py);
+    /// #         locals.set_item("a_valid_function", fun)?;
+    /// #
+    /// #         py.run(
+    /// # r#"b = bytearray(b"hello world")
+    /// # a_valid_function(b)
+    /// #
+    /// # try:
+    /// #     a_valid_function(bytearray())
+    /// # except RuntimeError as e:
+    /// #     assert str(e) == 'input is not long enough'"#,
+    /// #             None,
+    /// #             Some(locals),
+    /// #         )?;
+    /// #
+    /// #         Ok(())
+    /// #     })
+    /// # }
+    /// ```
+    ///
+    /// # Incorrect usage
+    ///
+    /// The following `bug` function is unsound ⚠️
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyByteArray;
+    ///
+    /// #[pyfunction]
+    /// fn bug(py: Python<'_>, bytes: &PyByteArray) {
+    ///     let slice = unsafe { bytes.as_bytes() };
+    ///
+    ///     // This explicitly yields control back to the Python interpreter...
+    ///     // ...but it's not always this obvious. Many things do this implicitly.
+    ///     py.allow_threads(|| {
+    ///         // Python code could be mutating through its handle to `bytes`,
+    ///         // which makes reading it a data race, which is undefined behavior.
+    ///         println!("{:?}", slice[0]);
+    ///     });
+    ///
+    ///     // Python code might have mutated it, so we can not rely on the slice
+    ///     // remaining valid. As such this is also undefined behavior.
+    ///     println!("{:?}", slice[0]);
+    /// }
     pub unsafe fn as_bytes(&self) -> &[u8] {
         slice::from_raw_parts(self.data(), self.len())
     }
 
-    /// Get the contents of this buffer as a mutable slice.
+    /// Extracts a mutable slice of the `ByteArray`'s entire buffer.
     ///
     /// # Safety
-    /// This slice should only be used for short-lived operations that write to this bytearray
-    /// without executing any Python code. See the safety note for [PyByteArray::as_bytes].
+    ///
+    /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
+    /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArray::as_bytes`]
+    /// apply to this function as well.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn as_bytes_mut(&self) -> &mut [u8] {
         slice::from_raw_parts_mut(self.data(), self.len())

@@ -68,7 +68,7 @@ impl<'a> PyStringData<'a> {
     /// storage format. This should only occur for strings that were created via Python
     /// C APIs that skip input validation (like `PyUnicode_FromKindAndData`) and should
     /// never occur for strings that were created from Python code.
-    pub fn to_string(self, py: Python) -> PyResult<Cow<'a, str>> {
+    pub fn to_string(self, py: Python<'_>) -> PyResult<Cow<'a, str>> {
         use std::ffi::CStr;
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
@@ -190,7 +190,7 @@ impl PyString {
     ///
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
-    pub fn to_string_lossy(&self) -> Cow<str> {
+    pub fn to_string_lossy(&self) -> Cow<'_, str> {
         match self.to_str() {
             Ok(s) => Cow::Borrowed(s),
             Err(_) => {
@@ -266,30 +266,30 @@ impl PyString {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 
-/// Converts a Rust `Cow<str>` to a Python object.
+/// Converts a Rust `Cow<'_, str>` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 
 impl IntoPy<PyObject> for Cow<'_, str> {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
@@ -298,33 +298,33 @@ impl IntoPy<PyObject> for Cow<'_, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 
 impl ToPyObject for char {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.into_py(py)
     }
 }
 
 impl IntoPy<PyObject> for char {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let mut bytes = [0u8; 4];
         PyString::new(py, self.encode_utf8(&mut bytes)).into()
     }
 }
 
 impl IntoPy<PyObject> for String {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, &self).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -349,7 +349,7 @@ impl FromPyObject<'_> for String {
 
 impl FromPyObject<'_> for char {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        let s = PyString::try_from(obj)?.to_str()?;
+        let s = <PyString as PyTryFrom<'_>>::try_from(obj)?.to_str()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)
@@ -504,7 +504,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
@@ -546,7 +546,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-16' codec can't decode bytes in position 0-3"));
@@ -585,7 +585,7 @@ mod tests {
             let data = unsafe { s.data().unwrap() };
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
-            assert_eq!(err.get_type(py), PyUnicodeDecodeError::type_object(py));
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
             assert!(err
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));

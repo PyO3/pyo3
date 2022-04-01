@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::collections::{BTreeMap, HashMap};
 
-fn iter_dict(b: &mut Bencher) {
+fn iter_dict(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -18,14 +18,14 @@ fn iter_dict(b: &mut Bencher) {
     });
 }
 
-fn dict_new(b: &mut Bencher) {
+fn dict_new(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
     b.iter(|| (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py));
 }
 
-fn dict_get_item(b: &mut Bencher) {
+fn dict_get_item(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
@@ -38,7 +38,7 @@ fn dict_get_item(b: &mut Bencher) {
     });
 }
 
-fn extract_hashmap(b: &mut Bencher) {
+fn extract_hashmap(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -46,7 +46,7 @@ fn extract_hashmap(b: &mut Bencher) {
     b.iter(|| HashMap::<u64, u64>::extract(dict));
 }
 
-fn extract_btreemap(b: &mut Bencher) {
+fn extract_btreemap(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -55,7 +55,7 @@ fn extract_btreemap(b: &mut Bencher) {
 }
 
 #[cfg(feature = "hashbrown")]
-fn extract_hashbrown_map(b: &mut Bencher) {
+fn extract_hashbrown_map(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;

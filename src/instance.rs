@@ -24,7 +24,7 @@ use std::ptr::NonNull;
 pub unsafe trait PyNativeType: Sized {
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
-    fn py(&self) -> Python {
+    fn py(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
     /// Cast `&PyAny` to `&Self` without no type checking.
@@ -168,7 +168,6 @@ pub unsafe trait PyNativeType: Sized {
 /// [`Py::clone_ref`] will be faster if you happen to be already holding the GIL.
 ///
 /// ```rust
-/// use pyo3::conversion::AsPyPointer;
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
 ///
@@ -186,9 +185,9 @@ pub unsafe trait PyNativeType: Sized {
 ///     drop(first);
 ///
 ///     // They all point to the same object
-///     assert_eq!(second.as_ptr(), third.as_ptr());
-///     assert_eq!(fourth.as_ptr(), fifth.as_ptr());
-///     assert_eq!(second.as_ptr(), fourth.as_ptr());
+///     assert!(second.is(&third));
+///     assert!(fourth.is(&fifth));
+///     assert!(second.is(&fourth));
 /// });
 /// # }
 /// ```
@@ -197,8 +196,8 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
-/// implement the [`PyGCProtocol`](crate::class::gc::PyGCProtocol). If your pyclass
-/// contains other Python objects you should implement this protocol to avoid leaking memory.
+/// [integrate with the garbage collector][gc]. If your pyclass contains other Python
+/// objects you should implement it to avoid leaking memory.
 ///
 /// # A note on Python reference counts
 ///
@@ -220,9 +219,13 @@ pub unsafe trait PyNativeType: Sized {
 ///
 /// [`Rc`]: std::rc::Rc
 /// [`RefCell`]: std::cell::RefCell
+/// [gc]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
+// The inner value is only accessed through ways that require proving the gil is held
+#[cfg(feature = "nightly")]
+unsafe impl<T> crate::marker::Ungil for Py<T> {}
 unsafe impl<T> Send for Py<T> {}
 unsafe impl<T> Sync for Py<T> {}
 
@@ -248,7 +251,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
+    pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>> {
         let initializer = value.into();
         let obj = initializer.create_cell(py)?;
         let ob = unsafe { Py::from_owned_ptr(py, obj as _) };
@@ -348,7 +351,7 @@ where
     ///     obj.into_ref(py)
     /// }
     /// ```
-    pub fn into_ref(self, py: Python) -> &T::AsRefTarget {
+    pub fn into_ref(self, py: Python<'_>) -> &T::AsRefTarget {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
@@ -466,9 +469,18 @@ where
 }
 
 impl<T> Py<T> {
+    /// Returns whether `self` and `other` point to the same object. To compare
+    /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
+    ///
+    /// This is equivalent to the Python expression `self is other`.
+    #[inline]
+    pub fn is<U: AsPyPointer>(&self, o: &U) -> bool {
+        self.as_ptr() == o.as_ptr()
+    }
+
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
-    pub fn get_refcnt(&self, _py: Python) -> isize {
+    pub fn get_refcnt(&self, _py: Python<'_>) -> isize {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
@@ -481,7 +493,6 @@ impl<T> Py<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use pyo3::conversion::AsPyPointer;
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     ///
@@ -491,26 +502,26 @@ impl<T> Py<T> {
     ///     let second = Py::clone_ref(&first, py);
     ///
     ///     // Both point to the same object
-    ///     assert_eq!(first.as_ptr(), second.as_ptr());
+    ///     assert!(first.is(&second));
     /// });
     /// # }
     /// ```
     #[inline]
-    pub fn clone_ref(&self, py: Python) -> Py<T> {
+    pub fn clone_ref(&self, py: Python<'_>) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(py, self.0.as_ptr()) }
     }
 
     /// Returns whether the object is considered to be None.
     ///
     /// This is equivalent to the Python expression `self is None`.
-    pub fn is_none(&self, _py: Python) -> bool {
+    pub fn is_none(&self, _py: Python<'_>) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
     /// Returns whether the object is considered to be true.
     ///
     /// This is equivalent to the Python expression `bool(self)`.
-    pub fn is_true(&self, py: Python) -> PyResult<bool> {
+    pub fn is_true(&self, py: Python<'_>) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         err::error_on_minusone(py, v)?;
         Ok(v != 0)
@@ -529,7 +540,7 @@ impl<T> Py<T> {
     /// Retrieves an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
-    pub fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject>
+    pub fn getattr<N>(&self, py: Python<'_>, attr_name: N) -> PyResult<PyObject>
     where
         N: ToPyObject,
     {
@@ -541,7 +552,7 @@ impl<T> Py<T> {
     /// Sets an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
-    pub fn setattr<N, V>(&self, py: Python, attr_name: N, value: V) -> PyResult<()>
+    pub fn setattr<N, V>(&self, py: Python<'_>, attr_name: N, value: V) -> PyResult<()>
     where
         N: ToPyObject,
         V: ToPyObject,
@@ -558,7 +569,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
     pub fn call(
         &self,
-        py: Python,
+        py: Python<'_>,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
@@ -577,16 +588,16 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    pub fn call0(&self, py: Python) -> PyResult<PyObject> {
+    pub fn call0(&self, py: Python<'_>) -> PyResult<PyObject> {
         cfg_if::cfg_if! {
-            if #[cfg(Py_3_9)] {
+            if #[cfg(all(Py_3_9, not(PyPy)))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     PyObject::from_owned_ptr_or_err(py, ffi::PyObject_CallNoArgs(self.as_ptr()))
@@ -602,7 +613,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     pub fn call_method(
         &self,
-        py: Python,
+        py: Python<'_>,
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
@@ -627,7 +638,7 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self.name(*args)`.
     pub fn call_method1(
         &self,
-        py: Python,
+        py: Python<'_>,
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
     ) -> PyResult<PyObject> {
@@ -637,9 +648,9 @@ impl<T> Py<T> {
     /// Calls a method on the object with no arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
-    pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
+    pub fn call_method0(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
         cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     let name = name.into_py(py);
@@ -662,7 +673,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
-    pub unsafe fn from_owned_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
             None => crate::err::panic_after_error(py),
@@ -676,7 +687,10 @@ impl<T> Py<T> {
     /// # Safety
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
+    pub unsafe fn from_owned_ptr_or_err(
+        py: Python<'_>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
             None => Err(PyErr::fetch(py)),
@@ -690,7 +704,7 @@ impl<T> Py<T> {
     /// # Safety
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
+    pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|nonnull_ptr| Py(nonnull_ptr, PhantomData))
     }
 
@@ -702,7 +716,7 @@ impl<T> Py<T> {
     /// # Panics
     /// Panics if `ptr` is null.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(slf) => slf,
             None => crate::err::panic_after_error(py),
@@ -716,7 +730,10 @@ impl<T> Py<T> {
     /// # Safety
     /// `ptr` must be a pointer to a Python object of type T.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+    pub unsafe fn from_borrowed_ptr_or_err(
+        py: Python<'_>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<Self> {
         Self::from_borrowed_ptr_or_opt(py, ptr).ok_or_else(|| PyErr::fetch(py))
     }
 
@@ -727,7 +744,10 @@ impl<T> Py<T> {
     /// # Safety
     /// `ptr` must be a pointer to a Python object of type T.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<Self> {
+    pub unsafe fn from_borrowed_ptr_or_opt(
+        _py: Python<'_>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<Self> {
         NonNull::new(ptr).map(|nonnull_ptr| {
             ffi::Py_INCREF(ptr);
             Py(nonnull_ptr, PhantomData)
@@ -754,7 +774,7 @@ impl<T> Py<T> {
 
 impl<T> ToPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
@@ -763,7 +783,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
-    fn into_py(self, _py: Python) -> PyObject {
+    fn into_py(self, _py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_non_null(self.into_non_null()) }
     }
 }
@@ -805,7 +825,7 @@ where
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
-impl<'a, T> std::convert::From<&PyCell<T>> for Py<T>
+impl<T> std::convert::From<&PyCell<T>> for Py<T>
 where
     T: PyClass,
 {
@@ -829,13 +849,6 @@ where
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
-    }
-}
-
-impl<T> PartialEq for Py<T> {
-    #[inline]
-    fn eq(&self, o: &Py<T>) -> bool {
-        self.0 == o.0
     }
 }
 
@@ -891,13 +904,13 @@ where
     T: PyTypeInfo,
     T::AsRefTarget: std::fmt::Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Python::with_gil(|py| std::fmt::Display::fmt(self.as_ref(py), f))
     }
 }
 
 impl<T> std::fmt::Debug for Py<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
 }
@@ -915,11 +928,11 @@ impl PyObject {
     ///
     /// This can cast only to native Python types, not types implemented in Rust. For a more
     /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
-    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
+    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError<'_>>
     where
         D: PyTryFrom<'p>,
     {
-        D::try_from(unsafe { py.from_borrowed_ptr::<PyAny>(self.as_ptr()) })
+        <D as PyTryFrom<'_>>::try_from(unsafe { py.from_borrowed_ptr::<PyAny>(self.as_ptr()) })
     }
 }
 

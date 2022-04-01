@@ -81,7 +81,7 @@ pub fn impl_arg_params(
     let mut required_positional_parameters = 0usize;
     let mut keyword_only_parameters = Vec::new();
 
-    for arg in spec.args.iter() {
+    for arg in &spec.args {
         if arg.py || is_args(&spec.attrs, arg.name) || is_kwargs(&spec.attrs, arg.name) {
             continue;
         }
@@ -231,7 +231,9 @@ fn impl_arg_param(
     let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
-    let arg_value_or_default = if let Some(FromPyWithAttribute(expr_path)) = &arg.attrs.from_py_with
+    let arg_value_or_default = if let Some(FromPyWithAttribute {
+        value: expr_path, ..
+    }) = &arg.attrs.from_py_with
     {
         match (spec.default_value(name), arg.optional.is_some()) {
             (Some(default), true) if default.to_string() != "None" => {

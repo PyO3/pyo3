@@ -27,7 +27,7 @@ pyobject_native_type!(
 
 impl PyDict {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python) -> &PyDict {
+    pub fn new(py: Python<'_>) -> &PyDict {
         unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
     }
 
@@ -39,7 +39,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(py: Python<'_>, seq: PyObject) -> PyResult<&PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
             err::error_on_minusone(
@@ -172,7 +172,7 @@ impl PyDict {
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter(&self) -> PyDictIterator {
+    pub fn iter(&self) -> PyDictIterator<'_> {
         PyDictIterator {
             dict: self.as_ref(),
             pos: 0,
@@ -236,7 +236,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -246,7 +246,7 @@ where
     K: cmp::Eq + ToPyObject,
     V: ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -257,7 +257,7 @@ where
     V: IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -270,7 +270,7 @@ where
     K: cmp::Eq + IntoPy<PyObject>,
     V: IntoPy<PyObject>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -283,7 +283,7 @@ where
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> &PyDict;
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict;
 }
 
 impl<T, I> IntoPyDict for I
@@ -291,7 +291,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python) -> &PyDict {
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())
@@ -387,7 +387,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = [(7, 32)].into_py_dict(py);
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, dict.get_item(8i32));
+            assert!(dict.get_item(8i32).is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
@@ -426,7 +426,7 @@ mod tests {
 
             let ndict = dict.copy().unwrap();
             assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, ndict.get_item(8i32));
+            assert!(ndict.get_item(8i32).is_none());
         });
     }
 
@@ -464,7 +464,7 @@ mod tests {
             let ob = v.to_object(py);
             let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-            assert_eq!(None, dict.get_item(8i32));
+            assert!(dict.get_item(8i32).is_none());
         });
     }
 
@@ -527,7 +527,7 @@ mod tests {
             let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
-            assert_eq!(None, dict.get_item(7i32));
+            assert!(dict.get_item(7i32).is_none());
         });
     }
 

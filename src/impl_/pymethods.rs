@@ -1,8 +1,8 @@
 use crate::internal_tricks::{extract_cstr_or_leak_cstring, NulByteInString};
-use crate::{ffi, FromPyObject, PyAny, PyObject, PyResult, Python};
+use crate::{ffi, AsPyPointer, FromPyObject, PyAny, PyObject, PyResult, Python};
 use std::ffi::CStr;
 use std::fmt;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
 #[cfg(Py_3_8)]
@@ -163,17 +163,21 @@ impl PyMethodDef {
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub(crate) fn as_method_def(&self) -> Result<ffi::PyMethodDef, NulByteInString> {
         let meth = match self.ml_meth {
-            PyMethodType::PyCFunction(meth) => meth.0,
-            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth.0) },
+            PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer {
+                PyCFunction: meth.0,
+            },
+            PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
+                PyCFunctionWithKeywords: meth.0,
+            },
             #[cfg(not(Py_LIMITED_API))]
-            PyMethodType::PyCFunctionFastWithKeywords(meth) => unsafe {
-                std::mem::transmute(meth.0)
+            PyMethodType::PyCFunctionFastWithKeywords(meth) => ffi::PyMethodDefPointer {
+                _PyCFunctionFastWithKeywords: meth.0,
             },
         };
 
         Ok(ffi::PyMethodDef {
             ml_name: get_name(self.ml_name)?.as_ptr(),
-            ml_meth: Some(meth),
+            ml_meth: meth,
             ml_flags: self.ml_flags,
             ml_doc: get_doc(self.ml_doc)?.as_ptr(),
         })
@@ -247,4 +251,49 @@ fn get_name(name: &'static str) -> Result<&'static CStr, NulByteInString> {
 
 fn get_doc(doc: &'static str) -> Result<&'static CStr, NulByteInString> {
     extract_cstr_or_leak_cstring(doc, "Document cannot contain NUL byte.")
+}
+
+#[repr(transparent)]
+pub struct PyTraverseError(pub(crate) c_int);
+
+/// Object visitor for GC.
+#[derive(Clone)]
+pub struct PyVisit<'p> {
+    pub(crate) visit: ffi::visitproc,
+    pub(crate) arg: *mut c_void,
+    /// VisitProc contains a Python instance to ensure that
+    /// 1) it is cannot be moved out of the traverse() call
+    /// 2) it cannot be sent to other threads
+    pub(crate) _py: Python<'p>,
+}
+
+impl<'p> PyVisit<'p> {
+    /// Visit `obj`.
+    pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
+    where
+        T: AsPyPointer,
+    {
+        let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
+        if r == 0 {
+            Ok(())
+        } else {
+            Err(PyTraverseError(r))
+        }
+    }
+
+    /// Creates the PyVisit from the arguments to tp_traverse
+    #[doc(hidden)]
+    pub unsafe fn from_raw(visit: ffi::visitproc, arg: *mut c_void, _py: Python<'p>) -> Self {
+        Self { visit, arg, _py }
+    }
+}
+
+/// Unwraps the result of __traverse__ for tp_traverse
+#[doc(hidden)]
+#[inline]
+pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
+    match result {
+        Ok(()) => 0,
+        Err(PyTraverseError(value)) => value,
+    }
 }

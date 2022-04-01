@@ -98,7 +98,7 @@ macro_rules! import_exception {
         );
 
         impl $name {
-            fn type_object_raw(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
+            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::once_cell::GILOnceCell;
                 use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =
@@ -151,7 +151,7 @@ macro_rules! import_exception {
 /// }
 ///
 /// #[pymodule]
-/// fn my_module(py: Python, m: &PyModule) -> PyResult<()> {
+/// fn my_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 ///     m.add("MyError", py.get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, py)?)?;
 ///     Ok(())
@@ -231,7 +231,7 @@ macro_rules! create_exception_type_object {
         );
 
         impl $name {
-            fn type_object_raw(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
+            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::once_cell::GILOnceCell;
                 use $crate::AsPyPointer;
                 static TYPE_OBJECT: GILOnceCell<$crate::Py<$crate::types::PyType>> =

@@ -5,11 +5,14 @@
 //!
 //! It used internally by the PyO3 crate's build script to apply the same configuration.
 
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+
 mod errors;
 mod impl_;
 
 #[cfg(feature = "resolve-config")]
 use std::io::Cursor;
+use std::{env, process::Command};
 
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
@@ -60,21 +63,22 @@ fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Wr
 /// Loads the configuration determined from the build environment.
 ///
 /// Because this will never change in a given compilation run, this is cached in a `once_cell`.
-#[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 pub fn get() -> &'static InterpreterConfig {
     static CONFIG: OnceCell<InterpreterConfig> = OnceCell::new();
     CONFIG.get_or_init(|| {
-        if !CONFIG_FILE.is_empty() {
+        if let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() {
+            interpreter_config
+        } else if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
-        } else if impl_::any_cross_compiling_env_vars_set() {
+        } else if impl_::cross_compile_env_vars().any() {
             InterpreterConfig::from_path(DEFAULT_CROSS_COMPILE_CONFIG_PATH)
         } else {
             InterpreterConfig::from_reader(Cursor::new(HOST_CONFIG))
         }
-        .expect("failed to parse PyO3 config file")
+        .expect("failed to parse PyO3 config")
     })
 }
 
@@ -113,6 +117,36 @@ fn abi3_config() -> InterpreterConfig {
         interpreter_config.lib_name = Some("python3".to_owned())
     }
     interpreter_config
+}
+
+/// Use certain features if we detect the compiler being used supports them.
+///
+/// Features may be removed or added as MSRV gets bumped or new features become available,
+/// so this function is unstable.
+#[doc(hidden)]
+pub fn print_feature_cfgs() {
+    fn rustc_minor_version() -> Option<u32> {
+        let rustc = env::var_os("RUSTC")?;
+        let output = Command::new(rustc).arg("--version").output().ok()?;
+        let version = core::str::from_utf8(&output.stdout).ok()?;
+        let mut pieces = version.split('.');
+        if pieces.next() != Some("rustc 1") {
+            return None;
+        }
+        pieces.next()?.parse().ok()
+    }
+
+    let rustc_minor_version = rustc_minor_version().unwrap_or(0);
+
+    // Enable use of const generics on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=min_const_generics");
+    }
+
+    // Enable use of std::ptr::addr_of! on Rust 1.51 and greater
+    if rustc_minor_version >= 51 {
+        println!("cargo:rustc-cfg=addr_of");
+    }
 }
 
 /// Private exports used in PyO3's build.rs

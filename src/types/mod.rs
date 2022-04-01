@@ -39,7 +39,7 @@ macro_rules! pyobject_native_type_base(
         unsafe impl<$($generics,)*> $crate::PyNativeType for $name {}
 
         impl<$($generics,)*> ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
                 let s = self.repr().or(::std::result::Result::Err(::std::fmt::Error))?;
@@ -48,7 +48,7 @@ macro_rules! pyobject_native_type_base(
         }
 
         impl<$($generics,)*> ::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
                    -> ::std::result::Result<(), ::std::fmt::Error>
             {
                 let s = self.str().or(::std::result::Result::Err(::std::fmt::Error))?;
@@ -59,18 +59,9 @@ macro_rules! pyobject_native_type_base(
         impl<$($generics,)*> $crate::ToPyObject for $name
         {
             #[inline]
-            fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
+            fn to_object(&self, py: $crate::Python<'_>) -> $crate::PyObject {
                 use $crate::AsPyPointer;
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        impl<$($generics,)*> ::std::cmp::PartialEq for $name {
-            #[inline]
-            fn eq(&self, o: &$name) -> bool {
-                use $crate::AsPyPointer;
-
-                self.as_ptr() == o.as_ptr()
             }
         }
     };
@@ -110,7 +101,7 @@ macro_rules! pyobject_native_type_named (
 
         impl<$($generics,)*> $crate::IntoPy<$crate::Py<$name>> for &'_ $name {
             #[inline]
-            fn into_py(self, py: $crate::Python) -> $crate::Py<$name> {
+            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
                 use $crate::AsPyPointer;
                 unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
             }
@@ -144,11 +135,15 @@ macro_rules! pyobject_native_type_info(
             const MODULE: ::std::option::Option<&'static str> = $module;
 
             #[inline]
-            fn type_object_raw(_py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
+            fn type_object_raw(_py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 // Create a very short lived mutable reference and directly
                 // cast it to a pointer: no mutable references can be aliasing
                 // because we hold the GIL.
+                #[cfg(not(addr_of))]
                 unsafe { &mut $typeobject }
+
+                #[cfg(addr_of)]
+                unsafe { ::std::ptr::addr_of_mut!($typeobject) }
             }
 
             $(

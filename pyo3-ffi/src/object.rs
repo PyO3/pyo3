@@ -63,9 +63,7 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    if ob.is_null() {
-        panic!();
-    }
+    assert!(!ob.is_null());
     (*ob).ob_refcnt
 }
 
@@ -207,9 +205,21 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyType_GetSlot")]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int) -> *mut c_void;
 
-    // skipped non-limited / 3.9 PyType_FromModuleAndSpec
-    // skipped non-limited / 3.9 PyType_GetModule
-    // skipped non-limited / 3.9 PyType_GetModuleState
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_FromModuleAndSpec")]
+    pub fn PyType_FromModuleAndSpec(
+        module: *mut PyObject,
+        spec: *mut PyType_Spec,
+        bases: *mut PyObject,
+    ) -> *mut PyObject;
+
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModule")]
+    pub fn PyType_GetModule(arg1: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleState")]
+    pub fn PyType_GetModuleState(arg1: *mut PyTypeObject) -> *mut c_void;
 }
 
 extern "C" {
@@ -412,7 +422,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 }
 
 #[inline]
-pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
+pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
     let tmp = *op;
     if !tmp.is_null() {
         *op = ptr::null_mut();
@@ -470,7 +480,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
-    &mut _Py_NoneStruct
+    addr_of_mut_shim!(_Py_NoneStruct)
 }
 
 #[inline]
@@ -488,7 +498,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
-    &mut _Py_NotImplementedStruct
+    addr_of_mut_shim!(_Py_NotImplementedStruct)
 }
 
 // skipped Py_RETURN_NOTIMPLEMENTED
@@ -536,5 +546,5 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyType_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyType_Type)) as c_int
 }

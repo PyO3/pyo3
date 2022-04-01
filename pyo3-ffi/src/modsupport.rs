@@ -77,7 +77,12 @@ extern "C" {
         name: *const c_char,
         value: *const c_char,
     ) -> c_int;
-    // skipped non-limited / 3.9 PyModule_AddType
+    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_AddType")]
+    pub fn PyModule_AddType(
+        module: *mut PyObject,
+        type_: *mut crate::object::PyTypeObject,
+    ) -> c_int;
     // skipped PyModule_AddIntMacro
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;

@@ -26,9 +26,9 @@ impl BytesExtractor {
         Ok(rust_string.len())
     }
 
-    pub fn from_str_lossy(&mut self, string: &PyString) -> PyResult<usize> {
+    pub fn from_str_lossy(&mut self, string: &PyString) -> usize {
         let rust_string_lossy: String = string.to_string_lossy().to_string();
-        Ok(rust_string_lossy.len())
+        rust_string_lossy.len()
     }
 
     pub fn from_buffer(&mut self, buf: &PyAny) -> PyResult<usize> {
@@ -38,7 +38,7 @@ impl BytesExtractor {
 }
 
 #[pymodule]
-pub fn buf_and_str(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn buf_and_str(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<BytesExtractor>()?;
     Ok(())
 }

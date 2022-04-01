@@ -144,20 +144,12 @@ For example, you can see `type({})` shows `dict` and `type(type({}))` shows `typ
 
 ## 4. Protocol methods
 
-Python has some built-in special methods called dunder, such as `__iter__`.
-They are called [abstract objects layer](https://docs.python.org/3/c-api/abstract.html) in
+Python has some built-in special methods called dunder methods, such as `__iter__`.
+They are called "slots" in the [abstract objects layer](https://docs.python.org/3/c-api/abstract.html) in
 Python/C API.
-We provide a way to implement those protocols by using `#[pyproto]` and specific traits, such
-as `PyIterProtocol`.
-[`src/class`] defines these traits.
-Each protocol method has a corresponding FFI function.
-For example, `PyIterProtocol::__iter__` has
-`pub unsafe extern "C" fn iter<T>(slf: *mut PyObject) -> *mut PyObject`.
-When `#[pyproto]` finds that `T` implements `PyIterProtocol::__iter__`, it automatically
-sets `iter<T>` on the type object of `T`.
-
-Also, [`src/class/methods.rs`] has utilities for `#[pyfunction]` and [`src/class/impl_.rs`] has
-some internal tricks for making `#[pyproto]` flexible.
+We provide a way to implement those protocols similarly, by recognizing special
+names in `#[pymethods]`, with a few new ones for slots that can not be
+implemented in Python, such as GC support.
 
 ## 5. Procedural macros to simplify usage for users.
 

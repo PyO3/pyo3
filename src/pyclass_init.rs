@@ -24,7 +24,7 @@ pub trait PyObjectInit<T>: Sized {
     /// - `subtype` must be a valid pointer to a type object of T or a subclass.
     unsafe fn into_new_object(
         self,
-        py: Python,
+        py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject>;
     private_decl! {}
@@ -36,7 +36,7 @@ pub struct PyNativeTypeInitializer<T: PyTypeInfo>(PhantomData<T>);
 impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
     unsafe fn into_new_object(
         self,
-        py: Python,
+        py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
         let type_object = T::type_object_raw(py);
@@ -202,7 +202,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 
     /// Creates a new PyCell and initializes it.
     #[doc(hidden)]
-    pub fn create_cell(self, py: Python) -> PyResult<*mut PyCell<T>>
+    pub fn create_cell(self, py: Python<'_>) -> PyResult<*mut PyCell<T>>
     where
         T: PyClass,
     {
@@ -217,7 +217,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     #[doc(hidden)]
     pub unsafe fn create_cell_from_subtype(
         self,
-        py: Python,
+        py: Python<'_>,
         subtype: *mut crate::ffi::PyTypeObject,
     ) -> PyResult<*mut PyCell<T>>
     where
@@ -230,7 +230,7 @@ impl<T: PyClass> PyClassInitializer<T> {
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     unsafe fn into_new_object(
         self,
-        py: Python,
+        py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
         /// Layout of a PyCellBase after base new has been called, but the borrow flag has not
@@ -304,7 +304,7 @@ where
     U: Into<PyClassInitializer<T>>,
 {
     #[inline]
-    fn convert(self, _py: Python) -> PyResult<PyClassInitializer<T>> {
+    fn convert(self, _py: Python<'_>) -> PyResult<PyClassInitializer<T>> {
         Ok(self.into())
     }
 }

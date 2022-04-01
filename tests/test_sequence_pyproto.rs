@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated)]
 
 use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};
@@ -21,7 +22,7 @@ impl ByteSequence {
     fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
-            for pyelem in pylist.into_iter() {
+            for pyelem in pylist {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }
@@ -87,7 +88,7 @@ impl PySequenceProtocol for ByteSequence {
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python) -> &pyo3::types::PyDict {
+fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
@@ -262,10 +263,12 @@ fn test_generic_list_set() {
     let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
     py_run!(py, list, "list.items = [1, 2, 3]");
-    assert_eq!(
-        list.borrow().items,
-        vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
-    );
+    assert!(list
+        .borrow()
+        .items
+        .iter()
+        .zip(&[1u32, 2, 3])
+        .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
 }
 
 #[pyclass]

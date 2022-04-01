@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Basic Python Object customization
@@ -16,6 +17,7 @@ use std::os::raw::c_int;
 
 /// Basic Python class customization
 #[allow(unused_variables)]
+#[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
 pub trait PyObjectProtocol<'p>: PyClass {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
     where

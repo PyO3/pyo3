@@ -107,12 +107,11 @@
 //! fn swap_numbers(a: &mut Number, b: &mut Number) {
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
-//! # use pyo3::AsPyPointer;
 //! # fn main() {
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
-//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).expect_err("Managed to create overlapping mutable references. Note: this is undefined behaviour.");
 //! #     });
@@ -138,19 +137,18 @@
 //! #[pyfunction]
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
-//!     if a.as_ptr() != b.as_ptr() {
+//!     if !a.is(b) {
 //!         std::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
 //!     } else {
 //!         // Do nothing - they are the same object, so don't need swapping.
 //!     }
 //! }
-//! # use pyo3::AsPyPointer;
 //! # fn main() {
 //! #     // With duplicate numbers
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
-//! #         assert_eq!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((n, n2)).unwrap();
 //! #     });
@@ -159,7 +157,7 @@
 //! #     Python::with_gil(|py|{
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
-//! #         assert_ne!(n.as_ptr(), n2.as_ptr());
+//! #         assert!(!n.is(&n2));
 //! #         let fun = pyo3::wrap_pyfunction!(swap_numbers, py).unwrap();
 //! #         fun.call1((&n, &n2)).unwrap();
 //! #         let n: u32 = n.borrow(py).inner;
@@ -357,7 +355,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// In cases where the value in the cell does not need to be accessed immediately after
     /// creation, consider [`Py::new`](crate::Py::new) as a more efficient alternative.
-    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
+    pub fn new(py: Python<'_>, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self> {
         unsafe {
             let initializer = value.into();
             let self_ = initializer.create_cell(py)?;
@@ -671,7 +669,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 ///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
 ///     }
 ///
-///     fn format(slf: PyRef<Self>) -> String {
+///     fn format(slf: PyRef<'_, Self>) -> String {
 ///         // We can get *mut ffi::PyObject from PyRef
 ///         use pyo3::AsPyPointer;
 ///         let refcnt = unsafe { pyo3::ffi::Py_REFCNT(slf.as_ptr()) };
@@ -693,7 +691,7 @@ pub struct PyRef<'p, T: PyClass> {
 
 impl<'p, T: PyClass> PyRef<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
-    pub fn py(&self) -> Python {
+    pub fn py(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -747,7 +745,7 @@ where
     ///             .add_subclass(Base2 { name2: "base2" })
     ///             .add_subclass(Self { name3: "sub" })
     ///     }
-    ///     fn name(slf: PyRef<Self>) -> String {
+    ///     fn name(slf: PyRef<'_, Self>) -> String {
     ///         let subname = slf.name3;
     ///         let super_ = slf.into_super();
     ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
@@ -816,7 +814,7 @@ pub struct PyRefMut<'p, T: MutablePyClass> {
 
 impl<'p, T: MutablePyClass> PyRefMut<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
-    pub fn py(&self) -> Python {
+    pub fn py(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -880,8 +878,8 @@ impl<'p, T: MutablePyClass> Drop for PyRefMut<'p, T> {
     }
 }
 
-impl<T: MutablePyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
-    fn into_py(self, py: Python) -> PyObject {
+impl<T: PyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
 }
@@ -980,7 +978,7 @@ where
     /// # Safety
     /// - slf must be a valid pointer to an instance of a T or a subclass.
     /// - slf must not be used after this call (as it will be freed).
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python);
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>);
 }
 
 impl<T, U, M> PyCellLayout<T, M> for PyCellBase<U, M>
@@ -992,8 +990,7 @@ where
     fn borrow_checker(&self) -> &M {
         &self.borrow_impl
     }
-
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         if T::type_object_raw(py) == &mut PyBaseObject_Type {
             return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
@@ -1023,7 +1020,7 @@ where
         self.contents.thread_checker.ensure();
         self.ob_base.borrow_checker()
     }
-    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python) {
+    unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
         let cell = &mut *(slf as *mut PyCell<T>);
         ManuallyDrop::drop(&mut cell.contents.value);

@@ -12,7 +12,10 @@ use crate::{
 
 #[inline]
 #[track_caller]
-fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyTuple> {
+fn new_from_iter(
+    py: Python<'_>,
+    elements: &mut dyn ExactSizeIterator<Item = PyObject>,
+) -> Py<PyTuple> {
     unsafe {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -79,7 +82,10 @@ impl PyTuple {
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function using [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyTuple
+    pub fn new<T, U>(
+        py: Python<'_>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &PyTuple
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -90,7 +96,7 @@ impl PyTuple {
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
-    pub fn empty(py: Python) -> &PyTuple {
+    pub fn empty(py: Python<'_>) -> &PyTuple {
         unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
     }
 
@@ -226,7 +232,7 @@ impl PyTuple {
     }
 
     /// Returns an iterator over the tuple items.
-    pub fn iter(&self) -> PyTupleIterator {
+    pub fn iter(&self) -> PyTupleIterator<'_> {
         PyTupleIterator {
             tuple: self,
             index: 0,
@@ -296,7 +302,7 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python) -> PyObject {
+        fn to_object(&self, py: Python<'_>) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 let ret = PyObject::from_owned_ptr(py, ptr);
@@ -306,7 +312,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
     impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python) -> PyObject {
+        fn into_py(self, py: Python<'_>) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 let ret =  PyObject::from_owned_ptr(py, ptr);
@@ -317,7 +323,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python) -> Py<PyTuple> {
+        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 let ret = Py::from_owned_ptr(py, ptr);
@@ -836,7 +842,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
                 self.to_owned().into_py(py)
             }
         }
@@ -905,7 +911,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
                 self.to_owned().into_py(py)
             }
         }

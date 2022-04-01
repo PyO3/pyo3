@@ -1,5 +1,5 @@
 #![no_implicit_prelude]
-#![allow(unused_variables)]
+#![allow(unused_variables, clippy::unnecessary_wraps)]
 
 #[crate::pyclass]
 #[pyo3(crate = "crate")]
@@ -114,7 +114,7 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -122,7 +122,10 @@ impl Dummy {
         ::std::option::Option::None
     }
 
-    fn __reversed__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __reversed__(
+        slf: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -262,19 +265,19 @@ impl Dummy {
 
     fn __ior__(&mut self, other: &Self) {}
 
-    fn __neg__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __neg__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __pos__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __pos__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __abs__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __abs__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __invert__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __invert__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
@@ -328,7 +331,7 @@ impl Dummy {
     // Awaitable Objects
     //////////////////////
 
-    fn __await__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __await__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
@@ -337,7 +340,10 @@ impl Dummy {
     // Asynchronous Iterators
     //////////////////////
 
-    fn __aiter__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __aiter__(
+        slf: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -508,7 +514,7 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -516,7 +522,10 @@ impl Dummy {
         ::std::option::Option::None
     }
 
-    fn __reversed__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __reversed__(
+        slf: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -655,19 +664,19 @@ impl Dummy {
 
     fn __ior__(&mut self, other: &Self) {}
 
-    fn __neg__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __neg__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __pos__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __pos__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __abs__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __abs__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
-    fn __invert__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __invert__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
@@ -721,7 +730,7 @@ impl Dummy {
     // Awaitable Objects
     //////////////////////
 
-    fn __await__(slf: crate::pycell::PyRef<Self>) -> crate::pycell::PyRef<Self> {
+    fn __await__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
         slf
     }
 
@@ -730,7 +739,10 @@ impl Dummy {
     // Asynchronous Iterators
     //////////////////////
 
-    fn __aiter__(slf: crate::pycell::PyRef<Self>, py: crate::Python) -> crate::Py<DummyIter> {
+    fn __aiter__(
+        slf: crate::pycell::PyRef<'_, Self>,
+        py: crate::Python<'_>,
+    ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 

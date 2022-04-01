@@ -1,7 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(feature = "pyproto")] // FIXME: #[pymethods] to support gc protocol
 
-use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
@@ -90,9 +88,9 @@ struct GcIntegration {
     dropped: TestDropCall,
 }
 
-#[pyproto]
-impl PyGCProtocol for GcIntegration {
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
+#[pymethods]
+impl GcIntegration {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         visit.call(&self.self_ref)
     }
 
@@ -122,31 +120,14 @@ fn gc_integration() {
 
         let mut borrow = inst.borrow_mut();
         borrow.self_ref = inst.to_object(py);
+
+        py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
     }
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     py.run("import gc; gc.collect()", None, None).unwrap();
     assert!(drop_called.load(Ordering::Relaxed));
-}
-
-#[pyclass(gc)]
-struct GcIntegration2 {}
-
-#[pyproto]
-impl PyGCProtocol for GcIntegration2 {
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
-        Ok(())
-    }
-    fn __clear__(&mut self) {}
-}
-
-#[test]
-fn gc_integration2() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, GcIntegration2 {}).unwrap();
-    py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
 #[pyclass(subclass)]
@@ -206,7 +187,7 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
-        let obj: &PyCell<SubClassWithDrop> = inst.try_into().unwrap();
+        let obj: &PyCell<SubClassWithDrop> = PyTryInto::try_into(&*inst).unwrap();
         let mut obj_ref_mut = obj.borrow_mut();
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
         let base: &mut BaseClassWithDrop = obj_ref_mut.as_mut();
@@ -217,7 +198,7 @@ fn inheritance_with_new_methods_with_drop() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[pyclass]
 struct TraversableClass {
     traversed: AtomicBool,
 }
@@ -230,10 +211,12 @@ impl TraversableClass {
     }
 }
 
-#[pyproto]
-impl PyGCProtocol for TraversableClass {
+#[pymethods]
+impl TraversableClass {
     fn __clear__(&mut self) {}
-    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.traversed.store(true, Ordering::Relaxed);
         Ok(())
     }
@@ -279,4 +262,48 @@ fn gc_during_borrow() {
         assert!(!guard.traversed.load(Ordering::Relaxed));
         drop(guard);
     }
+}
+
+#[pyclass]
+struct PanickyTraverse {
+    member: PyObject,
+}
+
+impl PanickyTraverse {
+    fn new(py: Python<'_>) -> Self {
+        Self { member: py.None() }
+    }
+}
+
+#[pymethods]
+impl PanickyTraverse {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.member)?;
+        // In the test, we expect this to never be hit
+        unreachable!()
+    }
+}
+
+#[test]
+fn traverse_error() {
+    Python::with_gil(|py| unsafe {
+        // declare a visitor function which errors (returns nonzero code)
+        extern "C" fn visit_error(
+            _object: *mut pyo3::ffi::PyObject,
+            _arg: *mut core::ffi::c_void,
+        ) -> std::os::raw::c_int {
+            -1
+        }
+
+        // get the traverse function
+        let ty = PanickyTraverse::type_object(py).as_type_ptr();
+        let traverse = get_type_traverse(ty).unwrap();
+
+        // confirm that traversing errors
+        let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
+        assert_eq!(
+            traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()),
+            -1
+        );
+    })
 }

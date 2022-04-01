@@ -106,8 +106,9 @@ enum ContainerType<'a> {
     StructNewtype(&'a Ident),
     /// Tuple struct, e.g. `struct Foo(String)`.
     ///
-    /// Fields are extracted from a tuple.
-    Tuple(usize),
+    /// Variant contains a list of conversion methods for each of the fields that are directly
+    ///  extracted from the tuple.
+    Tuple(Vec<FieldPyO3Attributes>),
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
     /// The wrapped field is directly extracted from the object.
@@ -149,7 +150,15 @@ impl<'a> Container<'a> {
             (Fields::Unnamed(_), true) => ContainerType::TupleNewtype,
             (Fields::Unnamed(unnamed), false) => match unnamed.unnamed.len() {
                 1 => ContainerType::TupleNewtype,
-                len => ContainerType::Tuple(len),
+                _ => {
+                    let fields = unnamed
+                        .unnamed
+                        .iter()
+                        .map(|field| FieldPyO3Attributes::from_attrs(&field.attrs))
+                        .collect::<Result<Vec<_>>>()?;
+
+                    ContainerType::Tuple(fields)
+                }
             },
             (Fields::Named(named), true) => {
                 let field = named
@@ -196,7 +205,7 @@ impl<'a> Container<'a> {
         match &self.ty {
             ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(ident)),
             ContainerType::TupleNewtype => self.build_newtype_struct(None),
-            ContainerType::Tuple(len) => self.build_tuple_struct(*len),
+            ContainerType::Tuple(tups) => self.build_tuple_struct(tups),
             ContainerType::Struct(tups) => self.build_struct(tups),
         }
     }
@@ -233,19 +242,35 @@ impl<'a> Container<'a> {
         }
     }
 
-    fn build_tuple_struct(&self, len: usize) -> TokenStream {
+    fn build_tuple_struct(&self, tups: &[FieldPyO3Attributes]) -> TokenStream {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-        for i in 0..len {
-            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), i);
-            fields.push(quote!(
-                s.get_item(#i).and_then(_pyo3::types::PyAny::extract).map_err(|inner| {
-                let py = _pyo3::PyNativeType::py(obj);
-                let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                new_err.set_cause(py, ::std::option::Option::Some(inner));
-                new_err
-                })?));
+        for (index, attrs) in tups.iter().enumerate() {
+            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), index);
+
+            let parsed_item = match &attrs.from_py_with {
+                None => quote!(
+                    obj.get_item(#index)?.extract()
+                ),
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! (
+                    #expr_path(obj.get_item(#index)?)
+                ),
+            };
+
+            let extractor = quote!(
+                #parsed_item.map_err(|inner| {
+                    let py = _pyo3::PyNativeType::py(obj);
+                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
+                    new_err.set_cause(py, ::std::option::Option::Some(inner));
+                    new_err
+                })?
+            );
+
+            fields.push(quote!(#extractor));
         }
+        let len = tups.len();
         let msg = if self.is_enum_variant {
             quote!(::std::format!(
                 "expected tuple of length {}, but got length {}",
@@ -285,7 +310,9 @@ impl<'a> Container<'a> {
                     new_err.set_cause(py, ::std::option::Option::Some(inner));
                     new_err
                 })?),
-                Some(FromPyWithAttribute(expr_path)) => quote! (
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! (
                     #expr_path(#get_field).map_err(|inner| {
                         let py = _pyo3::PyNativeType::py(obj);
                         let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
@@ -323,7 +350,7 @@ enum ContainerPyO3Attribute {
 }
 
 impl Parse for ContainerPyO3Attribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::transparent) {
             let kw: attributes::kw::transparent = input.parse()?;
@@ -365,7 +392,7 @@ impl ContainerOptions {
                         ContainerPyO3Attribute::Crate(path) => {
                             ensure_spanned!(
                                 options.krate.is_none(),
-                                path.0.span() => "`crate` may only be provided once"
+                                path.span() => "`crate` may only be provided once"
                             );
                             options.krate = Some(path);
                         }
@@ -396,7 +423,7 @@ enum FieldPyO3Attribute {
 }
 
 impl Parse for FieldPyO3Attribute {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(attributes::kw::attribute) {
             let _: attributes::kw::attribute = input.parse()?;

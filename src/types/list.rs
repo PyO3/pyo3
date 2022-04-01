@@ -21,7 +21,10 @@ pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_
 
 #[inline]
 #[track_caller]
-fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyList> {
+fn new_from_iter(
+    py: Python<'_>,
+    elements: &mut dyn ExactSizeIterator<Item = PyObject>,
+) -> Py<PyList> {
     unsafe {
         // PyList_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -90,7 +93,7 @@ impl PyList {
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python) -> &PyList {
+    pub fn empty(py: Python<'_>) -> &PyList {
         unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
     }
 
@@ -264,7 +267,7 @@ impl PyList {
     }
 
     /// Returns an iterator over this list's items.
-    pub fn iter(&self) -> PyListIterator {
+    pub fn iter(&self) -> PyListIterator<'_> {
         PyListIterator {
             list: self,
             index: 0,
@@ -351,7 +354,7 @@ impl<T> IntoPy<PyObject> for Vec<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let mut iter = self.into_iter().map(|e| e.into_py(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
@@ -853,7 +856,7 @@ mod tests {
         }
 
         impl ToPyObject for Bad {
-            fn to_object(&self, py: Python) -> Py<PyAny> {
+            fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
                 self.to_owned().into_py(py)
             }
         }

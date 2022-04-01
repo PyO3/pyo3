@@ -8,7 +8,7 @@ pub struct WrapPyFunctionArgs {
 }
 
 impl Parse for WrapPyFunctionArgs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let function = input.parse()?;
         let comma_and_arg = if !input.is_empty() {
             Some((input.parse()?, input.parse()?))

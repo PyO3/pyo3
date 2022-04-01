@@ -9,7 +9,7 @@ mod min_const_generics {
     where
         T: ToPyObject,
     {
-        fn into_py(self, py: Python) -> PyObject {
+        fn into_py(self, py: Python<'_>) -> PyObject {
             self.as_ref().to_object(py)
         }
     }
@@ -18,35 +18,7 @@ mod min_const_generics {
     where
         T: FromPyObject<'a>,
     {
-        #[cfg(not(feature = "nightly"))]
         fn extract(obj: &'a PyAny) -> PyResult<Self> {
-            create_array_from_obj(obj)
-        }
-
-        #[cfg(feature = "nightly")]
-        default fn extract(obj: &'a PyAny) -> PyResult<Self> {
-            create_array_from_obj(obj)
-        }
-    }
-
-    #[cfg(all(feature = "nightly", not(Py_LIMITED_API)))]
-    impl<'source, T, const N: usize> FromPyObject<'source> for [T; N]
-    where
-        for<'a> T: Default + FromPyObject<'a> + crate::buffer::Element,
-    {
-        fn extract(obj: &'source PyAny) -> PyResult<Self> {
-            use crate::AsPyPointer;
-            // first try buffer protocol
-            if unsafe { crate::ffi::PyObject_CheckBuffer(obj.as_ptr()) } == 1 {
-                if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
-                    let mut array = [T::default(); N];
-                    if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
-                        buf.release(obj.py());
-                        return Ok(array);
-                    }
-                    buf.release(obj.py());
-                }
-            }
             create_array_from_obj(obj)
         }
     }
@@ -125,6 +97,7 @@ mod min_const_generics {
             }
             let _ = catch_unwind_silent(move || {
                 let _: Result<[CountDrop; 4], ()> = super::array_try_from_fn(|idx| {
+                    #[allow(clippy::manual_assert)]
                     if idx == 2 {
                         panic!("peek a boo");
                     }
@@ -176,7 +149,7 @@ mod array_impls {
                 where
                     T: ToPyObject
                 {
-                    fn into_py(self, py: Python) -> PyObject {
+                    fn into_py(self, py: Python<'_>) -> PyObject {
                         self.as_ref().to_object(py)
                     }
                 }
@@ -185,39 +158,8 @@ mod array_impls {
                 where
                     T: Copy + Default + FromPyObject<'a>,
                 {
-                    #[cfg(not(feature = "nightly"))]
                     fn extract(obj: &'a PyAny) -> PyResult<Self> {
                         let mut array = [T::default(); $N];
-                        extract_sequence_into_slice(obj, &mut array)?;
-                        Ok(array)
-                    }
-
-                    #[cfg(feature = "nightly")]
-                    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
-                        let mut array = [T::default(); $N];
-                        extract_sequence_into_slice(obj, &mut array)?;
-                        Ok(array)
-                    }
-                }
-
-                #[cfg(feature = "nightly")]
-                impl<'source, T> FromPyObject<'source> for [T; $N]
-                where
-                    for<'a> T: Default + FromPyObject<'a> + crate::buffer::Element,
-                {
-                    fn extract(obj: &'source PyAny) -> PyResult<Self> {
-                        let mut array = [T::default(); $N];
-                        // first try buffer protocol
-                        if unsafe { crate::ffi::PyObject_CheckBuffer(obj.as_ptr()) } == 1 {
-                            if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
-                                if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
-                                    buf.release(obj.py());
-                                    return Ok(array);
-                                }
-                                buf.release(obj.py());
-                            }
-                        }
-                        // fall back to sequence protocol
                         extract_sequence_into_slice(obj, &mut array)?;
                         Ok(array)
                     }

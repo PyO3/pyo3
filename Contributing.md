@@ -48,7 +48,7 @@ There are some specific areas of focus where help is currently needed for the do
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
 You can build the docs (including all features) with
-```cargo +nightly pyo3_doc_scrape```
+```cargo xtask doc --open```
 
 #### Doctests
 
@@ -86,6 +86,10 @@ Formatting, linting and tests are checked for all Rust and Python code. In addit
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
+
+You can run these tests yourself with
+```cargo xtask ci```
+See [it's documentation](https://github.com/PyO3/pyo3/tree/main/xtask#readme)for more commands you can run.
 
 ## Python and Rust version support policy
 

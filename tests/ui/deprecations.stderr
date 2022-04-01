@@ -9,3 +9,9 @@ note: the lint level is defined here
    |
 1  | #![deny(deprecated)]
    |         ^^^^^^^^^^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
+  --> tests/ui/deprecations.rs:14:11
+   |
+14 | #[pyclass(gc)]
+   |           ^^

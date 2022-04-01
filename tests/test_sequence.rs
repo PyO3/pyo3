@@ -1,7 +1,5 @@
 #![cfg(feature = "macros")]
-#![cfg(feature = "pyproto")] // FIXME: change this to use #[pymethods] once supports sequence protocol
 
-use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList};
@@ -21,7 +19,7 @@ impl ByteSequence {
     fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
-            for pyelem in pylist.into_iter() {
+            for pyelem in pylist {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }
@@ -32,10 +30,7 @@ impl ByteSequence {
             })
         }
     }
-}
 
-#[pyproto]
-impl PySequenceProtocol for ByteSequence {
     fn __len__(&self) -> usize {
         self.elements.len()
     }
@@ -51,8 +46,12 @@ impl PySequenceProtocol for ByteSequence {
         self.elements[idx as usize] = value;
     }
 
-    fn __delitem__(&mut self, idx: isize) -> PyResult<()> {
-        if (idx < self.elements.len() as isize) && (idx >= 0) {
+    fn __delitem__(&mut self, mut idx: isize) -> PyResult<()> {
+        let self_len = self.elements.len() as isize;
+        if idx < 0 {
+            idx += self_len;
+        }
+        if (idx < self_len) && (idx >= 0) {
             self.elements.remove(idx as usize);
             Ok(())
         } else {
@@ -67,10 +66,15 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: PyRef<'p, Self>) -> Self {
+    fn __concat__(&self, other: &Self) -> Self {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Self { elements }
+    }
+
+    fn __inplace_concat__(mut slf: PyRefMut<'_, Self>, other: &Self) -> Py<Self> {
+        slf.elements.extend_from_slice(&other.elements);
+        slf.into()
     }
 
     fn __repeat__(&self, count: isize) -> PyResult<Self> {
@@ -84,10 +88,23 @@ impl PySequenceProtocol for ByteSequence {
             Err(PyValueError::new_err("invalid repeat count"))
         }
     }
+
+    fn __inplace_repeat__(mut slf: PyRefMut<'_, Self>, count: isize) -> PyResult<Py<Self>> {
+        if count >= 0 {
+            let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
+            for _ in 0..count {
+                elements.extend(&slf.elements);
+            }
+            slf.elements = elements;
+            Ok(slf.into())
+        } else {
+            Err(PyValueError::new_err("invalid repeat count"))
+        }
+    }
 }
 
 /// Return a dict with `s = ByteSequence([1, 2, 3])`.
-fn seq_dict(py: Python) -> &pyo3::types::PyDict {
+fn seq_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
     // Though we can construct `s` in Rust, let's test `__new__` works.
     py_run!(py, *d, "s = ByteSequence([1, 2, 3])");
@@ -262,10 +279,12 @@ fn test_generic_list_set() {
     let list = PyCell::new(py, GenericList { items: vec![] }).unwrap();
 
     py_run!(py, list, "list.items = [1, 2, 3]");
-    assert_eq!(
-        list.borrow().items,
-        vec![1.to_object(py), 2.to_object(py), 3.to_object(py)]
-    );
+    assert!(list
+        .borrow()
+        .items
+        .iter()
+        .zip(&[1u32, 2, 3])
+        .all(|(a, b)| a.as_ref(py).eq(&b.into_py(py)).unwrap()));
 }
 
 #[pyclass]
@@ -274,8 +293,8 @@ struct OptionList {
     items: Vec<Option<i64>>,
 }
 
-#[pyproto]
-impl PySequenceProtocol for OptionList {
+#[pymethods]
+impl OptionList {
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),

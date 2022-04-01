@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-fn iter_list(b: &mut Bencher) {
+fn iter_list(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 100_000;
@@ -17,14 +17,14 @@ fn iter_list(b: &mut Bencher) {
     });
 }
 
-fn list_new(b: &mut Bencher) {
+fn list_new(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
     b.iter(|| PyList::new(py, 0..LEN));
 }
 
-fn list_get_item(b: &mut Bencher) {
+fn list_get_item(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;
@@ -38,7 +38,7 @@ fn list_get_item(b: &mut Bencher) {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-fn list_get_item_unchecked(b: &mut Bencher) {
+fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     const LEN: usize = 50_000;

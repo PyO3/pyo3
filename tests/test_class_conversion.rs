@@ -24,11 +24,11 @@ fn test_cloneable_pyclass() {
     let c2: Cloneable = py_c.extract(py).unwrap();
     assert_eq!(c, c2);
     {
-        let rc: PyRef<Cloneable> = py_c.extract(py).unwrap();
+        let rc: PyRef<'_, Cloneable> = py_c.extract(py).unwrap();
         assert_eq!(&c, &*rc);
         // Drops PyRef before taking PyRefMut
     }
-    let mrc: PyRefMut<Cloneable> = py_c.extract(py).unwrap();
+    let mrc: PyRefMut<'_, Cloneable> = py_c.extract(py).unwrap();
     assert_eq!(&c, &*mrc);
 }
 
@@ -135,16 +135,16 @@ fn test_pyref_as_base() {
     let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
     // First try PyRefMut
-    let sub: PyRefMut<SubClass> = cell.borrow_mut();
-    let mut base: PyRefMut<BaseClass> = sub.into_super();
+    let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
+    let mut base: PyRefMut<'_, BaseClass> = sub.into_super();
     assert_eq!(120, base.value);
     base.value = 999;
     assert_eq!(999, base.value);
     drop(base);
 
     // Repeat for PyRef
-    let sub: PyRef<SubClass> = cell.borrow();
-    let base: PyRef<BaseClass> = sub.into_super();
+    let sub: PyRef<'_, SubClass> = cell.borrow();
+    let base: PyRef<'_, BaseClass> = sub.into_super();
     assert_eq!(999, base.value);
 }
 

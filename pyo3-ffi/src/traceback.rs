@@ -21,5 +21,5 @@ extern "C" {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &mut PyTraceBack_Type) as c_int
+    (Py_TYPE(op) == addr_of_mut_shim!(PyTraceBack_Type)) as c_int
 }

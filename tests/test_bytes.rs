@@ -20,7 +20,7 @@ fn test_pybytes_bytes_conversion() {
 }
 
 #[pyfunction]
-fn bytes_vec_conversion(py: Python, bytes: Vec<u8>) -> &PyBytes {
+fn bytes_vec_conversion(py: Python<'_>, bytes: Vec<u8>) -> &PyBytes {
     PyBytes::new(py, bytes.as_slice())
 }
 
@@ -40,4 +40,19 @@ fn test_bytearray_vec_conversion() {
 
     let f = wrap_pyfunction!(bytes_vec_conversion)(py).unwrap();
     py_assert!(py, f, "f(bytearray(b'Hello World')) == b'Hello World'");
+}
+
+#[test]
+fn test_py_as_bytes() {
+    let pyobj: pyo3::Py<pyo3::types::PyBytes>;
+    let data: &[u8];
+
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        pyobj = pyo3::types::PyBytes::new(py, b"abc").into_py(py);
+        data = pyobj.as_bytes(py);
+    }
+
+    assert_eq!(data, b"abc");
 }

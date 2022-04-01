@@ -14,7 +14,7 @@ use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::Result;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
     pub by_ref: &'a Option<syn::token::Ref>,
@@ -157,14 +157,14 @@ impl SelfType {
                 quote! {
                     let _cell = #cell;
                     let _ref = _cell.try_borrow()?;
-                    let _slf = &_ref;
+                    let _slf: &#cls = &*_ref;
                 }
             }
             SelfType::Receiver { mutable: true } => {
                 quote! {
                     let _cell = #cell;
                     let mut _ref = _cell.try_borrow_mut()?;
-                    let _slf = &mut _ref;
+                    let _slf: &mut #cls = &mut *_ref;
                 }
             }
             SelfType::TryFromPyCell(span) => {
@@ -183,7 +183,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS  (Py3.7+ and !abi3)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature)
     TpNew,    // special convention for tp_new
 }
 
@@ -199,19 +199,13 @@ impl CallingConvention {
         } else if accept_kwargs {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
-        } else if can_use_fastcall() {
+        } else if cfg!(not(feature = "abi3")) {
+            // Not available in the Stable ABI as of Python 3.10
             Self::Fastcall
         } else {
             Self::Varargs
         }
     }
-}
-
-fn can_use_fastcall() -> bool {
-    const PY37: pyo3_build_config::PythonVersion =
-        pyo3_build_config::PythonVersion { major: 3, minor: 7 };
-    let config = pyo3_build_config::get();
-    config.version >= PY37 && !config.abi3
 }
 
 pub struct FnSpec<'a> {
@@ -241,8 +235,15 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 
 pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
     match arg {
-        syn::FnArg::Receiver(recv) => Ok(SelfType::Receiver {
-            mutable: recv.mutability.is_some(),
+        syn::FnArg::Receiver(
+            recv @ syn::Receiver {
+                reference: None, ..
+            },
+        ) => {
+            bail_spanned!(recv.span() => RECEIVER_BY_VALUE_ERR);
+        }
+        syn::FnArg::Receiver(syn::Receiver { mutability, .. }) => Ok(SelfType::Receiver {
+            mutable: mutability.is_some(),
         }),
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {
             if let syn::Type::ImplTrait(_) = &**ty {
@@ -273,7 +274,7 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.0), &mut deprecations)?;
+        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
@@ -420,7 +421,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             match s {
                 Argument::Arg(path, opt) | Argument::Kwarg(path, opt) => {
                     if path.is_ident(name) {
@@ -437,7 +438,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn is_pos_only(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             if let Argument::PosOnlyArg(path, _) = s {
                 if path.is_ident(name) {
                     return true;
@@ -448,7 +449,7 @@ impl<'a> FnSpec<'a> {
     }
 
     pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
-        for s in self.attrs.iter() {
+        for s in &self.attrs {
             if let Argument::Kwarg(path, _) = s {
                 if path.is_ident(name) {
                     return true;
@@ -490,10 +491,12 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -508,11 +511,13 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -526,11 +531,13 @@ impl<'a> FnSpec<'a> {
                     {
                         use #krate as _pyo3;
                         #deprecations
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #rust_call
-                        })
+                        }))
                     }
                 }
             }
@@ -546,13 +553,15 @@ impl<'a> FnSpec<'a> {
                         use #krate as _pyo3;
                         #deprecations
                         use _pyo3::callback::IntoPyCallbackOutput;
-                        _pyo3::callback::handle_panic(|#py| {
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #arg_convert
                             let result = #rust_call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             let cell = initializer.create_cell_from_subtype(#py, subtype)?;
                             ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
-                        })
+                        }))
                     }
                 }
             }
@@ -727,3 +736,6 @@ fn parse_method_attributes(
 }
 
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";
+const RECEIVER_BY_VALUE_ERR: &str =
+    "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
+Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";

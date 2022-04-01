@@ -29,7 +29,7 @@ impl PyCounter {
     #[args(args = "*", kwargs = "**")]
     fn __call__(
         &mut self,
-        py: Python,
+        py: Python<'_>,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py<PyAny>> {
@@ -48,7 +48,7 @@ impl PyCounter {
 }
 
 #[pymodule]
-pub fn decorator(_py: Python, module: &PyModule) -> PyResult<()> {
+pub fn decorator(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add_class::<PyCounter>()?;
     Ok(())
 }

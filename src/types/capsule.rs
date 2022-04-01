@@ -167,7 +167,7 @@ impl PyCapsule {
     /// assert_eq!(rx.recv(), Ok("Destructor called!".to_string()));
     /// ```
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn set_context(&self, py: Python, context: *mut c_void) -> PyResult<()> {
+    pub fn set_context(&self, py: Python<'_>, context: *mut c_void) -> PyResult<()> {
         let result = unsafe { ffi::PyCapsule_SetContext(self.as_ptr(), context) as u8 };
         if result != 0 {
             Err(PyErr::fetch(py))
@@ -178,7 +178,7 @@ impl PyCapsule {
 
     /// Gets the current context stored in the capsule. If there is no context, the pointer
     /// will be null.
-    pub fn get_context(&self, py: Python) -> PyResult<*mut c_void> {
+    pub fn get_context(&self, py: Python<'_>) -> PyResult<*mut c_void> {
         let ctx = unsafe { ffi::PyCapsule_GetContext(self.as_ptr()) };
         if ctx.is_null() && self.is_valid() && PyErr::occurred(py) {
             Err(PyErr::fetch(py))

@@ -20,7 +20,6 @@ use syn::{ext::IdentExt, spanned::Spanned, Result};
 pub enum GeneratedPyMethod {
     Method(TokenStream),
     Proto(TokenStream),
-    TraitImpl(TokenStream),
     SlotTraitImpl(String, TokenStream),
 }
 
@@ -37,14 +36,97 @@ enum PyMethodKind {
 
 impl PyMethodKind {
     fn from_name(name: &str) -> Self {
-        if let Some(slot_def) = pyproto(name) {
-            PyMethodKind::Proto(PyMethodProtoKind::Slot(slot_def))
-        } else if name == "__call__" {
-            PyMethodKind::Proto(PyMethodProtoKind::Call)
-        } else if let Some(slot_fragment_def) = pyproto_fragment(name) {
-            PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(slot_fragment_def))
-        } else {
-            PyMethodKind::Fn
+        match name {
+            // Protocol implemented through slots
+            "__str__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__STR__)),
+            "__repr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPR__)),
+            "__hash__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__HASH__)),
+            "__richcmp__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RICHCMP__)),
+            "__get__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GET__)),
+            "__iter__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ITER__)),
+            "__next__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEXT__)),
+            "__await__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__AWAIT__)),
+            "__aiter__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__AITER__)),
+            "__anext__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ANEXT__)),
+            "__len__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__LEN__)),
+            "__contains__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONTAINS__)),
+            "__concat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CONCAT__)),
+            "__repeat__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPEAT__)),
+            "__inplace_concat__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INPLACE_CONCAT__))
+            }
+            "__inplace_repeat__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INPLACE_REPEAT__))
+            }
+            "__getitem__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETITEM__)),
+            "__pos__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__POS__)),
+            "__neg__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEG__)),
+            "__abs__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ABS__)),
+            "__invert__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INVERT__)),
+            "__index__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INDEX__)),
+            "__int__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INT__)),
+            "__float__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__FLOAT__)),
+            "__bool__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__BOOL__)),
+            "__iadd__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IADD__)),
+            "__isub__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ISUB__)),
+            "__imul__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IMUL__)),
+            "__imatmul__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IMATMUL__)),
+            "__itruediv__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ITRUEDIV__)),
+            "__ifloordiv__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IFLOORDIV__)),
+            "__imod__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IMOD__)),
+            "__ipow__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IPOW__)),
+            "__ilshift__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__ILSHIFT__)),
+            "__irshift__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IRSHIFT__)),
+            "__iand__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IAND__)),
+            "__ixor__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IXOR__)),
+            "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
+            "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
+            "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
+            "__clear__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__CLEAR__)),
+            // Protocols implemented through traits
+            "__getattribute__" => {
+                PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
+            }
+            "__getattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTR__)),
+            "__setattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SETATTR__)),
+            "__delattr__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DELATTR__)),
+            "__set__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SET__)),
+            "__delete__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DELETE__)),
+            "__setitem__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SETITEM__)),
+            "__delitem__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DELITEM__)),
+            "__add__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__ADD__)),
+            "__radd__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RADD__)),
+            "__sub__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__SUB__)),
+            "__rsub__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RSUB__)),
+            "__mul__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__MUL__)),
+            "__rmul__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RMUL__)),
+            "__matmul__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__MATMUL__)),
+            "__rmatmul__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RMATMUL__)),
+            "__floordiv__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__FLOORDIV__)),
+            "__rfloordiv__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RFLOORDIV__)),
+            "__truediv__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__TRUEDIV__)),
+            "__rtruediv__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RTRUEDIV__)),
+            "__divmod__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__DIVMOD__)),
+            "__rdivmod__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RDIVMOD__)),
+            "__mod__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__MOD__)),
+            "__rmod__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RMOD__)),
+            "__lshift__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__LSHIFT__)),
+            "__rlshift__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RLSHIFT__)),
+            "__rshift__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RSHIFT__)),
+            "__rrshift__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RRSHIFT__)),
+            "__and__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__AND__)),
+            "__rand__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RAND__)),
+            "__xor__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__XOR__)),
+            "__rxor__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RXOR__)),
+            "__or__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__OR__)),
+            "__ror__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__ROR__)),
+            "__pow__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__POW__)),
+            "__rpow__" => PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__RPOW__)),
+            // Some tricky protocols which don't fit the pattern of the rest
+            "__call__" => PyMethodKind::Proto(PyMethodProtoKind::Call),
+            "__traverse__" => PyMethodKind::Proto(PyMethodProtoKind::Traverse),
+            // Not a proto
+            _ => PyMethodKind::Fn,
         }
     }
 }
@@ -52,6 +134,7 @@ impl PyMethodKind {
 enum PyMethodProtoKind {
     Slot(&'static SlotDef),
     Call,
+    Traverse,
     SlotFragment(&'static SlotFragmentDef),
 }
 
@@ -109,6 +192,9 @@ pub fn gen_py_method(
                 PyMethodProtoKind::Call => {
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
+                PyMethodProtoKind::Traverse => {
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
+                }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
                     GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
@@ -128,7 +214,7 @@ pub fn gen_py_method(
             Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
-        (_, FnType::FnNew) => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, spec)?),
+        (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
 
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
@@ -163,7 +249,10 @@ fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()>
     Ok(())
 }
 
-fn ensure_no_forbidden_protocol_attributes(spec: &FnSpec, method_name: &str) -> syn::Result<()> {
+fn ensure_no_forbidden_protocol_attributes(
+    spec: &FnSpec<'_>,
+    method_name: &str,
+) -> syn::Result<()> {
     if let Some(text_signature) = &spec.text_signature {
         bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with `{}`", method_name));
     }
@@ -173,7 +262,7 @@ fn ensure_no_forbidden_protocol_attributes(spec: &FnSpec, method_name: &str) -> 
 /// Also used by pyfunction.
 pub fn impl_py_method_def(
     cls: &syn::Type,
-    spec: &FnSpec,
+    spec: &FnSpec<'_>,
     flags: Option<TokenStream>,
 ) -> Result<TokenStream> {
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
@@ -190,22 +279,22 @@ pub fn impl_py_method_def(
     })
 }
 
-fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
-    let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
+fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
+    let wrapper_ident = syn::Ident::new("__pymethod__new__", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
-    Ok(quote! {
-        impl _pyo3::impl_::pyclass::PyClassNewImpl<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
-            fn new_impl(self) -> ::std::option::Option<_pyo3::ffi::newfunc> {
-                ::std::option::Option::Some({
-                    #wrapper
-                    #wrapper_ident
-                })
-            }
+    Ok(quote! {{
+        impl #cls {
+            #[doc(hidden)]
+            #wrapper
         }
-    })
+        _pyo3::ffi::PyType_Slot {
+            slot: _pyo3::ffi::Py_tp_new,
+            pfunc: #cls::#wrapper_ident as _pyo3::ffi::newfunc as _
+        }
+    }})
 }
 
-fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
+fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>) -> Result<TokenStream> {
     // HACK: __call__ proto slot must always use varargs calling convention, so change the spec.
     // Probably indicates there's a refactoring opportunity somewhere.
     spec.convention = CallingConvention::Varargs;
@@ -221,7 +310,37 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
     }})
 }
 
-fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
+fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> TokenStream {
+    let ident = spec.name;
+    quote! {{
+        pub unsafe extern "C" fn __wrap_(
+            slf: *mut _pyo3::ffi::PyObject,
+            visit: _pyo3::ffi::visitproc,
+            arg: *mut ::std::os::raw::c_void,
+        ) -> ::std::os::raw::c_int
+        {
+            let pool = _pyo3::GILPool::new();
+            let py = pool.python();
+            _pyo3::callback::abort_on_traverse_panic(::std::panic::catch_unwind(move || {
+                let slf = py.from_borrowed_ptr::<_pyo3::PyCell<#cls>>(slf);
+
+                let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
+                let borrow = slf.try_borrow();
+                if let ::std::result::Result::Ok(borrow) = borrow {
+                    _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
+                } else {
+                    0
+                }
+            }))
+        }
+        _pyo3::ffi::PyType_Slot {
+            slot: _pyo3::ffi::Py_tp_traverse,
+            pfunc: __wrap_ as _pyo3::ffi::traverseproc as _
+        }
+    }}
+}
+
+fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
@@ -241,7 +360,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     }
 }
 
-fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+fn impl_call_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
 
     if args.is_empty() {
@@ -264,7 +383,7 @@ fn impl_call_setter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
-pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
+pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -305,7 +424,9 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                         _value: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
                     ) -> ::std::os::raw::c_int {
-                        _pyo3::callback::handle_panic(|_py| {
+                        let gil = _pyo3::GILPool::new();
+                        let _py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #slf
                             let _value = _py
                                 .from_borrowed_ptr_or_opt(_value)
@@ -315,7 +436,7 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                             let _val = _pyo3::FromPyObject::extract(_value)?;
 
                             _pyo3::callback::convert(_py, #setter_impl)
-                        })
+                        }))
                     }
                     __wrap
                 }),
@@ -325,7 +446,7 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
     })
 }
 
-fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+fn impl_call_getter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
     ensure_spanned!(
         args.is_empty(),
@@ -343,7 +464,7 @@ fn impl_call_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> 
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
-pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Result<TokenStream> {
+pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> Result<TokenStream> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -384,10 +505,12 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
                         _slf: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
                     ) -> *mut _pyo3::ffi::PyObject {
-                        _pyo3::callback::handle_panic(|_py| {
+                        let gil = _pyo3::GILPool::new();
+                        let _py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #slf
                             _pyo3::callback::convert(_py, #getter_impl)
-                        })
+                        }))
                     }
                     __wrap
                 }),
@@ -398,7 +521,7 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
-fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg>, &[FnArg]) {
+fn split_off_python_arg<'a>(args: &'a [FnArg<'a>]) -> (Option<&FnArg<'_>>, &[FnArg<'_>]) {
     match args {
         [py, args @ ..] if utils::is_python(py.ty) => (Some(py), args),
         args => (None, args),
@@ -424,7 +547,7 @@ impl PropertyType<'_> {
                 field, python_name, ..
             } => {
                 let name = match (python_name, &field.ident) {
-                    (Some(name), _) => name.0.to_string(),
+                    (Some(name), _) => name.value.0.to_string(),
                     (None, Some(field_name)) => format!("{}\0", field_name.unraw()),
                     (None, None) => {
                         bail_spanned!(field.span() => "`get` and `set` with tuple struct fields require `name`");
@@ -443,7 +566,7 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self) -> Cow<PythonDoc> {
+    fn doc(&self) -> Cow<'_, PythonDoc> {
         match self {
             PropertyType::Descriptor { field, .. } => {
                 Cow::Owned(utils::get_doc(&field.attrs, None))
@@ -453,21 +576,6 @@ impl PropertyType<'_> {
     }
 }
 
-const __GETATTR__: SlotDef = SlotDef::new("Py_tp_getattro", "getattrofunc")
-    .arguments(&[Ty::Object])
-    .before_call_method(TokenGenerator(|| {
-        quote! {
-            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-            // for existing fields and methods first
-            let existing = _pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
-            if existing.is_null() {
-                // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                _pyo3::ffi::PyErr_Clear();
-            } else {
-                return existing;
-            }
-        }
-    }));
 const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
@@ -493,6 +601,12 @@ const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySs
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
     .arguments(&[Ty::Object])
     .ret_ty(Ty::Int);
+const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
+const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
+const __INPLACE_CONCAT__: SlotDef =
+    SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
+const __INPLACE_REPEAT__: SlotDef =
+    SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
 const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
@@ -564,49 +678,9 @@ const __RELEASEBUFFER__: SlotDef = SlotDef::new("Py_bf_releasebuffer", "releaseb
     .arguments(&[Ty::PyBuffer])
     .ret_ty(Ty::Void)
     .require_unsafe();
-
-fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
-    match method_name {
-        "__getattr__" => Some(&__GETATTR__),
-        "__str__" => Some(&__STR__),
-        "__repr__" => Some(&__REPR__),
-        "__hash__" => Some(&__HASH__),
-        "__richcmp__" => Some(&__RICHCMP__),
-        "__get__" => Some(&__GET__),
-        "__iter__" => Some(&__ITER__),
-        "__next__" => Some(&__NEXT__),
-        "__await__" => Some(&__AWAIT__),
-        "__aiter__" => Some(&__AITER__),
-        "__anext__" => Some(&__ANEXT__),
-        "__len__" => Some(&__LEN__),
-        "__contains__" => Some(&__CONTAINS__),
-        "__getitem__" => Some(&__GETITEM__),
-        "__pos__" => Some(&__POS__),
-        "__neg__" => Some(&__NEG__),
-        "__abs__" => Some(&__ABS__),
-        "__invert__" => Some(&__INVERT__),
-        "__index__" => Some(&__INDEX__),
-        "__int__" => Some(&__INT__),
-        "__float__" => Some(&__FLOAT__),
-        "__bool__" => Some(&__BOOL__),
-        "__iadd__" => Some(&__IADD__),
-        "__isub__" => Some(&__ISUB__),
-        "__imul__" => Some(&__IMUL__),
-        "__imatmul__" => Some(&__IMATMUL__),
-        "__itruediv__" => Some(&__ITRUEDIV__),
-        "__ifloordiv__" => Some(&__IFLOORDIV__),
-        "__imod__" => Some(&__IMOD__),
-        "__ipow__" => Some(&__IPOW__),
-        "__ilshift__" => Some(&__ILSHIFT__),
-        "__irshift__" => Some(&__IRSHIFT__),
-        "__iand__" => Some(&__IAND__),
-        "__ixor__" => Some(&__IXOR__),
-        "__ior__" => Some(&__IOR__),
-        "__getbuffer__" => Some(&__GETBUFFER__),
-        "__releasebuffer__" => Some(&__RELEASEBUFFER__),
-        _ => None,
-    }
-}
+const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry")
+    .arguments(&[])
+    .ret_ty(Ty::Int);
 
 #[derive(Clone, Copy)]
 enum Ty {
@@ -641,7 +715,7 @@ impl Ty {
         cls: &syn::Type,
         py: &syn::Ident,
         ident: &syn::Ident,
-        arg: &FnArg,
+        arg: &FnArg<'_>,
         extract_error_mode: ExtractErrorMode,
     ) -> TokenStream {
         match self {
@@ -787,7 +861,6 @@ struct SlotDef {
     func_ty: StaticIdent,
     arguments: &'static [Ty],
     ret_ty: Ty,
-    before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
@@ -802,7 +875,6 @@ impl SlotDef {
             func_ty: StaticIdent(func_ty),
             arguments: NO_ARGUMENTS,
             ret_ty: Ty::Object,
-            before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
@@ -816,11 +888,6 @@ impl SlotDef {
 
     const fn ret_ty(mut self, ret_ty: Ty) -> Self {
         self.ret_ty = ret_ty;
-        self
-    }
-
-    const fn before_call_method(mut self, before_call_method: TokenGenerator) -> Self {
-        self.before_call_method = Some(before_call_method);
         self
     }
 
@@ -847,13 +914,12 @@ impl SlotDef {
     fn generate_type_slot(
         &self,
         cls: &syn::Type,
-        spec: &FnSpec,
+        spec: &FnSpec<'_>,
         method_name: &str,
     ) -> Result<TokenStream> {
         let SlotDef {
             slot,
             func_ty,
-            before_call_method,
             arguments,
             extract_error_mode,
             ret_ty,
@@ -880,10 +946,11 @@ impl SlotDef {
         Ok(quote!({
             unsafe extern "C" fn __wrap(_raw_slf: *mut _pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
-                #before_call_method
-                _pyo3::callback::handle_panic(|#py| {
+                let gil = _pyo3::GILPool::new();
+                let #py = gil.python();
+                _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                     #body
-                })
+                }))
             }
             _pyo3::ffi::PyType_Slot {
                 slot: _pyo3::ffi::#slot,
@@ -905,7 +972,7 @@ fn generate_method_arguments(arguments: &[Ty]) -> impl Iterator<Item = TokenStre
 
 fn generate_method_body(
     cls: &syn::Type,
-    spec: &FnSpec,
+    spec: &FnSpec<'_>,
     py: &syn::Ident,
     arguments: &[Ty],
     extract_error_mode: ExtractErrorMode,
@@ -958,7 +1025,7 @@ impl SlotFragmentDef {
         self
     }
 
-    fn generate_pyproto_fragment(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    fn generate_pyproto_fragment(&self, cls: &syn::Type, spec: &FnSpec<'_>) -> Result<TokenStream> {
         let SlotFragmentDef {
             fragment,
             arguments,
@@ -989,6 +1056,10 @@ impl SlotFragmentDef {
     }
 }
 
+const __GETATTRIBUTE__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattribute__", &[Ty::Object]).ret_ty(Ty::Object);
+const __GETATTR__: SlotFragmentDef =
+    SlotFragmentDef::new("__getattr__", &[Ty::Object]).ret_ty(Ty::Object);
 const __SETATTR__: SlotFragmentDef =
     SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
 const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object]);
@@ -1040,50 +1111,10 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object);
 
-fn pyproto_fragment(method_name: &str) -> Option<&'static SlotFragmentDef> {
-    match method_name {
-        "__setattr__" => Some(&__SETATTR__),
-        "__delattr__" => Some(&__DELATTR__),
-        "__set__" => Some(&__SET__),
-        "__delete__" => Some(&__DELETE__),
-        "__setitem__" => Some(&__SETITEM__),
-        "__delitem__" => Some(&__DELITEM__),
-        "__add__" => Some(&__ADD__),
-        "__radd__" => Some(&__RADD__),
-        "__sub__" => Some(&__SUB__),
-        "__rsub__" => Some(&__RSUB__),
-        "__mul__" => Some(&__MUL__),
-        "__rmul__" => Some(&__RMUL__),
-        "__matmul__" => Some(&__MATMUL__),
-        "__rmatmul__" => Some(&__RMATMUL__),
-        "__floordiv__" => Some(&__FLOORDIV__),
-        "__rfloordiv__" => Some(&__RFLOORDIV__),
-        "__truediv__" => Some(&__TRUEDIV__),
-        "__rtruediv__" => Some(&__RTRUEDIV__),
-        "__divmod__" => Some(&__DIVMOD__),
-        "__rdivmod__" => Some(&__RDIVMOD__),
-        "__mod__" => Some(&__MOD__),
-        "__rmod__" => Some(&__RMOD__),
-        "__lshift__" => Some(&__LSHIFT__),
-        "__rlshift__" => Some(&__RLSHIFT__),
-        "__rshift__" => Some(&__RSHIFT__),
-        "__rrshift__" => Some(&__RRSHIFT__),
-        "__and__" => Some(&__AND__),
-        "__rand__" => Some(&__RAND__),
-        "__xor__" => Some(&__XOR__),
-        "__rxor__" => Some(&__RXOR__),
-        "__or__" => Some(&__OR__),
-        "__ror__" => Some(&__ROR__),
-        "__pow__" => Some(&__POW__),
-        "__rpow__" => Some(&__RPOW__),
-        _ => None,
-    }
-}
-
 fn extract_proto_arguments(
     cls: &syn::Type,
     py: &syn::Ident,
-    method_args: &[FnArg],
+    method_args: &[FnArg<'_>],
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
 ) -> Result<(Vec<Ident>, usize, TokenStream)> {

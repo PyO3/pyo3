@@ -30,7 +30,7 @@ enum PyImplPyO3Option {
 }
 
 impl Parse for PyImplPyO3Option {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyImplPyO3Option::Crate)
@@ -61,7 +61,7 @@ impl PyImplOptions {
     fn set_crate(&mut self, path: CrateAttribute) -> Result<()> {
         ensure_spanned!(
             self.krate.is_none(),
-            path.0.span() => "`crate` may only be specified once"
+            path.span() => "`crate` may only be specified once"
         );
 
         self.krate = Some(path);
@@ -107,10 +107,6 @@ pub fn impl_methods(
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));
-                    }
-                    GeneratedPyMethod::TraitImpl(token_stream) => {
-                        let attrs = get_cfg_attributes(&meth.attrs);
-                        trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
@@ -186,49 +182,29 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     }
 }
 
-pub fn gen_default_items(cls: &syn::Ident, method_defs: Vec<TokenStream>) -> TokenStream {
+pub fn gen_default_items<'a>(
+    cls: &syn::Ident,
+    method_defs: &'a mut [syn::ImplItemMethod],
+) -> impl Iterator<Item = TokenStream> + 'a {
     // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
     // all succeed.
     let ty: syn::Type = syn::parse_quote!(#cls);
 
-    let mut method_defs: Vec<_> = method_defs
-        .into_iter()
-        .map(|token| syn::parse2::<syn::ImplItemMethod>(token).unwrap())
-        .collect();
-
-    let mut proto_impls = Vec::new();
-
-    for meth in &mut method_defs {
+    method_defs.iter_mut().map(move |meth| {
         let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
         match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
             GeneratedPyMethod::Proto(token_stream) => {
                 let attrs = get_cfg_attributes(&meth.attrs);
-                proto_impls.push(quote!(#(#attrs)* #token_stream))
+                quote!(#(#attrs)* #token_stream)
             }
             GeneratedPyMethod::SlotTraitImpl(..) => {
                 panic!("SlotFragment methods cannot have default implementation!")
             }
-            GeneratedPyMethod::Method(_) | GeneratedPyMethod::TraitImpl(_) => {
+            GeneratedPyMethod::Method(_) => {
                 panic!("Only protocol methods can have default implementation!")
             }
         }
-    }
-
-    quote! {
-        impl #cls {
-            #(#method_defs)*
-        }
-        impl _pyo3::impl_::pyclass::PyClassDefaultItems<#cls>
-            for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
-                fn pyclass_default_items(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                    static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
-                        methods: &[],
-                        slots: &[#(#proto_impls),*]
-                    };
-                    &ITEMS
-                }
-        }
-    }
+    })
 }
 
 fn impl_py_methods(
@@ -266,6 +242,11 @@ fn add_shared_proto_slots(
         }};
     }
 
+    try_add_shared_slot!(
+        "__getattribute__",
+        "__getattr__",
+        generate_pyclass_getattro_slot
+    );
     try_add_shared_slot!("__setattr__", "__delattr__", generate_pyclass_setattr_slot);
     try_add_shared_slot!("__set__", "__delete__", generate_pyclass_setdescr_slot);
     try_add_shared_slot!("__setitem__", "__delitem__", generate_pyclass_setitem_slot);

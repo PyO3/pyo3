@@ -269,33 +269,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
 {
-    #[cfg(not(feature = "nightly"))]
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        extract_sequence(obj)
-    }
-    #[cfg(feature = "nightly")]
-    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        extract_sequence(obj)
-    }
-}
-
-#[cfg(all(feature = "nightly", not(Py_LIMITED_API)))]
-impl<'source, T> FromPyObject<'source> for Vec<T>
-where
-    for<'a> T: FromPyObject<'a> + crate::buffer::Element,
-{
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        // first try buffer protocol
-        if let Ok(buf) = crate::buffer::PyBuffer::get(obj) {
-            if buf.dimensions() == 1 {
-                if let Ok(v) = buf.to_vec(obj.py()) {
-                    buf.release(obj.py());
-                    return Ok(v);
-                }
-            }
-            buf.release(obj.py());
-        }
-        // fall back to sequence protocol
         extract_sequence(obj)
     }
 }
@@ -356,7 +330,7 @@ impl Py<PySequence> {
     /// Similar to [`as_ref`](#method.as_ref), and also consumes this `Py` and registers the
     /// Python object reference in PyO3's object storage. The reference count for the Python
     /// object will not be decreased until the GIL lifetime ends.
-    pub fn into_ref(self, py: Python) -> &PySequence {
+    pub fn into_ref(self, py: Python<'_>) -> &PySequence {
         unsafe { py.from_owned_ptr(self.into_ptr()) }
     }
 }
@@ -751,11 +725,11 @@ mod tests {
             let seq = ob.cast_as::<PySequence>(py).unwrap();
             let rep_seq = seq.in_place_repeat(3).unwrap();
             assert_eq!(6, seq.len().unwrap());
-            assert_eq!(seq, rep_seq);
+            assert!(seq.is(rep_seq));
 
             let conc_seq = seq.in_place_concat(seq).unwrap();
             assert_eq!(12, seq.len().unwrap());
-            assert_eq!(seq, conc_seq);
+            assert!(seq.is(conc_seq));
         });
     }
 

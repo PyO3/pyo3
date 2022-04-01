@@ -5,11 +5,6 @@ Please consider adding the following to your pull request:
  - docs to all new functions and / or detail in the guide
  - tests for all new or changed functions
 
-Be aware the CI pipeline will check your pull request for the following:
- - Rust tests (Just `cargo test` or `make test` if you need to test examples)
- - Rust lints (`make clippy`)
- - Rust formatting (`cargo fmt`)
- - Python formatting (`black . --check`. You can install black with `pip install black`)
- - Compatibility with all supported Python versions for all examples. This uses `tox`; you can do run it using `cargo xtask test-py`.
-
-You can run a similar set of checks as the CI pipeline using `make test`.
+PyO3's CI pipeline will check your pull request. To run its tests
+locally, you can run ```cargo xtask ci```. See its documentation
+ [here](https://github.com/PyO3/pyo3/tree/main/xtask#readme).

@@ -1,9 +1,8 @@
 #![cfg(feature = "macros")]
 
-use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{exceptions::PyAttributeError, prelude::*};
-use pyo3::{py_run, PyCell};
+use pyo3::{prelude::*, py_run, PyCell};
 use std::{isize, iter};
 
 mod common;
@@ -20,7 +19,7 @@ struct ExampleClass {
 
 #[pymethods]
 impl ExampleClass {
-    fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
+    fn __getattr__(&self, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
         if attr == "special_custom_attr" {
             Ok(self._custom_attr.into_py(py))
         } else {
@@ -64,7 +63,7 @@ impl ExampleClass {
     }
 }
 
-fn make_example(py: Python) -> &PyCell<ExampleClass> {
+fn make_example(py: Python<'_>) -> &PyCell<ExampleClass> {
     Py::new(
         py,
         ExampleClass {
@@ -190,7 +189,7 @@ pub struct Mapping {
 
 #[pymethods]
 impl Mapping {
-    fn __len__(&self, py: Python) -> usize {
+    fn __len__(&self, py: Python<'_>) -> usize {
         self.values.as_ref(py).len()
     }
 
@@ -263,7 +262,7 @@ impl Sequence {
         self.values.len()
     }
 
-    fn __getitem__(&self, index: SequenceIndex) -> PyResult<PyObject> {
+    fn __getitem__(&self, index: SequenceIndex<'_>) -> PyResult<PyObject> {
         match index {
             SequenceIndex::Integer(index) => {
                 let uindex = self.usize_index(index)?;
@@ -367,11 +366,11 @@ struct Iterator {
 
 #[pymethods]
 impl Iterator {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<i32> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
         slf.iter.next()
     }
 }
@@ -606,8 +605,66 @@ fn getattr_doesnt_override_member() {
     py_assert!(py, inst, "inst.a == 8");
 }
 
+#[pyclass]
+struct ClassWithGetAttribute {
+    #[pyo3(get, set)]
+    data: u32,
+}
+
+#[pymethods]
+impl ClassWithGetAttribute {
+    fn __getattribute__(&self, _name: &str) -> u32 {
+        self.data * 2
+    }
+}
+
+#[test]
+fn getattribute_overrides_member() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+    py_assert!(py, inst, "inst.data == 8");
+    py_assert!(py, inst, "inst.y == 8");
+}
+
+#[pyclass]
+struct ClassWithGetAttrAndGetAttribute;
+
+#[pymethods]
+impl ClassWithGetAttrAndGetAttribute {
+    fn __getattribute__(&self, name: &str) -> PyResult<u32> {
+        if name == "exists" {
+            Ok(42)
+        } else if name == "error" {
+            Err(PyValueError::new_err("bad"))
+        } else {
+            Err(PyAttributeError::new_err("fallback"))
+        }
+    }
+
+    fn __getattr__(&self, name: &str) -> PyResult<u32> {
+        if name == "lucky" {
+            Ok(57)
+        } else {
+            Err(PyAttributeError::new_err("no chance"))
+        }
+    }
+}
+
+#[test]
+fn getattr_and_getattribute() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+    py_assert!(py, inst, "inst.exists == 42");
+    py_assert!(py, inst, "inst.lucky == 57");
+    py_expect_exception!(py, inst, "inst.error", PyValueError);
+    py_expect_exception!(py, inst, "inst.unlucky", PyAttributeError);
+}
+
 /// Wraps a Python future and yield it once.
 #[pyclass]
+#[derive(Debug)]
 struct OnceFuture {
     future: PyObject,
     polled: bool,
@@ -623,14 +680,14 @@ impl OnceFuture {
         }
     }
 
-    fn __await__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __await__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
         if !slf.polled {
             slf.polled = true;
             Some(slf.future.clone())
@@ -645,26 +702,78 @@ fn test_await() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let once = py.get_type::<OnceFuture>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    let source = r#"
 import asyncio
 import sys
 
 async def main():
     res = await Once(await asyncio.sleep(0.1))
-    return res
+    assert res is None
+
 # For an odd error similar to https://bugs.python.org/issue38563
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-# get_event_loop can raise an error: https://github.com/PyO3/pyo3/pull/961#issuecomment-645238579
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-assert loop.run_until_complete(main()) is None
-loop.close()
-"#
-    );
+
+asyncio.run(main())
+"#;
     let globals = PyModule::import(py, "__main__").unwrap().dict();
     globals.set_item("Once", once).unwrap();
+    py.run(source, Some(globals), None)
+        .map_err(|e| e.print(py))
+        .unwrap();
+}
+
+#[pyclass]
+struct AsyncIterator {
+    future: Option<Py<OnceFuture>>,
+}
+
+#[pymethods]
+impl AsyncIterator {
+    #[new]
+    fn new(future: Py<OnceFuture>) -> Self {
+        Self {
+            future: Some(future),
+        }
+    }
+
+    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __anext__(&mut self) -> Option<Py<OnceFuture>> {
+        self.future.take()
+    }
+}
+
+#[test]
+fn test_anext_aiter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let once = py.get_type::<OnceFuture>();
+    let source = r#"
+import asyncio
+import sys
+
+async def main():
+    count = 0
+    async for result in AsyncIterator(Once(await asyncio.sleep(0.1))):
+        # The Once is awaited as part of the `async for` and produces None
+        assert result is None
+        count +=1
+    assert count == 1
+
+# For an odd error similar to https://bugs.python.org/issue38563
+if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+asyncio.run(main())
+"#;
+    let globals = PyModule::import(py, "__main__").unwrap().dict();
+    globals.set_item("Once", once).unwrap();
+    globals
+        .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+        .unwrap();
     py.run(source, Some(globals), None)
         .map_err(|e| e.print(py))
         .unwrap();
@@ -767,7 +876,7 @@ struct DefaultedContains;
 
 #[pymethods]
 impl DefaultedContains {
-    fn __iter__(&self, py: Python) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, &["a", "b", "c"])
             .as_ref()
             .iter()
@@ -781,7 +890,7 @@ struct NoContains;
 
 #[pymethods]
 impl NoContains {
-    fn __iter__(&self, py: Python) -> PyObject {
+    fn __iter__(&self, py: Python<'_>) -> PyObject {
         PyList::new(py, &["a", "b", "c"])
             .as_ref()
             .iter()

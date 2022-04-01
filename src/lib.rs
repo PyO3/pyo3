@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "nightly", feature(specialization))]
+#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
     docsrs, // rustdoc:: is not supported on msrv
@@ -8,9 +8,18 @@
         rustdoc::bare_urls
     )
 )]
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
-#![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
+#![doc(test(attr(
+    deny(
+        elided_lifetimes_in_paths,
+        unused_lifetimes,
+        rust_2021_prelude_collisions,
+        warnings
+    ),
+    allow(unused_variables, unused_assignments)
+)))]
 #![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
@@ -62,7 +71,10 @@
 //! ## Default feature flags
 //!
 //! The following features are turned on by default:
-//! - `macros`: Enables various macros, including all the attribute macros.
+//! - `macros`: Enables various macros, including all the attribute macros excluding the deprecated
+//! `#[pyproto]` attribute.
+//! - `pyproto`: Adds the deprecated `#[pyproto]` attribute macro. Likely to become optional and
+//! then removed in the future.
 //!
 //! ## Optional feature flags
 //!
@@ -94,9 +106,7 @@
 //!
 //! ## Unstable features
 //!
-//! - `nightly`: Gates some optimizations that rely on
-//! [`#![feature(specialization)]`](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md),
-//! for which you'd also need nightly Rust. You should not use this feature.
+//! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
 //!
@@ -159,7 +169,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
+//! fn string_sum(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
 //!     Ok(())
@@ -283,6 +293,7 @@
 //! [Python from Rust]: https://github.com/PyO3/pyo3#using-python-from-rust
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 //! [Features chapter of the guide]: https://pyo3.rs/latest/features.html#features-reference "Features Reference - PyO3 user guide"
+//! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
@@ -293,18 +304,21 @@ pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 pub use crate::gil::{prepare_freethreaded_python, with_embedded_python_interpreter};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{Py, PyNativeType, PyObject};
+pub use crate::marker::Python;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
-pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
+pub use crate::version::PythonVersionInfo;
 
 // Old directory layout, to be rethought?
 #[cfg(not(feature = "pyproto"))]
 pub mod class {
     #[doc(hidden)]
     pub use crate::impl_::pymethods as methods;
+
+    pub use self::gc::{PyTraverseError, PyVisit};
 
     #[doc(hidden)]
     pub use self::methods::{
@@ -321,6 +335,10 @@ pub mod class {
 
     pub mod iter {
         pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
+    }
+
+    pub mod gc {
+        pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
     }
 }
 
@@ -355,6 +373,7 @@ mod gil;
 #[doc(hidden)]
 pub mod impl_;
 mod instance;
+pub mod marker;
 pub mod marshal;
 pub mod once_cell;
 pub mod panic;
@@ -362,9 +381,10 @@ pub mod prelude;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
-mod python;
+
 pub mod type_object;
 pub mod types;
+mod version;
 
 pub use crate::conversions::*;
 
@@ -406,46 +426,42 @@ pub mod doc_test {
         };
     }
 
-    macro_rules! doctest {
-        ($path:expr, $mod:ident) => {
-            doctest_impl!(include_str!(concat!("../", $path)), $mod);
+    macro_rules! doctests {
+        ($($path:expr => $mod:ident),* $(,)?) => {
+            $(doctest_impl!(include_str!(concat!("../", $path)), $mod);)*
         };
     }
 
-    doctest!("README.md", readme_md);
-    doctest!("guide/src/advanced.md", guide_advanced_md);
-    doctest!(
-        "guide/src/building_and_distribution.md",
-        guide_building_and_distribution_md
-    );
-    doctest!("guide/src/class.md", guide_class_md);
-    doctest!("guide/src/class/protocols.md", guide_class_protocols_md);
-    doctest!("guide/src/conversions.md", guide_conversions_md);
-    doctest!(
-        "guide/src/conversions/tables.md",
-        guide_conversions_tables_md
-    );
+    doctests! {
+        "README.md" => readme_md,
+        "guide/src/advanced.md" => guide_advanced_md,
+        "guide/src/building_and_distribution.md" => guide_building_and_distribution_md,
+        "guide/src/building_and_distribution/multiple_python_versions.md" => guide_bnd_multiple_python_versions_md,
+        "guide/src/class.md" => guide_class_md,
+        "guide/src/class/call.md" => guide_class_call,
+        "guide/src/class/object.md" => guide_class_object,
+        "guide/src/class/numeric.md" => guide_class_numeric,
+        "guide/src/class/protocols.md" => guide_class_protocols_md,
+        "guide/src/conversions.md" => guide_conversions_md,
+        "guide/src/conversions/tables.md" => guide_conversions_tables_md,
+        "guide/src/conversions/traits.md" => guide_conversions_traits_md,
+        "guide/src/debugging.md" => guide_debugging_md,
 
-    doctest!(
-        "guide/src/conversions/traits.md",
-        guide_conversions_traits_md
-    );
-    doctest!("guide/src/debugging.md", guide_debugging_md);
-    doctest!("guide/src/exception.md", guide_exception_md);
-    doctest!("guide/src/function.md", guide_function_md);
-    doctest!("guide/src/migration.md", guide_migration_md);
-    doctest!("guide/src/module.md", guide_module_md);
-    doctest!("guide/src/parallelism.md", guide_parallelism_md);
-    doctest!("guide/src/python_from_rust.md", guide_python_from_rust_md);
-    doctest!("guide/src/rust_cpython.md", guide_rust_cpython_md);
-    doctest!("guide/src/trait_bounds.md", guide_trait_bounds_md);
-    doctest!("guide/src/types.md", guide_types_md);
-    doctest!("guide/src/faq.md", faq);
-    doctest!(
-        "guide/src/python_typing_hints.md",
-        guide_python_typing_hints
-    );
+        // deliberate choice not to test guide/ecosystem because those pages depend on external
+        // crates such as pyo3_asyncio.
 
-    // deliberate choice not to test guide/ecosystem because those pages depend on external crates
-    // such as pyo3_asyncio.
+        "guide/src/exception.md" => guide_exception_md,
+        "guide/src/faq.md" => guide_faq_md,
+        "guide/src/features.md" => guide_features_md,
+        "guide/src/function.md" => guide_function_md,
+        "guide/src/memory.md" => guide_memory_md,
+        "guide/src/migration.md" => guide_migration_md,
+        "guide/src/module.md" => guide_module_md,
+        "guide/src/parallelism.md" => guide_parallelism_md,
+        "guide/src/python_from_rust.md" => guide_python_from_rust_md,
+        "guide/src/python_typing_hints.md" => guide_python_typing_hints_md,
+        "guide/src/rust_cpython.md" => guide_rust_cpython_md,
+        "guide/src/trait_bounds.md" => guide_trait_bounds_md,
+        "guide/src/types.md" => guide_types_md,
+    }
 }

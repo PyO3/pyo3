@@ -13,7 +13,7 @@ pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, #checkfunction=ff
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
     #[inline]
-    pub fn new(py: Python, val: bool) -> &PyBool {
+    pub fn new(py: Python<'_>, val: bool) -> &PyBool {
         unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
     }
 
@@ -27,7 +27,7 @@ impl PyBool {
 /// Converts a Rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe {
             PyObject::from_borrowed_ptr(
                 py,
@@ -43,7 +43,7 @@ impl ToPyObject for bool {
 
 impl IntoPy<PyObject> for bool {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         PyBool::new(py, self).into()
     }
 }
@@ -69,7 +69,7 @@ mod tests {
             assert!(PyBool::new(py, true).is_true());
             let t: &PyAny = PyBool::new(py, true).into();
             assert!(t.extract::<bool>().unwrap());
-            assert_eq!(true.to_object(py), PyBool::new(py, true).into());
+            assert!(true.to_object(py).is(PyBool::new(py, true)));
         });
     }
 
@@ -79,7 +79,7 @@ mod tests {
             assert!(!PyBool::new(py, false).is_true());
             let t: &PyAny = PyBool::new(py, false).into();
             assert!(!t.extract::<bool>().unwrap());
-            assert_eq!(false.to_object(py), PyBool::new(py, false).into());
+            assert!(false.to_object(py).is(PyBool::new(py, false)));
         });
     }
 }

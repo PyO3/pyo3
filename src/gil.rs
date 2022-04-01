@@ -164,7 +164,7 @@ pub struct GILGuard {
 impl GILGuard {
     /// Retrieves the marker type that proves that the GIL was acquired.
     #[inline]
-    pub fn python(&self) -> Python {
+    pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 
@@ -241,6 +241,7 @@ impl GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         // First up, try to detect if the order of destruction is correct.
+        #[allow(clippy::manual_assert)]
         let _ = GIL_COUNT.try_with(|c| {
             if self.gstate == ffi::PyGILState_STATE::PyGILState_UNLOCKED && c.get() != 1 {
                 // XXX: this panic commits to leaking all objects in the pool as well as
@@ -297,7 +298,7 @@ impl ReferencePool {
         self.dirty.store(true, atomic::Ordering::Release);
     }
 
-    fn update_counts(&self, _py: Python) {
+    fn update_counts(&self, _py: Python<'_>) {
         let prev = self.dirty.swap(false, atomic::Ordering::Acquire);
         if !prev {
             return;
@@ -359,7 +360,7 @@ impl GILPool {
 
     /// Gets the Python token associated with this [`GILPool`].
     #[inline]
-    pub fn python(&self) -> Python {
+    pub fn python(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -423,7 +424,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
 ///
 /// # Safety
 /// The object must be an owned Python reference.
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) {
+pub unsafe fn register_owned(_py: Python<'_>, obj: NonNull<ffi::PyObject>) {
     debug_assert!(gil_is_acquired());
     // Ignores the error in case this function called from `atexit`.
     let _ = OWNED_OBJECTS.try_with(|holder| holder.borrow_mut().push(obj));
@@ -482,7 +483,7 @@ impl EnsureGIL {
     /// Thus this method could be used to get access to a GIL token while the GIL is not held.
     /// Care should be taken to only use the returned Python in contexts where it is certain the
     /// GIL continues to be held.
-    pub unsafe fn python(&self) -> Python {
+    pub unsafe fn python(&self) -> Python<'_> {
         match &self.0 {
             Some(gil) => gil.python(),
             None => Python::assume_gil_acquired(),
@@ -496,7 +497,7 @@ mod tests {
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
     use std::ptr::NonNull;
 
-    fn get_object(py: Python) -> PyObject {
+    fn get_object(py: Python<'_>) -> PyObject {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
         // the original pool state unchanged.
         let pool = unsafe { py.new_pool() };
@@ -675,10 +676,9 @@ mod tests {
         // Acquiring GIL for the second time should be safe - see #864
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let obj;
 
         let gil2 = Python::acquire_gil();
-        obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval("object()", None, None).unwrap();
         drop(gil2);
 
         // After gil2 drops, obj should still have a reference count of one
@@ -701,71 +701,119 @@ mod tests {
 
     #[test]
     fn test_clone_without_gil() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj = get_object(py);
-        let count = obj.get_refcnt(py);
+        use crate::{Py, PyAny};
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::{sync::Arc, thread};
 
-        // Cloning without GIL should not update reference count
-        drop(gil);
-        let c = obj.clone();
-        assert_eq!(
-            count,
-            obj.get_refcnt(unsafe { Python::assume_gil_acquired() })
-        );
+        // Some spinlocks for synchronizing
+        static GIL_ACQUIRED: AtomicBool = AtomicBool::new(false);
+        static OBJECT_CLONED: AtomicBool = AtomicBool::new(false);
+        static REFCNT_CHECKED: AtomicBool = AtomicBool::new(false);
 
-        // Acquring GIL will clear this pending change
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
+            let thread_obj = Arc::clone(&obj);
 
-        // Total reference count should be one higher
-        assert_eq!(count + 1, obj.get_refcnt(py));
+            let count = (&*obj).get_refcnt(py);
+            println!(
+                "1: The object has been created and its reference count is {}",
+                count
+            );
 
-        // Clone dropped
-        drop(c);
+            let handle = thread::spawn(move || {
+                Python::with_gil(move |py| {
+                    println!("3. The GIL has been acquired on another thread.");
+                    GIL_ACQUIRED.store(true, Ordering::Release);
 
-        // Overall count is now back to the original, and should be no pending change
-        assert_eq!(count, obj.get_refcnt(py));
+                    // Spin a bit while the main thread registers obj in POOL
+                    while !OBJECT_CLONED.load(Ordering::Acquire) {}
+                    println!("5. Checking refcnt");
+                    assert_eq!(thread_obj.get_refcnt(py), count);
+
+                    REFCNT_CHECKED.store(true, Ordering::Release);
+                })
+            });
+
+            let cloned = py.allow_threads(|| {
+                println!("2. The GIL has been released.");
+
+                // spin until the gil has been acquired on the thread.
+                while !GIL_ACQUIRED.load(Ordering::Acquire) {}
+
+                println!("4. The other thread is now hogging the GIL, we clone without it held");
+                // Cloning without GIL should not update reference count
+                let cloned = Py::clone(&*obj);
+                OBJECT_CLONED.store(true, Ordering::Release);
+                cloned
+            });
+
+            while !REFCNT_CHECKED.load(Ordering::Acquire) {}
+
+            // Returning from allow_threads doesn't clear the pool
+            py.allow_threads(|| {
+                // Acquiring GIL will clear the pending change
+                Python::with_gil(|_| {});
+            });
+
+            println!("6. The main thread has acquired the GIL again and processed the pool.");
+
+            // Total reference count should be one higher
+            assert_eq!(obj.get_refcnt(py), count + 1);
+
+            // Clone dropped
+            drop(cloned);
+            // Ensure refcount of the arc is 1
+            handle.join().unwrap();
+
+            // Overall count is now back to the original, and should be no pending change
+            assert_eq!(Arc::try_unwrap(obj).unwrap().get_refcnt(py), count);
+        });
     }
 
     #[test]
     fn test_clone_in_other_thread() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let obj = get_object(py);
-        let count = obj.get_refcnt(py);
+        use crate::Py;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::{sync::Arc, thread};
 
-        // Move obj to a thread which does not have the GIL, and clone it
-        let t = std::thread::spawn(move || {
-            // Cloning without GIL should not update reference count
-            #[allow(clippy::redundant_clone)]
-            let _ = obj.clone();
-            assert_eq!(
-                count,
-                obj.get_refcnt(unsafe { Python::assume_gil_acquired() })
-            );
+        // Some spinlocks for synchronizing
+        static OBJECT_CLONED: AtomicBool = AtomicBool::new(false);
 
-            // Return obj so original thread can continue to use
-            obj
+        let (obj, count, ptr) = Python::with_gil(|py| {
+            let obj = Arc::new(get_object(py));
+            let count = obj.get_refcnt(py);
+            let thread_obj = Arc::clone(&obj);
+
+            // Start a thread which does not have the GIL, and clone it
+            let t = thread::spawn(move || {
+                // Cloning without GIL should not update reference count
+                #[allow(clippy::redundant_clone)]
+                let _ = Py::clone(&*thread_obj);
+                OBJECT_CLONED.store(true, Ordering::Release);
+            });
+
+            while !OBJECT_CLONED.load(Ordering::Acquire) {}
+            assert_eq!(count, obj.get_refcnt(py));
+
+            t.join().unwrap();
+            let ptr = NonNull::new(obj.as_ptr()).unwrap();
+
+            // The pointer should appear once in the incref pool, and once in the
+            // decref pool (for the clone being created and also dropped)
+            assert!(POOL.pointer_ops.lock().0.contains(&ptr));
+            assert!(POOL.pointer_ops.lock().1.contains(&ptr));
+
+            (obj, count, ptr)
         });
 
-        let obj = t.join().unwrap();
-        let ptr = NonNull::new(obj.as_ptr()).unwrap();
+        Python::with_gil(|py| {
+            // Acquiring the gil clears the pool
+            assert!(!POOL.pointer_ops.lock().0.contains(&ptr));
+            assert!(!POOL.pointer_ops.lock().1.contains(&ptr));
 
-        // The pointer should appear once in the incref pool, and once in the
-        // decref pool (for the clone being created and also dropped)
-        assert_eq!(&POOL.pointer_ops.lock().0, &vec![ptr]);
-        assert_eq!(&POOL.pointer_ops.lock().1, &vec![ptr]);
-
-        // Re-acquring GIL will clear these pending changes
-        drop(gil);
-        let gil = Python::acquire_gil();
-
-        assert!(POOL.pointer_ops.lock().0.is_empty());
-        assert!(POOL.pointer_ops.lock().1.is_empty());
-
-        // Overall count is still unchanged
-        assert_eq!(count, obj.get_refcnt(gil.python()));
+            // Overall count is still unchanged
+            assert_eq!(count, obj.get_refcnt(py));
+        });
     }
 
     #[test]

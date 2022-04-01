@@ -9,7 +9,7 @@ enum ManyTypes {
     String(String),
 }
 
-fn enum_from_pyobject(b: &mut Bencher) {
+fn enum_from_pyobject(b: &mut Bencher<'_>) {
     Python::with_gil(|py| {
         let obj = PyString::new(py, "hello world");
         b.iter(|| {

@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(feature = "pyproto")]
+#![allow(deprecated, elided_lifetimes_in_paths)]
 
 use std::collections::HashMap;
 
@@ -63,7 +64,7 @@ impl PyMappingProtocol for Mapping {
 }
 
 /// Return a dict with `m = Mapping(['1', '2', '3'])`.
-fn map_dict(py: Python) -> &pyo3::types::PyDict {
+fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
     let d = [("Mapping", py.get_type::<Mapping>())].into_py_dict(py);
     py_run!(py, *d, "m = Mapping(['1', '2', '3'])");
     d

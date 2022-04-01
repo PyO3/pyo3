@@ -1,77 +1,107 @@
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    spanned::Spanned,
     token::Comma,
-    Attribute, ExprPath, Ident, LitStr, Path, Result, Token,
+    Attribute, Expr, ExprPath, Ident, LitStr, Path, Result, Token,
 };
 
 pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
+    syn::custom_keyword!(dict);
+    syn::custom_keyword!(extends);
+    syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);
+    syn::custom_keyword!(gc);
     syn::custom_keyword!(get);
     syn::custom_keyword!(item);
-    syn::custom_keyword!(pass_module);
+    syn::custom_keyword!(module);
     syn::custom_keyword!(name);
+    syn::custom_keyword!(pass_module);
     syn::custom_keyword!(set);
     syn::custom_keyword!(signature);
+    syn::custom_keyword!(subclass);
     syn::custom_keyword!(text_signature);
     syn::custom_keyword!(transparent);
+    syn::custom_keyword!(unsendable);
+    syn::custom_keyword!(weakref);
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct FromPyWithAttribute(pub ExprPath);
+#[derive(Clone, Debug)]
+pub struct KeywordAttribute<K, V> {
+    pub kw: K,
+    pub value: V,
+}
 
-impl Parse for FromPyWithAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let _: kw::from_py_with = input.parse()?;
-        let _: Token![=] = input.parse()?;
-        let string_literal: LitStr = input.parse()?;
-        string_literal.parse().map(FromPyWithAttribute)
+/// A helper type which parses the inner type via a literal string
+/// e.g. LitStrValue<Path> -> parses "some::path" in quotes.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LitStrValue<T>(pub T);
+
+impl<T: Parse> Parse for LitStrValue<T> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lit_str: LitStr = input.parse()?;
+        lit_str.parse().map(LitStrValue)
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct NameAttribute(pub Ident);
-
-impl Parse for NameAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let _: kw::name = input.parse()?;
-        let _: Token![=] = input.parse()?;
-        let string_literal: LitStr = input.parse()?;
-        string_literal.parse().map(NameAttribute)
+impl<T: ToTokens> ToTokens for LitStrValue<T> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
     }
 }
+
+/// A helper type which parses a name via a literal string
+#[derive(Clone, Debug, PartialEq)]
+pub struct NameLitStr(pub Ident);
+
+impl Parse for NameLitStr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let string_literal: LitStr = input.parse()?;
+        if let Ok(ident) = string_literal.parse() {
+            Ok(NameLitStr(ident))
+        } else {
+            bail_spanned!(string_literal.span() => "expected a single identifier in double quotes")
+        }
+    }
+}
+
+impl ToTokens for NameLitStr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
+pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
+pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
+pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
+pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, LitStr>;
+
+impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let kw: K = input.parse()?;
+        let _: Token![=] = input.parse()?;
+        let value = input.parse()?;
+        Ok(KeywordAttribute { kw, value })
+    }
+}
+
+impl<K: ToTokens, V: ToTokens> ToTokens for KeywordAttribute<K, V> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.kw.to_tokens(tokens);
+        Token![=](self.kw.span()).to_tokens(tokens);
+        self.value.to_tokens(tokens);
+    }
+}
+
+pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<ExprPath>>;
 
 /// For specifying the path to the pyo3 crate.
-#[derive(Clone, Debug, PartialEq)]
-pub struct CrateAttribute(pub Path);
-
-impl Parse for CrateAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let _: Token![crate] = input.parse()?;
-        let _: Token![=] = input.parse()?;
-        let string_literal: LitStr = input.parse()?;
-        string_literal.parse().map(CrateAttribute)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct TextSignatureAttribute {
-    pub kw: kw::text_signature,
-    pub eq_token: Token![=],
-    pub lit: LitStr,
-}
-
-impl Parse for TextSignatureAttribute {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Ok(TextSignatureAttribute {
-            kw: input.parse()?,
-            eq_token: input.parse()?,
-            lit: input.parse()?,
-        })
-    }
-}
+pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
 
 pub fn get_pyo3_options<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctuated<T, Comma>>> {
     if is_attribute_ident(attr, "pyo3") {

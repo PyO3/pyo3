@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! This crate contains the implementation of the proc macro attributes
 
+#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![recursion_limit = "1024"]
 

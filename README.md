@@ -56,6 +56,9 @@ version = "0.1.0"
 edition = "2018"
 
 [lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import string_sum`). If you change this, you must also change the name of the
+# `#[pymodule]` in `src/lib.rs`.
 name = "string_sum"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 #
@@ -65,7 +68,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.15.1", features = ["extension-module"] }
+pyo3 = { version = "0.16.2", features = ["extension-module"] }
 ```
 
 **`src/lib.rs`**
@@ -83,7 +86,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn string_sum(_py: Python, m: &PyModule) -> PyResult<()> {
+fn string_sum(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     Ok(())
 }
@@ -129,7 +132,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.15.1"
+version = "0.16.2"
 features = ["auto-initialize"]
 ```
 
@@ -166,7 +169,8 @@ about this topic.
 - [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
 - [pyo3-log](https://github.com/vorner/pyo3-log) _Bridge from Rust to Python logging_
 - [pythonize](https://github.com/davidhewitt/pythonize) _Serde serializer for converting Rust objects to JSON-compatible Python objects_
-- [pyo3-asyncio](https://github.com/awestlake87/pyo3-asyncio) Utilities for working with Python's Asyncio library and async functions
+- [pyo3-asyncio](https://github.com/awestlake87/pyo3-asyncio) _Utilities for working with Python's Asyncio library and async functions_
+- [rustimport](https://github.com/mityax/rustimport) _Directly import Rust files or crates from Python, without manual compilation step. Provides pyo3 integration by default and generates pyo3 binding code automatically._
 
 ## Examples
 

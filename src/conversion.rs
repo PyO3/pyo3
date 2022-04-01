@@ -45,7 +45,7 @@ where
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.as_ref()
-            .map_or_else(std::ptr::null_mut, |t| t.into_ptr())
+            .map_or_else(std::ptr::null_mut, |t| t.as_ptr())
     }
 }
 
@@ -72,7 +72,7 @@ where
 /// Conversion trait that allows various objects to be converted into `PyObject`.
 pub trait ToPyObject {
     /// Converts self into a Python object.
-    fn to_object(&self, py: Python) -> PyObject;
+    fn to_object(&self, py: Python<'_>) -> PyObject;
 }
 
 /// This trait has two implementations: The slow one is implemented for
@@ -85,7 +85,7 @@ pub trait ToBorrowedObject: ToPyObject {
     ///
     /// May be more efficient than `to_object` because it does not need
     /// to touch any reference counts when the input object already is a Python object.
-    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'_>, f: F) -> R
     where
         F: FnOnce(*mut ffi::PyObject) -> R,
     {
@@ -98,38 +98,7 @@ pub trait ToBorrowedObject: ToPyObject {
     }
 }
 
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject,
-{
-    #[cfg(feature = "nightly")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-    default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        let ptr = self.to_object(py).into_ptr();
-        let result = f(ptr);
-        unsafe {
-            ffi::Py_XDECREF(ptr);
-        }
-        result
-    }
-}
-
-#[cfg(feature = "nightly")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
-impl<T> ToBorrowedObject for T
-where
-    T: ToPyObject + AsPyPointer,
-{
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        f(self.as_ptr())
-    }
-}
+impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 /// Defines a conversion from a Rust type to a Python object.
 ///
@@ -166,7 +135,7 @@ where
 /// }
 ///
 /// impl IntoPy<PyObject> for Number {
-///     fn into_py(self, py: Python) -> PyObject {
+///     fn into_py(self, py: Python<'_>) -> PyObject {
 ///         // delegates to i32's IntoPy implementation.
 ///         self.value.into_py(py)
 ///     }
@@ -188,7 +157,7 @@ where
 /// }
 ///
 /// impl IntoPy<PyObject> for Value {
-///     fn into_py(self, py: Python) -> PyObject {
+///     fn into_py(self, py: Python<'_>) -> PyObject {
 ///         match self {
 ///             Self::Integer(val) => val.into_py(py),
 ///             Self::String(val) => val.into_py(py),
@@ -213,7 +182,7 @@ where
 #[cfg_attr(docsrs, doc(alias = "IntoPyCallbackOutput"))]
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
-    fn into_py(self, py: Python) -> T;
+    fn into_py(self, py: Python<'_>) -> T;
 }
 
 /// `FromPyObject` is implemented by various types that can be extracted from
@@ -250,7 +219,7 @@ pub trait FromPyObject<'source>: Sized {
 /// `T: ToPyObject` is expected.
 impl<T: ?Sized + ToPyObject> ToPyObject for &'_ T {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         <T as ToPyObject>::to_object(*self, py)
     }
 }
@@ -261,7 +230,7 @@ impl<T> ToPyObject for Option<T>
 where
     T: ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_ref()
             .map_or_else(|| py.None(), |val| val.to_object(py))
     }
@@ -271,20 +240,20 @@ impl<T> IntoPy<PyObject> for Option<T>
 where
     T: IntoPy<PyObject>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         self.map_or_else(|| py.None(), |val| val.into_py(py))
     }
 }
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         py.None()
     }
 }
 
 impl IntoPy<PyObject> for () {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         py.None()
     }
 }
@@ -294,7 +263,7 @@ where
     T: AsPyPointer,
 {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
@@ -375,10 +344,10 @@ pub trait PyTryFrom<'v>: Sized + PyNativeType {
 /// This trait is similar to `std::convert::TryInto`
 pub trait PyTryInto<T>: Sized {
     /// Cast from PyObject to a concrete Python object type.
-    fn try_into(&self) -> Result<&T, PyDowncastError>;
+    fn try_into(&self) -> Result<&T, PyDowncastError<'_>>;
 
     /// Cast from PyObject to a concrete Python object type. With exact type check.
-    fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
+    fn try_into_exact(&self) -> Result<&T, PyDowncastError<'_>>;
 }
 
 // TryFrom implies TryInto
@@ -386,10 +355,10 @@ impl<U> PyTryInto<U> for PyAny
 where
     U: for<'v> PyTryFrom<'v>,
 {
-    fn try_into(&self) -> Result<&U, PyDowncastError> {
-        U::try_from(self)
+    fn try_into(&self) -> Result<&U, PyDowncastError<'_>> {
+        <U as PyTryFrom<'_>>::try_from(self)
     }
-    fn try_into_exact(&self) -> Result<&U, PyDowncastError> {
+    fn try_into_exact(&self) -> Result<&U, PyDowncastError<'_>> {
         U::try_from_exact(self)
     }
 }
@@ -458,7 +427,7 @@ where
 
 /// Converts `()` to an empty Python tuple.
 impl IntoPy<Py<PyTuple>> for () {
-    fn into_py(self, py: Python) -> Py<PyTuple> {
+    fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).into()
     }
 }
@@ -556,7 +525,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
-    use crate::{Python, ToPyObject};
+    use crate::{AsPyPointer, PyObject, Python, ToPyObject};
 
     use super::PyTryFrom;
 
@@ -566,11 +535,11 @@ mod tests {
             let list: &PyAny = vec![3, 6, 5, 4, 7].to_object(py).into_ref(py);
             let dict: &PyAny = vec![("reverse", true)].into_py_dict(py).as_ref();
 
-            assert!(PyList::try_from(list).is_ok());
-            assert!(PyDict::try_from(dict).is_ok());
+            assert!(<PyList as PyTryFrom<'_>>::try_from(list).is_ok());
+            assert!(<PyDict as PyTryFrom<'_>>::try_from(dict).is_ok());
 
-            assert!(PyAny::try_from(list).is_ok());
-            assert!(PyAny::try_from(dict).is_ok());
+            assert!(<PyAny as PyTryFrom<'_>>::try_from(list).is_ok());
+            assert!(<PyAny as PyTryFrom<'_>>::try_from(dict).is_ok());
         });
     }
 
@@ -593,7 +562,24 @@ mod tests {
         Python::with_gil(|py| {
             let list = PyList::new(py, &[1, 2, 3]);
             let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
-            assert_eq!(list, val);
+            assert!(list.is(val));
+        });
+    }
+
+    #[test]
+    fn test_option_as_ptr() {
+        Python::with_gil(|py| {
+            let mut option: Option<PyObject> = None;
+            assert_eq!(option.as_ptr(), std::ptr::null_mut());
+
+            let none = py.None();
+            option = Some(none.clone());
+
+            let ref_cnt = none.get_refcnt(py);
+            assert_eq!(option.as_ptr(), none.as_ptr());
+
+            // Ensure ref count not changed by as_ptr call
+            assert_eq!(none.get_refcnt(py), ref_cnt);
         });
     }
 }
