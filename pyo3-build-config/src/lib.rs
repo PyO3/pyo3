@@ -17,9 +17,11 @@ use std::{env, process::Command};
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
 
+#[allow(deprecated)]
 pub use impl_::{
-    cross_compiling, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion,
+    cross_compiling, cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata,
+    BuildFlag, BuildFlags, CrossCompileConfig, InterpreterConfig, PythonImplementation,
+    PythonVersion, Triple,
 };
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
@@ -166,7 +168,8 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, make_cross_compile_config, InterpreterConfig, PythonVersion,
+        cargo_env_var, env_var, is_linking_libpython, make_cross_compile_config, InterpreterConfig,
+        PythonVersion,
     };
 
     /// Gets the configuration for use from PyO3's build script.
@@ -180,7 +183,7 @@ pub mod pyo3_build_script_impl {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
         } else if !ABI3_CONFIG.is_empty() {
             Ok(abi3_config())
-        } else if let Some(interpreter_config) = impl_::make_cross_compile_config()? {
+        } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
             let path = Path::new(DEFAULT_CROSS_COMPILE_CONFIG_PATH);
             let parent_dir = path.parent().ok_or_else(|| {

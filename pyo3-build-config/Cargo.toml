@@ -12,6 +12,10 @@ edition = "2018"
 
 [dependencies]
 once_cell = "1"
+target-lexicon = "0.12"
+
+[build-dependencies]
+target-lexicon = "0.12"
 
 [features]
 default = []
