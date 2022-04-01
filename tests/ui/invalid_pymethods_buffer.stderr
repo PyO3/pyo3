@@ -1,0 +1,11 @@
+error: `__getbuffer__` must be `unsafe fn`
+ --> tests/ui/invalid_pymethods_buffer.rs:9:8
+  |
+9 |     fn getbuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer, _flags: std::os::raw::c_int) {}
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `__releasebuffer__` must be `unsafe fn`
+  --> tests/ui/invalid_pymethods_buffer.rs:15:8
+   |
+15 |     fn releasebuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer) {}
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

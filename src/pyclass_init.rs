@@ -1,15 +1,16 @@
 //! Contains initialization utilities for `#[pyclass]`.
-use crate::class::impl_::PyClassThreadChecker;
-use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::{callback::IntoPyCallbackOutput, class::impl_::PyClassBaseType};
+use crate::callback::IntoPyCallbackOutput;
+use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
+use crate::pycell::Mutability;
+use crate::pyclass::MutablePyClass;
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{BorrowFlag, PyCellContents},
+    pycell::PyCellContents,
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::UnsafeCell,
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
 };
@@ -41,7 +42,11 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         let type_object = T::type_object_raw(py);
 
         // HACK (due to FIXME below): PyBaseObject_Type's tp_new isn't happy with NULL arguments
-        if type_object == (&ffi::PyBaseObject_Type as *const _ as *mut _) {
+        #[cfg(addr_of)]
+        let is_base_object = type_object == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type);
+        #[cfg(not(addr_of))]
+        let is_base_object = type_object == &mut ffi::PyBaseObject_Type as _;
+        if is_base_object {
             let alloc = get_tp_alloc(subtype).unwrap_or(ffi::PyType_GenericAlloc);
             let obj = alloc(subtype, 0);
             return if obj.is_null() {
@@ -190,7 +195,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass<BaseType = T>,
-        S::BaseType: PyClassBaseType<T::Mutability, Initializer = Self>,
+        S::BaseType: PyClassBaseType<S::Mutability, Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
@@ -248,11 +253,8 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         let obj = super_init.into_new_object(py, subtype)?;
 
         // FIXME: Only need to initialize borrow flag once per whole hierarchy
-        let base: *mut PartiallyInitializedPyCellBase<T::BaseNativeType> = obj as _;
-        std::ptr::write(
-            (*base).borrow_flag.as_mut_ptr(),
-            Cell::new(BorrowFlag::UNUSED),
-        );
+        let base: *mut PartiallyInitializedPyCellBase<T::BaseNativeType, T::Mutability> = obj as _;
+        std::ptr::write((*base).borrow_flag.as_mut_ptr(), T::Mutability::new());
 
         // FIXME: Initialize borrow flag if necessary??
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
@@ -284,9 +286,9 @@ where
 
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
-    S: PyClass<BaseType = B>,
-    B: PyClass,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+    S: MutablePyClass<BaseType = B>,
+    B: MutablePyClass,
+    B::BaseType: PyClassBaseType<S::Mutability, Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;

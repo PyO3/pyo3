@@ -1,6 +1,8 @@
 #![cfg(feature = "eyre")]
 
-//! A conversion from [eyre]’s [`Report`] type to [`PyErr`].
+//! A conversion from
+//! [eyre](https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications.")’s
+//! [`Report`] type to [`PyErr`].
 //!
 //! Use of an error handling library like [eyre] is common in application code and when you just
 //! want error handling to be easy. If you are writing a library or you need more control over your
@@ -118,8 +120,8 @@ impl From<eyre::Report> for PyErr {
 
 #[cfg(test)]
 mod tests {
-    use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
+    use crate::prelude::*;
+    use crate::types::IntoPyDict;
 
     use eyre::{bail, Result, WrapErr};
 
@@ -145,7 +147,7 @@ mod tests {
         Python::with_gil(|py| {
             let locals = [("err", pyerr)].into_py_dict(py);
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
-            assert_eq!(pyerr.pvalue(py).to_string(), expected_contents);
+            assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
 }

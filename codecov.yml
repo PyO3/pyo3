@@ -10,3 +10,4 @@ coverage:
 
 ignore:
   - tests/*.rs
+  - src/test_hygiene/*.rs

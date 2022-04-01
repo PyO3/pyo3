@@ -93,16 +93,41 @@ impl PyModule {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// Include a file at compile time by using [`std::include_str` macro][1]:
+    ///
+    /// ```ignore
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::from_code(py, "print(__file__, __name__)", "my_file", "my_module")?;
-    ///     Ok(())
-    /// })?;
-    /// # Ok(())}
+    ///       let code = include_str!("../example.py");
+    ///       Python::with_gil(|py| -> PyResult<()> {
+    ///           PyModule::from_code(py, code, "example", "example")?;
+    ///           Ok(())
+    ///       })?;
+    ///       Ok(())
+    /// # }
     /// ```
+    ///
+    /// Load a file at runtime by using [`std::fs::read_to_string`][2] function. It is recommended
+    /// to use an absolute path to your Python files because then your binary can be run from
+    /// anywhere:
+    ///
+    /// ```ignore
+    /// use std::fs;
+    /// use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    ///       let code = fs::read_to_string("/some/absolute/path/to/example.py")?;
+    ///       Python::with_gil(|py| -> PyResult<()> {
+    ///           PyModule::from_code(py, &code, "example", "example")?;
+    ///           Ok(())
+    ///       })?;
+    ///       Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [1]: https://doc.rust-lang.org/std/macro.include_str.html
+    /// [2]: https://doc.rust-lang.org/std/fs/fn.read_to_string.html
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,

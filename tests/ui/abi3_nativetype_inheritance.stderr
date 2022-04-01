@@ -1,22 +1,12 @@
 error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
-   --> tests/ui/abi3_nativetype_inheritance.rs:5:1
-    |
-5   | #[pyclass(extends=PyDict)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
-    |
-    = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
-note: required by a bound in `PyClassBaseType`
-   --> src/class/impl_.rs
-    |
-    | / pub trait PyClassBaseType: Sized {
-    | |     type Dict;
-    | |     type WeakRef;
-    | |     type LayoutAsBase: PyCellLayout<Self>;
-...   |
-    | |     type Initializer: PyObjectInit<Self>;
-    | | }
-    | |_^ required by this bound in `PyClassBaseType`
-    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> tests/ui/abi3_nativetype_inheritance.rs:5:1
+  |
+5 | #[pyclass(extends=PyDict)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
+  |
+  = note: required because of the requirements on the impl of `MutablePyClass` for `PyDict`
+  = note: required because of the requirements on the impl of `PyClassBaseType<Mutable>` for `PyDict`
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
    --> tests/ui/abi3_nativetype_inheritance.rs:5:1
@@ -24,10 +14,11 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5   | #[pyclass(extends=PyDict)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
     |
-    = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
+    = note: required because of the requirements on the impl of `MutablePyClass` for `PyDict`
+    = note: required because of the requirements on the impl of `PyClassBaseType<Mutable>` for `PyDict`
 note: required by a bound in `ThreadCheckerInherited`
-   --> src/class/impl_.rs
+   --> src/impl_/pyclass.rs
     |
-    | pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
-    |                                               ^^^^^^^^^^^^^^^ required by this bound in `ThreadCheckerInherited`
+    | pub struct ThreadCheckerInherited<T: PyClass + Send, U: PyClassBaseType<T::Mutability>>(
+    |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ThreadCheckerInherited`
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

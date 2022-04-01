@@ -333,12 +333,10 @@ impl PyAny {
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
-            // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
-            // Once the issue is resolved, we can enable this optimization for limited API.
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(Py_3_9)] {
                 // Optimized path on python 3.9+
                 unsafe {
-                    self.py().from_owned_ptr_or_err(ffi::_PyObject_CallNoArg(self.as_ptr()))
+                    self.py().from_owned_ptr_or_err(ffi::PyObject_CallNoArgs(self.as_ptr()))
                 }
             } else {
                 self.call((), None)
@@ -648,7 +646,6 @@ impl PyAny {
     /// Returns the length of the sequence or mapping.
     ///
     /// This is equivalent to the Python expression `len(self)`.
-    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
@@ -682,6 +679,24 @@ impl PyAny {
         self.is_instance(T::type_object(self.py()))
     }
 
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
+    #[inline]
+    pub fn contains<V>(&self, value: V) -> PyResult<bool>
+    where
+        V: ToBorrowedObject,
+    {
+        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
+            ffi::PySequence_Contains(self.as_ptr(), ptr)
+        });
+        match r {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(PyErr::fetch(self.py())),
+        }
+    }
+
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
     pub fn py(&self) -> Python<'_> {
@@ -696,13 +711,6 @@ mod tests {
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };
-
-    macro_rules! test_module {
-        ($py:ident, $code:literal) => {
-            PyModule::from_code($py, indoc::indoc!($code), file!(), "test_module")
-                .expect("module creation failed")
-        };
-    }
 
     #[test]
     fn test_call_for_non_existing_method() {
@@ -728,14 +736,17 @@ mod tests {
     #[test]
     fn test_call_method0() {
         Python::with_gil(|py| {
-            let module = test_module!(
+            let module = PyModule::from_code(
                 py,
                 r#"
-                class SimpleClass:
-                    def foo(self):
-                        return 42
-            "#
-            );
+class SimpleClass:
+    def foo(self):
+        return 42
+"#,
+                file!(),
+                "test_module",
+            )
+            .expect("module creation failed");
 
             let simple_class = module.getattr("SimpleClass").unwrap().call0().unwrap();
             assert_eq!(
@@ -799,6 +810,28 @@ mod tests {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
             assert!(l.is_instance(PyList::type_object(py)).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_any_contains() {
+        Python::with_gil(|py| {
+            let v: Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+            let ob = v.to_object(py).into_ref(py);
+
+            let bad_needle = 7i32.to_object(py);
+            assert!(!ob.contains(&bad_needle).unwrap());
+
+            let good_needle = 8i32.to_object(py);
+            assert!(ob.contains(&good_needle).unwrap());
+
+            let type_coerced_needle = 8f32.to_object(py);
+            assert!(ob.contains(&type_coerced_needle).unwrap());
+
+            let n: u32 = 42;
+            let bad_haystack = n.to_object(py).into_ref(py);
+            let irrelevant_needle = 0i32.to_object(py);
+            assert!(bad_haystack.contains(&irrelevant_needle).is_err());
         });
     }
 }

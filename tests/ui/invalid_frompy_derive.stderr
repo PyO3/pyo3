@@ -109,10 +109,10 @@ error: attribute name cannot be empty
    |                      ^^
 
 error: unexpected end of input, expected string literal
-   --> tests/ui/invalid_frompy_derive.rs:100:21
+   --> tests/ui/invalid_frompy_derive.rs:100:22
     |
 100 |     #[pyo3(attribute())]
-    |                     ^^
+    |                      ^
 
 error: expected at most one argument: `item` or `item(key)`
    --> tests/ui/invalid_frompy_derive.rs:106:20
@@ -121,10 +121,10 @@ error: expected at most one argument: `item` or `item(key)`
     |                    ^
 
 error: unexpected end of input, expected literal
-   --> tests/ui/invalid_frompy_derive.rs:112:16
+   --> tests/ui/invalid_frompy_derive.rs:112:17
     |
 112 |     #[pyo3(item())]
-    |                ^^
+    |                 ^
 
 error: only one of `attribute` or `item` can be provided
    --> tests/ui/invalid_frompy_derive.rs:118:5
@@ -132,7 +132,7 @@ error: only one of `attribute` or `item` can be provided
 118 |     #[pyo3(item, attribute)]
     |     ^
 
-error: expected `transparent` or `annotation`
+error: expected one of: `transparent`, `annotation`, `crate`
    --> tests/ui/invalid_frompy_derive.rs:123:8
     |
 123 | #[pyo3(unknown = "should not work")]
@@ -171,10 +171,10 @@ error: cannot derive FromPyObject for empty structs and variants
     = note: this error originates in the derive macro `FromPyObject` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `=`
-   --> tests/ui/invalid_frompy_derive.rs:158:11
+   --> tests/ui/invalid_frompy_derive.rs:158:24
     |
 158 |     #[pyo3(from_py_with)]
-    |           ^^^^^^^^^^^^^^
+    |                        ^
 
 error: expected string literal
    --> tests/ui/invalid_frompy_derive.rs:164:27

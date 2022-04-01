@@ -15,16 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - run: pip install black==20.8b1
+      - run: pip install black==21.12b0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: rustfmt
       - name: Check python formatting (black)
-        run: black --check .
+        run: make fmt_py
       - name: Check rust formatting (rustfmt)
-        run: cargo fmt --all -- --check
+        run: make fmt_rust
 
   clippy:
     runs-on: ubuntu-latest
@@ -64,8 +64,8 @@ jobs:
             echo "suppress_build_script_link_lines=true" >> config.txt
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "$(make list_all_additive_features)"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3 $(make list_all_additive_features)"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features full
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full"
           done
 
   build:
@@ -76,7 +76,7 @@ jobs:
       fail-fast: false # If one platform fails, allow the rest to keep testing.
       matrix:
         rust: [stable]
-        python-version: [3.7, 3.8, 3.9, "3.10", pypy-3.7, pypy-3.8]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", "pypy-3.7", "pypy-3.8"]
         platform:
           [
             {
@@ -121,23 +121,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # macos: install gnu-tar because BSD tar is buggy for github actions
-      # https://github.com/actions/cache/issues/403
-      - name: Install GNU tar (macOS only)
-        if: matrix.platform.os == 'macos-latest'
-        run: |
-          brew install gnu-tar
-          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ matrix.python-version }}-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}-${{ hashFiles('**/Cargo.toml') }}
-        continue-on-error: true
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -154,15 +137,14 @@ jobs:
           # needed to correctly format errors, see #1865
           components: rust-src
 
+      - uses: Swatinem/rust-cache@v1
+        with:
+          key: cargo-${{ matrix.platform.python-architecture }}-${{ matrix.platform.os }}-${{ matrix.msrv }}
+        continue-on-error: true
+
       - if: matrix.platform.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
         run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
-
-      - name: Prepare workflow settings
-        id: settings
-        shell: bash
-        run: |
-          echo "::set-output name=all_additive_features::$(make list_all_additive_features)"
 
       - if: matrix.msrv == 'MSRV'
         name: Prepare minimal package versions (MSRV only)
@@ -171,7 +153,7 @@ jobs:
           cargo update -p hashbrown:0.11.2 --precise 0.9.1
 
       - name: Build docs
-        run: cargo doc --no-deps --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo doc --no-deps --no-default-features --features full
 
       - name: Build (no features)
         run: cargo build --lib --tests --no-default-features
@@ -185,7 +167,7 @@ jobs:
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (no features)
-        run: cargo test --no-default-features
+        run: cargo test --no-default-features --lib --tests
 
       # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
       - name: Test pyo3-build-config (no features)
@@ -194,26 +176,26 @@ jobs:
           cargo test --no-default-features
 
       - name: Build (all additive features)
-        run: cargo build --lib --tests --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo build --lib --tests --no-default-features --features full
 
       - if: ${{ startsWith(matrix.python-version, 'pypy') }}
         name: Build PyPy (abi3-py37)
-        run: cargo build --lib --tests --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full"
 
       # Run tests (except on PyPy, because no embedding API).
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test
-        run: cargo test --no-default-features --features "${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features full
 
       # Run tests again, but in abi3 mode
       - if: ${{ !startsWith(matrix.python-version, 'pypy') }}
         name: Test (abi3)
-        run: cargo test --no-default-features --features "abi3 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features "abi3 full"
 
       # Run tests again, for abi3-py37 (the minimal Python version)
       - if: ${{ (!startsWith(matrix.python-version, 'pypy')) && (matrix.python-version != '3.7') }}
         name: Test (abi3-py37)
-        run: cargo test --no-default-features --features "abi3-py37 ${{ steps.settings.outputs.all_additive_features }}"
+        run: cargo test --no-default-features --features "abi3-py37 full"
 
       - name: Test proc-macro code
         run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
@@ -221,17 +203,13 @@ jobs:
       - name: Test build config
         run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
 
-      - name: Install python test dependencies
-        run: python -m pip install -U pip tox
-
-      - name: Test example extension modules
+      - name: Test python examples and tests
         shell: bash
         run: |
-          for example_dir in examples/*/; do
-              tox -c $example_dir -e py
-          done
+          python -m pip install -U pip nox
+          cargo xtask test-py
         env:
-          TOX_TESTENV_PASSENV: "CARGO_BUILD_TARGET"
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
@@ -252,6 +230,10 @@ jobs:
       # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
       # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
       PYO3_CI: 1
+      # This is a hack to make CARGO_PRIMARY_PACKAGE always set even for the
+      # msrv job. MSRV is currently 1.48, but CARGO_PRIMARY_PACKAGE only came in
+      # 1.49.
+      CARGO_PRIMARY_PACKAGE: 1
 
   coverage:
     needs: [fmt]
@@ -265,13 +247,9 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: "3.10"
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: coverage-cargo-${{ matrix.os }}
         continue-on-error: true
       - uses: actions-rs/toolchain@v1
         with:
@@ -279,29 +257,10 @@ jobs:
           override: true
           profile: minimal
           components: llvm-tools-preview
-      - name: install cargo-llvm-cov
-        shell: bash
-        run: |
-          host=$(rustc -Vv | grep host | sed 's/host: //')
-          curl -fsSL https://github.com/taiki-e/cargo-llvm-cov/releases/download/v${CARGO_LLVM_COV_VERSION}/cargo-llvm-cov-"$host".tar.gz | tar xzf - -C ~/.cargo/bin
-        env:
-          CARGO_LLVM_COV_VERSION: 0.1.11
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
-          components: llvm-tools-preview
-      - run: |
-          cargo llvm-cov clean --workspace
-          cargo llvm-cov --package $ALL_PACKAGES --no-report
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features $(make list_all_additive_features)
-          cargo llvm-cov --package $ALL_PACKAGES --no-report --features abi3 $(make list_all_additive_features)
-          cargo llvm-cov --package $ALL_PACKAGES --no-run --lcov --output-path coverage.lcov
-        shell: bash
-        env:
-          ALL_PACKAGES: pyo3 pyo3-build-config pyo3-macros-backend pyo3-macros
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - run: python -m pip install -U pip nox
+      - run: cargo xtask coverage --output-lcov coverage.lcov
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov

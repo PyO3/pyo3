@@ -17,6 +17,10 @@ use std::ptr::NonNull;
 /// PyO3 is designed in a way that all references to those types are bound
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which cannot be accessed without the GIL.
 pub unsafe trait PyNativeType: Sized {
     /// Returns a GIL marker constrained to the lifetime of this type.
     #[inline]
@@ -582,12 +586,10 @@ impl<T> Py<T> {
     /// This is equivalent to the Python expression `self()`.
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
         cfg_if::cfg_if! {
-            // TODO: Use PyObject_CallNoArgs instead after https://bugs.python.org/issue42415.
-            // Once the issue is resolved, we can enable this optimization for limited API.
-            if #[cfg(all(Py_3_9, not(Py_LIMITED_API)))] {
+            if #[cfg(Py_3_9)] {
                 // Optimized path on python 3.9+
                 unsafe {
-                    PyObject::from_owned_ptr_or_err(py, ffi::_PyObject_CallNoArg(self.as_ptr()))
+                    PyObject::from_owned_ptr_or_err(py, ffi::PyObject_CallNoArgs(self.as_ptr()))
                 }
             } else {
                 self.call(py, (), None)
@@ -925,7 +927,23 @@ impl PyObject {
 mod tests {
     use super::{Py, PyObject};
     use crate::types::PyDict;
-    use crate::Python;
+    use crate::{Python, ToPyObject};
+
+    #[test]
+    fn test_call0() {
+        Python::with_gil(|py| {
+            let obj = py.get_type::<PyDict>().to_object(py);
+            assert_eq!(
+                obj.call0(py)
+                    .unwrap()
+                    .as_ref(py)
+                    .repr()
+                    .unwrap()
+                    .to_string_lossy(),
+                "{}"
+            );
+        })
+    }
 
     #[test]
     fn test_call_for_non_existing_method() {

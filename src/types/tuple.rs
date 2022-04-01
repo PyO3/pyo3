@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::convert::TryInto;
+
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
@@ -7,6 +9,39 @@ use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
     PyResult, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
 };
+
+#[inline]
+#[track_caller]
+fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyTuple> {
+    unsafe {
+        // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
+        let len: Py_ssize_t = elements
+            .len()
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
+
+        let ptr = ffi::PyTuple_New(len);
+
+        // - Panics if the ptr is null
+        // - Cleans up the tuple if `convert` or the asserts panic
+        let tup: Py<PyTuple> = Py::from_owned_ptr(py, ptr);
+
+        let mut counter: Py_ssize_t = 0;
+
+        for obj in elements.take(len as usize) {
+            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+            ffi::PyTuple_SET_ITEM(ptr, counter, obj.into_ptr());
+            #[cfg(any(Py_LIMITED_API, PyPy))]
+            ffi::PyTuple_SetItem(ptr, counter, obj.into_ptr());
+            counter += 1;
+        }
+
+        assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
+        assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+
+        tup
+    }
+}
 
 /// Represents a Python `tuple` object.
 ///
@@ -18,23 +53,40 @@ pyobject_native_type_core!(PyTuple, ffi::PyTuple_Type, #checkfunction=ffi::PyTup
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
+    ///
+    /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
+    /// iterable that doesn't implement [`ExactSizeIterator`], create a Rust tuple with the given
+    /// elements and convert it at once.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyTuple;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
+    ///     let tuple: &PyTuple = PyTuple::new(py, elements);
+    ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `element`'s [`ExactSizeIterator`] implementation is incorrect.
+    /// All standard library structures implement this trait correctly, if they do, so calling this
+    /// function using [`Vec`]`<T>` or `&[T]` will always succeed.
+    #[track_caller]
     pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyTuple
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
-        let elements_iter = elements.into_iter();
-        let len = elements_iter.len();
-        unsafe {
-            let ptr = ffi::PyTuple_New(len as Py_ssize_t);
-            for (i, e) in elements_iter.enumerate() {
-                #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-                ffi::PyTuple_SET_ITEM(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
-                #[cfg(any(Py_LIMITED_API, PyPy))]
-                ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
-            }
-            py.from_owned_ptr(ptr)
-        }
+        let mut elements = elements.into_iter().map(|e| e.to_object(py));
+        let tup = new_from_iter(py, &mut elements);
+        tup.into_ref(py)
     }
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
@@ -247,8 +299,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn to_object(&self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
+                let ret = PyObject::from_owned_ptr(py, ptr);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
-                PyObject::from_owned_ptr(py, ptr)
+                ret
             }
         }
     }
@@ -256,8 +309,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py(self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
+                let ret =  PyObject::from_owned_ptr(py, ptr);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                PyObject::from_owned_ptr(py, ptr)
+               ret
             }
         }
     }
@@ -266,8 +320,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
+                let ret = Py::from_owned_ptr(py, ptr);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                Py::from_owned_ptr(py, ptr)
+                ret
             }
         }
     }
@@ -695,5 +750,179 @@ mod tests {
             assert_eq!(5, tuple.index(8i32).unwrap());
             assert!(tuple.index(42i32).is_err());
         });
+    }
+
+    use std::ops::Range;
+
+    // An iterator that lies about its `ExactSizeIterator` implementation.
+    // See https://github.com/PyO3/pyo3/issues/2118
+    struct FaultyIter(Range<usize>, usize);
+
+    impl Iterator for FaultyIter {
+        type Item = usize;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
+    }
+
+    impl ExactSizeIterator for FaultyIter {
+        fn len(&self) -> usize {
+            self.1
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation."
+    )]
+    fn too_long_iterator() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..usize::MAX, 73);
+            let _tuple = PyTuple::new(py, iter);
+        })
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
+    )]
+    fn too_short_iterator() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..35, 73);
+            let _tuple = PyTuple::new(py, iter);
+        })
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "out of range integral type conversion attempted on `elements.len()`"
+    )]
+    fn overflowing_size() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..0, usize::MAX);
+
+            let _tuple = PyTuple::new(py, iter);
+        })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn bad_clone_mem_leaks() {
+        use crate::{IntoPy, Py};
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+
+        static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate")]
+        struct Bad(usize);
+
+        impl Clone for Bad {
+            fn clone(&self) -> Self {
+                if self.0 == 42 {
+                    panic!()
+                };
+                NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
+
+                Bad(self.0)
+            }
+        }
+
+        impl Drop for Bad {
+            fn drop(&mut self) {
+                NEEDS_DESTRUCTING_COUNT.fetch_sub(1, SeqCst);
+            }
+        }
+
+        impl ToPyObject for Bad {
+            fn to_object(&self, py: Python) -> Py<PyAny> {
+                self.to_owned().into_py(py)
+            }
+        }
+
+        struct FaultyIter(Range<usize>, usize);
+
+        impl Iterator for FaultyIter {
+            type Item = Bad;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.next().map(|i| {
+                    NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
+                    Bad(i)
+                })
+            }
+        }
+
+        impl ExactSizeIterator for FaultyIter {
+            fn len(&self) -> usize {
+                self.1
+            }
+        }
+
+        Python::with_gil(|py| {
+            let _ = std::panic::catch_unwind(|| {
+                let iter = FaultyIter(0..50, 50);
+                let _tuple = PyTuple::new(py, iter);
+            });
+        });
+
+        assert_eq!(
+            NEEDS_DESTRUCTING_COUNT.load(SeqCst),
+            0,
+            "Some destructors did not run"
+        );
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn bad_clone_mem_leaks_2() {
+        use crate::{IntoPy, Py};
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+
+        static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate")]
+        struct Bad(usize);
+
+        impl Clone for Bad {
+            fn clone(&self) -> Self {
+                if self.0 == 3 {
+                    // This panic should not lead to a memory leak
+                    panic!()
+                };
+                NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
+
+                Bad(self.0)
+            }
+        }
+
+        impl Drop for Bad {
+            fn drop(&mut self) {
+                NEEDS_DESTRUCTING_COUNT.fetch_sub(1, SeqCst);
+            }
+        }
+
+        impl ToPyObject for Bad {
+            fn to_object(&self, py: Python) -> Py<PyAny> {
+                self.to_owned().into_py(py)
+            }
+        }
+
+        let s = (Bad(1), Bad(2), Bad(3), Bad(4));
+        NEEDS_DESTRUCTING_COUNT.store(4, SeqCst);
+        Python::with_gil(|py| {
+            let _ = std::panic::catch_unwind(|| {
+                let _tuple: Py<PyAny> = s.to_object(py);
+            });
+        });
+        drop(s);
+
+        assert_eq!(
+            NEEDS_DESTRUCTING_COUNT.load(SeqCst),
+            0,
+            "Some destructors did not run"
+        );
     }
 }

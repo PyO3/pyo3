@@ -2,12 +2,14 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use std::convert::TryInto;
+
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyObject, PyTryFrom, Python, ToBorrowedObject,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToBorrowedObject,
     ToPyObject,
 };
 
@@ -18,31 +20,73 @@ pub struct PyList(PyAny);
 pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_Check);
 
 #[inline]
-unsafe fn new_from_iter<T>(
-    elements: impl ExactSizeIterator<Item = T>,
-    convert: impl Fn(T) -> PyObject,
-) -> *mut ffi::PyObject {
-    let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
-    for (i, e) in elements.enumerate() {
-        let obj = convert(e).into_ptr();
-        #[cfg(not(Py_LIMITED_API))]
-        ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, obj);
-        #[cfg(Py_LIMITED_API)]
-        ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
+#[track_caller]
+fn new_from_iter(py: Python, elements: &mut dyn ExactSizeIterator<Item = PyObject>) -> Py<PyList> {
+    unsafe {
+        // PyList_New checks for overflow but has a bad error message, so we check ourselves
+        let len: Py_ssize_t = elements
+            .len()
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
+
+        let ptr = ffi::PyList_New(len);
+
+        // - Panics if the ptr is null
+        // - Cleans up the list if `convert` or the asserts panic
+        let list: Py<PyList> = Py::from_owned_ptr(py, ptr);
+
+        let mut counter: Py_ssize_t = 0;
+
+        for obj in elements.take(len as usize) {
+            #[cfg(not(Py_LIMITED_API))]
+            ffi::PyList_SET_ITEM(ptr, counter, obj.into_ptr());
+            #[cfg(Py_LIMITED_API)]
+            ffi::PyList_SetItem(ptr, counter, obj.into_ptr());
+            counter += 1;
+        }
+
+        assert!(elements.next().is_none(), "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
+        assert_eq!(len, counter, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+
+        list
     }
-    ptr
 }
 
 impl PyList {
     /// Constructs a new list with the given elements.
+    ///
+    /// If you want to create a [`PyList`] with elements of different or unknown types, or from an
+    /// iterable that doesn't implement [`ExactSizeIterator`], use [`PyList::append`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyList;
+    ///
+    /// # fn main() {
+    /// Python::with_gil(|py| {
+    ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
+    ///     let list: &PyList = PyList::new(py, elements);
+    ///     assert_eq!(format!("{:?}", list), "[0, 1, 2, 3, 4, 5]");
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `element`'s [`ExactSizeIterator`] implementation is incorrect.
+    /// All standard library structures implement this trait correctly, if they do, so calling this
+    /// function with (for example) [`Vec`]`<T>` or `&[T]` will always succeed.
+    #[track_caller]
     pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
-        unsafe {
-            py.from_owned_ptr::<PyList>(new_from_iter(elements.into_iter(), |e| e.to_object(py)))
-        }
+        let mut iter = elements.into_iter().map(|e| e.to_object(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into_ref(py)
     }
 
     /// Constructs a new empty list.
@@ -288,7 +332,9 @@ where
     T: ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, new_from_iter(self.iter(), |e| e.to_object(py))) }
+        let mut iter = self.iter().map(|e| e.to_object(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
     }
 }
 
@@ -306,7 +352,9 @@ where
     T: IntoPy<PyObject>,
 {
     fn into_py(self, py: Python) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, new_from_iter(self.into_iter(), |e| e.into_py(py))) }
+        let mut iter = self.into_iter().map(|e| e.into_py(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
     }
 }
 
@@ -719,5 +767,127 @@ mod tests {
             assert_eq!(5, list.index(8i32).unwrap());
             assert!(list.index(42i32).is_err());
         });
+    }
+
+    use std::ops::Range;
+
+    // An iterator that lies about its `ExactSizeIterator` implementation.
+    // See https://github.com/PyO3/pyo3/issues/2118
+    struct FaultyIter(Range<usize>, usize);
+
+    impl Iterator for FaultyIter {
+        type Item = usize;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
+    }
+
+    impl ExactSizeIterator for FaultyIter {
+        fn len(&self) -> usize {
+            self.1
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation."
+    )]
+    fn too_long_iterator() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..usize::MAX, 73);
+            let _list = PyList::new(py, iter);
+        })
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
+    )]
+    fn too_short_iterator() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..35, 73);
+            let _list = PyList::new(py, iter);
+        })
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "out of range integral type conversion attempted on `elements.len()`"
+    )]
+    fn overflowing_size() {
+        Python::with_gil(|py| {
+            let iter = FaultyIter(0..0, usize::MAX);
+
+            let _list = PyList::new(py, iter);
+        })
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn bad_clone_mem_leaks() {
+        use crate::{Py, PyAny};
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate")]
+        struct Bad(usize);
+
+        impl Clone for Bad {
+            fn clone(&self) -> Self {
+                if self.0 == 42 {
+                    // This panic should not lead to a memory leak
+                    panic!()
+                };
+                NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
+
+                Bad(self.0)
+            }
+        }
+
+        impl Drop for Bad {
+            fn drop(&mut self) {
+                NEEDS_DESTRUCTING_COUNT.fetch_sub(1, SeqCst);
+            }
+        }
+
+        impl ToPyObject for Bad {
+            fn to_object(&self, py: Python) -> Py<PyAny> {
+                self.to_owned().into_py(py)
+            }
+        }
+
+        struct FaultyIter(Range<usize>, usize);
+
+        impl Iterator for FaultyIter {
+            type Item = Bad;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.next().map(|i| {
+                    NEEDS_DESTRUCTING_COUNT.fetch_add(1, SeqCst);
+                    Bad(i)
+                })
+            }
+        }
+
+        impl ExactSizeIterator for FaultyIter {
+            fn len(&self) -> usize {
+                self.1
+            }
+        }
+
+        Python::with_gil(|py| {
+            let _ = std::panic::catch_unwind(|| {
+                let iter = FaultyIter(0..50, 50);
+                let _list = PyList::new(py, iter);
+            });
+        });
+
+        assert_eq!(
+            NEEDS_DESTRUCTING_COUNT.load(SeqCst),
+            0,
+            "Some destructors did not run"
+        );
     }
 }

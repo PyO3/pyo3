@@ -6,22 +6,20 @@
 mod macros;
 
 pub mod basic;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 pub mod buffer;
 pub mod descr;
 pub mod gc;
-#[doc(hidden)]
-pub mod impl_;
 pub mod iter;
 pub mod mapping;
 #[doc(hidden)]
-pub mod methods;
+pub use crate::impl_::pymethods as methods;
 pub mod number;
 pub mod pyasync;
 pub mod sequence;
 
 pub use self::basic::PyObjectProtocol;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 pub use self::buffer::PyBufferProtocol;
 pub use self::descr::PyDescrProtocol;
 pub use self::gc::{PyGCProtocol, PyTraverseError, PyVisit};

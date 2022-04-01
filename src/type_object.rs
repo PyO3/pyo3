@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
+use crate::impl_::pyclass::PyClassItems;
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
@@ -16,6 +17,10 @@ use std::thread::{self, ThreadId};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent valid layouts of Python objects.
 pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
@@ -31,6 +36,11 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///  - the return value of type_object must always point to the same PyTypeObject instance
 ///
 /// It is safely implemented by the `pyclass` macro.
+///
+/// # Safety
+///
+/// Implementations must provide an implementation for `type_object_raw` which infallibly produces a
+/// non-null pointer to the corresponding Python type object.
 pub unsafe trait PyTypeInfo: Sized {
     /// Class name.
     const NAME: &'static str;
@@ -56,6 +66,8 @@ pub unsafe trait PyTypeInfo: Sized {
 }
 
 /// Python object types that have a corresponding type object.
+///
+/// # Safety
 ///
 /// This trait is marked unsafe because not fulfilling the contract for type_object
 /// leads to UB.
@@ -96,14 +108,8 @@ impl LazyStaticType {
     }
 
     pub fn get_or_init<T: PyClass>(&self, py: Python) -> *mut ffi::PyTypeObject {
-        let type_object = *self.value.get_or_init(py, || {
-            create_type_object::<T>(py, T::MODULE).unwrap_or_else(|e| {
-                e.print(py);
-                panic!("An error occurred while initializing class {}", T::NAME)
-            })
-        });
-
-        self.ensure_init(py, type_object, T::NAME, &T::for_each_method_def);
+        let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
+        self.ensure_init(py, type_object, T::NAME, &T::for_all_items);
         type_object
     }
 
@@ -112,7 +118,7 @@ impl LazyStaticType {
         py: Python,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
-        for_each_method_def: &dyn Fn(&mut dyn FnMut(&[PyMethodDefType])),
+        for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     ) {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
@@ -146,8 +152,8 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for_each_method_def(&mut |method_defs| {
-            items.extend(method_defs.iter().filter_map(|def| {
+        for_all_items(&mut |class_items| {
+            items.extend(class_items.methods.iter().filter_map(|def| {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
                     let key = extract_cstr_or_leak_cstring(
                         attr.name,

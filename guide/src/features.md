@@ -65,6 +65,12 @@ Most users should only need a single `#[pymethods]` per `#[pyclass]`. In additio
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 
+### `pyproto`
+
+This feature enables the `#[pyproto]` macro, which is an alternative (older, soon-to-be-deprecated) to `#[pymethods]` for defining magic methods such as `__eq__`.
+
+> This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
+
 ### `nightly`
 
 The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use Rust's unstable specialization feature to apply the following optimizations:
@@ -83,7 +89,7 @@ These features enable conversions between Python types and types from other Rust
 
 ### `anyhow`
 
-Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`]https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
+Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `eyre`
 

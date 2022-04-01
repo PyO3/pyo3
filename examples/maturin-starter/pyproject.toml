@@ -1,3 +1,16 @@
 [build-system]
-requires = ["maturin>=0.10,<0.11"]
+requires = ["maturin>=0.12,<0.13"]
 build-backend = "maturin"
+
+[project]
+name = "maturin-starter"
+version = "0.1.0"
+classifier=[
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+]

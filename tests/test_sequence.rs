@@ -1,3 +1,6 @@
+#![cfg(feature = "macros")]
+#![cfg(feature = "pyproto")] // FIXME: change this to use #[pymethods] once supports sequence protocol
+
 use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;

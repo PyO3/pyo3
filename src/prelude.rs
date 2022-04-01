@@ -20,7 +20,9 @@ pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;
 pub use crate::types::{PyAny, PyModule};
-pub use crate::wrap_pyfunction;
 
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, wrap_pyfunction, FromPyObject};
+
+#[cfg(all(feature = "macros", feature = "pyproto"))]
+pub use pyo3_macros::pyproto;

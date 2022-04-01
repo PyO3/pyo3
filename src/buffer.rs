@@ -1,4 +1,4 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 // Copyright (c) 2017 Daniel Grunwald
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
@@ -163,6 +163,10 @@ fn is_matching_endian(c: u8) -> bool {
 }
 
 /// Trait implemented for possible element types of `PyBuffer`.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent valid elements of Python buffers.
 pub unsafe trait Element: Copy {
     /// Gets whether the element specified in the format string is potentially compatible.
     /// Alignment and size are checked separately from this function.
@@ -231,8 +235,20 @@ impl<T: Element> PyBuffer<T> {
         }
         unsafe {
             ffi::PyBuffer_GetPointer(
-                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
-                indices.as_ptr() as *mut usize as *mut ffi::Py_ssize_t,
+                #[cfg(Py_3_11)]
+                &*self.0,
+                #[cfg(not(Py_3_11))]
+                {
+                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                },
+                #[cfg(Py_3_11)]
+                {
+                    indices.as_ptr() as *const ffi::Py_ssize_t
+                },
+                #[cfg(not(Py_3_11))]
+                {
+                    indices.as_ptr() as *mut ffi::Py_ssize_t
+                },
             )
         }
     }
@@ -473,7 +489,12 @@ impl<T: Element> PyBuffer<T> {
                 py,
                 ffi::PyBuffer_ToContiguous(
                     target.as_ptr() as *mut raw::c_void,
-                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                    #[cfg(Py_3_11)]
+                    &*self.0,
+                    #[cfg(not(Py_3_11))]
+                    {
+                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    },
                     self.0.len,
                     fort as std::os::raw::c_char,
                 ),
@@ -506,8 +527,13 @@ impl<T: Element> PyBuffer<T> {
             err::error_on_minusone(
                 py,
                 ffi::PyBuffer_ToContiguous(
-                    vec.as_mut_ptr() as *mut raw::c_void,
-                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                    vec.as_ptr() as *mut raw::c_void,
+                    #[cfg(Py_3_11)]
+                    &*self.0,
+                    #[cfg(not(Py_3_11))]
+                    {
+                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    },
                     self.0.len,
                     fort as std::os::raw::c_char,
                 ),
@@ -560,8 +586,20 @@ impl<T: Element> PyBuffer<T> {
             err::error_on_minusone(
                 py,
                 ffi::PyBuffer_FromContiguous(
-                    &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
-                    source.as_ptr() as *mut raw::c_void,
+                    #[cfg(Py_3_11)]
+                    &*self.0,
+                    #[cfg(not(Py_3_11))]
+                    {
+                        &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer
+                    },
+                    #[cfg(Py_3_11)]
+                    {
+                        source.as_ptr() as *const raw::c_void
+                    },
+                    #[cfg(not(Py_3_11))]
+                    {
+                        source.as_ptr() as *mut raw::c_void
+                    },
                     self.0.len,
                     fort as std::os::raw::c_char,
                 ),
@@ -674,6 +712,8 @@ mod tests {
             assert_eq!(slice[0].get(), b'a');
             assert_eq!(slice[2].get(), b'c');
 
+            assert_eq!(unsafe { *(buffer.get_ptr(&[1]) as *mut u8) }, b'b');
+
             assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
             let mut arr = [0; 5];
             buffer.copy_to_slice(py, &mut arr).unwrap();
@@ -684,7 +724,6 @@ mod tests {
         });
     }
 
-    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
         Python::with_gil(|py| {

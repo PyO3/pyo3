@@ -103,7 +103,7 @@ pub fn gen_py_method(
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
-                    let slot = slot_def.generate_type_slot(cls, spec)?;
+                    let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
@@ -120,12 +120,12 @@ pub fn gen_py_method(
         (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            Some(quote!(::pyo3::ffi::METH_CLASS)),
+            Some(quote!(_pyo3::ffi::METH_CLASS)),
         )?),
         (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
-            Some(quote!(::pyo3::ffi::METH_STATIC)),
+            Some(quote!(_pyo3::ffi::METH_STATIC)),
         )?),
         // special prototypes
         (_, FnType::FnNew) => GeneratedPyMethod::TraitImpl(impl_py_method_def_new(cls, spec)?),
@@ -186,7 +186,7 @@ pub fn impl_py_method_def(
     };
     let methoddef = spec.get_methoddef(quote! {{ #wrapper_def #wrapper_ident }});
     Ok(quote! {
-        ::pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        _pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
     })
 }
 
@@ -194,8 +194,8 @@ fn impl_py_method_def_new(cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream>
     let wrapper_ident = syn::Ident::new("__wrap", Span::call_site());
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {
-        impl ::pyo3::class::impl_::PyClassNewImpl<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
-            fn new_impl(self) -> ::std::option::Option<::pyo3::ffi::newfunc> {
+        impl _pyo3::impl_::pyclass::PyClassNewImpl<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
+            fn new_impl(self) -> ::std::option::Option<_pyo3::ffi::newfunc> {
                 ::std::option::Option::Some({
                     #wrapper
                     #wrapper_ident
@@ -214,9 +214,9 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec) -> Result<TokenStream> {
     let wrapper = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     Ok(quote! {{
         #wrapper
-        ::pyo3::ffi::PyType_Slot {
-            slot: ::pyo3::ffi::Py_tp_call,
-            pfunc: __wrap as ::pyo3::ffi::ternaryfunc as _
+        _pyo3::ffi::PyType_Slot {
+            slot: _pyo3::ffi::Py_tp_call,
+            pfunc: __wrap as _pyo3::ffi::ternaryfunc as _
         }
     }})
 }
@@ -226,13 +226,13 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec) -> TokenStream {
     let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
     quote! {
-        ::pyo3::class::PyMethodDefType::ClassAttribute({
-            ::pyo3::class::PyClassAttributeDef::new(
+        _pyo3::class::PyMethodDefType::ClassAttribute({
+            _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                ::pyo3::class::methods::PyClassAttributeFactory({
-                    fn __wrap(py: ::pyo3::Python<'_>) -> ::pyo3::PyObject {
+                _pyo3::impl_::pymethods::PyClassAttributeFactory({
+                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
                         #deprecations
-                        ::pyo3::IntoPy::into_py(#cls::#name(), py)
+                        _pyo3::IntoPy::into_py(#cls::#name(), py)
                     }
                     __wrap
                 })
@@ -295,26 +295,26 @@ pub fn impl_py_setter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
         }
     };
     Ok(quote! {
-        ::pyo3::class::PyMethodDefType::Setter({
+        _pyo3::class::PyMethodDefType::Setter({
             #deprecations
-            ::pyo3::class::PySetterDef::new(
+            _pyo3::class::PySetterDef::new(
                 #python_name,
-                ::pyo3::class::methods::PySetter({
+                _pyo3::impl_::pymethods::PySetter({
                     unsafe extern "C" fn __wrap(
-                        _slf: *mut ::pyo3::ffi::PyObject,
-                        _value: *mut ::pyo3::ffi::PyObject,
+                        _slf: *mut _pyo3::ffi::PyObject,
+                        _value: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
                     ) -> ::std::os::raw::c_int {
-                        ::pyo3::callback::handle_panic(|_py| {
+                        _pyo3::callback::handle_panic(|_py| {
                             #slf
                             let _value = _py
                                 .from_borrowed_ptr_or_opt(_value)
                                 .ok_or_else(|| {
-                                    ::pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
+                                    _pyo3::exceptions::PyAttributeError::new_err("can't delete attribute")
                                 })?;
-                            let _val = ::pyo3::FromPyObject::extract(_value)?;
+                            let _val = _pyo3::FromPyObject::extract(_value)?;
 
-                            ::pyo3::callback::convert(_py, #setter_impl)
+                            _pyo3::callback::convert(_py, #setter_impl)
                         })
                     }
                     __wrap
@@ -375,18 +375,18 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType) -> Resul
         }
     };
     Ok(quote! {
-        ::pyo3::class::PyMethodDefType::Getter({
+        _pyo3::class::PyMethodDefType::Getter({
             #deprecations
-            ::pyo3::class::PyGetterDef::new(
+            _pyo3::class::PyGetterDef::new(
                 #python_name,
-                ::pyo3::class::methods::PyGetter({
+                _pyo3::impl_::pymethods::PyGetter({
                     unsafe extern "C" fn __wrap(
-                        _slf: *mut ::pyo3::ffi::PyObject,
+                        _slf: *mut _pyo3::ffi::PyObject,
                         _: *mut ::std::os::raw::c_void
-                    ) -> *mut ::pyo3::ffi::PyObject {
-                        ::pyo3::callback::handle_panic(|_py| {
+                    ) -> *mut _pyo3::ffi::PyObject {
+                        _pyo3::callback::handle_panic(|_py| {
                             #slf
-                            ::pyo3::callback::convert(_py, #getter_impl)
+                            _pyo3::callback::convert(_py, #getter_impl)
                         })
                     }
                     __wrap
@@ -459,10 +459,10 @@ const __GETATTR__: SlotDef = SlotDef::new("Py_tp_getattro", "getattrofunc")
         quote! {
             // Behave like python's __getattr__ (as opposed to __getattribute__) and check
             // for existing fields and methods first
-            let existing = ::pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
+            let existing = _pyo3::ffi::PyObject_GenericGetAttr(_slf, arg0);
             if existing.is_null() {
                 // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                ::pyo3::ffi::PyErr_Clear();
+                _pyo3::ffi::PyErr_Clear();
             } else {
                 return existing;
             }
@@ -473,7 +473,7 @@ const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
     .ret_ty(Ty::PyHashT)
     .return_conversion(TokenGenerator(
-        || quote! { ::pyo3::callback::HashCallbackOutput },
+        || quote! { _pyo3::callback::HashCallbackOutput },
     ));
 const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -482,12 +482,12 @@ const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
     .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_conversion(
-    TokenGenerator(|| quote! { ::pyo3::class::iter::IterNextOutput::<_, _> }),
+    TokenGenerator(|| quote! { _pyo3::class::iter::IterNextOutput::<_, _> }),
 );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
 const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_conversion(
-    TokenGenerator(|| quote! { ::pyo3::class::pyasync::IterANextOutput::<_, _> }),
+    TokenGenerator(|| quote! { _pyo3::class::pyasync::IterANextOutput::<_, _> }),
 );
 const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
@@ -532,8 +532,8 @@ const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
-const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
-    .arguments(&[Ty::Object, Ty::Object])
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
+    .arguments(&[Ty::Object, Ty::IPowModulo])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
@@ -556,6 +556,14 @@ const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
     .arguments(&[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
+const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc")
+    .arguments(&[Ty::PyBuffer, Ty::Int])
+    .ret_ty(Ty::Int)
+    .require_unsafe();
+const __RELEASEBUFFER__: SlotDef = SlotDef::new("Py_bf_releasebuffer", "releasebufferproc")
+    .arguments(&[Ty::PyBuffer])
+    .ret_ty(Ty::Void)
+    .require_unsafe();
 
 fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
     match method_name {
@@ -594,6 +602,8 @@ fn pyproto(method_name: &str) -> Option<&'static SlotDef> {
         "__iand__" => Some(&__IAND__),
         "__ixor__" => Some(&__IXOR__),
         "__ior__" => Some(&__IOR__),
+        "__getbuffer__" => Some(&__GETBUFFER__),
+        "__releasebuffer__" => Some(&__RELEASEBUFFER__),
         _ => None,
     }
 }
@@ -603,22 +613,26 @@ enum Ty {
     Object,
     MaybeNullObject,
     NonNullObject,
+    IPowModulo,
     CompareOp,
     Int,
     PyHashT,
     PySsizeT,
     Void,
+    PyBuffer,
 }
 
 impl Ty {
     fn ffi_type(self) -> TokenStream {
         match self {
-            Ty::Object | Ty::MaybeNullObject => quote! { *mut ::pyo3::ffi::PyObject },
-            Ty::NonNullObject => quote! { ::std::ptr::NonNull<::pyo3::ffi::PyObject> },
+            Ty::Object | Ty::MaybeNullObject => quote! { *mut _pyo3::ffi::PyObject },
+            Ty::NonNullObject => quote! { ::std::ptr::NonNull<_pyo3::ffi::PyObject> },
+            Ty::IPowModulo => quote! { _pyo3::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::os::raw::c_int },
-            Ty::PyHashT => quote! { ::pyo3::ffi::Py_hash_t },
-            Ty::PySsizeT => quote! { ::pyo3::ffi::Py_ssize_t },
+            Ty::PyHashT => quote! { _pyo3::ffi::Py_hash_t },
+            Ty::PySsizeT => quote! { _pyo3::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
+            Ty::PyBuffer => quote! { *mut _pyo3::ffi::Py_buffer },
         }
     }
 
@@ -636,7 +650,7 @@ impl Ty {
                     extract_error_mode,
                     py,
                     quote! {
-                        #py.from_borrowed_ptr::<::pyo3::PyAny>(#ident).extract()
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident).extract()
                     },
                 );
                 extract_object(cls, arg.ty, ident, extract)
@@ -646,9 +660,9 @@ impl Ty {
                     extract_error_mode,
                     py,
                     quote! {
-                        #py.from_borrowed_ptr::<::pyo3::PyAny>(
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(
                             if #ident.is_null() {
-                                ::pyo3::ffi::Py_None()
+                                _pyo3::ffi::Py_None()
                             } else {
                                 #ident
                             }
@@ -662,7 +676,17 @@ impl Ty {
                     extract_error_mode,
                     py,
                     quote! {
-                        #py.from_borrowed_ptr::<::pyo3::PyAny>(#ident.as_ptr()).extract()
+                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr()).extract()
+                    },
+                );
+                extract_object(cls, arg.ty, ident, extract)
+            }
+            Ty::IPowModulo => {
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                        #ident.extract(#py)
                     },
                 );
                 extract_object(cls, arg.ty, ident, extract)
@@ -672,15 +696,29 @@ impl Ty {
                     extract_error_mode,
                     py,
                     quote! {
-                        ::pyo3::class::basic::CompareOp::from_raw(#ident)
-                            .ok_or_else(|| ::pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))
+                        _pyo3::class::basic::CompareOp::from_raw(#ident)
+                            .ok_or_else(|| _pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))
                     },
                 );
                 quote! {
                     let #ident = #extract;
                 }
             }
-            Ty::Int | Ty::PyHashT | Ty::PySsizeT | Ty::Void => todo!(),
+            Ty::PySsizeT => {
+                let ty = arg.ty;
+                let extract = handle_error(
+                    extract_error_mode,
+                    py,
+                    quote! {
+                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
+                    },
+                );
+                quote! {
+                    let #ident = #extract;
+                }
+            }
+            // Just pass other types through unmodified
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => quote! {},
         }
     }
 }
@@ -695,7 +733,7 @@ fn handle_error(
         ExtractErrorMode::NotImplemented => quote! {
             match #extract {
                 ::std::result::Result::Ok(value) => value,
-                ::std::result::Result::Err(_) => { return ::pyo3::callback::convert(#py, #py.NotImplemented()); },
+                ::std::result::Result::Err(_) => { return _pyo3::callback::convert(#py, #py.NotImplemented()); },
             }
         },
     }
@@ -712,7 +750,7 @@ fn extract_object(
         replace_self(&mut tref.elem, cls);
         let mut_ = tref.mutability;
         quote! {
-            let #mut_ #ident: <#tref as ::pyo3::derive_utils::ExtractExt<'_>>::Target = #extract;
+            let #mut_ #ident: <#tref as _pyo3::derive_utils::ExtractExt<'_>>::Target = #extract;
             let #ident = &#mut_ *#ident;
         }
     } else {
@@ -731,13 +769,13 @@ impl ReturnMode {
     fn return_call_output(&self, py: &syn::Ident, call: TokenStream) -> TokenStream {
         match self {
             ReturnMode::Conversion(conversion) => quote! {
-                let _result: ::pyo3::PyResult<#conversion> = #call;
-                ::pyo3::callback::convert(#py, _result)
+                let _result: _pyo3::PyResult<#conversion> = #call;
+                _pyo3::callback::convert(#py, _result)
             },
             ReturnMode::ReturnSelf => quote! {
-                let _result: ::pyo3::PyResult<()> = #call;
+                let _result: _pyo3::PyResult<()> = #call;
                 _result?;
-                ::pyo3::ffi::Py_XINCREF(_raw_slf);
+                _pyo3::ffi::Py_XINCREF(_raw_slf);
                 ::std::result::Result::Ok(_raw_slf)
             },
         }
@@ -752,6 +790,7 @@ struct SlotDef {
     before_call_method: Option<TokenGenerator>,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
+    require_unsafe: bool,
 }
 
 const NO_ARGUMENTS: &[Ty] = &[];
@@ -766,6 +805,7 @@ impl SlotDef {
             before_call_method: None,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
+            require_unsafe: false,
         }
     }
 
@@ -799,7 +839,17 @@ impl SlotDef {
         self
     }
 
-    fn generate_type_slot(&self, cls: &syn::Type, spec: &FnSpec) -> Result<TokenStream> {
+    const fn require_unsafe(mut self) -> Self {
+        self.require_unsafe = true;
+        self
+    }
+
+    fn generate_type_slot(
+        &self,
+        cls: &syn::Type,
+        spec: &FnSpec,
+        method_name: &str,
+    ) -> Result<TokenStream> {
         let SlotDef {
             slot,
             func_ty,
@@ -808,7 +858,14 @@ impl SlotDef {
             extract_error_mode,
             ret_ty,
             return_mode,
+            require_unsafe,
         } = self;
+        if *require_unsafe {
+            ensure_spanned!(
+                spec.unsafety.is_some(),
+                spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
+            );
+        }
         let py = syn::Ident::new("_py", Span::call_site());
         let method_arguments = generate_method_arguments(arguments);
         let ret_ty = ret_ty.ffi_type();
@@ -821,16 +878,16 @@ impl SlotDef {
             return_mode.as_ref(),
         )?;
         Ok(quote!({
-            unsafe extern "C" fn __wrap(_raw_slf: *mut ::pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
+            unsafe extern "C" fn __wrap(_raw_slf: *mut _pyo3::ffi::PyObject, #(#method_arguments),*) -> #ret_ty {
                 let _slf = _raw_slf;
                 #before_call_method
-                ::pyo3::callback::handle_panic(|#py| {
+                _pyo3::callback::handle_panic(|#py| {
                     #body
                 })
             }
-            ::pyo3::ffi::PyType_Slot {
-                slot: ::pyo3::ffi::#slot,
-                pfunc: __wrap as ::pyo3::ffi::#func_ty as _
+            _pyo3::ffi::PyType_Slot {
+                slot: _pyo3::ffi::#slot,
+                pfunc: __wrap as _pyo3::ffi::#func_ty as _
             }
         }))
     }
@@ -856,9 +913,12 @@ fn generate_method_body(
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let rust_name = spec.name;
-    let (arg_idents, conversions) =
+    let (arg_idents, arg_count, conversions) =
         extract_proto_arguments(cls, py, &spec.args, arguments, extract_error_mode)?;
-    let call = quote! { ::pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
+    if arg_count != arguments.len() {
+        bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", arguments.len(), arg_count));
+    }
+    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
     } else {
@@ -912,15 +972,15 @@ impl SlotFragmentDef {
         let body = generate_method_body(cls, spec, &py, arguments, *extract_error_mode, None)?;
         let ret_ty = ret_ty.ffi_type();
         Ok(quote! {
-            impl ::pyo3::class::impl_::#fragment_trait<#cls> for ::pyo3::class::impl_::PyClassImplCollector<#cls> {
+            impl _pyo3::impl_::pyclass::#fragment_trait<#cls> for _pyo3::impl_::pyclass::PyClassImplCollector<#cls> {
 
                 #[inline]
                 unsafe fn #method(
                     self,
-                    #py: ::pyo3::Python,
-                    _raw_slf: *mut ::pyo3::ffi::PyObject,
+                    #py: _pyo3::Python,
+                    _raw_slf: *mut _pyo3::ffi::PyObject,
                     #(#method_arguments),*
-                ) -> ::pyo3::PyResult<#ret_ty> {
+                ) -> _pyo3::PyResult<#ret_ty> {
                     let _slf = _raw_slf;
                     #body
                 }
@@ -1026,7 +1086,7 @@ fn extract_proto_arguments(
     method_args: &[FnArg],
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
-) -> Result<(Vec<Ident>, TokenStream)> {
+) -> Result<(Vec<Ident>, usize, TokenStream)> {
     let mut arg_idents = Vec::with_capacity(method_args.len());
     let mut non_python_args = 0;
 
@@ -1045,9 +1105,8 @@ fn extract_proto_arguments(
             arg_idents.push(ident);
         }
     }
-
     let conversions = quote!(#(#args_conversions)*);
-    Ok((arg_idents, conversions))
+    Ok((arg_idents, non_python_args, conversions))
 }
 
 struct StaticIdent(&'static str);

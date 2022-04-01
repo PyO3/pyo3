@@ -137,7 +137,6 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        #[allow(clippy::float_cmp)] // The comparison is for an error value
         impl<'source> FromPyObject<'source> for Complex<$float> {
             fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
@@ -174,7 +173,6 @@ complex_conversion!(f64);
 mod tests {
     use super::*;
 
-    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn from_complex() {
         Python::with_gil(|py| {

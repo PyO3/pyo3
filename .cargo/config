@@ -1,0 +1,8 @@
+[alias]
+xtask = "run --package xtask --"
+pyo3_doc = "doc --lib --no-default-features --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend"
+pyo3_doc_scrape = "doc --lib --no-default-features --features=full --no-deps --workspace --open --exclude pyo3-macros --exclude pyo3-macros-backend -Z unstable-options -Z rustdoc-scrape-examples=examples"
+pyo3_doc_internal = "doc --lib --no-default-features --features=full --no-deps --workspace --open --document-private-items -Z unstable-options -Z rustdoc-scrape-examples=examples"
+
+[build]
+rustdocflags = ["--cfg", "docsrs"]

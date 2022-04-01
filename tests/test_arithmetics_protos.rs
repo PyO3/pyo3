@@ -1,4 +1,6 @@
 #![allow(deprecated)] // for deprecated protocol methods
+#![cfg(feature = "macros")]
+#![cfg(feature = "pyproto")]
 
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
@@ -107,11 +109,10 @@ impl PyNumberProtocol for InPlaceOperations {
         self.value |= other;
     }
 
-    fn __ipow__(&mut self, other: u32) {
+    fn __ipow__(&mut self, other: u32, _modulo: Option<u32>) {
         self.value = self.value.pow(other);
     }
 }
-
 #[test]
 fn inplace_operations() {
     let gil = Python::acquire_gil();
@@ -588,7 +589,7 @@ mod return_not_implemented {
         fn __itruediv__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __ifloordiv__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __imod__(&'p mut self, _other: PyRef<'p, Self>) {}
-        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>) {}
+        fn __ipow__(&'p mut self, _other: PyRef<'p, Self>, _modulo: Option<u8>) {}
         fn __ilshift__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __irshift__(&'p mut self, _other: PyRef<'p, Self>) {}
         fn __iand__(&'p mut self, _other: PyRef<'p, Self>) {}

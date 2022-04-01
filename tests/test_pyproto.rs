@@ -1,3 +1,6 @@
+#![cfg(feature = "macros")]
+#![cfg(feature = "pyproto")]
+
 use pyo3::class::{
     PyAsyncProtocol, PyDescrProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol,
     PySequenceProtocol,
@@ -345,80 +348,6 @@ fn test_cls_impl() {
 
     py_assert!(py, ob, "ob[1] == 'int'");
     py_assert!(py, ob, "ob[100:200:1] == 'slice'");
-}
-
-#[pyclass(dict, subclass)]
-struct DunderDictSupport {}
-
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
-fn dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
-        inst.a = 1
-        assert inst.a == 1
-    "#
-    );
-}
-
-// Accessing inst.__dict__ only supported in limited API from Python 3.10
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
-fn access_dunder_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
-        inst.a = 1
-        assert inst.__dict__ == {'a': 1}
-    "#
-    );
-}
-
-// If the base class has dict support, child class also has dict
-#[pyclass(extends=DunderDictSupport)]
-struct InheritDict {
-    _value: usize,
-}
-
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
-fn inherited_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, (InheritDict { _value: 0 }, DunderDictSupport {})).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
-        inst.a = 1
-        assert inst.a == 1
-    "#
-    );
-}
-
-#[pyclass(weakref, dict)]
-struct WeakRefDunderDictSupport {}
-
-#[test]
-#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
-fn weakref_dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, WeakRefDunderDictSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
-    );
 }
 
 #[pyclass]

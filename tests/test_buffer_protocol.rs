@@ -1,13 +1,13 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(feature = "macros")]
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 
 use pyo3::buffer::PyBuffer;
-use pyo3::class::PyBufferProtocol;
 use pyo3::exceptions::PyBufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::AsPyPointer;
-use std::ffi::CStr;
+use std::ffi::CString;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -21,9 +21,13 @@ struct TestBufferClass {
     drop_called: Arc<AtomicBool>,
 }
 
-#[pyproto]
-impl PyBufferProtocol for TestBufferClass {
-    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
+#[pymethods]
+impl TestBufferClass {
+    unsafe fn __getbuffer__(
+        mut slf: PyRefMut<Self>,
+        view: *mut ffi::Py_buffer,
+        flags: c_int,
+    ) -> PyResult<()> {
         if view.is_null() {
             return Err(PyBufferError::new_err("View is null"));
         }
@@ -32,43 +36,43 @@ impl PyBufferProtocol for TestBufferClass {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        unsafe {
-            (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
-        }
+        (*view).obj = ffi::_Py_NewRef(slf.as_ptr());
 
-        let bytes = &slf.vec;
+        (*view).buf = slf.vec.as_mut_ptr() as *mut c_void;
+        (*view).len = slf.vec.len() as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = 1;
 
-        unsafe {
-            (*view).buf = bytes.as_ptr() as *mut c_void;
-            (*view).len = bytes.len() as isize;
-            (*view).readonly = 1;
-            (*view).itemsize = 1;
+        (*view).format = if (flags & ffi::PyBUF_FORMAT) == ffi::PyBUF_FORMAT {
+            let msg = CString::new("B").unwrap();
+            msg.into_raw()
+        } else {
+            ptr::null_mut()
+        };
 
-            (*view).format = ptr::null_mut();
-            if (flags & ffi::PyBUF_FORMAT) == ffi::PyBUF_FORMAT {
-                let msg = CStr::from_bytes_with_nul(b"B\0").unwrap();
-                (*view).format = msg.as_ptr() as *mut _;
-            }
+        (*view).ndim = 1;
+        (*view).shape = if (flags & ffi::PyBUF_ND) == ffi::PyBUF_ND {
+            &mut (*view).len
+        } else {
+            ptr::null_mut()
+        };
 
-            (*view).ndim = 1;
-            (*view).shape = ptr::null_mut();
-            if (flags & ffi::PyBUF_ND) == ffi::PyBUF_ND {
-                (*view).shape = (&((*view).len)) as *const _ as *mut _;
-            }
+        (*view).strides = if (flags & ffi::PyBUF_STRIDES) == ffi::PyBUF_STRIDES {
+            &mut (*view).itemsize
+        } else {
+            ptr::null_mut()
+        };
 
-            (*view).strides = ptr::null_mut();
-            if (flags & ffi::PyBUF_STRIDES) == ffi::PyBUF_STRIDES {
-                (*view).strides = &((*view).itemsize) as *const _ as *mut _;
-            }
-
-            (*view).suboffsets = ptr::null_mut();
-            (*view).internal = ptr::null_mut();
-        }
+        (*view).suboffsets = ptr::null_mut();
+        (*view).internal = ptr::null_mut();
 
         Ok(())
     }
 
-    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) {}
+    unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {
+        // Release memory held by the format string
+        drop(CString::from_raw((*view).format));
+    }
 }
 
 impl Drop for TestBufferClass {

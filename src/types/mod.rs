@@ -6,6 +6,7 @@ pub use self::any::PyAny;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
+pub use self::capsule::PyCapsule;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -195,12 +196,10 @@ macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl<'a, $($generics,)*> $crate::class::impl_::PyClassBaseType<$crate::pycell::Mutable> for $name {
-            type Dict = $crate::pyclass_slots::PyClassDummySlot;
-            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<$layout, $crate::pycell::Mutable>;
+        impl<'a, M: $crate::pycell::Mutability, $($generics,)*> $crate::impl_::pyclass::PyClassBaseType<M> for $name {
+            type LayoutAsBase = $crate::pycell::PyCellBase<$layout, M>;
             type BaseNativeType = $name;
-            type ThreadChecker = $crate::class::impl_::ThreadCheckerStub<$crate::PyObject>;
+            type ThreadChecker = $crate::impl_::pyclass::ThreadCheckerStub<$crate::PyObject>;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
         }
     }
@@ -223,6 +222,7 @@ mod any;
 mod boolobject;
 mod bytearray;
 mod bytes;
+mod capsule;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;

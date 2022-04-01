@@ -2,14 +2,15 @@
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    build_py_proto, get_doc, process_functions_in_module, py_init, PyClassArgs, PyClassMethodsType,
-    PyFunctionOptions, PyModuleOptions,
+    get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl, wrap_pymodule_impl,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, WrapPyFunctionArgs,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -46,7 +47,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let doc = get_doc(&ast.attrs, None);
 
-    let expanded = py_init(&ast.sig.ident, options, doc);
+    let expanded = pymodule_impl(&ast.sig.ident, options, doc, &ast.vis);
 
     quote!(
         #ast
@@ -66,9 +67,10 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 /// [4]: ../class/gc/trait.PyGCProtocol.html
 /// [5]: ../class/iter/trait.PyIterProtocol.html
 #[proc_macro_attribute]
+#[cfg(feature = "pyproto")]
 pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = build_py_proto(&mut ast).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = pyo3_macros_backend::build_py_proto(&mut ast).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -77,7 +79,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// A proc macro used to expose Rust structs as Python objects.
+/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
 /// `#[pyclass]` accepts the following [parameters][2]:
 ///
@@ -88,7 +90,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// | `gc`  | Participate in Python's [garbage collection][5]. Required if your type contains references to other Python objects. If you don't (or incorrectly) implement this, contained Python objects may be hidden from Python's garbage collector and you may leak memory. Note that leaking memory, while undesirable, [is safe behavior][7].|
 /// | `weakref` | Allows this class to be [weakly referenceable][6]. |
 /// | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][4] |
-/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class.  |
+/// | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
 /// | `unsendable` | Required if your struct is not [`Send`][3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][8] with [`Arc`][9]. By using `unsendable`, your class will panic when accessed by another thread.|
 /// | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 ///
@@ -164,7 +166,8 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to expose Rust functions to Python.
 ///
-/// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]` options:
+/// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]`
+/// options:
 ///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
@@ -174,13 +177,18 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// For more on exposing functions see the [function section of the guide][1].
 ///
+/// Due to technical limitations on how `#[pyfunction]` is implemented, a function marked
+/// `#[pyfunction]` cannot have a module with the same name in the same scope. (The
+/// `#[pyfunction]` implementation generates a hidden module with the same name containing
+/// metadata about the function, which is used by `wrap_pyfunction!`).
+///
 /// [1]: https://pyo3.rs/latest/function.html
 #[proc_macro_attribute]
 pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let options = parse_macro_input!(attr as PyFunctionOptions);
 
-    let expanded = build_py_function(&mut ast, options).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_function(&mut ast, options).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -192,11 +200,30 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromPyObject, attributes(pyo3))]
 pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded = build_derive_from_pyobject(&ast).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_derive_from_pyobject(&ast).unwrap_or_compile_error();
     quote!(
         #expanded
     )
     .into()
+}
+
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with `PyModule::add_function` to add free functions to a `PyModule` - see its
+/// documentation for more information.
+#[proc_macro]
+pub fn wrap_pyfunction(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as WrapPyFunctionArgs);
+    wrap_pyfunction_impl(args).into()
+}
+
+/// Returns a function that takes a `Python` instance and returns a Python module.
+///
+/// Use this together with [`#[pymodule]`](macro@crate::pymodule) and `PyModule::add_wrapped`.
+#[proc_macro]
+pub fn wrap_pymodule(input: TokenStream) -> TokenStream {
+    let path = parse_macro_input!(input as syn::Path);
+    wrap_pymodule_impl(path).unwrap_or_compile_error().into()
 }
 
 fn pyclass_impl(
@@ -205,8 +232,7 @@ fn pyclass_impl(
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
     let args = parse_macro_input!(attrs with PyClassArgs::parse_stuct_args);
-    let expanded =
-        build_py_class(&mut ast, &args, methods_type).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_class(&mut ast, &args, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -216,16 +242,15 @@ fn pyclass_impl(
 }
 
 fn pyclass_enum_impl(
-    attr: TokenStream,
-    enum_: syn::ItemEnum,
+    attrs: TokenStream,
+    mut ast: syn::ItemEnum,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let args = parse_macro_input!(attr with PyClassArgs::parse_enum_args);
-    let expanded =
-        build_py_enum(&enum_, args, methods_type).unwrap_or_else(|e| e.into_compile_error());
+    let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
+    let expanded = build_py_enum(&mut ast, &args, methods_type).unwrap_or_compile_error();
 
     quote!(
-        #enum_
+        #ast
         #expanded
     )
     .into()
@@ -233,8 +258,7 @@ fn pyclass_enum_impl(
 
 fn pymethods_impl(input: TokenStream, methods_type: PyClassMethodsType) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded =
-        build_py_methods(&mut ast, methods_type).unwrap_or_else(|e| e.to_compile_error());
+    let expanded = build_py_methods(&mut ast, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -248,5 +272,15 @@ fn methods_type() -> PyClassMethodsType {
         PyClassMethodsType::Inventory
     } else {
         PyClassMethodsType::Specialization
+    }
+}
+
+trait UnwrapOrCompileError {
+    fn unwrap_or_compile_error(self) -> TokenStream2;
+}
+
+impl UnwrapOrCompileError for syn::Result<TokenStream2> {
+    fn unwrap_or_compile_error(self) -> TokenStream2 {
+        self.unwrap_or_else(|e| e.into_compile_error())
     }
 }

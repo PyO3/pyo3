@@ -2,14 +2,14 @@
 
 Python's object model defines several protocols for different object behavior, such as the sequence, mapping, and number protocols. You may be familiar with implementing these protocols in Python classes by "magic" methods, such as `__str__` or `__repr__`. Because of the double-underscores surrounding their name, these are also known as "dunder" methods.
 
-In the Python C-API which PyO3 is implemented upon, many of these magic methods have to be placed into special "slots" on the class type object. as already covered in the previous section. There are two ways in which this can be done:
+In the Python C-API which PyO3 is implemented upon, many of these magic methods have to be placed into special "slots" on the class type object, as covered in the previous section. There are two ways in which this can be done:
 
  - [Experimental for PyO3 0.15, may change slightly in PyO3 0.16] In `#[pymethods]`, if the name of the method is a recognised magic method, PyO3 will place it in the type object automatically.
  - [Stable, but expected to be deprecated in PyO3 0.16] In special traits combined with the `#[pyproto]` attribute.
 
 (There are also many magic methods which don't have a special slot, such as `__dir__`. These methods can be implemented as normal in `#[pymethods]`.)
 
-This chapter of the guide has a section on each of these solutions in turn:
+This chapter gives a brief overview of the available methods. An in depth example is given in the following sub-chapters.
 
 ### Magic methods in `#[pymethods]`
 
@@ -18,7 +18,6 @@ In PyO3 0.15, if a function name in `#[pymethods]` is a recognised magic method,
 The magic methods handled by PyO3 are very similar to the standard Python ones on [this page](https://docs.python.org/3/reference/datamodel.html#special-method-names) - in particular they are the the subset which have slots as [defined here](https://docs.python.org/3/c-api/typeobj.html). Some of the slots do not have a magic method in Python, which leads to a few additional magic methods defined only in PyO3:
  - Magic methods for garbage collection
  - Magic methods for the buffer protocol
- - Magic methods for the sequence protocol
 
 When PyO3 handles a magic method, a couple of changes apply compared to other `#[pymethods]`:
  - The `#[pyo3(text_signature = "...")]` attribute is not allowed
@@ -75,71 +74,6 @@ given signatures should be interpreted as follows:
   - `__call__(<self>, ...) -> object` - here, any argument list can be defined
     as for normal `pymethods`
 
-##### Example: Callable objects
-
-Custom classes can be callable if they have a `#[pymethod]` named `__call__`.
-
-The following pyclass is a basic decorator - its constructor takes a Python object
-as argument and calls that object when called.
-
-```rust
-# use pyo3::prelude::*;
-# use pyo3::types::{PyDict, PyTuple};
-#
-#[pyclass(name = "counter")]
-struct PyCounter {
-    count: u64,
-    wraps: Py<PyAny>,
-}
-
-#[pymethods]
-impl PyCounter {
-    #[new]
-    fn __new__(wraps: Py<PyAny>) -> Self {
-        PyCounter { count: 0, wraps }
-    }
-    #[args(args="*", kwargs="**")]
-    fn __call__(
-        &mut self,
-        py: Python,
-        args: &PyTuple,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<Py<PyAny>> {
-        self.count += 1;
-        let name = self.wraps.getattr(py, "__name__").unwrap();
-
-        println!("{} has been called {} time(s).", name, self.count);
-        self.wraps.call(py, args, kwargs)
-    }
-}
-```
-
-Python code:
-
-```python
-@counter
-def say_hello():
-    print("hello")
-
-say_hello()
-say_hello()
-say_hello()
-say_hello()
-```
-
-Output:
-
-```text
-say_hello has been called 1 time(s).
-hello
-say_hello has been called 2 time(s).
-hello
-say_hello has been called 3 time(s).
-hello
-say_hello has been called 4 time(s).
-hello
-```
-
 #### Iterable objects
 
   - `__iter__(<self>) -> object`
@@ -151,11 +85,7 @@ hello
   - `__aiter__(<self>) -> object`
   - `__anext__(<self>) -> Option<object> or IterANextOutput`
 
-#### Sequence types
-
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
-
-#### Mapping types
+#### Mapping & Sequence types
 
   - `__len__(<self>) -> usize`
   - `__contains__(<self>, object) -> bool`
@@ -240,7 +170,8 @@ TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
 
 #### Buffer objects
 
-TODO; see [#1884](https://github.com/PyO3/pyo3/issues/1884)
+  - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
+  - `__releasebuffer__(<self>, *mut ffi::Py_buffer)` (no return value, not even `PyResult`)
 
 #### Garbage Collector Integration
 
@@ -353,12 +284,14 @@ This trait also has support the augmented arithmetic assignments (`+=`, `-=`,
   * `fn __itruediv__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ifloordiv__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __imod__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
-  * `fn __ipow__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
+  * `fn __ipow__(&'p mut self, other: impl FromPyObject, modulo: impl FromPyObject) -> PyResult<()>` on Python 3.8^
+  * `fn __ipow__(&'p mut self, other: impl FromPyObject) -> PyResult<()>` on Python 3.7 see https://bugs.python.org/issue36379
   * `fn __ilshift__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __irshift__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __iand__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ior__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
   * `fn __ixor__(&'p mut self, other: impl FromPyObject) -> PyResult<()>`
+
 
 The following methods implement the unary arithmetic operations (`-`, `+`, `abs()` and `~`):
 

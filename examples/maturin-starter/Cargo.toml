@@ -1,27 +1,13 @@
 [package]
-authors = ["PyO3 Authors"]
 name = "maturin-starter"
 version = "0.1.0"
-description = "An example project to get started using PyO3 with maturin"
 edition = "2018"
-
-[dependencies]
-
-[dependencies.pyo3]
-path = "../../"
-features = ["extension-module"]
 
 [lib]
 name = "maturin_starter"
 crate-type = ["cdylib"]
 
-[package.metadata.maturin]
-classifier=[
-    "License :: OSI Approved :: MIT License",
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python",
-    "Programming Language :: Rust",
-    "Operating System :: POSIX",
-    "Operating System :: MacOS :: MacOS X",
-]
+[dependencies]
+pyo3 = { path = "../../", features = ["extension-module"] }
+
+[workspace]

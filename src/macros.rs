@@ -1,33 +1,3 @@
-/// Wraps a Rust function annotated with [`#[pyfunction]`](crate::pyfunction), turning it into a
-/// [`PyCFunction`](crate::types::PyCFunction).
-///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add
-/// free functions to a [`PyModule`](crate::types::PyModule) - see its documention for more information.
-#[macro_export]
-macro_rules! wrap_pyfunction {
-    ($function_name: ident) => {{
-        &|py| $crate::paste::expr! { [<__pyo3_get_function_ $function_name>] }(py)
-    }};
-
-    ($function_name: ident, $arg: expr) => {
-        $crate::wrap_pyfunction!($function_name)(
-            <$crate::derive_utils::PyFunctionArguments as ::std::convert::From<_>>::from($arg),
-        )
-    };
-}
-
-/// Returns a function that takes a [`Python`](crate::python::Python) instance and returns a Python module.
-///
-/// Use this together with [`#[pymodule]`](crate::pymodule) and [crate::types::PyModule::add_wrapped].
-#[macro_export]
-macro_rules! wrap_pymodule {
-    ($module_name:ident) => {{
-        $crate::paste::expr! {
-            &|py| unsafe { $crate::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
-        }
-    }};
-}
-
 /// A convenient macro to execute a Python code snippet, with some local variables set.
 ///
 /// # Panics
@@ -108,7 +78,6 @@ macro_rules! wrap_pymodule {
 /// });
 /// ```
 #[macro_export]
-#[cfg(feature = "macros")]
 macro_rules! py_run {
     ($py:expr, $($val:ident)+, $code:literal) => {{
         $crate::py_run_impl!($py, $($val)+, $crate::indoc::indoc!($code))
@@ -126,7 +95,6 @@ macro_rules! py_run {
 
 #[macro_export]
 #[doc(hidden)]
-#[cfg(feature = "macros")]
 macro_rules! py_run_impl {
     ($py:expr, $($val:ident)+, $code:expr) => {{
         use $crate::types::IntoPyDict;

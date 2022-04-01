@@ -12,4 +12,7 @@ enum NotDrivedClass {
     y,
 }
 
+#[pyclass]
+enum NoEmptyEnum {}
+
 fn main() {}

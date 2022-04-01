@@ -1,5 +1,4 @@
-use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-
+use criterion::{criterion_group, criterion_main, Criterion};
 use pyo3::{class::PyObjectProtocol, prelude::*, type_object::LazyStaticType};
 
 /// This is a feature-rich class instance used to benchmark various parts of the pyclass lifecycle.
@@ -30,7 +29,7 @@ impl PyObjectProtocol for MyClass {
     }
 }
 
-fn first_time_init(b: &mut Bencher) {
+pub fn first_time_init(b: &mut criterion::Bencher) {
     let gil = Python::acquire_gil();
     let py = gil.python();
     b.iter(|| {
@@ -46,4 +45,5 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, criterion_benchmark);
+
 criterion_main!(benches);

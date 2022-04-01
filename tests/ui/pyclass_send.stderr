@@ -12,6 +12,7 @@ note: required because it appears within the type `NotThreadSafe`
     |        ^^^^^^^^^^^^^
 note: required by a bound in `ThreadCheckerStub`
    --> src/class/impl_.rs:728:33
+   --> src/impl_/pyclass.rs
     |
 728 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
     |                                 ^^^^ required by this bound in `ThreadCheckerStub`

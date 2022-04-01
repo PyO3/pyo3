@@ -209,6 +209,9 @@ assert userdata.as_tuple() == userdata_as_tuple
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 
+**Warning**: This will compile and execute code. **Never** pass untrusted code
+to this function!
+
 ```rust
 use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
 
@@ -235,6 +238,105 @@ def leaky_relu(x, slope=0.01):
 })
 # }
 ```
+
+### Include multiple Python files
+
+You can include a file at compile time by using
+[`std::include_str`](https://doc.rust-lang.org/std/macro.include_str.html) macro.
+
+Or you can load a file at runtime by using
+[`std::fs::read_to_string`](https://doc.rust-lang.org/std/fs/fn.read_to_string.html) function.
+
+Many Python files can be included and loaded as modules. If one file depends on
+another you must preserve correct order while declaring `PyModule`.
+
+Example directory structure:
+```text
+.
+├── Cargo.lock
+├── Cargo.toml
+├── python_app
+│   ├── app.py
+│   └── utils
+│       └── foo.py
+└── src
+    └── main.rs
+```
+
+`python_app/app.py`:
+```python
+from utils.foo import bar
+
+
+def run():
+    return bar()
+```
+
+`python_app/utils/foo.py`:
+```python
+def bar():
+    return "baz"
+```
+
+The example below shows:
+* how to include content of `app.py` and `utils/foo.py` into your rust binary
+* how to call function `run()` (declared in `app.py`) that needs function
+  imported from `utils/foo.py`
+
+`src/main.rs`:
+```ignore
+use pyo3::prelude::*;
+
+fn main() -> PyResult<()> {
+    let py_foo = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/utils/foo.py"));
+    let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
+    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+        PyModule::from_code(py, py_foo, "utils.foo", "utils.foo")?;
+        let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+            .getattr("run")?
+            .into();
+        app.call0(py)
+    });
+
+    println!("py: {}", from_python?);
+    Ok(())
+}
+```
+
+The example below shows:
+* how to load content of `app.py` at runtime so that it sees its dependencies
+  automatically
+* how to call function `run()` (declared in `app.py`) that needs function
+  imported from `utils/foo.py`
+
+It is recommended to use absolute paths because then your binary can be run
+from anywhere as long as your `app.py` is in the expected directory (in this example
+that directory is `/usr/share/python_app`).
+
+`src/main.rs`:
+```ignore
+use pyo3::prelude::*;
+use pyo3::types::PyList;
+use std::fs;
+use std::path::Path;
+
+fn main() -> PyResult<()> {
+    let path = Path::new("/usr/share/python_app");
+    let py_app = fs::read_to_string(path.join("app.py"))?;
+    let from_python = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+        let syspath: &PyList = py.import("sys")?.getattr("path")?.downcast::<PyList>()?;
+        syspath.insert(0, &path)?;
+        let app: Py<PyAny> = PyModule::from_code(py, &py_app, "", "")?
+            .getattr("run")?
+            .into();
+        app.call0(py)
+    });
+
+    println!("py: {}", from_python?);
+    Ok(())
+}
+```
+
 
 [`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.run
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
@@ -280,7 +382,7 @@ class House(object):
             Err(e) => {
                 house.call_method1(
                     "__exit__",
-                    (e.ptype(py), e.pvalue(py), e.ptraceback(py))
+                    (e.get_type(py), e.value(py), e.traceback(py))
                 ).unwrap();
             }
         }

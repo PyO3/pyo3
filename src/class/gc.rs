@@ -9,16 +9,13 @@ use std::os::raw::{c_int, c_void};
 pub struct PyTraverseError(c_int);
 
 /// GC support
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyGCProtocol<'p>: MutablePyClass {
     fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
 }
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
 
-#[allow(clippy::upper_case_acronyms)]
 pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
 #[doc(hidden)]

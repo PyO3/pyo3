@@ -90,10 +90,10 @@ Python::with_gil(|py| {
 });
 ```
 
-If you already have a Python exception instance, you can simply call [`PyErr::from_instance`].
+If you already have a Python exception object, you can simply call [`PyErr::from_value`].
 
 ```rust,ignore
-PyErr::from_instance(py, err).restore(py);
+PyErr::from_value(py, err).restore(py);
 ```
 
 
@@ -134,7 +134,7 @@ which is an alias for the type `Result<T, PyErr>`.
 A [`PyErr`] represents a Python exception. Errors within the PyO3 library are also exposed as
 Python exceptions.
 
-If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr` 
+If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr`
 is usually enough. PyO3 will then automatically convert your error to a Python exception when needed.
 
 The following code snippet defines a Rust error named `CustomIOError`. In its `From<CustomIOError> for PyErr`
@@ -188,7 +188,7 @@ fn main() {
 ```
 
 This has been implemented for most of Rust's standard library errors, so that you can use the `?`
-("try") operator with them. The following code snippet will raise a `ValueError` in Python if 
+("try") operator with them. The following code snippet will raise a `ValueError` in Python if
 `String::parse()` returns an error.
 
 ```rust
@@ -254,6 +254,6 @@ defines exceptions for several standard library modules.
 
 [`PyErr`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html
 [`PyResult`]: {{#PYO3_DOCS_URL}}/pyo3/type.PyResult.html
-[`PyErr::from_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_instance
+[`PyErr::from_value`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html#method.from_value
 [`PyAny::is_instance`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance
 [`PyAny::is_instance_of`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#method.is_instance_of

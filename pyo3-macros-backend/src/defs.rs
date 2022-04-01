@@ -64,27 +64,13 @@ impl Proto {
         })
     }
 
-    pub(crate) fn slots_trait(&self) -> syn::Ident {
-        syn::Ident::new(&format!("Py{}ProtocolSlots", self.name), Span::call_site())
+    pub(crate) fn items_trait(&self) -> syn::Ident {
+        syn::Ident::new(&format!("Py{}ProtocolItems", self.name), Span::call_site())
     }
 
-    pub(crate) fn slots_trait_slots(&self) -> syn::Ident {
+    pub(crate) fn items_trait_items(&self) -> syn::Ident {
         syn::Ident::new(
-            &format!("{}_protocol_slots", self.name.to_ascii_lowercase()),
-            Span::call_site(),
-        )
-    }
-
-    pub(crate) fn methods_trait(&self) -> syn::Ident {
-        syn::Ident::new(
-            &format!("Py{}ProtocolMethods", self.name),
-            Span::call_site(),
-        )
-    }
-
-    pub(crate) fn methods_trait_methods(&self) -> syn::Ident {
-        syn::Ident::new(
-            &format!("{}_protocol_methods", self.name.to_ascii_lowercase()),
+            &format!("{}_protocol_items", self.name.to_ascii_lowercase()),
             Span::call_site(),
         )
     }
@@ -421,7 +407,7 @@ pub const NUM: Proto = Proto {
             .args(&["Other"])
             .has_self(),
         MethodProto::new("__ipow__", "PyNumberIPowProtocol")
-            .args(&["Other"])
+            .args(&["Other", "Modulo"])
             .has_self(),
         MethodProto::new("__ilshift__", "PyNumberILShiftProtocol")
             .args(&["Other"])

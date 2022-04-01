@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use std::collections::HashMap;
 
 use pyo3::exceptions::PyKeyError;
@@ -5,7 +7,6 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
-use pyo3::PyMappingProtocol;
 
 mod common;
 
@@ -31,10 +32,7 @@ impl Mapping {
             })
         }
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for Mapping {
     fn __len__(&self) -> usize {
         self.index.len()
     }

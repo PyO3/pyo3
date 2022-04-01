@@ -9,6 +9,7 @@ exclude = '''
     | \.git          # root of the project
     | \.mypy_cache
     | \.tox
+    | \.nox
     | \.venv
     | venv
     | target

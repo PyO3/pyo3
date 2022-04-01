@@ -2,18 +2,18 @@
 
 use crate::{
     attributes::{
-        self, get_pyo3_options, take_attributes, take_pyo3_options, FromPyWithAttribute,
-        NameAttribute, TextSignatureAttribute,
+        self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
+        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
     deprecations::Deprecations,
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
-    utils::{self, ensure_not_async_fn},
+    utils::{self, ensure_not_async_fn, get_pyo3_crate},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::punctuated::Punctuated;
-use syn::{ext::IdentExt, spanned::Spanned, Ident, NestedMeta, Path, Result};
+use syn::{ext::IdentExt, spanned::Spanned, NestedMeta, Path, Result};
 use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     token::Comma,
@@ -239,17 +239,12 @@ pub struct PyFunctionOptions {
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
+    pub krate: Option<CrateAttribute>,
 }
 
 impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut options = PyFunctionOptions {
-            pass_module: None,
-            name: None,
-            signature: None,
-            text_signature: None,
-            deprecations: Deprecations::new(),
-        };
+        let mut options = PyFunctionOptions::default();
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -262,6 +257,9 @@ impl Parse for PyFunctionOptions {
                 if !input.is_empty() {
                     let _: Comma = input.parse()?;
                 }
+            } else if lookahead.peek(syn::Token![crate]) {
+                // TODO needs duplicate check?
+                options.krate = Some(input.parse()?);
             } else {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
                 //
@@ -280,6 +278,7 @@ pub enum PyFunctionOption {
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
     TextSignature(TextSignatureAttribute),
+    Crate(CrateAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -293,6 +292,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Signature)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
+        } else if lookahead.peek(syn::Token![crate]) {
+            input.parse().map(PyFunctionOption::Crate)
         } else {
             Err(lookahead.error())
         }
@@ -335,6 +336,13 @@ impl PyFunctionOptions {
                     );
                     self.text_signature = Some(text_signature);
                 }
+                PyFunctionOption::Crate(path) => {
+                    ensure_spanned!(
+                        self.krate.is_none(),
+                        path.0.span() => "`crate` may only be specified once"
+                    );
+                    self.krate = Some(path);
+                }
             }
         }
         Ok(())
@@ -355,13 +363,7 @@ pub fn build_py_function(
     mut options: PyFunctionOptions,
 ) -> syn::Result<TokenStream> {
     options.add_attributes(take_pyo3_options(&mut ast.attrs)?)?;
-    Ok(impl_wrap_pyfunction(ast, options)?.1)
-}
-
-/// Coordinates the naming of a the add-function-to-python-module function
-fn function_wrapper_ident(name: &Ident) -> Ident {
-    // Make sure this ident matches the one of wrap_pyfunction
-    format_ident!("__pyo3_get_function_{}", name)
+    impl_wrap_pyfunction(ast, options)
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python
@@ -369,7 +371,7 @@ fn function_wrapper_ident(name: &Ident) -> Ident {
 pub fn impl_wrap_pyfunction(
     func: &mut syn::ItemFn,
     options: PyFunctionOptions,
-) -> syn::Result<(Ident, TokenStream)> {
+) -> syn::Result<TokenStream> {
     check_generic(&func.sig)?;
     ensure_not_async_fn(&func.sig)?;
 
@@ -409,7 +411,7 @@ pub fn impl_wrap_pyfunction(
             .map(|attr| (&python_name, attr)),
     );
 
-    let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
+    let krate = get_pyo3_crate(&options.krate);
 
     let spec = method::FnSpec {
         tp: if options.pass_module.is_some() {
@@ -426,21 +428,44 @@ pub fn impl_wrap_pyfunction(
         doc,
         deprecations: options.deprecations,
         text_signature: options.text_signature,
+        krate: krate.clone(),
+        unsafety: func.sig.unsafety,
     };
 
-    let wrapper_ident = format_ident!("__pyo3_raw_{}", spec.name);
+    let vis = &func.vis;
+    let name = &func.sig.ident;
+
+    let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     let wrapper = spec.get_wrapper_function(&wrapper_ident, None)?;
     let methoddef = spec.get_methoddef(wrapper_ident);
 
     let wrapped_pyfunction = quote! {
         #wrapper
-        pub(crate) fn #function_wrapper_ident<'a>(
-            args: impl ::std::convert::Into<::pyo3::derive_utils::PyFunctionArguments<'a>>
-        ) -> ::pyo3::PyResult<&'a ::pyo3::types::PyCFunction> {
-            ::pyo3::types::PyCFunction::internal_new(#methoddef, args.into())
+
+        // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
+        // will actually bring both the module and the function into scope.
+        #[doc(hidden)]
+        #vis mod #name {
+            use #krate as _pyo3;
+            pub(crate) struct PyO3Def;
+
+            // Exported for `wrap_pyfunction!`
+            pub use _pyo3::impl_::pyfunction::wrap_pyfunction as wrap;
+            pub const DEF: _pyo3::PyMethodDef = <PyO3Def as _pyo3::impl_::pyfunction::PyFunctionDef>::DEF;
         }
+
+        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // this avoids complications around the fact that the generated module has a different scope
+        // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
+        // inside a function body)
+        const _: () = {
+            use #krate as _pyo3;
+            impl _pyo3::impl_::pyfunction::PyFunctionDef for #name::PyO3Def {
+                const DEF: _pyo3::PyMethodDef = #methoddef;
+            }
+        };
     };
-    Ok((function_wrapper_ident, wrapped_pyfunction))
+    Ok(wrapped_pyfunction)
 }
 
 fn type_is_pymodule(ty: &syn::Type) -> bool {

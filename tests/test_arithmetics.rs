@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::class::basic::CompareOp;
 use pyo3::prelude::*;
 use pyo3::py_run;
@@ -93,7 +95,7 @@ impl InPlaceOperations {
         self.value |= other;
     }
 
-    fn __ipow__(&mut self, other: u32) {
+    fn __ipow__(&mut self, other: u32, _modulo: Option<u32>) {
         self.value = self.value.pow(other);
     }
 }
@@ -564,12 +566,12 @@ mod return_not_implemented {
         fn __itruediv__(&mut self, _other: PyRef<Self>) {}
         fn __ifloordiv__(&mut self, _other: PyRef<Self>) {}
         fn __imod__(&mut self, _other: PyRef<Self>) {}
-        fn __ipow__(&mut self, _other: PyRef<Self>) {}
         fn __ilshift__(&mut self, _other: PyRef<Self>) {}
         fn __irshift__(&mut self, _other: PyRef<Self>) {}
         fn __iand__(&mut self, _other: PyRef<Self>) {}
         fn __ior__(&mut self, _other: PyRef<Self>) {}
         fn __ixor__(&mut self, _other: PyRef<Self>) {}
+        fn __ipow__(&mut self, _other: PyRef<Self>, _modulo: Option<u8>) {}
     }
 
     fn _test_binary_dunder(dunder: &str) {

@@ -33,7 +33,7 @@ impl PyTraceback {
     ///         .run("raise Exception('banana')", None, None)
     ///         .expect_err("raise will create a Python error");
     ///
-    ///     let traceback = err.ptraceback(py).expect("raised exception will have a traceback");
+    ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
     ///     assert_eq!(
     ///         format!("{}{}", traceback.format()?, err),
     ///         "\
@@ -74,7 +74,7 @@ mod tests {
                 .expect_err("raising should have given us an error");
 
             assert_eq!(
-                err.ptraceback(py).unwrap().format().unwrap(),
+                err.traceback(py).unwrap().format().unwrap(),
                 "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
             );
         })

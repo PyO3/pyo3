@@ -113,7 +113,6 @@ mod tests {
     #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
     use crate::PyTryFrom;
     use crate::{Py, PyAny, Python, ToPyObject};
-    use indoc::indoc;
 
     #[test]
     fn vec_iter() {
@@ -177,16 +176,14 @@ mod tests {
 
     #[test]
     fn fibonacci_generator() {
-        let fibonacci_generator = indoc!(
-            r#"
-            def fibonacci(target):
-                a = 1
-                b = 1
-                for _ in range(target):
-                    yield a
-                    a, b = b, a + b
-        "#
-        );
+        let fibonacci_generator = r#"
+def fibonacci(target):
+    a = 1
+    b = 1
+    for _ in range(target):
+        yield a
+        a, b = b, a + b
+"#;
 
         Python::with_gil(|py| {
             let context = PyDict::new(py);

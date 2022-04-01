@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{py_run, PyClass};
@@ -340,4 +342,113 @@ fn test_tuple_struct_class() {
 
         assert_eq!(instance.borrow(py).0, 1234);
     });
+}
+
+#[pyclass(dict, subclass)]
+struct DunderDictSupport {}
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+fn dunder_dict_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.a == 1
+    "#
+    );
+}
+
+// Accessing inst.__dict__ only supported in limited API from Python 3.10
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
+fn access_dunder_dict() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.__dict__ == {'a': 1}
+    "#
+    );
+}
+
+// If the base class has dict support, child class also has dict
+#[pyclass(extends=DunderDictSupport)]
+struct InheritDict {
+    _value: usize,
+}
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+fn inherited_dict() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, (InheritDict { _value: 0 }, DunderDictSupport {})).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.a == 1
+    "#
+    );
+}
+
+#[pyclass(weakref, dict)]
+struct WeakRefDunderDictSupport {}
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+fn weakref_dunder_dict_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, WeakRefDunderDictSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+    );
+}
+
+#[pyclass(weakref, subclass)]
+struct WeakRefSupport {}
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+fn weakref_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, WeakRefSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst"
+    );
+}
+
+// If the base class has weakref support, child class also has weakref.
+#[pyclass(extends=WeakRefSupport)]
+struct InheritWeakRef {
+    _value: usize,
+}
+
+#[test]
+#[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
+fn inherited_weakref() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, (InheritWeakRef { _value: 0 }, WeakRefSupport {})).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst"
+    );
 }

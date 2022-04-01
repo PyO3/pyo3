@@ -11,6 +11,7 @@
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
+#![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -299,11 +300,34 @@ pub use crate::python::{Python, PythonVersionInfo};
 pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 
+// Old directory layout, to be rethought?
+#[cfg(not(feature = "pyproto"))]
+pub mod class {
+    #[doc(hidden)]
+    pub use crate::impl_::pymethods as methods;
+
+    #[doc(hidden)]
+    pub use self::methods::{
+        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
+    };
+
+    pub mod basic {
+        pub use crate::pyclass::CompareOp;
+    }
+
+    pub mod pyasync {
+        pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
+    }
+
+    pub mod iter {
+        pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
+    }
+}
+
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use {
     indoc,    // Re-exported for py_run
-    paste,    // Re-exported for wrap_function
     unindent, // Re-exported for py_run
 };
 
@@ -317,6 +341,7 @@ mod internal_tricks;
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
+#[cfg(feature = "pyproto")]
 pub mod class;
 pub mod conversion;
 mod conversions;
@@ -337,7 +362,6 @@ pub mod prelude;
 pub mod pycell;
 pub mod pyclass;
 pub mod pyclass_init;
-pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;
@@ -351,14 +375,26 @@ pub use crate::conversions::*;
 )]
 #[cfg(feature = "macros")]
 pub mod proc_macro {
-    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto};
+    #[cfg(feature = "pyproto")]
+    pub use pyo3_macros::pyproto;
+    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule};
 }
 
+#[cfg(all(feature = "macros", feature = "pyproto"))]
+pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, pyproto, FromPyObject};
+pub use pyo3_macros::{
+    pyclass, pyfunction, pymethods, pymodule, wrap_pyfunction, wrap_pymodule, FromPyObject,
+};
 
+#[cfg(feature = "macros")]
 #[macro_use]
 mod macros;
+
+/// Test macro hygiene - this is in the crate since we won't have
+/// `pyo3` available in the crate root.
+#[cfg(all(test, feature = "macros"))]
+mod test_hygiene;
 
 /// Test readme and user guide
 #[cfg(doctest)]

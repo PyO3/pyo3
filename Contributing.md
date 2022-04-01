@@ -11,7 +11,20 @@ If you want to become familiar with the codebase, see
 
 Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
 
+You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/doc/pyo3/index.html).
+
 The following sections also contain specific ideas on where to start contributing to PyO3.
+
+## Setting up a development environment
+
+To work and develop PyO3, you need Python & Rust installed on your system.
+* We encourage the use of [rustup](https://rustup.rs/) to be able to select and choose specific toolchains based on the project.
+* [Pyenv](https://github.com/pyenv/pyenv) is also highly recommended for being able to choose a specific Python version.
+* [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
+
+### Caveats
+
+* When using pyenv on macOS, installing a Python version using `--enable-shared` is required to make it work. i.e `env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.12`
 
 ### Help users identify bugs
 
@@ -34,7 +47,8 @@ There are some specific areas of focus where help is currently needed for the do
 - Issues requesting documentation improvements are tracked with the [documentation](https://github.com/PyO3/pyo3/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation) label.
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
-You can build the docs (including all features) with `cargo +nightly rustdoc --features="$(make list_all_additive_features)" --open -- --cfg docsrs`.
+You can build the docs (including all features) with
+```cargo +nightly pyo3_doc_scrape```
 
 #### Doctests
 
@@ -47,7 +61,7 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 You can preview the user guide by building it locally with `mdbook`.
 
 First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run
-`mdbook build -d ../gh-pages-build guide --open`.
+```mdbook build -d ../gh-pages-build guide --open```
 
 ### Help design the next PyO3
 
@@ -71,7 +85,7 @@ Formatting, linting and tests are checked for all Rust and Python code. In addit
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
-If you are adding a new feature, you should add it to the `ALL_ADDITIVE_FEATURES` declaration in the `Makefile` so that it is tested in CI.
+If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
 ## Python and Rust version support policy
 
@@ -101,7 +115,7 @@ First, there are Rust-based benchmarks located in the `benches` subdirectory. As
 
     cargo +nightly bench
 
-Second, there is a Python-based benchmark contained in the `pyo3-benchmarks` example. You can read more about it [here](examples/pyo3-benchmarks).
+Second, there is a Python-based benchmark contained in the `pytests` subdirectory. You can read more about it [here](pytests).
 
 ## Sponsor this project
 
