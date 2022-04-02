@@ -685,7 +685,7 @@ fn is_linking_libpython_for_target(target: &Triple) -> bool {
 #[derive(Debug, PartialEq)]
 pub struct CrossCompileConfig {
     /// The directory containing the Python library to link against.
-    pub lib_dir: PathBuf,
+    pub lib_dir: Option<PathBuf>,
 
     /// The version of the Python library to link against.
     version: Option<PythonVersion>,
@@ -745,8 +745,10 @@ impl CrossCompileConfig {
     ///
     /// The conversion can not fail because `PYO3_CROSS_LIB_DIR` variable
     /// is ensured contain a valid UTF-8 string.
-    fn lib_dir_string(&self) -> String {
-        self.lib_dir.to_str().unwrap().to_owned()
+    fn lib_dir_string(&self) -> Option<String> {
+        self.lib_dir
+            .as_ref()
+            .map(|s| s.to_str().unwrap().to_owned())
     }
 }
 
@@ -757,7 +759,7 @@ pub(crate) struct CrossCompileEnvVars {
 }
 
 impl CrossCompileEnvVars {
-    pub fn any(&self) -> bool {
+    fn any(&self) -> bool {
         self.pyo3_cross.is_some()
             || self.pyo3_cross_lib_dir.is_some()
             || self.pyo3_cross_python_version.is_some()
@@ -786,7 +788,7 @@ impl CrossCompileEnvVars {
     /// into a `PathBuf` instance.
     ///
     /// Ensures that the path is a valid UTF-8 string.
-    fn lib_dir_path(&self) -> Result<PathBuf> {
+    fn lib_dir_path(&self) -> Result<Option<PathBuf>> {
         let lib_dir = self.pyo3_cross_lib_dir.as_ref().map(PathBuf::from);
 
         if let Some(dir) = lib_dir.as_ref() {
@@ -794,11 +796,9 @@ impl CrossCompileEnvVars {
                 dir.to_str().is_some(),
                 "PYO3_CROSS_LIB_DIR variable value is not a valid UTF-8 string"
             );
-            Ok(dir.clone())
-        } else {
-            // FIXME: Relax this restriction in the future.
-            bail!("The PYO3_CROSS_LIB_DIR environment variable must be set when cross-compiling")
         }
+
+        Ok(lib_dir)
     }
 }
 
@@ -815,9 +815,9 @@ pub(crate) fn cross_compile_env_vars() -> CrossCompileEnvVars {
 /// This function relies on PyO3 cross-compiling environment variables:
 ///
 ///   * `PYO3_CROSS`: If present, forces PyO3 to configure as a cross-compilation.
-///   * `PYO3_CROSS_LIB_DIR`: Must be set to the directory containing the target's libpython DSO and
-///   the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import
-///   libraries for the Windows target.
+///   * `PYO3_CROSS_LIB_DIR`: If present, must be set to the directory containing
+///   the target's libpython DSO and the associated `_sysconfigdata*.py` file for
+///   Unix-like targets, or the Python DLL import libraries for the Windows target.
 ///   * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python
 ///   installation. This variable is only needed if PyO3 cannnot determine the version to target
 ///   from `abi3-py3*` features, or if there are multiple versions of Python present in
@@ -1109,13 +1109,22 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
     name.to_string_lossy().ends_with(pat)
 }
 
-fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
+/// Finds the sysconfigdata file when the target Python library directory is set.
+///
+/// Returns `None` if the library directory is not available, and a runtime error
+/// when no or multiple sysconfigdata files are found.
+fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross);
     if sysconfig_paths.is_empty() {
-        bail!(
-            "Could not find either libpython.so or _sysconfigdata*.py in {}",
-            cross.lib_dir.display()
-        );
+        if let Some(lib_dir) = cross.lib_dir.as_ref() {
+            bail!(
+                "Could not find either libpython.so or _sysconfigdata*.py in {}",
+                lib_dir.display()
+            );
+        } else {
+            // Continue with the default configuration when PYO3_CROSS_LIB_DIR is not set.
+            return Ok(None);
+        }
     } else if sysconfig_paths.len() > 1 {
         let mut error_msg = String::from(
             "Detected multiple possible Python versions. Please set either the \
@@ -1129,7 +1138,7 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
         bail!("{}\n", error_msg);
     }
 
-    Ok(sysconfig_paths.remove(0))
+    Ok(Some(sysconfig_paths.remove(0)))
 }
 
 /// Finds `_sysconfigdata*.py` files for detected Python interpreters.
@@ -1167,8 +1176,16 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<PathBuf> {
 /// ```
 ///
 /// [1]: https://github.com/python/cpython/blob/3.5/Lib/sysconfig.py#L389
+///
+/// Returns an empty vector when the target Python library directory
+/// is not set via `PYO3_CROSS_LIB_DIR`.
 pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Vec<PathBuf> {
-    let sysconfig_paths = search_lib_dir(&cross.lib_dir, cross);
+    let sysconfig_paths = if let Some(lib_dir) = cross.lib_dir.as_ref() {
+        search_lib_dir(lib_dir, cross)
+    } else {
+        return Vec::new();
+    };
+
     let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
     let mut sysconfig_paths = sysconfig_paths
         .iter()
@@ -1267,16 +1284,28 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Vec<Pat
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
 ///
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
+///
+/// Returns `None` when the target Python library directory is not set.
 fn cross_compile_from_sysconfigdata(
-    cross_compile_config: CrossCompileConfig,
-) -> Result<InterpreterConfig> {
-    let sysconfigdata_path = find_sysconfigdata(&cross_compile_config)?;
-    InterpreterConfig::from_sysconfigdata(&parse_sysconfigdata(sysconfigdata_path)?)
+    cross_compile_config: &CrossCompileConfig,
+) -> Result<Option<InterpreterConfig>> {
+    if let Some(path) = find_sysconfigdata(cross_compile_config)? {
+        let data = parse_sysconfigdata(path)?;
+        let config = InterpreterConfig::from_sysconfigdata(&data)?;
+
+        Ok(Some(config))
+    } else {
+        Ok(None)
+    }
 }
 
-fn windows_hardcoded_cross_compile(
-    cross_compile_config: CrossCompileConfig,
-) -> Result<InterpreterConfig> {
+/// Generates "default" cross compilation information for the target.
+///
+/// This should work for most CPython extension modules when targeting
+/// Windows, MacOS and Linux.
+///
+/// Must be called from a PyO3 crate build script.
+fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
         .or_else(get_abi3_version)
@@ -1287,21 +1316,30 @@ fn windows_hardcoded_cross_compile(
 
     let abi3 = is_abi3();
     let implementation = PythonImplementation::CPython;
-    let mingw = cross_compile_config.target.environment == Environment::Gnu;
 
-    let lib_dir = Some(cross_compile_config.lib_dir_string());
+    let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
+        let mingw = cross_compile_config.target.environment == Environment::Gnu;
+
+        Some(default_lib_name_windows(
+            version,
+            implementation,
+            abi3,
+            mingw,
+        ))
+    } else if is_linking_libpython_for_target(&cross_compile_config.target) {
+        Some(default_lib_name_unix(version, implementation, None))
+    } else {
+        None
+    };
+
+    let lib_dir = cross_compile_config.lib_dir_string();
 
     Ok(InterpreterConfig {
         implementation,
         version,
         shared: true,
         abi3,
-        lib_name: Some(default_lib_name_windows(
-            version,
-            PythonImplementation::CPython,
-            abi3,
-            mingw,
-        )),
+        lib_name,
         lib_dir,
         executable: None,
         pointer_width: None,
@@ -1311,26 +1349,39 @@ fn windows_hardcoded_cross_compile(
     })
 }
 
+/// Detects the cross compilation target interpreter configuration from all
+/// available sources (PyO3 environment variables, Python sysconfigdata, etc.).
+///
+/// Returns the "default" target interpreter configuration for Windows and
+/// when no target Python interpreter is found.
+///
+/// Must be called from a PyO3 crate build script.
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
-    match cargo_env_var("CARGO_CFG_TARGET_FAMILY") {
-        // Configure for unix platforms using the sysconfigdata file
-        Some(os) if os == "unix" => cross_compile_from_sysconfigdata(cross_compile_config),
-        // Use hardcoded interpreter config when targeting Windows
-        Some(os) if os == "windows" => windows_hardcoded_cross_compile(cross_compile_config),
-        // sysconfigdata works fine on wasm/wasi
-        Some(os) if os == "wasm" => cross_compile_from_sysconfigdata(cross_compile_config),
-        // Waiting for users to tell us what they expect on their target platform
-        Some(os) => bail!(
-            "Unknown target OS family for cross-compilation: {:?}.\n\
-            \n\
-            Please set the PYO3_CONFIG_FILE environment variable to a config suitable for your \
-            target interpreter.",
-            os
-        ),
-        // Unknown os family - try to do something useful
-        None => cross_compile_from_sysconfigdata(cross_compile_config),
+    // Load the defaults for Windows even when `PYO3_CROSS_LIB_DIR` is set
+    // since it has no sysconfigdata files in it.
+    if cross_compile_config.target.operating_system == OperatingSystem::Windows {
+        return default_cross_compile(&cross_compile_config);
+    }
+
+    // Try to find and parse sysconfigdata files on other targets
+    // and fall back to the defaults when none are found.
+    if let Some(config) = cross_compile_from_sysconfigdata(&cross_compile_config)? {
+        Ok(config)
+    } else {
+        let config = default_cross_compile(&cross_compile_config)?;
+
+        if config.lib_name.is_some() && config.lib_dir.is_none() {
+            warn!(
+                "The output binary will link to libpython, \
+                but PYO3_CROSS_LIB_DIR environment variable is not set. \
+                Ensure that the target Python library directory is \
+                in the rustc native library search path."
+            );
+        }
+
+        Ok(config)
     }
 }
 
@@ -1758,13 +1809,13 @@ mod tests {
     #[test]
     fn windows_hardcoded_cross_compile() {
         let cross_config = CrossCompileConfig {
-            lib_dir: "C:\\some\\path".into(),
+            lib_dir: Some("C:\\some\\path".into()),
             version: Some(PythonVersion { major: 3, minor: 7 }),
             target: triple!("i686-pc-windows-msvc"),
         };
 
         assert_eq!(
-            super::windows_hardcoded_cross_compile(cross_config).unwrap(),
+            default_cross_compile(&cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 7 },
@@ -1784,13 +1835,13 @@ mod tests {
     #[test]
     fn mingw_hardcoded_cross_compile() {
         let cross_config = CrossCompileConfig {
-            lib_dir: "/usr/lib/mingw".into(),
+            lib_dir: Some("/usr/lib/mingw".into()),
             version: Some(PythonVersion { major: 3, minor: 8 }),
             target: triple!("i686-pc-windows-gnu"),
         };
 
         assert_eq!(
-            super::windows_hardcoded_cross_compile(cross_config).unwrap(),
+            default_cross_compile(&cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 8 },
@@ -1798,6 +1849,32 @@ mod tests {
                 abi3: false,
                 lib_name: Some("python3.8".into()),
                 lib_dir: Some("/usr/lib/mingw".into()),
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn unix_hardcoded_cross_compile() {
+        let cross_config = CrossCompileConfig {
+            lib_dir: Some("/usr/arm64/lib".into()),
+            version: Some(PythonVersion { major: 3, minor: 9 }),
+            target: triple!("aarch64-unknown-linux-gnu"),
+        };
+
+        assert_eq!(
+            default_cross_compile(&cross_config).unwrap(),
+            InterpreterConfig {
+                implementation: PythonImplementation::CPython,
+                version: PythonVersion { major: 3, minor: 9 },
+                shared: true,
+                abi3: false,
+                lib_name: Some("python3.9".into()),
+                lib_dir: Some("/usr/arm64/lib".into()),
                 executable: None,
                 pointer_width: None,
                 build_flags: BuildFlags::default(),
@@ -1989,15 +2066,15 @@ mod tests {
         };
 
         let cross = CrossCompileConfig {
-            lib_dir: lib_dir.into(),
+            lib_dir: Some(lib_dir.into()),
             version: Some(interpreter_config.version),
             target: triple!("x86_64-unknown-linux-gnu"),
         };
 
         let sysconfigdata_path = match find_sysconfigdata(&cross) {
-            Ok(path) => path,
+            Ok(Some(path)) => path,
             // Couldn't find a matching sysconfigdata; never mind!
-            Err(_) => return,
+            _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
         let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();

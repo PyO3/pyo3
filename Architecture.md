@@ -188,8 +188,10 @@ Some of the functionality of `pyo3-build-config`:
     Currently we use the `extension-module` feature for this purpose. This may change in the future.
     See [#1123](https://github.com/PyO3/pyo3/pull/1123).
 - Cross-compiling configuration
-  - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
+  - If `TARGET` architecture and `HOST` architecture differ, we can find cross compile information
     from environment variables (`PYO3_CROSS_LIB_DIR` and `PYO3_CROSS_PYTHON_VERSION`) or system files.
+    When cross compiling extension modules it is often possible to make it work without any
+    additional user input.
 
 <!-- External Links -->
 
