@@ -861,7 +861,7 @@ impl CrossCompileEnvVars {
 ///
 /// See the [PyO3 User Guide](https://pyo3.rs/) for more info on cross-compiling.
 #[deprecated(
-    since = "0.17.0",
+    since = "0.16.3",
     note = "please use cross_compiling_from_to() instead"
 )]
 pub fn cross_compiling(
