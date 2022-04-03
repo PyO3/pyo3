@@ -375,6 +375,7 @@ pub mod impl_;
 mod instance;
 pub mod marker;
 pub mod marshal;
+#[macro_use]
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;
