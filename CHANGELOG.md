@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow dependent crates to access config values from `pyo3-build-config` via cargo link dep env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 - Added methods on `InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
 - Added FFI definitions for `PyType_FromModuleAndSpec`, `PyType_GetModule`, `PyType_GetModuleState` and `PyModule_AddType`. [#2250](https://github.com/PyO3/pyo3/pull/2250)
+- Add `PyString::intern` to enable usage of the Python's built-in string interning. [#2268](https://github.com/PyO3/pyo3/pull/2268)
 
 ### Changed
 
