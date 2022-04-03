@@ -42,6 +42,7 @@ impl<T> GILOnceCell<T> {
     }
 
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
+    #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
         // Safe because if the cell has not yet been written, None is returned.
         unsafe { &*self.0.get() }.as_ref()
@@ -61,15 +62,23 @@ impl<T> GILOnceCell<T> {
     ///     exactly once, even if multiple threads attempt to call `get_or_init`
     ///  4) if f() can panic but still does not release the GIL, it may be called multiple times,
     ///     but it is guaranteed that f() will never be called concurrently
+    #[inline]
     pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
     where
         F: FnOnce() -> T,
     {
-        let inner = unsafe { &*self.0.get() }.as_ref();
-        if let Some(value) = inner {
+        if let Some(value) = self.get(py) {
             return value;
         }
 
+        self.init(py, f)
+    }
+
+    #[cold]
+    fn init<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
