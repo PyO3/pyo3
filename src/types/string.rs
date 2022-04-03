@@ -144,6 +144,26 @@ impl PyString {
         unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
+    /// Intern the given string
+    ///
+    /// This will return a reference to the same Python string object if called repeatedly with the same string.
+    ///
+    /// Note that while this is more memory efficient than [`PyString::new`], it unconditionally allocates a
+    /// temporary Python string object and is thereby slower than [`PyString::new`].
+    ///
+    /// Panics if out of memory.
+    pub fn intern<'p>(py: Python<'p>, s: &str) -> &'p PyString {
+        let ptr = s.as_ptr() as *const c_char;
+        let len = s.len() as ffi::Py_ssize_t;
+        unsafe {
+            let mut ob = ffi::PyUnicode_FromStringAndSize(ptr, len);
+            if !ob.is_null() {
+                ffi::PyUnicode_InternInPlace(&mut ob);
+            }
+            py.from_owned_ptr(ob)
+        }
+    }
+
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// [bytes-like object]: (https://docs.python.org/3/glossary.html#term-bytes-like-object).
@@ -590,6 +610,24 @@ mod tests {
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("𠀀�".into()));
+        });
+    }
+
+    #[test]
+    fn test_intern_string() {
+        Python::with_gil(|py| {
+            let py_string1 = PyString::intern(py, "foo");
+            assert_eq!(py_string1.to_str().unwrap(), "foo");
+
+            let py_string2 = PyString::intern(py, "foo");
+            assert_eq!(py_string2.to_str().unwrap(), "foo");
+
+            assert_eq!(py_string1.as_ptr(), py_string2.as_ptr());
+
+            let py_string3 = PyString::intern(py, "bar");
+            assert_eq!(py_string3.to_str().unwrap(), "bar");
+
+            assert_ne!(py_string1.as_ptr(), py_string3.as_ptr());
         });
     }
 }
