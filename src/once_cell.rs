@@ -111,12 +111,11 @@ impl<T> GILOnceCell<T> {
     }
 }
 
-/// Converts `value` into a Python object and stores it in static storage. The same Python object
-/// is returned on each invocation.
+/// Interns `text` as a Python string and stores a reference to it in static storage.
 ///
-/// Because it is stored in a static, this object's destructor will not run.
+/// A reference to the same Python string is returned on each invocation.
 ///
-/// # Example: Using `intern!` to avoid needlessly recreating the same object
+/// # Example: Using `intern!` to avoid needlessly recreating the same Python string
 ///
 /// ```
 /// use pyo3::intern;
@@ -126,7 +125,7 @@ impl<T> GILOnceCell<T> {
 /// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
 ///    let dict = PyDict::new(py);
 ///    //             👇 A new `PyString` is created
-///    //                for every call of this function
+///    //                for every call of this function.
 ///    dict.set_item("foo", 42)?;
 ///    Ok(dict)
 /// }
@@ -142,14 +141,12 @@ impl<T> GILOnceCell<T> {
 /// ```
 #[macro_export]
 macro_rules! intern {
-    ($py: expr, $value: expr) => {{
-        static INTERNED: $crate::once_cell::GILOnceCell<$crate::PyObject> =
+    ($py: expr, $text: literal) => {{
+        static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
             $crate::once_cell::GILOnceCell::new();
 
         INTERNED
-            .get_or_init($py, || {
-                $crate::conversion::ToPyObject::to_object($value, $py)
-            })
+            .get_or_init($py, || $crate::types::PyString::intern($py, $text).into())
             .as_ref($py)
     }};
 }
