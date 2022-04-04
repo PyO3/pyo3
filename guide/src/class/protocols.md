@@ -198,9 +198,11 @@ The Python C-API which PyO3 is built upon has separate "slots" for sequences and
 
 By default PyO3 reproduces the Python behaviour of filling both mapping and sequence slots. This makes sense for the "simple" case which matches Python, and also for sequences, where the mapping slot is used anyway to implement slice indexing.
 
-For mapping types, it may be desirable to not have the sequence slots filled. Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty.
+Mapping types usually will not want the sequence slots filled. Having them filled will lead to outcomes which may be unwanted, such as:
+- The mapping type will successfully cast to [`PySequence`]. This may lead to consumers of the type handling it incorrectly.
+- Python provides a default implementation of `__iter__` for sequences, which calls `__getitem__` with consecutive positive integers starting from 0 until an `IndexError` is returned. Unless the mapping only contains consecutive positive integer keys, this `__iter__` implementation will likely not be the intended behavior.
 
-This behaviour affects the implementation of `__getitem__`, `__setitem__`, and `__delitem__`.
+Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty. This will apply to `__getitem__`, `__setitem__`, and `__delitem__`.
 
   - `__len__(<self>) -> usize`
 
@@ -608,3 +610,4 @@ For details, look at the `#[pymethods]` regarding GC methods.
 [`PyObjectProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/basic/trait.PyObjectProtocol.html
 [`PySequenceProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/sequence/trait.PySequenceProtocol.html
 [`PyIterProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/iter/trait.PyIterProtocol.html
+[`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
