@@ -337,6 +337,12 @@ extern "C" {
 // Flag bits for printing:
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+pub const Py_TPFLAGS_SEQUENCE: c_ulong = 1 << 5;
+
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+pub const Py_TPFLAGS_MAPPING: c_ulong = 1 << 6;
+
 #[cfg(Py_3_10)]
 pub const Py_TPFLAGS_DISALLOW_INSTANTIATION: c_ulong = 1 << 7;
 
