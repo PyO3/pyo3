@@ -119,7 +119,7 @@ impl<T> GILOnceCell<T> {
 ///
 /// ```
 /// use pyo3::intern;
-/// # use pyo3::{pyfunction, types::PyDict, PyResult, Python};
+/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
@@ -138,6 +138,12 @@ impl<T> GILOnceCell<T> {
 ///    dict.set_item(intern!(py, "foo"), 42)?;
 ///    Ok(dict)
 /// }
+/// #
+/// # Python::with_gil(|py| {
+/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
+/// #     let dict = fun.call0().unwrap();
+/// #     assert!(dict.contains("foo").unwrap());
+/// # });
 /// ```
 #[macro_export]
 macro_rules! intern {
