@@ -690,6 +690,9 @@ pub struct CrossCompileConfig {
     /// The version of the Python library to link against.
     version: Option<PythonVersion>,
 
+    /// The target Python implementation hint (CPython or PyPy)
+    implementation: Option<PythonImplementation>,
+
     /// The compile target triple (e.g. aarch64-unknown-linux-gnu)
     target: Triple,
 }
@@ -707,12 +710,14 @@ impl CrossCompileConfig {
         if env_vars.any() || Self::is_cross_compiling_from_to(host, target) {
             let lib_dir = env_vars.lib_dir_path()?;
             let version = env_vars.parse_version()?;
+            let implementation = env_vars.parse_implementation()?;
             let target = target.clone();
 
             Ok(Some(CrossCompileConfig {
                 lib_dir,
-                target,
                 version,
+                implementation,
+                target,
             }))
         } else {
             Ok(None)
@@ -752,17 +757,37 @@ impl CrossCompileConfig {
     }
 }
 
-pub(crate) struct CrossCompileEnvVars {
+/// PyO3-specific cross compile environment variable values
+struct CrossCompileEnvVars {
+    /// `PYO3_CROSS`
     pyo3_cross: Option<OsString>,
+    /// `PYO3_CROSS_LIB_DIR`
     pyo3_cross_lib_dir: Option<OsString>,
+    /// `PYO3_CROSS_PYTHON_VERSION`
     pyo3_cross_python_version: Option<OsString>,
+    /// `PYO3_CROSS_PYTHON_IMPLEMENTATION`
+    pyo3_cross_python_implementation: Option<OsString>,
 }
 
 impl CrossCompileEnvVars {
+    /// Grabs the PyO3 cross-compile variables from the environment.
+    ///
+    /// Registers the build script to rerun if any of the variables changes.
+    fn from_env() -> Self {
+        CrossCompileEnvVars {
+            pyo3_cross: env_var("PYO3_CROSS"),
+            pyo3_cross_lib_dir: env_var("PYO3_CROSS_LIB_DIR"),
+            pyo3_cross_python_version: env_var("PYO3_CROSS_PYTHON_VERSION"),
+            pyo3_cross_python_implementation: env_var("PYO3_CROSS_PYTHON_IMPLEMENTATION"),
+        }
+    }
+
+    /// Checks if any of the variables is set.
     fn any(&self) -> bool {
         self.pyo3_cross.is_some()
             || self.pyo3_cross_lib_dir.is_some()
             || self.pyo3_cross_python_version.is_some()
+            || self.pyo3_cross_python_implementation.is_some()
     }
 
     /// Parses `PYO3_CROSS_PYTHON_VERSION` environment variable value
@@ -784,6 +809,25 @@ impl CrossCompileEnvVars {
         Ok(version)
     }
 
+    /// Parses `PYO3_CROSS_PYTHON_IMPLEMENTATION` environment variable value
+    /// into `PythonImplementation`.
+    fn parse_implementation(&self) -> Result<Option<PythonImplementation>> {
+        let implementation = self
+            .pyo3_cross_python_implementation
+            .as_ref()
+            .map(|os_string| {
+                let utf8_str = os_string
+                    .to_str()
+                    .ok_or("PYO3_CROSS_PYTHON_IMPLEMENTATION is not valid a UTF-8 string")?;
+                utf8_str
+                    .parse()
+                    .context("failed to parse PYO3_CROSS_PYTHON_IMPLEMENTATION")
+            })
+            .transpose()?;
+
+        Ok(implementation)
+    }
+
     /// Converts the stored `PYO3_CROSS_LIB_DIR` variable value (if any)
     /// into a `PathBuf` instance.
     ///
@@ -799,14 +843,6 @@ impl CrossCompileEnvVars {
         }
 
         Ok(lib_dir)
-    }
-}
-
-pub(crate) fn cross_compile_env_vars() -> CrossCompileEnvVars {
-    CrossCompileEnvVars {
-        pyo3_cross: env::var_os("PYO3_CROSS"),
-        pyo3_cross_lib_dir: env::var_os("PYO3_CROSS_LIB_DIR"),
-        pyo3_cross_python_version: env::var_os("PYO3_CROSS_PYTHON_VERSION"),
     }
 }
 
@@ -879,7 +915,7 @@ pub fn cross_compiling_from_to(
     host: &Triple,
     target: &Triple,
 ) -> Result<Option<CrossCompileConfig>> {
-    let env_vars = cross_compile_env_vars();
+    let env_vars = CrossCompileEnvVars::from_env();
     CrossCompileConfig::try_from_env_vars_host_target(env_vars, host, target)
 }
 
@@ -889,7 +925,7 @@ pub fn cross_compiling_from_to(
 /// This must be called from PyO3's build script, because it relies on environment
 /// variables such as `CARGO_CFG_TARGET_OS` which aren't available at any other time.
 pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
-    let env_vars = cross_compile_env_vars();
+    let env_vars = CrossCompileEnvVars::from_env();
     let host = Triple::host();
     let target = target_triple_from_env();
 
@@ -1302,7 +1338,7 @@ fn cross_compile_from_sysconfigdata(
 /// Generates "default" cross compilation information for the target.
 ///
 /// This should work for most CPython extension modules when targeting
-/// Windows, MacOS and Linux.
+/// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
@@ -1315,7 +1351,9 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         )?;
 
     let abi3 = is_abi3();
-    let implementation = PythonImplementation::CPython;
+    let implementation = cross_compile_config
+        .implementation
+        .unwrap_or(PythonImplementation::CPython);
 
     let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
         let mingw = cross_compile_config.target.environment == Environment::Gnu;
@@ -1808,11 +1846,19 @@ mod tests {
 
     #[test]
     fn windows_hardcoded_cross_compile() {
-        let cross_config = CrossCompileConfig {
-            lib_dir: Some("C:\\some\\path".into()),
-            version: Some(PythonVersion { major: 3, minor: 7 }),
-            target: triple!("i686-pc-windows-msvc"),
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: Some("C:\\some\\path".into()),
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.7".into()),
         };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("i686-pc-windows-msvc");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
 
         assert_eq!(
             default_cross_compile(&cross_config).unwrap(),
@@ -1834,11 +1880,19 @@ mod tests {
 
     #[test]
     fn mingw_hardcoded_cross_compile() {
-        let cross_config = CrossCompileConfig {
-            lib_dir: Some("/usr/lib/mingw".into()),
-            version: Some(PythonVersion { major: 3, minor: 8 }),
-            target: triple!("i686-pc-windows-gnu"),
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: Some("/usr/lib/mingw".into()),
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.8".into()),
         };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("i686-pc-windows-gnu");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
 
         assert_eq!(
             default_cross_compile(&cross_config).unwrap(),
@@ -1860,11 +1914,19 @@ mod tests {
 
     #[test]
     fn unix_hardcoded_cross_compile() {
-        let cross_config = CrossCompileConfig {
-            lib_dir: Some("/usr/arm64/lib".into()),
-            version: Some(PythonVersion { major: 3, minor: 9 }),
-            target: triple!("aarch64-unknown-linux-gnu"),
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: Some("/usr/arm64/lib".into()),
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.9".into()),
         };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("aarch64-unknown-linux-gnu");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
 
         assert_eq!(
             default_cross_compile(&cross_config).unwrap(),
@@ -1875,6 +1937,42 @@ mod tests {
                 abi3: false,
                 lib_name: Some("python3.9".into()),
                 lib_dir: Some("/usr/arm64/lib".into()),
+                executable: None,
+                pointer_width: None,
+                build_flags: BuildFlags::default(),
+                suppress_build_script_link_lines: false,
+                extra_build_script_lines: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn pypy_hardcoded_cross_compile() {
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: None,
+            pyo3_cross_python_implementation: Some("PyPy".into()),
+            pyo3_cross_python_version: Some("3.10".into()),
+        };
+
+        let triple = triple!("x86_64-unknown-linux-gnu");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &triple, &triple)
+                .unwrap()
+                .unwrap();
+
+        assert_eq!(
+            default_cross_compile(&cross_config).unwrap(),
+            InterpreterConfig {
+                implementation: PythonImplementation::PyPy,
+                version: PythonVersion {
+                    major: 3,
+                    minor: 10
+                },
+                shared: true,
+                abi3: false,
+                lib_name: Some("pypy3.10-c".into()),
+                lib_dir: None,
                 executable: None,
                 pointer_width: None,
                 build_flags: BuildFlags::default(),
@@ -1975,6 +2073,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: None,
             pyo3_cross_python_version: Some("3.9".into()),
+            pyo3_cross_python_implementation: None,
         };
 
         assert_eq!(
@@ -1986,6 +2085,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: None,
             pyo3_cross_python_version: None,
+            pyo3_cross_python_implementation: None,
         };
 
         assert_eq!(env_vars.parse_version().unwrap(), None);
@@ -1994,6 +2094,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: None,
             pyo3_cross_python_version: Some("100".into()),
+            pyo3_cross_python_implementation: None,
         };
 
         assert!(env_vars.parse_version().is_err());
@@ -2068,6 +2169,7 @@ mod tests {
         let cross = CrossCompileConfig {
             lib_dir: Some(lib_dir.into()),
             version: Some(interpreter_config.version),
+            implementation: Some(interpreter_config.implementation),
             target: triple!("x86_64-unknown-linux-gnu"),
         };
 
