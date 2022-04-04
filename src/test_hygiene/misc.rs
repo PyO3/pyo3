@@ -27,3 +27,9 @@ enum Derive4 {
 
 crate::create_exception!(mymodule, CustomError, crate::exceptions::PyException);
 crate::import_exception!(socket, gaierror);
+
+#[allow(dead_code)]
+fn intern(py: crate::Python<'_>) {
+    let _foo = crate::intern!(py, "foo");
+    let _bar = crate::intern!(py, stringify!(bar));
+}

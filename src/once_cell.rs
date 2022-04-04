@@ -141,12 +141,38 @@ impl<T> GILOnceCell<T> {
 /// ```
 #[macro_export]
 macro_rules! intern {
-    ($py: expr, $text: literal) => {{
+    ($py: expr, $text: expr) => {{
         static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
             $crate::once_cell::GILOnceCell::new();
 
         INTERNED
-            .get_or_init($py, || $crate::types::PyString::intern($py, $text).into())
+            .get_or_init($py, || {
+                $crate::conversion::IntoPy::into_py(
+                    $crate::types::PyString::intern($py, $text),
+                    $py,
+                )
+            })
             .as_ref($py)
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::types::PyDict;
+
+    #[test]
+    fn test_intern() {
+        Python::with_gil(|py| {
+            let foo1 = "foo";
+            let foo2 = intern!(py, "foo");
+            let foo3 = intern!(py, stringify!(foo));
+
+            let dict = PyDict::new(py);
+            dict.set_item(foo1, 42_usize).unwrap();
+            assert!(dict.contains(foo2).unwrap());
+            assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
+        });
+    }
 }
