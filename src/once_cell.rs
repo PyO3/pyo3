@@ -148,17 +148,21 @@ impl<T> GILOnceCell<T> {
 #[macro_export]
 macro_rules! intern {
     ($py: expr, $text: expr) => {{
-        static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
-            $crate::once_cell::GILOnceCell::new();
+        fn isolate_from_dyn_env(py: $crate::Python<'_>) -> &$crate::types::PyString {
+            static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
+                $crate::once_cell::GILOnceCell::new();
 
-        INTERNED
-            .get_or_init($py, || {
-                $crate::conversion::IntoPy::into_py(
-                    $crate::types::PyString::intern($py, $text),
-                    $py,
-                )
-            })
-            .as_ref($py)
+            INTERNED
+                .get_or_init(py, || {
+                    $crate::conversion::IntoPy::into_py(
+                        $crate::types::PyString::intern(py, $text),
+                        py,
+                    )
+                })
+                .as_ref(py)
+        }
+
+        isolate_from_dyn_env($py)
     }};
 }
 
