@@ -294,8 +294,10 @@ impl<'a> Container<'a> {
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for (ident, attrs) in tups {
             let getter = match &attrs.getter {
-                FieldGetter::GetAttr(Some(name)) => quote!(getattr(#name)),
-                FieldGetter::GetAttr(None) => quote!(getattr(stringify!(#ident))),
+                FieldGetter::GetAttr(Some(name)) => quote!(getattr(_pyo3::intern!(py, #name))),
+                FieldGetter::GetAttr(None) => {
+                    quote!(getattr(_pyo3::intern!(py, stringify!(#ident))))
+                }
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
             };
@@ -303,13 +305,14 @@ impl<'a> Container<'a> {
                 format!("failed to extract field {}.{}", quote!(#self_ty), ident);
             let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
-                None => quote!(
-                    #get_field.extract().map_err(|inner| {
+                None => quote!({
                     let py = _pyo3::PyNativeType::py(obj);
-                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
-                    new_err.set_cause(py, ::std::option::Option::Some(inner));
-                    new_err
-                })?),
+                    #get_field.extract().map_err(|inner| {
+                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
+                        new_err.set_cause(py, ::std::option::Option::Some(inner));
+                        new_err
+                    })?
+                }),
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (

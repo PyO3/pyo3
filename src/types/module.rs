@@ -8,8 +8,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
-use crate::types::PyCFunction;
-use crate::types::{PyAny, PyDict, PyList};
+use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
 use crate::{AsPyPointer, IntoPy, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
@@ -168,12 +167,13 @@ impl PyModule {
     ///
     /// `__all__` declares the items that will be imported with `from my_module import *`.
     pub fn index(&self) -> PyResult<&PyList> {
-        match self.getattr("__all__") {
+        let __all__ = __all__(self.py());
+        match self.getattr(__all__) {
             Ok(idx) => idx.downcast().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
-                    self.setattr("__all__", l).map_err(PyErr::from)?;
+                    self.setattr(__all__, l).map_err(PyErr::from)?;
                     Ok(l)
                 } else {
                     Err(err)
@@ -202,7 +202,6 @@ impl PyModule {
     /// May fail if the module does not have a `__file__` attribute.
     #[cfg(not(all(windows, PyPy)))]
     pub fn filename(&self) -> PyResult<&str> {
-        use crate::types::PyString;
         unsafe {
             self.py()
                 .from_owned_ptr_or_err::<PyString>(ffi::PyModule_GetFilenameObject(self.as_ptr()))?
@@ -304,7 +303,7 @@ impl PyModule {
     {
         let py = self.py();
         let function = wrapper(py).convert(py)?;
-        let name = function.getattr(py, "__name__")?;
+        let name = function.getattr(py, __name__(py))?;
         let name = name.extract(py)?;
         self.add(name, function)
     }
@@ -389,9 +388,17 @@ impl PyModule {
     /// [1]: crate::prelude::pyfunction
     /// [2]: crate::wrap_pyfunction
     pub fn add_function<'a>(&'a self, fun: &'a PyCFunction) -> PyResult<()> {
-        let name = fun.getattr("__name__")?.extract()?;
+        let name = fun.getattr(__name__(self.py()))?.extract()?;
         self.add(name, fun)
     }
+}
+
+fn __all__(py: Python<'_>) -> &PyString {
+    intern!(py, "__all__")
+}
+
+fn __name__(py: Python<'_>) -> &PyString {
+    intern!(py, "__name__")
 }
 
 #[cfg(test)]
