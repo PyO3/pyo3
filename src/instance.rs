@@ -534,6 +534,25 @@ impl<T> Py<T> {
     /// Retrieves an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
+    ///
+    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
+    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    ///
+    /// # Example: `intern!`ing the attribute name
+    ///
+    /// ```
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, Py, Python, PyObject, PyResult};
+    /// #
+    /// #[pyfunction]
+    /// fn version(sys: Py<PyModule>, py: Python<'_>) -> PyResult<PyObject> {
+    ///     sys.getattr(py, intern!(py, "version"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let sys = py.import("sys").unwrap().into_py(py);
+    /// #    version(sys, py).unwrap();
+    /// # });
+    /// ```
     pub fn getattr<N>(&self, py: Python<'_>, attr_name: N) -> PyResult<PyObject>
     where
         N: ToPyObject,
@@ -546,6 +565,25 @@ impl<T> Py<T> {
     /// Sets an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
+    ///
+    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
+    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    ///
+    /// # Example: `intern!`ing the attribute name
+    ///
+    /// ```
+    /// # use pyo3::{intern, pyfunction, types::PyModule, IntoPy, PyObject, Python, PyResult};
+    /// #
+    /// #[pyfunction]
+    /// fn set_answer(ob: PyObject, py: Python<'_>) -> PyResult<()> {
+    ///     ob.setattr(py, intern!(py, "answer"), 42)
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #    let ob = PyModule::new(py, "empty").unwrap().into_py(py);
+    /// #    set_answer(ob, py).unwrap();
+    /// # });
+    /// ```
     pub fn setattr<N, V>(&self, py: Python<'_>, attr_name: N, value: V) -> PyResult<()>
     where
         N: ToPyObject,
