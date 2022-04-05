@@ -84,8 +84,6 @@ pub fn get() -> &'static InterpreterConfig {
             interpreter_config
         } else if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
-        } else if !ABI3_CONFIG.is_empty() {
-            Ok(abi3_config())
         } else if cross_compiling {
             InterpreterConfig::from_path(cross_compile_config_path.as_ref().unwrap())
         } else {
@@ -99,12 +97,6 @@ pub fn get() -> &'static InterpreterConfig {
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 const CONFIG_FILE: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-file.txt"));
-
-/// Build configuration set if abi3 features enabled and `PYO3_NO_PYTHON` env var present. Empty if
-/// not both present.
-#[doc(hidden)]
-#[cfg(feature = "resolve-config")]
-const ABI3_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-config-abi3.txt"));
 
 /// Build configuration discovered by `pyo3-build-config` build script. Not aware of
 /// cross-compilation settings.
@@ -126,20 +118,6 @@ fn resolve_cross_compile_config_path() -> Option<PathBuf> {
         path.push("pyo3-build-config.txt");
         path
     })
-}
-
-#[cfg(feature = "resolve-config")]
-fn abi3_config() -> InterpreterConfig {
-    let mut interpreter_config = InterpreterConfig::from_reader(Cursor::new(ABI3_CONFIG))
-        .expect("failed to parse hardcoded PyO3 abi3 config");
-    // If running from a build script on Windows, tweak the hardcoded abi3 config to contain
-    // the standard lib name (this is necessary so that abi3 extension modules using
-    // PYO3_NO_PYTHON on Windows can link)
-    if std::env::var("CARGO_CFG_TARGET_OS").map_or(false, |target_os| target_os == "windows") {
-        assert_eq!(interpreter_config.lib_name, None);
-        interpreter_config.lib_name = Some("python3".to_owned())
-    }
-    interpreter_config
 }
 
 /// Use certain features if we detect the compiler being used supports them.
@@ -200,8 +178,6 @@ pub mod pyo3_build_script_impl {
     pub fn resolve_interpreter_config() -> Result<InterpreterConfig> {
         if !CONFIG_FILE.is_empty() {
             InterpreterConfig::from_reader(Cursor::new(CONFIG_FILE))
-        } else if !ABI3_CONFIG.is_empty() {
-            Ok(abi3_config())
         } else if let Some(interpreter_config) = make_cross_compile_config()? {
             // This is a cross compile and need to write the config file.
             let path = resolve_cross_compile_config_path()
