@@ -6,39 +6,36 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- Add `PYO3_CROSS_PYTHON_IMPLEMENTATION` environment variable for selecting the default cross Python implementation. [#2272](https://github.com/PyO3/pyo3/pull/2272)
-- Add new public `pyo3-build-config` API using the types from `target_lexicon` crate. Deprecate `cross_compiling()`. [#2253](https://github.com/PyO3/pyo3/pull/2253)
-- Allow dependent crates to access config values from `pyo3-build-config` via cargo link dep env vars. [#2092](https://github.com/PyO3/pyo3/pull/2092)
-- Added methods on `InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
-- Added FFI definitions for `PyType_FromModuleAndSpec`, `PyType_GetModule`, `PyType_GetModuleState` and `PyModule_AddType`. [#2250](https://github.com/PyO3/pyo3/pull/2250)
-- Add `PyString::intern` to enable usage of the Python's built-in string interning. [#2268](https://github.com/PyO3/pyo3/pull/2268)
-- Add `intern!` macro which can be used to amortize the cost of creating Python strings by storing them inside a `GILOnceCell`. [#2269](https://github.com/PyO3/pyo3/pull/2269)
-
-### Changed
-
-- Make `PYO3_CROSS_LIB_DIR` environment variable optional when cross compiling. [#2241](https://github.com/PyO3/pyo3/pull/2241)
-- Allow `#[pyo3(crate = "...", text_signature = "...")]` options to be used directly in `#[pyclass(crate = "...", text_signature = "...")]`. [#2234](https://github.com/PyO3/pyo3/pull/2234)
-- Mark `METH_FASTCALL` calling convention as limited API on Python 3.10. [#2250](https://github.com/PyO3/pyo3/pull/2250)
-
-### Fixed
-
-- Fix `abi3-py310` feature: use Python 3.10 ABI when available instead of silently falling back to the 3.9 ABI. [#2242](https://github.com/PyO3/pyo3/pull/2242)
-- Considered `PYTHONFRAMEWORK` when cross compiling in order that on macos cross compiling against a [Framework bundle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html) is considered shared. [#2233](https://github.com/PyO3/pyo3/pull/2233)
-- Panic during compilation when `PYO3_CROSS_LIB_DIR` is set for some host/target combinations. [#2232](https://github.com/PyO3/pyo3/pull/2232)
-- Correct dependency version for `syn` to require correct minimal patch version 1.0.56. [#2240](https://github.com/PyO3/pyo3/pull/2240)
-
-### Added
-
-- Added `as_bytes` on `Py<PyBytes>`. [#2235](https://github.com/PyO3/pyo3/pull/2235)
-- Add `#[pyclass(mapping)]` option to leave sequence slots empty in container implementations. [#2265](https://github.com/PyO3/pyo3/pull/2265)
+## [0.16.3] - 2022-04-05
 
 ### Packaging
 
 - Extend `parking_lot` dependency supported versions to include 0.12. [#2239](https://github.com/PyO3/pyo3/pull/2239)
+
+### Added
+
+- Add methods to `pyo3_build_config::InterpreterConfig` to run Python scripts using the configured executable. [#2092](https://github.com/PyO3/pyo3/pull/2092)
+- Add `as_bytes` method to `Py<PyBytes>`. [#2235](https://github.com/PyO3/pyo3/pull/2235)
+- Add FFI definitions for `PyType_FromModuleAndSpec`, `PyType_GetModule`, `PyType_GetModuleState` and `PyModule_AddType`. [#2250](https://github.com/PyO3/pyo3/pull/2250)
+- Add `pyo3_build_config::cross_compiling_from_to` as a helper to detect when PyO3 is cross-compiling. [#2253](https://github.com/PyO3/pyo3/pull/2253)
+- Add `#[pyclass(mapping)]` option to leave sequence slots empty in container implementations. [#2265](https://github.com/PyO3/pyo3/pull/2265)
+- Add `PyString::intern` to enable usage of the Python's built-in string interning. [#2268](https://github.com/PyO3/pyo3/pull/2268)
+- Add `intern!` macro which can be used to amortize the cost of creating Python strings by storing them inside a `GILOnceCell`. [#2269](https://github.com/PyO3/pyo3/pull/2269)
+- Add `PYO3_CROSS_PYTHON_IMPLEMENTATION` environment variable for selecting the default cross Python implementation. [#2272](https://github.com/PyO3/pyo3/pull/2272)
+
+### Changed
+
+- Allow `#[pyo3(crate = "...", text_signature = "...")]` options to be used directly in `#[pyclass(crate = "...", text_signature = "...")]`. [#2234](https://github.com/PyO3/pyo3/pull/2234)
+- Make `PYO3_CROSS_LIB_DIR` environment variable optional when cross compiling. [#2241](https://github.com/PyO3/pyo3/pull/2241)
+- Mark `METH_FASTCALL` calling convention as limited API on Python 3.10. [#2250](https://github.com/PyO3/pyo3/pull/2250)
+- Deprecate `pyo3_build_config::cross_compiling` in favour of `pyo3_build_config::cross_compiling_from_to`. [#2253](https://github.com/PyO3/pyo3/pull/2253)
+
+### Fixed
+
+- Fix `abi3-py310` feature: use Python 3.10 ABI when available instead of silently falling back to the 3.9 ABI. [#2242](https://github.com/PyO3/pyo3/pull/2242)
+- Use shared linking mode when cross compiling against a [Framework bundle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html) for macOS. [#2233](https://github.com/PyO3/pyo3/pull/2233)
+- Fix panic during compilation when `PYO3_CROSS_LIB_DIR` is set for some host/target combinations. [#2232](https://github.com/PyO3/pyo3/pull/2232)
+- Correct dependency version for `syn` to require minimal patch version 1.0.56. [#2240](https://github.com/PyO3/pyo3/pull/2240)
 
 ## [0.16.2] - 2022-03-15
 
@@ -1132,7 +1129,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.3...HEAD
+[0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/pyo3/pyo3/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/pyo3/pyo3/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/pyo3/pyo3/compare/v0.15.1...v0.16.0
