@@ -1,3 +1,11 @@
+//! Main implementation module included in both the `pyo3-build-config` library crate
+//! and its build script.
+
+// Optional python3.dll import library generator for Windows
+#[cfg(feature = "python3-dll-a")]
+#[path = "abi3_import_lib.rs"]
+mod abi3_import_lib;
+
 use std::{
     collections::{HashMap, HashSet},
     convert::AsRef,
@@ -1352,6 +1360,7 @@ fn cross_compile_from_sysconfigdata(
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
+#[allow(unused_mut)]
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
@@ -1381,7 +1390,13 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         None
     };
 
-    let lib_dir = cross_compile_config.lib_dir_string();
+    let mut lib_dir = cross_compile_config.lib_dir_string();
+
+    // Auto generate python3.dll import libraries for Windows targets.
+    #[cfg(feature = "python3-dll-a")]
+    if abi3 && lib_dir.is_none() {
+        lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
+    }
 
     Ok(InterpreterConfig {
         implementation,
@@ -1649,7 +1664,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
 
 /// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
 /// Only used by `pyo3-build-config` build script.
-#[allow(dead_code)]
+#[allow(dead_code, unused_mut)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_version();
 
@@ -1659,7 +1674,15 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         Ok(interpreter_config)
     } else if let Some(version) = abi3_version {
         let host = Triple::host();
-        Ok(default_abi3_config(&host, version))
+        let mut interpreter_config = default_abi3_config(&host, version);
+
+        // Auto generate python3.dll import libraries for Windows targets.
+        #[cfg(feature = "python3-dll-a")]
+        {
+            interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+        }
+
+        Ok(interpreter_config)
     } else {
         bail!("An abi3-py3* feature must be specified when compiling without a Python interpreter.")
     }
