@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Default to "m" ABI tag when choosing `libpython` link name for CPython 3.7 on Unix. [#2288](https://github.com/PyO3/pyo3/pull/2288)
+- Improved performance of failing calls to `FromPyObject::extract` which is common when functions accept multiple distinct types. [#2279](https://github.com/PyO3/pyo3/pull/2279)
 
 ## [0.16.3] - 2022-04-05
 

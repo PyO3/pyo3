@@ -663,10 +663,34 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
     }
 }
 
+struct PyDowncastErrorArguments {
+    from: Py<PyType>,
+    to: Cow<'static, str>,
+}
+
+impl PyErrArguments for PyDowncastErrorArguments {
+    fn arguments(self, py: Python<'_>) -> PyObject {
+        format!(
+            "'{}' object cannot be converted to '{}'",
+            self.from
+                .as_ref(py)
+                .name()
+                .unwrap_or("<failed to extract type name>"),
+            self.to
+        )
+        .to_object(py)
+    }
+}
+
 /// Convert `PyDowncastError` to Python `TypeError`.
 impl<'a> std::convert::From<PyDowncastError<'a>> for PyErr {
     fn from(err: PyDowncastError<'_>) -> PyErr {
-        exceptions::PyTypeError::new_err(err.to_string())
+        let args = PyDowncastErrorArguments {
+            from: err.from.get_type().into(),
+            to: err.to,
+        };
+
+        exceptions::PyTypeError::new_err(args)
     }
 }
 
