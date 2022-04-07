@@ -47,6 +47,7 @@ fn _test_compile_errors() {
     tests_rust_1_56(&t);
     tests_rust_1_57(&t);
     tests_rust_1_58(&t);
+    tests_rust_1_60(&t);
 
     #[rustversion::since(1.49)]
     fn tests_rust_1_49(t: &trybuild::TestCases) {
@@ -79,7 +80,6 @@ fn _test_compile_errors() {
     #[rustversion::since(1.58)]
     fn tests_rust_1_58(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pyfunctions.rs");
-        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/invalid_pymethods.rs");
         t.compile_fail("tests/ui/missing_clone.rs");
         t.compile_fail("tests/ui/not_send.rs");
@@ -91,6 +91,14 @@ fn _test_compile_errors() {
 
     #[rustversion::before(1.58)]
     fn tests_rust_1_58(_t: &trybuild::TestCases) {}
+
+    #[rustversion::since(1.60)]
+    fn tests_rust_1_60(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+    }
+
+    #[rustversion::before(1.60)]
+    fn tests_rust_1_60(_t: &trybuild::TestCases) {}
 }
 
 #[cfg(feature = "nightly")]
