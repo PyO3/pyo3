@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::panic::PanicException;
-use crate::type_object::PyTypeObject;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
@@ -92,7 +92,7 @@ impl PyErr {
     #[inline]
     pub fn new<T, A>(args: A) -> PyErr
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
         PyErr::from_state(PyErrState::LazyTypeAndValue {
@@ -428,7 +428,7 @@ impl PyErr {
     #[inline]
     pub fn is_instance_of<T>(&self, py: Python<'_>) -> bool
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
     {
         self.is_instance(py, T::type_object(py))
     }

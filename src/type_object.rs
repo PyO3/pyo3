@@ -51,8 +51,13 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Utility type to make Py::as_ref work.
     type AsRefTarget: PyNativeType;
 
-    /// PyTypeObject instance for this type.
+    /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
+
+    /// Returns the safe abstraction over the type object.
+    fn type_object(py: Python<'_>) -> &PyType {
+        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
+    }
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     fn is_type_of(object: &PyAny) -> bool {
@@ -65,27 +70,19 @@ pub unsafe trait PyTypeInfo: Sized {
     }
 }
 
-/// Python object types that have a corresponding type object.
+/// Legacy trait which previously held the `type_object` method now found on `PyTypeInfo`.
 ///
 /// # Safety
 ///
-/// This trait is marked unsafe because not fulfilling the contract for type_object
-/// leads to UB.
-///
-/// See also [PyTypeInfo::type_object_raw](trait.PyTypeInfo.html#tymethod.type_object_raw).
-pub unsafe trait PyTypeObject {
-    /// Returns the safe abstraction over the type object.
-    fn type_object(py: Python<'_>) -> &PyType;
-}
+/// This trait used to have stringent safety requirements, but they are now irrelevant as it is deprecated.
+#[deprecated(
+    since = "0.17.0",
+    note = "PyTypeObject::type_object was moved to PyTypeInfo::type_object"
+)]
+pub unsafe trait PyTypeObject: PyTypeInfo {}
 
-unsafe impl<T> PyTypeObject for T
-where
-    T: PyTypeInfo,
-{
-    fn type_object(py: Python<'_>) -> &PyType {
-        unsafe { py.from_borrowed_ptr(Self::type_object_raw(py) as _) }
-    }
-}
+#[allow(deprecated)]
+unsafe impl<T: PyTypeInfo> PyTypeObject for T {}
 
 /// Lazy type object for PyClass.
 #[doc(hidden)]
@@ -230,5 +227,25 @@ pub(crate) unsafe fn get_tp_free(tp: *mut ffi::PyTypeObject) -> ffi::freefunc {
         let ptr = ffi::PyType_GetSlot(tp, ffi::Py_tp_free);
         debug_assert_ne!(ptr, std::ptr::null_mut());
         std::mem::transmute(ptr)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[allow(deprecated)]
+    fn test_deprecated_type_object() {
+        // Even though PyTypeObject is deprecated, simple usages of it as a trait bound should continue to work.
+        use super::PyTypeObject;
+        use crate::types::{PyList, PyType};
+        use crate::Python;
+
+        fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
+            T::type_object(py)
+        }
+
+        Python::with_gil(|py| {
+            assert!(get_type_object::<PyList>(py).is(<PyList as crate::PyTypeInfo>::type_object(py)))
+        });
     }
 }

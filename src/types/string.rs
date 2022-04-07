@@ -385,7 +385,7 @@ impl FromPyObject<'_> for char {
 mod tests {
     use super::*;
     #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
-    use crate::type_object::PyTypeObject;
+    use crate::PyTypeInfo;
     use crate::Python;
     use crate::{FromPyObject, PyObject, PyTryFrom, ToPyObject};
     #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]

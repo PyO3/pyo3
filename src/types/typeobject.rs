@@ -3,8 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::{self, PyResult};
-use crate::type_object::PyTypeObject;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, PyAny, PyTypeInfo, Python};
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
@@ -15,7 +14,7 @@ pyobject_native_type_core!(PyType, ffi::PyType_Type, #checkfunction=ffi::PyType_
 impl PyType {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>(py: Python<'_>) -> &PyType {
+    pub fn new<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
         T::type_object(py)
     }
 
@@ -55,7 +54,7 @@ impl PyType {
     /// `T` is known at compile time.
     pub fn is_subclass_of<T>(&self) -> PyResult<bool>
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
     {
         self.is_subclass(T::type_object(self.py()))
     }
@@ -77,9 +76,8 @@ impl PyType {
 #[cfg(test)]
 mod tests {
     use crate::{
-        type_object::PyTypeObject,
         types::{PyBool, PyLong},
-        Python,
+        PyTypeInfo, Python,
     };
 
     #[test]

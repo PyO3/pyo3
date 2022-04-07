@@ -52,7 +52,7 @@ enum MyEnum {
 
 Because Python objects are freely shared between threads by the Python interpreter, all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
 
-The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
+The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
 ## Constructor
 
@@ -1004,7 +1004,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 
 [`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
-[`PyTypeObject`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeObject.html
 
 [`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html

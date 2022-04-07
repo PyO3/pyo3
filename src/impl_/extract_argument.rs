@@ -1,9 +1,8 @@
 use crate::{
     exceptions::PyTypeError,
     ffi,
-    type_object::PyTypeObject,
     types::{PyDict, PyString, PyTuple},
-    FromPyObject, PyAny, PyErr, PyResult, Python,
+    FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
 };
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.

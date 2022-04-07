@@ -6,7 +6,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2284](https://github.com/PyO3/pyo3/pull/2284)
 - The deprecated `pyproto` feature is now disabled by default. [#2321](https://github.com/PyO3/pyo3/pull/2321)
 
 ## [0.16.4] - 2022-04-14
