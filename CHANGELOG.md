@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Add an experimental `generate-abi3-import-lib` feature to auto-generate `python3.dll` import libraries for Windows. [#2282](https://github.com/PyO3/pyo3/pull/2282)
+
 ### Changed
 
 - Default to "m" ABI tag when choosing `libpython` link name for CPython 3.7 on Unix. [#2288](https://github.com/PyO3/pyo3/pull/2288)
