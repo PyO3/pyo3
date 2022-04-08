@@ -495,6 +495,7 @@ impl EnsureGIL {
 mod tests {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
     use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
+    use parking_lot::{const_mutex, Condvar, Mutex};
     use std::ptr::NonNull;
 
     fn get_object(py: Python<'_>) -> PyObject {
@@ -699,16 +700,41 @@ mod tests {
         assert_eq!(count + 1, c.get_refcnt(py));
     }
 
+    struct Event {
+        set: Mutex<bool>,
+        wait: Condvar,
+    }
+
+    impl Event {
+        const fn new() -> Self {
+            Self {
+                set: const_mutex(false),
+                wait: Condvar::new(),
+            }
+        }
+
+        fn set(&self) {
+            *self.set.lock() = true;
+            self.wait.notify_all();
+        }
+
+        fn wait(&self) {
+            let mut set = self.set.lock();
+            while !*set {
+                self.wait.wait(&mut set);
+            }
+        }
+    }
+
     #[test]
     fn test_clone_without_gil() {
         use crate::{Py, PyAny};
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::{sync::Arc, thread};
 
-        // Some spinlocks for synchronizing
-        static GIL_ACQUIRED: AtomicBool = AtomicBool::new(false);
-        static OBJECT_CLONED: AtomicBool = AtomicBool::new(false);
-        static REFCNT_CHECKED: AtomicBool = AtomicBool::new(false);
+        // Some events for synchronizing
+        static GIL_ACQUIRED: Event = Event::new();
+        static OBJECT_CLONED: Event = Event::new();
+        static REFCNT_CHECKED: Event = Event::new();
 
         Python::with_gil(|py| {
             let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
@@ -723,31 +749,31 @@ mod tests {
             let handle = thread::spawn(move || {
                 Python::with_gil(move |py| {
                     println!("3. The GIL has been acquired on another thread.");
-                    GIL_ACQUIRED.store(true, Ordering::Release);
+                    GIL_ACQUIRED.set();
 
-                    // Spin a bit while the main thread registers obj in POOL
-                    while !OBJECT_CLONED.load(Ordering::Acquire) {}
+                    // Wait while the main thread registers obj in POOL
+                    OBJECT_CLONED.wait();
                     println!("5. Checking refcnt");
                     assert_eq!(thread_obj.get_refcnt(py), count);
 
-                    REFCNT_CHECKED.store(true, Ordering::Release);
+                    REFCNT_CHECKED.set();
                 })
             });
 
             let cloned = py.allow_threads(|| {
                 println!("2. The GIL has been released.");
 
-                // spin until the gil has been acquired on the thread.
-                while !GIL_ACQUIRED.load(Ordering::Acquire) {}
+                // Wait until the GIL has been acquired on the thread.
+                GIL_ACQUIRED.wait();
 
                 println!("4. The other thread is now hogging the GIL, we clone without it held");
                 // Cloning without GIL should not update reference count
                 let cloned = Py::clone(&*obj);
-                OBJECT_CLONED.store(true, Ordering::Release);
+                OBJECT_CLONED.set();
                 cloned
             });
 
-            while !REFCNT_CHECKED.load(Ordering::Acquire) {}
+            REFCNT_CHECKED.wait();
 
             // Returning from allow_threads doesn't clear the pool
             py.allow_threads(|| {
@@ -773,11 +799,10 @@ mod tests {
     #[test]
     fn test_clone_in_other_thread() {
         use crate::Py;
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::{sync::Arc, thread};
 
-        // Some spinlocks for synchronizing
-        static OBJECT_CLONED: AtomicBool = AtomicBool::new(false);
+        // Some events for synchronizing
+        static OBJECT_CLONED: Event = Event::new();
 
         let (obj, count, ptr) = Python::with_gil(|py| {
             let obj = Arc::new(get_object(py));
@@ -789,10 +814,10 @@ mod tests {
                 // Cloning without GIL should not update reference count
                 #[allow(clippy::redundant_clone)]
                 let _ = Py::clone(&*thread_obj);
-                OBJECT_CLONED.store(true, Ordering::Release);
+                OBJECT_CLONED.set();
             });
 
-            while !OBJECT_CLONED.load(Ordering::Acquire) {}
+            OBJECT_CLONED.wait();
             assert_eq!(count, obj.get_refcnt(py));
 
             t.join().unwrap();
