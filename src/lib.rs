@@ -20,7 +20,6 @@
     ),
     allow(unused_variables, unused_assignments)
 )))]
-#![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
 //!
