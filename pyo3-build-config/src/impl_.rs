@@ -1505,7 +1505,15 @@ fn default_lib_name_unix(
     match implementation {
         PythonImplementation::CPython => match ld_version {
             Some(ld_version) => format!("python{}", ld_version),
-            None => format!("python{}.{}", version.major, version.minor),
+            None => {
+                if version > PythonVersion::PY37 {
+                    // PEP 3149 ABI version tags are finally gone
+                    format!("python{}.{}", version.major, version.minor)
+                } else {
+                    // Work around https://bugs.python.org/issue36707
+                    format!("python{}.{}m", version.major, version.minor)
+                }
+            }
         },
         PythonImplementation::PyPy => {
             if version >= (PythonVersion { major: 3, minor: 9 }) {
@@ -2142,10 +2150,15 @@ mod tests {
     #[test]
     fn default_lib_name_unix() {
         use PythonImplementation::*;
-        // Defaults to pythonX.Y for CPython
+        // Defaults to python3.7m for CPython 3.7
         assert_eq!(
             super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, CPython, None),
-            "python3.7",
+            "python3.7m",
+        );
+        // Defaults to pythonX.Y for CPython 3.8+
+        assert_eq!(
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 8 }, CPython, None),
+            "python3.8",
         );
         assert_eq!(
             super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, None),
