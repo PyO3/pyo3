@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Default to "m" ABI tag when choosing `libpython` link name for CPython 3.7 on Unix. [#2288](https://github.com/PyO3/pyo3/pull/2288)
 
+### Fixed
+
+- Fix segfault when calling FFI methods `PyDateTime_DATE_GET_TZINFO` or `PyDateTime_TIME_GET_TZINFO` on `datetime` or `time` without a tzinfo. [#2289](https://github.com/PyO3/pyo3/pull/2289)
+
 ## [0.16.3] - 2022-04-05
 
 ### Packaging
