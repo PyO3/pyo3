@@ -272,17 +272,17 @@ jobs:
           args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
 
       - name: Test cross compile to Windows
-        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
+        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
         run: |
           sudo apt-get install -y mingw-w64
           rustup target add x86_64-pc-windows-gnu
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
       - name: Test cross compile to Windows with maturin
-        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
+        if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
         uses: messense/maturin-action@v1
         with:
           target: x86_64-pc-windows-gnu
-          args: --no-sdist -m examples/maturin-starter/Cargo.toml --cargo-extra-args="--features abi3"
+          args: -i python3.8 --no-sdist -m examples/maturin-starter/Cargo.toml --cargo-extra-args="--features abi3"
 
     env:
       CARGO_TERM_VERBOSE: true
