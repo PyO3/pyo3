@@ -155,7 +155,11 @@ macro_rules! _PyDateTime_GET_FOLD {
 #[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_TZINFO {
     ($o: expr) => {
-        (*$o).tzinfo
+        if (*$o).hastzinfo != 0 {
+            (*$o).tzinfo
+        } else {
+            $crate::Py_None()
+        }
     };
 }
 
