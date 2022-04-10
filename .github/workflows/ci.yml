@@ -273,10 +273,13 @@ jobs:
 
       - name: Test cross compile to Windows
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
+        env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld
         run: |
-          sudo apt-get install -y mingw-w64
-          rustup target add x86_64-pc-windows-gnu
+          sudo apt-get install -y mingw-w64 llvm
+          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
       - name: Test cross compile to Windows with maturin
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
         uses: messense/maturin-action@v1
