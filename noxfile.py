@@ -86,3 +86,45 @@ def publish(session: nox.Session) -> None:
     )
     time.sleep(10)
     session.run("cargo", "publish", external=True)
+
+
+@nox.session(venv_backend="none")
+def contributors(session: nox.Session) -> None:
+    import requests
+
+    if len(session.posargs) != 1:
+        raise Exception("base commit positional argument missing")
+
+    base = session.posargs[0]
+    page = 1
+
+    authors = set()
+
+    while True:
+        resp = requests.get(
+            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...HEAD",
+            params={"page": page, "per_page": 100},
+        )
+
+        body = resp.json()
+
+        if resp.status_code != 200:
+            raise Exception(
+                f"failed to retrieve commits: {resp.status_code} {body['message']}"
+            )
+
+        for commit in body["commits"]:
+            try:
+                authors.add(commit["author"]["login"])
+            except:
+                continue
+
+        if "next" in resp.links:
+            page += 1
+        else:
+            break
+
+    authors = sorted(list(authors))
+
+    for author in authors:
+        print(f"@{author}")
