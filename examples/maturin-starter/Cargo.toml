@@ -10,4 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { path = "../../", features = ["extension-module"] }
 
+[features]
+abi3 = ["pyo3/abi3-py37", "pyo3/generate-abi3-import-lib"]
+
 [workspace]
