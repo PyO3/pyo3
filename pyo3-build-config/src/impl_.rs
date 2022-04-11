@@ -233,6 +233,13 @@ print("mingw", get_platform().startswith("mingw"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
+
+        ensure!(
+            !map.is_empty(),
+            "broken Python interpreter: {}",
+            interpreter.as_ref().display()
+        );
+
         let shared = map["shared"].as_str() == "True";
 
         let version = PythonVersion {
@@ -682,19 +689,31 @@ pub fn is_extension_module() -> bool {
 
 /// Checks if we need to link to `libpython` for the current build target.
 ///
-/// Must be called from a crate PyO3 build script.
+/// Must be called from a PyO3 crate build script.
 pub fn is_linking_libpython() -> bool {
     is_linking_libpython_for_target(&target_triple_from_env())
 }
 
 /// Checks if we need to link to `libpython` for the target.
 ///
-/// Must be called from a crate PyO3 build script.
+/// Must be called from a PyO3 crate build script.
 fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || !is_extension_module()
+}
+
+/// Checks if we need to discover the Python library directory
+/// to link the extension module binary.
+///
+/// Must be called from a PyO3 crate build script.
+fn require_libdir_for_target(target: &Triple) -> bool {
+    let is_generating_libpython = cfg!(feature = "python3-dll-a")
+        && target.operating_system == OperatingSystem::Windows
+        && is_abi3();
+
+    is_linking_libpython_for_target(target) && !is_generating_libpython
 }
 
 /// Configuration needed by PyO3 to cross-compile for a target platform.
@@ -1646,6 +1665,18 @@ pub fn find_interpreter() -> Result<PathBuf> {
     }
 }
 
+/// Locates and extracts the build host Python interpreter configuration.
+///
+/// Lowers the configured Python version to `abi3_version` if required.
+fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<InterpreterConfig> {
+    let interpreter_path = find_interpreter()?;
+
+    let mut interpreter_config = InterpreterConfig::from_interpreter(interpreter_path)?;
+    interpreter_config.fixup_for_abi3_version(abi3_version)?;
+
+    Ok(interpreter_config)
+}
+
 /// Generates an interpreter config suitable for cross-compilation.
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
@@ -1666,26 +1697,40 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
 /// Only used by `pyo3-build-config` build script.
 #[allow(dead_code, unused_mut)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
+    let host = Triple::host();
     let abi3_version = get_abi3_version();
 
+    // See if we can safely skip the Python interpreter configuration detection.
+    // Unix "abi3" extension modules can usually be built without any interpreter.
+    let need_interpreter = abi3_version.is_none() || require_libdir_for_target(&host);
+
     if have_python_interpreter() {
-        let mut interpreter_config = InterpreterConfig::from_interpreter(find_interpreter()?)?;
-        interpreter_config.fixup_for_abi3_version(abi3_version)?;
-        Ok(interpreter_config)
-    } else if let Some(version) = abi3_version {
-        let host = Triple::host();
-        let mut interpreter_config = default_abi3_config(&host, version);
-
-        // Auto generate python3.dll import libraries for Windows targets.
-        #[cfg(feature = "python3-dll-a")]
-        {
-            interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+        match get_host_interpreter(abi3_version) {
+            Ok(interpreter_config) => return Ok(interpreter_config),
+            // Bail if the interpreter configuration is required to build.
+            Err(e) if need_interpreter => return Err(e),
+            _ => {
+                // Fall back to the "abi3" defaults just as if `PYO3_NO_PYTHON`
+                // environment variable was set.
+                warn!("Compiling without a working Python interpreter.");
+            }
         }
-
-        Ok(interpreter_config)
     } else {
-        bail!("An abi3-py3* feature must be specified when compiling without a Python interpreter.")
+        ensure!(
+            abi3_version.is_some(),
+            "An abi3-py3* feature must be specified when compiling without a Python interpreter."
+        );
+    };
+
+    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap());
+
+    // Auto generate python3.dll import libraries for Windows targets.
+    #[cfg(feature = "python3-dll-a")]
+    {
+        interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
     }
+
+    Ok(interpreter_config)
 }
 
 #[cfg(test)]
