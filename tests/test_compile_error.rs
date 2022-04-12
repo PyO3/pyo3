@@ -19,17 +19,14 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
-    t.compile_fail("tests/ui/invalid_pyfunctions.rs");
-    t.compile_fail("tests/ui/invalid_pymethods.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
-    t.compile_fail("tests/ui/invalid_argument_attributes.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
 
     tests_rust_1_48(&t);
     tests_rust_1_49(&t);
     tests_rust_1_54(&t);
-    tests_rust_1_55(&t);
     tests_rust_1_56(&t);
+    tests_rust_1_60(&t);
 
     #[rustversion::since(1.48)]
     fn tests_rust_1_48(t: &trybuild::TestCases) {
@@ -48,19 +45,10 @@ fn _test_compile_errors() {
 
     #[rustversion::since(1.54)]
     fn tests_rust_1_54(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/invalid_frompy_derive.rs");
         t.compile_fail("tests/ui/static_ref.rs");
     }
     #[rustversion::before(1.54)]
     fn tests_rust_1_54(_t: &trybuild::TestCases) {}
-
-    #[rustversion::since(1.55)]
-    fn tests_rust_1_55(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
-    }
-
-    #[rustversion::before(1.55)]
-    fn tests_rust_1_55(_t: &trybuild::TestCases) {}
 
     #[rustversion::since(1.56)]
     fn tests_rust_1_56(t: &trybuild::TestCases) {
@@ -74,4 +62,15 @@ fn _test_compile_errors() {
 
     #[rustversion::before(1.56)]
     fn tests_rust_1_56(_t: &trybuild::TestCases) {}
+
+    
+    #[rustversion::since(1.60)]
+    fn tests_rust_1_60(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
+        t.compile_fail("tests/ui/invalid_argument_attributes.rs");
+        t.compile_fail("tests/ui/invalid_frompy_derive.rs");
+    }
+
+    #[rustversion::before(1.60)]
+    fn tests_rust_1_60(_t: &trybuild::TestCases) {}
 }

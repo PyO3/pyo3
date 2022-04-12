@@ -43,6 +43,8 @@ serde = { version = "1.0", optional = true }
 assert_approx_eq = "1.1.0"
 # O.3.5 uses the matches! macro, which isn't compatible with Rust 1.41
 criterion = "=0.3.4"
+# 2.34 uses the matches! macro, which isn't compatible with Rust 1.41
+clap = "=2.33"
 # half and bitflags use if/match in const fn, which isn't compatible with Rust 1.41
 half = "=1.7.1"
 bitflags = "=1.2.1"
