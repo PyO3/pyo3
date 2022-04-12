@@ -30,7 +30,6 @@ fn _test_compile_errors() {
 
     #[rustversion::since(1.48)]
     fn tests_rust_1_48(t: &trybuild::TestCases) {
-        t.compile_fail("tests/ui/missing_clone.rs");
         t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     }
     #[rustversion::before(1.48)]
@@ -68,6 +67,7 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/invalid_argument_attributes.rs");
         t.compile_fail("tests/ui/invalid_frompy_derive.rs");
+        t.compile_fail("tests/ui/missing_clone.rs");
     }
 
     #[rustversion::before(1.60)]

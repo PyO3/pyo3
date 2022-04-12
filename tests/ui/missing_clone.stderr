@@ -6,7 +6,7 @@ error[E0277]: the trait bound `TestClass: Clone` is not satisfied
     |
     = note: required because of the requirements on the impl of `pyo3::FromPyObject<'_>` for `TestClass`
 note: required by a bound in `pyo3::Py::<T>::extract`
-   --> src/instance.rs:518:12
+   --> src/instance.rs
     |
-518 |         D: FromPyObject<'p>,
+    |         D: FromPyObject<'p>,
     |            ^^^^^^^^^^^^^^^^ required by this bound in `pyo3::Py::<T>::extract`
