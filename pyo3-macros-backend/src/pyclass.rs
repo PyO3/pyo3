@@ -54,6 +54,7 @@ pub struct PyClassPyO3Options {
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
     pub freelist: Option<FreelistAttribute>,
+    pub immutable: Option<kw::immutable>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub subclass: Option<kw::subclass>,
@@ -69,6 +70,7 @@ enum PyClassPyO3Option {
     Dict(kw::dict),
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
+    Immutable(kw::immutable),
     Module(ModuleAttribute),
     Name(NameAttribute),
     Subclass(kw::subclass),
@@ -90,6 +92,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Extends)
         } else if lookahead.peek(attributes::kw::freelist) {
             input.parse().map(PyClassPyO3Option::Freelist)
+        } else if lookahead.peek(attributes::kw::immutable) {
+            input.parse().map(PyClassPyO3Option::Immutable)
         } else if lookahead.peek(attributes::kw::module) {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
@@ -145,6 +149,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
+            PyClassPyO3Option::Immutable(immutable) => set_option!(immutable),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
@@ -671,7 +676,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             self.impl_extractext(),
             self.impl_into_py(),
             self.impl_pyclassimpl(),
-            self.impl_mutability(),
             self.impl_freelist(),
         ]
         .into_iter()
@@ -694,7 +698,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
         };
 
-        let base_nativetype = if attr.has_extends {
+        let base_nativetype = if attr.options.extends.is_some() {
             quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType<Self::Mutability>>::BaseNativeType }
         } else {
             quote! { _pyo3::PyAny }
@@ -705,13 +709,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
-                type Mutability = ::pyo3::pycell::Immutable;
             }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
         let cls = self.cls;
-        if self.attr.is_immutable {
+        if self.attr.options.immutable.is_some() {
             quote! {
                 impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
                 {
@@ -837,17 +840,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let deprecations = &self.attr.deprecations;
 
-        let mutability = if self.attr.is_immutable {
-            quote! {
-                 _pyo3::pycell::Immutable
-            }
-        } else {
-            quote! {
-                _pyo3::pycell::Mutable
-            }
-        };
-
-        let mutability = if self.attr.is_immutable {
+        let mutability = if self.attr.options.immutable.is_some() {
             quote! {
                  _pyo3::pycell::Immutable
             }
@@ -888,19 +881,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
 
             #inventory_class
-        }
-    }
-
-    fn impl_mutability(&self) -> TokenStream {
-        let cls = self.cls;
-        if self.attr.is_immutable {
-            quote! {
-                 unsafe impl ::pyo3::pyclass::ImmutablePyClass for #cls {}
-            }
-        } else {
-            quote! {
-                unsafe impl ::pyo3::pyclass::MutablePyClass for #cls {}
-            }
         }
     }
 

@@ -11,9 +11,8 @@ note: required because it appears within the type `NotThreadSafe`
 5   | struct NotThreadSafe {
     |        ^^^^^^^^^^^^^
 note: required by a bound in `ThreadCheckerStub`
-   --> src/class/impl_.rs:728:33
    --> src/impl_/pyclass.rs
     |
-728 | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
+    | pub struct ThreadCheckerStub<T: Send>(PhantomData<T>);
     |                                 ^^^^ required by this bound in `ThreadCheckerStub`
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -172,8 +172,8 @@
 //! [guide]: https://pyo3.rs/latest/class.html#pycell-and-interior-mutability "PyCell and interior mutability"
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
-use crate::class::impl_::PyClassImpl;
 use crate::exceptions::PyRuntimeError;
+use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
 use crate::pyclass::{MutablePyClass, PyClass};
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
@@ -878,7 +878,7 @@ impl<'p, T: MutablePyClass> Drop for PyRefMut<'p, T> {
     }
 }
 
-impl<T: PyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
+impl<T: MutablePyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }

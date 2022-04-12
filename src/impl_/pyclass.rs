@@ -146,7 +146,7 @@ unsafe impl Sync for PyClassItems {}
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
-pub trait PyClassImpl<M: Mutability>: Sized {
+pub trait PyClassImpl: Sized {
     /// Class doc string
     const DOC: &'static str = "\0";
 

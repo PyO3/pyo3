@@ -24,7 +24,7 @@ use std::{
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you normally don't have to use this trait directly.
 pub trait PyClass:
-    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Self::Mutability, Layout = PyCell<Self>>
+    PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -33,8 +33,6 @@ pub trait PyClass:
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
-
-    type Mutability: Mutability;
 }
 
 pub trait MutablePyClass: PyClass<Mutability = Mutable> {}

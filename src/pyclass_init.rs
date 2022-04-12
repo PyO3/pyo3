@@ -236,9 +236,9 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         /// Layout of a PyCellBase after base new has been called, but the borrow flag has not
         /// yet been initialized.
         #[repr(C)]
-        struct PartiallyInitializedPyCellBase<T: PyClass> {
+        struct PartiallyInitializedPyCellBase<T, M: Mutability> {
             _ob_base: T,
-            borrow_flag: MaybeUninit<T::Mutability>,
+            borrow_flag: MaybeUninit<M>,
         }
 
         /// Layout of a PyCell after base new has been called, but the contents have not yet been
