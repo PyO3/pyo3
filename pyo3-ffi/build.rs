@@ -111,6 +111,7 @@ fn print_config_and_exit(config: &InterpreterConfig) {
     config
         .to_writer(&mut std::io::stdout())
         .expect("failed to print config to stdout");
+    println!("\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config");
     std::process::exit(101);
 }
 
