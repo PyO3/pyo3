@@ -63,7 +63,6 @@ fn _test_compile_errors() {
     #[rustversion::before(1.56)]
     fn tests_rust_1_56(_t: &trybuild::TestCases) {}
 
-    
     #[rustversion::since(1.60)]
     fn tests_rust_1_60(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");

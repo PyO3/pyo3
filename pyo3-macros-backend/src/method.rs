@@ -29,9 +29,7 @@ impl<'a> FnArg<'a> {
     /// Transforms a rust fn arg parsed with syn into a method::FnArg
     pub fn parse(arg: &'a mut syn::FnArg) -> Result<Self> {
         match arg {
-            syn::FnArg::Receiver(recv) => {
-                bail_spanned!(recv.span() => "unexpected receiver")
-            } // checked in parse_fn_type
+            syn::FnArg::Receiver(recv) => bail_spanned!(recv.span() => "unexpected receiver"), // checked in parse_fn_type
             syn::FnArg::Typed(cap) => {
                 if let syn::Type::ImplTrait(_) = &*cap.ty {
                     bail_spanned!(cap.ty.span() => IMPL_TRAIT_ERR);
@@ -101,9 +99,7 @@ impl FnType {
                 cls.expect("no class given for Fn with a \"self\" receiver"),
                 error_mode,
             ),
-            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => {
-                quote!()
-            }
+            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => quote!(),
             FnType::FnClass => {
                 quote! {
                     let _slf = ::pyo3::types::PyType::from_type_ptr(_py, _slf as *mut ::pyo3::ffi::PyTypeObject);
@@ -352,7 +348,8 @@ impl<'a> FnSpec<'a> {
             parse_method_receiver(first_arg)
         };
 
-        #[allow(clippy::manual_strip)] // for strip_prefix replacement supporting rust < 1.45
+        #[allow(clippy::manual_strip)]
+        // for strip_prefix replacement supporting rust < 1.45
         // strip get_ or set_
         let strip_fn_name = |prefix: &'static str| {
             let ident = name.unraw().to_string();

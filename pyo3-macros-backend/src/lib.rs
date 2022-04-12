@@ -3,7 +3,6 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![recursion_limit = "1024"]
-
 // Listed first so that macros in this module are available in the rest of the crate.
 #[macro_use]
 mod utils;

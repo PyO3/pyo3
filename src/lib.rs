@@ -11,7 +11,6 @@
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(deny(warnings), allow(unused_variables, unused_assignments))))]
-
 //! Rust bindings to the Python interpreter.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.

@@ -172,7 +172,6 @@ pub unsafe trait PyNativeType: Sized {
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
 ///
-/// # fn main() {
 /// Python::with_gil(|py| {
 ///     let first: Py<PyDict> = PyDict::new(py).into();
 ///
@@ -190,7 +189,6 @@ pub unsafe trait PyNativeType: Sized {
 ///     assert_eq!(fourth.as_ptr(), fifth.as_ptr());
 ///     assert_eq!(second.as_ptr(), fourth.as_ptr());
 /// });
-/// # }
 /// ```
 ///
 /// # Preventing reference cycles
@@ -479,7 +477,6 @@ impl<T> Py<T> {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     ///
-    /// # fn main() {
     /// Python::with_gil(|py| {
     ///     let first: Py<PyDict> = PyDict::new(py).into();
     ///     let second = Py::clone_ref(&first, py);
@@ -487,7 +484,6 @@ impl<T> Py<T> {
     ///     // Both point to the same object
     ///     assert_eq!(first.as_ptr(), second.as_ptr());
     /// });
-    /// # }
     /// ```
     #[inline]
     pub fn clone_ref(&self, py: Python) -> Py<T> {

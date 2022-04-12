@@ -36,7 +36,7 @@ pub fn build_py_methods(
 
 pub fn impl_methods(
     ty: &syn::Type,
-    impls: &mut Vec<syn::ImplItem>,
+    impls: &mut [syn::ImplItem],
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     let mut trait_impls = Vec::new();

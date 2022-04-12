@@ -138,9 +138,7 @@ pub fn gen_py_method(
             cls,
             PropertyType::Function { self_type, spec },
         )?),
-        (_, FnType::FnModule) => {
-            unreachable!("methods cannot be FnModule")
-        }
+        (_, FnType::FnModule) => unreachable!("methods cannot be FnModule"),
     })
 }
 

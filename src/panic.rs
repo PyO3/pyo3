@@ -21,7 +21,7 @@ impl PanicException {
         if let Some(string) = payload.downcast_ref::<String>() {
             Self::new_err((string.clone(),))
         } else if let Some(s) = payload.downcast_ref::<&str>() {
-            Self::new_err((s.to_string(),))
+            Self::new_err(((*s).to_string(),))
         } else {
             Self::new_err(("panic from Rust code",))
         }

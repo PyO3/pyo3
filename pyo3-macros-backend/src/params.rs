@@ -266,7 +266,7 @@ fn impl_arg_param(
         }
     };
 
-    return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(ty)) {
+    if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(ty)) {
         let mut tref = remove_lifetime(tref);
         if let Some(cls) = self_ {
             replace_self(&mut tref.elem, cls);
@@ -298,5 +298,5 @@ fn impl_arg_param(
         Ok(quote_arg_span! {
             let #arg_name = #arg_value_or_default;
         })
-    };
+    }
 }
