@@ -278,7 +278,7 @@ jobs:
         run: |
           sudo apt-get install -y mingw-w64 llvm
           rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          which cargo-xwin > /dev/null || cargo install cargo-xwin
+          python -m pip install cargo-xwin
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
       - name: Test cross compile to Windows with maturin
