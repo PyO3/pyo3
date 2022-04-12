@@ -93,6 +93,7 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
 /// [params-4]: std::rc::Rc
 /// [params-5]: std::sync::Arc
 /// [params-6]: https://docs.python.org/3/library/weakref.html
+/// [params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     use syn::Item;

@@ -1,8 +1,8 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, resolve_interpreter_config, InterpreterConfig,
-        PythonVersion,
+        cargo_env_var, env_var, errors::Result, is_linking_libpython, resolve_interpreter_config,
+        InterpreterConfig, PythonVersion,
     },
 };
 
@@ -44,33 +44,27 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
 
 fn emit_link_config(interpreter_config: &InterpreterConfig) -> Result<()> {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
-    let is_extension_module = cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    if target_os == "windows" || target_os == "android" || !is_extension_module {
-        // windows and android - always link
-        // other systems - only link if not extension module
-        println!(
-            "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
-            link_model = if interpreter_config.shared {
-                ""
-            } else {
-                "static="
-            },
-            alias = if target_os == "windows" {
-                "pythonXY:"
-            } else {
-                ""
-            },
-            lib_name = interpreter_config.lib_name.as_ref().ok_or(
-                "attempted to link to Python shared library but config does not contain lib_name"
-            )?,
-        );
-        if let Some(lib_dir) = &interpreter_config.lib_dir {
-            println!("cargo:rustc-link-search=native={}", lib_dir);
-        }
-    }
 
-    // serialize the whole interpreter config in DEP_PYTHON_PYO3_CONFIG
-    interpreter_config.to_cargo_dep_env()?;
+    println!(
+        "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
+        link_model = if interpreter_config.shared {
+            ""
+        } else {
+            "static="
+        },
+        alias = if target_os == "windows" {
+            "pythonXY:"
+        } else {
+            ""
+        },
+        lib_name = interpreter_config.lib_name.as_ref().ok_or(
+            "attempted to link to Python shared library but config does not contain lib_name"
+        )?,
+    );
+
+    if let Some(lib_dir) = &interpreter_config.lib_dir {
+        println!("cargo:rustc-link-search=native={}", lib_dir);
+    }
 
     Ok(())
 }
@@ -92,7 +86,10 @@ fn configure_pyo3() -> Result<()> {
     ensure_python_version(&interpreter_config)?;
     ensure_target_pointer_width(&interpreter_config)?;
 
-    if !interpreter_config.suppress_build_script_link_lines {
+    // Serialize the whole interpreter config into DEP_PYTHON_PYO3_CONFIG env var.
+    interpreter_config.to_cargo_dep_env()?;
+
+    if is_linking_libpython() && !interpreter_config.suppress_build_script_link_lines {
         emit_link_config(&interpreter_config)?;
     }
 
@@ -114,6 +111,7 @@ fn print_config_and_exit(config: &InterpreterConfig) {
     config
         .to_writer(&mut std::io::stdout())
         .expect("failed to print config to stdout");
+    println!("\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config");
     std::process::exit(101);
 }
 

@@ -18,6 +18,7 @@ pub mod kw {
     syn::custom_keyword!(gc);
     syn::custom_keyword!(get);
     syn::custom_keyword!(item);
+    syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);
     syn::custom_keyword!(pass_module);

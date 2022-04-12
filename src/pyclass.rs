@@ -62,6 +62,7 @@ where
             T::weaklist_offset(),
             &T::for_all_items,
             T::IS_BASETYPE,
+            T::IS_MAPPING,
         )
     } {
         Ok(type_object) => type_object,
@@ -82,6 +83,7 @@ unsafe fn create_type_object_impl(
     weaklist_offset: Option<ffi::Py_ssize_t>,
     for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
     is_basetype: bool,
+    is_mapping: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
     let mut slots = Vec::new();
 
@@ -154,26 +156,30 @@ unsafe fn create_type_object_impl(
         slots.extend_from_slice(items.slots);
     });
 
-    // If mapping methods implemented, define sequence methods get implemented too.
-    // CPython does the same for Python `class` statements.
+    if !is_mapping {
+        // If mapping methods implemented, define sequence methods get implemented too.
+        // CPython does the same for Python `class` statements.
 
-    // NB we don't implement sq_length to avoid annoying CPython behaviour of automatically adding
-    // the length to negative indices.
+        // NB we don't implement sq_length to avoid annoying CPython behaviour of automatically adding
+        // the length to negative indices.
 
-    if has_getitem {
-        push_slot(
-            &mut slots,
-            ffi::Py_sq_item,
-            get_sequence_item_from_mapping as _,
-        );
-    }
+        // Don't add these methods for "pure" mappings.
 
-    if has_setitem {
-        push_slot(
-            &mut slots,
-            ffi::Py_sq_ass_item,
-            assign_sequence_item_from_mapping as _,
-        );
+        if has_getitem {
+            push_slot(
+                &mut slots,
+                ffi::Py_sq_item,
+                get_sequence_item_from_mapping as _,
+            );
+        }
+
+        if has_setitem {
+            push_slot(
+                &mut slots,
+                ffi::Py_sq_ass_item,
+                assign_sequence_item_from_mapping as _,
+            );
+        }
     }
 
     if !has_new {

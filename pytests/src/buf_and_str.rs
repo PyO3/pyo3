@@ -16,22 +16,26 @@ impl BytesExtractor {
         BytesExtractor {}
     }
 
-    pub fn from_bytes(&mut self, bytes: &PyBytes) -> PyResult<usize> {
+    #[staticmethod]
+    pub fn from_bytes(bytes: &PyBytes) -> PyResult<usize> {
         let byte_vec: Vec<u8> = bytes.extract()?;
         Ok(byte_vec.len())
     }
 
-    pub fn from_str(&mut self, string: &PyString) -> PyResult<usize> {
+    #[staticmethod]
+    pub fn from_str(string: &PyString) -> PyResult<usize> {
         let rust_string: String = string.extract()?;
         Ok(rust_string.len())
     }
 
-    pub fn from_str_lossy(&mut self, string: &PyString) -> usize {
+    #[staticmethod]
+    pub fn from_str_lossy(string: &PyString) -> usize {
         let rust_string_lossy: String = string.to_string_lossy().to_string();
         rust_string_lossy.len()
     }
 
-    pub fn from_buffer(&mut self, buf: &PyAny) -> PyResult<usize> {
+    #[staticmethod]
+    pub fn from_buffer(buf: &PyAny) -> PyResult<usize> {
         let buf = PyBuffer::<u8>::get(buf)?;
         Ok(buf.item_count())
     }

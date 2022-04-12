@@ -42,6 +42,7 @@ impl<T> GILOnceCell<T> {
     }
 
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
+    #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
         // Safe because if the cell has not yet been written, None is returned.
         unsafe { &*self.0.get() }.as_ref()
@@ -61,15 +62,23 @@ impl<T> GILOnceCell<T> {
     ///     exactly once, even if multiple threads attempt to call `get_or_init`
     ///  4) if f() can panic but still does not release the GIL, it may be called multiple times,
     ///     but it is guaranteed that f() will never be called concurrently
+    #[inline]
     pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
     where
         F: FnOnce() -> T,
     {
-        let inner = unsafe { &*self.0.get() }.as_ref();
-        if let Some(value) = inner {
+        if let Some(value) = self.get(py) {
             return value;
         }
 
+        self.init(py, f)
+    }
+
+    #[cold]
+    fn init<F>(&self, py: Python<'_>, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
@@ -99,5 +108,81 @@ impl<T> GILOnceCell<T> {
 
         *inner = Some(value);
         Ok(())
+    }
+}
+
+/// Interns `text` as a Python string and stores a reference to it in static storage.
+///
+/// A reference to the same Python string is returned on each invocation.
+///
+/// # Example: Using `intern!` to avoid needlessly recreating the same Python string
+///
+/// ```
+/// use pyo3::intern;
+/// # use pyo3::{pyfunction, types::PyDict, wrap_pyfunction, PyResult, Python};
+///
+/// #[pyfunction]
+/// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
+///    let dict = PyDict::new(py);
+///    //             👇 A new `PyString` is created
+///    //                for every call of this function.
+///    dict.set_item("foo", 42)?;
+///    Ok(dict)
+/// }
+///
+/// #[pyfunction]
+/// fn create_dict_faster(py: Python<'_>) -> PyResult<&PyDict> {
+///    let dict = PyDict::new(py);
+///    //               👇 A `PyString` is created once and reused
+///    //                  for the lifetime of the program.
+///    dict.set_item(intern!(py, "foo"), 42)?;
+///    Ok(dict)
+/// }
+/// #
+/// # Python::with_gil(|py| {
+/// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
+/// #     let dict = fun.call0().unwrap();
+/// #     assert!(dict.contains("foo").unwrap());
+/// # });
+/// ```
+#[macro_export]
+macro_rules! intern {
+    ($py: expr, $text: expr) => {{
+        fn isolate_from_dyn_env(py: $crate::Python<'_>) -> &$crate::types::PyString {
+            static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
+                $crate::once_cell::GILOnceCell::new();
+
+            INTERNED
+                .get_or_init(py, || {
+                    $crate::conversion::IntoPy::into_py(
+                        $crate::types::PyString::intern(py, $text),
+                        py,
+                    )
+                })
+                .as_ref(py)
+        }
+
+        isolate_from_dyn_env($py)
+    }};
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::types::PyDict;
+
+    #[test]
+    fn test_intern() {
+        Python::with_gil(|py| {
+            let foo1 = "foo";
+            let foo2 = intern!(py, "foo");
+            let foo3 = intern!(py, stringify!(foo));
+
+            let dict = PyDict::new(py);
+            dict.set_item(foo1, 42_usize).unwrap();
+            assert!(dict.contains(foo2).unwrap());
+            assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
+        });
     }
 }

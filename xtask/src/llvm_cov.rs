@@ -88,13 +88,5 @@ fn get_coverage_env() -> Result<HashMap<String, String>> {
         env.get("CARGO_LLVM_COV_TARGET_DIR").unwrap().to_owned(),
     );
 
-    // Coverage only works on nightly.
-    let rustc_version =
-        String::from_utf8(get_output(Command::new("rustc").arg("--version"))?.stdout)
-            .context("failed to parse rust version as utf8")?;
-    if !rustc_version.contains("nightly") {
-        env.insert("RUSTUP_TOOLCHAIN".to_owned(), "nightly".to_owned());
-    }
-
     Ok(env)
 }

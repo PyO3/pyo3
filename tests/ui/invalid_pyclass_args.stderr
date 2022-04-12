@@ -1,4 +1,5 @@
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `immutable`, `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `immutable`, 'mapping', `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
+
  --> tests/ui/invalid_pyclass_args.rs:3:11
   |
 3 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -34,7 +35,7 @@ error: expected string literal
 18 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `extends`, `freelist`, `immutable`, `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
+error: expected one of: `crate`, `dict`, `extends`, `freelist`, `immutable`, 'mapping', `module`, `name`, `subclass`, `text_signature`, `unsendable`, `weakref`, `gc`
   --> tests/ui/invalid_pyclass_args.rs:21:11
    |
 21 | #[pyclass(weakrev)]

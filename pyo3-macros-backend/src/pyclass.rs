@@ -55,6 +55,7 @@ pub struct PyClassPyO3Options {
     pub extends: Option<ExtendsAttribute>,
     pub freelist: Option<FreelistAttribute>,
     pub immutable: Option<kw::immutable>,
+    pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub subclass: Option<kw::subclass>,
@@ -71,6 +72,7 @@ enum PyClassPyO3Option {
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
     Immutable(kw::immutable),
+    Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
     Subclass(kw::subclass),
@@ -94,6 +96,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Freelist)
         } else if lookahead.peek(attributes::kw::immutable) {
             input.parse().map(PyClassPyO3Option::Immutable)
+        } else if lookahead.peek(attributes::kw::mapping) {
+            input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
@@ -150,6 +154,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Immutable(immutable) => set_option!(immutable),
+            PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
@@ -764,6 +769,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             .map(|extends_attr| extends_attr.value.clone())
             .unwrap_or_else(|| parse_quote! { _pyo3::PyAny });
         let is_subclass = self.attr.options.extends.is_some();
+        let is_mapping: bool = self.attr.options.mapping.is_some();
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
@@ -855,6 +861,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const DOC: &'static str = #doc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
+                const IS_MAPPING: bool = #is_mapping;
 
                 type Layout = _pyo3::PyCell<Self>;
                 type BaseType = #base;

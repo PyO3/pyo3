@@ -37,7 +37,7 @@ impl PyType {
 
     /// Gets the name of the `PyType`.
     pub fn name(&self) -> PyResult<&str> {
-        self.getattr("__qualname__")?.extract()
+        self.getattr(intern!(self.py(), "__qualname__"))?.extract()
     }
 
     /// Checks whether `self` is a subclass of `other`.

@@ -20,7 +20,6 @@
     ),
     allow(unused_variables, unused_assignments)
 )))]
-#![cfg_attr(coverage, feature(no_coverage))] // used in src/test_hygiene.rs
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -375,6 +374,7 @@ pub mod impl_;
 mod instance;
 pub mod marker;
 pub mod marshal;
+#[macro_use]
 pub mod once_cell;
 pub mod panic;
 pub mod prelude;

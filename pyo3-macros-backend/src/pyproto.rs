@@ -44,7 +44,7 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
 
 fn impl_proto_impl(
     ty: &syn::Type,
-    impls: &mut Vec<syn::ImplItem>,
+    impls: &mut [syn::ImplItem],
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
     let mut trait_impls = TokenStream::new();

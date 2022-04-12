@@ -180,3 +180,44 @@ fn ucs4() {
         }
     })
 }
+
+#[test]
+#[cfg(not(PyPy))]
+fn test_get_tzinfo() {
+    crate::Python::with_gil(|py| {
+        use crate::types::{PyDateTime, PyTime};
+        use crate::{AsPyPointer, PyAny, ToPyObject};
+
+        let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
+        let timezone = datetime.getattr("timezone").unwrap();
+        let utc = timezone.getattr("utc").unwrap().to_object(py);
+
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+        assert!(
+            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+                .is(&utc)
+        );
+
+        let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+
+        assert!(
+            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_DATE_GET_TZINFO(dt.as_ptr())) }
+                .is_none()
+        );
+
+        let t = PyTime::new(py, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+        assert!(
+            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
+                .is(&utc)
+        );
+
+        let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
+
+        assert!(
+            unsafe { py.from_borrowed_ptr::<PyAny>(PyDateTime_TIME_GET_TZINFO(t.as_ptr())) }
+                .is_none()
+        );
+    })
+}

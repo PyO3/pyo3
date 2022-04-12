@@ -12,10 +12,7 @@ mod errors;
 use std::{env, path::Path};
 
 use errors::{Context, Result};
-use impl_::{
-    env_var, get_abi3_version, make_interpreter_config, BuildFlags, InterpreterConfig,
-    PythonImplementation,
-};
+use impl_::{env_var, make_interpreter_config, InterpreterConfig};
 
 fn configure(interpreter_config: Option<InterpreterConfig>, name: &str) -> Result<bool> {
     let target = Path::new(&env::var_os("OUT_DIR").unwrap()).join(name);
@@ -52,37 +49,12 @@ fn config_file() -> Result<Option<InterpreterConfig>> {
     }
 }
 
-/// If PYO3_NO_PYTHON is set with abi3, use standard abi3 settings.
-pub fn abi3_config() -> Option<InterpreterConfig> {
-    if let Some(version) = get_abi3_version() {
-        if env_var("PYO3_NO_PYTHON").is_some() {
-            return Some(InterpreterConfig {
-                version,
-                // NB PyPy doesn't support abi3 yet
-                implementation: PythonImplementation::CPython,
-                abi3: true,
-                lib_name: None,
-                lib_dir: None,
-                build_flags: BuildFlags::default(),
-                pointer_width: None,
-                executable: None,
-                shared: true,
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-            });
-        }
-    }
-    None
-}
-
 fn generate_build_configs() -> Result<()> {
-    let mut configured = false;
-    configured |= configure(config_file()?, "pyo3-build-config-file.txt")?;
-    configured |= configure(abi3_config(), "pyo3-build-config-abi3.txt")?;
+    let configured = configure(config_file()?, "pyo3-build-config-file.txt")?;
 
     if configured {
-        // Don't bother trying to find an interpreter on the host system if at least one of the
-        // config file or abi3 settings are present
+        // Don't bother trying to find an interpreter on the host system
+        // if the user-provided config file is present.
         configure(None, "pyo3-build-config.txt")?;
     } else {
         configure(Some(make_interpreter_config()?), "pyo3-build-config.txt")?;

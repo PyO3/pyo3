@@ -38,11 +38,29 @@ pub struct PyDateTime_Delta {
 
 // skipped non-limited PyDateTime_TZInfo
 // skipped non-limited _PyDateTime_BaseTZInfo
-// skipped non-limited _PyDateTime_BaseTime
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.time` without a `tzinfo` member.
+pub struct PyDateTime_BaseTime {
+    pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
+    pub hashcode: Py_hash_t,
+    pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
+    pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
+    #[cfg(not(PyPy))]
+    pub fold: c_uchar,
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 /// Structure representing a `datetime.time`.
+///
+/// # Safety
+///
+/// Care should be taken when reading the `tzinfo` field of this type. If the time does not have a
+/// tzinfo then the Python interpreter is free to allocate it as a [PyDateTime_BaseTime].
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
@@ -66,11 +84,28 @@ pub struct PyDateTime_Date {
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
-// skipped non-limited _PyDateTime_BaseDateTime
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.datetime` without a `tzinfo` member.
+pub struct PyDateTime_BaseDateTime {
+    pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
+    pub hashcode: Py_hash_t,
+    pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
+    pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
+    #[cfg(not(PyPy))]
+    pub fold: c_uchar,
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-/// Structure representing a `datetime.datetime`
+/// Structure representing a `datetime.datetime`.
+///
+/// # Safety
+///
+/// Care should be taken when reading the `tzinfo` field of this type. If the datetime does not have a
+/// tzinfo then the Python interpreter is free to allocate it as a [PyDateTime_BaseDateTime].
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
@@ -155,7 +190,11 @@ macro_rules! _PyDateTime_GET_FOLD {
 #[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_TZINFO {
     ($o: expr) => {
-        (*$o).tzinfo
+        if (*$o).hastzinfo != 0 {
+            (*$o).tzinfo
+        } else {
+            $crate::Py_None()
+        }
     };
 }
 

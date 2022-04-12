@@ -188,12 +188,20 @@ Some of the functionality of `pyo3-build-config`:
     Currently we use the `extension-module` feature for this purpose. This may change in the future.
     See [#1123](https://github.com/PyO3/pyo3/pull/1123).
 - Cross-compiling configuration
-  - If `TARGET` architecture and `HOST` architecture differ, we find cross compile information
-    from environment variables (`PYO3_CROSS_LIB_DIR` and `PYO3_CROSS_PYTHON_VERSION`) or system files.
+  - If `TARGET` architecture and `HOST` architecture differ, we can find cross compile information
+    from environment variables (`PYO3_CROSS_LIB_DIR`, `PYO3_CROSS_PYTHON_VERSION` and
+    `PYO3_CROSS_PYTHON_IMPLEMENTATION`) or system files.
+    When cross compiling extension modules it is often possible to make it work without any
+    additional user input.
+  - When an experimental feature `generate-abi3-import-lib` is enabled, the `pyo3-ffi` build script can
+    generate `python3.dll` import libraries for Windows targets automatically via an external
+    [`python3-dll-a`] crate. This enables the users to cross compile abi3 extensions for Windows without
+    having to install any Windows Python libraries.
 
 <!-- External Links -->
 
 [python/c api]: https://docs.python.org/3/c-api/
+[`python3-dll-a`]: https://docs.rs/python3-dll-a/latest/python3_dll_a/
 
 <!-- Crates -->
 
