@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix segfault when calling FFI methods `PyDateTime_DATE_GET_TZINFO` or `PyDateTime_TIME_GET_TZINFO` on `datetime` or `time` without a tzinfo. [#2289](https://github.com/PyO3/pyo3/pull/2289)
+- Fix directory names starting with the letter `n` breaking serialization of the interpreter configuration on Windows since PyO3 0.16.3. [#2299](https://github.com/PyO3/pyo3/pull/2299)
 
 ## [0.16.3] - 2022-04-05
 

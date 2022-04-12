@@ -366,7 +366,7 @@ print("mingw", get_platform().startswith("mingw"))
     #[doc(hidden)]
     pub fn from_cargo_dep_env() -> Option<Result<Self>> {
         cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
-            .map(|buf| InterpreterConfig::from_reader(buf.replace("\\n", "\n").as_bytes()))
+            .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
     #[doc(hidden)]
@@ -464,11 +464,7 @@ print("mingw", get_platform().startswith("mingw"))
         let mut buf = Vec::new();
         self.to_writer(&mut buf)?;
         // escape newlines in env var
-        if let Ok(config) = str::from_utf8(&buf) {
-            println!("cargo:PYO3_CONFIG={}", config.replace('\n', "\\n"));
-        } else {
-            bail!("unable to emit interpreter config to link env for downstream use");
-        }
+        println!("cargo:PYO3_CONFIG={}", escape(&buf));
         Ok(())
     }
 
@@ -1688,9 +1684,42 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     }
 }
 
+fn escape(bytes: &[u8]) -> String {
+    let mut escaped = String::with_capacity(2 * bytes.len());
+
+    for byte in bytes {
+        const LUT: &[u8; 16] = b"0123456789abcdef";
+
+        escaped.push(LUT[(byte >> 4) as usize] as char);
+        escaped.push(LUT[(byte & 0x0F) as usize] as char);
+    }
+
+    escaped
+}
+
+fn unescape(escaped: &str) -> Vec<u8> {
+    assert!(escaped.len() % 2 == 0, "invalid hex encoding");
+
+    let mut bytes = Vec::with_capacity(escaped.len() / 2);
+
+    for chunk in escaped.as_bytes().chunks_exact(2) {
+        fn unhex(hex: u8) -> u8 {
+            match hex {
+                b'a'..=b'f' => hex - b'a' + 10,
+                b'0'..=b'9' => hex - b'0',
+                _ => panic!("invalid hex encoding"),
+            }
+        }
+
+        bytes.push(unhex(chunk[0]) << 4 | unhex(chunk[1]));
+    }
+
+    bytes
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{io::Cursor, iter::FromIterator};
+    use std::iter::FromIterator;
     use target_lexicon::triple;
 
     use super::*;
@@ -1713,10 +1742,7 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
-        assert_eq!(
-            config,
-            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
-        );
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
 
         // And some different options, for variety
 
@@ -1744,17 +1770,37 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
-        assert_eq!(
-            config,
-            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
-        );
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
+    }
+
+    #[test]
+    fn test_config_file_roundtrip_with_escaping() {
+        let config = InterpreterConfig {
+            abi3: true,
+            build_flags: BuildFlags::default(),
+            pointer_width: Some(32),
+            executable: Some("executable".into()),
+            implementation: PythonImplementation::CPython,
+            lib_name: Some("lib_name".into()),
+            lib_dir: Some("lib_dir\\n".into()),
+            shared: true,
+            version: MINIMUM_SUPPORTED_VERSION,
+            suppress_build_script_link_lines: true,
+            extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
+        };
+        let mut buf: Vec<u8> = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+
+        let buf = unescape(&escape(&buf));
+
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
     }
 
     #[test]
     fn test_config_file_defaults() {
         // Only version is required
         assert_eq!(
-            InterpreterConfig::from_reader(Cursor::new("version=3.7")).unwrap(),
+            InterpreterConfig::from_reader("version=3.7".as_bytes()).unwrap(),
             InterpreterConfig {
                 version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,
