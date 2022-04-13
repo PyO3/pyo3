@@ -82,7 +82,7 @@ jobs:
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", pypy-3.6, pypy-3.7-v7.3.7, pypy-3.8, pypy-3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", pypy-3.6, pypy-3.7, pypy-3.8, pypy-3.9]
         platform:
           [
             {
@@ -109,7 +109,7 @@ jobs:
           - python-version: pypy-3.6
             platform: { os: "windows-latest", python-architecture: "x64" }
           # PyPy doesn't release 32-bit Windows builds any more
-          - python-version: pypy-3.7-v7.3.7
+          - python-version: pypy-3.7
             platform: { os: "windows-latest", python-architecture: "x86" }
           - python-version: pypy-3.8
             platform: { os: "windows-latest", python-architecture: "x86" }
