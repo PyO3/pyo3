@@ -4,9 +4,8 @@
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
 use crate::err::PyResult;
-use crate::ffi;
 use crate::ffi::{
-    PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
+    self, PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
 };
 #[cfg(not(PyPy))]
 use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
@@ -22,6 +21,7 @@ use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
+use crate::instance::PyNativeType;
 use crate::types::PyTuple;
 use crate::{AsPyPointer, PyAny, PyObject, Python, ToPyObject};
 use std::os::raw::c_int;
@@ -158,6 +158,16 @@ pub trait PyTimeAccess {
     /// [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool;
+}
+
+/// Trait for accessing the components of a struct containing a tzinfo.
+pub trait PyTzInfoAccess {
+    /// Returns the tzinfo (which may be None).
+    ///
+    /// Implementations should conform to the upstream documentation:
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_TZINFO>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_TIME_GET_TZINFO>
+    fn get_tzinfo(&self) -> Option<&PyTzInfo>;
 }
 
 /// Bindings around `datetime.date`
@@ -354,6 +364,19 @@ impl PyTimeAccess for PyDateTime {
     }
 }
 
+impl PyTzInfoAccess for PyDateTime {
+    fn get_tzinfo(&self) -> Option<&PyTzInfo> {
+        let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
+        unsafe {
+            if (*ptr).hastzinfo != 0 {
+                Some(self.py().from_borrowed_ptr((*ptr).tzinfo))
+            } else {
+                None
+            }
+        }
+    }
+}
+
 /// Bindings for `datetime.time`
 #[repr(transparent)]
 pub struct PyTime(PyAny);
@@ -436,6 +459,19 @@ impl PyTimeAccess for PyTime {
     #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
+    }
+}
+
+impl PyTzInfoAccess for PyTime {
+    fn get_tzinfo(&self) -> Option<&PyTzInfo> {
+        let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
+        unsafe {
+            if (*ptr).hastzinfo != 0 {
+                Some(self.py().from_borrowed_ptr((*ptr).tzinfo))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -522,6 +558,35 @@ mod tests {
 
             assert!(!a.unwrap().get_fold());
             assert!(b.unwrap().get_fold());
+        });
+    }
+
+    #[cfg(not(PyPy))]
+    #[test]
+    fn test_get_tzinfo() {
+        crate::Python::with_gil(|py| {
+            use crate::conversion::ToPyObject;
+            use crate::types::{PyDateTime, PyTime, PyTzInfoAccess};
+
+            let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
+            let timezone = datetime.getattr("timezone").unwrap();
+            let utc = timezone.getattr("utc").unwrap().to_object(py);
+
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
+
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
+
+            assert!(dt.get_tzinfo().is_none());
+
+            let t = PyTime::new(py, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+            assert!(t.get_tzinfo().unwrap().eq(&utc).unwrap());
+
+            let t = PyTime::new(py, 0, 0, 0, 0, None).unwrap();
+
+            assert!(t.get_tzinfo().is_none());
         });
     }
 }

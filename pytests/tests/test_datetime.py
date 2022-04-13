@@ -114,6 +114,7 @@ def test_time(args, kwargs):
 
     assert act == exp
     assert act.tzinfo is exp.tzinfo
+    assert rdt.get_time_tzinfo(act) == exp.tzinfo
 
 
 @given(t=st.times())
@@ -194,6 +195,7 @@ def test_datetime(args, kwargs):
 
     assert act == exp
     assert act.tzinfo is exp.tzinfo
+    assert rdt.get_datetime_tzinfo(act) == exp.tzinfo
 
 
 @given(dt=st.datetimes())

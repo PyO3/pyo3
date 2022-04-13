@@ -3,7 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
-    PyTzInfo,
+    PyTzInfo, PyTzInfoAccess,
 };
 
 #[pyfunction]
@@ -179,6 +179,16 @@ fn datetime_from_timestamp<'p>(
     PyDateTime::from_timestamp(py, ts, tz)
 }
 
+#[pyfunction]
+fn get_datetime_tzinfo(dt: &PyDateTime) -> Option<&PyTzInfo> {
+    dt.get_tzinfo()
+}
+
+#[pyfunction]
+fn get_time_tzinfo(dt: &PyTime) -> Option<&PyTzInfo> {
+    dt.get_tzinfo()
+}
+
 #[pyclass(extends=PyTzInfo)]
 pub struct TzClass {}
 
@@ -214,6 +224,8 @@ pub fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_datetime, m)?)?;
     m.add_function(wrap_pyfunction!(get_datetime_tuple, m)?)?;
     m.add_function(wrap_pyfunction!(datetime_from_timestamp, m)?)?;
+    m.add_function(wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(get_time_tzinfo, m)?)?;
 
     // Functions not supported by PyPy
     #[cfg(not(PyPy))]
