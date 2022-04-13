@@ -319,6 +319,24 @@ impl ModuleDef {
         py: Python,
         initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
     ) -> PyResult<*mut ffi::PyObject> {
+        #[cfg(all(PyPy, not(Py_3_8)))]
+        {
+            const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
+            let version = py
+                .import("sys")?
+                .getattr("implementation")?
+                .getattr("version")?;
+            if version.compare(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))?
+                == std::cmp::Ordering::Less
+            {
+                let warn = py.import("warnings")?.getattr("warn")?;
+                warn.call1((
+                    "PyPy 3.7 versions older than 7.3.8 are known to have binary \
+                             compatibility issues which may cause segfaults. Please upgrade.",
+                ))?;
+            }
+        }
+
         let module =
             unsafe { py.from_owned_ptr_or_err::<PyModule>(ffi::PyModule_Create(self.0.get()))? };
         initializer(py, module)?;
