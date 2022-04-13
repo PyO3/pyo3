@@ -4,11 +4,8 @@
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
 use crate::err::PyResult;
-use crate::ffi;
-#[cfg(PyPy)]
-use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
 use crate::ffi::{
-    PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
+    self, PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
 };
 #[cfg(not(PyPy))]
 use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};

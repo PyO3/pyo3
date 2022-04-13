@@ -224,6 +224,8 @@ pub fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_datetime, m)?)?;
     m.add_function(wrap_pyfunction!(get_datetime_tuple, m)?)?;
     m.add_function(wrap_pyfunction!(datetime_from_timestamp, m)?)?;
+    m.add_function(wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(get_time_tzinfo, m)?)?;
 
     // Functions not supported by PyPy
     #[cfg(not(PyPy))]
