@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.15.1"
+version = "0.15.2"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -20,7 +20,7 @@ libc = "0.2.62"
 parking_lot = "0.11.0"
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.15.1", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.15.2", optional = true }
 # indoc must stay at 0.3.x for Rust 1.41 compatibility
 indoc = { version = "0.3.6", optional = true }
 paste = { version = "0.1.18", optional = true }
@@ -59,7 +59,7 @@ serde_json = "1.0.61"
 pyo3 = { path = ".", default-features = false, features = ["macros", "auto-initialize"] }
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.15.1", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.15.2", features = ["resolve-config"] }
 
 [features]
 default = ["macros"]

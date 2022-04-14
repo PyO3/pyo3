@@ -6,6 +6,12 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2022-04-14
+
+### Packaging
+
+- Backport of PyPy 3.9 support from PyO3 0.16. [#2262](https://github.com/PyO3/pyo3/pull/2262)
+
 ## [0.15.1] - 2021-11-19
 
 ### Added
@@ -987,7 +993,8 @@ Yanked
 
 - Initial release
 
-[unreleased]: https://github.com/pyo3/pyo3/compare/v0.15.1...HEAD
+[unreleased]: https://github.com/pyo3/pyo3/compare/v0.15.2...HEAD
+[0.15.2]: https://github.com/pyo3/pyo3/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/pyo3/pyo3/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/pyo3/pyo3/compare/v0.14.5...v0.15.0
 [0.14.5]: https://github.com/pyo3/pyo3/compare/v0.14.4...v0.14.5
