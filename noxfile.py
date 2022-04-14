@@ -124,7 +124,7 @@ def contributors(session: nox.Session) -> None:
         else:
             break
 
-    authors = sorted(list(authors))
+    authors = sorted(list(authors), key=lambda author: author.lower())
 
     for author in authors:
         print(f"@{author}")
