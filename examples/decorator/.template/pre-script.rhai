@@ -1,4 +1,4 @@
-variable::set("PYO3_VERSION", "0.16.3");
+variable::set("PYO3_VERSION", "0.16.4");
 file::rename(".template/Cargo.toml", "Cargo.toml");
 file::rename(".template/pyproject.toml", "pyproject.toml");
 file::rename(".template/tox.ini", "tox.ini");

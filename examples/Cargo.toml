@@ -5,7 +5,7 @@ publish = false
 edition = "2018"
 
 [dev-dependencies]
-pyo3 = { version = "0.16.3", path = "..", features = ["auto-initialize", "extension-module"] }
+pyo3 = { version = "0.16.4", path = "..", features = ["auto-initialize", "extension-module"] }
 
 [[example]]
 name = "decorator"
