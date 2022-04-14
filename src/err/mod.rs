@@ -437,7 +437,7 @@ impl PyErr {
     pub fn cause(&self, py: Python) -> Option<PyErr> {
         let ptr = unsafe { ffi::PyException_GetCause(self.pvalue(py).as_ptr()) };
         let obj = unsafe { py.from_owned_ptr_or_opt::<PyAny>(ptr) };
-        obj.map(|x| Self::from_instance(x))
+        obj.map(Self::from_instance)
     }
 
     /// Set the cause associated with the exception, pass `None` to clear it.

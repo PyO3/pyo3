@@ -168,6 +168,10 @@ fn is_matching_endian(c: u8) -> bool {
 }
 
 /// Trait implemented for possible element types of `PyBuffer`.
+///
+/// # Safety
+///
+/// This trait must only be implemented for types which represent valid elements of Python buffers.
 pub unsafe trait Element: Copy {
     /// Gets whether the element specified in the format string is potentially compatible.
     /// Alignment and size are checked separately from this function.

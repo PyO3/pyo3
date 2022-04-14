@@ -83,6 +83,7 @@ impl Default for PyMethodDef {
     }
 }
 
+#[cfg(not(Py_3_9))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]
     pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
@@ -95,7 +96,32 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-// skipped non-limited / 3.9 PyCMethod_New
+#[cfg(Py_3_9)]
+#[inline]
+pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
+    PyCFunction_NewEx(ml, slf, std::ptr::null_mut())
+}
+
+#[cfg(Py_3_9)]
+#[inline]
+pub unsafe fn PyCFunction_NewEx(
+    ml: *mut PyMethodDef,
+    slf: *mut PyObject,
+    module: *mut PyObject,
+) -> *mut PyObject {
+    PyCMethod_New(ml, slf, module, std::ptr::null_mut())
+}
+
+#[cfg(Py_3_9)]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyCMethod_New")]
+    pub fn PyCMethod_New(
+        ml: *mut PyMethodDef,
+        slf: *mut PyObject,
+        module: *mut PyObject,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject;
+}
 
 /* Flag passed to newmethodobject */
 pub const METH_VARARGS: c_int = 0x0001;

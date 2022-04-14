@@ -195,7 +195,6 @@ where
 ///         }
 ///     }
 /// }
-/// # fn main() {
 /// #     Python::with_gil(|py| {
 /// #         let v = Value::Integer(73).into_py(py);
 /// #         let v = v.extract::<i32>(py).unwrap();
@@ -206,7 +205,6 @@ where
 /// #         let v = Value::None.into_py(py);
 /// #         let v = v.extract::<Option<Vec<i32>>>(py).unwrap();
 /// #     });
-/// # }
 /// ```
 /// Python code will see this as any of the `int`, `string` or `None` objects.
 #[cfg_attr(docsrs, doc(alias = "IntoPyCallbackOutput"))]
@@ -463,6 +461,10 @@ impl IntoPy<Py<PyTuple>> for () {
 }
 
 /// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
+///
+/// # Safety
+///
+/// See safety notes on individual functions.
 pub unsafe trait FromPyPointer<'p>: Sized {
     /// Convert from an arbitrary `PyObject`.
     ///

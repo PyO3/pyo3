@@ -1,3 +1,4 @@
+#![allow(clippy::needless_option_as_deref)]
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,

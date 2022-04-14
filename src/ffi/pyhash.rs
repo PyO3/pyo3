@@ -14,7 +14,7 @@ extern "C" {
     pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
 
-pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
+pub const _PyHASH_MULTIPLIER: c_ulong = 1_000_003;
 
 // skipped _PyHASH_BITS
 

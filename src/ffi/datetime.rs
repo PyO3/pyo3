@@ -361,7 +361,7 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(Py_3_7)]
     pub TimeZone_UTC: *mut PyObject,
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
@@ -395,7 +395,7 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(all(Py_3_7, any(not(PyPy), Py_3_8)))]
+    #[cfg(Py_3_7)]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
