@@ -80,7 +80,7 @@ abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
-generate-abi3-import-lib = ["pyo3-build-config/python3-dll-a"]
+generate-abi3-import-lib = ["pyo3-ffi/generate-abi3-import-lib"]
 
 # Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
 # Python interpreter if needed.
