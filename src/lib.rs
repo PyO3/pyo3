@@ -295,8 +295,8 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{
-    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
-    ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom,
+    PyTryInto, ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyResult};
 #[cfg(not(PyPy))]

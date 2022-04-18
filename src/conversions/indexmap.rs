@@ -121,6 +121,21 @@ where
     }
 }
 
+impl<K, V, H> IntoPyObject for indexmap::IndexMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
+    H: hash::BuildHasher,
+{
+    type Target = PyDict;
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
 impl<'source, K, V, S> FromPyObject<'source> for indexmap::IndexMap<K, V, S>
 where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,

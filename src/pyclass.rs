@@ -7,7 +7,7 @@ use crate::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
         PyClassImpl, PyClassItems, PyClassWeakRef,
     },
-    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
+    IntoPyObject, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
     PyTypeInfo, Python,
 };
 use std::{
@@ -495,24 +495,24 @@ impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
 
 impl<T, U> IntoPyCallbackOutput<PyIterNextOutput> for IterNextOutput<T, U>
 where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
+    T: IntoPyObject,
+    U: IntoPyObject,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
-            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_py(py))),
-            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_py(py))),
+            IterNextOutput::Yield(o) => Ok(IterNextOutput::Yield(o.into_object(py))),
+            IterNextOutput::Return(o) => Ok(IterNextOutput::Return(o.into_object(py))),
         }
     }
 }
 
 impl<T> IntoPyCallbackOutput<PyIterNextOutput> for Option<T>
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterNextOutput> {
         match self {
-            Some(o) => Ok(PyIterNextOutput::Yield(o.into_py(py))),
+            Some(o) => Ok(PyIterNextOutput::Yield(o.into_object(py))),
             None => Ok(PyIterNextOutput::Return(py.None())),
         }
     }
@@ -544,24 +544,24 @@ impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterANextOutput {
 
 impl<T, U> IntoPyCallbackOutput<PyIterANextOutput> for IterANextOutput<T, U>
 where
-    T: IntoPy<PyObject>,
-    U: IntoPy<PyObject>,
+    T: IntoPyObject,
+    U: IntoPyObject,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
-            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_py(py))),
-            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_py(py))),
+            IterANextOutput::Yield(o) => Ok(IterANextOutput::Yield(o.into_object(py))),
+            IterANextOutput::Return(o) => Ok(IterANextOutput::Return(o.into_object(py))),
         }
     }
 }
 
 impl<T> IntoPyCallbackOutput<PyIterANextOutput> for Option<T>
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject,
 {
     fn convert(self, py: Python<'_>) -> PyResult<PyIterANextOutput> {
         match self {
-            Some(o) => Ok(PyIterANextOutput::Yield(o.into_py(py))),
+            Some(o) => Ok(PyIterANextOutput::Yield(o.into_object(py))),
             None => Ok(PyIterANextOutput::Return(py.None())),
         }
     }

@@ -471,8 +471,8 @@ impl RichComparisons2 {
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyObject {
         match op {
-            CompareOp::Eq => true.into_py(other.py()),
-            CompareOp::Ne => false.into_py(other.py()),
+            CompareOp::Eq => true.into_object(other.py()),
+            CompareOp::Ne => false.into_object(other.py()),
             _ => other.py().NotImplemented(),
         }
     }

@@ -52,6 +52,22 @@ where
     }
 }
 
+impl<K, V, H> IntoPyObject for hashbrown::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
+    H: hash::BuildHasher,
+{
+    type Target = PyDict;
+
+    fn into_py(self, py: Python<'_>) -> Py<PyDict> {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py)
+    }
+}
+
 impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
 where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,

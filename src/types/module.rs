@@ -4,12 +4,12 @@
 
 use crate::callback::IntoPyCallbackOutput;
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
-use crate::{AsPyPointer, IntoPy, PyObject, Python};
+use crate::{exceptions, IntoPyObject};
+use crate::{AsPyPointer, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -67,7 +67,7 @@ impl PyModule {
     /// import antigravity
     /// ```
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name: PyObject = name.into_py(py);
+        let name = name.into_py(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
     }
 
@@ -241,12 +241,12 @@ impl PyModule {
     /// ```
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<()>
     where
-        V: IntoPy<PyObject>,
+        V: IntoPyObject,
     {
         self.index()?
             .append(name)
             .expect("could not append __name__ to __all__");
-        self.setattr(name, value.into_py(self.py()))
+        self.setattr(name, value.into_object(self.py()))
     }
 
     /// Adds a new class to the module.

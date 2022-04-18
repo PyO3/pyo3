@@ -2,7 +2,8 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyObject, Py, PyAny, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use std::os::raw::c_double;
 
@@ -46,6 +47,13 @@ impl IntoPy<PyObject> for f64 {
     }
 }
 
+impl IntoPyObject for f64 {
+    type Target = PyFloat;
+    fn into_py(self, py: Python<'_>) -> Py<PyFloat> {
+        PyFloat::new(py, self).into()
+    }
+}
+
 impl<'source> FromPyObject<'source> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![allow(clippy::float_cmp)]
@@ -70,6 +78,13 @@ impl ToPyObject for f32 {
 
 impl IntoPy<PyObject> for f32 {
     fn into_py(self, py: Python<'_>) -> PyObject {
+        PyFloat::new(py, f64::from(self)).into()
+    }
+}
+
+impl IntoPyObject for f32 {
+    type Target = PyFloat;
+    fn into_py(self, py: Python<'_>) -> Py<PyFloat> {
         PyFloat::new(py, f64::from(self)).into()
     }
 }

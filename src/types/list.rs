@@ -9,8 +9,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToBorrowedObject,
-    ToPyObject,
+    AsPyPointer, IntoPy, IntoPyObject, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python,
+    ToBorrowedObject, ToPyObject,
 };
 
 /// Represents a Python `list`.
@@ -356,6 +356,18 @@ where
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let mut iter = self.into_iter().map(|e| e.into_py(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
+    }
+}
+
+impl<T> IntoPyObject for Vec<T>
+where
+    T: IntoPyObject,
+{
+    type Target = PyList;
+    fn into_py(self, py: Python<'_>) -> Py<PyList> {
+        let mut iter = self.into_iter().map(|e| e.into_object(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
     }

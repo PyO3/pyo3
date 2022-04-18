@@ -285,12 +285,12 @@ fn test_closure() {
             .iter()
             .map(|elem| {
                 if let Ok(i) = elem.extract::<i64>() {
-                    (i + 1).into_py(py)
+                    (i + 1).into_object(py)
                 } else if let Ok(f) = elem.extract::<f64>() {
-                    (2. * f).into_py(py)
+                    (2. * f).into_object(py)
                 } else if let Ok(mut s) = elem.extract::<String>() {
                     s.push_str("-py");
-                    s.into_py(py)
+                    s.into_object(py)
                 } else {
                     panic!("unexpected argument type for {:?}", elem)
                 }

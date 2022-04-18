@@ -737,6 +737,13 @@ impl<'a> PyClassImplsBuilder<'a> {
                         _pyo3::IntoPy::into_py(_pyo3::Py::new(py, self).unwrap(), py)
                     }
                 }
+
+                impl _pyo3::IntoPyObject for #cls {
+                    type Target = #cls;
+                    fn into_py(self, py: _pyo3::Python) -> _pyo3::Py<#cls> {
+                        _pyo3::Py::new(py, self).unwrap()
+                    }
+                }
             }
         } else {
             quote! {}

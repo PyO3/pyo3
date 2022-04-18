@@ -5,7 +5,8 @@ use crate::err::{self, PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyObject, Py, PyAny, PyObject, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
@@ -237,6 +238,23 @@ where
     }
 }
 
+impl<K, S> IntoPyObject for HashSet<K, S>
+where
+    K: IntoPyObject + Eq + hash::Hash,
+    S: hash::BuildHasher + Default,
+{
+    type Target = PySet;
+    fn into_py(self, py: Python<'_>) -> Py<PySet> {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
 impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
 where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,
@@ -253,6 +271,22 @@ where
     K: IntoPy<PyObject> + cmp::Ord,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in self {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
+impl<K> IntoPyObject for BTreeSet<K>
+where
+    K: IntoPyObject + cmp::Ord,
+{
+    type Target = PySet;
+    fn into_py(self, py: Python<'_>) -> Py<PySet> {
         let set = PySet::empty(py).expect("Failed to construct empty set");
         {
             for val in self {

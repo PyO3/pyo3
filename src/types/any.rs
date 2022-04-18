@@ -1,12 +1,12 @@
 use crate::class::basic::CompareOp;
 use crate::conversion::{
-    AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPyObject, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
-use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
+use crate::{err, ffi, IntoPyObject, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -402,7 +402,7 @@ impl PyAny {
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
     pub fn call(
         &self,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPyObject<Target = PyTuple>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
         let args = args.into_py(self.py()).into_ptr();
@@ -480,7 +480,7 @@ impl PyAny {
     /// value = add(1,2)
     /// assert value == 3
     /// ```
-    pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, args: impl IntoPyObject<Target = PyTuple>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
 
@@ -516,7 +516,7 @@ impl PyAny {
     pub fn call_method(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPyObject<Target = PyTuple>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
@@ -607,7 +607,11 @@ impl PyAny {
     /// list_.insert(1,2)
     /// assert list_ == [1,2,3,4]
     /// ```
-    pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call_method1(
+        &self,
+        name: &str,
+        args: impl IntoPyObject<Target = PyTuple>,
+    ) -> PyResult<&PyAny> {
         self.call_method(name, args, None)
     }
 
