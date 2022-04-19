@@ -61,7 +61,7 @@ impl Mapping {
     fn get(&self, py: Python<'_>, key: &str, default: Option<PyObject>) -> Option<PyObject> {
         self.index
             .get(key)
-            .map(|value| value.into_py(py))
+            .map(|value| value.into_object(py))
             .or(default)
     }
 }

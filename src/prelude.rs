@@ -11,7 +11,7 @@
 //! ```
 
 pub use crate::conversion::{
-    FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject,
+    FromPyObject, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject,
 };
 pub use crate::err::{PyErr, PyResult};
 pub use crate::gil::GILGuard;

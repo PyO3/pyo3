@@ -2,7 +2,7 @@ use crate::types::PyString;
 #[cfg(windows)]
 use crate::PyErr;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPyObject, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 use std::borrow::Cow;
@@ -12,43 +12,7 @@ use std::os::raw::c_char;
 
 impl ToPyObject for OsStr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        // If the string is UTF-8, take the quick and easy shortcut
-        if let Some(valid_utf8_path) = self.to_str() {
-            return valid_utf8_path.to_object(py);
-        }
-
-        // All targets besides windows support the std::os::unix::ffi::OsStrExt API:
-        // https://doc.rust-lang.org/src/std/sys_common/mod.rs.html#59
-        #[cfg(not(windows))]
-        {
-            #[cfg(target_os = "wasi")]
-            let bytes = std::os::wasi::ffi::OsStrExt::as_bytes(self);
-            #[cfg(not(target_os = "wasi"))]
-            let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
-
-            let ptr = bytes.as_ptr() as *const c_char;
-            let len = bytes.len() as ffi::Py_ssize_t;
-            unsafe {
-                // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
-                // parse os strings losslessly (i.e. surrogateescape most of the time)
-                let pystring = ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len);
-                PyObject::from_owned_ptr(py, pystring)
-            }
-        }
-
-        #[cfg(windows)]
-        {
-            let wstr: Vec<u16> = std::os::windows::ffi::OsStrExt::encode_wide(self).collect();
-
-            unsafe {
-                // This will not panic because the data from encode_wide is well-formed Windows
-                // string data
-                PyObject::from_owned_ptr(
-                    py,
-                    ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t),
-                )
-            }
-        }
+        self.into_object(py)
     }
 }
 
@@ -110,10 +74,54 @@ impl FromPyObject<'_> for OsString {
     }
 }
 
-impl IntoPy<PyObject> for &'_ OsStr {
+impl crate::IntoPy<PyObject> for &'_ OsStr {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl IntoPyObject for &'_ OsStr {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        // If the string is UTF-8, take the quick and easy shortcut
+        if let Some(valid_utf8_path) = self.to_str() {
+            return valid_utf8_path.into_py(py);
+        }
+
+        // All targets besides windows support the std::os::unix::ffi::OsStrExt API:
+        // https://doc.rust-lang.org/src/std/sys_common/mod.rs.html#59
+        #[cfg(not(windows))]
+        {
+            #[cfg(target_os = "wasi")]
+            let bytes = std::os::wasi::ffi::OsStrExt::as_bytes(self);
+            #[cfg(not(target_os = "wasi"))]
+            let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
+
+            let ptr = bytes.as_ptr() as *const c_char;
+            let len = bytes.len() as ffi::Py_ssize_t;
+            unsafe {
+                // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
+                // parse os strings losslessly (i.e. surrogateescape most of the time)
+                let pystring = ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len);
+                Py::from_owned_ptr(py, pystring)
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            let wstr: Vec<u16> = std::os::windows::ffi::OsStrExt::encode_wide(self).collect();
+
+            unsafe {
+                // This will not panic because the data from encode_wide is well-formed Windows
+                // string data
+                Py::from_owned_ptr(
+                    py,
+                    ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t),
+                )
+            }
+        }
     }
 }
 
@@ -124,10 +132,18 @@ impl ToPyObject for Cow<'_, OsStr> {
     }
 }
 
-impl IntoPy<PyObject> for Cow<'_, OsStr> {
+impl crate::IntoPy<PyObject> for Cow<'_, OsStr> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl IntoPyObject for Cow<'_, OsStr> {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        (*self).into_py(py)
     }
 }
 
@@ -138,15 +154,29 @@ impl ToPyObject for OsString {
     }
 }
 
-impl IntoPy<PyObject> for OsString {
+impl crate::IntoPy<PyObject> for OsString {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a OsString {
+impl IntoPyObject for OsString {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        (*self).into_py(py)
+    }
+}
+
+impl<'a> crate::IntoPy<PyObject> for &'a OsString {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'a> IntoPyObject for &'a OsString {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        (&**self).into_py(py)
     }
 }
 

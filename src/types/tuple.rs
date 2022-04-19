@@ -6,8 +6,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
-    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
-    PyResult, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+    exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, Py, PyAny, PyErr,
+    PyObject, PyResult, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
 };
 
 #[inline]
@@ -329,6 +329,18 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 let ret = Py::from_owned_ptr(py, ptr);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
                 ret
+            }
+        }
+    }
+
+    impl <$($T: IntoPy<PyObject>),+> IntoPyObject for ($($T,)+) {
+        type Target = PyTuple;
+        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                let ret =  Py::from_owned_ptr(py, ptr);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
+               ret
             }
         }
     }

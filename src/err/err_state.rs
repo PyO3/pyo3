@@ -3,7 +3,7 @@ use crate::{
     ffi,
     type_object::PyTypeObject,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
+    AsPyPointer, IntoPyObject, IntoPyPointer, Py, PyObject, Python,
 };
 
 #[derive(Clone)]
@@ -38,10 +38,10 @@ pub trait PyErrArguments: Send + Sync {
 
 impl<T> PyErrArguments for T
 where
-    T: IntoPy<PyObject> + Send + Sync,
+    T: IntoPyObject + Send + Sync,
 {
     fn arguments(self, py: Python<'_>) -> PyObject {
-        self.into_py(py)
+        self.into_object(py)
     }
 }
 

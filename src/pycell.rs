@@ -184,7 +184,7 @@ use crate::{
     type_object::get_tp_free,
     PyTypeInfo,
 };
-use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, IntoPyObject, Py, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -504,6 +504,13 @@ impl<T: PyClass> ToPyObject for &PyCell<T> {
     }
 }
 
+impl<T: PyClass> IntoPyObject for &PyCell<T> {
+    type Target = T;
+    fn into_py(self, py: Python<'_>) -> Py<T> {
+        unsafe { Py::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
 impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
     fn as_ref(&self) -> &PyAny {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
@@ -677,7 +684,14 @@ impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     }
 }
 
-impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
+impl<T: PyClass> crate::IntoPy<PyObject> for PyRef<'_, T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
+    }
+}
+
+impl<T: PyClass> IntoPyObject for PyRef<'_, T> {
+    type Target = PyAny;
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
@@ -775,7 +789,14 @@ impl<'p, T: PyClass> Drop for PyRefMut<'p, T> {
     }
 }
 
-impl<T: PyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
+impl<T: PyClass> crate::IntoPy<PyObject> for PyRefMut<'_, T> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
+    }
+}
+
+impl<T: PyClass> IntoPyObject for PyRefMut<'_, T> {
+    type Target = PyAny;
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }

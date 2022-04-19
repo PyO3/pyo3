@@ -3,14 +3,27 @@ use crate::{exceptions, PyErr};
 #[cfg(min_const_generics)]
 mod min_const_generics {
     use super::invalid_sequence_length;
-    use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject};
+    use crate::{
+        types::PyList, FromPyObject, IntoPyObject, Py, PyAny, PyObject, PyResult, PyTryFrom,
+        Python, ToPyObject,
+    };
 
-    impl<T, const N: usize> IntoPy<PyObject> for [T; N]
+    impl<T, const N: usize> crate::IntoPy<PyObject> for [T; N]
     where
         T: ToPyObject,
     {
         fn into_py(self, py: Python<'_>) -> PyObject {
             self.as_ref().to_object(py)
+        }
+    }
+
+    impl<T, const N: usize> IntoPyObject for [T; N]
+    where
+        T: ToPyObject,
+    {
+        type Target = PyList;
+        fn into_py(self, py: Python<'_>) -> Py<PyList> {
+            PyList::new(py, self.as_ref()).into()
         }
     }
 

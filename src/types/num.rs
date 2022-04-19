@@ -3,8 +3,8 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{
-    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
-    ToPyObject,
+    exceptions, ffi, AsPyPointer, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use std::convert::TryFrom;
 use std::i64;
@@ -15,11 +15,17 @@ macro_rules! int_fits_larger_int {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                (*self as $larger_type).into_py(py)
+                (*self as $larger_type).into_object(py)
             }
         }
-        impl IntoPy<PyObject> for $rust_type {
+        impl $crate::IntoPy<PyObject> for $rust_type {
             fn into_py(self, py: Python<'_>) -> PyObject {
+                (self as $larger_type).into_object(py)
+            }
+        }
+        impl IntoPyObject for $rust_type {
+            type Target = PyLong;
+            fn into_py(self, py: Python<'_>) -> Py<PyLong> {
                 (self as $larger_type).into_py(py)
             }
         }
@@ -52,9 +58,15 @@ macro_rules! int_fits_c_long {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(*self as c_long)) }
             }
         }
-        impl IntoPy<PyObject> for $rust_type {
+        impl $crate::IntoPy<PyObject> for $rust_type {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
+            }
+        }
+        impl IntoPyObject for $rust_type {
+            type Target = PyLong;
+            fn into_py(self, py: Python<'_>) -> Py<PyLong> {
+                unsafe { Py::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
         }
 
@@ -86,10 +98,16 @@ macro_rules! int_convert_u64_or_i64 {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(*self)) }
             }
         }
-        impl IntoPy<PyObject> for $rust_type {
+        impl $crate::IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
+            }
+        }
+        impl IntoPyObject for $rust_type {
+            type Target = PyLong;
+            fn into_py(self, py: Python<'_>) -> Py<PyLong> {
+                unsafe { Py::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
@@ -153,10 +171,10 @@ mod fast_128bit_int_conversion {
             impl ToPyObject for $rust_type {
                 #[inline]
                 fn to_object(&self, py: Python<'_>) -> PyObject {
-                    (*self).into_py(py)
+                    (*self).into_object(py)
                 }
             }
-            impl IntoPy<PyObject> for $rust_type {
+            impl $crate::IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
                     unsafe {
                         // Always use little endian
@@ -168,6 +186,22 @@ mod fast_128bit_int_conversion {
                             $is_signed,
                         );
                         PyObject::from_owned_ptr(py, obj)
+                    }
+                }
+            }
+            impl IntoPyObject for $rust_type {
+                type Target = PyLong;
+                fn into_py(self, py: Python<'_>) -> Py<PyLong> {
+                    unsafe {
+                        // Always use little endian
+                        let bytes = self.to_le_bytes();
+                        let obj = ffi::_PyLong_FromByteArray(
+                            bytes.as_ptr() as *const std::os::raw::c_uchar,
+                            bytes.len(),
+                            1,
+                            $is_signed,
+                        );
+                        Py::from_owned_ptr(py, obj)
                     }
                 }
             }
@@ -216,7 +250,7 @@ mod slow_128bit_int_conversion {
                 }
             }
 
-            impl IntoPy<PyObject> for $rust_type {
+            impl $crate::IntoPy<PyObject> for $rust_type {
                 fn into_py(self, py: Python<'_>) -> PyObject {
                     let lower = self as u64;
                     let upper = (self >> SHIFT) as $half_type;
@@ -229,6 +263,26 @@ mod slow_128bit_int_conversion {
                             ),
                         );
                         PyObject::from_owned_ptr(
+                            py,
+                            ffi::PyNumber_Or(shifted.as_ptr(), lower.into_py(py).as_ptr()),
+                        )
+                    }
+                }
+            }
+            impl IntoPyObject for $rust_type {
+                type Target = PyLong;
+                fn into_py(self, py: Python<'_>) -> Py<PyLong> {
+                    let lower = self as u64;
+                    let upper = (self >> SHIFT) as $half_type;
+                    unsafe {
+                        let shifted = PyObject::from_owned_ptr(
+                            py,
+                            ffi::PyNumber_Lshift(
+                                upper.into_py(py).as_ptr(),
+                                SHIFT.into_py(py).as_ptr(),
+                            ),
+                        );
+                        Py::from_owned_ptr(
                             py,
                             ffi::PyNumber_Or(shifted.as_ptr(), lower.into_py(py).as_ptr()),
                         )

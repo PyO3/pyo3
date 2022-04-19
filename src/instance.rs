@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::{PyTryFrom, ToBorrowedObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPyPointer, PyAny, PyClass, PyClassInitializer, PyRef,
+    PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
+use crate::{gil, IntoPyObject};
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::NonNull;
@@ -602,7 +602,7 @@ impl<T> Py<T> {
     pub fn call(
         &self,
         py: Python<'_>,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPyObject<Target = PyTuple>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let args = args.into_py(py).into_ptr();
@@ -620,7 +620,11 @@ impl<T> Py<T> {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python<'_>, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1(
+        &self,
+        py: Python<'_>,
+        args: impl IntoPyObject<Target = PyTuple>,
+    ) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
@@ -647,7 +651,7 @@ impl<T> Py<T> {
         &self,
         py: Python<'_>,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPyObject<Target = PyTuple>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
@@ -672,7 +676,7 @@ impl<T> Py<T> {
         &self,
         py: Python<'_>,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPyObject<Target = PyTuple>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }
@@ -811,12 +815,20 @@ impl<T> ToPyObject for Py<T> {
     }
 }
 
-impl<T> IntoPy<PyObject> for Py<T> {
+impl<T> crate::IntoPy<PyObject> for Py<T> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_non_null(self.into_non_null()) }
+    }
+}
+
+impl<T> IntoPyObject for Py<T> {
+    type Target = T;
+    #[inline]
+    fn into_py(self, _py: Python<'_>) -> Py<T> {
+        self
     }
 }
 

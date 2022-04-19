@@ -65,6 +65,15 @@ macro_rules! pyobject_native_type_base(
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
+
+        impl<$($generics,)*> $crate::IntoPyObject for &'_ $name {
+            type Target = $name;
+            #[inline]
+            fn into_py(self, py: $crate::Python<'_>) -> $crate::Py<$name> {
+                use $crate::AsPyPointer;
+                unsafe { $crate::Py::from_borrowed_ptr(py, self.as_ptr()) }
+            }
+        }
     };
 );
 

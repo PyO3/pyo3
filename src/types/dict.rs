@@ -5,8 +5,8 @@ use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToBorrowedObject,
-    ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPyObject, Py, PyObject, PyTryFrom, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
@@ -251,10 +251,10 @@ where
     }
 }
 
-impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
+impl<K, V, H> crate::IntoPy<PyObject> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
+    K: hash::Hash + cmp::Eq + crate::IntoPy<PyObject>,
+    V: crate::IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -265,12 +265,41 @@ where
     }
 }
 
-impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
+impl<K, V, H> IntoPyObject for collections::HashMap<K, V, H>
 where
-    K: cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
+    K: hash::Hash + cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
+    H: hash::BuildHasher,
+{
+    type Target = PyDict;
+    fn into_py(self, py: Python<'_>) -> Py<PyDict> {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
+impl<K, V> crate::IntoPy<PyObject> for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + crate::IntoPy<PyObject>,
+    V: crate::IntoPy<PyObject>,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
+    }
+}
+
+impl<K, V> IntoPyObject for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
+{
+    type Target = PyDict;
+    fn into_py(self, py: Python<'_>) -> Py<PyDict> {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));

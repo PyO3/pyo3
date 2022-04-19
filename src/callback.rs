@@ -6,8 +6,8 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::panic::PanicException;
-use crate::{GILPool, IntoPyPointer};
-use crate::{IntoPy, PyObject, Python};
+use crate::{GILPool, IntoPyObject, IntoPyPointer};
+use crate::{PyObject, Python};
 use std::any::Any;
 use std::os::raw::c_int;
 use std::panic::UnwindSafe;
@@ -53,7 +53,7 @@ where
 
 impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for T
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject,
 {
     #[inline]
     fn convert(self, py: Python<'_>) -> PyResult<*mut ffi::PyObject> {
@@ -118,11 +118,11 @@ impl IntoPyCallbackOutput<usize> for usize {
 
 impl<T> IntoPyCallbackOutput<PyObject> for T
 where
-    T: IntoPy<PyObject>,
+    T: IntoPyObject,
 {
     #[inline]
     fn convert(self, py: Python<'_>) -> PyResult<PyObject> {
-        Ok(self.into_py(py))
+        Ok(self.into_object(py))
     }
 }
 

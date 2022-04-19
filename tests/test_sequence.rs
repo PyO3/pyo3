@@ -263,7 +263,7 @@ fn test_generic_list_get() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let list: PyObject = GenericList {
+    let list = GenericList {
         items: [1, 2, 3].iter().map(|i| i.to_object(py)).collect(),
     }
     .into_py(py);

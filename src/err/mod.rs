@@ -8,7 +8,8 @@ use crate::{
     ffi,
 };
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
+    AsPyPointer, IntoPy, IntoPyObject, IntoPyPointer, Py, PyAny, PyObject, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
@@ -651,15 +652,29 @@ impl IntoPy<PyObject> for PyErr {
     }
 }
 
+impl IntoPyObject for PyErr {
+    type Target = PyAny;
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.into_value(py).into()
+    }
+}
+
 impl ToPyObject for PyErr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.clone_ref(py).into_object(py)
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
+        self.clone_ref(py).into_object(py)
+    }
+}
+
+impl<'a> IntoPyObject for &'a PyErr {
+    type Target = PyAny;
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.clone_ref(py).into_object(py)
     }
 }
 

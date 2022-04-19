@@ -1,5 +1,5 @@
-use crate::types::PyType;
-use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use crate::types::{PyString, PyType};
+use crate::{FromPyObject, IntoPyObject, Py, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -32,10 +32,18 @@ impl FromPyObject<'_> for PathBuf {
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a Path {
+impl<'a> crate::IntoPy<PyObject> for &'a Path {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
+    }
+}
+
+impl<'a> IntoPyObject for &'a Path {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        self.as_os_str().into_py(py)
     }
 }
 
@@ -46,10 +54,18 @@ impl<'a> ToPyObject for Cow<'a, Path> {
     }
 }
 
-impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
+impl<'a> crate::IntoPy<PyObject> for Cow<'a, Path> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+}
+
+impl<'a> IntoPyObject for Cow<'a, Path> {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        (*self).into_py(py)
     }
 }
 
@@ -60,15 +76,29 @@ impl ToPyObject for PathBuf {
     }
 }
 
-impl IntoPy<PyObject> for PathBuf {
+impl crate::IntoPy<PyObject> for PathBuf {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_os_string().to_object(py)
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a PathBuf {
+impl IntoPyObject for PathBuf {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        self.into_os_string().into_py(py)
+    }
+}
+
+impl<'a> crate::IntoPy<PyObject> for &'a PathBuf {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
+    }
+}
+
+impl<'a> IntoPyObject for &'a PathBuf {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        self.as_os_str().into_py(py)
     }
 }
 

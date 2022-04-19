@@ -4,8 +4,8 @@
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyObject, Py, PyAny, PyObject, PyResult, PyTryFrom,
+    Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::os::raw::c_char;
@@ -298,6 +298,14 @@ impl<'a> IntoPy<PyObject> for &'a str {
     }
 }
 
+impl IntoPyObject for &'_ str {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        PyString::new(py, self).into()
+    }
+}
+
 /// Converts a Rust `Cow<'_, str>` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
@@ -314,6 +322,14 @@ impl IntoPy<PyObject> for Cow<'_, str> {
     }
 }
 
+impl IntoPyObject for Cow<'_, str> {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        PyString::new(py, &self).into()
+    }
+}
+
 /// Converts a Rust `String` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
@@ -325,12 +341,20 @@ impl ToPyObject for String {
 
 impl ToPyObject for char {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.into_py(py)
+        self.into_object(py)
     }
 }
 
 impl IntoPy<PyObject> for char {
     fn into_py(self, py: Python<'_>) -> PyObject {
+        let mut bytes = [0u8; 4];
+        PyString::new(py, self.encode_utf8(&mut bytes)).into()
+    }
+}
+
+impl IntoPyObject for char {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
         let mut bytes = [0u8; 4];
         PyString::new(py, self.encode_utf8(&mut bytes)).into()
     }
@@ -342,9 +366,24 @@ impl IntoPy<PyObject> for String {
     }
 }
 
+impl IntoPyObject for String {
+    type Target = PyString;
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
+        PyString::new(py, &self).into()
+    }
+}
+
 impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
+        PyString::new(py, self).into()
+    }
+}
+
+impl IntoPyObject for &'_ String {
+    type Target = PyString;
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
         PyString::new(py, self).into()
     }
 }

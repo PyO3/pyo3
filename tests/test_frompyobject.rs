@@ -77,7 +77,7 @@ fn test_transparent_named_field_struct() {
         let test = "test".into_py(py);
         let b: B = FromPyObject::extract(test.as_ref(py)).expect("Failed to extract B from String");
         assert_eq!(b.test, "test");
-        let test: PyObject = 1.into_py(py);
+        let test = 1i32.into_py(py);
         let b = B::extract(test.as_ref(py));
         assert!(b.is_err());
     });
@@ -161,10 +161,10 @@ pub struct Tuple(String, usize);
 #[test]
 fn test_tuple_struct() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
+        let tup = PyTuple::new(py, &[1i32.into_object(py), "test".into_object(py)]);
         let tup = Tuple::extract(tup.as_ref());
         assert!(tup.is_err());
-        let tup = PyTuple::new(py, &["test".into_py(py), 1.into_py(py)]);
+        let tup = PyTuple::new(py, &["test".into_object(py), 1i32.into_object(py)]);
         let tup = Tuple::extract(tup.as_ref()).expect("Failed to extract Tuple from PyTuple");
         assert_eq!(tup.0, "test");
         assert_eq!(tup.1, 1);
@@ -177,7 +177,7 @@ pub struct TransparentTuple(String);
 #[test]
 fn test_transparent_tuple_struct() {
     Python::with_gil(|py| {
-        let tup: PyObject = 1.into_py(py);
+        let tup = 1i32.into_py(py);
         let tup = TransparentTuple::extract(tup.as_ref(py));
         assert!(tup.is_err());
         let test = "test".into_py(py);
@@ -249,7 +249,7 @@ fn test_struct_nested_type_errors_with_generics() {
 #[test]
 fn test_transparent_struct_error_message() {
     Python::with_gil(|py| {
-        let tup: PyObject = 1.into_py(py);
+        let tup = 1i32.into_py(py);
         let tup = B::extract(tup.as_ref(py));
         assert!(tup.is_err());
         assert_eq!(
@@ -263,7 +263,7 @@ fn test_transparent_struct_error_message() {
 #[test]
 fn test_tuple_struct_error_message() {
     Python::with_gil(|py| {
-        let tup: PyObject = (1, "test").into_py(py);
+        let tup = (1, "test").into_py(py);
         let tup = Tuple::extract(tup.as_ref(py));
         assert!(tup.is_err());
         assert_eq!(
@@ -277,7 +277,7 @@ fn test_tuple_struct_error_message() {
 #[test]
 fn test_transparent_tuple_error_message() {
     Python::with_gil(|py| {
-        let tup: PyObject = 1.into_py(py);
+        let tup = 1i32.into_py(py);
         let tup = TransparentTuple::extract(tup.as_ref(py));
         assert!(tup.is_err());
         assert_eq!(
@@ -323,7 +323,7 @@ pub struct PyBool {
 #[test]
 fn test_enum() {
     Python::with_gil(|py| {
-        let tup = PyTuple::new(py, &[1.into_py(py), "test".into_py(py)]);
+        let tup = PyTuple::new(py, &[1i32.into_object(py), "test".into_object(py)]);
         let f = Foo::extract(tup.as_ref()).expect("Failed to extract Foo from tuple");
         match f {
             Foo::TupleVar(test, test2) => {
@@ -344,7 +344,7 @@ fn test_enum() {
             _ => panic!("Expected extracting Foo::StructVar, got {:?}", f),
         }
 
-        let int: PyObject = 1.into_py(py);
+        let int = 1i32.into_py(py);
         let f = Foo::extract(int.as_ref(py)).expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentTuple(test) => assert_eq!(test, 1),
