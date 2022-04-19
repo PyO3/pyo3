@@ -67,7 +67,7 @@ pyproto = ["pyo3-macros/pyproto"]
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
-extension-module = ["pyo3-build-config/extension-module", "pyo3-ffi/extension-module"]
+extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
@@ -79,7 +79,7 @@ abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
-generate-abi3-import-lib = ["pyo3-build-config/python3-dll-a"]
+generate-abi3-import-lib = ["pyo3-ffi/generate-abi3-import-lib"]
 
 # Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
 # Python interpreter if needed.
