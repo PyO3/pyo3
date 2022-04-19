@@ -233,6 +233,13 @@ print("mingw", get_platform().startswith("mingw"))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
+
+        ensure!(
+            !map.is_empty(),
+            "broken Python interpreter: {}",
+            interpreter.as_ref().display()
+        );
+
         let shared = map["shared"].as_str() == "True";
 
         let version = PythonVersion {
@@ -366,7 +373,7 @@ print("mingw", get_platform().startswith("mingw"))
     #[doc(hidden)]
     pub fn from_cargo_dep_env() -> Option<Result<Self>> {
         cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
-            .map(|buf| InterpreterConfig::from_reader(buf.replace("\\n", "\n").as_bytes()))
+            .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
     #[doc(hidden)]
@@ -464,11 +471,7 @@ print("mingw", get_platform().startswith("mingw"))
         let mut buf = Vec::new();
         self.to_writer(&mut buf)?;
         // escape newlines in env var
-        if let Ok(config) = str::from_utf8(&buf) {
-            println!("cargo:PYO3_CONFIG={}", config.replace('\n', "\\n"));
-        } else {
-            bail!("unable to emit interpreter config to link env for downstream use");
-        }
+        println!("cargo:PYO3_CONFIG={}", escape(&buf));
         Ok(())
     }
 
@@ -682,19 +685,31 @@ pub fn is_extension_module() -> bool {
 
 /// Checks if we need to link to `libpython` for the current build target.
 ///
-/// Must be called from a crate PyO3 build script.
+/// Must be called from a PyO3 crate build script.
 pub fn is_linking_libpython() -> bool {
     is_linking_libpython_for_target(&target_triple_from_env())
 }
 
 /// Checks if we need to link to `libpython` for the target.
 ///
-/// Must be called from a crate PyO3 build script.
+/// Must be called from a PyO3 crate build script.
 fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || !is_extension_module()
+}
+
+/// Checks if we need to discover the Python library directory
+/// to link the extension module binary.
+///
+/// Must be called from a PyO3 crate build script.
+fn require_libdir_for_target(target: &Triple) -> bool {
+    let is_generating_libpython = cfg!(feature = "python3-dll-a")
+        && target.operating_system == OperatingSystem::Windows
+        && is_abi3();
+
+    is_linking_libpython_for_target(target) && !is_generating_libpython
 }
 
 /// Configuration needed by PyO3 to cross-compile for a target platform.
@@ -1646,6 +1661,18 @@ pub fn find_interpreter() -> Result<PathBuf> {
     }
 }
 
+/// Locates and extracts the build host Python interpreter configuration.
+///
+/// Lowers the configured Python version to `abi3_version` if required.
+fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<InterpreterConfig> {
+    let interpreter_path = find_interpreter()?;
+
+    let mut interpreter_config = InterpreterConfig::from_interpreter(interpreter_path)?;
+    interpreter_config.fixup_for_abi3_version(abi3_version)?;
+
+    Ok(interpreter_config)
+}
+
 /// Generates an interpreter config suitable for cross-compilation.
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
@@ -1666,31 +1693,78 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
 /// Only used by `pyo3-build-config` build script.
 #[allow(dead_code, unused_mut)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
+    let host = Triple::host();
     let abi3_version = get_abi3_version();
 
-    if have_python_interpreter() {
-        let mut interpreter_config = InterpreterConfig::from_interpreter(find_interpreter()?)?;
-        interpreter_config.fixup_for_abi3_version(abi3_version)?;
-        Ok(interpreter_config)
-    } else if let Some(version) = abi3_version {
-        let host = Triple::host();
-        let mut interpreter_config = default_abi3_config(&host, version);
+    // See if we can safely skip the Python interpreter configuration detection.
+    // Unix "abi3" extension modules can usually be built without any interpreter.
+    let need_interpreter = abi3_version.is_none() || require_libdir_for_target(&host);
 
-        // Auto generate python3.dll import libraries for Windows targets.
-        #[cfg(feature = "python3-dll-a")]
-        {
-            interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+    if have_python_interpreter() {
+        match get_host_interpreter(abi3_version) {
+            Ok(interpreter_config) => return Ok(interpreter_config),
+            // Bail if the interpreter configuration is required to build.
+            Err(e) if need_interpreter => return Err(e),
+            _ => {
+                // Fall back to the "abi3" defaults just as if `PYO3_NO_PYTHON`
+                // environment variable was set.
+                warn!("Compiling without a working Python interpreter.");
+            }
+        }
+    } else {
+        ensure!(
+            abi3_version.is_some(),
+            "An abi3-py3* feature must be specified when compiling without a Python interpreter."
+        );
+    };
+
+    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap());
+
+    // Auto generate python3.dll import libraries for Windows targets.
+    #[cfg(feature = "python3-dll-a")]
+    {
+        interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+    }
+
+    Ok(interpreter_config)
+}
+
+fn escape(bytes: &[u8]) -> String {
+    let mut escaped = String::with_capacity(2 * bytes.len());
+
+    for byte in bytes {
+        const LUT: &[u8; 16] = b"0123456789abcdef";
+
+        escaped.push(LUT[(byte >> 4) as usize] as char);
+        escaped.push(LUT[(byte & 0x0F) as usize] as char);
+    }
+
+    escaped
+}
+
+fn unescape(escaped: &str) -> Vec<u8> {
+    assert!(escaped.len() % 2 == 0, "invalid hex encoding");
+
+    let mut bytes = Vec::with_capacity(escaped.len() / 2);
+
+    for chunk in escaped.as_bytes().chunks_exact(2) {
+        fn unhex(hex: u8) -> u8 {
+            match hex {
+                b'a'..=b'f' => hex - b'a' + 10,
+                b'0'..=b'9' => hex - b'0',
+                _ => panic!("invalid hex encoding"),
+            }
         }
 
-        Ok(interpreter_config)
-    } else {
-        bail!("An abi3-py3* feature must be specified when compiling without a Python interpreter.")
+        bytes.push(unhex(chunk[0]) << 4 | unhex(chunk[1]));
     }
+
+    bytes
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Cursor, iter::FromIterator};
+    use std::iter::FromIterator;
     use target_lexicon::triple;
 
     use super::*;
@@ -1713,10 +1787,7 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
-        assert_eq!(
-            config,
-            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
-        );
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
 
         // And some different options, for variety
 
@@ -1744,17 +1815,37 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
-        assert_eq!(
-            config,
-            InterpreterConfig::from_reader(Cursor::new(buf)).unwrap()
-        );
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
+    }
+
+    #[test]
+    fn test_config_file_roundtrip_with_escaping() {
+        let config = InterpreterConfig {
+            abi3: true,
+            build_flags: BuildFlags::default(),
+            pointer_width: Some(32),
+            executable: Some("executable".into()),
+            implementation: PythonImplementation::CPython,
+            lib_name: Some("lib_name".into()),
+            lib_dir: Some("lib_dir\\n".into()),
+            shared: true,
+            version: MINIMUM_SUPPORTED_VERSION,
+            suppress_build_script_link_lines: true,
+            extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
+        };
+        let mut buf: Vec<u8> = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+
+        let buf = unescape(&escape(&buf));
+
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
     }
 
     #[test]
     fn test_config_file_defaults() {
         // Only version is required
         assert_eq!(
-            InterpreterConfig::from_reader(Cursor::new("version=3.7")).unwrap(),
+            InterpreterConfig::from_reader("version=3.7".as_bytes()).unwrap(),
             InterpreterConfig {
                 version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,

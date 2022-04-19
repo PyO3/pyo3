@@ -157,6 +157,8 @@ PyO3 is only able to link your extension module to api3 version up to and includ
 #### Building `abi3` extensions without a Python interpreter
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
+Also, if the build host Python interpreter is not found or is too old or otherwise unusable,
+PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
 On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable
 to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 

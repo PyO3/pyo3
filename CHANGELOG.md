@@ -8,19 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.16.4] - 2022-04-14
+
 ### Added
 
+- Add `PyTzInfoAccess` trait for safe access to time zone information. [#2263](https://github.com/PyO3/pyo3/pull/2263)
 - Add an experimental `generate-abi3-import-lib` feature to auto-generate `python3.dll` import libraries for Windows. [#2282](https://github.com/PyO3/pyo3/pull/2282)
 - Add FFI definitions for `PyDateTime_BaseTime` and `PyDateTime_BaseDateTime`. [#2294](https://github.com/PyO3/pyo3/pull/2294)
 
 ### Changed
 
-- Default to "m" ABI tag when choosing `libpython` link name for CPython 3.7 on Unix. [#2288](https://github.com/PyO3/pyo3/pull/2288)
 - Improved performance of failing calls to `FromPyObject::extract` which is common when functions accept multiple distinct types. [#2279](https://github.com/PyO3/pyo3/pull/2279)
+- Default to "m" ABI tag when choosing `libpython` link name for CPython 3.7 on Unix. [#2288](https://github.com/PyO3/pyo3/pull/2288)
+- Allow to compile "abi3" extensions without a working build host Python interpreter. [#2293](https://github.com/PyO3/pyo3/pull/2293)
 
 ### Fixed
 
+- Crates depending on PyO3 can collect code coverage via LLVM instrumentation using stable Rust. [#2286](https://github.com/PyO3/pyo3/pull/2286)
 - Fix segfault when calling FFI methods `PyDateTime_DATE_GET_TZINFO` or `PyDateTime_TIME_GET_TZINFO` on `datetime` or `time` without a tzinfo. [#2289](https://github.com/PyO3/pyo3/pull/2289)
+- Fix directory names starting with the letter `n` breaking serialization of the interpreter configuration on Windows since PyO3 0.16.3. [#2299](https://github.com/PyO3/pyo3/pull/2299)
 
 ## [0.16.3] - 2022-04-05
 
@@ -163,6 +169,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix memory leak in implementation of `AsPyPointer` for `Option<T>`. [#2160](https://github.com/PyO3/pyo3/pull/2160)
 - Fix FFI definition of `_PyLong_NumBits` to return `size_t` instead of `c_int`. [#2161](https://github.com/PyO3/pyo3/pull/2161)
 - Fix `TypeError` thrown when argument parsing failed missing the originating causes. [2177](https://github.com/PyO3/pyo3/pull/2178)
+
+## [0.15.2] - 2022-04-14
+
+### Packaging
+
+- Backport of PyPy 3.9 support from PyO3 0.16. [#2262](https://github.com/PyO3/pyo3/pull/2262)
 
 ## [0.15.1] - 2021-11-19
 
@@ -1145,11 +1157,13 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.4...HEAD
+[0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/pyo3/pyo3/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/pyo3/pyo3/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/pyo3/pyo3/compare/v0.15.1...v0.16.0
+[0.15.2]: https://github.com/pyo3/pyo3/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/pyo3/pyo3/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/pyo3/pyo3/compare/v0.14.5...v0.15.0
 [0.14.5]: https://github.com/pyo3/pyo3/compare/v0.14.4...v0.14.5

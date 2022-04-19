@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.16.3"
+version = "0.16.4"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -26,6 +26,10 @@ default = []
 # script. If this feature isn't enabled, the build script no-ops.
 resolve-config = []
 
+# This feature is enabled by pyo3 when building an extension module.
+extension-module = []
+
+# These features are enabled by pyo3 when building Stable ABI extension modules.
 abi3 = []
 abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
