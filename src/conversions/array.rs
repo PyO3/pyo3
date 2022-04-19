@@ -14,6 +14,15 @@ mod min_const_generics {
         }
     }
 
+    impl<T, const N: usize> ToPyObject for [T; N]
+    where
+        T: ToPyObject,
+    {
+        fn to_object(&self, py: Python<'_>) -> PyObject {
+            self.as_ref().to_object(py)
+        }
+    }
+
     impl<'a, T, const N: usize> FromPyObject<'a> for [T; N]
     where
         T: FromPyObject<'a>,
@@ -154,6 +163,15 @@ mod array_impls {
                     }
                 }
 
+                impl<T> ToPyObject for [T; $N]
+                where
+                    T: ToPyObject,
+                {
+                    fn to_object(&self, py: Python<'_>) -> PyObject {
+                        self.as_ref().to_object(py)
+                    }
+                }
+
                 impl<'a, T> FromPyObject<'a> for [T; $N]
                 where
                     T: Copy + Default + FromPyObject<'a>,
@@ -200,7 +218,7 @@ fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{PyResult, Python};
+    use crate::{types::PyList, PyResult, Python};
 
     #[test]
     fn test_extract_small_bytearray_to_array() {
@@ -211,6 +229,19 @@ mod tests {
                 .extract()
                 .unwrap();
             assert!(&v == b"abc");
+        });
+    }
+    #[test]
+    fn test_topyobject_array_conversion() {
+        use crate::ToPyObject;
+        Python::with_gil(|py| {
+            let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
+            let pyobject = array.to_object(py);
+            let pylist: &PyList = pyobject.extract(py).unwrap();
+            assert_eq!(pylist[0].extract::<f32>().unwrap(), 0.0);
+            assert_eq!(pylist[1].extract::<f32>().unwrap(), -16.0);
+            assert_eq!(pylist[2].extract::<f32>().unwrap(), 16.0);
+            assert_eq!(pylist[3].extract::<f32>().unwrap(), 42.0);
         });
     }
 
