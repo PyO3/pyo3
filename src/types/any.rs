@@ -104,11 +104,16 @@ impl PyAny {
     /// to intern `attr_name`.
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
-        N: ToPyObject,
+        N: IntoPy<Py<PyString>>,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
-        })
+        let py = self.py();
+        let attr_name = attr_name.into_py(py).into_ptr();
+
+        unsafe {
+            let ret = ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0;
+            ffi::Py_DECREF(attr_name);
+            Ok(ret)
+        }
     }
 
     /// Retrieves an attribute value.
@@ -135,12 +140,16 @@ impl PyAny {
     /// ```
     pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
     where
-        N: ToPyObject,
+        N: IntoPy<Py<PyString>>,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
-        })
+        let py = self.py();
+        let attr_name = attr_name.into_py(py).into_ptr();
+
+        unsafe {
+            let ret = ffi::PyObject_GetAttr(self.as_ptr(), attr_name);
+            ffi::Py_DECREF(attr_name);
+            py.from_owned_ptr_or_err(ret)
+        }
     }
 
     /// Sets an attribute value.
@@ -167,17 +176,20 @@ impl PyAny {
     /// ```
     pub fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: ToBorrowedObject,
-        V: ToBorrowedObject,
+        N: IntoPy<Py<PyString>>,
+        V: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(self.py(), move |attr_name| {
-            value.with_borrowed_ptr(self.py(), |value| unsafe {
-                err::error_on_minusone(
-                    self.py(),
-                    ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value),
-                )
-            })
-        })
+        let py = self.py();
+
+        let attr_name = attr_name.into_py(py).into_ptr();
+        let value = value.to_object(py).into_ptr();
+
+        unsafe {
+            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value);
+            ffi::Py_DECREF(attr_name);
+            ffi::Py_XDECREF(value);
+            err::error_on_minusone(py, ret)
+        }
     }
 
     /// Deletes an attribute.
@@ -188,11 +200,17 @@ impl PyAny {
     /// to intern `attr_name`.
     pub fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
-        N: ToPyObject,
+        N: IntoPy<Py<PyString>>,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            err::error_on_minusone(self.py(), ffi::PyObject_DelAttr(self.as_ptr(), attr_name))
-        })
+        let py = self.py();
+
+        let attr_name = attr_name.into_py(py).into_ptr();
+
+        unsafe {
+            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name);
+            ffi::Py_DECREF(attr_name);
+            err::error_on_minusone(py, ret)
+        }
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.
@@ -560,7 +578,6 @@ impl PyAny {
         A: IntoPy<Py<PyTuple>>,
     {
         let py = self.py();
-        let name: Py<PyString> = name.into_py(py);
         let args: Py<PyTuple> = args.into_py(py);
 
         let ptr = self.getattr(name)?.into_ptr();
