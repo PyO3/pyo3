@@ -19,6 +19,13 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
+    #[cfg(Py_NOGIL)]
+    ob_tid: 0,
+    #[cfg(Py_NOGIL)]
+    ob_reflocal: 1,
+    #[cfg(Py_NOGIL)]
+    ob_ref_shared: 0,
+    #[cfg(not(Py_NOGIL))]
     ob_refcnt: 1,
     #[cfg(PyPy)]
     ob_pypy_link: 0,
@@ -35,6 +42,13 @@ pub struct PyObject {
     pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
+    #[cfg(Py_NOGIL)]
+    pub ob_tid: usize,
+    #[cfg(Py_NOGIL)]
+    pub ob_reflocal: u32,
+    #[cfg(Py_NOGIL)]
+    pub ob_ref_shared: u32,
+    #[cfg(not(Py_NOGIL))]
     pub ob_refcnt: Py_ssize_t,
     #[cfg(PyPy)]
     pub ob_pypy_link: Py_ssize_t,
@@ -62,9 +76,19 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 // skipped _Py_REFCNT: defined in Py_REFCNT
 
 #[inline]
+#[cfg(not(Py_NOGIL))]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     assert!(!ob.is_null());
     (*ob).ob_refcnt
+}
+
+#[inline]
+#[cfg(Py_NOGIL)]
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    if ob.is_null() {
+        panic!();
+    }
+    Py_RefCnt(ob)
 }
 
 #[inline]
@@ -409,24 +433,30 @@ extern "C" {
 
 // Reference counting macros.
 #[inline]
+#[cfg(not(any(py_sys_config = "Py_REF_DEBUG", Py_NOGIL)))]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        Py_IncRef(op)
-    } else {
-        (*op).ob_refcnt += 1
+    (*op).ob_refcnt += 1
+}
+
+#[inline]
+#[cfg(any(py_sys_config = "Py_REF_DEBUG", Py_NOGIL))]
+pub unsafe fn Py_INCREF(op: *mut PyObject) {
+    Py_IncRef(op)
+}
+
+#[inline]
+#[cfg(not(any(py_sys_config = "Py_REF_DEBUG", Py_NOGIL)))]
+pub unsafe fn Py_DECREF(op: *mut PyObject) {
+    (*op).ob_refcnt -= 1;
+    if (*op).ob_refcnt == 0 {
+        _Py_Dealloc(op)
     }
 }
 
 #[inline]
+#[cfg(any(py_sys_config = "Py_REF_DEBUG", Py_NOGIL))]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        Py_DecRef(op)
-    } else {
-        (*op).ob_refcnt -= 1;
-        if (*op).ob_refcnt == 0 {
-            _Py_Dealloc(op)
-        }
-    }
+    Py_DecRef(op)
 }
 
 #[inline]
@@ -457,6 +487,8 @@ extern "C" {
     pub fn Py_IncRef(o: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
+    #[cfg(Py_NOGIL)]
+    pub fn Py_RefCnt(o: *mut PyObject) -> Py_ssize_t;
 
     #[cfg(Py_3_10)]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
