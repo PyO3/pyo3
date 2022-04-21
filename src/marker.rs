@@ -123,9 +123,11 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::impl_::not_send::NotSend;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
-use crate::types::{PyAny, PyDict, PyModule, PyType};
+use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
-use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
+use crate::{
+    ffi, AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
+};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -589,7 +591,10 @@ impl<'py> Python<'py> {
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import(self, name: &str) -> PyResult<&'py PyModule> {
+    pub fn import<N>(self, name: N) -> PyResult<&'py PyModule>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
         PyModule::import(self, name)
     }
 

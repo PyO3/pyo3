@@ -9,7 +9,7 @@ use crate::ffi;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
-use crate::{AsPyPointer, IntoPy, PyObject, Python};
+use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
 use std::str;
 
@@ -66,8 +66,11 @@ impl PyModule {
     /// ```python
     /// import antigravity
     /// ```
-    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name: PyObject = name.into_py(py);
+    pub fn import<N>(py: Python<'_>, name: N) -> PyResult<&PyModule>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
+        let name: Py<PyString> = name.into_py(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_Import(name.as_ptr())) }
     }
 

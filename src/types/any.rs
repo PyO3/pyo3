@@ -99,6 +99,9 @@ impl PyAny {
     /// Determines whether this object has the given attribute.
     ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
     pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: ToPyObject,
@@ -112,8 +115,8 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -144,8 +147,8 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -180,6 +183,9 @@ impl PyAny {
     /// Deletes an attribute.
     ///
     /// This is equivalent to the Python statement `del self.attr_name`.
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
     pub fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
         N: ToPyObject,
@@ -262,6 +268,10 @@ impl PyAny {
     }
 
     /// Tests whether two Python objects obey a given [`CompareOp`].
+    ///
+    /// [`lt`](Self::lt), [`le`](Self::le), [`eq`](Self::eq), [`ne`](Self::ne),
+    /// [`gt`](Self::gt) and [`ge`](Self::ge) are the specialized versions
+    /// of this function.
     ///
     /// Depending on the value of `compare_op`, this is equivalent to one of the
     /// following Python expressions:
@@ -400,6 +410,33 @@ impl PyAny {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PyDict;
+    ///
+    /// const CODE: &str = r#"
+    /// def function(*args, **kwargs):
+    ///     assert args == ("hello",)
+    ///     assert kwargs == {"cruel": "world"}
+    ///     return "called with args and kwargs"
+    /// "#;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let fun = module.getattr("function")?;
+    ///     let args = ("hello",);
+    ///     let kwargs = PyDict::new(py);
+    ///     kwargs.set_item("cruel", "world")?;
+    ///     let result = fun.call(args, Some(kwargs))?;
+    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     pub fn call(
         &self,
         args: impl IntoPy<Py<PyTuple>>,
@@ -460,25 +497,23 @@ impl PyAny {
     /// ```rust
     /// use pyo3::prelude::*;
     ///
+    /// const CODE: &str = r#"
+    /// def function(*args, **kwargs):
+    ///     assert args == ("hello",)
+    ///     assert kwargs == {}
+    ///     return "called with args"
+    /// "#;
+    ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let module = PyModule::import(py, "operator")?;
-    ///     let add = module.getattr("add")?;
-    ///     let args = (1, 2);
-    ///     let value = add.call1(args)?;
-    ///     assert_eq!(value.extract::<i32>()?, 3);
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let fun = module.getattr("function")?;
+    ///     let args = ("hello",);
+    ///     let result = fun.call1(args)?;
+    ///     assert_eq!(result.extract::<&str>()?, "called with args");
     ///     Ok(())
-    /// })?;
-    /// # Ok(())}
-    /// ```
-    ///
-    /// This is equivalent to the following Python code:
-    ///
-    /// ```python
-    /// from operator import add
-    ///
-    /// value = add(1,2)
-    /// assert value == 3
+    /// })
+    /// # }
     /// ```
     pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
@@ -488,91 +523,104 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    ///
     /// # Examples
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::{IntoPyDict, PyList};
+    /// use pyo3::types::PyDict;
+    ///
+    /// const CODE: &str = r#"
+    /// class A:
+    ///     def method(self, *args, **kwargs):
+    ///         assert args == ("hello",)
+    ///         assert kwargs == {"cruel": "world"}
+    ///         return "called with args and kwargs"
+    /// a = A()
+    /// "#;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let list = PyList::new(py, vec![3, 6, 5, 4, 7]);
-    ///     let kwargs = vec![("reverse", true)].into_py_dict(py);
-    ///
-    ///     list.call_method("sort", (), Some(kwargs))?;
-    ///     assert_eq!(list.extract::<Vec<i32>>()?, vec![7, 6, 5, 4, 3]);
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let instance = module.getattr("a")?;
+    ///     let args = ("hello",);
+    ///     let kwargs = PyDict::new(py);
+    ///     kwargs.set_item("cruel", "world")?;
+    ///     let result = instance.call_method("method", args, Some(kwargs))?;
+    ///     assert_eq!(result.extract::<&str>()?, "called with args and kwargs");
     ///     Ok(())
-    /// })?;
-    /// # Ok(())}
+    /// })
+    /// # }
     /// ```
-    ///
-    /// This is equivalent to the following Python code:
-    ///
-    /// ```python
-    /// my_list = [3, 6, 5, 4, 7]
-    /// my_list.sort(reverse = True)
-    /// assert my_list == [7, 6, 5, 4, 3]
-    /// ```
-    pub fn call_method(
-        &self,
-        name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
-        name.with_borrowed_ptr(self.py(), |name| unsafe {
-            let py = self.py();
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            if ptr.is_null() {
-                return Err(PyErr::fetch(py));
-            }
-            let args = args.into_py(py).into_ptr();
-            let kwargs = kwargs.into_ptr();
+    pub fn call_method<N, A>(&self, name: N, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyAny>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
+        let py = self.py();
+        let name: Py<PyString> = name.into_py(py);
+        let args: Py<PyTuple> = args.into_py(py);
+
+        let ptr = self.getattr(name)?.into_ptr();
+        let args = args.into_ptr();
+        let kwargs = kwargs.into_ptr();
+
+        unsafe {
             let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
             let result = py.from_owned_ptr_or_err(result_ptr);
             ffi::Py_DECREF(ptr);
             ffi::Py_XDECREF(args);
             ffi::Py_XDECREF(kwargs);
             result
-        })
+        }
     }
 
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
     ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    ///
     /// # Examples
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyFloat;
-    /// use std::f64::consts::PI;
+    ///
+    /// const CODE: &str = r#"
+    /// class A:
+    ///     def method(self, *args, **kwargs):
+    ///         assert args == ()
+    ///         assert kwargs == {}
+    ///         return "called with no arguments"
+    /// a = A()
+    /// "#;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let pi = PyFloat::new(py, PI);
-    ///     let ratio = pi.call_method0("as_integer_ratio")?;
-    ///     let (a, b) = ratio.extract::<(u64, u64)>()?;
-    ///     assert_eq!(a, 884_279_719_003_555);
-    ///     assert_eq!(b, 281_474_976_710_656);
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let instance = module.getattr("a")?;
+    ///     let result = instance.call_method0("method")?;
+    ///     assert_eq!(result.extract::<&str>()?, "called with no arguments");
     ///     Ok(())
-    /// })?;
-    /// # Ok(())}
+    /// })
+    /// # }
     /// ```
-    ///
-    /// This is equivalent to the following Python code:
-    ///
-    /// ```python
-    /// import math
-    ///
-    /// a, b = math.pi.as_integer_ratio()
-    /// ```
-    pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call_method0<N>(&self, name: N) -> PyResult<&PyAny>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
+                let py = self.py();
+
                 // Optimized path on python 3.9+
                 unsafe {
-                    let name = name.into_py(self.py());
-            self.py().from_owned_ptr_or_err(ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()))
+                    let name: Py<PyString> = name.into_py(py);
+                    let ptr = ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr());
+                    py.from_owned_ptr_or_err(ptr)
                 }
             } else {
                 self.call_method(name, (), None)
@@ -584,30 +632,39 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    ///
     /// # Examples
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::types::PyList;
+    ///
+    /// const CODE: &str = r#"
+    /// class A:
+    ///     def method(self, *args, **kwargs):
+    ///         assert args == ("hello",)
+    ///         assert kwargs == {}
+    ///         return "called with args"
+    /// a = A()
+    /// "#;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
-    ///     let list = PyList::new(py, vec![1, 3, 4]);
-    ///     list.call_method1("insert", (1, 2))?;
-    ///     assert_eq!(list.extract::<Vec<u8>>()?, [1, 2, 3, 4]);
+    /// Python::with_gil(|py| {
+    ///     let module = PyModule::from_code(py, CODE, "", "")?;
+    ///     let instance = module.getattr("a")?;
+    ///     let args = ("hello",);
+    ///     let result = instance.call_method1("method", args)?;
+    ///     assert_eq!(result.extract::<&str>()?, "called with args");
     ///     Ok(())
-    /// })?;
-    /// # Ok(()) }
+    /// })
+    /// # }
     /// ```
-    ///
-    /// This is equivalent to the following Python code:
-    ///
-    /// ```python
-    /// list_ = [1,3,4]
-    /// list_.insert(1,2)
-    /// assert list_ == [1,2,3,4]
-    /// ```
-    pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<&PyAny>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
         self.call_method(name, args, None)
     }
 
@@ -693,7 +750,7 @@ impl PyAny {
         unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
-    /// Casts the PyObject to a concrete Python object type.
+    /// Casts `self` to a concrete Python object type.
     ///
     /// This can cast only to native Python types, not types implemented in Rust.
     pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'_>>
@@ -705,7 +762,7 @@ impl PyAny {
 
     /// Extracts some type from the Python object.
     ///
-    /// This is a wrapper function around `FromPyObject::extract()`.
+    /// This is a wrapper function around [`FromPyObject::extract()`].
     pub fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
@@ -769,11 +826,11 @@ impl PyAny {
         unsafe { self.py().from_owned_ptr(ffi::PyObject_Dir(self.as_ptr())) }
     }
 
-    /// Checks whether this object is an instance of type `typ`.
+    /// Checks whether this object is an instance of type `ty`.
     ///
-    /// This is equivalent to the Python expression `isinstance(self, typ)`.
-    pub fn is_instance(&self, typ: &PyType) -> PyResult<bool> {
-        let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), typ.as_ptr()) };
+    /// This is equivalent to the Python expression `isinstance(self, ty)`.
+    pub fn is_instance(&self, ty: &PyType) -> PyResult<bool> {
+        let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), ty.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
     }

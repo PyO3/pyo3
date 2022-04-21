@@ -49,11 +49,14 @@ impl PyTraceback {
     /// ```
     pub fn format(&self) -> PyResult<String> {
         let py = self.py();
-        let string_io = py.import("io")?.getattr("StringIO")?.call0()?;
+        let string_io = py
+            .import(intern!(py, "io"))?
+            .getattr(intern!(py, "StringIO"))?
+            .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };
         error_on_minusone(py, result)?;
         let formatted = string_io
-            .getattr("getvalue")?
+            .getattr(intern!(py, "getvalue"))?
             .call0()?
             .downcast::<PyString>()?
             .to_str()?

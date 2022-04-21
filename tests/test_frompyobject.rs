@@ -74,7 +74,7 @@ pub struct B {
 #[test]
 fn test_transparent_named_field_struct() {
     Python::with_gil(|py| {
-        let test = "test".into_py(py);
+        let test: PyObject = "test".into_py(py);
         let b: B = FromPyObject::extract(test.as_ref(py)).expect("Failed to extract B from String");
         assert_eq!(b.test, "test");
         let test: PyObject = 1.into_py(py);
@@ -92,7 +92,7 @@ pub struct D<T> {
 #[test]
 fn test_generic_transparent_named_field_struct() {
     Python::with_gil(|py| {
-        let test = "test".into_py(py);
+        let test: PyObject = "test".into_py(py);
         let d: D<String> =
             D::extract(test.as_ref(py)).expect("Failed to extract D<String> from String");
         assert_eq!(d.test, "test");
@@ -180,7 +180,7 @@ fn test_transparent_tuple_struct() {
         let tup: PyObject = 1.into_py(py);
         let tup = TransparentTuple::extract(tup.as_ref(py));
         assert!(tup.is_err());
-        let test = "test".into_py(py);
+        let test: PyObject = "test".into_py(py);
         let tup = TransparentTuple::extract(test.as_ref(py))
             .expect("Failed to extract TransparentTuple from PyTuple");
         assert_eq!(tup.0, "test");

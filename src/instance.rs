@@ -3,7 +3,7 @@ use crate::conversion::{PyTryFrom, ToBorrowedObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
-use crate::types::{PyDict, PyTuple};
+use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
     PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
@@ -566,8 +566,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `attr_name`.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -643,49 +643,65 @@ impl<T> Py<T> {
     /// Calls a method on the object.
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
-    pub fn call_method(
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    pub fn call_method<N, A>(
         &self,
         py: Python<'_>,
-        name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        name: N,
+        args: A,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<PyObject> {
-        name.with_borrowed_ptr(py, |name| unsafe {
-            let args = args.into_py(py).into_ptr();
-            let kwargs = kwargs.into_ptr();
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            if ptr.is_null() {
-                return Err(PyErr::fetch(py));
-            }
+    ) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
+        let name: Py<PyString> = name.into_py(py);
+        let args: Py<PyTuple> = args.into_py(py);
+
+        let ptr = self.getattr(py, name)?.into_ptr();
+        let args = args.into_ptr();
+        let kwargs = kwargs.into_ptr();
+
+        unsafe {
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
             ffi::Py_XDECREF(args);
             ffi::Py_XDECREF(kwargs);
             result
-        })
+        }
     }
 
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
-    pub fn call_method1(
-        &self,
-        py: Python<'_>,
-        name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
-    ) -> PyResult<PyObject> {
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    pub fn call_method1<N, A>(&self, py: Python<'_>, name: N, args: A) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyString>>,
+        A: IntoPy<Py<PyTuple>>,
+    {
         self.call_method(py, name, args, None)
     }
 
     /// Calls a method on the object with no arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
-    pub fn call_method0(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
+    ///
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
+    /// to intern `name`.
+    pub fn call_method0<N>(&self, py: Python<'_>, name: N) -> PyResult<PyObject>
+    where
+        N: IntoPy<Py<PyString>>,
+    {
         cfg_if::cfg_if! {
             if #[cfg(all(Py_3_9, not(any(Py_LIMITED_API, PyPy))))] {
                 // Optimized path on python 3.9+
                 unsafe {
-                    let name = name.into_py(py);
+                    let name: Py<PyString> = name.into_py(py);
                     PyObject::from_owned_ptr_or_err(py, ffi::PyObject_CallMethodNoArgs(self.as_ptr(), name.as_ptr()))
                 }
             } else {
@@ -714,7 +730,7 @@ impl<T> Py<T> {
 
     /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
     ///
-    /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.
+    /// If `ptr` is null then the current Python exception is fetched as a [`PyErr`].
     ///
     /// # Safety
     /// If non-null, `ptr` must be a pointer to a Python object of type T.
