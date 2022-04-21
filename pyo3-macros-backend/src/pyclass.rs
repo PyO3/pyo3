@@ -689,32 +689,9 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_pyclass(&self) -> TokenStream {
         let cls = self.cls;
-        let attr = self.attr;
-        let dict = if attr.options.dict.is_some() {
-            quote! { _pyo3::impl_::pyclass::PyClassDictSlot }
-        } else {
-            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
-        };
-
-        // insert space for weak ref
-        let weakref = if attr.options.weakref.is_some() {
-            quote! { _pyo3::impl_::pyclass::PyClassWeakRefSlot }
-        } else {
-            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
-        };
-
-        let base_nativetype = if attr.options.extends.is_some() {
-            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType<Self::Mutability>>::BaseNativeType }
-        } else {
-            quote! { _pyo3::PyAny }
-        };
 
         quote! {
-            impl _pyo3::PyClass for #cls {
-                type Dict = #dict;
-                type WeakRef = #weakref;
-                type BaseNativeType = #base_nativetype;
-            }
+            impl _pyo3::PyClass for #cls { }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
@@ -856,6 +833,37 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         };
 
+        let class_mutability = if self.attr.options.immutable.is_some() {
+            quote! {
+                ImmutableChild
+            }
+        } else {
+            quote! {
+                MutableChild
+            }
+        };
+
+        let cls = self.cls;
+        let attr = self.attr;
+        let dict = if attr.options.dict.is_some() {
+            quote! { _pyo3::impl_::pyclass::PyClassDictSlot }
+        } else {
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
+        };
+
+        // insert space for weak ref
+        let weakref = if attr.options.weakref.is_some() {
+            quote! { _pyo3::impl_::pyclass::PyClassWeakRefSlot }
+        } else {
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
+        };
+
+        let base_nativetype = if attr.options.extends.is_some() {
+            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType>::BaseNativeType }
+        } else {
+            quote! { _pyo3::PyAny }
+        };
+
         quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
@@ -868,6 +876,10 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type ThreadChecker = #thread_checker;
                 #inventory
                 type Mutability = #mutability;
+                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::pycell::PyClassMutability>::#class_mutability;
+                type Dict = #dict;
+                type WeakRef = #weakref;
+                type BaseNativeType = #base_nativetype;
 
                 fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
                     use _pyo3::impl_::pyclass::*;

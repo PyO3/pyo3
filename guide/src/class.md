@@ -956,13 +956,7 @@ unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
     }
 }
 
-impl ::pyo3::PyClass for MyClass {
-    type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type BaseNativeType = ::pyo3::PyAny;
-}
-
-unsafe impl ::pyo3::pyclass::MutablePyClass for MyClass {}
+impl ::pyo3::PyClass for MyClass { }
 
 impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut MyClass {
     type Target = ::pyo3::PyRefMut<'a, MyClass>;
@@ -985,7 +979,11 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type Layout = PyCell<MyClass>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
-    type Mutabilty = pyo3::pyclass::Mutable;
+    type Mutability = pyo3::pycell::Mutable;
+    type PyClassMutability = pyo3::pycell::MutableClass;
+    type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
+    type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;
+    type BaseNativeType = ::pyo3::PyAny;
 
     fn for_all_items(visitor: &mut dyn FnMut(&pyo3::impl_::pyclass::PyClassItems)) {
         use pyo3::impl_::pyclass::*;
@@ -996,14 +994,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     }
 }
 
-impl ::pyo3::impl_::pyclass::PyClassDescriptors<MyClass>
-    for ::pyo3::impl_::pyclass::PyClassImplCollector<MyClass>
-{
-    fn py_class_descriptors(self) -> &'static [::pyo3::class::methods::PyMethodDefType] {
-        static METHODS: &[::pyo3::class::methods::PyMethodDefType] = &[];
-        METHODS
-    }
-}
 # Python::with_gil(|py| {
 #     let cls = py.get_type::<MyClass>();
 #     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")

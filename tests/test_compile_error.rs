@@ -28,7 +28,6 @@ fn test_compile_errors() {
 #[cfg(not(feature = "nightly"))]
 fn _test_compile_errors() {
     let t = trybuild::TestCases::new();
-    t.compile_fail("tests/ui/invalid_immutable_pyclass_borrow.rs");
 
     t.compile_fail("tests/ui/invalid_macro_args.rs");
     t.compile_fail("tests/ui/invalid_need_module_arg_position.rs");
@@ -41,8 +40,6 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
-    t.compile_fail("tests/ui/invalid_immutable_pyclass_borrow.rs");
-    t.compile_fail("tests/ui/wrong_aspyref_lifetimes.rs");
     t.compile_fail("tests/ui/invalid_pymethod_proto_args.rs");
     t.compile_fail("tests/ui/invalid_pymethod_proto_args_py.rs");
 
@@ -97,6 +94,7 @@ fn _test_compile_errors() {
 
     #[rustversion::since(1.60)]
     fn tests_rust_1_60(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/invalid_immutable_pyclass_borrow.rs");
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
     }
 

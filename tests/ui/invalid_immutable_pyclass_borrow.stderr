@@ -10,3 +10,16 @@ note: required by a bound in `PyCell::<T>::borrow_mut`
     |
     |         T: MutablePyClass,
     |            ^^^^^^^^^^^^^^ required by this bound in `PyCell::<T>::borrow_mut`
+
+error[E0271]: type mismatch resolving `<ImmutableChild as PyClassImpl>::Mutability == Mutable`
+   --> tests/ui/invalid_immutable_pyclass_borrow.rs:20:35
+    |
+20  |     let borrow = child.as_ref(py).borrow_mut();
+    |                                   ^^^^^^^^^^ expected struct `Mutable`, found struct `Immutable`
+    |
+    = note: required because of the requirements on the impl of `MutablePyClass` for `ImmutableChild`
+note: required by a bound in `PyCell::<T>::borrow_mut`
+   --> src/pycell.rs
+    |
+    |         T: MutablePyClass,
+    |            ^^^^^^^^^^^^^^ required by this bound in `PyCell::<T>::borrow_mut`
