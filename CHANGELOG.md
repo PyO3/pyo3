@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
 
+### Changed
+
+- The deprecated `pyproto` feature is now disabled by default. [#2321](https://github.com/PyO3/pyo3/pull/2321)
+
 ## [0.16.4] - 2022-04-14
 
 ### Added

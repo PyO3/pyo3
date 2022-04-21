@@ -53,7 +53,7 @@ serde_json = "1.0.61"
 pyo3-build-config = { path = "pyo3-build-config", version = "0.16.4", features = ["resolve-config"] }
 
 [features]
-default = ["macros", "pyproto"]
+default = ["macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
