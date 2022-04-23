@@ -3,6 +3,12 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.16.* to 0.17
+
+### The `pyproto` feature is now disabled by default
+
+In preparation for removing the deprecated `#[pyproto]` attribute macro in a future PyO3 version, it is now gated behind an opt-in feature flag. This also gives a slight saving to compile times for code which does not use the deprecated macro.
+
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies

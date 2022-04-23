@@ -4,8 +4,8 @@ Python's object model defines several protocols for different object behavior, s
 
 In the Python C-API which PyO3 is implemented upon, many of these magic methods have to be placed into special "slots" on the class type object, as covered in the previous section. There are two ways in which this can be done:
 
- - [New in PyO3 0.15, recommended in PyO3 0.16] In `#[pymethods]`, if the name of the method is a recognised magic method, PyO3 will place it in the type object automatically.
- - [Deprecated in PyO3 0.16] In special traits combined with the `#[pyproto]` attribute.
+ - In `#[pymethods]`, if the name of the method is a recognised magic method, PyO3 will place it in the type object automatically.
+ - [Deprecated since PyO3 0.16] In special traits combined with the `#[pyproto]` attribute.
 
 (There are also many magic methods which don't have a special slot, such as `__dir__`. These methods can be implemented as normal in `#[pymethods]`.)
 
@@ -404,7 +404,7 @@ impl ClassWithGCSupport {
 
 PyO3 can use the `#[pyproto]` attribute in combination with special traits to implement the magic methods which need slots. The special traits are listed below. See also the [documentation for the `pyo3::class` module]({{#PYO3_DOCS_URL}}/pyo3/class/index.html).
 
-Due to complexity in the implementation and usage, these traits are deprecated in PyO3 0.16 in favour of the `#[pymethods]` solution.
+Due to complexity in the implementation and usage, these traits were deprecated in PyO3 0.16 in favour of the `#[pymethods]` solution.
 
 All `#[pyproto]` methods can return `T` instead of `PyResult<T>` if the method implementation is infallible. In addition, if the return type is `()`, it can be omitted altogether.
 
