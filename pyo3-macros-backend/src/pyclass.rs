@@ -54,6 +54,7 @@ pub struct PyClassPyO3Options {
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
     pub freelist: Option<FreelistAttribute>,
+    pub immutable: Option<kw::immutable>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
@@ -70,6 +71,7 @@ enum PyClassPyO3Option {
     Dict(kw::dict),
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
+    Immutable(kw::immutable),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
@@ -92,6 +94,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Extends)
         } else if lookahead.peek(attributes::kw::freelist) {
             input.parse().map(PyClassPyO3Option::Freelist)
+        } else if lookahead.peek(attributes::kw::immutable) {
+            input.parse().map(PyClassPyO3Option::Immutable)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -149,6 +153,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
+            PyClassPyO3Option::Immutable(immutable) => set_option!(immutable),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
@@ -684,44 +689,31 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_pyclass(&self) -> TokenStream {
         let cls = self.cls;
-        let attr = self.attr;
-        let dict = if attr.options.dict.is_some() {
-            quote! { _pyo3::impl_::pyclass::PyClassDictSlot }
-        } else {
-            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
-        };
 
-        // insert space for weak ref
-        let weakref = if attr.options.weakref.is_some() {
-            quote! { _pyo3::impl_::pyclass::PyClassWeakRefSlot }
-        } else {
-            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
-        };
-
-        let base_nativetype = if attr.options.extends.is_some() {
-            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType>::BaseNativeType }
-        } else {
-            quote! { _pyo3::PyAny }
-        };
         quote! {
-            impl _pyo3::PyClass for #cls {
-                type Dict = #dict;
-                type WeakRef = #weakref;
-                type BaseNativeType = #base_nativetype;
-            }
+            impl _pyo3::PyClass for #cls { }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
         let cls = self.cls;
-        quote! {
-            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
-            {
-                type Target = _pyo3::PyRef<'a, #cls>;
+        if self.attr.options.immutable.is_some() {
+            quote! {
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                {
+                    type Target = _pyo3::PyRef<'a, #cls>;
+                }
             }
+        } else {
+            quote! {
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                {
+                    type Target = _pyo3::PyRef<'a, #cls>;
+                }
 
-            impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
-            {
-                type Target = _pyo3::PyRefMut<'a, #cls>;
+                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+                {
+                    type Target = _pyo3::PyRefMut<'a, #cls>;
+                }
             }
         }
     }
@@ -831,6 +823,47 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let deprecations = &self.attr.deprecations;
 
+        let mutability = if self.attr.options.immutable.is_some() {
+            quote! {
+                 _pyo3::pycell::Immutable
+            }
+        } else {
+            quote! {
+                _pyo3::pycell::Mutable
+            }
+        };
+
+        let class_mutability = if self.attr.options.immutable.is_some() {
+            quote! {
+                ImmutableChild
+            }
+        } else {
+            quote! {
+                MutableChild
+            }
+        };
+
+        let cls = self.cls;
+        let attr = self.attr;
+        let dict = if attr.options.dict.is_some() {
+            quote! { _pyo3::impl_::pyclass::PyClassDictSlot }
+        } else {
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
+        };
+
+        // insert space for weak ref
+        let weakref = if attr.options.weakref.is_some() {
+            quote! { _pyo3::impl_::pyclass::PyClassWeakRefSlot }
+        } else {
+            quote! { _pyo3::impl_::pyclass::PyClassDummySlot }
+        };
+
+        let base_nativetype = if attr.options.extends.is_some() {
+            quote! { <Self::BaseType as _pyo3::impl_::pyclass::PyClassBaseType>::BaseNativeType }
+        } else {
+            quote! { _pyo3::PyAny }
+        };
+
         quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
@@ -842,6 +875,11 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
+                type Mutability = #mutability;
+                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::pycell::PyClassMutability>::#class_mutability;
+                type Dict = #dict;
+                type WeakRef = #weakref;
+                type BaseNativeType = #base_nativetype;
 
                 fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
                     use _pyo3::impl_::pyclass::*;

@@ -6,7 +6,7 @@
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
 use crate::callback::IntoPyCallbackOutput;
-use crate::{ffi, PyCell, PyClass, PyRefMut};
+use crate::{ffi, pyclass::MutablePyClass, PyCell, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -15,7 +15,7 @@ use std::os::raw::c_int;
 /// c-api.
 #[allow(unused_variables)]
 #[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
-pub trait PyBufferProtocol<'p>: PyClass {
+pub trait PyBufferProtocol<'p>: MutablePyClass {
     // No default implementations so that implementors of this trait provide both methods.
 
     fn bf_getbuffer(

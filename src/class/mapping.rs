@@ -5,7 +5,7 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::{FromPyObject, PyClass, PyObject};
+use crate::{pyclass::MutablePyClass, FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -52,13 +52,13 @@ pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
+pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
     type Key: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
+pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

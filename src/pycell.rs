@@ -173,8 +173,10 @@
 //! [Interior Mutability]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html "RefCell<T> and the Interior Mutability Pattern - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
-use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::pyclass::PyClass;
+use crate::impl_::pyclass::{
+    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
+};
+use crate::pyclass::{MutablePyClass, PyClass};
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
@@ -187,16 +189,181 @@ use crate::{
 use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
+use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
+pub struct EmptySlot(());
+pub struct BorrowChecker(Cell<BorrowFlag>);
+
+pub trait PyClassBorrowChecker {
+    fn new() -> Self;
+
+    /// Increments immutable borrow count, if possible
+    fn try_borrow(&self) -> Result<(), PyBorrowError>;
+
+    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError>;
+
+    /// Decrements immutable borrow count
+    fn release_borrow(&self);
+    /// Increments mutable borrow count, if possible
+    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError>;
+    /// Decremements mutable borrow count
+    fn release_borrow_mut(&self);
+}
+
+impl PyClassBorrowChecker for EmptySlot {
+    #[inline]
+    fn new() -> Self {
+        Self(())
+    }
+
+    #[inline]
+    fn try_borrow(&self) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
+
+    #[inline]
+    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
+
+    #[inline]
+    fn release_borrow(&self) {}
+
+    #[inline]
+    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
+        unreachable!()
+    }
+
+    #[inline]
+    fn release_borrow_mut(&self) {
+        unreachable!()
+    }
+}
+
+impl PyClassBorrowChecker for BorrowChecker {
+    #[inline]
+    fn new() -> Self {
+        Self(Cell::new(BorrowFlag::UNUSED))
+    }
+
+    fn try_borrow(&self) -> Result<(), PyBorrowError> {
+        let flag = self.0.get();
+        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
+            self.0.set(flag.increment());
+            Ok(())
+        } else {
+            Err(PyBorrowError { _private: () })
+        }
+    }
+
+    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
+        let flag = self.0.get();
+        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
+            Ok(())
+        } else {
+            Err(PyBorrowError { _private: () })
+        }
+    }
+
+    fn release_borrow(&self) {
+        let flag = self.0.get();
+        self.0.set(flag.decrement())
+    }
+
+    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
+        let flag = self.0.get();
+        if flag == BorrowFlag::UNUSED {
+            self.0.set(BorrowFlag::HAS_MUTABLE_BORROW);
+            Ok(())
+        } else {
+            Err(PyBorrowMutError { _private: () })
+        }
+    }
+
+    fn release_borrow_mut(&self) {
+        self.0.set(BorrowFlag::UNUSED)
+    }
+}
+
+pub trait PyClassMutability {
+    // The storage for this inheritance layer. Only the first mutable class in
+    // an inheritance hierarchy needs to store the borrow flag.
+    type Storage: PyClassBorrowChecker;
+    // The borrow flag needed to implement this class' mutability. Empty until
+    // the first mutable class, at which point it is BorrowChecker and will be
+    // for all subclasses.
+    type Checker: PyClassBorrowChecker;
+    type ImmutableChild: PyClassMutability;
+    type MutableChild: PyClassMutability;
+}
+
+pub trait GetBorrowChecker<T: PyClassImpl> {
+    fn borrow_checker(cell: &PyCell<T>) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+}
+
+impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
+    fn borrow_checker(cell: &PyCell<T>) -> &BorrowChecker {
+        &cell.contents.borrow_checker
+    }
+}
+
+impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
+    fn borrow_checker(cell: &PyCell<T>) -> &EmptySlot {
+        &cell.contents.borrow_checker
+    }
+}
+
+impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
+    for ExtendsMutableAncestor<M>
+where
+    T::BaseType: PyClassImpl<Layout = PyCell<T::BaseType>>
+        + PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
+    <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
+{
+    fn borrow_checker(cell: &PyCell<T>) -> &BorrowChecker {
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&cell.ob_base)
+    }
+}
+
+pub struct ImmutableClass(());
+pub struct MutableClass(());
+pub struct ExtendsMutableAncestor<M: PyClassMutability>(PhantomData<M>);
+
+impl PyClassMutability for ImmutableClass {
+    type Storage = EmptySlot;
+    type Checker = EmptySlot;
+    type ImmutableChild = ImmutableClass;
+    type MutableChild = MutableClass;
+}
+
+impl PyClassMutability for MutableClass {
+    type Storage = BorrowChecker;
+    type Checker = BorrowChecker;
+    type ImmutableChild = ExtendsMutableAncestor<ImmutableClass>;
+    type MutableChild = ExtendsMutableAncestor<MutableClass>;
+}
+
+impl<M: PyClassMutability> PyClassMutability for ExtendsMutableAncestor<M> {
+    type Storage = EmptySlot;
+    type Checker = BorrowChecker;
+    type ImmutableChild = ExtendsMutableAncestor<ImmutableClass>;
+    type MutableChild = ExtendsMutableAncestor<MutableClass>;
+}
+
+pub trait Mutability {}
+
+pub struct Mutable;
+impl Mutability for Mutable {}
+pub struct Immutable;
+impl Mutability for Immutable {}
+
 /// Base layout of PyCell.
-/// This is necessary for sharing BorrowFlag between parents and children.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyCellBase<T> {
     ob_base: T,
-    borrow_flag: Cell<BorrowFlag>,
 }
 
 unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
@@ -237,14 +404,15 @@ unsafe impl<T, U> PyLayout<T> for PyCellBase<U> where U: PySizedLayout<T> {}
 /// For more information on how, when and why (not) to use `PyCell` please see the
 /// [module-level documentation](self).
 #[repr(C)]
-pub struct PyCell<T: PyClass> {
+pub struct PyCell<T: PyClassImpl> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
     contents: PyCellContents<T>,
 }
 
 #[repr(C)]
-pub(crate) struct PyCellContents<T: PyClass> {
+pub(crate) struct PyCellContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
+    pub(crate) borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage,
     pub(crate) thread_checker: T::ThreadChecker,
     pub(crate) dict: T::Dict,
     pub(crate) weakref: T::WeakRef,
@@ -281,7 +449,10 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
-    pub fn borrow_mut(&self) -> PyRefMut<'_, T> {
+    pub fn borrow_mut(&self) -> PyRefMut<'_, T>
+    where
+        T: MutablePyClass,
+    {
         self.try_borrow_mut().expect("Already borrowed")
     }
 
@@ -311,13 +482,10 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
-        let flag = self.get_borrow_flag();
-        if flag == BorrowFlag::HAS_MUTABLE_BORROW {
-            Err(PyBorrowError { _private: () })
-        } else {
-            self.set_borrow_flag(flag.increment());
-            Ok(PyRef { inner: self })
-        }
+        self.ensure_threadsafe();
+        self.borrow_checker()
+            .try_borrow()
+            .map(|_| PyRef { inner: self })
     }
 
     /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
@@ -341,13 +509,14 @@ impl<T: PyClass> PyCell<T> {
     ///     assert!(c.try_borrow_mut().is_ok());
     /// });
     /// ```
-    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
-        if self.get_borrow_flag() != BorrowFlag::UNUSED {
-            Err(PyBorrowMutError { _private: () })
-        } else {
-            self.set_borrow_flag(BorrowFlag::HAS_MUTABLE_BORROW);
-            Ok(PyRefMut { inner: self })
-        }
+    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError>
+    where
+        T: MutablePyClass,
+    {
+        self.ensure_threadsafe();
+        self.borrow_checker()
+            .try_borrow_mut()
+            .map(|_| PyRefMut { inner: self })
     }
 
     /// Immutably borrows the value `T`, returning an error if the value is
@@ -380,11 +549,10 @@ impl<T: PyClass> PyCell<T> {
     /// });
     /// ```
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
-        if self.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
-            Err(PyBorrowError { _private: () })
-        } else {
-            Ok(&*self.contents.value.get())
-        }
+        self.ensure_threadsafe();
+        self.borrow_checker()
+            .try_borrow_unguarded()
+            .map(|_: ()| &*self.contents.value.get())
     }
 
     /// Replaces the wrapped value with a new one, returning the old value.
@@ -393,7 +561,10 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// Panics if the value is currently borrowed.
     #[inline]
-    pub fn replace(&self, t: T) -> T {
+    pub fn replace(&self, t: T) -> T
+    where
+        T: MutablePyClass,
+    {
         std::mem::replace(&mut *self.borrow_mut(), t)
     }
 
@@ -402,7 +573,10 @@ impl<T: PyClass> PyCell<T> {
     /// # Panics
     ///
     /// Panics if the value is currently borrowed.
-    pub fn replace_with<F: FnOnce(&mut T) -> T>(&self, f: F) -> T {
+    pub fn replace_with<F: FnOnce(&mut T) -> T>(&self, f: F) -> T
+    where
+        T: MutablePyClass,
+    {
         let mut_borrow = &mut *self.borrow_mut();
         let replacement = f(mut_borrow);
         std::mem::replace(mut_borrow, replacement)
@@ -414,7 +588,10 @@ impl<T: PyClass> PyCell<T> {
     ///
     /// Panics if the value in either `PyCell` is currently borrowed.
     #[inline]
-    pub fn swap(&self, other: &Self) {
+    pub fn swap(&self, other: &Self)
+    where
+        T: MutablePyClass,
+    {
         std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
@@ -489,7 +666,13 @@ impl<T: PyClass> PyCell<T> {
     }
 }
 
-unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {}
+impl<T: PyClassImpl> PyCell<T> {
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker(self)
+    }
+}
+
+unsafe impl<T: PyClassImpl> PyLayout<T> for PyCell<T> {}
 impl<T: PyClass> PySizedLayout<T> for PyCell<T> {}
 
 impl<T: PyClass> AsPyPointer for PyCell<T> {
@@ -594,8 +777,8 @@ impl<'p, T: PyClass> PyRef<'p, T> {
 
 impl<'p, T, U> AsRef<U> for PyRef<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: MutablePyClass<BaseType = U>, // For now, only mutable classes can be extended
+    U: MutablePyClass,
 {
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
@@ -604,8 +787,8 @@ where
 
 impl<'p, T, U> PyRef<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: MutablePyClass<BaseType = U>, // For now, only mutable classes can be extended
+    U: MutablePyClass,
 {
     /// Gets a `PyRef<T::BaseType>`.
     ///
@@ -672,8 +855,7 @@ impl<'p, T: PyClass> Deref for PyRef<'p, T> {
 
 impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     fn drop(&mut self) {
-        let flag = self.inner.get_borrow_flag();
-        self.inner.set_borrow_flag(flag.decrement())
+        self.inner.borrow_checker().release_borrow()
     }
 }
 
@@ -705,11 +887,11 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 /// A wrapper type for a mutably borrowed value from a[`PyCell`]`<T>`.
 ///
 /// See the [module-level documentation](self) for more information.
-pub struct PyRefMut<'p, T: PyClass> {
+pub struct PyRefMut<'p, T: MutablePyClass> {
     inner: &'p PyCell<T>,
 }
 
-impl<'p, T: PyClass> PyRefMut<'p, T> {
+impl<'p, T: MutablePyClass> PyRefMut<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
     pub fn py(&self) -> Python<'_> {
         unsafe { Python::assume_gil_acquired() }
@@ -718,8 +900,8 @@ impl<'p, T: PyClass> PyRefMut<'p, T> {
 
 impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: PyClass<BaseType = U> + MutablePyClass,
+    U: MutablePyClass,
 {
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
@@ -728,8 +910,8 @@ where
 
 impl<'p, T, U> AsMut<U> for PyRefMut<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: PyClass<BaseType = U> + MutablePyClass,
+    U: MutablePyClass,
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
         unsafe { &mut *self.inner.ob_base.get_ptr() }
@@ -738,8 +920,8 @@ where
 
 impl<'p, T, U> PyRefMut<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: PyClass<BaseType = U> + MutablePyClass,
+    U: MutablePyClass,
 {
     /// Gets a `PyRef<T::BaseType>`.
     ///
@@ -753,7 +935,7 @@ where
     }
 }
 
-impl<'p, T: PyClass> Deref for PyRefMut<'p, T> {
+impl<'p, T: MutablePyClass> Deref for PyRefMut<'p, T> {
     type Target = T;
 
     #[inline]
@@ -762,46 +944,46 @@ impl<'p, T: PyClass> Deref for PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> DerefMut for PyRefMut<'p, T> {
+impl<'p, T: MutablePyClass> DerefMut for PyRefMut<'p, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.inner.get_ptr() }
     }
 }
 
-impl<'p, T: PyClass> Drop for PyRefMut<'p, T> {
+impl<'p, T: MutablePyClass> Drop for PyRefMut<'p, T> {
     fn drop(&mut self) {
-        self.inner.set_borrow_flag(BorrowFlag::UNUSED)
+        self.inner.borrow_checker().release_borrow_mut()
     }
 }
 
-impl<T: PyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
+impl<T: MutablePyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
 }
 
-impl<'a, T: PyClass> AsPyPointer for PyRefMut<'a, T> {
+impl<'a, T: MutablePyClass> AsPyPointer for PyRefMut<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.inner.as_ptr()
     }
 }
 
-impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRefMut<'a, T> {
+impl<'a, T: MutablePyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRefMut<'a, T> {
     type Error = PyBorrowMutError;
     fn try_from(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
         cell.try_borrow_mut()
     }
 }
 
-impl<T: PyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
+impl<T: MutablePyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&*(self.deref()), f)
     }
 }
 
 #[doc(hidden)]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BorrowFlag(usize);
 
 impl BorrowFlag {
@@ -867,8 +1049,7 @@ impl From<PyBorrowMutError> for PyErr {
 
 #[doc(hidden)]
 pub trait PyCellLayout<T>: PyLayout<T> {
-    fn get_borrow_flag(&self) -> BorrowFlag;
-    fn set_borrow_flag(&self, flag: BorrowFlag);
+    fn ensure_threadsafe(&self);
     /// Implementation of tp_dealloc.
     /// # Safety
     /// - slf must be a valid pointer to an instance of a T or a subclass.
@@ -881,12 +1062,7 @@ where
     U: PySizedLayout<T>,
     T: PyTypeInfo,
 {
-    fn get_borrow_flag(&self) -> BorrowFlag {
-        self.borrow_flag.get()
-    }
-    fn set_borrow_flag(&self, flag: BorrowFlag) {
-        self.borrow_flag.set(flag)
-    }
+    fn ensure_threadsafe(&self) {}
     unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         if T::type_object_raw(py) == &mut PyBaseObject_Type {
@@ -908,16 +1084,13 @@ where
     }
 }
 
-impl<T: PyClass> PyCellLayout<T> for PyCell<T>
+impl<T: PyClassImpl> PyCellLayout<T> for PyCell<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyCellLayout<T::BaseType>,
 {
-    fn get_borrow_flag(&self) -> BorrowFlag {
+    fn ensure_threadsafe(&self) {
         self.contents.thread_checker.ensure();
-        self.ob_base.get_borrow_flag()
-    }
-    fn set_borrow_flag(&self, flag: BorrowFlag) {
-        self.ob_base.set_borrow_flag(flag)
+        self.ob_base.ensure_threadsafe();
     }
     unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.

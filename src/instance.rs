@@ -5,8 +5,8 @@ use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyTuple};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, pyclass::MutablePyClass, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -430,7 +430,10 @@ where
     /// # Panics
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
-    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T> {
+    pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
+    where
+        T: MutablePyClass,
+    {
         self.as_ref(py).borrow_mut()
     }
 
@@ -457,7 +460,10 @@ where
     pub fn try_borrow_mut<'py>(
         &'py self,
         py: Python<'py>,
-    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError> {
+    ) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
+    where
+        T: MutablePyClass,
+    {
         self.as_ref(py).try_borrow_mut()
     }
 }
@@ -877,7 +883,7 @@ where
 
 impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
 where
-    T: PyClass,
+    T: MutablePyClass,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }

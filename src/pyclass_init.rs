@@ -1,14 +1,15 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
+use crate::pyclass::MutablePyClass;
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{BorrowFlag, PyCellContents},
+    pycell::{PyCellContents, PyClassBorrowChecker, PyClassMutability},
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::UnsafeCell,
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
 };
@@ -228,14 +229,6 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject> {
-        /// Layout of a PyCellBase after base new has been called, but the borrow flag has not
-        /// yet been initialized.
-        #[repr(C)]
-        struct PartiallyInitializedPyCellBase<T> {
-            _ob_base: T,
-            borrow_flag: MaybeUninit<Cell<BorrowFlag>>,
-        }
-
         /// Layout of a PyCell after base new has been called, but the contents have not yet been
         /// written.
         #[repr(C)]
@@ -247,19 +240,12 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         let Self { init, super_init } = self;
         let obj = super_init.into_new_object(py, subtype)?;
 
-        // FIXME: Only need to initialize borrow flag once per whole hierarchy
-        let base: *mut PartiallyInitializedPyCellBase<T::BaseNativeType> = obj as _;
-        std::ptr::write(
-            (*base).borrow_flag.as_mut_ptr(),
-            Cell::new(BorrowFlag::UNUSED),
-        );
-
-        // FIXME: Initialize borrow flag if necessary??
         let cell: *mut PartiallyInitializedPyCell<T> = obj as _;
         std::ptr::write(
             (*cell).contents.as_mut_ptr(),
             PyCellContents {
                 value: ManuallyDrop::new(UnsafeCell::new(init)),
+                borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
                 thread_checker: T::ThreadChecker::new(),
                 dict: T::Dict::new(),
                 weakref: T::WeakRef::new(),
@@ -284,8 +270,8 @@ where
 
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
-    S: PyClass<BaseType = B>,
-    B: PyClass,
+    S: MutablePyClass<BaseType = B>,
+    B: MutablePyClass,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
