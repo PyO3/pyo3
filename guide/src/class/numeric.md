@@ -7,7 +7,7 @@ Before proceeding, we should think about how we want to handle overflows. There 
  be reinventing the wheel.
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
 - We can wrap around the boundary of `i32`. This is the approach we'll take here. To do that we'll just forward to `i32`'s
- `wrapping_*` methods. 
+ `wrapping_*` methods.
 
 ### Fixing our constructor
 
@@ -336,39 +336,39 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 # def hash_djb2(s: str):
 #     n = Number(0)
 #     five = Number(5)
-#     
+#
 #     for x in s:
 #         n = Number(ord(x)) + ((n << five) - n)
 #     return n
-# 
+#
 # assert hash_djb2('l50_50') == Number(-1152549421)
 # assert hash_djb2('logo') == Number(3327403)
 # assert hash_djb2('horizon') == Number(1097468315)
-# 
-# 
+#
+#
 # assert Number(2) + Number(2) == Number(4)
 # assert Number(2) + Number(2) != Number(5)
-# 
+#
 # assert Number(13) - Number(7) == Number(6)
 # assert Number(13) - Number(-7) == Number(20)
-# 
+#
 # assert Number(13) / Number(7) == Number(1)
 # assert Number(13) // Number(7) == Number(1)
-# 
+#
 # assert Number(13) * Number(7) == Number(13*7)
-# 
+#
 # assert Number(13) > Number(7)
 # assert Number(13) < Number(20)
 # assert Number(13) == Number(13)
 # assert Number(13) >= Number(7)
 # assert Number(13) <= Number(20)
 # assert Number(13) == Number(13)
-# 
-# 
+#
+#
 # assert (True if Number(1) else False)
 # assert (False if Number(0) else True)
-# 
-# 
+#
+#
 # assert int(Number(13)) == 13
 # assert float(Number(13)) == 13
 # assert Number.__doc__ == "Did you ever hear the tragedy of Darth Signed The Overfloweth? I thought not.\nIt's not a story C would tell you. It's a Rust legend."
@@ -383,14 +383,14 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 # assert Number(1337).__repr__() == 'Number(1337)'
 "#;
 
-# 
-# use pyo3::type_object::PyTypeObject;
-# 
+#
+# use pyo3::PyTypeInfo;
+#
 # fn main() -> PyResult<()> {
 #     Python::with_gil(|py| -> PyResult<()> {
 #         let globals = PyModule::import(py, "__main__")?.dict();
 #         globals.set_item("Number", Number::type_object(py))?;
-# 
+#
 #         py.run(SCRIPT, Some(globals), None)?;
 #         Ok(())
 #     })

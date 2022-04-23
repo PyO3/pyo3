@@ -4,7 +4,7 @@ use crate::{
     impl_::freelist::FreeList,
     pycell::{GetBorrowChecker, Mutability, PyCellLayout, PyClassMutability},
     pyclass_init::PyObjectInit,
-    type_object::{PyLayout, PyTypeObject},
+    type_object::PyLayout,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -162,7 +162,7 @@ pub trait PyClassImpl: Sized {
     type Layout: PyLayout<Self>;
 
     /// Base class
-    type BaseType: PyTypeInfo + PyTypeObject + PyClassBaseType;
+    type BaseType: PyTypeInfo + PyClassBaseType;
 
     /// Immutable or mutable
     type Mutability: Mutability;

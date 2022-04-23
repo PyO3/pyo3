@@ -218,7 +218,7 @@ macro_rules! create_exception {
     };
 }
 
-/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an
+/// `impl PyTypeInfo for $name` where `$name` is an
 /// exception newly defined in Rust code.
 #[doc(hidden)]
 #[macro_export]

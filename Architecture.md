@@ -135,12 +135,12 @@ to ensure Rust's borrow rules.
 See [the documentation](https://docs.rs/pyo3/latest/pyo3/pycell/struct.PyCell.html) for more.
 
 `PyCell<T>` requires that `T` implements `PyClass`.
-This trait is somewhat complex and derives many traits, but the most important one is `PyTypeObject`
+This trait is somewhat complex and derives many traits, but the most important one is `PyTypeInfo`
 in [`src/type_object.rs`].
-`PyTypeObject` is also implemented for built-in types.
+`PyTypeInfo` is also implemented for built-in types.
 In Python, all objects have their types, and types are also objects of `type`.
 For example, you can see `type({})` shows `dict` and `type(type({}))` shows `type` in Python REPL.
-`T: PyTypeObject` implies that `T` has a corresponding type object.
+`T: PyTypeInfo` implies that `T` has a corresponding type object.
 
 ## 4. Protocol methods
 
