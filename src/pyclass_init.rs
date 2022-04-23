@@ -5,7 +5,7 @@ use crate::pyclass::MutablePyClass;
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{PyCellContents, PyClassMutability, PyClassMutabilityStorage},
+    pycell::{PyCellContents, PyClassBorrowChecker, PyClassMutability},
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{
