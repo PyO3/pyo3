@@ -125,7 +125,8 @@ use crate::impl_::not_send::NotSend;
 use crate::types::{PyAny, PyDict, PyModule, PyString, PyType};
 use crate::version::PythonVersionInfo;
 use crate::{
-    ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom, PyTypeInfo,
+    ffi, AsPyPointer, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
+    PyTypeInfo,
 };
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
