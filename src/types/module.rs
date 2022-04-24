@@ -7,7 +7,6 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
-use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyCFunction, PyDict, PyList, PyString};
 use crate::{AsPyPointer, IntoPy, Py, PyObject, Python};
 use std::ffi::{CStr, CString};
@@ -294,7 +293,7 @@ impl PyModule {
     where
         T: PyClass,
     {
-        self.add(T::NAME, <T as PyTypeObject>::type_object(self.py()))
+        self.add(T::NAME, T::type_object(self.py()))
     }
 
     /// Adds a function or a (sub)module to a module, using the functions name as name.

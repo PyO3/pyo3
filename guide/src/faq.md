@@ -8,7 +8,7 @@
 2. The initialization code calls some Python API which temporarily releases the GIL e.g. `Python::import`.
 3. Another thread (thread B) acquires the Python GIL and attempts to access the same `lazy_static` value.
 4. Thread B is blocked, because it waits for `lazy_static`'s initialization to lock to release.
-5. Thread A is blocked, because it waits to re-aquire the GIL which thread B still holds.
+5. Thread A is blocked, because it waits to re-acquire the GIL which thread B still holds.
 6. Deadlock.
 
 PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` but relies solely on the Python GIL for thread safety. This means it can be used in place of `lazy_static` or `once_cell` where you are experiencing the deadlock described above. See the documentation for [`GILOnceCell`] for an example how to use it.

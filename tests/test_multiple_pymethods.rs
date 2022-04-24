@@ -1,8 +1,8 @@
 #![cfg(feature = "multiple-pymethods")]
 
 use pyo3::prelude::*;
-use pyo3::type_object::PyTypeObject;
 use pyo3::types::PyType;
+use pyo3::PyTypeInfo;
 
 #[macro_use]
 mod common;

@@ -174,7 +174,7 @@ impl GILGuard {
     /// `GILGuard` will also contain a `GILPool`.
     pub(crate) fn acquire() -> GILGuard {
         // Maybe auto-initialize the GIL:
-        //  - If auto-initialize feature set and supported, try to initalize the interpreter.
+        //  - If auto-initialize feature set and supported, try to initialize the interpreter.
         //  - If the auto-initialize feature is set but unsupported, emit hard errors only when the
         //    extension-module feature is not activated - extension modules don't care about
         //    auto-initialize so this avoids breaking existing builds.
@@ -199,7 +199,7 @@ impl GILGuard {
                     assert_ne!(
                         ffi::Py_IsInitialized(),
                         0,
-                        "The Python interpreter is not initalized and the `auto-initialize` \
+                        "The Python interpreter is not initialized and the `auto-initialize` \
                          feature is not enabled.\n\n\
                          Consider calling `pyo3::prepare_freethreaded_python()` before attempting \
                          to use Python APIs."

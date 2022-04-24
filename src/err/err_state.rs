@@ -1,9 +1,8 @@
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
-    type_object::PyTypeObject,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, PyTypeInfo, Python,
 };
 
 #[derive(Clone)]

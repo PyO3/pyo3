@@ -215,7 +215,7 @@ struct RustyTransparentStruct {
 #### Deriving [`FromPyObject`] for enums
 
 The `FromPyObject` derivation for enums generates code that tries to extract the variants in the
-order of the fields. As soon as a variant can be extracted succesfully, that variant is returned.
+order of the fields. As soon as a variant can be extracted successfully, that variant is returned.
 This makes it possible to extract Python union types like `str | int`.
 
 The same customizations and restrictions described for struct derivations apply to enum variants,

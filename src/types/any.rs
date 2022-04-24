@@ -4,7 +4,7 @@ use crate::conversion::{
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
-use crate::type_object::PyTypeObject;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
@@ -856,7 +856,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    pub fn is_instance_of<T: PyTypeObject>(&self) -> PyResult<bool> {
+    pub fn is_instance_of<T: PyTypeInfo>(&self) -> PyResult<bool> {
         self.is_instance(T::type_object(self.py()))
     }
 
@@ -888,7 +888,7 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
-        type_object::PyTypeObject,
+        type_object::PyTypeInfo,
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };

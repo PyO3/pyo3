@@ -10,7 +10,9 @@
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use crate::callback::{HashCallbackOutput, IntoPyCallbackOutput};
-use crate::{exceptions, ffi, FromPyObject, PyAny, PyCell, PyClass, PyObject};
+use crate::{
+    exceptions, ffi, pyclass::MutablePyClass, FromPyObject, PyAny, PyCell, PyClass, PyObject,
+};
 use std::os::raw::c_int;
 
 /// Basic Python class customization
@@ -26,14 +28,14 @@ pub trait PyObjectProtocol<'p>: PyClass {
 
     fn __setattr__(&'p mut self, name: Self::Name, value: Self::Value) -> Self::Result
     where
-        Self: PyObjectSetAttrProtocol<'p>,
+        Self: PyObjectSetAttrProtocol<'p> + MutablePyClass,
     {
         unimplemented!()
     }
 
     fn __delattr__(&'p mut self, name: Self::Name) -> Self::Result
     where
-        Self: PyObjectDelAttrProtocol<'p>,
+        Self: PyObjectDelAttrProtocol<'p> + MutablePyClass,
     {
         unimplemented!()
     }
@@ -77,12 +79,12 @@ pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<PyObject>;
 }
-pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
+pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> + MutablePyClass {
     type Name: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
-pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
+pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> + MutablePyClass {
     type Name: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

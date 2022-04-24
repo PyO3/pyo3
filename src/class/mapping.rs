@@ -5,7 +5,7 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::{FromPyObject, PyClass, PyObject};
+use crate::{pyclass::MutablePyClass, FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -41,7 +41,7 @@ pub trait PyMappingProtocol<'p>: PyClass {
 }
 
 // The following are a bunch of marker traits used to detect
-// the existance of a slotted method.
+// the existence of a slotted method.
 
 pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<usize>;
@@ -52,13 +52,13 @@ pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
+pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
     type Key: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
+pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

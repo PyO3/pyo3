@@ -3,6 +3,43 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.16.* to 0.17
+
+### The `pyproto` feature is now disabled by default
+
+In preparation for removing the deprecated `#[pyproto]` attribute macro in a future PyO3 version, it is now gated behind an opt-in feature flag. This also gives a slight saving to compile times for code which does not use the deprecated macro.
+
+### `PyTypeObject` trait has been deprecated
+
+The `PyTypeObject` trait already was near-useless; almost all functionality was already on the `PyTypeInfo` trait, which `PyTypeObject` had a blanket implementation based upon. In PyO3 0.17 the final method, `PyTypeObject::type_object` was moved to `PyTypeInfo::type_object`.
+
+To migrate, update trait bounds and imports from `PyTypeObject` to `PyTypeInfo`.
+
+Before:
+
+```rust,ignore
+use pyo3::Python;
+use pyo3::type_object::PyTypeObject;
+use pyo3::types::PyType;
+
+fn get_type_object<T: PyTypeObject>(py: Python<'_>) -> &PyType {
+    T::type_object(py)
+}
+```
+
+After
+
+```rust
+use pyo3::{Python, PyTypeInfo};
+use pyo3::types::PyType;
+
+fn get_type_object<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
+    T::type_object(py)
+}
+
+# Python::with_gil(|py| { get_type_object::<pyo3::types::PyList>(py); });
+```
+
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies

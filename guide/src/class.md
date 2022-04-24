@@ -52,7 +52,7 @@ enum MyEnum {
 
 Because Python objects are freely shared between threads by the Python interpreter, all types annotated with `#[pyclass]` must implement `Send` (unless annotated with [`#[pyclass(unsendable)]`](#customizing-the-class)).
 
-The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`], and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
+The above example generates implementations for [`PyTypeInfo`] and [`PyClass`] for `MyClass` and `MyEnum`. To see these generated implementations, refer to the [implementation details](#implementation-details) at the end of this chapter.
 
 ## Constructor
 
@@ -880,7 +880,7 @@ Python::with_gil(|py| {
 })
 ```
 
-All methods defined by PyO3 can be overriden. For example here's how you override `__repr__`:
+All methods defined by PyO3 can be overridden. For example here's how you override `__repr__`:
 
 ```rust
 # use pyo3::prelude::*;
@@ -940,19 +940,14 @@ The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplC
 # #[cfg(not(feature = "multiple-pymethods"))] {
 # use pyo3::prelude::*;
 // Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
-
-/// Class for demonstration
 struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
-
-unsafe impl pyo3::PyTypeInfo for MyClass {
-    type AsRefTarget = PyCell<Self>;
-
+unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
+    type AsRefTarget = ::pyo3::PyCell<Self>;
     const NAME: &'static str = "MyClass";
-    const MODULE: Option<&'static str> = None;
-
+    const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         use pyo3::type_object::LazyStaticType;
@@ -961,10 +956,14 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     }
 }
 
-impl pyo3::pyclass::PyClass for MyClass {
-    type Dict = pyo3::impl_::pyclass::PyClassDummySlot;
-    type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
-    type BaseNativeType = PyAny;
+impl ::pyo3::PyClass for MyClass { }
+
+impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut MyClass {
+    type Target = ::pyo3::PyRefMut<'a, MyClass>;
+}
+
+impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a MyClass {
+    type Target = ::pyo3::PyRef<'a, MyClass>;
 }
 
 impl pyo3::IntoPy<PyObject> for MyClass {
@@ -980,6 +979,11 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type Layout = PyCell<MyClass>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
+    type Mutability = pyo3::pycell::Mutable;
+    type PyClassMutability = pyo3::pycell::MutableClass;
+    type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
+    type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;
+    type BaseNativeType = ::pyo3::PyAny;
 
     fn for_all_items(visitor: &mut dyn FnMut(&pyo3::impl_::pyclass::PyClassItems)) {
         use pyo3::impl_::pyclass::*;
@@ -989,6 +993,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         visitor(collector.py_methods());
     }
 }
+
 # Python::with_gil(|py| {
 #     let cls = py.get_type::<MyClass>();
 #     pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
@@ -999,7 +1004,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 
 [`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
-[`PyTypeObject`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeObject.html
 
 [`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
