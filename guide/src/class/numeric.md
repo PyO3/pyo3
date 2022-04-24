@@ -124,7 +124,7 @@ impl Number {
 }
 ```
 
-### Unary arithmethic operations
+### Unary arithmetic operations
 
 ```rust
 # use pyo3::prelude::*;

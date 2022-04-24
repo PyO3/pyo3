@@ -962,7 +962,7 @@ pymethods!(
 // Regression test for issue 1506 - incorrect macro hygiene.
 // By applying the `#[pymethods]` attribute inside a macro_rules! macro, this separates the macro
 // call scope from the scope of the impl block. For this to work our macros must be careful to not
-// cheat hygeine!
+// cheat hygiene!
 
 #[pyclass]
 struct Issue1506 {}

@@ -880,7 +880,7 @@ Python::with_gil(|py| {
 })
 ```
 
-All methods defined by PyO3 can be overriden. For example here's how you override `__repr__`:
+All methods defined by PyO3 can be overridden. For example here's how you override `__repr__`:
 
 ```rust
 # use pyo3::prelude::*;

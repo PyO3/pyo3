@@ -41,7 +41,7 @@ pub trait PyMappingProtocol<'p>: PyClass {
 }
 
 // The following are a bunch of marker traits used to detect
-// the existance of a slotted method.
+// the existence of a slotted method.
 
 pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<usize>;

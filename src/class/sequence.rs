@@ -78,7 +78,7 @@ pub trait PySequenceProtocol<'p>: PyClass + Sized {
 }
 
 // The following are a bunch of marker traits used to detect
-// the existance of a slotted method.
+// the existence of a slotted method.
 
 pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
     type Result: IntoPyCallbackOutput<usize>;
