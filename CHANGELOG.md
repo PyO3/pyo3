@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2284](https://github.com/PyO3/pyo3/pull/2284)
 - The deprecated `pyproto` feature is now disabled by default. [#2321](https://github.com/PyO3/pyo3/pull/2321)
+- Link to `libpython3.so` on Unix-like targets when `abi3` feature is enabled. [#2328](https://github.com/PyO3/pyo3/pull/2328)
 
 ## [0.16.4] - 2022-04-14
 

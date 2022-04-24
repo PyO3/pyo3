@@ -266,6 +266,7 @@ print("mingw", get_platform().startswith("mingw"))
             default_lib_name_unix(
                 version,
                 implementation,
+                abi3,
                 map.get("ld_version").map(String::as_str),
             )
         };
@@ -325,6 +326,7 @@ print("mingw", get_platform().startswith("mingw"))
         let soabi = get_key!(sysconfigdata, "SOABI")?;
         let implementation = PythonImplementation::from_soabi(soabi)?;
         let version = parse_key!(sysconfigdata, "VERSION")?;
+        let abi3 = is_abi3();
         let shared = match sysconfigdata.get_value("Py_ENABLE_SHARED") {
             Some("1") | Some("true") | Some("True") => true,
             Some("0") | Some("false") | Some("False") => false,
@@ -339,6 +341,7 @@ print("mingw", get_platform().startswith("mingw"))
         let lib_name = Some(default_lib_name_unix(
             version,
             implementation,
+            abi3,
             sysconfigdata.get_value("LDVERSION"),
         ));
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
@@ -350,7 +353,7 @@ print("mingw", get_platform().startswith("mingw"))
             implementation,
             version,
             shared: shared || framework,
-            abi3: is_abi3(),
+            abi3,
             lib_dir,
             lib_name,
             executable: None,
@@ -1400,7 +1403,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
             mingw,
         ))
     } else if is_linking_libpython_for_target(&cross_compile_config.target) {
-        Some(default_lib_name_unix(version, implementation, None))
+        Some(default_lib_name_unix(version, implementation, abi3, None))
     } else {
         None
     };
@@ -1505,12 +1508,13 @@ fn load_cross_compile_config(
     Ok(config)
 }
 
-// Link against python3.lib for the stable ABI on Windows.
-// See https://www.python.org/dev/peps/pep-0384/#linkage
-//
-// This contains only the limited ABI symbols.
-const WINDOWS_ABI3_LIB_NAME: &str = "python3";
+/// Stable ABI Python library name
+///
+/// Link against `libpython3.so` on Unix and `python3.dll` on Windows.
+/// See <https://www.python.org/dev/peps/pep-0384/#linkage>
+const ABI3_LIB_NAME: &str = "python3";
 
+/// Gets the default Python library name for Windows targets.
 fn default_lib_name_windows(
     version: PythonVersion,
     implementation: PythonImplementation,
@@ -1518,7 +1522,7 @@ fn default_lib_name_windows(
     mingw: bool,
 ) -> String {
     if abi3 && !implementation.is_pypy() {
-        WINDOWS_ABI3_LIB_NAME.to_owned()
+        ABI3_LIB_NAME.to_owned()
     } else if mingw {
         // https://packages.msys2.org/base/mingw-w64-python
         format!("python{}.{}", version.major, version.minor)
@@ -1527,24 +1531,32 @@ fn default_lib_name_windows(
     }
 }
 
+/// Gets the default Python library name for Unix-like targets.
 fn default_lib_name_unix(
     version: PythonVersion,
     implementation: PythonImplementation,
+    abi3: bool,
     ld_version: Option<&str>,
 ) -> String {
     match implementation {
-        PythonImplementation::CPython => match ld_version {
-            Some(ld_version) => format!("python{}", ld_version),
-            None => {
-                if version > PythonVersion::PY37 {
-                    // PEP 3149 ABI version tags are finally gone
-                    format!("python{}.{}", version.major, version.minor)
-                } else {
-                    // Work around https://bugs.python.org/issue36707
-                    format!("python{}.{}m", version.major, version.minor)
+        PythonImplementation::CPython => {
+            if abi3 {
+                ABI3_LIB_NAME.to_owned()
+            } else {
+                match ld_version {
+                    Some(ld_version) => format!("python{}", ld_version),
+                    None => {
+                        if version > PythonVersion::PY37 {
+                            // PEP 3149 ABI version tags are finally gone
+                            format!("python{}.{}", version.major, version.minor)
+                        } else {
+                            // Work around https://bugs.python.org/issue36707
+                            format!("python{}.{}m", version.major, version.minor)
+                        }
+                    }
                 }
             }
-        },
+        }
         PythonImplementation::PyPy => {
             if version >= (PythonVersion { major: 3, minor: 9 }) {
                 match ld_version {
@@ -2266,38 +2278,84 @@ mod tests {
         use PythonImplementation::*;
         // Defaults to python3.7m for CPython 3.7
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, CPython, None),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 7 },
+                CPython,
+                false,
+                None
+            ),
             "python3.7m",
         );
         // Defaults to pythonX.Y for CPython 3.8+
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 8 }, CPython, None),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 8 },
+                CPython,
+                false,
+                None
+            ),
             "python3.8",
         );
+        // Defaults to python3 for abi3
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, None),
-            "python3.9",
+            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, CPython, true, None),
+            "python3",
         );
         // Can use ldversion to override for CPython
         assert_eq!(
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 CPython,
+                false,
                 Some("3.7md")
             ),
             "python3.7md",
         );
+        // Can't use ldversion to override for abi3
+        assert_eq!(
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 9 },
+                CPython,
+                true,
+                Some("3.7md")
+            ),
+            "python3",
+        );
 
         // PyPy 3.7 ignores ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 7 }, PyPy, Some("3.7md")),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 7 },
+                PyPy,
+                false,
+                Some("3.7md")
+            ),
             "pypy3-c",
         );
 
         // PyPy 3.9 includes ldversion
         assert_eq!(
-            super::default_lib_name_unix(PythonVersion { major: 3, minor: 9 }, PyPy, Some("3.9d")),
+            super::default_lib_name_unix(
+                PythonVersion { major: 3, minor: 9 },
+                PyPy,
+                false,
+                Some("3.9d")
+            ),
             "pypy3.9d-c",
+        );
+
+        // PyPy does not implement abi3
+        assert_eq!(
+            super::default_lib_name_unix(
+                PythonVersion {
+                    major: 3,
+                    minor: 10
+                },
+                PyPy,
+                true,
+                None
+            ),
+            "pypy3.10-c",
         );
     }
 
