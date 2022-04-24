@@ -4,9 +4,7 @@
 use crate::err::{self, PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, Python, ToPyObject};
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
 use std::{collections, hash, ptr};
@@ -69,13 +67,13 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key) {
+        unsafe {
+            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
                 1 => Ok(true),
                 0 => Ok(false),
                 _ => Err(PyErr::fetch(self.py())),
             }
-        })
+        }
     }
 
     /// Removes the element from the set if it is present.
@@ -83,9 +81,9 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            ffi::PySet_Discard(self.as_ptr(), key);
-        })
+        unsafe {
+            ffi::PySet_Discard(self.as_ptr(), key.to_object(self.py()).as_ptr());
+        }
     }
 
     /// Adds an element to the set.
@@ -93,9 +91,12 @@ impl PySet {
     where
         K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), move |key| unsafe {
-            err::error_on_minusone(self.py(), ffi::PySet_Add(self.as_ptr(), key))
-        })
+        unsafe {
+            err::error_on_minusone(
+                self.py(),
+                ffi::PySet_Add(self.as_ptr(), key.to_object(self.py()).as_ptr()),
+            )
+        }
     }
 
     /// Removes and returns an arbitrary element from the set.
@@ -303,15 +304,15 @@ impl PyFrozenSet {
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key) {
+        unsafe {
+            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
                 1 => Ok(true),
                 0 => Ok(false),
                 _ => Err(PyErr::fetch(self.py())),
             }
-        })
+        }
     }
 
     /// Returns an iterator of values in this frozen set.
