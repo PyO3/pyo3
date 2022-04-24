@@ -58,7 +58,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A proc macro used to implement Python's [dunder methods][1].
 ///
-/// This atribute is required on blocks implementing [`PyObjectProtocol`][2],
+/// This attribute is required on blocks implementing [`PyObjectProtocol`][2],
 /// [`PyNumberProtocol`][3], [`PyGCProtocol`][4] and [`PyIterProtocol`][5].
 ///
 /// [1]: https://docs.python.org/3/reference/datamodel.html#special-method-names

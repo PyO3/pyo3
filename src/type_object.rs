@@ -13,7 +13,7 @@ use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
-/// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
+/// E.g., `PyCell` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
@@ -25,7 +25,7 @@ pub unsafe trait PyLayout<T> {}
 
 /// `T: PySizedLayout<U>` represents that `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
-/// In addition, that `T` is a concrete representaion of `U`.
+/// In addition, that `T` is a concrete representation of `U`.
 pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 
 /// Python type information.
@@ -179,7 +179,7 @@ impl LazyStaticType {
 
         if let Err(err) = result {
             err.clone_ref(py).print(py);
-            panic!("An error occured while initializing `{}.__dict__`", name);
+            panic!("An error occurred while initializing `{}.__dict__`", name);
         }
     }
 }

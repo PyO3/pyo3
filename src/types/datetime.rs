@@ -41,7 +41,7 @@ fn ensure_datetime_api(_py: Python<'_>) -> &'static PyDateTime_CAPI {
 // These are bindings around the C API typecheck macros, all of them return
 // `1` if True and `0` if False. In all type check macros, the argument (`op`)
 // must not be `NULL`. The implementations here all call ensure_datetime_api
-// to ensure that the PyDateTimeAPI is initalized before use
+// to ensure that the PyDateTimeAPI is initialized before use
 //
 //
 // # Safety

@@ -30,7 +30,7 @@ enum OverrideSlot {
 #[pymethods]
 impl OverrideSlot {
     fn __repr__(&self) -> &str {
-        "overriden"
+        "overridden"
     }
 }
 
@@ -38,6 +38,6 @@ impl OverrideSlot {
 fn test_override_slot() {
     Python::with_gil(|py| {
         let test_object = Py::new(py, OverrideSlot::Var).unwrap();
-        py_assert!(py, test_object, "repr(test_object) == 'overriden'");
+        py_assert!(py, test_object, "repr(test_object) == 'overridden'");
     })
 }

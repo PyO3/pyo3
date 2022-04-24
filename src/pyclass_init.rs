@@ -82,7 +82,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 
 /// Initializer for our `#[pyclass]` system.
 ///
-/// You can use this type to initalize complicatedly nested `#[pyclass]`.
+/// You can use this type to initialize complicatedly nested `#[pyclass]`.
 ///
 /// # Examples
 ///
