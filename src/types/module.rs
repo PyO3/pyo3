@@ -300,11 +300,14 @@ impl PyModule {
     where
         T: IntoPyCallbackOutput<PyObject>,
     {
+        self._add_wrapped(wrapper(self.py()).convert(self.py())?)
+    }
+
+    fn _add_wrapped(&self, object: PyObject) -> PyResult<()> {
         let py = self.py();
-        let function = wrapper(py).convert(py)?;
-        let name = function.getattr(py, __name__(py))?;
+        let name = object.getattr(py, __name__(py))?;
         let name = name.extract(py)?;
-        self.add(name, function)
+        self.add(name, object)
     }
 
     /// Adds a submodule to a module.

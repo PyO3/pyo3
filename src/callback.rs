@@ -47,7 +47,10 @@ where
 {
     #[inline]
     fn convert(self, py: Python<'_>) -> PyResult<U> {
-        self.map_err(Into::into).and_then(|t| t.convert(py))
+        match self {
+            Ok(v) => v.convert(py),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
