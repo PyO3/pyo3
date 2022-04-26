@@ -4,10 +4,7 @@ use crate::err::{self, PyErr, PyResult};
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
-use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToBorrowedObject,
-    ToPyObject,
-};
+use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
@@ -82,15 +79,15 @@ impl PyDict {
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            match ffi::PyDict_Contains(self.as_ptr(), key) {
+        unsafe {
+            match ffi::PyDict_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
                 1 => Ok(true),
                 0 => Ok(false),
                 _ => Err(PyErr::fetch(self.py())),
             }
-        })
+        }
     }
 
     /// Gets an item from the dictionary.
@@ -100,15 +97,15 @@ impl PyDict {
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
     pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key);
+        unsafe {
+            let ptr = ffi::PyDict_GetItem(self.as_ptr(), key.to_object(self.py()).as_ptr());
             NonNull::new(ptr).map(|p| {
                 // PyDict_GetItem return s borrowed ptr, must make it owned for safety (see #890).
                 self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))
             })
-        })
+        }
     }
 
     /// Sets an item value.
@@ -119,11 +116,17 @@ impl PyDict {
         K: ToPyObject,
         V: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), move |key| {
-            value.with_borrowed_ptr(self.py(), |value| unsafe {
-                err::error_on_minusone(self.py(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
-            })
-        })
+        let py = self.py();
+        unsafe {
+            err::error_on_minusone(
+                py,
+                ffi::PyDict_SetItem(
+                    self.as_ptr(),
+                    key.to_object(py).as_ptr(),
+                    value.to_object(py).as_ptr(),
+                ),
+            )
+        }
     }
 
     /// Deletes an item.
@@ -131,11 +134,15 @@ impl PyDict {
     /// This is equivalent to the Python statement `del self[key]`.
     pub fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            err::error_on_minusone(self.py(), ffi::PyDict_DelItem(self.as_ptr(), key))
-        })
+        let py = self.py();
+        unsafe {
+            err::error_on_minusone(
+                py,
+                ffi::PyDict_DelItem(self.as_ptr(), key.to_object(py).as_ptr()),
+            )
+        }
     }
 
     /// Returns a list of dict keys.
