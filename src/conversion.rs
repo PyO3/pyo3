@@ -75,10 +75,12 @@ pub trait ToPyObject {
     fn to_object(&self, py: Python<'_>) -> PyObject;
 }
 
-/// This trait has two implementations: The slow one is implemented for
-/// all [ToPyObject] and creates a new object using [ToPyObject::to_object],
-/// while the fast one is only implemented for AsPyPointer (we know
-/// that every AsPyPointer is also ToPyObject) and uses [AsPyPointer::as_ptr()]
+/// A deprecated conversion trait which relied on the unstable `specialization` feature
+/// of the Rust language.
+#[deprecated(
+    since = "0.17.0",
+    note = "this trait is no longer used by PyO3, use ToPyObject or IntoPy<PyObject>"
+)]
 pub trait ToBorrowedObject: ToPyObject {
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -98,6 +100,7 @@ pub trait ToBorrowedObject: ToPyObject {
     }
 }
 
+#[allow(deprecated)]
 impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 /// Defines a conversion from a Rust type to a Python object.

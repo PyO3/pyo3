@@ -7,7 +7,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
-    PyResult, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+    PyResult, PyTryFrom, Python, ToPyObject,
 };
 
 #[inline]
@@ -215,7 +215,7 @@ impl PyTuple {
     #[inline]
     pub fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
         self.as_sequence().contains(value)
     }
@@ -226,7 +226,7 @@ impl PyTuple {
     #[inline]
     pub fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
         self.as_sequence().index(value)
     }

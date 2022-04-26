@@ -7,9 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -414,11 +412,11 @@ impl PyErr {
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
     pub fn matches<T>(&self, py: Python<'_>, exc: T) -> bool
     where
-        T: ToBorrowedObject,
+        T: ToPyObject,
     {
-        exc.with_borrowed_ptr(py, |exc| unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc) != 0
-        })
+        unsafe {
+            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.to_object(py).as_ptr()) != 0
+        }
     }
 
     /// Returns true if the current exception is instance of `T`.

@@ -1,5 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::conversion::{PyTryFrom, ToBorrowedObject};
+use crate::conversion::PyTryFrom;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
@@ -563,9 +563,12 @@ impl<T> Py<T> {
     where
         N: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
-            PyObject::from_owned_ptr_or_err(py, ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
-        })
+        unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py,
+                ffi::PyObject_GetAttr(self.as_ptr(), attr_name.to_object(py).as_ptr()),
+            )
+        }
     }
 
     /// Sets an attribute value.
@@ -595,11 +598,16 @@ impl<T> Py<T> {
         N: ToPyObject,
         V: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(py, move |attr_name| {
-            value.with_borrowed_ptr(py, |value| unsafe {
-                err::error_on_minusone(py, ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
-            })
-        })
+        unsafe {
+            err::error_on_minusone(
+                py,
+                ffi::PyObject_SetAttr(
+                    self.as_ptr(),
+                    attr_name.to_object(py).as_ptr(),
+                    value.to_object(py).as_ptr(),
+                ),
+            )
+        }
     }
 
     /// Calls the object.
