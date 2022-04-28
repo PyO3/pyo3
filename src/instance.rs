@@ -1001,8 +1001,8 @@ impl PyObject {
 #[cfg(test)]
 mod tests {
     use super::{Py, PyObject};
-    use crate::types::PyDict;
-    use crate::{Python, ToPyObject};
+    use crate::types::{PyDict, PyString};
+    use crate::{PyAny, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_call0() {
@@ -1051,5 +1051,68 @@ mod tests {
             let p: PyObject = dict.into();
             assert_eq!(p.get_refcnt(py), cnt);
         });
+    }
+
+    #[test]
+    fn attr() -> PyResult<()> {
+        use crate::types::PyModule;
+
+        Python::with_gil(|py| {
+            const CODE: &str = r#"
+class A:
+    pass
+a = A()
+   "#;
+            let module = PyModule::from_code(py, CODE, "", "")?;
+            let instance: Py<PyAny> = module.getattr("a")?.into();
+
+            instance.getattr(py, "foo").unwrap_err();
+
+            instance.setattr(py, "foo", "bar")?;
+
+            assert!(instance
+                .getattr(py, "foo")?
+                .as_ref(py)
+                .eq(PyString::new(py, "bar"))?);
+
+            instance.getattr(py, "foo")?;
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn pystring_attr() -> PyResult<()> {
+        use crate::types::PyModule;
+
+        Python::with_gil(|py| {
+            const CODE: &str = r#"
+class A:
+    pass
+a = A()
+   "#;
+            let module = PyModule::from_code(py, CODE, "", "")?;
+            let instance: Py<PyAny> = module.getattr("a")?.into();
+
+            let foo = crate::intern!(py, "foo");
+            let bar = crate::intern!(py, "bar");
+
+            instance.getattr(py, foo).unwrap_err();
+            instance.setattr(py, foo, bar)?;
+            assert!(instance.getattr(py, foo)?.as_ref(py).eq(bar)?);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn invalid_attr() -> PyResult<()> {
+        Python::with_gil(|py| {
+            let instance: Py<PyAny> = py.eval("object()", None, None)?.into();
+
+            instance.getattr(py, "foo").unwrap_err();
+
+            // Cannot assign arbitrary attributes to `object`
+            instance.setattr(py, "foo", "bar").unwrap_err();
+            Ok(())
+        })
     }
 }
