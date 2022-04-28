@@ -561,12 +561,14 @@ impl<T> Py<T> {
     /// ```
     pub fn getattr<N>(&self, py: Python<'_>, attr_name: N) -> PyResult<PyObject>
     where
-        N: ToPyObject,
+        N: IntoPy<Py<PyString>>,
     {
+        let attr_name = attr_name.into_py(py);
+
         unsafe {
             PyObject::from_owned_ptr_or_err(
                 py,
-                ffi::PyObject_GetAttr(self.as_ptr(), attr_name.to_object(py).as_ptr()),
+                ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()),
             )
         }
     }
@@ -595,17 +597,16 @@ impl<T> Py<T> {
     /// ```
     pub fn setattr<N, V>(&self, py: Python<'_>, attr_name: N, value: V) -> PyResult<()>
     where
-        N: ToPyObject,
-        V: ToPyObject,
+        N: IntoPy<Py<PyString>>,
+        V: IntoPy<Py<PyAny>>,
     {
+        let attr_name = attr_name.into_py(py);
+        let value = value.into_py(py);
+
         unsafe {
             err::error_on_minusone(
                 py,
-                ffi::PyObject_SetAttr(
-                    self.as_ptr(),
-                    attr_name.to_object(py).as_ptr(),
-                    value.to_object(py).as_ptr(),
-                ),
+                ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr()),
             )
         }
     }
@@ -619,16 +620,17 @@ impl<T> Py<T> {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
-        let args = args.into_py(py).into_ptr();
+        let args = args.into_py(py);
         let kwargs = kwargs.into_ptr();
-        let result = unsafe {
-            PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
-        };
+
         unsafe {
-            ffi::Py_XDECREF(args);
+            let ret = PyObject::from_owned_ptr_or_err(
+                py,
+                ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs),
+            );
             ffi::Py_XDECREF(kwargs);
+            ret
         }
-        result
     }
 
     /// Calls the object with only positional arguments.
@@ -671,17 +673,15 @@ impl<T> Py<T> {
         N: IntoPy<Py<PyString>>,
         A: IntoPy<Py<PyTuple>>,
     {
-        let name: Py<PyString> = name.into_py(py);
+        let callee = self.getattr(py, name)?;
         let args: Py<PyTuple> = args.into_py(py);
-
-        let ptr = self.getattr(py, name)?.into_ptr();
-        let args = args.into_ptr();
         let kwargs = kwargs.into_ptr();
 
         unsafe {
-            let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
-            ffi::Py_DECREF(ptr);
-            ffi::Py_XDECREF(args);
+            let result = PyObject::from_owned_ptr_or_err(
+                py,
+                ffi::PyObject_Call(callee.as_ptr(), args.as_ptr(), kwargs),
+            );
             ffi::Py_XDECREF(kwargs);
             result
         }

@@ -105,13 +105,9 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
     {
         let py = self.py();
-        let attr_name = attr_name.into_py(py).into_ptr();
+        let attr_name = attr_name.into_py(py);
 
-        unsafe {
-            let ret = ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0;
-            ffi::Py_DECREF(attr_name);
-            Ok(ret)
-        }
+        unsafe { Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name.as_ptr()) != 0) }
     }
 
     /// Retrieves an attribute value.
@@ -141,11 +137,10 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
     {
         let py = self.py();
-        let attr_name = attr_name.into_py(py).into_ptr();
+        let attr_name = attr_name.into_py(py);
 
         unsafe {
-            let ret = ffi::PyObject_GetAttr(self.as_ptr(), attr_name);
-            ffi::Py_DECREF(attr_name);
+            let ret = ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr());
             py.from_owned_ptr_or_err(ret)
         }
     }
@@ -178,14 +173,11 @@ impl PyAny {
         V: ToPyObject,
     {
         let py = self.py();
-
-        let attr_name = attr_name.into_py(py).into_ptr();
-        let value = value.to_object(py).into_ptr();
+        let attr_name = attr_name.into_py(py);
+        let value = value.to_object(py);
 
         unsafe {
-            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value);
-            ffi::Py_DECREF(attr_name);
-            ffi::Py_XDECREF(value);
+            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr());
             err::error_on_minusone(py, ret)
         }
     }
@@ -201,12 +193,10 @@ impl PyAny {
         N: IntoPy<Py<PyString>>,
     {
         let py = self.py();
-
-        let attr_name = attr_name.into_py(py).into_ptr();
+        let attr_name = attr_name.into_py(py);
 
         unsafe {
-            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name);
-            ffi::Py_DECREF(attr_name);
+            let ret = ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr());
             err::error_on_minusone(py, ret)
         }
     }
@@ -459,17 +449,17 @@ impl PyAny {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
-        let args = args.into_py(self.py()).into_ptr();
+        let py = self.py();
+
+        let args = args.into_py(py);
         let kwargs = kwargs.into_ptr();
-        let result = unsafe {
-            let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs);
-            self.py().from_owned_ptr_or_err(return_value)
-        };
+
         unsafe {
-            ffi::Py_XDECREF(args);
+            let return_value = ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs);
+            let ret = py.from_owned_ptr_or_err(return_value);
             ffi::Py_XDECREF(kwargs);
+            ret
         }
-        result
     }
 
     /// Calls the object without arguments.
@@ -577,17 +567,14 @@ impl PyAny {
         A: IntoPy<Py<PyTuple>>,
     {
         let py = self.py();
-        let args: Py<PyTuple> = args.into_py(py);
 
-        let ptr = self.getattr(name)?.into_ptr();
-        let args = args.into_ptr();
+        let callee = self.getattr(name)?;
+        let args: Py<PyTuple> = args.into_py(py);
         let kwargs = kwargs.into_ptr();
 
         unsafe {
-            let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
+            let result_ptr = ffi::PyObject_Call(callee.as_ptr(), args.as_ptr(), kwargs);
             let result = py.from_owned_ptr_or_err(result_ptr);
-            ffi::Py_DECREF(ptr);
-            ffi::Py_XDECREF(args);
             ffi::Py_XDECREF(kwargs);
             result
         }
