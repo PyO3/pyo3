@@ -3,14 +3,39 @@ use crate::{exceptions, PyErr};
 #[cfg(min_const_generics)]
 mod min_const_generics {
     use super::invalid_sequence_length;
-    use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject};
+    use crate::conversion::IntoPyPointer;
+    use crate::{
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    };
 
     impl<T, const N: usize> IntoPy<PyObject> for [T; N]
     where
-        T: ToPyObject,
+        T: IntoPy<PyObject>,
     {
         fn into_py(self, py: Python<'_>) -> PyObject {
-            self.as_ref().to_object(py)
+            unsafe {
+                #[allow(deprecated)] // we're not on edition 2021 yet
+                let elements = std::array::IntoIter::new(self);
+                let len = N as ffi::Py_ssize_t;
+
+                let ptr = ffi::PyList_New(len);
+
+                // We create the  `Py` pointer here for two reasons:
+                // - panics if the ptr is null
+                // - its Drop cleans up the list if user code panics.
+                let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
+
+                for (i, obj) in (0..len).zip(elements) {
+                    let obj = obj.into_py(py).into_ptr();
+
+                    #[cfg(not(Py_LIMITED_API))]
+                    ffi::PyList_SET_ITEM(ptr, i, obj);
+                    #[cfg(Py_LIMITED_API)]
+                    ffi::PyList_SetItem(ptr, i, obj);
+                }
+
+                list
+            }
         }
     }
 
@@ -149,17 +174,69 @@ mod min_const_generics {
 #[cfg(not(min_const_generics))]
 mod array_impls {
     use super::invalid_sequence_length;
-    use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject};
+    use crate::conversion::IntoPyPointer;
+    use crate::{
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    };
+    use std::mem::{transmute_copy, ManuallyDrop};
 
     macro_rules! array_impls {
         ($($N:expr),+) => {
             $(
                 impl<T> IntoPy<PyObject> for [T; $N]
                 where
-                    T: ToPyObject
+                    T: IntoPy<PyObject>
                 {
                     fn into_py(self, py: Python<'_>) -> PyObject {
-                        self.as_ref().to_object(py)
+
+                        struct ArrayGuard<T> {
+                            elements: [ManuallyDrop<T>; $N],
+                            start: usize,
+                        }
+
+                        impl<T> Drop for ArrayGuard<T> {
+                            fn drop(&mut self) {
+                                unsafe {
+                                    let needs_drop = self.elements.get_mut(self.start..).unwrap();
+                                    for item in needs_drop{
+                                        ManuallyDrop::drop(item);
+                                    }
+                                }
+                            }
+                        }
+
+                        unsafe {
+                            let ptr = ffi::PyList_New($N as ffi::Py_ssize_t);
+
+                            // We create the  `Py` pointer here for two reasons:
+                            // - panics if the ptr is null
+                            // - its Drop cleans up the list if user code panics.
+                            let list: Py<PyAny> = Py::from_owned_ptr(py, ptr);
+
+                            let slf = ManuallyDrop::new(self);
+
+                            let mut guard = ArrayGuard{
+                                // the transmute size check is _very_ dumb around generics
+                                elements: transmute_copy(&slf),
+                                start: 0
+                            };
+
+                            for i in 0..$N {
+                                let obj: T = ManuallyDrop::take(&mut guard.elements[i]);
+                                guard.start += 1;
+
+                                let obj = obj.into_py(py).into_ptr();
+
+                                #[cfg(not(Py_LIMITED_API))]
+                                ffi::PyList_SET_ITEM(ptr, i as ffi::Py_ssize_t, obj);
+                                #[cfg(Py_LIMITED_API)]
+                                ffi::PyList_SetItem(ptr, i as ffi::Py_ssize_t, obj);
+                            }
+
+                            std::mem::forget(guard);
+
+                            list
+                        }
                     }
                 }
 

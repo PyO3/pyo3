@@ -34,8 +34,9 @@ fn new_from_iter(
 
         let ptr = ffi::PyList_New(len);
 
-        // - Panics if the ptr is null
-        // - Cleans up the list if `convert` or the asserts panic
+        // We create the  `Py` pointer here for two reasons:
+        // - panics if the ptr is null
+        // - its Drop cleans up the list if user code or the asserts panic.
         let list: Py<PyList> = Py::from_owned_ptr(py, ptr);
 
         let mut counter: Py_ssize_t = 0;
