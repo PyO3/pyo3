@@ -1,4 +1,4 @@
-error[E0599]: the method `into_result` exists for enum `Result<(), MyError>`, but its trait bounds were not satisfied
+error[E0599]: the method `into_py_result` exists for enum `Result<(), MyError>`, but its trait bounds were not satisfied
   --> tests/ui/invalid_result_conversion.rs:21:1
    |
 21 | #[pyfunction]
@@ -6,7 +6,7 @@ error[E0599]: the method `into_result` exists for enum `Result<(), MyError>`, bu
    |
    = note: the following trait bounds were not satisfied:
            `&Result<(), MyError>: IntoPy<Py<PyAny>>`
-           which is required by `&Result<(), MyError>: IntoResult<Result<&Result<(), MyError>, PyErr>>`
+           which is required by `&Result<(), MyError>: IntoPyResult<Result<&Result<(), MyError>, PyErr>>`
            `&mut Result<(), MyError>: IntoPy<Py<PyAny>>`
-           which is required by `&mut Result<(), MyError>: IntoResult<Result<&mut Result<(), MyError>, PyErr>>`
+           which is required by `&mut Result<(), MyError>: IntoPyResult<Result<&mut Result<(), MyError>, PyErr>>`
    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -483,8 +483,8 @@ impl<'a> FnSpec<'a> {
         let rust_call = quote! {
             let ret = #rust_name(#self_arg #(#arg_names),*);
 
-            use _pyo3::callback::IntoResult;
-            let ret: _pyo3::PyResult<_> = ret.into_result();
+            use _pyo3::callback::IntoPyResult;
+            let ret: _pyo3::PyResult<_> = ret.into_py_result();
 
             _pyo3::callback::convert(#py, ret)
         };

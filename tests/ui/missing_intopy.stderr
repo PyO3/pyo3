@@ -1,23 +1,23 @@
-error[E0599]: the method `into_result` exists for struct `Blah`, but its trait bounds were not satisfied
+error[E0599]: the method `into_py_result` exists for struct `Blah`, but its trait bounds were not satisfied
    --> tests/ui/missing_intopy.rs:3:1
     |
 1   | struct Blah;
     | ------------
     | |
-    | method `into_result` not found for this
+    | method `into_py_result` not found for this
     | doesn't satisfy `Blah: IntoPy<Py<PyAny>>`
-    | doesn't satisfy `Blah: IntoResult<Result<Blah, PyErr>>`
+    | doesn't satisfy `Blah: IntoPyResult<Result<Blah, PyErr>>`
 2   |
 3   | #[pyo3::pyfunction]
     | ^^^^^^^^^^^^^^^^^^^ method cannot be called on `Blah` due to unsatisfied trait bounds
     |
     = note: the following trait bounds were not satisfied:
             `Blah: IntoPy<Py<PyAny>>`
-            which is required by `Blah: IntoResult<Result<Blah, PyErr>>`
+            which is required by `Blah: IntoPyResult<Result<Blah, PyErr>>`
             `&Blah: IntoPy<Py<PyAny>>`
-            which is required by `&Blah: IntoResult<Result<&Blah, PyErr>>`
+            which is required by `&Blah: IntoPyResult<Result<&Blah, PyErr>>`
             `&mut Blah: IntoPy<Py<PyAny>>`
-            which is required by `&mut Blah: IntoResult<Result<&mut Blah, PyErr>>`
+            which is required by `&mut Blah: IntoPyResult<Result<&mut Blah, PyErr>>`
 note: the following trait must be implemented
    --> src/conversion.rs
     |
