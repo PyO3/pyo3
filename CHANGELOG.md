@@ -11,12 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
+- Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 
 ### Changed
 
 - Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2287](https://github.com/PyO3/pyo3/pull/2287)
 - The deprecated `pyproto` feature is now disabled by default. [#2322](https://github.com/PyO3/pyo3/pull/2322)
 - Deprecate `ToBorrowedObject` trait (it is only used as a wrapper for `ToPyObject`). [#2333](https://github.com/PyO3/pyo3/pull/2333)
+- `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 
 ## [0.16.4] - 2022-04-14
 
