@@ -295,7 +295,7 @@ fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::PyList, PyResult, Python};
+    use crate::{types::PyList, IntoPy, PyResult, Python, ToPyObject};
 
     #[test]
     fn test_extract_small_bytearray_to_array() {
@@ -310,7 +310,6 @@ mod tests {
     }
     #[test]
     fn test_topyobject_array_conversion() {
-        use crate::ToPyObject;
         Python::with_gil(|py| {
             let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
             let pyobject = array.to_object(py);
@@ -334,5 +333,32 @@ mod tests {
                 "ValueError: expected a sequence of length 3 (got 7)"
             );
         })
+    }
+
+    #[test]
+    fn test_intopy_array_conversion() {
+        Python::with_gil(|py| {
+            let array: [f32; 4] = [0.0, -16.0, 16.0, 42.0];
+            let pyobject = array.into_py(py);
+            let pylist: &PyList = pyobject.extract(py).unwrap();
+            assert_eq!(pylist[0].extract::<f32>().unwrap(), 0.0);
+            assert_eq!(pylist[1].extract::<f32>().unwrap(), -16.0);
+            assert_eq!(pylist[2].extract::<f32>().unwrap(), 16.0);
+            assert_eq!(pylist[3].extract::<f32>().unwrap(), 42.0);
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_pyclass_intopy_array_conversion() {
+        #[crate::pyclass(crate = "crate")]
+        struct Foo;
+
+        Python::with_gil(|py| {
+            let array: [Foo; 8] = [Foo, Foo, Foo, Foo, Foo, Foo, Foo, Foo];
+            let pyobject = array.into_py(py);
+            let list: &PyList = pyobject.cast_as(py).unwrap();
+            let _cell: &crate::PyCell<Foo> = list.get_item(4).unwrap().extract().unwrap();
+        });
     }
 }
