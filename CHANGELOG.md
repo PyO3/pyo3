@@ -6,11 +6,17 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
+
+### Changed
+
+- Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2287](https://github.com/PyO3/pyo3/pull/2287)
+- The deprecated `pyproto` feature is now disabled by default. [#2322](https://github.com/PyO3/pyo3/pull/2322)
+- Deprecate `ToBorrowedObject` trait (it is only used as a wrapper for `ToPyObject`). [#2333](https://github.com/PyO3/pyo3/pull/2333)
 
 ## [0.16.4] - 2022-04-14
 
@@ -399,7 +405,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Remove FFI definition `PyCFunction_ClearFreeList` for Python 3.9 and later. [#1425](https://github.com/PyO3/pyo3/pull/1425)
-- `PYO3_CROSS_LIB_DIR` enviroment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
+- `PYO3_CROSS_LIB_DIR` environment variable no long required when compiling for x86-64 Python from macOS arm64 and reverse. [#1428](https://github.com/PyO3/pyo3/pull/1428)
 - Fix FFI definition `_PyEval_RequestCodeExtraIndex`, which took an argument of the wrong type. [#1429](https://github.com/PyO3/pyo3/pull/1429)
 - Fix FFI definition `PyIndex_Check` missing with the `abi3` feature. [#1436](https://github.com/PyO3/pyo3/pull/1436)
 - Fix incorrect `TypeError` raised when keyword-only argument passed along with a positional argument in `*args`. [#1440](https://github.com/PyO3/pyo3/pull/1440)
@@ -408,7 +414,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No longer include `__doc__` in `__all__` generated for `#[pymodule]`. [#1509](https://github.com/PyO3/pyo3/pull/1509)
 - Always use cross-compiling configuration if any of the `PYO3_CROSS` family of environment variables are set. [#1514](https://github.com/PyO3/pyo3/pull/1514)
 - Support `EnvironmentError`, `IOError`, and `WindowsError` on PyPy. [#1533](https://github.com/PyO3/pyo3/pull/1533)
-- Fix unneccessary rebuilds when cycling between `cargo check` and `cargo clippy` in a Python virtualenv. [#1557](https://github.com/PyO3/pyo3/pull/1557)
+- Fix unnecessary rebuilds when cycling between `cargo check` and `cargo clippy` in a Python virtualenv. [#1557](https://github.com/PyO3/pyo3/pull/1557)
 - Fix segfault when dereferencing `ffi::PyDateTimeAPI` without the GIL. [#1563](https://github.com/PyO3/pyo3/pull/1563)
 - Fix memory leak in `FromPyObject` implementations for `u128` and `i128`. [#1638](https://github.com/PyO3/pyo3/pull/1638)
 - Fix `#[pyclass(extends=PyDict)]` leaking the dict contents on drop. [#1657](https://github.com/PyO3/pyo3/pull/1657)
@@ -992,7 +998,7 @@ Yanked
 ### Changed
 
 - Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
-- All exceptions are consturcted with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
+- All exceptions are constructed with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
 - `as_mut` and friends take and `&mut self` instead of `&self`
 - `ObjectProtocol::call` now takes an `Option<&PyDict>` for the kwargs instead of an `IntoPyDictPointer`.
 - `IntoPyDictPointer` was replace by `IntoPyDict` which doesn't convert `PyDict` itself anymore and returns a `PyDict` instead of `*mut PyObject`.
@@ -1162,7 +1168,7 @@ Yanked
 - Initial release
 
 [Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.4...HEAD
-[0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
+[0.16.4]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/pyo3/pyo3/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/pyo3/pyo3/compare/v0.16.0...v0.16.1

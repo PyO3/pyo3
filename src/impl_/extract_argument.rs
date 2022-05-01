@@ -1,14 +1,12 @@
 use crate::{
     exceptions::PyTypeError,
     ffi,
-    type_object::PyTypeObject,
     types::{PyDict, PyString, PyTuple},
-    FromPyObject, PyAny, PyErr, PyResult, Python,
+    FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
 };
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 #[doc(hidden)]
-#[inline]
 pub fn extract_argument<'py, T>(obj: &'py PyAny, arg_name: &str) -> PyResult<T>
 where
     T: FromPyObject<'py>,
@@ -22,7 +20,6 @@ where
 /// Alternative to [`extract_argument`] used for `Option<T>` arguments (because they are implicitly treated
 /// as optional if at the end of the positional parameters).
 #[doc(hidden)]
-#[inline]
 pub fn extract_optional_argument<'py, T>(
     obj: Option<&'py PyAny>,
     arg_name: &str,
@@ -31,17 +28,13 @@ where
     T: FromPyObject<'py>,
 {
     match obj {
-        Some(obj) => match obj.extract() {
-            Ok(value) => Ok(value),
-            Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
-        },
+        Some(obj) => extract_argument(obj, arg_name),
         None => Ok(None),
     }
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 #[doc(hidden)]
-#[inline]
 pub fn extract_argument_with_default<'py, T>(
     obj: Option<&'py PyAny>,
     arg_name: &str,
@@ -51,10 +44,7 @@ where
     T: FromPyObject<'py>,
 {
     match obj {
-        Some(obj) => match obj.extract() {
-            Ok(value) => Ok(value),
-            Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
-        },
+        Some(obj) => extract_argument(obj, arg_name),
         None => Ok(default()),
     }
 }
@@ -64,7 +54,6 @@ where
 /// # Safety
 /// - `obj` must not be None (this helper is only used for required function arguments).
 #[doc(hidden)]
-#[inline]
 pub fn from_py_with<'py, T>(
     obj: &'py PyAny,
     arg_name: &str,
@@ -79,7 +68,6 @@ pub fn from_py_with<'py, T>(
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
 #[doc(hidden)]
-#[inline]
 pub fn from_py_with_with_default<'py, T>(
     obj: Option<&'py PyAny>,
     arg_name: &str,
@@ -87,10 +75,7 @@ pub fn from_py_with_with_default<'py, T>(
     default: impl FnOnce() -> T,
 ) -> PyResult<T> {
     match obj {
-        Some(obj) => match extractor(obj) {
-            Ok(value) => Ok(value),
-            Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
-        },
+        Some(obj) => from_py_with(obj, arg_name, extractor),
         None => Ok(default()),
     }
 }

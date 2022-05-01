@@ -59,7 +59,6 @@ This feature enables a dependency on the `pyo3-macros` crate, which provides the
 - `#[pyfunction]`
 - `#[pyclass]`
 - `#[pymethods]`
-- `#[pyproto]`
 - `#[derive(FromPyObject)]`
 
 It also provides the `py_run!` macro.
@@ -78,9 +77,7 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 ### `pyproto`
 
-This feature enables the `#[pyproto]` macro, which is an alternative (older, soon-to-be-deprecated) to `#[pymethods]` for defining magic methods such as `__eq__`.
-
-> This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
+This feature enables the `#[pyproto]` macro, which is a deprecated alternative to `#[pymethods]` for defining magic methods such as `__eq__`.
 
 ### `nightly`
 

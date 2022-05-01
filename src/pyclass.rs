@@ -1,14 +1,14 @@
 //! `PyClass` and related traits.
+use crate::pycell::{Immutable, Mutable};
 use crate::{
     callback::IntoPyCallbackOutput,
     exceptions::PyTypeError,
     ffi,
     impl_::pyclass::{
-        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassDict,
-        PyClassImpl, PyClassItems, PyClassWeakRef,
+        assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassImpl,
+        PyClassItems,
     },
-    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyNativeType, PyObject, PyResult,
-    PyTypeInfo, Python,
+    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyObject, PyResult, PyTypeInfo, Python,
 };
 use std::{
     convert::TryInto,
@@ -25,14 +25,13 @@ use std::{
 pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {
-    /// Specify this class has `#[pyclass(dict)]` or not.
-    type Dict: PyClassDict;
-    /// Specify this class has `#[pyclass(weakref)]` or not.
-    type WeakRef: PyClassWeakRef;
-    /// The closest native ancestor. This is `PyAny` by default, and when you declare
-    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    type BaseNativeType: PyTypeInfo + PyNativeType;
 }
+
+pub trait MutablePyClass: PyClass<Mutability = Mutable> {}
+pub trait ImmutablePyClass: PyClass<Mutability = Immutable> {}
+
+impl<T> MutablePyClass for T where T: PyClass<Mutability = Mutable> {}
+impl<T> ImmutablePyClass for T where T: PyClass<Mutability = Immutable> {}
 
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _

@@ -1,10 +1,8 @@
 use crate::class::basic::CompareOp;
-use crate::conversion::{
-    AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
-};
+use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToPyObject};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
-use crate::type_object::PyTypeObject;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
@@ -103,9 +101,9 @@ impl PyAny {
     where
         N: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
-        })
+        unsafe {
+            Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name.to_object(self.py()).as_ptr()) != 0)
+        }
     }
 
     /// Retrieves an attribute value.
@@ -134,10 +132,12 @@ impl PyAny {
     where
         N: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
-        })
+        unsafe {
+            self.py().from_owned_ptr_or_err(ffi::PyObject_GetAttr(
+                self.as_ptr(),
+                attr_name.to_object(self.py()).as_ptr(),
+            ))
+        }
     }
 
     /// Sets an attribute value.
@@ -164,17 +164,20 @@ impl PyAny {
     /// ```
     pub fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
-        N: ToBorrowedObject,
-        V: ToBorrowedObject,
+        N: ToPyObject,
+        V: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(self.py(), move |attr_name| {
-            value.with_borrowed_ptr(self.py(), |value| unsafe {
-                err::error_on_minusone(
-                    self.py(),
-                    ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value),
-                )
-            })
-        })
+        let py = self.py();
+        unsafe {
+            err::error_on_minusone(
+                py,
+                ffi::PyObject_SetAttr(
+                    self.as_ptr(),
+                    attr_name.to_object(py).as_ptr(),
+                    value.to_object(py).as_ptr(),
+                ),
+            )
+        }
     }
 
     /// Deletes an attribute.
@@ -184,9 +187,13 @@ impl PyAny {
     where
         N: ToPyObject,
     {
-        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            err::error_on_minusone(self.py(), ffi::PyObject_DelAttr(self.as_ptr(), attr_name))
-        })
+        let py = self.py();
+        unsafe {
+            err::error_on_minusone(
+                self.py(),
+                ffi::PyObject_DelAttr(self.as_ptr(), attr_name.to_object(py).as_ptr()),
+            )
+        }
     }
 
     /// Returns an [`Ordering`] between `self` and `other`.
@@ -239,26 +246,29 @@ impl PyAny {
     where
         O: ToPyObject,
     {
+        self._compare(other.to_object(self.py()))
+    }
+
+    fn _compare(&self, other: PyObject) -> PyResult<Ordering> {
         let py = self.py();
+        let other = other.as_ptr();
         // Almost the same as ffi::PyObject_RichCompareBool, but this one doesn't try self == other.
         // See https://github.com/PyO3/pyo3/issues/985 for more.
         let do_compare = |other, op| unsafe {
             PyObject::from_owned_ptr_or_err(py, ffi::PyObject_RichCompare(self.as_ptr(), other, op))
                 .and_then(|obj| obj.is_true(py))
         };
-        other.with_borrowed_ptr(py, |other| {
-            if do_compare(other, ffi::Py_EQ)? {
-                Ok(Ordering::Equal)
-            } else if do_compare(other, ffi::Py_LT)? {
-                Ok(Ordering::Less)
-            } else if do_compare(other, ffi::Py_GT)? {
-                Ok(Ordering::Greater)
-            } else {
-                Err(PyTypeError::new_err(
-                    "PyAny::compare(): All comparisons returned false",
-                ))
-            }
-        })
+        if do_compare(other, ffi::Py_EQ)? {
+            Ok(Ordering::Equal)
+        } else if do_compare(other, ffi::Py_LT)? {
+            Ok(Ordering::Less)
+        } else if do_compare(other, ffi::Py_GT)? {
+            Ok(Ordering::Greater)
+        } else {
+            Err(PyTypeError::new_err(
+                "PyAny::compare(): All comparisons returned false",
+            ))
+        }
     }
 
     /// Tests whether two Python objects obey a given [`CompareOp`].
@@ -296,13 +306,11 @@ impl PyAny {
         O: ToPyObject,
     {
         unsafe {
-            other.with_borrowed_ptr(self.py(), |other| {
-                self.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
-                    self.as_ptr(),
-                    other,
-                    compare_op as c_int,
-                ))
-            })
+            self.py().from_owned_ptr_or_err(ffi::PyObject_RichCompare(
+                self.as_ptr(),
+                other.to_object(self.py()).as_ptr(),
+                compare_op as c_int,
+            ))
         }
     }
 
@@ -519,9 +527,9 @@ impl PyAny {
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny> {
-        name.with_borrowed_ptr(self.py(), |name| unsafe {
+        unsafe {
             let py = self.py();
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name.to_object(py).as_ptr());
             if ptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
@@ -533,7 +541,7 @@ impl PyAny {
             ffi::Py_XDECREF(args);
             ffi::Py_XDECREF(kwargs);
             result
-        })
+        }
     }
 
     /// Calls a method on the object without arguments.
@@ -639,12 +647,14 @@ impl PyAny {
     /// This is equivalent to the Python expression `self[key]`.
     pub fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PyObject_GetItem(self.as_ptr(), key))
-        })
+        unsafe {
+            self.py().from_owned_ptr_or_err(ffi::PyObject_GetItem(
+                self.as_ptr(),
+                key.to_object(self.py()).as_ptr(),
+            ))
+        }
     }
 
     /// Sets a collection item value.
@@ -652,14 +662,20 @@ impl PyAny {
     /// This is equivalent to the Python expression `self[key] = value`.
     pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
-        K: ToBorrowedObject,
-        V: ToBorrowedObject,
+        K: ToPyObject,
+        V: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), move |key| {
-            value.with_borrowed_ptr(self.py(), |value| unsafe {
-                err::error_on_minusone(self.py(), ffi::PyObject_SetItem(self.as_ptr(), key, value))
-            })
-        })
+        let py = self.py();
+        unsafe {
+            err::error_on_minusone(
+                py,
+                ffi::PyObject_SetItem(
+                    self.as_ptr(),
+                    key.to_object(py).as_ptr(),
+                    value.to_object(py).as_ptr(),
+                ),
+            )
+        }
     }
 
     /// Deletes an item from the collection.
@@ -667,11 +683,14 @@ impl PyAny {
     /// This is equivalent to the Python expression `del self[key]`.
     pub fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            err::error_on_minusone(self.py(), ffi::PyObject_DelItem(self.as_ptr(), key))
-        })
+        unsafe {
+            err::error_on_minusone(
+                self.py(),
+                ffi::PyObject_DelItem(self.as_ptr(), key.to_object(self.py()).as_ptr()),
+            )
+        }
     }
 
     /// Takes an object and returns an iterator for it.
@@ -782,22 +801,22 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `isinstance(self, T)`,
     /// if the type `T` is known at compile time.
-    pub fn is_instance_of<T: PyTypeObject>(&self) -> PyResult<bool> {
+    pub fn is_instance_of<T: PyTypeInfo>(&self) -> PyResult<bool> {
         self.is_instance(T::type_object(self.py()))
     }
 
     /// Determines if self contains `value`.
     ///
     /// This is equivalent to the Python expression `value in self`.
-    #[inline]
     pub fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
-        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
-            ffi::PySequence_Contains(self.as_ptr(), ptr)
-        });
-        match r {
+        self._contains(value.to_object(self.py()))
+    }
+
+    fn _contains(&self, value: PyObject) -> PyResult<bool> {
+        match unsafe { ffi::PySequence_Contains(self.as_ptr(), value.as_ptr()) } {
             0 => Ok(false),
             1 => Ok(true),
             _ => Err(PyErr::fetch(self.py())),
@@ -814,7 +833,7 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
-        type_object::PyTypeObject,
+        type_object::PyTypeInfo,
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };

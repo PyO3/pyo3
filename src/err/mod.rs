@@ -1,15 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::panic::PanicException;
-use crate::type_object::PyTypeObject;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyTraceback, PyType};
 use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject, ToPyObject,
-};
+use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -92,7 +90,7 @@ impl PyErr {
     #[inline]
     pub fn new<T, A>(args: A) -> PyErr
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
         PyErr::from_state(PyErrState::LazyTypeAndValue {
@@ -411,11 +409,11 @@ impl PyErr {
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
     pub fn matches<T>(&self, py: Python<'_>, exc: T) -> bool
     where
-        T: ToBorrowedObject,
+        T: ToPyObject,
     {
-        exc.with_borrowed_ptr(py, |exc| unsafe {
-            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc) != 0
-        })
+        unsafe {
+            ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), exc.to_object(py).as_ptr()) != 0
+        }
     }
 
     /// Returns true if the current exception is instance of `T`.
@@ -428,7 +426,7 @@ impl PyErr {
     #[inline]
     pub fn is_instance_of<T>(&self, py: Python<'_>) -> bool
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
     {
         self.is_instance(py, T::type_object(py))
     }

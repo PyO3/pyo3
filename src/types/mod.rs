@@ -197,6 +197,7 @@ macro_rules! pyobject_native_type_sized {
             type BaseNativeType = $name;
             type ThreadChecker = $crate::impl_::pyclass::ThreadCheckerStub<$crate::PyObject>;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::ImmutableClass;
         }
     }
 }

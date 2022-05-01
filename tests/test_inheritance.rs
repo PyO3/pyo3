@@ -1,8 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::py_run;
-use pyo3::type_object::PyTypeObject;
+use pyo3::{py_run, PyTypeInfo};
 
 use pyo3::types::IntoPyDict;
 
@@ -305,7 +304,7 @@ impl SimpleClass {
 #[test]
 fn test_subclass_ref_counts() {
     // regression test for issue #1363
-    use pyo3::type_object::PyTypeObject;
+    use pyo3::PyTypeInfo;
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
         let SimpleClass = SimpleClass::type_object(py);

@@ -2,10 +2,7 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::types::{PyAny, PySequence};
-use crate::{
-    ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToBorrowedObject,
-    ToPyObject,
-};
+use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -38,7 +35,7 @@ impl PyMapping {
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
         PyAny::contains(self, key)
     }
@@ -51,7 +48,7 @@ impl PyMapping {
     #[inline]
     pub fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
         PyAny::get_item(self, key)
     }
@@ -74,7 +71,7 @@ impl PyMapping {
     #[inline]
     pub fn del_item<K>(&self, key: K) -> PyResult<()>
     where
-        K: ToBorrowedObject,
+        K: ToPyObject,
     {
         PyAny::del_item(self, key)
     }

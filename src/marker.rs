@@ -122,10 +122,11 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::impl_::not_send::NotSend;
-use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::version::PythonVersionInfo;
-use crate::{ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom};
+use crate::{
+    ffi, AsPyPointer, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom, PyTypeInfo,
+};
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -583,7 +584,7 @@ impl<'py> Python<'py> {
     /// Gets the Python type object for type `T`.
     pub fn get_type<T>(self) -> &'py PyType
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
     {
         T::type_object(self)
     }
@@ -797,7 +798,7 @@ impl<'py> Python<'py> {
     ///
     /// This function calls [`PyErr_CheckSignals()`][1] which in turn may call signal handlers.
     /// As Python's [`signal`][2] API allows users to define custom signal handlers, calling this
-    /// function allows arbitary Python code inside signal handlers to run.
+    /// function allows arbitrary Python code inside signal handlers to run.
     ///
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html

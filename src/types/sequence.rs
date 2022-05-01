@@ -3,9 +3,9 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::{PyAny, PyList, PyTuple};
-use crate::{ffi, PyNativeType};
+use crate::{ffi, PyNativeType, ToPyObject};
 use crate::{AsPyPointer, IntoPyPointer, Py, Python};
-use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
+use crate::{FromPyObject, PyTryFrom};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -123,15 +123,18 @@ impl PySequence {
     #[inline]
     pub fn set_item<I>(&self, i: usize, item: I) -> PyResult<()>
     where
-        I: ToBorrowedObject,
+        I: ToPyObject,
     {
+        let py = self.py();
         unsafe {
-            item.with_borrowed_ptr(self.py(), |item| {
-                err::error_on_minusone(
-                    self.py(),
-                    ffi::PySequence_SetItem(self.as_ptr(), get_ssize_index(i), item),
-                )
-            })
+            err::error_on_minusone(
+                py,
+                ffi::PySequence_SetItem(
+                    self.as_ptr(),
+                    get_ssize_index(i),
+                    item.to_object(py).as_ptr(),
+                ),
+            )
         }
     }
 
@@ -185,11 +188,10 @@ impl PySequence {
     #[cfg(not(PyPy))]
     pub fn count<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
-        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
-            ffi::PySequence_Count(self.as_ptr(), ptr)
-        });
+        let r =
+            unsafe { ffi::PySequence_Count(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
         if r == -1 {
             Err(PyErr::fetch(self.py()))
         } else {
@@ -203,11 +205,10 @@ impl PySequence {
     #[inline]
     pub fn contains<V>(&self, value: V) -> PyResult<bool>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
-        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
-            ffi::PySequence_Contains(self.as_ptr(), ptr)
-        });
+        let r =
+            unsafe { ffi::PySequence_Contains(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
         match r {
             0 => Ok(false),
             1 => Ok(true),
@@ -221,11 +222,10 @@ impl PySequence {
     #[inline]
     pub fn index<V>(&self, value: V) -> PyResult<usize>
     where
-        V: ToBorrowedObject,
+        V: ToPyObject,
     {
-        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
-            ffi::PySequence_Index(self.as_ptr(), ptr)
-        });
+        let r =
+            unsafe { ffi::PySequence_Index(self.as_ptr(), value.to_object(self.py()).as_ptr()) };
         if r == -1 {
             Err(PyErr::fetch(self.py()))
         } else {

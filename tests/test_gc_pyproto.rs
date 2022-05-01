@@ -6,8 +6,7 @@ use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::type_object::PyTypeObject;
-use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
+use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto, PyTypeInfo};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

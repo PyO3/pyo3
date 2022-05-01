@@ -2,9 +2,9 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError},
     ffi,
     impl_::freelist::FreeList,
-    pycell::PyCellLayout,
+    pycell::{GetBorrowChecker, Mutability, PyCellLayout, PyClassMutability},
     pyclass_init::PyObjectInit,
-    type_object::{PyLayout, PyTypeObject},
+    type_object::PyLayout,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -162,7 +162,23 @@ pub trait PyClassImpl: Sized {
     type Layout: PyLayout<Self>;
 
     /// Base class
-    type BaseType: PyTypeInfo + PyTypeObject + PyClassBaseType;
+    type BaseType: PyTypeInfo + PyClassBaseType;
+
+    /// Immutable or mutable
+    type Mutability: Mutability;
+
+    /// Immutable or mutable
+    type PyClassMutability: PyClassMutability + GetBorrowChecker<Self>;
+
+    /// Specify this class has `#[pyclass(dict)]` or not.
+    type Dict: PyClassDict;
+
+    /// Specify this class has `#[pyclass(weakref)]` or not.
+    type WeakRef: PyClassWeakRef;
+
+    /// The closest native ancestor. This is `PyAny` by default, and when you declare
+    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
+    type BaseNativeType: PyTypeInfo + PyNativeType;
 
     /// This handles following two situations:
     /// 1. In case `T` is `Send`, stub `ThreadChecker` is used and does nothing.
@@ -866,9 +882,14 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl<T> {
 /// Thread checker for types that have `Send` and `extends=...`.
 /// Ensures that `T: Send` and the parent is not accessed by another thread.
 #[doc(hidden)]
-pub struct ThreadCheckerInherited<T: Send, U: PyClassBaseType>(PhantomData<T>, U::ThreadChecker);
+pub struct ThreadCheckerInherited<T: PyClass + Send, U: PyClassBaseType>(
+    PhantomData<T>,
+    U::ThreadChecker,
+);
 
-impl<T: Send, U: PyClassBaseType> PyClassThreadChecker<T> for ThreadCheckerInherited<T, U> {
+impl<T: PyClass + Send, U: PyClassBaseType> PyClassThreadChecker<T>
+    for ThreadCheckerInherited<T, U>
+{
     fn ensure(&self) {
         self.1.ensure();
     }
@@ -884,14 +905,18 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type ThreadChecker: PyClassThreadChecker<Self>;
     type Initializer: PyObjectInit<Self>;
+    type PyClassMutability: PyClassMutability;
 }
 
-/// All PyClasses can be used as a base type.
+/// All mutable PyClasses can be used as a base type.
+///
+/// In the future this will be extended to immutable PyClasses too.
 impl<T: PyClass> PyClassBaseType for T {
     type LayoutAsBase = crate::pycell::PyCell<T>;
     type BaseNativeType = T::BaseNativeType;
     type ThreadChecker = T::ThreadChecker;
     type Initializer = crate::pyclass_init::PyClassInitializer<Self>;
+    type PyClassMutability = T::PyClassMutability;
 }
 
 /// Implementation of tp_dealloc for all pyclasses
