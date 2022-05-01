@@ -1,14 +1,12 @@
-error[E0277]: the trait bound `Result<(), MyError>: IntoPyCallbackOutput<_>` is not satisfied
-   --> tests/ui/invalid_result_conversion.rs:21:1
-    |
-21  | #[pyfunction]
-    | ^^^^^^^^^^^^^ the trait `IntoPyCallbackOutput<_>` is not implemented for `Result<(), MyError>`
-    |
-    = help: the following implementations were found:
-              <Result<T, E> as IntoPyCallbackOutput<U>>
-note: required by a bound in `pyo3::callback::convert`
-   --> src/callback.rs:182:8
-    |
-182 |     T: IntoPyCallbackOutput<U>,
-    |        ^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `pyo3::callback::convert`
-    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0599]: the method `into_result` exists for enum `Result<(), MyError>`, but its trait bounds were not satisfied
+  --> tests/ui/invalid_result_conversion.rs:21:1
+   |
+21 | #[pyfunction]
+   | ^^^^^^^^^^^^^ method cannot be called on `Result<(), MyError>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `&Result<(), MyError>: IntoPy<Py<PyAny>>`
+           which is required by `&Result<(), MyError>: IntoResult<Result<&Result<(), MyError>, PyErr>>`
+           `&mut Result<(), MyError>: IntoPy<Py<PyAny>>`
+           which is required by `&mut Result<(), MyError>: IntoResult<Result<&mut Result<(), MyError>, PyErr>>`
+   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
