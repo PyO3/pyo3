@@ -207,7 +207,7 @@ fn sub(a: u64, b: u64) -> u64 {
 
 When annotated like this, signatures are also correctly displayed in IPython.
 
-```ignore
+```text
 >>> pyo3_test.add?
 Signature: pyo3_test.add(a, b, /)
 Docstring: This function adds two unsigned 64-bit integers.

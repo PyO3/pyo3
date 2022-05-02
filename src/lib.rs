@@ -8,17 +8,17 @@
         rustdoc::bare_urls
     )
 )]
-#![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+#![warn(rust_2018_idioms, unused_lifetimes)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
     deny(
-        elided_lifetimes_in_paths,
+        rust_2018_idioms,
         unused_lifetimes,
         rust_2021_prelude_collisions,
         warnings
     ),
-    allow(unused_variables, unused_assignments)
+    allow(unused_variables, unused_assignments, unused_extern_crates)
 )))]
 
 //! Rust bindings to the Python interpreter.

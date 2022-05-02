@@ -8,8 +8,17 @@ The easiest way to convert a Python object to a Rust value is using
 `.extract()`.  It returns a `PyResult` with a type error if the conversion
 fails, so usually you will use something like
 
-```ignore
-let v: Vec<i32> = obj.extract()?;
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyList;
+# fn main() -> PyResult<()> {
+#     Python::with_gil(|py| {
+#         let list = PyList::new(py, b"foo");
+let v: Vec<i32> = list.extract()?;
+#         assert_eq!(&v, &[102, 111, 111]);
+#         Ok(())
+#     })
+# }
 ```
 
 This method is available for many Python object types, and can produce a wide

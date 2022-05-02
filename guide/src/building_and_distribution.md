@@ -212,13 +212,13 @@ The known complications are:
 
     Significantly different compiler versions may see errors like this:
 
-    ```ignore
+    ```text
     lto1: fatal error: bytecode stream in file 'rust-numpy/target/release/deps/libpyo3-6a7fb2ed970dbf26.rlib' generated with LTO version 6.0 instead of the expected 6.2
     ```
 
     Mismatching flags may lead to errors like this:
 
-    ```ignore
+    ```text
     /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libpython3.9.a(zlibmodule.o): relocation R_X86_64_32 against `.data' can not be used when making a PIE object; recompile with -fPIE
     ```
 

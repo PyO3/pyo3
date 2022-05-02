@@ -77,15 +77,40 @@ impl PyErr {
     /// If an error occurs during normalization (for example if `T` is not a Python type which
     /// extends from `BaseException`), then a different error may be produced during normalization.
     ///
-    /// # Example
+    /// # Examples
     ///
-    /// ```ignore
-    /// return Err(PyErr::new::<exceptions::PyTypeError, _>("Error message"));
+    /// ```
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyTypeError;
+    ///
+    /// #[pyfunction]
+    /// fn always_throws() -> PyResult<()> {
+    ///     Err(PyErr::new::<PyTypeError, _>("Error message"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
+    /// #     assert!(err.is_instance_of::<PyTypeError>(py))
+    /// # });
     /// ```
     ///
-    /// In most cases, you can use a concrete exception's constructor instead, which is equivalent:
-    /// ```ignore
-    /// return Err(exceptions::PyTypeError::new_err("Error message"));
+    /// In most cases, you can use a concrete exception's constructor instead:
+    ///
+    /// ```
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyTypeError;
+    ///
+    /// #[pyfunction]
+    /// fn always_throws() -> PyResult<()> {
+    ///     Err(PyTypeError::new_err("Error message"))
+    /// }
+    /// #
+    /// # Python::with_gil(|py| {
+    /// #     let fun = pyo3::wrap_pyfunction!(always_throws, py).unwrap();
+    /// #     let err = fun.call0().expect_err("called a function that should always return an error but the return value was Ok");
+    /// #     assert!(err.is_instance_of::<PyTypeError>(py))
+    /// # });
     /// ```
     #[inline]
     pub fn new<T, A>(args: A) -> PyErr

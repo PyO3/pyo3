@@ -41,15 +41,39 @@
 //! The [`#[pymethods]`](crate::pymethods) proc macro will generate this wrapper function (and more),
 //! using [`PyCell`] under the hood:
 //!
-//! ```ignore
+//! ```rust
+//! # use pyo3::prelude::*;
+//! # #[pyclass]
+//! # struct Number {
+//! #    inner: u32,
+//! # }
+//! #
+//! # #[pymethods]
+//! # impl Number {
+//! #    fn increment(&mut self) {
+//! #        self.inner += 1;
+//! #    }
+//! # }
+//! #
 //! // This function is exported to Python.
-//! unsafe extern "C" fn __wrap(slf: *mut PyObject, _args: *mut PyObject) -> *mut PyObject {
-//!     pyo3::callback::handle_panic(|py| {
-//!         let cell: &PyCell<Number> = py.from_borrowed_ptr(slf);
-//!         let mut _ref: PyRefMut<Number> = cell.try_borrow_mut()?;
-//!         let slf: &mut Number = &mut _ref;
-//!         pyo3::callback::convert(py, Number::increment(slf))
-//!     })
+//! unsafe extern "C" fn __wrap(
+//!     _slf: *mut ::pyo3::ffi::PyObject,
+//!     _args: *mut ::pyo3::ffi::PyObject,
+//! ) -> *mut ::pyo3::ffi::PyObject {
+//!     use :: pyo3 as _pyo3;
+//!     let gil = _pyo3::GILPool::new();
+//!     let _py = gil.python();
+//!     _pyo3::callback::panic_result_into_callback_output(
+//!         _py,
+//!         ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
+//!             let _cell = _py
+//!                 .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
+//!                 .downcast::<_pyo3::PyCell<Number>>()?;
+//!             let mut _ref = _cell.try_borrow_mut()?;
+//!             let _slf: &mut Number = &mut *_ref;
+//!             _pyo3::callback::convert(_py, Number::increment(_slf))
+//!         }),
+//!     )
 //! }
 //!  ```
 //!
