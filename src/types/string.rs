@@ -187,7 +187,7 @@ impl PyString {
         let utf8_slice = {
             cfg_if::cfg_if! {
                 if #[cfg(any(Py_3_10, not(Py_LIMITED_API)))] {
-                    // PyUnicode_AsUTF8AndSize only available on limited API before 3.10.
+                    // PyUnicode_AsUTF8AndSize only available on limited API starting with 3.10.
                     let mut size: ffi::Py_ssize_t = 0;
                     let data = unsafe { ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) };
                     if data.is_null() {
