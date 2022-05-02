@@ -1,3 +1,4 @@
+use crate::intern;
 use crate::types::PyType;
 use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
@@ -18,10 +19,10 @@ impl FromPyObject<'_> for PathBuf {
             Ok(s) => s,
             Err(err) => {
                 let py = ob.py();
-                let pathlib = py.import("pathlib")?;
-                let pathlib_path: &PyType = pathlib.getattr("Path")?.downcast()?;
+                let pathlib = py.import(intern!(py, "pathlib"))?;
+                let pathlib_path: &PyType = pathlib.getattr(intern!(py, "Path"))?.downcast()?;
                 if ob.is_instance(pathlib_path)? {
-                    let path_str = ob.call_method0("__str__")?;
+                    let path_str = ob.call_method0(intern!(py, "__str__"))?;
                     OsString::extract(path_str)?
                 } else {
                     return Err(err);

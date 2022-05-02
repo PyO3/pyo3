@@ -135,7 +135,10 @@ impl PyErr {
     ///
     /// # Examples
     /// ```rust
-    /// use pyo3::{exceptions::PyTypeError, types::PyType, IntoPy, PyErr, Python};
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyTypeError;
+    /// use pyo3::types::{PyType, PyString};
+    ///
     /// Python::with_gil(|py| {
     ///     // Case #1: Exception object
     ///     let err = PyErr::from_value(PyTypeError::new_err("some type error").value(py));
@@ -146,7 +149,7 @@ impl PyErr {
     ///     assert_eq!(err.to_string(), "TypeError: ");
     ///
     ///     // Case #3: Invalid exception value
-    ///     let err = PyErr::from_value("foo".into_py(py).as_ref(py));
+    ///     let err = PyErr::from_value(PyString::new(py, "foo").into());
     ///     assert_eq!(
     ///         err.to_string(),
     ///         "TypeError: exceptions must derive from BaseException"

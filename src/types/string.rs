@@ -4,7 +4,7 @@
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 use std::borrow::Cow;
@@ -294,6 +294,13 @@ impl ToPyObject for str {
 impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
+        PyString::new(py, self).into()
+    }
+}
+
+impl<'a> IntoPy<Py<PyString>> for &'a str {
+    #[inline]
+    fn into_py(self, py: Python<'_>) -> Py<PyString> {
         PyString::new(py, self).into()
     }
 }

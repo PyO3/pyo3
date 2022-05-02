@@ -155,7 +155,7 @@ impl PyCFunction {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();
-            let name = m.name()?.into_py(py);
+            let name: Py<PyAny> = m.name()?.into_py(py);
             (mod_ptr, name.as_ptr())
         } else {
             (std::ptr::null_mut(), std::ptr::null_mut())

@@ -5,6 +5,35 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.16.* to 0.17
 
+
+### Added `impl IntoPy<Py<PyString>> for &str`
+
+This may cause inference errors.
+
+Before:
+```rust,compile_fail
+# use pyo3::prelude::*;
+#
+# fn main() {
+Python::with_gil(|py| {
+    // Cannot infer either `Py<PyAny>` or `Py<PyString>`
+    let _test = "test".into_py(py);
+});
+# }
+```
+
+After, some type annotations may be necessary:
+
+```rust
+# use pyo3::prelude::*;
+#
+# fn main() {
+Python::with_gil(|py| {
+    let _test: Py<PyAny> = "test".into_py(py);
+});
+# }
+```
+
 ### The `pyproto` feature is now disabled by default
 
 In preparation for removing the deprecated `#[pyproto]` attribute macro in a future PyO3 version, it is now gated behind an opt-in feature flag. This also gives a slight saving to compile times for code which does not use the deprecated macro.

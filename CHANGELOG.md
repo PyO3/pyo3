@@ -14,9 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Several methods of `Py` and `PyAny` now accept `impl IntoPy<Py<PyString>>` rather than just `&str` to allow use of the `intern!` macro. [#2312](https://github.com/PyO3/pyo3/pull/2312)
 - Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2287](https://github.com/PyO3/pyo3/pull/2287)
 - The deprecated `pyproto` feature is now disabled by default. [#2322](https://github.com/PyO3/pyo3/pull/2322)
 - Deprecate `ToBorrowedObject` trait (it is only used as a wrapper for `ToPyObject`). [#2333](https://github.com/PyO3/pyo3/pull/2333)
+
 
 ## [0.16.4] - 2022-04-14
 
