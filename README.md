@@ -197,6 +197,8 @@ about this topic.
     - Shows Rayon/ndarray::parallel (including capturing errors, controlling thread num), Python types to Rust generics, Github Actions
 - [pyheck](https://github.com/kevinheavey/pyheck) _Fast case conversion library, built by wrapping [heck](https://github.com/withoutboats/heck)_
     - Quite easy to follow as there's not much code.
+- [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js_
+- [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python_
 
 ## Articles and other media
 
