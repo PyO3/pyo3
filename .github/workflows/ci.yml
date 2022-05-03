@@ -177,7 +177,7 @@ jobs:
         run: |
           set -x
           cargo update -p indexmap --precise 1.6.2
-          cargo update -p hashbrown:0.12.0 --precise 0.9.1
+          cargo update -p hashbrown:0.12.1 --precise 0.9.1
           PROJECTS=("." "examples/decorator" "examples/maturin-starter" "examples/setuptools-rust-starter" "examples/word-count")
           for PROJ in ${PROJECTS[@]}; do
             cargo update --manifest-path "$PROJ/Cargo.toml" -p parking_lot --precise 0.11.0
