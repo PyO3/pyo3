@@ -776,6 +776,7 @@ impl PySequenceProtocol for ByteSequence {
 
 After:
 ```rust
+# #[allow(deprecated)]
 # #[cfg(feature = "pyproto")]
 # {
 # use pyo3::prelude::*;
