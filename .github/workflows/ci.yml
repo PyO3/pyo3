@@ -307,6 +307,7 @@ jobs:
     needs: [fmt]
     name: coverage-${{ matrix.os }}
     strategy:
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         os: ["windows", "macos", "ubuntu"]
     runs-on: ${{ matrix.os }}-latest
