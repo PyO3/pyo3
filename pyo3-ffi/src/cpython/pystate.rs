@@ -53,7 +53,6 @@ extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyThreadState_Next(tstate: *mut PyThreadState) -> *mut PyThreadState;
 
-    #[cfg(py_sys_config = "WITH_THREAD")]
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
     pub fn PyThreadState_DeleteCurrent();
 }
