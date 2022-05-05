@@ -604,28 +604,6 @@ Python::with_gil(|py| {
 });
 ```
 
-Note that unlike class variables defined in Python code, class attributes defined in Rust cannot
-be mutated at all:
-```rust,should_panic
-# use pyo3::prelude::*;
-# #[pyclass]
-# struct MyClass {}
-# #[pymethods]
-# impl MyClass {
-#     #[classattr]
-#     fn my_attribute() -> String {
-#         "hello".to_string()
-#     }
-# }
-# 
-Python::with_gil(|py| {
-    let my_class = py.get_type::<MyClass>();
-
-    // Would raise a `TypeError: can't set attributes of built-in/extension type 'MyClass'`
-    pyo3::py_run!(py, my_class, "my_class.my_attribute = 'foo'")
-});
-```
-
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:
 
