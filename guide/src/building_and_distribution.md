@@ -41,7 +41,8 @@ Caused by:
   lib_dir=/usr/lib
   executable=/usr/bin/python
   pointer_width=64
-  build_flags=WITH_THREAD
+  build_flags=
+  suppress_build_script_link_lines=false
 ```
 
 ### Advanced: config files
