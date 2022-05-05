@@ -2,7 +2,7 @@
 
 #[rustversion::stable]
 #[test]
-#[cfg_attr(feature = "coverage", should_panic)]
+#[cfg_attr(coverage, should_panic)]
 fn test_compile_errors() {
     // stable - require all tests to pass
     _test_compile_errors()
