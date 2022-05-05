@@ -22,6 +22,42 @@ pyobject_native_type!(
     #checkfunction=ffi::PyDict_Check
 );
 
+/// Represents a Python `dict_keys`.
+#[cfg(not(PyPy))]
+#[repr(transparent)]
+pub struct PyDictKeys(PyAny);
+
+#[cfg(not(PyPy))]
+pyobject_native_type_core!(
+    PyDictKeys,
+    ffi::PyDictKeys_Type,
+    #checkfunction=ffi::PyDictKeys_Check
+);
+
+/// Represents a Python `dict_values`.
+#[cfg(not(PyPy))]
+#[repr(transparent)]
+pub struct PyDictValues(PyAny);
+
+#[cfg(not(PyPy))]
+pyobject_native_type_core!(
+    PyDictValues,
+    ffi::PyDictValues_Type,
+    #checkfunction=ffi::PyDictValues_Check
+);
+
+/// Represents a Python `dict_items`.
+#[cfg(not(PyPy))]
+#[repr(transparent)]
+pub struct PyDictItems(PyAny);
+
+#[cfg(not(PyPy))]
+pyobject_native_type_core!(
+    PyDictItems,
+    ffi::PyDictItems_Type,
+    #checkfunction=ffi::PyDictItems_Check
+);
+
 impl PyDict {
     /// Creates a new empty dictionary.
     pub fn new(py: Python<'_>) -> &PyDict {
@@ -379,14 +415,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::conversion::IntoPy;
-    use crate::types::dict::IntoPyDict;
+    use super::*;
     #[cfg(not(PyPy))]
-    use crate::types::PyList;
-    use crate::types::{PyDict, PyTuple};
-    use crate::PyObject;
-    use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::{types::PyList, PyTypeInfo};
+    use crate::{types::PyTuple, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -795,5 +827,44 @@ mod tests {
                 1
             );
         });
+    }
+
+    #[cfg(not(PyPy))]
+    fn abc_dict(py: Python<'_>) -> &PyDict {
+        let mut map = HashMap::<&'static str, i32>::new();
+        map.insert("a", 1);
+        map.insert("b", 2);
+        map.insert("c", 3);
+        map.into_py_dict(py)
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn dict_keys_view() {
+        Python::with_gil(|py| {
+            let dict = abc_dict(py);
+            let keys = dict.call_method0("keys").unwrap();
+            assert!(keys.is_instance(PyDictKeys::type_object(py)).unwrap());
+        })
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn dict_values_view() {
+        Python::with_gil(|py| {
+            let dict = abc_dict(py);
+            let values = dict.call_method0("values").unwrap();
+            assert!(values.is_instance(PyDictValues::type_object(py)).unwrap());
+        })
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn dict_items_view() {
+        Python::with_gil(|py| {
+            let dict = abc_dict(py);
+            let items = dict.call_method0("items").unwrap();
+            assert!(items.is_instance(PyDictItems::type_object(py)).unwrap());
+        })
     }
 }
