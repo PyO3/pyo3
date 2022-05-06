@@ -35,31 +35,6 @@ impl PyCallbackOutput for () {
     const ERR_VALUE: Self = ();
 }
 
-/// A helper trait to result-wrap the return values of functions and methods.
-#[doc(hidden)]
-pub trait IntoPyResult<R> {
-    fn into_py_result(self) -> R;
-}
-
-impl<T> IntoPyResult<PyResult<T>> for T
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py_result(self) -> PyResult<Self> {
-        Ok(self)
-    }
-}
-
-impl<T, E> IntoPyResult<PyResult<T>> for Result<T, E>
-where
-    T: IntoPy<PyObject>,
-    E: Into<PyErr>,
-{
-    fn into_py_result(self) -> PyResult<T> {
-        self.map_err(Into::into)
-    }
-}
-
 /// Convert the result of callback function into the appropriate return value.
 pub trait IntoPyCallbackOutput<Target> {
     fn convert(self, py: Python<'_>) -> PyResult<Target>;

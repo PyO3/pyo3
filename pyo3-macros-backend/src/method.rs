@@ -481,13 +481,16 @@ impl<'a> FnSpec<'a> {
 
         // The method call is necessary to generate a decent error message.
         let rust_call = quote! {
-            let ret = #rust_name(#self_arg #(#arg_names),*);
+            let mut ret = #rust_name(#self_arg #(#arg_names),*);
 
-            use _pyo3::callback::IntoPyResult;
-            let ret: _pyo3::PyResult<_> = ret.into_py_result();
+            if false {
+                use _pyo3::impl_::ghost::IntoPyResult;
+                ret.into_py_result();
+            }
 
             _pyo3::callback::convert(#py, ret)
         };
+
         let krate = &self.krate;
         Ok(match self.convention {
             CallingConvention::Noargs => {

@@ -9,6 +9,7 @@ pub mod extract_argument;
 pub mod freelist;
 #[doc(hidden)]
 pub mod frompyobject;
+pub mod ghost;
 pub(crate) mod not_send;
 #[doc(hidden)]
 pub mod pyclass;
