@@ -97,14 +97,16 @@ pub fn prepare_freethreaded_python() {
 /// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
 ///
 /// # Examples
-/// ```rust
-/// use pyo3::prelude::*;
 ///
-/// # fn main() -> PyResult<()>{
+/// ```rust
 /// unsafe {
-///     pyo3::with_embedded_python_interpreter(|py| py.run("print('Hello World')", None, None))
+///     pyo3::with_embedded_python_interpreter(|py| {
+///        if let Err(e) = py.run("print('Hello World')", None, None){
+///            // We must make sure to not return a `PyErr`!
+///            e.print(py);
+///        }
+///     });
 /// }
-/// # }
 /// ```
 #[cfg(not(PyPy))]
 pub unsafe fn with_embedded_python_interpreter<F, R>(f: F) -> R

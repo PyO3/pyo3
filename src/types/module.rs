@@ -92,43 +92,44 @@ impl PyModule {
     /// - Any Python exceptions are raised while initializing the module.
     /// - Any of the arguments cannot be converted to [`CString`](std::ffi::CString)s.
     ///
-    /// # Examples
+    /// # Example: bundle in a file at compile time with [`include_str!`][1]:
     ///
-    /// Include a file at compile time by using [`std::include_str` macro][1]:
-    ///
-    /// ```ignore
+    /// ```rust
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    ///       let code = include_str!("../example.py");
-    ///       Python::with_gil(|py| -> PyResult<()> {
-    ///           PyModule::from_code(py, code, "example", "example")?;
-    ///           Ok(())
-    ///       })?;
-    ///       Ok(())
+    /// // This path is resolved relative to this file.
+    /// let code = include_str!("../../assets/script.py");
+    ///
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     PyModule::from_code(py, code, "example", "example")?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
     /// # }
     /// ```
     ///
-    /// Load a file at runtime by using [`std::fs::read_to_string`][2] function. It is recommended
-    /// to use an absolute path to your Python files because then your binary can be run from
-    /// anywhere:
+    /// # Example: Load a file at runtime with [`std::fs::read_to_string`][2].
     ///
-    /// ```ignore
-    /// use std::fs;
+    /// ```rust
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    ///       let code = fs::read_to_string("/some/absolute/path/to/example.py")?;
-    ///       Python::with_gil(|py| -> PyResult<()> {
-    ///           PyModule::from_code(py, &code, "example", "example")?;
-    ///           Ok(())
-    ///       })?;
-    ///       Ok(())
+    /// // This path is resolved by however the platform resolves paths,
+    /// // which also makes this less portable. Consider using `include_str`
+    /// // if you just want to bundle a script with your module.
+    /// let code = std::fs::read_to_string("assets/script.py")?;
+    ///
+    /// Python::with_gil(|py| -> PyResult<()> {
+    ///     PyModule::from_code(py, &code, "example", "example")?;
+    ///     Ok(())
+    /// })?;
+    /// Ok(())
     /// # }
     /// ```
     ///
-    /// [1]: https://doc.rust-lang.org/std/macro.include_str.html
-    /// [2]: https://doc.rust-lang.org/std/fs/fn.read_to_string.html
+    /// [1]: std::include_str
+    /// [2]: std::fs::read_to_string
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,

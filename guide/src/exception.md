@@ -33,9 +33,12 @@ Python::with_gil(|py| {
 When using PyO3 to create an extension module, you can add the new exception to
 the module like this, so that it is importable from Python:
 
-```rust,ignore
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyModule;
+use pyo3::exceptions::PyException;
 
-create_exception!(mymodule, CustomError, PyException);
+pyo3::create_exception!(mymodule, CustomError, PyException);
 
 #[pymodule]
 fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -77,7 +80,7 @@ fn divide(a: i32, b: i32) -> PyResult<i32> {
 # }
 ```
 
-You can also manually write and fetch errors in the Python interpreter's global state:
+You can manually write and fetch errors in the Python interpreter's global state:
 
 ```rust
 use pyo3::{Python, PyErr};
@@ -90,12 +93,7 @@ Python::with_gil(|py| {
 });
 ```
 
-If you already have a Python exception object, you can simply call [`PyErr::from_value`].
-
-```rust,ignore
-PyErr::from_value(py, err).restore(py);
-```
-
+If you already have a Python exception object, you can use [`PyErr::from_value`] to create a `PyErr` from it.
 
 ## Checking exception types
 

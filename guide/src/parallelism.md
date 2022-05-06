@@ -3,7 +3,25 @@
 CPython has the infamous [Global Interpreter Lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock), which prevents several threads from executing Python bytecode in parallel. This makes threading in Python a bad fit for [CPU-bound](https://stackoverflow.com/questions/868568/) tasks and often forces developers to accept the overhead of multiprocessing.
 
 In PyO3 parallelism can be easily achieved in Rust-only code. Let's take a look at our [word-count](https://github.com/PyO3/pyo3/blob/main/examples/word-count/src/lib.rs) example, where we have a `search` function that utilizes the [rayon](https://github.com/rayon-rs/rayon) crate to count words in parallel.
-```rust, ignore
+```rust,no_run
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+
+// These traits let us use `par_lines` and `map`.
+use rayon::str::ParallelString;
+use rayon::iter::ParallelIterator;
+
+/// Count the occurrences of needle in line, case insensitive
+fn count_line(line: &str, needle: &str) -> usize {
+    let mut total = 0;
+    for word in line.split(' ') {
+        if word == needle {
+            total += 1;
+        }
+    }
+    total
+}
+
 #[pyfunction]
 fn search(contents: &str, needle: &str) -> usize {
     contents
@@ -14,14 +32,41 @@ fn search(contents: &str, needle: &str) -> usize {
 ```
 
 But let's assume you have a long running Rust function which you would like to execute several times in parallel. For the sake of example let's take a sequential version of the word count:
-```rust, ignore
+```rust,no_run
+# #![allow(dead_code)]
+# fn count_line(line: &str, needle: &str) -> usize {
+#     let mut total = 0;
+#     for word in line.split(' ') {
+#         if word == needle {
+#             total += 1;
+#         }
+#     }
+#     total
+# }
+# 
 fn search_sequential(contents: &str, needle: &str) -> usize {
     contents.lines().map(|line| count_line(line, needle)).sum()
 }
 ```
 
 To enable parallel execution of this function, the [`Python::allow_threads`] method can be used to temporarily release the GIL, thus allowing other Python threads to run. We then have a function exposed to the Python runtime which calls `search_sequential` inside a closure passed to [`Python::allow_threads`] to enable true parallelism:
-```rust, ignore
+```rust,no_run
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+#
+# fn count_line(line: &str, needle: &str) -> usize {
+#     let mut total = 0;
+#     for word in line.split(' ') {
+#         if word == needle {
+#             total += 1;
+#         }
+#     }
+#     total
+# }
+# 
+# fn search_sequential(contents: &str, needle: &str) -> usize {
+#    contents.lines().map(|line| count_line(line, needle)).sum()
+# }
 #[pyfunction]
 fn search_sequential_allow_threads(py: Python<'_>, contents: &str, needle: &str) -> usize {
     py.allow_threads(|| search_sequential(contents, needle))
@@ -59,7 +104,7 @@ We are using `pytest-benchmark` to benchmark four word count functions:
 The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/main/examples/word-count/tests/test_word_count.py), and we can run `nox` in the `word-count` folder to benchmark these functions.
 
 While the results of the benchmark of course depend on your machine, the relative results should be similar to this (mid 2020):
-```ignore
+```text
 -------------------------------------------------------------------------------------------------- benchmark: 4 tests -------------------------------------------------------------------------------------------------
 Name (time in ms)                                          Min                Max               Mean            StdDev             Median               IQR            Outliers       OPS            Rounds  Iterations
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -210,7 +210,7 @@ macro_rules! callback_body {
 ///
 /// For example this pyfunction:
 ///
-/// ```ignore
+/// ```no_compile
 /// fn foo(&self) -> &Bar {
 ///     &self.bar
 /// }
@@ -218,7 +218,7 @@ macro_rules! callback_body {
 ///
 /// It is wrapped in proc macros with handle_panic like so:
 ///
-/// ```ignore
+/// ```no_compile
 /// pyo3::callback::handle_panic(|_py| {
 ///     let _slf = #slf;
 ///     pyo3::callback::convert(_py, #foo)
@@ -227,7 +227,7 @@ macro_rules! callback_body {
 ///
 /// If callback_body was used instead:
 ///
-/// ```ignore
+/// ```no_compile
 /// pyo3::callback_body!(py, {
 ///     let _slf = #slf;
 ///     #foo

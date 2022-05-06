@@ -311,7 +311,7 @@ from anywhere as long as your `app.py` is in the expected directory (in this exa
 that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
-```ignore
+```no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::fs;
