@@ -69,6 +69,10 @@ fn get_type_object<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
 # Python::with_gil(|py| { get_type_object::<pyo3::types::PyList>(py); });
 ```
 
+### `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`
+
+If this leads to errors, simply implement `IntoPy`. Because pyclasses already implement `IntoPy`, you probably don't need to worry about this.
+
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies

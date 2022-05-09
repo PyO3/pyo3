@@ -495,6 +495,22 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> R
             self_type.receiver(cls, ExtractErrorMode::Raise)
         }
     };
+
+    let conversion = match property_type {
+        PropertyType::Descriptor { .. } => {
+            quote! {
+                let item: _pyo3::Py<_pyo3::PyAny> = _pyo3::IntoPy::into_py(item, _py);
+                ::std::result::Result::Ok(_pyo3::conversion::IntoPyPointer::into_ptr(item))
+            }
+        }
+        // Forward to `IntoPyCallbackOutput`, to handle `#[getter]`s returning results.
+        PropertyType::Function { .. } => {
+            quote! {
+                _pyo3::callback::convert(_py, item)
+            }
+        }
+    };
+
     Ok(quote! {
         _pyo3::class::PyMethodDefType::Getter({
             #deprecations
@@ -509,7 +525,8 @@ pub fn impl_py_getter_def(cls: &syn::Type, property_type: PropertyType<'_>) -> R
                         let _py = gil.python();
                         _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #slf
-                            _pyo3::callback::convert(_py, #getter_impl)
+                            let item = #getter_impl;
+                            #conversion
                         }))
                     }
                     __wrap
