@@ -485,7 +485,7 @@ impl<'a> FnSpec<'a> {
 
             if false {
                 use _pyo3::impl_::ghost::IntoPyResult;
-                ret.into_py_result();
+                ret.assert_into_py_result();
             }
 
             _pyo3::callback::convert(#py, ret)

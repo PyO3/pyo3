@@ -1,4 +1,4 @@
-error[E0599]: no method named `into_py_result` found for enum `Result` in the current scope
+error[E0599]: no method named `assert_into_py_result` found for enum `Result` in the current scope
   --> tests/ui/invalid_result_conversion.rs:21:1
    |
 21 | #[pyfunction]

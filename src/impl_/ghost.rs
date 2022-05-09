@@ -4,9 +4,8 @@
 /// but that never affects anything at runtime,
 use crate::{IntoPy, PyErr, PyObject};
 
-#[allow(clippy::wrong_self_convention)]
 pub trait IntoPyResult<T> {
-    fn into_py_result(&mut self) {}
+    fn assert_into_py_result(&mut self) {}
 }
 
 impl<T> IntoPyResult<T> for T where T: IntoPy<PyObject> {}
