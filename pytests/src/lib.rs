@@ -1,6 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
-use pyo3::wrap_pymodule;
 
 pub mod buf_and_str;
 pub mod comparisons;
@@ -16,39 +14,41 @@ pub mod sequence;
 pub mod subclassing;
 
 #[pymodule]
-fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+mod pyo3_pytests {
+    use pyo3::types::{PyDict, PyModule};
+    use pyo3::PyResult;
+
+    #[pyo3]
+    use {
+        crate::comparisons::comparisons, crate::dict_iter::dict_iter, crate::misc::misc,
+        crate::objstore::objstore, crate::othermod::othermod, crate::path::path,
+        crate::pyclasses::pyclasses, crate::pyfunctions::pyfunctions, crate::sequence::sequence,
+        crate::subclassing::subclassing,
+    };
+
+    #[pyo3]
     #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
-    m.add_wrapped(wrap_pymodule!(comparisons::comparisons))?;
-    #[cfg(not(Py_LIMITED_API))]
-    m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
-    m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
-    m.add_wrapped(wrap_pymodule!(misc::misc))?;
-    m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
-    m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
-    m.add_wrapped(wrap_pymodule!(path::path))?;
-    m.add_wrapped(wrap_pymodule!(pyclasses::pyclasses))?;
-    m.add_wrapped(wrap_pymodule!(pyfunctions::pyfunctions))?;
-    m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
-    m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
+    use {crate::buf_and_str::buf_and_str, crate::datetime::datetime};
 
-    // Inserting to sys.modules allows importing submodules nicely from Python
-    // e.g. import pyo3_pytests.buf_and_str as bas
+    #[pymodule_init]
+    fn init(m: &PyModule) -> PyResult<()> {
+        let sys = PyModule::import(m.py(), "sys")?;
+        let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+        #[cfg(not(Py_LIMITED_API))]
+        sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
+        sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
+        #[cfg(not(Py_LIMITED_API))]
+        sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
+        sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
+        sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
+        sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
+        sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
+        sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
+        sys_modules.set_item("pyo3_pytests.pyclasses", m.getattr("pyclasses")?)?;
+        sys_modules.set_item("pyo3_pytests.pyfunctions", m.getattr("pyfunctions")?)?;
+        sys_modules.set_item("pyo3_pytests.sequence", m.getattr("sequence")?)?;
+        sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
 
-    let sys = PyModule::import(py, "sys")?;
-    let sys_modules: &PyDict = sys.getattr("modules")?.downcast()?;
-    sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
-    sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
-    sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
-    sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
-    sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
-    sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
-    sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;
-    sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
-    sys_modules.set_item("pyo3_pytests.pyclasses", m.getattr("pyclasses")?)?;
-    sys_modules.set_item("pyo3_pytests.pyfunctions", m.getattr("pyfunctions")?)?;
-    sys_modules.set_item("pyo3_pytests.sequence", m.getattr("sequence")?)?;
-    sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
-
-    Ok(())
+        Ok(())
+    }
 }

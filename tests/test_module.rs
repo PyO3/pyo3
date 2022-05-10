@@ -450,3 +450,35 @@ fn test_module_doc_hidden() {
         py_assert!(py, m, "m.__doc__ == ''");
     })
 }
+
+/// A module written using declarative syntax.
+#[pymodule]
+mod declarative_module {
+
+    #[pyo3]
+    use super::module_with_functions;
+}
+
+#[test]
+fn test_declarative_module() {
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(declarative_module)(py).into_ref(py);
+        py_assert!(
+            py,
+            m,
+            "m.__doc__ == 'A module written using declarative syntax.'"
+        );
+
+        let submodule = m.getattr("module_with_functions").unwrap();
+        assert_eq!(
+            submodule
+                .getattr("no_parameters")
+                .unwrap()
+                .call0()
+                .unwrap()
+                .extract::<i32>()
+                .unwrap(),
+            42
+        );
+    })
+}
