@@ -3,8 +3,8 @@
 
 // Optional python3.dll import library generator for Windows
 #[cfg(feature = "python3-dll-a")]
-#[path = "abi3_import_lib.rs"]
-mod abi3_import_lib;
+#[path = "import_lib.rs"]
+mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -1410,7 +1410,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     if abi3 && lib_dir.is_none() {
-        lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
+        lib_dir = self::import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
     }
 
     Ok(InterpreterConfig {
@@ -1723,7 +1723,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+        interpreter_config.lib_dir = self::import_lib::generate_abi3_import_lib(&host)?;
     }
 
     Ok(interpreter_config)
