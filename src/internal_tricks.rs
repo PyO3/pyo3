@@ -13,7 +13,6 @@ macro_rules! private_decl {
 
 macro_rules! private_impl {
     () => {
-        #[doc(hidden)]
         fn __private__(&self) -> crate::internal_tricks::PrivateMarker {
             crate::internal_tricks::PrivateMarker
         }
