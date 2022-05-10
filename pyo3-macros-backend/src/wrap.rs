@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use syn::{parse::Parse, spanned::Spanned, Ident, Token};
+use quote::quote;
+use syn::{parse::Parse, Token};
 
 pub struct WrapPyFunctionArgs {
     function: syn::Path,
@@ -34,21 +34,8 @@ pub fn wrap_pyfunction_impl(args: WrapPyFunctionArgs) -> TokenStream {
     }
 }
 
-pub fn wrap_pymodule_impl(mut module_path: syn::Path) -> syn::Result<TokenStream> {
-    let span = module_path.span();
-    let last_segment = module_path
-        .segments
-        .last_mut()
-        .ok_or_else(|| err_spanned!(span => "expected non-empty path"))?;
-
-    last_segment.ident = module_def_ident(&last_segment.ident);
-
+pub fn wrap_pymodule_impl(module_path: syn::Path) -> syn::Result<TokenStream> {
     Ok(quote! {
-
-        &|py| unsafe { #module_path.make_module(py).expect("failed to wrap pymodule") }
+        &|py| unsafe { #module_path::DEF.make_module(py).expect("failed to wrap pymodule") }
     })
-}
-
-pub(crate) fn module_def_ident(name: &Ident) -> Ident {
-    format_ident!("__PYO3_PYMODULE_DEF_{}", name.to_string().to_uppercase())
 }

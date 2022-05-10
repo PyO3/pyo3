@@ -166,10 +166,11 @@ impl PyByteArray {
     ///
     /// The following `bug` function is unsound ⚠️
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use pyo3::prelude::*;
     /// # use pyo3::types::PyByteArray;
     ///
+    /// # #[allow(dead_code)]
     /// #[pyfunction]
     /// fn bug(py: Python<'_>, bytes: &PyByteArray) {
     ///     let slice = unsafe { bytes.as_bytes() };
@@ -186,6 +187,7 @@ impl PyByteArray {
     ///     // remaining valid. As such this is also undefined behavior.
     ///     println!("{:?}", slice[0]);
     /// }
+    /// ```
     pub unsafe fn as_bytes(&self) -> &[u8] {
         slice::from_raw_parts(self.data(), self.len())
     }

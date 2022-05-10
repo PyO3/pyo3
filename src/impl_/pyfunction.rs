@@ -1,6 +1,6 @@
-use crate::{
-    derive_utils::PyFunctionArguments, impl_::pymethods::PyMethodDef, types::PyCFunction, PyResult,
-};
+use crate::{derive_utils::PyFunctionArguments, types::PyCFunction, PyResult};
+
+pub use crate::impl_::pymethods::PyMethodDef;
 
 pub trait PyFunctionDef {
     const DEF: crate::PyMethodDef;
