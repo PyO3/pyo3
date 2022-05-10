@@ -193,9 +193,9 @@ Some of the functionality of `pyo3-build-config`:
     `PYO3_CROSS_PYTHON_IMPLEMENTATION`) or system files.
     When cross compiling extension modules it is often possible to make it work without any
     additional user input.
-  - When an experimental feature `generate-abi3-import-lib` is enabled, the `pyo3-ffi` build script can
+  - When an experimental feature `generate-import-lib` is enabled, the `pyo3-ffi` build script can
     generate `python3.dll` import libraries for Windows targets automatically via an external
-    [`python3-dll-a`] crate. This enables the users to cross compile abi3 extensions for Windows without
+    [`python3-dll-a`] crate. This enables the users to cross compile Python extensions for Windows without
     having to install any Windows Python libraries.
 
 <!-- External Links -->

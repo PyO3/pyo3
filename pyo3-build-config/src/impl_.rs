@@ -1409,8 +1409,9 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
-    if abi3 && lib_dir.is_none() {
-        lib_dir = self::import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
+    if lib_dir.is_none() {
+        let py_version = if abi3 { None } else { Some(version) };
+        lib_dir = self::import_lib::generate_import_lib(&cross_compile_config.target, py_version)?;
     }
 
     Ok(InterpreterConfig {
@@ -1723,7 +1724,12 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        interpreter_config.lib_dir = self::import_lib::generate_abi3_import_lib(&host)?;
+        let py_version = if interpreter_config.abi3 {
+            None
+        } else {
+            Some(interpreter_config.version)
+        };
+        interpreter_config.lib_dir = self::import_lib::generate_import_lib(&host, py_version)?;
     }
 
     Ok(interpreter_config)
