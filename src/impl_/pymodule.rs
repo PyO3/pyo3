@@ -90,6 +90,10 @@ impl ModuleDef {
             }),
         )
     }
+
+    pub fn add_to_module(&'static self, module: &PyModule) -> PyResult<()> {
+        module.add_object(self.make_module(module.py())?)
+    }
 }
 
 #[cfg(test)]

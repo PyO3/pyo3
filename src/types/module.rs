@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::err::{PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::pyclass::PyClass;
@@ -250,6 +250,16 @@ impl PyModule {
             .append(name)
             .expect("could not append __name__ to __all__");
         self.setattr(name, value.into_py(self.py()))
+    }
+
+    pub(crate) fn add_object(&self, value: PyObject) -> PyResult<()> {
+        let py = self.py();
+        let attr_name = value.getattr(py, "__name__")?;
+
+        unsafe {
+            let ret = ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr());
+            err::error_on_minusone(py, ret)
+        }
     }
 
     /// Adds a new class to the module.
