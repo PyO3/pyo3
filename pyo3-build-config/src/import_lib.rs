@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use python3_dll_a::generate_implib_for_target;
+use python3_dll_a::ImportLibraryGenerator;
 
 use crate::errors::{Context, Result};
 
@@ -36,7 +36,8 @@ pub(super) fn generate_abi3_import_lib(target: &Triple) -> Result<Option<String>
 
     let env = target.environment.to_string();
 
-    generate_implib_for_target(&out_lib_dir, &arch, &env)
+    ImportLibraryGenerator::new(&arch, &env)
+        .generate(&out_lib_dir)
         .context("failed to generate python3.dll import library")?;
 
     let out_lib_dir_string = out_lib_dir
