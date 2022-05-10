@@ -276,11 +276,17 @@ jobs:
         env:
           XWIN_ARCH: x86_64
         run: |
+          set -ex
           sudo apt-get install -y mingw-w64 llvm
           rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
           python -m pip install cargo-xwin
+          # abi3
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          # non-abi3
+          export PYO3_CROSS_PYTHON_VERSION=3.9
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - name: Test cross compile to Windows with maturin
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
         uses: messense/maturin-action@v1
