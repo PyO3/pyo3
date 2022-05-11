@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed incorrectly disabled FFI definition `PyThreadState_DeleteCurrent`. [#2357](https://github.com/PyO3/pyo3/pull/2357)
+- Correct FFI definition `PyEval_EvalCodeEx` to take `*const *mut PyObject` array arguments instead of `*mut *mut PyObject` (this was changed in CPython 3.6). [#2368](https://github.com/PyO3/pyo3/pull/2368)
 
 
 ## [0.16.4] - 2022-04-14
