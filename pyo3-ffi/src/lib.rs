@@ -296,7 +296,6 @@ pub use self::datetime::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
 pub use self::enumobject::*;
-pub use self::eval::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
@@ -366,7 +365,6 @@ mod dictobject;
 // skipped dynamic_annotations.h
 mod enumobject;
 // skipped errcode.h
-mod eval;
 // skipped exports.h
 mod fileobject;
 mod fileutils;
