@@ -1391,13 +1391,11 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .unwrap_or(PythonImplementation::CPython);
 
     let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
-        let mingw = cross_compile_config.target.environment == Environment::Gnu;
-
         Some(default_lib_name_windows(
             version,
             implementation,
             abi3,
-            mingw,
+            false,
         ))
     } else if is_linking_libpython_for_target(&cross_compile_config.target) {
         Some(default_lib_name_unix(version, implementation, None))
@@ -2136,7 +2134,7 @@ mod tests {
                 version: PythonVersion { major: 3, minor: 8 },
                 shared: true,
                 abi3: false,
-                lib_name: Some("python3.8".into()),
+                lib_name: Some("python38".into()),
                 lib_dir: Some("/usr/lib/mingw".into()),
                 executable: None,
                 pointer_width: None,
