@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
 - Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Add `PyDictKeys`, `PyDictValues` and `PyDictItems` Rust types to represent `dict_keys`, `dict_values` and `dict_items` types. [#2358](https://github.com/PyO3/pyo3/pull/2358)
+- Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
 
 ### Changed
 
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The deprecated `pyproto` feature is now disabled by default. [#2322](https://github.com/PyO3/pyo3/pull/2322)
 - Deprecate `ToBorrowedObject` trait (it is only used as a wrapper for `ToPyObject`). [#2333](https://github.com/PyO3/pyo3/pull/2333)
 - `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
+- Deprecate experimental `generate-abi3-import-lib` feature in favor of the new `generate-import-lib` feature. [#2364](https://github.com/PyO3/pyo3/pull/2364)
 
 ### Fixed
 
