@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
 - Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
+
+### Changed
+
+- Deprecate experimental `generate-abi3-import-lib` feature in favor of the new `generate-import-lib` feature. [#2364](https://github.com/PyO3/pyo3/pull/2364)
 
 ### Fixed
 
