@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed incorrectly disabled FFI definition `PyThreadState_DeleteCurrent`. [#2357](https://github.com/PyO3/pyo3/pull/2357)
 - Correct FFI definition `PyEval_EvalCodeEx` to take `*const *mut PyObject` array arguments instead of `*mut *mut PyObject` (this was changed in CPython 3.6). [#2368](https://github.com/PyO3/pyo3/pull/2368)
-
+- Added missing `warn_default_encoding` field to `PyConfig` on 3.10+. The previously missing field could result in incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
+- Fixed order of `pathconfig_warnings` and `program_name` fields of `PyConfig` on 3.10+. Previously, the order of the fields was swapped and this could lead to incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
 
 ## [0.16.4] - 2022-04-14
 
