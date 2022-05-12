@@ -3,8 +3,8 @@
 
 // Optional python3.dll import library generator for Windows
 #[cfg(feature = "python3-dll-a")]
-#[path = "abi3_import_lib.rs"]
-mod abi3_import_lib;
+#[path = "import_lib.rs"]
+mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -1391,13 +1391,11 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .unwrap_or(PythonImplementation::CPython);
 
     let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
-        let mingw = cross_compile_config.target.environment == Environment::Gnu;
-
         Some(default_lib_name_windows(
             version,
             implementation,
             abi3,
-            mingw,
+            false,
         ))
     } else if is_linking_libpython_for_target(&cross_compile_config.target) {
         Some(default_lib_name_unix(version, implementation, None))
@@ -1409,8 +1407,9 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
-    if abi3 && lib_dir.is_none() {
-        lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
+    if lib_dir.is_none() {
+        let py_version = if abi3 { None } else { Some(version) };
+        lib_dir = self::import_lib::generate_import_lib(&cross_compile_config.target, py_version)?;
     }
 
     Ok(InterpreterConfig {
@@ -1723,7 +1722,12 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+        let py_version = if interpreter_config.abi3 {
+            None
+        } else {
+            Some(interpreter_config.version)
+        };
+        interpreter_config.lib_dir = self::import_lib::generate_import_lib(&host, py_version)?;
     }
 
     Ok(interpreter_config)
@@ -2130,7 +2134,7 @@ mod tests {
                 version: PythonVersion { major: 3, minor: 8 },
                 shared: true,
                 abi3: false,
-                lib_name: Some("python3.8".into()),
+                lib_name: Some("python38".into()),
                 lib_dir: Some("/usr/lib/mingw".into()),
                 executable: None,
                 pointer_width: None,

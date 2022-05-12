@@ -33,7 +33,9 @@ abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
-generate-abi3-import-lib = ["pyo3-build-config/python3-dll-a"]
+generate-import-lib = ["pyo3-build-config/python3-dll-a"]
+# Deprecated, replaced by `generate-import-lib`
+generate-abi3-import-lib = ["generate-import-lib"]
 
 
 [build-dependencies]
