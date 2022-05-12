@@ -25,3 +25,4 @@ features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-trait
 [features]
 pyproto = []
 abi3 = []
+generate-stubs = []

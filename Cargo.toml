@@ -91,6 +91,9 @@ auto-initialize = []
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
+# Generates Python stubs (.pyi) files during compilation
+generate-stubs = ["pyo3-macros/generate-stubs"]
+
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
