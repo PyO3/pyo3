@@ -26,6 +26,7 @@ pub mod kw {
     syn::custom_keyword!(signature);
     syn::custom_keyword!(subclass);
     syn::custom_keyword!(text_signature);
+    syn::custom_keyword!(type_signature);
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
@@ -82,6 +83,7 @@ pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
 pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, LitStr>;
+pub type TypeSignatureAttribute = KeywordAttribute<kw::type_signature, LitStr>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

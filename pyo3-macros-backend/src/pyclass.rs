@@ -1,9 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
-};
+use crate::attributes::{self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute, TypeSignatureAttribute};
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::pyimpl::{gen_default_items, gen_py_const, PyClassMethodsType};
@@ -60,6 +57,7 @@ pub struct PyClassPyO3Options {
     pub name: Option<NameAttribute>,
     pub subclass: Option<kw::subclass>,
     pub text_signature: Option<TextSignatureAttribute>,
+    pub type_signature: Option<TypeSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
     pub weakref: Option<kw::weakref>,
 
@@ -77,6 +75,7 @@ enum PyClassPyO3Option {
     Name(NameAttribute),
     Subclass(kw::subclass),
     TextSignature(TextSignatureAttribute),
+    TypeSignature(TypeSignatureAttribute),
     Unsendable(kw::unsendable),
     Weakref(kw::weakref),
 
@@ -106,6 +105,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyClassPyO3Option::TextSignature)
+        } else if lookahead.peek(attributes::kw::type_signature) {
+            input.parse().map(PyClassPyO3Option::TypeSignature)
         } else if lookahead.peek(attributes::kw::unsendable) {
             input.parse().map(PyClassPyO3Option::Unsendable)
         } else if lookahead.peek(attributes::kw::weakref) {
@@ -159,6 +160,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
+            PyClassPyO3Option::TypeSignature(type_signature) => set_option!(type_signature),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
             PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
 
@@ -221,12 +223,14 @@ struct FieldPyO3Options {
     get: bool,
     set: bool,
     name: Option<NameAttribute>,
+    type_signature: Option<TypeSignatureAttribute>
 }
 
 enum FieldPyO3Option {
     Get(attributes::kw::get),
     Set(attributes::kw::set),
     Name(NameAttribute),
+    TypeSignature(TypeSignatureAttribute),
 }
 
 impl Parse for FieldPyO3Option {
@@ -238,6 +242,8 @@ impl Parse for FieldPyO3Option {
             input.parse().map(FieldPyO3Option::Set)
         } else if lookahead.peek(attributes::kw::name) {
             input.parse().map(FieldPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::type_signature) {
+            input.parse().map(FieldPyO3Option::TypeSignature)
         } else {
             Err(lookahead.error())
         }
@@ -250,6 +256,7 @@ impl FieldPyO3Options {
             get: false,
             set: false,
             name: None,
+            type_signature: None,
         };
 
         for option in take_pyo3_options(attrs)? {
@@ -274,6 +281,13 @@ impl FieldPyO3Options {
                         name.span() => "`name` may only be specified once"
                     );
                     options.name = Some(name);
+                }
+                FieldPyO3Option::TypeSignature(typing) => {
+                    ensure_spanned!(
+                        options.type_signature.is_none(),
+                        typing.span() => "`type_signature` may only be specified once"
+                    );
+                    options.type_signature = Some(typing);
                 }
             }
         }

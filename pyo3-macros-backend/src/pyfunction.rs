@@ -18,6 +18,7 @@ use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     token::Comma,
 };
+use crate::attributes::TypeSignatureAttribute;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
@@ -238,6 +239,7 @@ pub struct PyFunctionOptions {
     pub name: Option<NameAttribute>,
     pub signature: Option<PyFunctionSignature>,
     pub text_signature: Option<TextSignatureAttribute>,
+    pub type_signature: Option<TypeSignatureAttribute>,
     pub deprecations: Deprecations,
     pub krate: Option<CrateAttribute>,
 }
@@ -278,6 +280,7 @@ pub enum PyFunctionOption {
     PassModule(attributes::kw::pass_module),
     Signature(PyFunctionSignature),
     TextSignature(TextSignatureAttribute),
+    TypeSignature(TypeSignatureAttribute),
     Crate(CrateAttribute),
 }
 
@@ -292,6 +295,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Signature)
         } else if lookahead.peek(attributes::kw::text_signature) {
             input.parse().map(PyFunctionOption::TextSignature)
+        } else if lookahead.peek(attributes::kw::type_signature) {
+            input.parse().map(PyFunctionOption::TypeSignature)
         } else if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyFunctionOption::Crate)
         } else {
@@ -335,6 +340,13 @@ impl PyFunctionOptions {
                         text_signature.kw.span() => "`text_signature` may only be specified once"
                     );
                     self.text_signature = Some(text_signature);
+                }
+                PyFunctionOption::TypeSignature(type_signature) => {
+                    ensure_spanned!(
+                        self.type_signature.is_none(),
+                        type_signature.kw.span() => "`type_signature` may only be specified once"
+                    );
+                    self.type_signature = Some(type_signature);
                 }
                 PyFunctionOption::Crate(path) => {
                     ensure_spanned!(
