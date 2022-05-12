@@ -110,6 +110,8 @@ pub struct PyConfig {
     pub warnoptions: PyWideStringList,
     pub site_import: c_int,
     pub bytes_warning: c_int,
+    #[cfg(Py_3_10)]
+    pub warn_default_encoding: c_int,
     pub inspect: c_int,
     pub interactive: c_int,
     pub optimization_level: c_int,
@@ -127,9 +129,9 @@ pub struct PyConfig {
     pub legacy_windows_stdio: c_int,
 
     pub check_hash_pycs_mode: *mut wchar_t,
+    pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
-    pub pathconfig_warnings: c_int,
     pub pythonpath_env: *mut wchar_t,
     pub home: *mut wchar_t,
     #[cfg(Py_3_10)]
