@@ -3,15 +3,25 @@ use pyo3::types::PyType;
 
 mod common;
 
+// This implementation has a text signature and multiple methods
 #[pyclass(text_signature = "(value, /)", type_signature = "(int) -> None")]
 struct CustomNumber(usize);
 
+// This implementation has documentation
+/// It's basically just a number.
+///
+/// There are multiple documentation lines here.
 #[pyclass]
 struct CustomNumber2 {
     #[pyo3(get, set, name = "value", type_signature = "int")]
     inner: usize,
 }
 
+// This implementation is simply empty, with no documentation, methods nor fields
+#[pyclass]
+struct CustomNumber3(usize);
+
+/// There's documentation here too.
 #[pyfunction]
 #[pyo3(type_signature = "(float) -> CustomNumber")]
 fn number_from_float(input: f64) -> CustomNumber {
@@ -35,6 +45,7 @@ impl CustomNumber {
         Self(self.0 + other)
     }
 
+    /// This is documented.
     #[getter(value)]
     #[pyo3(type_signature = "() -> int")]
     fn get_value(&self) -> usize {
@@ -47,6 +58,10 @@ impl CustomNumber {
         self.0 = new
     }
 
+    /// Converts a `float` into a `CustomNumber`.
+    ///
+    /// :param value: The value we want to convert
+    /// :return: The result of the conversion
     #[classmethod]
     #[pyo3(text_signature = "(value, /)", type_signature = "(float) -> CustomNumber")]
     fn from_float(_cls: &PyType, value: f32) -> Self {

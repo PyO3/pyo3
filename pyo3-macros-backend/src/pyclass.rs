@@ -6,12 +6,13 @@ use crate::konst::{ConstAttributes, ConstSpec};
 use crate::pyimpl::{gen_default_items, gen_py_const, PyClassMethodsType};
 use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, spanned::Spanned, Result, Token};
+use syn::__private::str;
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -215,6 +216,7 @@ pub fn build_py_class(
         }
     };
 
+    generate_stub_class(&class.ident, &args, &doc, &field_options, &methods_type, &krate);
     impl_class(&class.ident, &args, doc, field_options, methods_type, krate)
 }
 
@@ -983,5 +985,95 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         }
 
         _pyo3::inventory::collect!(#inventory_class_name);
+    }
+}
+
+#[cfg_attr(not(feature = "generate-stubs"), allow(unused_variables))]
+fn generate_stub_class(
+    cls: &syn::Ident,
+    args: &PyClassArgs,
+    doc: &PythonDoc,
+    field_options: &Vec<(&syn::Field, FieldPyO3Options)>,
+    methods_type: &PyClassMethodsType,
+    krate: &syn::Path,
+) {
+    #[cfg(feature = "generate-stubs")] {
+        //TODO: declare inheritance, if required
+        println!("class {}:", get_class_python_name(cls, args).to_string());
+
+        let mut is_empty = true; // if the class is empty, it should contain 'pass'
+
+        // Generate the documentation
+        let doc: TokenStream = quote! {#doc};
+
+        let mut doc_iter = doc.into_iter();
+        {  // The first token should be 'concat'
+            let first_token = doc_iter.next()
+                .expect("All documentation comments start with a 'concat!' macro, but the documentation is empty");
+            match first_token {
+                TokenTree::Ident(ref ident) => assert_eq!("concat".to_string(), ident.to_string(), "All documentation comments start with a 'concat!' macro, but the first token is not 'concat': {:?}", first_token),
+                _ => panic!("All documentation comments start with a 'concat!' macro, but the first token is not an identifier: {:?}", first_token)
+            }
+        }
+        {   // The second token should be '!' (because it's the concat! macro)
+            let second_token = doc_iter.next()
+                .expect("All documentation comments start with a 'concat!' macro, but the documentation only has a single token");
+            match second_token {
+                TokenTree::Punct(ref punct) => assert_eq!('!', punct.as_char(), "All documentation comments start with a 'concat!' macro, but the word 'concat' is not followed by '!': {:?}", punct),
+                _ => panic!("All documentation comments start with a 'concat!' macro, but the second token is not a '!': {:?}", second_token)
+            }
+        }
+        {   // The third item should be a group that contains the actual documentation text
+            let third_token = doc_iter.next()
+                .expect("All documentation comments start with a 'concat!' macro, but it has no arguments");
+            match third_token {
+                TokenTree::Group(ref group) => {
+                    println!("\t\"\"\"");
+                    for line in group.stream() {
+                        if let TokenTree::Literal(ref literal) = line {
+                            let unescaped_literal = literal.to_string()
+                                .replace("\\'", "'");
+
+                            let line = unescaped_literal
+                                .trim_start_matches("\"")
+                                .trim_end_matches("\"");
+
+                            if line != "\\n" && line != "\\u{0}" {
+                                for sub_line in line.split("\\n") {
+                                    println!("\t{}", sub_line);
+                                }
+                            }
+                        }
+                    }
+                    println!("\t\"\"\"");
+                },
+                _ => panic!("All documentation comments start with a 'concat!' macro, but its arguments are not a group: {:?}", third_token)
+            }
+        }
+
+        // Generate the different top-level fields
+        for (field, options) in field_options {
+            if options.get || options.set {
+                is_empty = false;
+
+                let name = options.name.as_ref().map(|n| &n.value.0)
+                    .unwrap_or(field.ident.as_ref().expect("This field has neither the #[pyo3(name = ...)] macro applied to, nor a Rust name, it's impossible to create a stub for it"))
+                    .to_string();
+
+                print!("\t{} = None", name);
+
+                if let Some(typing) = &options.type_signature {
+                    print!("  # type: {}", typing.value.value())
+                }
+
+                println!();
+            }
+        }
+
+        //TODO: methods
+
+        if is_empty {
+            println!("\tpass");
+        }
     }
 }
