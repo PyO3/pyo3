@@ -1,14 +1,10 @@
-use crate::{
-    derive_utils::PyFunctionArguments, impl_::pymethods::PyMethodDef, types::PyCFunction, PyResult,
-};
+use crate::{derive_utils::PyFunctionArguments, types::PyCFunction, PyResult};
 
-pub trait PyFunctionDef {
-    const DEF: crate::PyMethodDef;
-}
+pub use crate::impl_::pymethods::PyMethodDef;
 
 pub fn wrap_pyfunction<'a>(
-    method_def: PyMethodDef,
-    args: impl Into<PyFunctionArguments<'a>>,
+    method_def: &PyMethodDef,
+    py_or_module: impl Into<PyFunctionArguments<'a>>,
 ) -> PyResult<&'a PyCFunction> {
-    PyCFunction::internal_new(method_def, args.into())
+    PyCFunction::internal_new(method_def, py_or_module.into())
 }

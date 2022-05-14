@@ -140,6 +140,9 @@ impl<T> GILOnceCell<T> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
+/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
+/// #     let dict = fun_slow.call0().unwrap();
+/// #     assert!(dict.contains("foo").unwrap());
 /// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
