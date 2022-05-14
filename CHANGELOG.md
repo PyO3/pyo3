@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fized
+### Added
+
+- Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
+
+### Fixed
 
 - Added missing `warn_default_encoding` field to `PyConfig` on 3.10+. The previously missing field could result in incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
 - Fixed order of `pathconfig_warnings` and `program_name` fields of `PyConfig` on 3.10+. Previously, the order of the fields was swapped and this could lead to incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
