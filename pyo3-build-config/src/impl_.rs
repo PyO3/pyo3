@@ -456,6 +456,7 @@ print("mingw", get_platform().startswith("mingw"))
         })
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     pub fn fixup_import_libs(&mut self) -> Result<()> {
         let target = target_triple_from_env();
         if self.lib_name.is_none() && target.operating_system == OperatingSystem::Windows {
