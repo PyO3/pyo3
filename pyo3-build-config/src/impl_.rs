@@ -456,6 +456,27 @@ print("mingw", get_platform().startswith("mingw"))
         })
     }
 
+    pub fn fixup_import_libs(&mut self) -> Result<()> {
+        let target = target_triple_from_env();
+        if self.lib_name.is_none() && target.operating_system == OperatingSystem::Windows {
+            self.lib_name = Some(default_lib_name_windows(
+                self.version,
+                self.implementation,
+                self.abi3,
+                false,
+            ));
+        }
+        // Auto generate python3.dll import libraries for Windows targets.
+        #[cfg(feature = "python3-dll-a")]
+        {
+            if self.lib_dir.is_none() {
+                let py_version = if self.abi3 { None } else { Some(self.version) };
+                self.lib_dir = self::import_lib::generate_import_lib(&target, py_version)?;
+            }
+        }
+        Ok(())
+    }
+
     #[doc(hidden)]
     /// Serialize the `InterpreterConfig` and print it to the environment for Cargo to pass along
     /// to dependent packages during build time.
