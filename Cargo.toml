@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.16.4"
+version = "0.16.5"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -19,10 +19,10 @@ libc = "0.2.62"
 parking_lot = ">= 0.11, < 0.13"
 
 # ffi bindings to the python interpreter, split into a seperate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.16.4" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.16.5" }
 
 # support crates for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.16.4", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.16.5", optional = true }
 indoc = { version = "1.0.3", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
@@ -48,9 +48,10 @@ proptest = { version = "0.10.1", default-features = false, features = ["std"] }
 send_wrapper = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
+widestring = "0.5.1"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "0.16.4", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "0.16.5", features = ["resolve-config"] }
 
 [features]
 default = ["macros", "pyproto"]
@@ -67,7 +68,7 @@ pyproto = ["pyo3-macros/pyproto"]
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
-extension-module = ["pyo3-build-config/extension-module", "pyo3-ffi/extension-module"]
+extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3", "pyo3-macros/abi3"]
@@ -79,7 +80,9 @@ abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
-generate-abi3-import-lib = ["pyo3-build-config/python3-dll-a"]
+generate-import-lib = ["pyo3-ffi/generate-import-lib"]
+# Deprecated, replaced by `generate-import-lib`
+generate-abi3-import-lib = ["generate-import-lib"]
 
 # Changes `Python::with_gil` and `Python::acquire_gil` to automatically initialize the
 # Python interpreter if needed.

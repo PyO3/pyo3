@@ -6,7 +6,21 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.16.5] - 2022-05-15
+
+### Added
+
+- Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
+- Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
+
+### Changed
+
+- Deprecate experimental `generate-abi3-import-lib` feature in favor of the new `generate-import-lib` feature. [#2364](https://github.com/PyO3/pyo3/pull/2364)
+
+### Fixed
+
+- Added missing `warn_default_encoding` field to `PyConfig` on 3.10+. The previously missing field could result in incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
+- Fixed order of `pathconfig_warnings` and `program_name` fields of `PyConfig` on 3.10+. Previously, the order of the fields was swapped and this could lead to incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
 
 ## [0.16.4] - 2022-04-14
 
@@ -1151,7 +1165,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.4...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.5...HEAD
+[0.16.5]: https://github.com/pyo3/pyo3/compare/v0.16.4...v0.16.5
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/pyo3/pyo3/compare/v0.16.1...v0.16.2

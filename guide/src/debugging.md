@@ -32,9 +32,16 @@ Run Valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --w
 
 ## Getting a stacktrace
 
-The best start to investigate a crash such as an segmentation fault is a backtrace.
+The best start to investigate a crash such as an segmentation fault is a backtrace. You can set `RUST_BACKTRACE=1` as an environment variable to get the stack trace on a `panic!`. Alternatively you can use a debugger such as `gdb` to explore the issue. Rust provides a wrapper, `rust-gdb`, which has pretty-printers for inspecting Rust variables. Since PyO3 uses `cdylib` for Python shared objects, it does not receive the pretty-print debug hooks in `rust-gdb` ([rust-lang/rust#96365](https://github.com/rust-lang/rust/issues/96365)). The mentioned issue contains a workaround for enabling pretty-printers in this case.
 
  * Link against a debug build of python as described in the previous chapter
- * Run `gdb <my-binary>`
+ * Run `rust-gdb <my-binary>`
+ * Set a breakpoint (`b`) on `rust_panic` if you are investigating a `panic!`
  * Enter `r` to run
  * After the crash occurred, enter `bt` or `bt full` to print the stacktrace
+
+ Often it is helpful to run a small piece of Python code to exercise a section of Rust.
+
+ ```console
+ rust-gdb --args python -c "import my_package; my_package.sum_to_string(1, 2)"
+ ```

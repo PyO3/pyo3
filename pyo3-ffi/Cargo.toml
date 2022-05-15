@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-ffi"
-version = "0.16.4"
+version = "0.16.5"
 description = "Python-API bindings for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -21,7 +21,7 @@ default = []
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
-extension-module = []
+extension-module = ["pyo3-build-config/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = ["pyo3-build-config/abi3"]
@@ -32,7 +32,11 @@ abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
 abi3-py310 = ["abi3", "pyo3-build-config/abi3-py310"]
 
+# Automatically generates `python3.dll` import libraries for Windows targets.
+generate-import-lib = ["pyo3-build-config/python3-dll-a"]
+# Deprecated, replaced by `generate-import-lib`
+generate-abi3-import-lib = ["generate-import-lib"]
 
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.4", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "0.16.5", features = ["resolve-config"] }

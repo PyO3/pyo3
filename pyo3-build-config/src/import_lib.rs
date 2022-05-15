@@ -3,25 +3,28 @@
 use std::env;
 use std::path::PathBuf;
 
-use python3_dll_a::generate_implib_for_target;
+use python3_dll_a::ImportLibraryGenerator;
 
 use crate::errors::{Context, Result};
 
-use super::{Architecture, OperatingSystem, Triple};
+use super::{Architecture, OperatingSystem, PythonVersion, Triple};
 
-/// Generates the `python3.dll` import library for Windows targets.
+/// Generates the `python3.dll` or `pythonXY.dll` import library for Windows targets.
 ///
 /// Places the generated import library into the build script output directory
 /// and returns the full library directory path.
 ///
 /// Does nothing if the target OS is not Windows.
-pub(super) fn generate_abi3_import_lib(target: &Triple) -> Result<Option<String>> {
+pub(super) fn generate_import_lib(
+    target: &Triple,
+    py_version: Option<PythonVersion>,
+) -> Result<Option<String>> {
     if target.operating_system != OperatingSystem::Windows {
         return Ok(None);
     }
 
-    let out_dir = env::var_os("OUT_DIR")
-        .expect("generate_abi3_import_lib() must be called from a build script");
+    let out_dir =
+        env::var_os("OUT_DIR").expect("generate_import_lib() must be called from a build script");
 
     // Put the newly created import library into the build script output directory.
     let mut out_lib_dir = PathBuf::from(out_dir);
@@ -36,7 +39,9 @@ pub(super) fn generate_abi3_import_lib(target: &Triple) -> Result<Option<String>
 
     let env = target.environment.to_string();
 
-    generate_implib_for_target(&out_lib_dir, &arch, &env)
+    ImportLibraryGenerator::new(&arch, &env)
+        .version(py_version.map(|v| (v.major, v.minor)))
+        .generate(&out_lib_dir)
         .context("failed to generate python3.dll import library")?;
 
     let out_lib_dir_string = out_lib_dir
