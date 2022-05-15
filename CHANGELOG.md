@@ -13,8 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
 - Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Add `PyDictKeys`, `PyDictValues` and `PyDictItems` Rust types to represent `dict_keys`, `dict_values` and `dict_items` types. [#2358](https://github.com/PyO3/pyo3/pull/2358)
-- Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
-- Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
 
 ### Changed
 
@@ -24,12 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `ToBorrowedObject` trait (it is only used as a wrapper for `ToPyObject`). [#2333](https://github.com/PyO3/pyo3/pull/2333)
 - `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Correct `wrap_pymodule` to match normal namespacing rules: it no longer "sees through" glob imports of `use submodule::*` when `submodule::submodule` is a `#[pymodule]`. [#2363](https://github.com/PyO3/pyo3/pull/2363)
-- Deprecate experimental `generate-abi3-import-lib` feature in favor of the new `generate-import-lib` feature. [#2364](https://github.com/PyO3/pyo3/pull/2364)
 
 ### Fixed
 
 - Fixed incorrectly disabled FFI definition `PyThreadState_DeleteCurrent`. [#2357](https://github.com/PyO3/pyo3/pull/2357)
 - Correct FFI definition `PyEval_EvalCodeEx` to take `*const *mut PyObject` array arguments instead of `*mut *mut PyObject` (this was changed in CPython 3.6). [#2368](https://github.com/PyO3/pyo3/pull/2368)
+
+## [0.16.5] - 2022-05-15
+
+### Added
+
+- Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
+- Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
+
+### Changed
+
+- Deprecate experimental `generate-abi3-import-lib` feature in favor of the new `generate-import-lib` feature. [#2364](https://github.com/PyO3/pyo3/pull/2364)
+
+### Fixed
+
 - Added missing `warn_default_encoding` field to `PyConfig` on 3.10+. The previously missing field could result in incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
 - Fixed order of `pathconfig_warnings` and `program_name` fields of `PyConfig` on 3.10+. Previously, the order of the fields was swapped and this could lead to incorrect behavior or crashes. [#2370](https://github.com/PyO3/pyo3/pull/2370)
 
@@ -1182,7 +1193,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.4...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.5...HEAD
+[0.16.5]: https://github.com/pyo3/pyo3/compare/v0.16.4...v0.16.5
 [0.16.4]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/pyo3/pyo3/compare/v0.16.1...v0.16.2
