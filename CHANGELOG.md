@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Add `PyDictKeys`, `PyDictValues` and `PyDictItems` Rust types to represent `dict_keys`, `dict_values` and `dict_items` types. [#2358](https://github.com/PyO3/pyo3/pull/2358)
 - Add an experimental `generate-import-lib` feature to support auto-generating non-abi3 python import libraries for Windows targets. [#2364](https://github.com/PyO3/pyo3/pull/2364)
+- Add FFI definition `Py_ExitStatusException`. [#2374](https://github.com/PyO3/pyo3/pull/2374)
 
 ### Changed
 

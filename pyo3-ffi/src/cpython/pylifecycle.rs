@@ -23,7 +23,7 @@ extern "C" {
 
     pub fn Py_RunMain() -> c_int;
 
-    // skipped Py_ExitStatusException
+    pub fn Py_ExitStatusException(status: PyStatus) -> !;
 
     // skipped _Py_RestoreSignals
 
