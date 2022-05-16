@@ -27,6 +27,7 @@ mod pymethod;
 #[cfg(feature = "pyproto")]
 mod pyproto;
 mod wrap;
+mod stubs;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use module::{process_functions_in_module, pymodule_impl, PyModuleOptions};

@@ -4,7 +4,7 @@ use pyo3::types::PyType;
 mod common;
 
 // This implementation has a text signature and multiple methods
-#[pyclass(text_signature = "(value, /)", type_signature = "(int) -> None")]
+#[pyclass(name = "RustNumber", text_signature = "(value, /)", type_signature = "(int) -> None")]
 struct CustomNumber(usize);
 
 // This implementation has documentation

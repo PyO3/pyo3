@@ -999,6 +999,7 @@ fn generate_stub_class(
 ) {
     #[cfg(feature = "generate-stubs")] {
         //TODO: declare inheritance, if required
+        println!("# ID: {}", cls);
         println!("class {}:", get_class_python_name(cls, args).to_string());
 
         let mut is_empty = true; // if the class is empty, it should contain 'pass'
@@ -1060,10 +1061,12 @@ fn generate_stub_class(
                     .unwrap_or(field.ident.as_ref().expect("This field has neither the #[pyo3(name = ...)] macro applied to, nor a Rust name, it's impossible to create a stub for it"))
                     .to_string();
 
-                print!("\t{} = None", name);
+                print!("\t{}", name);
 
                 if let Some(typing) = &options.type_signature {
-                    print!("  # type: {}", typing.value.value())
+                    print!(": {}", typing.value.value())
+                } else {
+                    print!(": Any")
                 }
 
                 println!();

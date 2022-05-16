@@ -16,6 +16,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
+use crate::stubs::map_rust_type_to_python;
 
 pub enum GeneratedPyMethod {
     Method(TokenStream),
@@ -176,6 +177,8 @@ pub fn gen_py_method(
     let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
     let spec = &method.spec;
 
+    generate_stub_method(cls, spec);
+
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
@@ -228,6 +231,48 @@ pub fn gen_py_method(
             unreachable!("methods cannot be FnModule")
         }
     })
+}
+
+#[cfg_attr(not(feature = "generate-stubs"), allow(unused_variables))]
+fn generate_stub_method(cls: &syn::Type, method: &FnSpec) {
+    #[cfg(feature = "generate-stubs")] {
+        println!("# ID: {}", cls.to_token_stream());
+
+        match &method.tp {
+            FnType::FnStatic => println!("\t@staticmethod"),
+            FnType::FnClass => println!("\t@classmethod"),
+            FnType::Getter(_) => println!("\t@property"),
+            FnType::Setter(_) => println!("\t@{}.setter", method.python_name),
+            _ => {},
+        }
+
+        print!("\tdef {}(", method.python_name);
+
+        let mut comma_required = false;
+        match &method.tp {
+            FnType::Fn(_) | FnType::Getter(_) | FnType::Setter(_) => {
+                comma_required = true;
+                print!("self")
+            },
+            FnType::FnClass | FnType::FnNew => {
+                comma_required = true;
+                print!("cls")
+            },
+            _ => {}
+        }
+
+        for arg in &method.args {
+            if comma_required {
+                print!(", ");
+            }
+
+            print!("{}: {}", arg.name, map_rust_type_to_python(&arg.ty));
+
+            comma_required = true;
+        }
+        println!(") -> {}: ...", map_rust_type_to_python(&method.output));
+
+    }
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
