@@ -73,4 +73,13 @@ impl CustomNumber {
     fn from_double(value: f64) -> Self {
         Self(value as usize)
     }
+
+    fn to_3(&self) -> CustomNumber3 {
+        CustomNumber3(self.0)
+    }
+
+    #[args(n = "None")]
+    fn next(&self, n: Option<usize>) -> Vec<Self> {
+        todo!()
+    }
 }

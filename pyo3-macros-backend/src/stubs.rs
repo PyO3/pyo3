@@ -1,4 +1,4 @@
-use syn::Type;
+use syn::{GenericArgument, PathArguments, Type};
 
 pub fn map_rust_type_to_python(rust: &Type) -> String {
     let rust_str = match rust {
@@ -12,7 +12,42 @@ pub fn map_rust_type_to_python(rust: &Type) -> String {
         Type::Paren(_) => todo!("Unknown how to map to Python: {:?}", rust),
         Type::Path(ref path) => {
             match &path.path.segments.last() {
-                Some(ref segment) => segment.ident.to_string(),
+                Some(ref segment) => {
+                    let str = segment.ident.to_string();
+
+                    match str.as_str() {
+                        "Vec" => {
+                            if let PathArguments::AngleBracketed(angle) = &segment.arguments {
+                                let mut res = None;
+                                for arg in &angle.args {
+                                    if let GenericArgument::Type(tp) = arg {
+                                        res = Some(format!("List[{}]", map_rust_type_to_python(tp)))
+                                    }
+                                }
+                                res.unwrap_or("List[Any]".to_string())
+                            } else {
+                                "List[Any]".to_string()
+                            }
+                        }
+                        "Option" => {
+                            if let PathArguments::AngleBracketed(angle) = &segment.arguments {
+                                let mut res = None;
+                                for arg in &angle.args {
+                                    if let GenericArgument::Type(tp) = arg {
+                                        res = Some(format!("Optional[{}]", map_rust_type_to_python(tp)))
+                                    }
+                                }
+                                res.unwrap_or("Optional[Any]".to_string())
+                            } else {
+                                "Optional[Any]".to_string()
+                            }
+                        }
+                        "usize" | "isize" | "u32" | "u64" | "i32" | "i64" => "int".to_string(),
+                        "f64" | "f32" => "float".to_string(),
+                        "bool" => "bool".to_string(),
+                        _ => format!("rust_{}", str),
+                    }
+                },
                 _ => "Any".to_string()
             }
         },
@@ -28,11 +63,5 @@ pub fn map_rust_type_to_python(rust: &Type) -> String {
         }
     };
 
-    match rust_str.as_str() {
-        "usize" | "isize" | "u32" | "u64" | "i32" | "i64" => "int".to_string(),
-        "f64" | "f32" => "float".to_string(),
-        "bool" => "bool".to_string(),
-        "None" | "Any" => rust_str,
-        _ => format!("rust_{}", rust_str)
-    }
+    rust_str
 }
