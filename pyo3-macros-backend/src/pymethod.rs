@@ -268,6 +268,10 @@ fn generate_stub_method(cls: &syn::Type, method: &FnSpec) {
 
             print!("{}: {}", arg.name, map_rust_type_to_python(&arg.ty));
 
+            if arg.optional.is_some() {
+                print!(" = ...");
+            }
+
             comma_required = true;
         }
         println!(") -> {}: ...", map_rust_type_to_python(&method.output));
