@@ -228,7 +228,7 @@ impl PyDict {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
 mod impl_ {
     use super::*;
     use std::marker::PhantomData;
@@ -304,7 +304,7 @@ mod impl_ {
     }
 }
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(any(not(Py_3_8), Py_LIMITED_API))]
 mod impl_ {
     use super::*;
     use crate::types::PyIterator;
