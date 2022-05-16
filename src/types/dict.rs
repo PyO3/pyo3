@@ -228,7 +228,7 @@ impl PyDict {
     }
 }
 
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
 mod impl_ {
     use super::*;
     use std::marker::PhantomData;
@@ -304,7 +304,7 @@ mod impl_ {
     }
 }
 
-#[cfg(any(not(Py_3_8), Py_LIMITED_API))]
+#[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
 mod impl_ {
     use super::*;
     use crate::types::PyIterator;
@@ -780,7 +780,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
     #[test]
     fn test_iter_size_hint() {
         Python::with_gil(|py| {
