@@ -13,17 +13,7 @@ use std::{collections, hash, ptr};
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
-/// Represents a  Python `frozenset`
-#[repr(transparent)]
-pub struct PyFrozenSet(PyAny);
-
 pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, #checkfunction=ffi::PySet_Check);
-pyobject_native_type!(
-    PyFrozenSet,
-    ffi::PySetObject,
-    ffi::PyFrozenSet_Type,
-    #checkfunction=ffi::PyFrozenSet_Check
-);
 
 impl PySet {
     /// Creates a new set with elements from the given slice.
@@ -111,85 +101,117 @@ impl PySet {
 
     /// Returns an iterator of values in this set.
     ///
-    /// Note that it can be unsafe to use when the set might be changed by other code.
+    /// # Panics
+    ///
+    /// If PyO3 detects that the set is mutated during iteration, it will panic.
     pub fn iter(&self) -> PySetIterator<'_> {
-        PySetIterator::new(self)
+        IntoIterator::into_iter(self)
     }
 }
 
 #[cfg(Py_LIMITED_API)]
-pub struct PySetIterator<'p> {
-    it: &'p PyIterator,
-}
+mod impl_ {
+    use super::*;
 
-#[cfg(Py_LIMITED_API)]
-impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator<'_> {
-        PySetIterator {
-            it: PyIterator::from_object(set.py(), set).unwrap(),
-        }
-    }
-}
+    impl<'a> std::iter::IntoIterator for &'a PySet {
+        type Item = &'a PyAny;
+        type IntoIter = PySetIterator<'a>;
 
-#[cfg(Py_LIMITED_API)]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.it.next().map(|p| p.unwrap())
-    }
-}
-
-#[cfg(not(Py_LIMITED_API))]
-pub struct PySetIterator<'py> {
-    set: &'py super::PyAny,
-    pos: isize,
-}
-
-#[cfg(not(Py_LIMITED_API))]
-impl PySetIterator<'_> {
-    fn new(set: &PyAny) -> PySetIterator<'_> {
-        PySetIterator { set, pos: 0 }
-    }
-}
-
-#[cfg(not(Py_LIMITED_API))]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut hash: ffi::Py_hash_t = 0;
-            if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0 {
-                // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
-                Some(self.set.py().from_owned_ptr(ffi::_Py_NewRef(key)))
-            } else {
-                None
+        /// Returns an iterator of values in this set.
+        ///
+        /// # Panics
+        ///
+        /// If PyO3 detects that the set is mutated during iteration, it will panic.
+        fn into_iter(self) -> Self::IntoIter {
+            PySetIterator {
+                it: PyIterator::from_object(self.py(), self).unwrap(),
             }
         }
     }
 
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.set.len().unwrap_or_default();
-        (
-            len.saturating_sub(self.pos as usize),
-            Some(len.saturating_sub(self.pos as usize)),
-        )
+    pub struct PySetIterator<'p> {
+        it: &'p PyIterator,
+    }
+
+    impl<'py> Iterator for PySetIterator<'py> {
+        type Item = &'py super::PyAny;
+
+        /// Advances the iterator and returns the next value.
+        ///
+        /// # Panics
+        ///
+        /// If PyO3 detects that the set is mutated during iteration, it will panic.
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            self.it.next().map(Result::unwrap)
+        }
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PySet {
-    type Item = &'a PyAny;
-    type IntoIter = PySetIterator<'a>;
+#[cfg(not(Py_LIMITED_API))]
+mod impl_ {
+    use super::*;
+    pub struct PySetIterator<'py> {
+        set: &'py super::PyAny,
+        pos: ffi::Py_ssize_t,
+        used: ffi::Py_ssize_t,
+    }
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+    impl<'a> std::iter::IntoIterator for &'a PySet {
+        type Item = &'a PyAny;
+        type IntoIter = PySetIterator<'a>;
+        /// Returns an iterator of values in this set.
+        ///
+        /// # Panics
+        ///
+        /// If PyO3 detects that the set is mutated during iteration, it will panic.
+        fn into_iter(self) -> Self::IntoIter {
+            PySetIterator {
+                set: self,
+                pos: 0,
+                used: unsafe { ffi::PySet_Size(self.as_ptr()) },
+            }
+        }
+    }
+
+    impl<'py> Iterator for PySetIterator<'py> {
+        type Item = &'py super::PyAny;
+
+        /// Advances the iterator and returns the next value.
+        ///
+        /// # Panics
+        ///
+        /// If PyO3 detects that the set is mutated during iteration, it will panic.
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            unsafe {
+                let len = ffi::PySet_Size(self.set.as_ptr());
+                assert_eq!(self.used, len, "Set changed size during iteration");
+
+                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut hash: ffi::Py_hash_t = 0;
+                if ffi::_PySet_NextEntry(self.set.as_ptr(), &mut self.pos, &mut key, &mut hash) != 0
+                {
+                    // _PySet_NextEntry returns borrowed object; for safety must make owned (see #890)
+                    Some(self.set.py().from_owned_ptr(ffi::_Py_NewRef(key)))
+                } else {
+                    None
+                }
+            }
+        }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let len = self.set.len().unwrap_or_default();
+            (
+                len.saturating_sub(self.pos as usize),
+                Some(len.saturating_sub(self.pos as usize)),
+            )
+        }
     }
 }
+
+pub use impl_::*;
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
 where
@@ -274,67 +296,9 @@ where
     }
 }
 
-impl PyFrozenSet {
-    /// Creates a new frozenset.
-    ///
-    /// May panic when running out of memory.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PyFrozenSet> {
-        let list = elements.to_object(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
-    }
-
-    /// Creates a new empty frozen set
-    pub fn empty(py: Python<'_>) -> PyResult<&PyFrozenSet> {
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
-    }
-
-    /// Return the number of items in the set.
-    /// This is equivalent to len(p) on a set.
-    #[inline]
-    pub fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
-    }
-
-    /// Check if set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Determine if the set contains the specified key.
-    /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool>
-    where
-        K: ToPyObject,
-    {
-        unsafe {
-            match ffi::PySet_Contains(self.as_ptr(), key.to_object(self.py()).as_ptr()) {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py())),
-            }
-        }
-    }
-
-    /// Returns an iterator of values in this frozen set.
-    ///
-    /// Note that it can be unsafe to use when the set might be changed by other code.
-    pub fn iter(&self) -> PySetIterator<'_> {
-        PySetIterator::new(self.as_ref())
-    }
-}
-
-impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
-    type Item = &'a PyAny;
-    type IntoIter = PySetIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{PyFrozenSet, PySet};
+    use super::PySet;
     use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
 
@@ -441,6 +405,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_set_iter_mutation() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+
+            for _ in set {
+                let _ = set.add(42);
+            }
+        });
+    }
+
+    #[test]
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PySet::new(py, &[1]).unwrap();
@@ -453,50 +429,6 @@ mod tests {
                 assert_eq!(iter.size_hint(), (1, Some(1)));
                 iter.next();
                 assert_eq!(iter.size_hint(), (0, Some(0)));
-            }
-        });
-    }
-
-    #[test]
-    fn test_frozenset_new_and_len() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
-            assert_eq!(1, set.len());
-
-            let v = vec![1];
-            assert!(PyFrozenSet::new(py, &[v]).is_err());
-        });
-    }
-
-    #[test]
-    fn test_frozenset_empty() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::empty(py).unwrap();
-            assert_eq!(0, set.len());
-        });
-    }
-
-    #[test]
-    fn test_frozenset_contains() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
-            assert!(set.contains(1).unwrap());
-        });
-    }
-
-    #[test]
-    fn test_frozenset_iter() {
-        Python::with_gil(|py| {
-            let set = PyFrozenSet::new(py, &[1]).unwrap();
-
-            // iter method
-            for el in set.iter() {
-                assert_eq!(1i32, el.extract::<i32>().unwrap());
-            }
-
-            // intoiterator iteration
-            for el in set {
-                assert_eq!(1i32, el.extract::<i32>().unwrap());
             }
         });
     }

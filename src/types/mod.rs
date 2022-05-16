@@ -15,6 +15,7 @@ pub use self::datetime::{
 };
 pub use self::dict::{IntoPyDict, PyDict};
 pub use self::floatob::PyFloat;
+pub use self::frozenset::PyFrozenSet;
 pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
@@ -23,7 +24,7 @@ pub use self::module::PyModule;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
-pub use self::set::{PyFrozenSet, PySet};
+pub use self::set::PySet;
 pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 pub use self::string::PyStringData;
@@ -225,6 +226,7 @@ mod complex;
 mod datetime;
 mod dict;
 mod floatob;
+mod frozenset;
 mod function;
 mod iterator;
 mod list;
