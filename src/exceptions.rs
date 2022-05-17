@@ -5,8 +5,8 @@
 //! The structs in this module represent Python's built-in exceptions, while the modules comprise
 //! structs representing errors defined in Python code.
 //!
-//! The latter are created with the [`import_exception`] macro, which you can use yourself
-//! to import Python exceptions.
+//! The latter are created with the [`import_exception`](crate::import_exception) macro, which you
+//! can use yourself to import Python exceptions.
 
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;

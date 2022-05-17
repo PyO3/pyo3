@@ -535,8 +535,9 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// If calling this method becomes performance-critical, the [`intern!`](crate::intern) macro
+    /// can be used to intern `attr_name`, thereby avoiding repeated temporary allocations of
+    /// Python strings.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -566,8 +567,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `attr_name`.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
