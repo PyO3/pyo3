@@ -133,8 +133,8 @@ impl LazyStaticType {
             return;
         }
 
+        let thread_id = thread::current().id();
         {
-            let thread_id = thread::current().id();
             let mut threads = self.initializing_threads.lock();
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
@@ -144,13 +144,29 @@ impl LazyStaticType {
             threads.push(thread_id);
         }
 
+        struct InitializationGuard<'a> {
+            initializing_threads: &'a Mutex<Vec<ThreadId>>,
+            thread_id: ThreadId,
+        }
+        impl Drop for InitializationGuard<'_> {
+            fn drop(&mut self) {
+                let mut threads = self.initializing_threads.lock();
+                threads.retain(|id| *id != self.thread_id);
+            }
+        }
+
+        let guard = InitializationGuard {
+            initializing_threads: &self.initializing_threads,
+            thread_id,
+        };
+
         // Pre-compute the class attribute objects: this can temporarily
         // release the GIL since we're calling into arbitrary user code. It
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
         for_all_items(&mut |class_items| {
-            items.extend(class_items.methods.iter().filter_map(|def| {
+            for def in class_items.methods {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
                     let key = extract_cstr_or_leak_cstring(
                         attr.name,
@@ -158,12 +174,17 @@ impl LazyStaticType {
                     )
                     .unwrap();
 
-                    let val = (attr.meth.0)(py);
-                    Some((key, val))
-                } else {
-                    None
+                    match (attr.meth.0)(py) {
+                        Ok(val) => items.push((key, val)),
+                        Err(e) => panic!(
+                            "An error occurred while initializing `{}.{}`: {}",
+                            name,
+                            attr.name.trim_end_matches('\0'),
+                            e
+                        ),
+                    }
                 }
-            }));
+            }
         });
 
         // Now we hold the GIL and we can assume it won't be released until we
@@ -173,6 +194,7 @@ impl LazyStaticType {
 
             // Initialization successfully complete, can clear the thread list.
             // (No further calls to get_or_init() will try to init, on any thread.)
+            std::mem::forget(guard);
             *self.initializing_threads.lock() = Vec::new();
             result
         });

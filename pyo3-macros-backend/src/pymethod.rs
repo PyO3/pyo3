@@ -349,9 +349,14 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
                 _pyo3::impl_::pymethods::PyClassAttributeFactory({
-                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
+                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
                         #deprecations
-                        _pyo3::IntoPy::into_py(#cls::#name(), py)
+                        let mut ret = #cls::#name();
+                        if false {
+                            use _pyo3::impl_::ghost::IntoPyResult;
+                            ret.assert_into_py_result();
+                        }
+                        _pyo3::callback::convert(py, ret)
                     }
                     __wrap
                 })

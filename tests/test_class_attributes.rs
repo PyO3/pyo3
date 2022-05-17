@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyValueError, prelude::*};
 
 mod common;
 
@@ -88,4 +88,26 @@ fn recursive_class_attributes() {
     py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
     py_assert!(py, foo_obj, "foo_obj.bar.x == 2");
     py_assert!(py, bar_obj, "bar_obj.a_foo.x == 3");
+}
+
+#[test]
+#[should_panic(
+    expected = "An error occurred while initializing `BrokenClass.fails_to_init`: \
+                ValueError: failed to create class attribute"
+)]
+fn test_fallible_class_attribute() {
+    #[pyclass]
+    struct BrokenClass;
+
+    #[pymethods]
+    impl BrokenClass {
+        #[classattr]
+        fn fails_to_init() -> PyResult<i32> {
+            Err(PyValueError::new_err("failed to create class attribute"))
+        }
+    }
+
+    Python::with_gil(|py| {
+        py.get_type::<BrokenClass>();
+    })
 }
