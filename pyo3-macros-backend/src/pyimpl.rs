@@ -171,9 +171,9 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
                 _pyo3::impl_::pymethods::PyClassAttributeFactory({
-                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyObject {
+                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
                         #deprecations
-                        _pyo3::IntoPy::into_py(#cls::#member, py)
+                        ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
                     }
                     __wrap
                 })
