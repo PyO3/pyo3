@@ -1,6 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
+use crate::ffi::Py_ssize_t;
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
@@ -8,8 +10,6 @@ use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python,
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
-
-use super::PyMapping;
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -102,7 +102,19 @@ impl PyDict {
     ///
     /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> usize {
-        unsafe { ffi::PyDict_Size(self.as_ptr()) as usize }
+        self._len() as usize
+    }
+
+    fn _len(&self) -> Py_ssize_t {
+        #[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
+        unsafe {
+            ffi::PyDict_Size(self.as_ptr())
+        }
+
+        #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
+        unsafe {
+            (*self.as_ptr().cast::<ffi::PyDictObject>()).ma_used
+        }
     }
 
     /// Checks if the dict is empty, i.e. `len(self) == 0`.
@@ -216,7 +228,7 @@ impl PyDict {
     /// # Panics
     ///
     /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-    /// It is allowed to modify the values of the keys as you iterate over the dictionary, but only
+    /// It is allowed to modify values as you iterate over the dictionary, but only
     /// so long as the set of keys does not change.
     pub fn iter(&self) -> PyDictIterator<'_> {
         IntoIterator::into_iter(self)
@@ -228,128 +240,93 @@ impl PyDict {
     }
 }
 
-#[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
-mod impl_ {
-    use super::*;
-    use std::marker::PhantomData;
+pub struct PyDictIterator<'py> {
+    dict: &'py PyDict,
+    ppos: ffi::Py_ssize_t,
+    di_used: ffi::Py_ssize_t,
+    len: ffi::Py_ssize_t,
+}
 
-    pub struct PyDictIterator<'py> {
-        di_dict: *mut ffi::PyDictObject,
-        di_pos: ffi::Py_ssize_t,
-        di_used: ffi::Py_ssize_t,
-        marker: PhantomData<&'py PyDict>,
+impl<'py> Iterator for PyDictIterator<'py> {
+    type Item = (&'py PyAny, &'py PyAny);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let ma_used = self.dict._len();
+
+        // These checks are similar to what CPython does.
+        //
+        // If the dimension of the dict changes e.g. key-value pairs are removed
+        // or added during iteration, this will panic next time when `next` is called
+        if self.di_used != ma_used {
+            self.di_used = -1;
+            panic!("dictionary changed size during iteration");
+        };
+
+        // If the dict is changed in such a way that the length remains constant
+        // then this will panic at the end of iteration - similar to this:
+        //
+        // d = {"a":1, "b":2, "c": 3}
+        //
+        // for k, v in d.items():
+        //     d[f"{k}_"] = 4
+        //     del d[k]
+        //     print(k)
+        //
+        if self.len == -1 {
+            self.di_used = -1;
+            panic!("dictionary keys changed during iteration");
+        };
+
+        let ret = unsafe { self.next_unchecked() };
+        if ret.is_some() {
+            self.len -= 1
+        }
+        ret
     }
 
-    impl<'py> Iterator for PyDictIterator<'py> {
-        type Item = (&'py PyAny, &'py PyAny);
-
-        /// Advances the iterator and returns the next value.
-        ///
-        /// # Panics
-        ///
-        /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-        /// It is allowed to modify the values of the keys as you iterate over the dictionary, but only
-        /// so long as the set of keys does not change.
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            unsafe {
-                if self.di_used != (*(self.di_dict)).ma_used {
-                    self.di_used = -1;
-                    panic!("dictionary changed size during iteration");
-                };
-
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
-                if ffi::PyDict_Next(self.di_dict.cast(), &mut self.di_pos, &mut key, &mut value)
-                    != 0
-                {
-                    let py = Python::assume_gil_acquired();
-                    // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
-                    Some((
-                        py.from_owned_ptr(ffi::_Py_NewRef(key)),
-                        py.from_owned_ptr(ffi::_Py_NewRef(value)),
-                    ))
-                } else {
-                    None
-                }
-            }
-        }
-
-        #[inline]
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let len = unsafe { ffi::PyDict_Size(self.di_dict.cast()) as usize };
-            (
-                len.saturating_sub(self.di_pos as usize),
-                Some(len.saturating_sub(self.di_pos as usize)),
-            )
-        }
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len as usize;
+        (len, Some(len))
     }
+}
 
-    impl<'a> std::iter::IntoIterator for &'a PyDict {
-        type Item = (&'a PyAny, &'a PyAny);
-        type IntoIter = PyDictIterator<'a>;
+impl<'a> std::iter::IntoIterator for &'a PyDict {
+    type Item = (&'a PyAny, &'a PyAny);
+    type IntoIter = PyDictIterator<'a>;
 
-        fn into_iter(self) -> Self::IntoIter {
-            unsafe {
-                let di_dict: *mut ffi::PyDictObject = self.as_ptr().cast();
-
-                PyDictIterator {
-                    di_dict,
-                    di_pos: 0,
-                    di_used: (*di_dict).ma_used,
-                    marker: PhantomData,
-                }
-            }
+    fn into_iter(self) -> Self::IntoIter {
+        PyDictIterator {
+            dict: self,
+            ppos: 0,
+            di_used: self._len(),
+            len: self._len(),
         }
     }
 }
 
-#[cfg(any(not(Py_3_8), PyPy, Py_LIMITED_API))]
-mod impl_ {
-    use super::*;
-    use crate::types::PyIterator;
+impl<'py> PyDictIterator<'py> {
+    /// Advances the iterator without checking for concurrent modification.
+    ///
+    /// See [`PyDict_Next`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Next)
+    /// for more information.
+    unsafe fn next_unchecked(&mut self) -> Option<(&'py PyAny, &'py PyAny)> {
+        let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+        let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-    pub struct PyDictIterator<'py> {
-        iter: &'py PyIterator,
-    }
-
-    impl<'py> Iterator for PyDictIterator<'py> {
-        type Item = (&'py PyAny, &'py PyAny);
-
-        /// Advances the iterator and returns the next value.
-        ///
-        /// # Panics
-        ///
-        /// If PyO3 detects that the dictionary is mutated during iteration, it will panic.
-        /// It is allowed to modify the values of the keys as you iterate over the dictionary, but only
-        /// so long as the set of keys does not change.
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            self.iter
-                .next()
-                .map(Result::unwrap)
-                .map(FromPyObject::extract)
-                .map(Result::unwrap)
-        }
-    }
-
-    impl<'a> std::iter::IntoIterator for &'a PyDict {
-        type Item = (&'a PyAny, &'a PyAny);
-        type IntoIter = PyDictIterator<'a>;
-
-        fn into_iter(self) -> Self::IntoIter {
-            let py = self.py();
-
-            // `_PyDictView_New` is not available, so just do the `items()` call
-            let items = self.call_method0(intern!(py, "items")).unwrap();
-            let iter = PyIterator::from_object(py, items).unwrap();
-
-            PyDictIterator { iter }
+        if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) != 0 {
+            let py = self.dict.py();
+            // PyDict_Next returns borrowed values; for safety must make them owned (see #890)
+            Some((
+                py.from_owned_ptr(ffi::_Py_NewRef(key)),
+                py.from_owned_ptr(ffi::_Py_NewRef(value)),
+            ))
+        } else {
+            None
         }
     }
 }
-
-use impl_::*;
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
 where
@@ -761,7 +738,7 @@ mod tests {
     fn test_iter_key_mutated() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
-            for i in 0..1000 {
+            for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
             let ob = v.to_object(py);
@@ -773,14 +750,39 @@ mod tests {
 
                 dict.set_item(key + 1, value + 1).unwrap();
 
-                if i > 10000 {
+                if i > 1000 {
+                    // avoid this test just running out of memory if it fails
                     break;
                 };
             }
         });
     }
 
-    #[cfg(all(Py_3_8, not(PyPy), not(Py_LIMITED_API)))]
+    #[test]
+    #[should_panic]
+    fn test_iter_key_mutated_constant_len() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            for i in 0..10 {
+                v.insert(i * 2, i * 2);
+            }
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+            for (i, (key, value)) in dict.iter().enumerate() {
+                let key = key.extract::<i32>().unwrap();
+                let value = value.extract::<i32>().unwrap();
+                dict.del_item(key).unwrap();
+                dict.set_item(key + 1, value + 1).unwrap();
+
+                if i > 1000 {
+                    // avoid this test just running out of memory if it fails
+                    break;
+                };
+            }
+        });
+    }
+
     #[test]
     fn test_iter_size_hint() {
         Python::with_gil(|py| {
@@ -796,8 +798,12 @@ mod tests {
             iter.next();
             assert_eq!(iter.size_hint(), (v.len() - 1, Some(v.len() - 1)));
 
-            // Exhust iterator.
+            // Exhaust iterator.
             for _ in &mut iter {}
+
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+
+            assert!(iter.next().is_none());
 
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
