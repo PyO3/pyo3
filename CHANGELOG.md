@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed incorrectly disabled FFI definition `PyThreadState_DeleteCurrent`. [#2357](https://github.com/PyO3/pyo3/pull/2357)
 - Correct FFI definition `PyEval_EvalCodeEx` to take `*const *mut PyObject` array arguments instead of `*mut *mut PyObject` (this was changed in CPython 3.6). [#2368](https://github.com/PyO3/pyo3/pull/2368)
+- Fix "raw-ident" structs (e.g. `#[pyclass] struct r#RawName`) incorrectly having `r#` at the start of the class name created in Python. [#2395](https://github.com/PyO3/pyo3/pull/2395)
 
 ## [0.16.5] - 2022-05-15
 

@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::borrow::Cow;
+
 use crate::attributes::TextSignatureAttribute;
 use crate::deprecations::Deprecation;
 use crate::params::{accept_args_kwargs, impl_arg_params};
@@ -287,7 +289,9 @@ impl<'a> FnSpec<'a> {
 
         let doc = utils::get_doc(
             meth_attrs,
-            text_signature.as_ref().map(|attr| (&python_name, attr)),
+            text_signature
+                .as_ref()
+                .map(|attr| (Cow::Borrowed(&python_name), attr)),
         );
 
         let arguments: Vec<_> = if skip_first_arg {
