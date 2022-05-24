@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `impl<T, const N: usize> IntoPy<PyObject> for [T; N]` now requires `T: IntoPy` rather than `T: ToPyObject`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Correct `wrap_pymodule` to match normal namespacing rules: it no longer "sees through" glob imports of `use submodule::*` when `submodule::submodule` is a `#[pymodule]`. [#2363](https://github.com/PyO3/pyo3/pull/2363)
 - Allow `#[classattr]` methods to be fallible. [#2385](https://github.com/PyO3/pyo3/pull/2385)
+- Prevent multiple `#[pymethods]` with the same name for a single `#[pyclass]`. [#2399](https://github.com/PyO3/pyo3/pull/2399)
 
 ### Fixed
 

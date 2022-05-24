@@ -4,7 +4,7 @@ use crate::{
     attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec},
     pyfunction::Argument,
-    utils::{remove_lifetime, replace_self, unwrap_ty_group},
+    utils::{remove_lifetime, unwrap_ty_group},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
@@ -67,7 +67,7 @@ pub fn impl_arg_params(
         // is (*args, **kwds).
         let mut arg_convert = vec![];
         for (i, arg) in spec.args.iter().enumerate() {
-            arg_convert.push(impl_arg_param(arg, spec, i, None, &mut 0, py, &args_array)?);
+            arg_convert.push(impl_arg_param(arg, spec, i, &mut 0, py, &args_array)?);
         }
         return Ok(quote! {
             let _args = #py.from_borrowed_ptr::<_pyo3::types::PyTuple>(_args);
@@ -118,7 +118,6 @@ pub fn impl_arg_params(
             arg,
             spec,
             idx,
-            self_,
             &mut option_pos,
             py,
             &args_array,
@@ -189,7 +188,6 @@ fn impl_arg_param(
     arg: &FnArg<'_>,
     spec: &FnSpec<'_>,
     idx: usize,
-    self_: Option<&syn::Type>,
     option_pos: &mut usize,
     py: &syn::Ident,
     args_array: &syn::Ident,
@@ -290,10 +288,7 @@ fn impl_arg_param(
     };
 
     return if let syn::Type::Reference(tref) = unwrap_ty_group(arg.optional.unwrap_or(ty)) {
-        let mut tref = remove_lifetime(tref);
-        if let Some(cls) = self_ {
-            replace_self(&mut tref.elem, cls);
-        }
+        let tref = remove_lifetime(tref);
         let mut_ = tref.mutability;
         let (target_ty, borrow_tmp) = if arg.optional.is_some() {
             // Get Option<&T> from Option<PyRef<T>>
