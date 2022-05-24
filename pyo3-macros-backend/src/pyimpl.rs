@@ -11,7 +11,7 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
@@ -164,6 +164,7 @@ pub fn impl_methods(
 
 pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
     let member = &spec.rust_ident;
+    let wrapper_ident = format_ident!("__pymethod_{}__", member);
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
     quote! {
@@ -171,40 +172,19 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
                 _pyo3::impl_::pymethods::PyClassAttributeFactory({
-                    fn __wrap(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
-                        #deprecations
-                        ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
+                    impl #cls {
+                        #[doc(hidden)]
+                        #[allow(non_snake_case)]
+                        fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
+                            #deprecations
+                            ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
+                        }
                     }
-                    __wrap
+                    #cls::#wrapper_ident
                 })
             )
         })
     }
-}
-
-pub fn gen_default_items<'a>(
-    cls: &syn::Ident,
-    method_defs: &'a mut [syn::ImplItemMethod],
-) -> impl Iterator<Item = TokenStream> + 'a {
-    // This function uses a lot of `unwrap()`; since method_defs are provided by us, they should
-    // all succeed.
-    let ty: syn::Type = syn::parse_quote!(#cls);
-
-    method_defs.iter_mut().map(move |meth| {
-        let options = PyFunctionOptions::from_attrs(&mut meth.attrs).unwrap();
-        match pymethod::gen_py_method(&ty, &mut meth.sig, &mut meth.attrs, options).unwrap() {
-            GeneratedPyMethod::Proto(token_stream) => {
-                let attrs = get_cfg_attributes(&meth.attrs);
-                quote!(#(#attrs)* #token_stream)
-            }
-            GeneratedPyMethod::SlotTraitImpl(..) => {
-                panic!("SlotFragment methods cannot have default implementation!")
-            }
-            GeneratedPyMethod::Method(_) => {
-                panic!("Only protocol methods can have default implementation!")
-            }
-        }
-    })
 }
 
 fn impl_py_methods(

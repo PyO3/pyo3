@@ -8,9 +8,13 @@ use crate::attributes::{
 };
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
-use crate::pyimpl::{gen_default_items, gen_py_const, PyClassMethodsType};
-use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, PropertyType};
+use crate::method::FnSpec;
+use crate::pyimpl::{gen_py_const, PyClassMethodsType};
+use crate::pymethod::{
+    impl_py_getter_def, impl_py_setter_def, PropertyType, SlotDef, __INT__, __REPR__, __RICHCMP__,
+};
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
+use crate::PyFunctionOptions;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -420,49 +424,48 @@ fn impl_enum_class(
     krate: syn::Path,
 ) -> TokenStream {
     let cls = enum_.ident;
+    let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = enum_.variants;
     let pytypeinfo = impl_pytypeinfo(cls, args, None);
 
-    let default_repr_impl: syn::ImplItemMethod = {
+    let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!("{}.{}", cls, variant_name);
             quote! { #cls::#variant_name => #repr, }
         });
-        syn::parse_quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            #[pyo3(name = "__repr__")]
+        let mut repr_impl: syn::ImplItemMethod = syn::parse_quote! {
             fn __pyo3__repr__(&self) -> &'static str {
                 match self {
                     #(#variants_repr)*
                 }
             }
-        }
+        };
+        let repr_slot = generate_default_protocol_slot(&ty, &mut repr_impl, &__REPR__).unwrap();
+        (repr_impl, repr_slot)
     };
 
     let repr_type = &enum_.repr_type;
 
-    let default_int = {
+    let (default_int, default_int_slot) = {
         // This implementation allows us to convert &T to #repr_type without implementing `Copy`
         let variants_to_int = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             quote! { #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
-        syn::parse_quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            #[pyo3(name = "__int__")]
+        let mut int_impl: syn::ImplItemMethod = syn::parse_quote! {
             fn __pyo3__int__(&self) -> #repr_type {
                 match self {
                     #(#variants_to_int)*
                 }
             }
-        }
+        };
+        let int_slot = generate_default_protocol_slot(&ty, &mut int_impl, &__INT__).unwrap();
+        (int_impl, int_slot)
     };
 
-    let default_richcmp = {
+    let (default_richcmp, default_richcmp_slot) = {
         let variants_eq = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             quote! {
@@ -470,10 +473,7 @@ fn impl_enum_class(
                     Ok(true.to_object(py)),
             }
         });
-        syn::parse_quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            #[pyo3(name = "__richcmp__")]
+        let mut richcmp_impl: syn::ImplItemMethod = syn::parse_quote! {
             fn __pyo3__richcmp__(
                 &self,
                 py: _pyo3::Python,
@@ -498,17 +498,20 @@ fn impl_enum_class(
                     _ => Ok(py.NotImplemented()),
                 }
             }
-        }
+        };
+        let richcmp_slot =
+            generate_default_protocol_slot(&ty, &mut richcmp_impl, &__RICHCMP__).unwrap();
+        (richcmp_impl, richcmp_slot)
     };
 
-    let mut default_methods = vec![default_repr_impl, default_richcmp, default_int];
+    let default_slots = vec![default_repr_slot, default_int_slot, default_richcmp_slot];
 
     let pyclass_impls = PyClassImplsBuilder::new(
         cls,
         args,
         methods_type,
         enum_default_methods(cls, variants.iter().map(|v| v.ident)),
-        enum_default_slots(cls, &mut default_methods),
+        default_slots,
     )
     .doc(doc)
     .impl_all();
@@ -521,11 +524,34 @@ fn impl_enum_class(
 
             #pyclass_impls
 
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
             impl #cls {
-                #(#default_methods)*
+                #default_repr
+                #default_int
+                #default_richcmp
             }
         };
     }
+}
+
+fn generate_default_protocol_slot(
+    cls: &syn::Type,
+    method: &mut syn::ImplItemMethod,
+    slot: &SlotDef,
+) -> syn::Result<TokenStream> {
+    let spec = FnSpec::parse(
+        &mut method.sig,
+        &mut Vec::new(),
+        PyFunctionOptions::default(),
+    )
+    .unwrap();
+    let name = spec.name.to_string();
+    slot.generate_type_slot(
+        &syn::parse_quote!(#cls),
+        &spec,
+        &format!("__default_{}__", name),
+    )
 }
 
 fn enum_default_methods<'a>(
@@ -548,13 +574,6 @@ fn enum_default_methods<'a>(
         .into_iter()
         .map(|var| gen_py_const(&cls_type, &variant_to_attribute(var)))
         .collect()
-}
-
-fn enum_default_slots(
-    cls: &syn::Ident,
-    default_items: &mut [syn::ImplItemMethod],
-) -> Vec<TokenStream> {
-    gen_default_items(cls, default_items).collect()
 }
 
 fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVariant<'_>> {

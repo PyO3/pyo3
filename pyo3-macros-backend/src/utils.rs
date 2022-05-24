@@ -171,21 +171,6 @@ pub(crate) fn remove_lifetime(tref: &syn::TypeReference) -> syn::TypeReference {
     tref
 }
 
-/// Replace `Self` keyword in type with `cls`
-pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
-    match ty {
-        syn::Type::Reference(tref) => replace_self(&mut tref.elem, cls),
-        syn::Type::Path(tpath) => {
-            if let Some(ident) = tpath.path.get_ident() {
-                if ident == "Self" {
-                    *ty = cls.to_owned();
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
 /// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
 pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
     attr.as_ref()
