@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::borrow::Cow;
+
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, TextSignatureAttribute,
@@ -282,12 +284,12 @@ impl FieldPyO3Options {
     }
 }
 
-fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> &'a syn::Ident {
+fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
     args.options
         .name
         .as_ref()
-        .map(|name_attr| &name_attr.value.0)
-        .unwrap_or(cls)
+        .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
+        .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
 fn impl_class(

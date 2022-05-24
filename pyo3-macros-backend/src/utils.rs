@@ -1,7 +1,9 @@
+use std::borrow::Cow;
+
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, Ident};
 
 use crate::attributes::{CrateAttribute, TextSignatureAttribute};
 
@@ -66,7 +68,7 @@ pub struct PythonDoc(TokenStream);
 /// e.g. concat!("...", "\n", "\0")
 pub fn get_doc(
     attrs: &[syn::Attribute],
-    text_signature: Option<(&syn::Ident, &TextSignatureAttribute)>,
+    text_signature: Option<(Cow<'_, Ident>, &TextSignatureAttribute)>,
 ) -> PythonDoc {
     let mut tokens = TokenStream::new();
     let comma = syn::token::Comma(Span::call_site());

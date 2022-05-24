@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::borrow::Cow;
+
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
@@ -408,7 +410,7 @@ pub fn impl_wrap_pyfunction(
         options
             .text_signature
             .as_ref()
-            .map(|attr| (&python_name, attr)),
+            .map(|attr| (Cow::Borrowed(&python_name), attr)),
     );
 
     let krate = get_pyo3_crate(&options.krate);

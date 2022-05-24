@@ -902,6 +902,7 @@ impl r#RawIdents {
 fn test_raw_idents() {
     Python::with_gil(|py| {
         let raw_idents_type = py.get_type::<r#RawIdents>();
+        assert_eq!(raw_idents_type.name().unwrap(), "RawIdents");
         py_run!(
             py,
             raw_idents_type,
