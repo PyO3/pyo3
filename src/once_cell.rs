@@ -2,7 +2,7 @@
 use crate::{types::PyString, Py, Python};
 use std::cell::UnsafeCell;
 
-/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/1.4.0/once_cell/).
+/// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/latest/once_cell/).
 ///
 /// Unlike `once_cell::sync` which blocks threads to achieve thread safety, this implementation
 /// uses the Python GIL to mediate concurrent access. This helps in cases where `once_sync` or
@@ -71,21 +71,39 @@ impl<T> GILOnceCell<T> {
             return value;
         }
 
+        match self.init(py, || Ok::<T, std::convert::Infallible>(f())) {
+            Ok(value) => value,
+            Err(void) => match void {},
+        }
+    }
+
+    /// Like `get_or_init`, but accepts a fallible initialization function.
+    ///
+    /// If it fails, the cell is left uninitialized.
+    #[inline]
+    pub fn get_or_try_init<F, E>(&self, py: Python<'_>, f: F) -> Result<&T, E>
+    where
+        F: FnOnce() -> Result<T, E>,
+    {
+        if let Some(value) = self.get(py) {
+            return Ok(value);
+        }
+
         self.init(py, f)
     }
 
     #[cold]
-    fn init<F>(&self, py: Python<'_>, f: F) -> &T
+    fn init<F, E>(&self, py: Python<'_>, f: F) -> Result<&T, E>
     where
-        F: FnOnce() -> T,
+        F: FnOnce() -> Result<T, E>,
     {
         // Note that f() could temporarily release the GIL, so it's possible that another thread
         // writes to this GILOnceCell before f() finishes. That's fine; we'll just have to discard
         // the value computed here and accept a bit of wasted computation.
-        let value = f();
+        let value = f()?;
         let _ = self.set(py, value);
 
-        self.get(py).unwrap()
+        Ok(self.get(py).unwrap())
     }
 
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
@@ -193,5 +211,22 @@ mod tests {
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
         });
+    }
+
+    #[test]
+    fn test_once_cell() {
+        Python::with_gil(|py| {
+            let cell = GILOnceCell::new();
+
+            assert!(cell.get(py).is_none());
+
+            assert_eq!(cell.get_or_try_init(py, || Err(5)), Err(5));
+            assert!(cell.get(py).is_none());
+
+            assert_eq!(cell.get_or_try_init(py, || Ok::<_, ()>(2)), Ok(&2));
+            assert_eq!(cell.get(py), Some(&2));
+
+            assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
+        })
     }
 }
