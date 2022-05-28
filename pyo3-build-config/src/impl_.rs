@@ -440,6 +440,25 @@ print("mingw", get_platform().startswith("mingw"))
         let version = version.ok_or("missing value for version")?;
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
         let abi3 = abi3.unwrap_or(false);
+        // Fixup lib_name if it's not set
+        let lib_name = lib_name.or_else(|| {
+            if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
+                if target.operating_system == OperatingSystem::Windows {
+                    Some(default_lib_name_windows(
+                        version,
+                        implementation,
+                        abi3,
+                        false,
+                    ))
+                } else if is_linking_libpython_for_target(&target) {
+                    Some(default_lib_name_unix(version, implementation, None))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
 
         Ok(InterpreterConfig {
             implementation,
@@ -458,19 +477,11 @@ print("mingw", get_platform().startswith("mingw"))
 
     #[allow(clippy::unnecessary_wraps)]
     pub fn fixup_import_libs(&mut self) -> Result<()> {
-        let target = target_triple_from_env();
-        if self.lib_name.is_none() && target.operating_system == OperatingSystem::Windows {
-            self.lib_name = Some(default_lib_name_windows(
-                self.version,
-                self.implementation,
-                self.abi3,
-                false,
-            ));
-        }
         // Auto generate python3.dll import libraries for Windows targets.
         #[cfg(feature = "python3-dll-a")]
         {
             if self.lib_dir.is_none() {
+                let target = target_triple_from_env();
                 let py_version = if self.abi3 { None } else { Some(self.version) };
                 self.lib_dir = self::import_lib::generate_import_lib(&target, py_version)?;
             }
