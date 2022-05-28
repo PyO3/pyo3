@@ -464,17 +464,21 @@ print("mingw", get_platform().startswith("mingw"))
         })
     }
 
+    #[cfg(feature = "python3-dll-a")]
     #[allow(clippy::unnecessary_wraps)]
-    pub fn fixup_import_libs(&mut self) -> Result<()> {
+    pub fn generate_import_libs(&mut self) -> Result<()> {
         // Auto generate python3.dll import libraries for Windows targets.
-        #[cfg(feature = "python3-dll-a")]
-        {
-            if self.lib_dir.is_none() {
-                let target = target_triple_from_env();
-                let py_version = if self.abi3 { None } else { Some(self.version) };
-                self.lib_dir = self::import_lib::generate_import_lib(&target, py_version)?;
-            }
+        if self.lib_dir.is_none() {
+            let target = target_triple_from_env();
+            let py_version = if self.abi3 { None } else { Some(self.version) };
+            self.lib_dir = import_lib::generate_import_lib(&target, py_version)?;
         }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "python3-dll-a"))]
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn generate_import_libs(&mut self) -> Result<()> {
         Ok(())
     }
 
