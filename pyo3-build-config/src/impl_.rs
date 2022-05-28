@@ -443,18 +443,7 @@ print("mingw", get_platform().startswith("mingw"))
         // Fixup lib_name if it's not set
         let lib_name = lib_name.or_else(|| {
             if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
-                if target.operating_system == OperatingSystem::Windows {
-                    Some(default_lib_name_windows(
-                        version,
-                        implementation,
-                        abi3,
-                        false,
-                    ))
-                } else if is_linking_libpython_for_target(&target) {
-                    Some(default_lib_name_unix(version, implementation, None))
-                } else {
-                    None
-                }
+                default_lib_name_for_target(version, implementation, abi3, &target)
             } else {
                 None
             }
@@ -1423,18 +1412,8 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
 
-    let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
-        Some(default_lib_name_windows(
-            version,
-            implementation,
-            abi3,
-            false,
-        ))
-    } else if is_linking_libpython_for_target(&cross_compile_config.target) {
-        Some(default_lib_name_unix(version, implementation, None))
-    } else {
-        None
-    };
+    let lib_name =
+        default_lib_name_for_target(version, implementation, abi3, &cross_compile_config.target);
 
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
@@ -1542,6 +1521,26 @@ fn load_cross_compile_config(
 //
 // This contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
+
+fn default_lib_name_for_target(
+    version: PythonVersion,
+    implementation: PythonImplementation,
+    abi3: bool,
+    target: &Triple,
+) -> Option<String> {
+    if target.operating_system == OperatingSystem::Windows {
+        Some(default_lib_name_windows(
+            version,
+            implementation,
+            abi3,
+            false,
+        ))
+    } else if is_linking_libpython_for_target(target) {
+        Some(default_lib_name_unix(version, implementation, None))
+    } else {
+        None
+    }
+}
 
 fn default_lib_name_windows(
     version: PythonVersion,
