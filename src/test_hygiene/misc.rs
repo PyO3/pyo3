@@ -33,3 +33,15 @@ fn intern(py: crate::Python<'_>) {
     let _foo = crate::intern!(py, "foo");
     let _bar = crate::intern!(py, stringify!(bar));
 }
+
+#[allow(dead_code)]
+#[cfg(not(PyPy))]
+fn append_to_inittab() {
+    #[crate::pymodule]
+    #[pyo3(crate = "crate")]
+    #[allow(clippy::unnecessary_wraps)]
+    fn module_for_inittab(_: crate::Python<'_>, _: &crate::types::PyModule) -> crate::PyResult<()> {
+        ::std::result::Result::Ok(())
+    }
+    crate::append_to_inittab!(module_for_inittab);
+}

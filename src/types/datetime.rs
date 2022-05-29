@@ -153,9 +153,9 @@ pub trait PyTimeAccess {
     /// Returns whether this date is the later of two moments with the
     /// same representation, during a repeated interval.
     ///
-    /// This typically occurs at the end of daylight savings time, or during
-    /// leap seconds. Only valid if the represented time is ambiguous. See
-    /// [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
+    /// This typically occurs at the end of daylight savings time. Only valid if the
+    /// represented time is ambiguous.
+    /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool;
 }
@@ -267,7 +267,12 @@ impl PyDateTime {
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
-    /// signifies a leap second
+    /// signifies this this datetime is the later of two moments with the same representation,
+    /// during a repeated interval.
+    ///
+    /// This typically occurs at the end of daylight savings time. Only valid if the
+    /// represented time is ambiguous.
+    /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[cfg(not(PyPy))]
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_fold<'p>(
@@ -413,7 +418,7 @@ impl PyTime {
     }
 
     #[cfg(not(PyPy))]
-    /// Alternate constructor that takes a `fold` argument
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         hour: u8,

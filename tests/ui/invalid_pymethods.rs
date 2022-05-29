@@ -135,4 +135,16 @@ impl TwoNew {
     fn new_2() -> Self { Self { } }
 }
 
+struct DuplicateMethod { }
+
+#[pymethods]
+impl DuplicateMethod {
+    #[pyo3(name = "func")]
+    fn func_a(&self) { }
+
+    #[pyo3(name = "func")]
+    fn func_b(&self) { }
+}
+
+
 fn main() {}

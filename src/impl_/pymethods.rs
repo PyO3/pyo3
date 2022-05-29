@@ -76,7 +76,7 @@ pub struct PyGetter(pub ffi::getter);
 #[derive(Clone, Copy, Debug)]
 pub struct PySetter(pub ffi::setter);
 #[derive(Clone, Copy)]
-pub struct PyClassAttributeFactory(pub for<'p> fn(Python<'p>) -> PyObject);
+pub struct PyClassAttributeFactory(pub for<'p> fn(Python<'p>) -> PyResult<PyObject>);
 
 // TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
 // until `CStr::from_bytes_with_nul_unchecked` is const fn.

@@ -150,3 +150,26 @@ macro_rules! wrap_pymodule {
         }
     };
 }
+
+/// Add the module to the initialization table in order to make embedded Python code to use it.
+/// Module name is the argument.
+///
+/// Use it before [`prepare_freethreaded_python`](crate::prepare_freethreaded_python) and
+/// leave feature `auto-initialize` off
+#[cfg(not(PyPy))]
+#[macro_export]
+macro_rules! append_to_inittab {
+    ($module:ident) => {
+        unsafe {
+            if $crate::ffi::Py_IsInitialized() != 0 {
+                ::std::panic!(
+                    "called `append_to_inittab` but a Python interpreter is already running."
+                );
+            }
+            $crate::ffi::PyImport_AppendInittab(
+                $module::NAME.as_ptr() as *const ::std::os::raw::c_char,
+                ::std::option::Option::Some($module::init),
+            );
+        }
+    };
+}
