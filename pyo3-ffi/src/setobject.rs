@@ -31,7 +31,7 @@ pub struct PySetObject {
 
 // skipped
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     debug_assert_eq!(PyAnySet_Check(so), 1);
     let so = so.cast::<PySetObject>();

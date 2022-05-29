@@ -19,7 +19,7 @@ pub struct PyFunctionObject {
     pub func_annotations: *mut PyObject,
     pub func_qualname: *mut PyObject,
     #[cfg(Py_3_8)]
-    pub vectorcall: vectorcallfunc,
+    pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
 #[cfg(all(not(PyPy), not(Py_LIMITED_API), Py_3_10))]
