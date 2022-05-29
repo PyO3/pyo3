@@ -417,6 +417,20 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_set_iter_mutation_same_len() {
+        Python::with_gil(|py| {
+            let set = PySet::new(py, &[1, 2, 3, 4, 5]).unwrap();
+
+            for item in set {
+                let item: i32 = item.extract().unwrap();
+                let _ = set.del_item(item);
+                let _ = set.add(item+10);
+            }
+        });
+    }
+
+    #[test]
     fn test_set_iter_size_hint() {
         Python::with_gil(|py| {
             let set = PySet::new(py, &[1]).unwrap();
