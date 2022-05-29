@@ -8,7 +8,7 @@ use std::os::raw::c_int;
 
 // skipped _PyInterpreterState_GetMainModule
 
-pub type Py_tracefunc = extern "C" fn(
+pub type Py_tracefunc = unsafe extern "C" fn(
     obj: *mut PyObject,
     frame: *mut PyFrameObject,
     what: c_int,
