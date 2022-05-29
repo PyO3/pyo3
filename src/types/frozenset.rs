@@ -142,7 +142,7 @@ mod impl_ {
     }
 }
 
-use impl_::*;
+pub use impl_::*;
 
 #[cfg(test)]
 mod tests {

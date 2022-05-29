@@ -425,7 +425,7 @@ mod tests {
             for item in set {
                 let item: i32 = item.extract().unwrap();
                 let _ = set.del_item(item);
-                let _ = set.add(item+10);
+                let _ = set.add(item + 10);
             }
         });
     }
