@@ -66,10 +66,19 @@ pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
 };
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PyModuleDef_Slot {
     pub slot: c_int,
     pub value: *mut c_void,
+}
+
+impl Default for PyModuleDef_Slot {
+    fn default() -> PyModuleDef_Slot {
+        PyModuleDef_Slot {
+            slot: 0,
+            value: std::ptr::null_mut(),
+        }
+    }
 }
 
 pub const Py_mod_create: c_int = 1;

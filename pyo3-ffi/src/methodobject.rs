@@ -1,8 +1,18 @@
 use crate::object::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_9)]
 use crate::PyObject_TypeCheck;
-use std::mem;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_void};
+use std::{mem, ptr};
+
+#[cfg(not(Py_LIMITED_API))]
+pub struct PyCFunctionObject {
+    pub ob_base: PyObject,
+    pub m_ml: *mut PyMethodDef,
+    pub m_self: *mut PyObject,
+    pub m_module: *mut PyObject,
+    pub m_weakreflist: *mut PyObject,
+    pub vectorcall: Option<crate::vectorcallfunc>,
+}
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -75,12 +85,25 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct PyMethodDef {
     pub ml_name: *const c_char,
     pub ml_meth: PyMethodDefPointer,
     pub ml_flags: c_int,
     pub ml_doc: *const c_char,
+}
+
+impl Default for PyMethodDef {
+    fn default() -> PyMethodDef {
+        PyMethodDef {
+            ml_name: ptr::null(),
+            ml_meth: PyMethodDefPointer {
+                Void: ptr::null_mut(),
+            },
+            ml_flags: 0,
+            ml_doc: ptr::null(),
+        }
+    }
 }
 
 /// Function types used to implement Python callables.
@@ -92,7 +115,7 @@ pub struct PyMethodDef {
 ///
 /// [1]: https://docs.python.org/3/c-api/structures.html#implementing-functions-and-methods
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq)]
 pub union PyMethodDefPointer {
     /// This variant corresponds with [`METH_VARARGS`] *or* [`METH_NOARGS`] *or* [`METH_O`].
     pub PyCFunction: PyCFunction,
@@ -111,6 +134,31 @@ pub union PyMethodDefPointer {
     /// This variant corresponds with [`METH_METHOD`] | [`METH_FASTCALL`] | [`METH_KEYWORDS`].
     #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
     pub PyCMethod: PyCMethod,
+
+    Void: *mut c_void,
+}
+
+impl PyMethodDefPointer {
+    pub fn as_ptr(&self) -> *mut c_void {
+        unsafe { self.Void }
+    }
+
+    pub fn is_null(&self) -> bool {
+        self.as_ptr().is_null()
+    }
+}
+
+impl PartialEq for PyMethodDefPointer {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { self.Void == other.Void }
+    }
+}
+
+impl std::fmt::Pointer for PyMethodDefPointer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ptr = unsafe { self.Void };
+        std::fmt::Pointer::fmt(&ptr, f)
+    }
 }
 
 // TODO: This can be a const assert on Rust 1.57

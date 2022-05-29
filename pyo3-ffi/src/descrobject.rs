@@ -2,19 +2,32 @@ use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
 use crate::structmember::PyMemberDef;
 use std::os::raw::{c_char, c_int, c_void};
+use std::ptr;
 
 pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
 pub type setter =
     unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PyGetSetDef {
     pub name: *mut c_char,
     pub get: Option<getter>,
     pub set: Option<setter>,
     pub doc: *mut c_char,
     pub closure: *mut c_void,
+}
+
+impl Default for PyGetSetDef {
+    fn default() -> PyGetSetDef {
+        PyGetSetDef {
+            name: ptr::null_mut(),
+            get: None,
+            set: None,
+            doc: ptr::null_mut(),
+            closure: ptr::null_mut(),
+        }
+    }
 }
 
 // skipped non-limited wrapperfunc

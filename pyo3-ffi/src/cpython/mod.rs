@@ -16,6 +16,9 @@ pub(crate) mod import;
 pub(crate) mod initconfig;
 // skipped interpreteridobject.h
 pub(crate) mod listobject;
+
+#[cfg(all(Py_3_9, not(PyPy)))]
+pub(crate) mod methodobject;
 pub(crate) mod object;
 pub(crate) mod pydebug;
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -41,6 +44,8 @@ pub use self::import::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::initconfig::*;
 pub use self::listobject::*;
+#[cfg(all(Py_3_9, not(PyPy)))]
+pub use self::methodobject::*;
 pub use self::object::*;
 pub use self::pydebug::*;
 #[cfg(all(Py_3_8, not(PyPy)))]

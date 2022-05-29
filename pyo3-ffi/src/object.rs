@@ -371,10 +371,12 @@ pub const Py_TPFLAGS_HAVE_GC: c_ulong = 1 << 14;
 
 const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_ulong = 0;
 
-// skipped Py_TPFLAGS_METHOD_DESCRIPTOR
+#[cfg(Py_3_8)]
+pub const Py_TPFLAGS_METHOD_DESCRIPTOR: c_ulong = 1 << 17;
 
-/// Objects support type attribute cache
+/// This flag does nothing in Python 3.10+
 pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
+
 pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = 1 << 19;
 
 /* Type is abstract and cannot be instantiated */

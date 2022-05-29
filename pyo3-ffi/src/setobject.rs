@@ -29,9 +29,20 @@ pub struct PySetObject {
     pub weakreflist: *mut PyObject,
 }
 
-// skipped PySet_GET_SIZE
+// skipped
+#[inline]
+#[cfg(not(PyPy))]
+pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
+    debug_assert_eq!(PyAnySet_Check(so), 1);
+    let so = so.cast::<PySetObject>();
+    (*so).used
+}
 
-// skipped _PySet_Dummy
+#[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub static mut _PySet_Dummy: *mut PyObject;
+}
 
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]

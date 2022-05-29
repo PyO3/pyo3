@@ -2,7 +2,50 @@ use std::os::raw::c_int;
 
 use crate::object::{PyObject, PyTypeObject, Py_TYPE};
 
-// skipped PyFunctionObject
+#[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
+#[repr(C)]
+pub struct PyFunctionObject {
+    pub ob_base: PyObject,
+    pub func_code: *mut PyObject,
+    pub func_globals: *mut PyObject,
+    pub func_defaults: *mut PyObject,
+    pub func_kwdefaults: *mut PyObject,
+    pub func_closure: *mut PyObject,
+    pub func_doc: *mut PyObject,
+    pub func_name: *mut PyObject,
+    pub func_dict: *mut PyObject,
+    pub func_weakreflist: *mut PyObject,
+    pub func_module: *mut PyObject,
+    pub func_annotations: *mut PyObject,
+    pub func_qualname: *mut PyObject,
+    #[cfg(Py_3_8)]
+    pub vectorcall: vectorcallfunc,
+}
+
+#[cfg(all(not(PyPy), not(Py_LIMITED_API), Py_3_10))]
+#[repr(C)]
+pub struct PyFunctionObject {
+    pub ob_base: PyObject,
+    pub func_globals: *mut PyObject,
+    pub func_builtins: *mut PyObject,
+    pub func_name: *mut PyObject,
+    pub func_qualname: *mut PyObject,
+    pub func_code: *mut PyObject,
+    pub func_defaults: *mut PyObject,
+    pub func_kwdefaults: *mut PyObject,
+    pub func_closure: *mut PyObject,
+    pub func_doc: *mut PyObject,
+    pub func_dict: *mut PyObject,
+    pub func_weakreflist: *mut PyObject,
+    pub func_module: *mut PyObject,
+    pub func_annotations: *mut PyObject,
+    pub vectorcall: Option<crate::vectorcallfunc>,
+    #[cfg(Py_3_11)]
+    pub func_version: u32,
+}
+
+#[cfg(any(PyPy, Py_LIMITED_API))]
+opaque_struct!(PyFunctionObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

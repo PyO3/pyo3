@@ -4,6 +4,9 @@ use std::os::raw::c_int;
 
 opaque_struct!(PyDictKeysObject);
 
+#[cfg(Py_3_11)]
+opaque_struct!(PyDictValues);
+
 #[repr(C)]
 #[derive(Debug)]
 // Not moved because dict.rs uses PyDictObject extensively.
@@ -12,7 +15,10 @@ pub struct PyDictObject {
     pub ma_used: Py_ssize_t,
     pub ma_version_tag: u64,
     pub ma_keys: *mut PyDictKeysObject,
+    #[cfg(not(Py_3_11))]
     pub ma_values: *mut *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub ma_values: *mut PyDictValues,
 }
 
 extern "C" {
