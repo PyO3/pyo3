@@ -15,6 +15,7 @@ pub use self::datetime::{
 };
 pub use self::dict::{IntoPyDict, PyDict};
 pub use self::floatob::PyFloat;
+pub use self::frozenset::PyFrozenSet;
 pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
@@ -23,7 +24,7 @@ pub use self::module::PyModule;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
-pub use self::set::{PyFrozenSet, PySet};
+pub use self::set::PySet;
 pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 pub use self::string::PyStringData;
@@ -31,6 +32,42 @@ pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::traceback::PyTraceback;
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
+
+/// Iteration over Python collections.
+///
+/// When working with a Python collection, one approach is to convert it to a Rust collection such
+/// as `Vec` or `HashMap`. However this is a relatively expensive operation. If you just want to
+/// visit all their items, consider iterating over the collections directly:
+///
+/// # Examples
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::types::PyDict;
+///
+/// # pub fn main() -> PyResult<()> {
+/// Python::with_gil(|py| {
+///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.cast_as()?;
+///
+///     for (key, value) in dict {
+///         println!("key: {}, value: {}", key, value);
+///     }
+///
+///     Ok(())
+/// })
+/// # }
+///  ```
+///
+/// If PyO3 detects that the collection is mutated during iteration, it will panic.
+///
+/// These iterators use Python's C-API directly. However in certain cases, like when compiling for
+/// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
+/// In these cases the iterators are implemented by forwarding to [`PyIterator`].
+pub mod iter {
+    pub use super::dict::PyDictIterator;
+    pub use super::frozenset::PyFrozenSetIterator;
+    pub use super::set::PySetIterator;
+}
 
 // Implementations core to all native types
 #[doc(hidden)]
@@ -225,6 +262,7 @@ mod complex;
 mod datetime;
 mod dict;
 mod floatob;
+mod frozenset;
 mod function;
 mod iterator;
 mod list;
