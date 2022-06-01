@@ -7,6 +7,8 @@ pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::bytes::PyBytes;
 pub use self::capsule::PyCapsule;
+#[cfg(not(Py_LIMITED_API))]
+pub use self::code::PyCode;
 pub use self::complex::PyComplex;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{
@@ -15,6 +17,8 @@ pub use self::datetime::{
 };
 pub use self::dict::{IntoPyDict, PyDict};
 pub use self::floatob::PyFloat;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+pub use self::frame::PyFrame;
 pub use self::frozenset::PyFrozenSet;
 pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
@@ -257,11 +261,15 @@ mod boolobject;
 mod bytearray;
 mod bytes;
 mod capsule;
+#[cfg(not(Py_LIMITED_API))]
+mod code;
 mod complex;
 #[cfg(not(Py_LIMITED_API))]
 mod datetime;
 mod dict;
 mod floatob;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+mod frame;
 mod frozenset;
 mod function;
 mod iterator;
