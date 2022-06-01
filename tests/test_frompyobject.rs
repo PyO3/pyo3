@@ -399,6 +399,21 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 - variant StructWithGetItem (StructWithGetItem): 'a'
 - variant StructWithGetItemArg (StructWithGetItemArg): 'foo'"
         );
+
+        let tup = PyTuple::empty(py);
+        let err = Foo::extract(tup.as_ref()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "\
+TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple | TransparentStructVar | StructVarGetAttrArg | StructWithGetItem | StructWithGetItemArg')
+- variant TupleVar (TupleVar): expected tuple of length 2, but got tuple of length 0
+- variant StructVar (StructVar): 'tuple' object has no attribute 'test'
+- variant TransparentTuple (TransparentTuple): 'tuple' object cannot be interpreted as an integer
+- variant TransparentStructVar (TransparentStructVar): failed to extract field Foo :: TransparentStructVar.a
+- variant StructVarGetAttrArg (StructVarGetAttrArg): 'tuple' object has no attribute 'bla'
+- variant StructWithGetItem (StructWithGetItem): tuple indices must be integers or slices, not str
+- variant StructWithGetItemArg (StructWithGetItemArg): tuple indices must be integers or slices, not str"
+        );
     });
 }
 
@@ -497,6 +512,23 @@ fn test_from_py_with_tuple_struct() {
 
         assert_eq!(zap.0, "whatever");
         assert_eq!(zap.1, 3usize);
+    });
+}
+
+#[test]
+fn test_from_py_with_tuple_struct_error() {
+    Python::with_gil(|py| {
+        let py_zap = py
+            .eval(r#"("whatever", [1, 2, 3], "third")"#, None, None)
+            .expect("failed to create tuple");
+
+        let f = ZapTuple::extract(py_zap);
+
+        assert!(f.is_err());
+        assert_eq!(
+            f.unwrap_err().to_string(),
+            "ValueError: expected tuple of length 2, but got tuple of length 3"
+        );
     });
 }
 
