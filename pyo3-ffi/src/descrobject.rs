@@ -30,19 +30,81 @@ impl Default for PyGetSetDef {
     }
 }
 
-// skipped non-limited wrapperfunc
-// skipped non-limited wrapperfunc_kwds
-// skipped non-limited struct wrapperbase
-// skipped non-limited PyWrapperFlag_KEYWORDS
+#[cfg(not(Py_LIMITED_API))]
+pub type wrapperfunc = Option<
+    unsafe extern "C" fn(
+        slf: *mut PyObject,
+        args: *mut PyObject,
+        wrapped: *mut c_void,
+    ) -> *mut PyObject,
+>;
 
-// skipped non-limited PyDescrObject
-// skipped non-limited PyDescr_COMMON
+#[cfg(not(Py_LIMITED_API))]
+pub type wrapperfunc_kwds = Option<
+    unsafe extern "C" fn(
+        slf: *mut PyObject,
+        args: *mut PyObject,
+        wrapped: *mut c_void,
+        kwds: *mut PyObject,
+    ) -> *mut PyObject,
+>;
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct wrapperbase {
+    pub name: *const c_char,
+    pub offset: c_int,
+    pub function: *mut c_void,
+    pub wrapper: wrapperfunc,
+    pub doc: *const c_char,
+    pub flags: c_int,
+    pub name_strobj: *mut PyObject,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+pub const PyWrapperFlag_KEYWORDS: c_int = 1;
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct PyDescrObject {
+    pub ob_base: PyObject,
+    pub d_type: *mut PyTypeObject,
+    pub d_name: *mut PyObject,
+    pub d_qualname: *mut PyObject,
+}
+
 // skipped non-limited PyDescr_TYPE
 // skipped non-limited PyDescr_NAME
-// skipped non-limited PyMethodDescrObject
-// skipped non-limited PyMemberDescrObject
-// skipped non-limited PyGetSetDescrObject
-// skipped non-limited PyWrapperDescrObject
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct PyMethodDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_method: *mut PyMethodDef,
+    pub vectorcall: Option<crate::vectorcallfunc>,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct PyMemberDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_member: *mut PyGetSetDef,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct PyGetSetDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_getset: *mut PyGetSetDef,
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[repr(C)]
+pub struct PyWrapperDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_base: *mut wrapperbase,
+    pub d_wrapped: *mut c_void,
+}
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
