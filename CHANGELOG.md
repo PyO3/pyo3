@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix FFI definition `PyGenObject` having multiple incorrect members on various Python versions. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 - Fix FFI definition `PySyntaxErrorObject` missing members `end_lineno` and `end_offset` on Python 3.10 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 - Fix FFI definition `PyHeapTypeObject` missing member `ht_module` on Python 3.9 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
+- Fix FFI definition `PyFrameObject` having multiple incorrect members on various Python versions. [#2424](https://github.com/PyO3/pyo3/pull/2424)
 
 ## [0.16.5] - 2022-05-15
 
