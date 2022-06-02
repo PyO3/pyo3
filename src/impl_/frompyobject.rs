@@ -8,6 +8,7 @@ pub fn failed_to_extract_enum(
     error_names: &[&str],
     errors: &[PyErr],
 ) -> PyErr {
+    // TODO maybe use ExceptionGroup on Python 3.11+ ?
     let mut err_msg = format!(
         "failed to extract enum {} ('{}')",
         type_name,
@@ -19,10 +20,21 @@ pub fn failed_to_extract_enum(
             "- variant {variant_name} ({error_name}): {error_msg}",
             variant_name = variant_name,
             error_name = error_name,
-            error_msg = error.value(py).str().unwrap().to_str().unwrap(),
+            error_msg = extract_traceback(py, error.clone_ref(py)),
         ));
     }
     PyTypeError::new_err(err_msg)
+}
+
+/// Flattens a chain of errors into a single string.
+fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
+    let mut error_msg = error.to_string();
+    while let Some(cause) = error.cause(py) {
+        error_msg.push_str(", caused by ");
+        error_msg.push_str(&cause.to_string());
+        error = cause
+    }
+    error_msg
 }
 
 pub fn extract_struct_field<'py, T>(
