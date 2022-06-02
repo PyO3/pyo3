@@ -17,6 +17,13 @@ pub struct PyGetSetDef {
     pub closure: *mut c_void,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct PyDictProxyObject {
+    pub ob_base: PyObject,
+    pub mapping: PyObject
+}
+
 // skipped non-limited wrapperfunc
 // skipped non-limited wrapperfunc_kwds
 // skipped non-limited struct wrapperbase
