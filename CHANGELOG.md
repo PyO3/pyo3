@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Add `PyDictKeys`, `PyDictValues` and `PyDictItems` Rust types to represent `dict_keys`, `dict_values` and `dict_items` types. [#2358](https://github.com/PyO3/pyo3/pull/2358)
 - Add macro `append_to_inittab`. [#2377](https://github.com/PyO3/pyo3/pull/2377)
+- Add FFI definition `PyFrame_GetCode`. [#2406](https://github.com/PyO3/pyo3/pull/2406)
 - Added `PyCode` and `PyFrame` high level objects. [#2408](https://github.com/PyO3/pyo3/pull/2408)
 
 ### Changed
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed incorrectly disabled FFI definition `PyThreadState_DeleteCurrent`. [#2357](https://github.com/PyO3/pyo3/pull/2357)
 - Correct FFI definition `PyEval_EvalCodeEx` to take `*const *mut PyObject` array arguments instead of `*mut *mut PyObject` (this was changed in CPython 3.6). [#2368](https://github.com/PyO3/pyo3/pull/2368)
 - Fix "raw-ident" structs (e.g. `#[pyclass] struct r#RawName`) incorrectly having `r#` at the start of the class name created in Python. [#2395](https://github.com/PyO3/pyo3/pull/2395)
+- Correct FFI definition `Py_tracefunc` to be `unsafe extern "C" fn` (was previously safe). [#2407](https://github.com/PyO3/pyo3/pull/2407)
 - Fix case where `ValueError` without message could be raised by the `#[derive(FromPyObject)]` generated implementation for a tuple struct. [#2414](https://github.com/PyO3/pyo3/pull/2414)
 - Fix compile failure when using `#[pyo3(from_py_with = "pouf")]` in on a field in a `#[derive(FromPyObject)]` struct. [#2414](https://github.com/PyO3/pyo3/pull/2414)
 - Fix FFI definitions `_PyDateTime_BaseTime` lacking leading underscores in their names. [#2421](https://github.com/PyO3/pyo3/pull/2421)
