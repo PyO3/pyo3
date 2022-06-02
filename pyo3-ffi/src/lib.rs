@@ -301,8 +301,6 @@ pub use self::fileutils::*;
 pub use self::floatobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::funcobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::genobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -373,8 +371,6 @@ mod floatobject;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod funcobject;
 // skipped genericaliasobject.h
-#[cfg(not(Py_LIMITED_API))]
-mod genobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;

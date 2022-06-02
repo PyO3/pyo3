@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::PyFrameObject;
+use crate::{PyFrameObject, _PyErr_StackItem};
 use std::os::raw::c_int;
 
 #[repr(C)]
@@ -13,9 +13,13 @@ pub struct PyGenObject {
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
     pub gi_frame: *mut PyFrameObject,
+    #[cfg(not(Py_3_10))]
     pub gi_running: c_int,
     pub gi_code: *mut PyObject,
     pub gi_weakreflist: *mut PyObject,
+    pub gi_name: *mut PyObject,
+    pub gi_qualname: *mut PyObject,
+    pub gi_exc_state: _PyErr_StackItem,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
