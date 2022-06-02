@@ -36,12 +36,7 @@ impl<'a> Enum<'a> {
             .map(|variant| {
                 let attrs = ContainerOptions::from_attrs(&variant.attrs)?;
                 let var_ident = &variant.ident;
-                Container::new(
-                    &variant.fields,
-                    parse_quote!(#ident::#var_ident),
-                    attrs,
-                    true,
-                )
+                Container::new(&variant.fields, parse_quote!(#ident::#var_ident), attrs)
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -123,19 +118,13 @@ struct Container<'a> {
     path: syn::Path,
     ty: ContainerType<'a>,
     err_name: String,
-    is_enum_variant: bool,
 }
 
 impl<'a> Container<'a> {
     /// Construct a container based on fields, identifier and attributes.
     ///
     /// Fails if the variant has no fields or incompatible attributes.
-    fn new(
-        fields: &'a Fields,
-        path: syn::Path,
-        options: ContainerOptions,
-        is_enum_variant: bool,
-    ) -> Result<Self> {
+    fn new(fields: &'a Fields, path: syn::Path, options: ContainerOptions) -> Result<Self> {
         ensure_spanned!(
             !fields.is_empty(),
             fields.span() => "cannot derive FromPyObject for empty structs and variants"
@@ -195,9 +184,19 @@ impl<'a> Container<'a> {
             path,
             ty: style,
             err_name,
-            is_enum_variant,
         };
         Ok(v)
+    }
+
+    fn name(&self) -> String {
+        let mut value = String::new();
+        for segment in &self.path.segments {
+            if !value.is_empty() {
+                value.push_str("::");
+            }
+            value.push_str(&segment.ident.to_string());
+        }
+        value
     }
 
     /// Build derivation body for a struct.
@@ -212,37 +211,28 @@ impl<'a> Container<'a> {
 
     fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
         let self_ty = &self.path;
+        let struct_name = self.name();
         if let Some(ident) = field_ident {
-            let struct_name = quote!(#self_ty).to_string();
             let field_name = ident.to_string();
             quote!(
                 ::std::result::Result::Ok(#self_ty{
                     #ident: _pyo3::impl_::frompyobject::extract_struct_field(obj, #struct_name, #field_name)?
                 })
             )
-        } else if !self.is_enum_variant {
-            let error_msg = format!("failed to extract inner field of {}", quote!(#self_ty));
-            quote!(
-                ::std::result::Result::Ok(#self_ty(obj.extract().map_err(|err| {
-                    let py = _pyo3::PyNativeType::py(obj);
-                    let err_msg = ::std::format!("{}: {}",
-                        #error_msg,
-                        err.value(py).str().unwrap());
-                    _pyo3::exceptions::PyTypeError::new_err(err_msg)
-                })?))
-            )
         } else {
-            quote!(obj.extract().map(#self_ty))
+            quote!(
+                _pyo3::impl_::frompyobject::extract_tuple_struct_field(obj, #struct_name, 0).map(#self_ty)
+            )
         }
     }
 
     fn build_tuple_struct(&self, tups: &[FieldPyO3Attributes]) -> TokenStream {
         let self_ty = &self.path;
+        let struct_name = &self.name();
         let field_idents: Vec<_> = (0..tups.len())
             .into_iter()
             .map(|i| format_ident!("arg{}", i))
             .collect();
-        let struct_name = &quote!(#self_ty).to_string();
         let fields = tups.iter().zip(&field_idents).enumerate().map(|(index, (attrs, ident))| {
             match &attrs.from_py_with {
                 None => quote!(
@@ -265,9 +255,9 @@ impl<'a> Container<'a> {
 
     fn build_struct(&self, tups: &[(&Ident, FieldPyO3Attributes)]) -> TokenStream {
         let self_ty = &self.path;
+        let struct_name = &self.name();
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for (ident, attrs) in tups {
-            let struct_name = quote!(#self_ty).to_string();
             let field_name = ident.to_string();
             let getter = match &attrs.getter {
                 FieldGetter::GetAttr(Some(name)) => {
@@ -523,7 +513,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
                 bail_spanned!(lit_str.span() => "`annotation` is unsupported for structs");
             }
             let ident = &tokens.ident;
-            let st = Container::new(&st.fields, parse_quote!(#ident), options, false)?;
+            let st = Container::new(&st.fields, parse_quote!(#ident), options)?;
             st.build()
         }
         syn::Data::Union(_) => bail_spanned!(
