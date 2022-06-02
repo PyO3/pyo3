@@ -10,14 +10,23 @@ fn get_value_from_mappingproxy_of_strings(){
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let map = HashMap::new();
+    let mut map = HashMap::new();
     map.insert("first key", "first value");
     map.insert("second key", "second value");
     map.insert("third key", "third value");
 
-    let mappingproxy = map.iter().into_py_mappingproxy();
+    let mappingproxy = map.iter().into_py_mappingproxy(py).unwrap();
 
-    assert_eq!(map.iter(), mappingproxy.iter().map(|object| object.downcast::<PyString>().unwrap().to_str().unwrap()));
+    assert_eq!(
+        map.into_iter().collect::<Vec<(&str, &str)>>(),
+        mappingproxy.iter().map(
+            |object|
+                (
+                    object.0.downcast::<PyString>().unwrap().to_str().unwrap(),
+                    object.1.downcast::<PyString>().unwrap().to_str().unwrap()
+                )
+        ).collect::<Vec<(&str, &str)>>()
+    );
 }
 
 #[test]
@@ -25,13 +34,17 @@ fn get_value_from_mappingproxy_of_integers(){
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let map = (0..LEN).map(|i| (i, i - 1));
-    let mappingproxy = map.into_py_mappingproxy(py);
+    let items = (0..LEN).map(|i| (i, i - 1)).collect::<Vec<(usize, usize)>>();
+    let mappingproxy = items.to_vec().into_py_mappingproxy(py).unwrap();
     assert_eq!(
-        map,
+        items,
         mappingproxy.iter().map(
-            |object| object.downcast::<PyInt>().unwrap().extract::<usize>().unwrap()
-        )
+            |object|
+                (
+                    object.0.downcast::<PyInt>().unwrap().extract::<usize>().unwrap(),
+                    object.1.downcast::<PyInt>().unwrap().extract::<usize>().unwrap()
+                )
+        ).collect::<Vec<(usize, usize)>>()
     );
     for index in 0..LEN {
         assert_eq!(
@@ -45,7 +58,7 @@ fn get_value_from_mappingproxy_of_integers(){
 fn iter_mappingproxy_nosegv() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let mappingproxy = (0..LEN as u64).map(|i| (i, i * 2)).into_py_mappingproxy(py);
+    let mappingproxy = (0..LEN as u64).map(|i| (i, i * 2)).into_py_mappingproxy(py).unwrap();
 
     let mut sum = 0;
     for (k, _v) in mappingproxy.iter() {
