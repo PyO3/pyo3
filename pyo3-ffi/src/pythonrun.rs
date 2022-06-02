@@ -24,16 +24,6 @@ pub const PYOS_STACK_MARGIN: c_int = 2048;
 
 // skipped PyOS_CheckStack under Microsoft C
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-#[cfg(not(Py_LIMITED_API))]
-pub struct PyCompilerFlags {
-    pub cf_flags: c_int,
-}
-
-#[cfg(Py_LIMITED_API)]
-opaque_struct!(PyCompilerFlags);
-
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 opaque_struct!(_mod);
 

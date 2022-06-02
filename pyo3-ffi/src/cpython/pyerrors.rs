@@ -1,0 +1,111 @@
+use crate::{PyObject, Py_ssize_t};
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyBaseExceptionObject {
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PySyntaxErrorObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub msg: *mut PyObject,
+    pub filename: *mut PyObject,
+    pub lineno: *mut PyObject,
+    pub offset: *mut PyObject,
+    #[cfg(Py_3_10)]
+    pub end_lineno: *mut PyObject,
+    #[cfg(Py_3_10)]
+    pub end_offset: *mut PyObject,
+    pub text: *mut PyObject,
+    pub print_file_and_line: *mut PyObject,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyImportErrorObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub msg: *mut PyObject,
+    pub name: *mut PyObject,
+    pub path: *mut PyObject,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyUnicodeErrorObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub encoding: *mut PyObject,
+    pub object: *mut PyObject,
+    pub start: Py_ssize_t,
+    pub end: Py_ssize_t,
+    pub reason: *mut PyObject,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PySystemExitObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub code: *mut PyObject,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyOSErrorObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub myerrno: *mut PyObject,
+    pub strerror: *mut PyObject,
+    pub filename: *mut PyObject,
+    pub filename2: *mut PyObject,
+    #[cfg(windows)]
+    pub winerror: *mut PyObject,
+    pub written: Py_ssize_t,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyStopIterationObject {
+    pub exception_base: PyBaseExceptionObject,
+    pub value: *mut PyObject,
+}
+
+// skipped PyNameErrorObject
+// skipped PyAttributeErrorObject
+
+// skipped PyEnvironmentErrorObject
+// skipped PyWindowsErrorObject
+
+// skipped _PyErr_SetKeyError
+// skipped _PyErr_GetTopmostException
+// skipped _PyErr_GetExcInfo
+
+// skipped _PyErr_ChainExceptions
+
+// skipped PyErr_SetFromErrnoWithUnicodeFilename
+
+// skipped _PyErr_FormatFromCause
+
+// skipped PyErr_SetFromWindowsErrWithUnicodeFilename
+// skipped PyErr_SetExcFromWindowsErrWithUnicodeFilename
+
+// skipped _PyErr_TrySetFromCause
+
+// skipped PySignal_SetWakeupFd
+// skipped _PyErr_CheckSignals
+
+// skipped PyErr_SyntaxLocationObject
+// skipped PyErr_RangedSyntaxLocationObject
+// skipped PyErr_ProgramTextObject
+
+// skipped _PyErr_ProgramDecodedTextObject
+// skipped _PyUnicodeTranslateError_Create
+// skipped _PyErr_WriteUnraisableMsg
+// skipped _Py_FatalErrorFunc
+// skipped _Py_FatalErrorFormat
+// skipped Py_FatalError

@@ -11,6 +11,7 @@ pub(crate) mod dictobject;
 // skipped fileobject.h
 // skipped fileutils.h
 pub(crate) mod frameobject;
+pub(crate) mod genobject;
 pub(crate) mod import;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod initconfig;
@@ -18,6 +19,7 @@ pub(crate) mod initconfig;
 pub(crate) mod listobject;
 pub(crate) mod object;
 pub(crate) mod pydebug;
+pub(crate) mod pyerrors;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub(crate) mod pylifecycle;
 pub(crate) mod pymem;
@@ -37,12 +39,14 @@ pub use self::compile::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
 pub use self::frameobject::*;
+pub use self::genobject::*;
 pub use self::import::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::initconfig::*;
 pub use self::listobject::*;
 pub use self::object::*;
 pub use self::pydebug::*;
+pub use self::pyerrors::*;
 #[cfg(all(Py_3_8, not(PyPy)))]
 pub use self::pylifecycle::*;
 pub use self::pymem::*;

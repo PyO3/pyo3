@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add macro `append_to_inittab`. [#2377](https://github.com/PyO3/pyo3/pull/2377)
 - Add FFI definition `PyFrame_GetCode`. [#2406](https://github.com/PyO3/pyo3/pull/2406)
 - Added `PyCode` and `PyFrame` high level objects. [#2408](https://github.com/PyO3/pyo3/pull/2408)
+- Add FFI definitions `Py_fstring_input`, `sendfunc`, and `_PyErr_StackItem`. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 
 ### Changed
 
@@ -40,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix compile failure when using `#[pyo3(from_py_with = "pouf")]` in on a field in a `#[derive(FromPyObject)]` struct. [#2414](https://github.com/PyO3/pyo3/pull/2414)
 - Fix FFI definitions `_PyDateTime_BaseTime` lacking leading underscores in their names. [#2421](https://github.com/PyO3/pyo3/pull/2421)
 - Remove FFI definition `PyArena` on Python 3.10 and up. [#2421](https://github.com/PyO3/pyo3/pull/2421)
+- Fix FFI definition `PyCompilerFlags` missing member `cf_feature_version` on Python 3.8 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
+- Fix FFI definition `PyAsyncMethods` missing member `am_send` on Python 3.10 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
+- Fix FFI definition `PyGenObject` having multiple incorrect members on various Python versions. [#2423](https://github.com/PyO3/pyo3/pull/2423)
+- Fix FFI definition `PySyntaxErrorObject` missing members `end_lineno` and `end_offset` on Python 3.10 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
+- Fix FFI definition `PyHeapTypeObject` missing member `ht_module` on Python 3.9 and up. [#2423](https://github.com/PyO3/pyo3/pull/2423)
 
 ## [0.16.5] - 2022-05-15
 

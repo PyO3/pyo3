@@ -20,7 +20,14 @@ use std::os::raw::c_int;
 // skipped non-limited PyCF_ALLOW_TOP_LEVEL_AWAIT
 // skipped non-limited PyCF_COMPILE_MASK
 
-// skipped non-limited PyCompilerFlags
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCompilerFlags {
+    pub cf_flags: c_int,
+    #[cfg(Py_3_8)]
+    pub cf_feature_version: c_int,
+}
+
 // skipped non-limited _PyCompilerFlags_INIT
 
 #[repr(C)]
