@@ -3,7 +3,7 @@ use crate::{
     utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -213,18 +213,12 @@ impl<'a> Container<'a> {
     fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
         let self_ty = &self.path;
         if let Some(ident) = field_ident {
-            let error_msg = format!(
-                "failed to extract field {}.{}",
-                quote!(#self_ty),
-                quote!(#ident)
-            );
+            let struct_name = quote!(#self_ty).to_string();
+            let field_name = ident.to_string();
             quote!(
-                ::std::result::Result::Ok(#self_ty{#ident: obj.extract().map_err(|inner| {
-                    let py = _pyo3::PyNativeType::py(obj);
-                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                    new_err.set_cause(py, ::std::option::Option::Some(inner));
-                    new_err
-                })?})
+                ::std::result::Result::Ok(#self_ty{
+                    #ident: _pyo3::impl_::frompyobject::extract_struct_field(obj, #struct_name, #field_name)?
+                })
             )
         } else if !self.is_enum_variant {
             let error_msg = format!("failed to extract inner field of {}", quote!(#self_ty));
@@ -244,48 +238,28 @@ impl<'a> Container<'a> {
 
     fn build_tuple_struct(&self, tups: &[FieldPyO3Attributes]) -> TokenStream {
         let self_ty = &self.path;
-        let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-        for (index, attrs) in tups.iter().enumerate() {
-            let error_msg = format!("failed to extract field {}.{}", quote!(#self_ty), index);
-
-            let parsed_item = match &attrs.from_py_with {
+        let field_idents: Vec<_> = (0..tups.len())
+            .into_iter()
+            .map(|i| format_ident!("arg{}", i))
+            .collect();
+        let struct_name = &quote!(#self_ty).to_string();
+        let fields = tups.iter().zip(&field_idents).enumerate().map(|(index, (attrs, ident))| {
+            match &attrs.from_py_with {
                 None => quote!(
-                    obj.get_item(#index)?.extract()
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field(#ident, #struct_name, #index)?
                 ),
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
                 }) => quote! (
-                    #expr_path(obj.get_item(#index)?)
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, #ident, #struct_name, #index)?
                 ),
-            };
-
-            let extractor = quote!(
-                #parsed_item.map_err(|inner| {
-                    let py = _pyo3::PyNativeType::py(obj);
-                    let new_err = _pyo3::exceptions::PyTypeError::new_err(#error_msg);
-                    new_err.set_cause(py, ::std::option::Option::Some(inner));
-                    new_err
-                })?
-            );
-
-            fields.push(quote!(#extractor));
-        }
-        let len = tups.len();
-        let msg = if self.is_enum_variant {
-            quote!(::std::format!(
-                "expected tuple of length {}, but got length {}",
-                #len,
-                s.len()
-            ))
-        } else {
-            quote!("")
-        };
-        quote!(
-            let s = <_pyo3::types::PyTuple as _pyo3::conversion::PyTryFrom>::try_from(obj)?;
-            if s.len() != #len {
-                return ::std::result::Result::Err(_pyo3::exceptions::PyValueError::new_err(#msg))
             }
-            ::std::result::Result::Ok(#self_ty(#fields))
+        });
+        quote!(
+            match obj.extract() {
+                ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
+                ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
+            }
         )
     }
 
@@ -293,36 +267,27 @@ impl<'a> Container<'a> {
         let self_ty = &self.path;
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
         for (ident, attrs) in tups {
+            let struct_name = quote!(#self_ty).to_string();
+            let field_name = ident.to_string();
             let getter = match &attrs.getter {
-                FieldGetter::GetAttr(Some(name)) => quote!(getattr(_pyo3::intern!(py, #name))),
+                FieldGetter::GetAttr(Some(name)) => {
+                    quote!(getattr(_pyo3::intern!(obj.py(), #name)))
+                }
                 FieldGetter::GetAttr(None) => {
-                    quote!(getattr(_pyo3::intern!(py, stringify!(#ident))))
+                    quote!(getattr(_pyo3::intern!(obj.py(), #field_name)))
                 }
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
-                FieldGetter::GetItem(None) => quote!(get_item(stringify!(#ident))),
+                FieldGetter::GetItem(None) => quote!(get_item(#field_name)),
             };
-            let conversion_error_msg =
-                format!("failed to extract field {}.{}", quote!(#self_ty), ident);
-            let get_field = quote!(obj.#getter?);
             let extractor = match &attrs.from_py_with {
-                None => quote!({
-                    let py = _pyo3::PyNativeType::py(obj);
-                    #get_field.extract().map_err(|inner| {
-                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
-                        new_err.set_cause(py, ::std::option::Option::Some(inner));
-                        new_err
-                    })?
-                }),
+                None => {
+                    quote!(_pyo3::impl_::frompyobject::extract_struct_field(obj.#getter?, #struct_name, #field_name)?)
+                }
                 Some(FromPyWithAttribute {
                     value: expr_path, ..
-                }) => quote! (
-                    #expr_path(#get_field).map_err(|inner| {
-                        let py = _pyo3::PyNativeType::py(obj);
-                        let new_err = _pyo3::exceptions::PyTypeError::new_err(#conversion_error_msg);
-                        new_err.set_cause(py, ::std::option::Option::Some(inner));
-                        new_err
-                    })?
-                ),
+                }) => {
+                    quote! (_pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, obj.#getter?, #struct_name, #field_name)?)
+                }
             };
 
             fields.push(quote!(#ident: #extractor));
