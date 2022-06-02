@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix "raw-ident" structs (e.g. `#[pyclass] struct r#RawName`) incorrectly having `r#` at the start of the class name created in Python. [#2395](https://github.com/PyO3/pyo3/pull/2395)
 - Fix case where `ValueError` without message could be raised by the `#[derive(FromPyObject)]` generated implementation for a tuple struct. [#2414](https://github.com/PyO3/pyo3/pull/2414)
 - Fix compile failure when using `#[pyo3(from_py_with = "pouf")]` in on a field in a `#[derive(FromPyObject)]` struct. [#2414](https://github.com/PyO3/pyo3/pull/2414)
+- Fix FFI definitions `_PyDateTime_BaseTime` lacking leading underscores in their names. [#2421](https://github.com/PyO3/pyo3/pull/2421)
+- Remove FFI definition `PyArena` on Python 3.10 and up. [#2421](https://github.com/PyO3/pyo3/pull/2421)
 
 ## [0.16.5] - 2022-05-15
 
