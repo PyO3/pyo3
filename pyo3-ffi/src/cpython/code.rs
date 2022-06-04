@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[allow(unused_imports)]
-use std::os::raw::{c_uchar, c_char, c_int, c_void};
+use std::os::raw::{c_char, c_int, c_uchar, c_void};
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
