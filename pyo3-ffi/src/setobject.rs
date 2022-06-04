@@ -1,12 +1,12 @@
 use crate::object::*;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::pyport::Py_hash_t;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
 pub const PySet_MINSIZE: usize = 8;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct setentry {
@@ -14,7 +14,7 @@ pub struct setentry {
     pub hash: Py_hash_t,
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySetObject {

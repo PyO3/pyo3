@@ -1,5 +1,7 @@
 use crate::{PyInterpreterState, PyObject};
-use std::os::raw::{c_char, c_int, c_uchar};
+#[cfg(not(PyPy))]
+use std::os::raw::c_uchar;
+use std::os::raw::{c_char, c_int};
 
 // skipped PyInit__imp
 
@@ -27,6 +29,7 @@ extern "C" {
     ) -> c_int;
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _inittab {
@@ -36,13 +39,16 @@ pub struct _inittab {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(PyPy))]
     pub static mut PyImport_Inittab: *mut _inittab;
 }
 
 extern "C" {
+    #[cfg(not(PyPy))]
     pub fn PyImport_ExtendInittab(newtab: *mut _inittab) -> c_int;
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct _frozen {
@@ -53,5 +59,6 @@ pub struct _frozen {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
 }

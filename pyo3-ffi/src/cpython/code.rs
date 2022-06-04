@@ -1,14 +1,17 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_uchar, c_void};
+#[cfg(not(PyPy))]
+use std::os::raw::c_uchar;
+use std::os::raw::{c_char, c_int, c_void};
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(all(Py_3_8, not(Py_3_11)))]
+#[cfg(all(Py_3_8, not(PyPy)))]
 opaque_struct!(_PyOpcache);
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -43,6 +46,9 @@ pub struct PyCodeObject {
     #[cfg(Py_3_8)]
     pub co_opcache_size: c_uchar,
 }
+
+#[cfg(PyPy)]
+opaque_struct!(PyCodeObject);
 
 /* Masks for co_flags */
 pub const CO_OPTIMIZED: c_int = 0x0001;
