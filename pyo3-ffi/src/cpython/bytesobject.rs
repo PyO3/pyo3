@@ -7,7 +7,6 @@ use std::os::raw::{c_char, c_int};
 #[derive(Copy, Clone)]
 pub struct PyBytesObject {
     pub ob_base: PyVarObject,
-    #[cfg(PyPy)]
     pub ob_shash: crate::Py_hash_t,
     pub ob_sval: [c_char; 1],
 }
