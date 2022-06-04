@@ -1,9 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
-#[cfg(not(PyPy))]
-use std::os::raw::c_uchar;
-use std::os::raw::{c_char, c_int, c_void};
+#[allow(unused_imports)]
+use std::os::raw::{c_uchar, c_char, c_int, c_void};
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
