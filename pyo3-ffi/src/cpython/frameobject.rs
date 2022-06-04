@@ -3,12 +3,12 @@ use crate::object::*;
 use crate::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int};
 
-// skipped _framestate
-
+#[cfg(not(Py_3_11))]
 pub type PyFrameState = c_char;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+#[cfg(not(Py_3_11))]
 pub struct PyTryBlock {
     pub b_type: c_int,
     pub b_handler: c_int,

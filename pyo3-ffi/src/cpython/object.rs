@@ -276,6 +276,8 @@ pub struct PyTypeObject {
     pub tp_finalize: Option<object::destructor>,
     #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<super::vectorcallfunc>,
+    #[cfg(all(Py_3_8, not(Py_3_9)))]
+    pub tp_print: Option<printfunc>,
     #[cfg(PyPy)]
     pub tp_pypy_flags: std::os::raw::c_long,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]

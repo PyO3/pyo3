@@ -6,7 +6,7 @@ use std::os::raw::{c_char, c_int, c_uchar, c_void};
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(Py_3_8)]
+#[cfg(all(Py_3_8, not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
 #[repr(C)]
