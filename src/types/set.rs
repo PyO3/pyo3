@@ -13,7 +13,20 @@ use std::{collections, hash, ptr};
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
-pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, #checkfunction=ffi::PySet_Check);
+#[cfg(not(PyPy))]
+pyobject_native_type!(
+    PySet,
+    ffi::PySetObject,
+    ffi::PySet_Type,
+    #checkfunction=ffi::PySet_Check
+);
+
+#[cfg(PyPy)]
+pyobject_native_type_core!(
+    PySet,
+    ffi::PySet_Type,
+    #checkfunction=ffi::PySet_Check
+);
 
 impl PySet {
     /// Creates a new set with elements from the given slice.

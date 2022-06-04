@@ -1,6 +1,7 @@
 use crate::object::*;
 use std::os::raw::c_int;
 
+#[cfg(not(PyPy))]
 opaque_struct!(PyWeakReference);
 
 extern "C" {

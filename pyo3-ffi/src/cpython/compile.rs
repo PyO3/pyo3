@@ -1,12 +1,12 @@
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use crate::object::PyObject;
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use crate::pyarena::*;
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use crate::pythonrun::*;
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use crate::PyCodeObject;
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 
@@ -30,6 +30,7 @@ pub struct PyCompilerFlags {
 
 // skipped non-limited _PyCompilerFlags_INIT
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyFutureFeatures {
@@ -49,10 +50,10 @@ pub const FUTURE_GENERATOR_STOP: &str = "generator_stop";
 // skipped non-limited FUTURE_ANNOTATIONS
 
 extern "C" {
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyNode_Compile(arg1: *mut _node, arg2: *const c_char) -> *mut PyCodeObject;
 
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyAST_CompileEx(
         _mod: *mut _mod,
         filename: *const c_char,
@@ -61,7 +62,7 @@ extern "C" {
         arena: *mut PyArena,
     ) -> *mut PyCodeObject;
 
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyAST_CompileObject(
         _mod: *mut _mod,
         filename: *mut PyObject,
@@ -70,10 +71,10 @@ extern "C" {
         arena: *mut PyArena,
     ) -> *mut PyCodeObject;
 
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyFuture_FromAST(_mod: *mut _mod, filename: *const c_char) -> *mut PyFutureFeatures;
 
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyFuture_FromASTObject(
         _mod: *mut _mod,
         filename: *mut PyObject,

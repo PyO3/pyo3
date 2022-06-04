@@ -1,17 +1,26 @@
-use crate::{PyObject, Py_ssize_t};
+use crate::PyObject;
+#[cfg(not(PyPy))]
+use crate::Py_ssize_t;
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyBaseExceptionObject {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub suppress_context: char,
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySyntaxErrorObject {
@@ -28,6 +37,7 @@ pub struct PySyntaxErrorObject {
     pub print_file_and_line: *mut PyObject,
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyImportErrorObject {
@@ -37,6 +47,7 @@ pub struct PyImportErrorObject {
     pub path: *mut PyObject,
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyUnicodeErrorObject {
@@ -48,6 +59,7 @@ pub struct PyUnicodeErrorObject {
     pub reason: *mut PyObject,
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySystemExitObject {
@@ -55,6 +67,7 @@ pub struct PySystemExitObject {
     pub code: *mut PyObject,
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyOSErrorObject {

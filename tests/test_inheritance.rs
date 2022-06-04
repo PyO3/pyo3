@@ -173,25 +173,30 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
-    use pyo3::types::{IntoPyDict, PyDict, PySet};
+    use pyo3::types::{IntoPyDict, PyDict};
 
-    #[pyclass(extends=PySet)]
-    #[derive(Debug)]
-    struct SetWithName {
-        #[pyo3(get, name = "name")]
-        _name: &'static str,
-    }
-
-    #[pymethods]
-    impl SetWithName {
-        #[new]
-        fn new() -> Self {
-            SetWithName { _name: "Hello :)" }
-        }
-    }
-
+    #[cfg(not(PyPy))]
     #[test]
     fn inherit_set() {
+        use pyo3::types::PySet;
+
+        #[cfg(not(PyPy))]
+        #[pyclass(extends=PySet)]
+        #[derive(Debug)]
+        struct SetWithName {
+            #[pyo3(get, name = "name")]
+            _name: &'static str,
+        }
+
+        #[cfg(not(PyPy))]
+        #[pymethods]
+        impl SetWithName {
+            #[new]
+            fn new() -> Self {
+                SetWithName { _name: "Hello :)" }
+            }
+        }
+
         let gil = Python::acquire_gil();
         let py = gil.python();
         let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();

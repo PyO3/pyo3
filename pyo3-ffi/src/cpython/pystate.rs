@@ -27,6 +27,7 @@ pub const PyTrace_OPCODE: c_int = 7;
 // skipped PyTraceInfo
 // skipped CFrame
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct _PyErr_StackItem {

@@ -1,6 +1,6 @@
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::os::raw::{c_char, c_void};
 
 use std::os::raw::{c_int, c_ulong};
@@ -20,7 +20,7 @@ pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
 
 // skipped non-limited _Py_HashSecret_t
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyHash_FuncDef {
@@ -30,7 +30,7 @@ pub struct PyHash_FuncDef {
     pub seed_bits: c_int,
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 impl Default for PyHash_FuncDef {
     #[inline]
     fn default() -> Self {
