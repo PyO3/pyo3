@@ -8,7 +8,7 @@ use std::os::raw::{c_char, c_int, c_uchar, c_void};
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(all(Py_3_8, not(PyPy)))]
+#[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
 #[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
@@ -42,7 +42,7 @@ pub struct PyCodeObject {
     pub co_extra: *mut c_void,
     #[cfg(Py_3_8)]
     pub co_opcache_map: *mut c_uchar,
-    #[cfg(Py_3_8)]
+    #[cfg(all(Py_3_8, not(Py_3_11)))]
     pub co_opcache: *mut _PyOpcache,
     #[cfg(Py_3_8)]
     pub co_opcache_flag: c_int,
