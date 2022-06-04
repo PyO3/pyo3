@@ -1,5 +1,3 @@
-#![cfg(Py_3_9)]
-
 use crate::object::*;
 use crate::{PyCFunctionObject, PyMethodDefPointer, METH_METHOD, METH_STATIC};
 use std::os::raw::c_int;

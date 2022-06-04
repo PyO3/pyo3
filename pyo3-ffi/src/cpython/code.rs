@@ -9,7 +9,7 @@ use std::os::raw::{c_char, c_int, c_uchar, c_void};
 #[cfg(Py_3_8)]
 opaque_struct!(_PyOpcache);
 
-#[cfg(all(Py_3_8, not(Py_3_11)))]
+#[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -48,7 +48,7 @@ pub struct PyCodeObject {
     pub co_opcache_size: c_uchar,
 }
 
-#[cfg(Py_3_11)]
+#[cfg(all(not(PyPy), Py_3_11))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -77,6 +77,17 @@ pub struct PyCodeObject {
     pub co_weakreflist: *mut PyObject,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
+}
+
+#[cfg(PyPy)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCodeObject {
+    pub ob_base: PyObject,
+    pub co_name: *mut PyObject,
+    pub co_filename: *mut PyObject,
+    pub co_argcount: c_int,
+    pub co_flags: c_int,
 }
 
 /* Masks for co_flags */

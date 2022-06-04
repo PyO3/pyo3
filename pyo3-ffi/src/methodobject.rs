@@ -10,7 +10,9 @@ pub struct PyCFunctionObject {
     pub m_ml: *mut PyMethodDef,
     pub m_self: *mut PyObject,
     pub m_module: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub m_weakreflist: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 

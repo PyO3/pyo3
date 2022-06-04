@@ -1,10 +1,10 @@
 use crate::object::*;
 use std::os::raw::c_int;
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(all(not(PyPy), Py_LIMITED_API))]
 opaque_struct!(PyWeakReference);
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
 pub struct PyWeakReference {
     pub ob_base: PyObject,
     pub wr_object: *mut PyObject,

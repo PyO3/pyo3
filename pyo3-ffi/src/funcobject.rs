@@ -44,7 +44,14 @@ pub struct PyFunctionObject {
     pub func_version: u32,
 }
 
-#[cfg(any(PyPy, Py_LIMITED_API))]
+#[cfg(all(PyPy, not(Py_LIMITED_API)))]
+#[repr(C)]
+pub struct PyFunctionObject {
+    pub ob_base: PyObject,
+    pub func_name: *mut PyObject,
+}
+
+#[cfg(all(not(PyPy), Py_LIMITED_API))]
 opaque_struct!(PyFunctionObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
