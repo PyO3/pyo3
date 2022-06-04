@@ -11,12 +11,13 @@
 
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
 use std::cell::UnsafeCell;
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::{c_char, c_int};
 use std::ptr;
 #[cfg(not(PyPy))]
 use {
     crate::{PyCapsule_Import, Py_hash_t},
     std::ffi::CString,
+    std::os::raw::c_uchar,
 };
 
 // Type struct wrappers
@@ -39,10 +40,11 @@ pub struct PyDateTime_Delta {
 // skipped non-limited PyDateTime_TZInfo
 // skipped non-limited _PyDateTime_BaseTZInfo
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 /// Structure representing a `datetime.time` without a `tzinfo` member.
-pub struct PyDateTime_BaseTime {
+pub struct _PyDateTime_BaseTime {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
@@ -56,11 +58,6 @@ pub struct PyDateTime_BaseTime {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 /// Structure representing a `datetime.time`.
-///
-/// # Safety
-///
-/// Care should be taken when reading the `tzinfo` field of this type. If the time does not have a
-/// tzinfo then the Python interpreter is free to allocate it as a [PyDateTime_BaseTime].
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
@@ -70,6 +67,10 @@ pub struct PyDateTime_Time {
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
     #[cfg(not(PyPy))]
     pub fold: c_uchar,
+    /// # Safety
+    ///
+    /// Care should be taken when reading this field. If the time does not have a
+    /// tzinfo then CPython may allocate as a `_PyDateTime_BaseTime` without this field.
     pub tzinfo: *mut PyObject,
 }
 
@@ -80,14 +81,17 @@ pub struct PyDateTime_Date {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
+    #[cfg(not(PyPy))]
     pub hastzinfo: c_char,
+    #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 /// Structure representing a `datetime.datetime` without a `tzinfo` member.
-pub struct PyDateTime_BaseDateTime {
+pub struct _PyDateTime_BaseDateTime {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
     pub hashcode: Py_hash_t,
@@ -101,11 +105,6 @@ pub struct PyDateTime_BaseDateTime {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 /// Structure representing a `datetime.datetime`.
-///
-/// # Safety
-///
-/// Care should be taken when reading the `tzinfo` field of this type. If the datetime does not have a
-/// tzinfo then the Python interpreter is free to allocate it as a [PyDateTime_BaseDateTime].
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
     #[cfg(not(PyPy))]
@@ -115,6 +114,10 @@ pub struct PyDateTime_DateTime {
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
     #[cfg(not(PyPy))]
     pub fold: c_uchar,
+    /// # Safety
+    ///
+    /// Care should be taken when reading this field. If the time does not have a
+    /// tzinfo then CPython may allocate as a `_PyDateTime_BaseDateTime` without this field.
     pub tzinfo: *mut PyObject,
 }
 
@@ -368,7 +371,8 @@ extern "C" {
     pub fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_DATE_GET_MICROSECOND"]
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_DATE_GET_FOLD (not in PyPy)
+    #[link_name = "PyPyDateTime_GET_FOLD"]
+    pub fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int;
     // skipped PyDateTime_DATE_GET_TZINFO (not in PyPy)
 
     #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
@@ -379,7 +383,8 @@ extern "C" {
     pub fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_TIME_GET_MICROSECOND"]
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_TIME_GET_FOLD (not in PyPy)
+    #[link_name = "PyPyDateTime_TIME_GET_FOLD"]
+    pub fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int;
     // skipped PyDateTime_TIME_GET_TZINFO (not in PyPy)
 
     #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
@@ -441,7 +446,6 @@ pub struct PyDateTime_CAPI {
     ) -> *mut PyObject,
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
-    #[cfg(not(PyPy))]
     pub DateTime_FromDateAndTimeAndFold: unsafe extern "C" fn(
         year: c_int,
         month: c_int,
@@ -454,7 +458,6 @@ pub struct PyDateTime_CAPI {
         fold: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
-    #[cfg(not(PyPy))]
     pub Time_FromTimeAndFold: unsafe extern "C" fn(
         hour: c_int,
         minute: c_int,

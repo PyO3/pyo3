@@ -1,5 +1,5 @@
 //! A write-once cell mediated by the Python GIL.
-use crate::Python;
+use crate::{types::PyString, Py, Python};
 use std::cell::UnsafeCell;
 
 /// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/1.4.0/once_cell/).
@@ -140,6 +140,9 @@ impl<T> GILOnceCell<T> {
 /// }
 /// #
 /// # Python::with_gil(|py| {
+/// #     let fun_slow = wrap_pyfunction!(create_dict, py).unwrap();
+/// #     let dict = fun_slow.call0().unwrap();
+/// #     assert!(dict.contains("foo").unwrap());
 /// #     let fun = wrap_pyfunction!(create_dict_faster, py).unwrap();
 /// #     let dict = fun.call0().unwrap();
 /// #     assert!(dict.contains("foo").unwrap());
@@ -148,22 +151,26 @@ impl<T> GILOnceCell<T> {
 #[macro_export]
 macro_rules! intern {
     ($py: expr, $text: expr) => {{
-        fn isolate_from_dyn_env(py: $crate::Python<'_>) -> &$crate::types::PyString {
-            static INTERNED: $crate::once_cell::GILOnceCell<$crate::Py<$crate::types::PyString>> =
-                $crate::once_cell::GILOnceCell::new();
-
-            INTERNED
-                .get_or_init(py, || {
-                    $crate::conversion::IntoPy::into_py(
-                        $crate::types::PyString::intern(py, $text),
-                        py,
-                    )
-                })
-                .as_ref(py)
-        }
-
-        isolate_from_dyn_env($py)
+        static INTERNED: $crate::once_cell::Interned = $crate::once_cell::Interned::new($text);
+        INTERNED.get($py)
     }};
+}
+
+/// Implementation detail for `intern!` macro.
+#[doc(hidden)]
+pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
+
+impl Interned {
+    pub const fn new(value: &'static str) -> Self {
+        Interned(value, GILOnceCell::new())
+    }
+
+    #[inline]
+    pub fn get<'py>(&'py self, py: Python<'py>) -> &'py PyString {
+        self.1
+            .get_or_init(py, || PyString::intern(py, self.0).into())
+            .as_ref(py)
+    }
 }
 
 #[cfg(test)]

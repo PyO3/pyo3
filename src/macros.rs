@@ -115,3 +115,61 @@ macro_rules! py_run_impl {
         }
     }};
 }
+
+/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
+///
+/// This can be used with [`PyModule::add_function`](crate::types::PyModule::add_function) to add free
+/// functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more information.
+#[macro_export]
+macro_rules! wrap_pyfunction {
+    ($function:path) => {
+        &|py_or_module| {
+            use $function as wrapped_pyfunction;
+            $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, py_or_module)
+        }
+    };
+    ($function:path, $py_or_module:expr) => {{
+        use $function as wrapped_pyfunction;
+        $crate::impl_::pyfunction::wrap_pyfunction(&wrapped_pyfunction::DEF, $py_or_module)
+    }};
+}
+
+/// Returns a function that takes a [`Python`](crate::Python) instance and returns a
+/// Python module.
+///
+/// Use this together with [`#[pymodule]`](crate::pymodule) and
+/// [`PyModule::add_wrapped`](crate::types::PyModule::add_wrapped).
+#[macro_export]
+macro_rules! wrap_pymodule {
+    ($module:path) => {
+        &|py| {
+            use $module as wrapped_pymodule;
+            wrapped_pymodule::DEF
+                .make_module(py)
+                .expect("failed to wrap pymodule")
+        }
+    };
+}
+
+/// Add the module to the initialization table in order to make embedded Python code to use it.
+/// Module name is the argument.
+///
+/// Use it before [`prepare_freethreaded_python`](crate::prepare_freethreaded_python) and
+/// leave feature `auto-initialize` off
+#[cfg(not(PyPy))]
+#[macro_export]
+macro_rules! append_to_inittab {
+    ($module:ident) => {
+        unsafe {
+            if $crate::ffi::Py_IsInitialized() != 0 {
+                ::std::panic!(
+                    "called `append_to_inittab` but a Python interpreter is already running."
+                );
+            }
+            $crate::ffi::PyImport_AppendInittab(
+                $module::NAME.as_ptr() as *const ::std::os::raw::c_char,
+                ::std::option::Option::Some($module::init),
+            );
+        }
+    };
+}

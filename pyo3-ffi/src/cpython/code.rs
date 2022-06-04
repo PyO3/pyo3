@@ -1,14 +1,16 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
-#[allow(unused_imports)]
-use std::os::raw::{c_char, c_int, c_uchar, c_void};
+#[cfg(not(PyPy))]
+use std::os::raw::c_uchar;
+use std::os::raw::{c_char, c_int, c_void};
+
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(Py_3_8)]
+#[cfg(all(Py_3_8, not(PyPy)))]
 opaque_struct!(_PyOpcache);
 
 #[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]

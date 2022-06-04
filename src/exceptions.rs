@@ -5,8 +5,8 @@
 //! The structs in this module represent Python's built-in exceptions, while the modules comprise
 //! structs representing errors defined in Python code.
 //!
-//! The latter are created with the [`import_exception`] macro, which you can use yourself
-//! to import Python exceptions.
+//! The latter are created with the [`import_exception`](crate::import_exception) macro, which you
+//! can use yourself to import Python exceptions.
 
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
@@ -395,12 +395,15 @@ impl_native_exception!(
     PyExc_FloatingPointError,
     native_doc!("FloatingPointError")
 );
+#[cfg(not(PyPy))]
 impl_native_exception!(
     PyOSError,
     PyExc_OSError,
     native_doc!("OSError"),
     ffi::PyOSErrorObject
 );
+#[cfg(PyPy)]
+impl_native_exception!(PyOSError, PyExc_OSError, native_doc!("OSError"));
 impl_native_exception!(PyImportError, PyExc_ImportError, native_doc!("ImportError"));
 
 impl_native_exception!(
@@ -438,35 +441,48 @@ impl_native_exception!(
     PyExc_NotImplementedError,
     native_doc!("NotImplementedError")
 );
+#[cfg(not(PyPy))]
 impl_native_exception!(
     PySyntaxError,
     PyExc_SyntaxError,
     native_doc!("SyntaxError"),
     ffi::PySyntaxErrorObject
 );
+#[cfg(PyPy)]
+impl_native_exception!(PySyntaxError, PyExc_SyntaxError, native_doc!("SyntaxError"));
 impl_native_exception!(
     PyReferenceError,
     PyExc_ReferenceError,
     native_doc!("ReferenceError")
 );
 impl_native_exception!(PySystemError, PyExc_SystemError, native_doc!("SystemError"));
+#[cfg(not(PyPy))]
 impl_native_exception!(
     PySystemExit,
     PyExc_SystemExit,
     native_doc!("SystemExit"),
     ffi::PySystemExitObject
 );
+#[cfg(PyPy)]
+impl_native_exception!(PySystemExit, PyExc_SystemExit, native_doc!("SystemExit"));
 impl_native_exception!(PyTypeError, PyExc_TypeError, native_doc!("TypeError"));
 impl_native_exception!(
     PyUnboundLocalError,
     PyExc_UnboundLocalError,
     native_doc!("UnboundLocalError")
 );
+#[cfg(not(PyPy))]
 impl_native_exception!(
     PyUnicodeError,
     PyExc_UnicodeError,
     native_doc!("UnicodeError"),
     ffi::PyUnicodeErrorObject
+);
+#[cfg(PyPy)]
+impl_native_exception!(
+    PyUnicodeError,
+    PyExc_UnicodeError,
+    native_doc!("UnicodeError")
 );
 // these three errors need arguments, so they're too annoying to write tests for using macros...
 impl_native_exception!(

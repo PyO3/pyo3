@@ -76,6 +76,6 @@ extern "C" {
 
     pub fn PyImport_AppendInittab(
         name: *const c_char,
-        initfunc: Option<extern "C" fn() -> *mut PyObject>,
+        initfunc: Option<unsafe extern "C" fn() -> *mut PyObject>,
     ) -> c_int;
 }

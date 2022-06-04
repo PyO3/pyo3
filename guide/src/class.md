@@ -583,8 +583,7 @@ impl MyClass {
 ## Class attributes
 
 To create a class attribute (also called [class variable][classattr]), a method without
-any arguments can be annotated with the `#[classattr]` attribute. The return type must be `T` for
-some `T` that implements `IntoPy<PyObject>`.
+any arguments can be annotated with the `#[classattr]` attribute.
 
 ```rust
 # use pyo3::prelude::*;
@@ -603,6 +602,9 @@ Python::with_gil(|py| {
     pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
 });
 ```
+
+> Note: if the method has a `Result` return type and returns an `Err`, PyO3 will panic during
+class creation.
 
 If the class attribute is defined with `const` code only, one can also annotate associated
 constants:

@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.16.4"
+version = "0.16.5"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -12,11 +12,11 @@ edition = "2018"
 
 [dependencies]
 once_cell = "1"
-python3-dll-a = { version = "0.2", optional = true }
+python3-dll-a = { version = "0.2.2", optional = true }
 target-lexicon = "0.12"
 
 [build-dependencies]
-python3-dll-a = { version = "0.2", optional = true }
+python3-dll-a = { version = "0.2.2", optional = true }
 target-lexicon = "0.12"
 
 [features]

@@ -1,8 +1,8 @@
 use crate::object::*;
-#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+#[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 use crate::pyarena::PyArena;
 use crate::PyCompilerFlags;
-#[cfg(not(Py_3_10))]
+#[cfg(not(any(PyPy, Py_3_10)))]
 use crate::{_mod, _node};
 use libc::FILE;
 use std::os::raw::{c_char, c_int};
@@ -54,7 +54,7 @@ extern "C" {
         flags: *mut PyCompilerFlags,
     ) -> c_int;
 
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyParser_ASTFromString(
         s: *const c_char,
         filename: *const c_char,
@@ -62,7 +62,7 @@ extern "C" {
         flags: *mut PyCompilerFlags,
         arena: *mut PyArena,
     ) -> *mut _mod;
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyParser_ASTFromStringObject(
         s: *const c_char,
         filename: *mut PyObject,
@@ -70,7 +70,7 @@ extern "C" {
         flags: *mut PyCompilerFlags,
         arena: *mut PyArena,
     ) -> *mut _mod;
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyParser_ASTFromFile(
         fp: *mut FILE,
         filename: *const c_char,
@@ -82,7 +82,7 @@ extern "C" {
         errcode: *mut c_int,
         arena: *mut PyArena,
     ) -> *mut _mod;
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     pub fn PyParser_ASTFromFileObject(
         fp: *mut FILE,
         filename: *mut PyObject,
@@ -218,14 +218,14 @@ extern "C" {
 // skipped macro PyRun_AnyFileFlags
 
 extern "C" {
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyParser_SimpleParseStringFlags(
         arg1: *const c_char,
         arg2: c_int,
         arg3: c_int,
     ) -> *mut _node;
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyParser_SimpleParseStringFlagsFilename(
         arg1: *const c_char,
@@ -233,7 +233,7 @@ extern "C" {
         arg3: c_int,
         arg4: c_int,
     ) -> *mut _node;
-    #[cfg(not(Py_3_10))]
+    #[cfg(not(any(PyPy, Py_3_10)))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyParser_SimpleParseFileFlags(
         arg1: *mut FILE,

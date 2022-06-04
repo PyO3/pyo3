@@ -65,7 +65,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::cfunction_with_keywords(
+            &PyMethodDef::cfunction_with_keywords(
                 name,
                 pymethods::PyCFunctionWithKeywords(fun),
                 doc,
@@ -82,7 +82,7 @@ impl PyCFunction {
         py_or_module: PyFunctionArguments<'a>,
     ) -> PyResult<&'a Self> {
         Self::internal_new(
-            PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
+            &PyMethodDef::noargs(name, pymethods::PyCFunction(fun), doc),
             py_or_module,
         )
     }
@@ -125,16 +125,16 @@ impl PyCFunction {
             pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
             "",
         );
-        Self::internal_new_from_pointers(method_def, py, capsule.as_ptr(), std::ptr::null_mut())
+        Self::internal_new_from_pointers(&method_def, py, capsule.as_ptr(), std::ptr::null_mut())
     }
 
     #[doc(hidden)]
-    fn internal_new_from_pointers(
-        method_def: PyMethodDef,
-        py: Python<'_>,
+    fn internal_new_from_pointers<'py>(
+        method_def: &PyMethodDef,
+        py: Python<'py>,
         mod_ptr: *mut ffi::PyObject,
         module_name: *mut ffi::PyObject,
-    ) -> PyResult<&Self> {
+    ) -> PyResult<&'py Self> {
         let def = method_def
             .as_method_def()
             .map_err(|err| PyValueError::new_err(err.0))?;
@@ -148,10 +148,10 @@ impl PyCFunction {
     }
 
     #[doc(hidden)]
-    pub fn internal_new(
-        method_def: PyMethodDef,
-        py_or_module: PyFunctionArguments<'_>,
-    ) -> PyResult<&Self> {
+    pub fn internal_new<'py>(
+        method_def: &PyMethodDef,
+        py_or_module: PyFunctionArguments<'py>,
+    ) -> PyResult<&'py Self> {
         let (py, module) = py_or_module.into_py_and_maybe_module();
         let (mod_ptr, module_name) = if let Some(m) = module {
             let mod_ptr = m.as_ptr();

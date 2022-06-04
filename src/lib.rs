@@ -405,9 +405,7 @@ pub mod proc_macro {
 #[cfg(all(feature = "macros", feature = "pyproto"))]
 pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{
-    pyclass, pyfunction, pymethods, pymodule, wrap_pyfunction, wrap_pymodule, FromPyObject,
-};
+pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
 
 #[cfg(feature = "macros")]
 #[macro_use]

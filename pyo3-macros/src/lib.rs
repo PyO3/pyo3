@@ -9,8 +9,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_py_class, build_py_enum, build_py_function, build_py_methods,
-    get_doc, process_functions_in_module, pymodule_impl, wrap_pyfunction_impl, wrap_pymodule_impl,
-    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, WrapPyFunctionArgs,
+    get_doc, process_functions_in_module, pymodule_impl, PyClassArgs, PyClassMethodsType,
+    PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse::Nothing, parse_macro_input};
@@ -41,7 +41,7 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => return e.into_compile_error().into(),
     };
 
-    if let Err(err) = process_functions_in_module(&mut ast) {
+    if let Err(err) = process_functions_in_module(&options, &mut ast) {
         return err.into_compile_error().into();
     }
 
@@ -192,25 +192,6 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
         #expanded
     )
     .into()
-}
-
-/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
-///
-/// This can be used with `PyModule::add_function` to add free functions to a `PyModule` - see its
-/// documentation for more information.
-#[proc_macro]
-pub fn wrap_pyfunction(input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(input as WrapPyFunctionArgs);
-    wrap_pyfunction_impl(args).into()
-}
-
-/// Returns a function that takes a `Python` instance and returns a Python module.
-///
-/// Use this together with [`#[pymodule]`](macro@crate::pymodule) and `PyModule::add_wrapped`.
-#[proc_macro]
-pub fn wrap_pymodule(input: TokenStream) -> TokenStream {
-    let path = parse_macro_input!(input as syn::Path);
-    wrap_pymodule_impl(path).unwrap_or_compile_error().into()
 }
 
 fn pyclass_impl(

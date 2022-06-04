@@ -291,9 +291,10 @@ impl<'a> IntoIterator for &'a PyTuple {
     }
 }
 
+#[cold]
 fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!(
-        "Expected tuple of length {}, but got tuple of length {}.",
+        "expected tuple of length {}, but got tuple of length {}",
         expected_length,
         t.len()
     );

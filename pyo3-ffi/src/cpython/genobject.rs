@@ -1,8 +1,10 @@
 use crate::object::*;
-use crate::pyport::Py_ssize_t;
 use crate::PyFrameObject;
+#[cfg(not(PyPy))]
+use crate::{Py_ssize_t, _PyErr_StackItem};
 use std::os::raw::c_int;
 
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyGenObject {
@@ -13,9 +15,13 @@ pub struct PyGenObject {
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
     pub gi_frame: *mut PyFrameObject,
+    #[cfg(not(Py_3_10))]
     pub gi_running: c_int,
     pub gi_code: *mut PyObject,
     pub gi_weakreflist: *mut PyObject,
+    pub gi_name: *mut PyObject,
+    pub gi_qualname: *mut PyObject,
+    pub gi_exc_state: _PyErr_StackItem,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -40,7 +46,7 @@ extern "C" {
     // skipped _PyGen_FetchStopIterationValue
     // skipped _PyGen_yf
     // skipped _PyGen_Finalize
-    #[cfg(not(Py_3_9))]
+    #[cfg(not(any(Py_3_9, PyPy)))]
     #[deprecated(note = "This function was never documented in the Python API.")]
     pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;
 }

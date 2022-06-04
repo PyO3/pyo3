@@ -21,7 +21,7 @@ jobs:
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -111,7 +111,7 @@ jobs:
     needs: guide-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -160,8 +160,8 @@ jobs:
     needs: cargo-benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal

@@ -84,7 +84,26 @@ Once built, symlink (or copy) and rename the shared library from Cargo's `target
 
 You can then open a Python shell in the output directory and you'll be able to run `import your_module`.
 
+If you're packaging your library for redistribution, you should indicated the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
+
 See, as an example, Bazel rules to build PyO3 on Linux at https://github.com/TheButlah/rules_pyo3.
+
+#### Platform tags
+
+Rather than using just the `.so` or `.pyd` extension suggested above (depending on OS), uou can prefix the shared library extension with a platform tag to indicate the interpreter it is compatible with. You can query your interpreter's platform tag from the `sysconfig` module. Some example outputs of this are seen below:
+
+```bash
+# CPython 3.10 on macOS
+.cpython-310-darwin.so
+
+# PyPy 7.3 (Python 3.8) on Linux
+$ python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))'
+.pypy38-pp73-x86_64-linux-gnu.so
+```
+
+So, for example, a valid module library name on CPython 3.10 for macOS is `your_module.cpython-310-darwin.so`, and its equivalent when compiled for PyPy 7.3 on Linux would be `your_module.pypy38-pp73-x86_64-linux-gnu.so`.
+
+See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platform tags.
 
 #### macOS
 
@@ -163,7 +182,7 @@ PyO3 will still attempt to compile `abi3` extension modules after displaying a w
 On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable
 to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
 
-If the `python3.dll` import library is not available, an experimental `generate-abi3-import-lib` crate
+If the `python3.dll` import library is not available, an experimental `generate-import-lib` crate
 feature may be enabled, and the required library will be created and used by PyO3 automatically.
 
 *Note*: MSVC targets require LLVM binutils (`llvm-dlltool`) to be available in `PATH` for
@@ -225,6 +244,10 @@ The known complications are:
 
 If you encounter these or other complications when linking the interpreter statically, discuss them on [issue 416 on PyO3's Github](https://github.com/PyO3/pyo3/issues/416). It is hoped that eventually that discussion will contain enough information and solutions that PyO3 can offer first-class support for static embedding.
 
+### Import your module when embedding the Python interpreter
+
+When you run your Rust binary with an embedded interpreter, any `#[pymodule]` created modules won't be accessible to import unless added to a table called `PyImport_Inittab` before the embedded interpreter is initialized. This will cause Python statements in your embedded interpreter such as `import your_new_module` to fail. You can call the macro [`append_to_inittab`]({{#PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) with your module before initializing the Python interpreter to add the module function into that table. (The Python interpreter will be initialized by calling `prepare_freethreaded_python`, `with_embedded_interpreter`, or `Python::with_gil` with the [`auto-initialize`](features.md#auto-initialize) feature enabled.)
+
 ## Cross Compiling
 
 Thanks to Rust's great cross-compilation support, cross-compiling using PyO3 is relatively straightforward. To get started, you'll need a few pieces of software:
@@ -243,12 +266,12 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
 * `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation. This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 * `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation. CPython is assumed by default when this variable is not set, unless `PYO3_CROSS_LIB_DIR` is set for a Unix-like target and PyO3 can get the interpreter configuration from `_sysconfigdata*.py`.
 
-An experimental `pyo3` crate feature `generate-abi3-import-lib` enables the user to cross-compile
-"abi3" extension modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment
+An experimental `pyo3` crate feature `generate-import-lib` enables the user to cross-compile
+extension modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment
 variable or providing any Windows Python library files. It uses an external [`python3-dll-a`] crate
-to generate import libraries for the Stable ABI Python DLL for MinGW-w64 and MSVC compile targets.
-*Note*: MSVC targets require LLVM binutils to be available on the host system.
-More specifically, `python3-dll-a` requires `llvm-dlltool` executable to be present in `PATH` when
+to generate import libraries for the Python DLL for MinGW-w64 and MSVC compile targets.
+*Note*: MSVC targets require LLVM binutils or MSVC build tools to be available on the host system.
+More specifically, `python3-dll-a` requires `llvm-dlltool` or `lib.exe` executable to be present in `PATH` when
 targeting `*-pc-windows-msvc`.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
@@ -278,7 +301,7 @@ cargo build --target x86_64-pc-windows-gnu
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
 `PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets,
-or when cross compiling "abi3" extension modules for Windows and the experimental `generate-abi3-import-lib`
+or when cross compiling extension modules for Windows and the experimental `generate-import-lib`
 crate feature is enabled.
 
 The following resources may also be useful for cross-compiling:

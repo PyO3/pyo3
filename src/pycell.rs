@@ -56,7 +56,7 @@
 //! # }
 //! #
 //! // This function is exported to Python.
-//! unsafe extern "C" fn __wrap(
+//! unsafe extern "C" fn __pymethod_increment__(
 //!     _slf: *mut ::pyo3::ffi::PyObject,
 //!     _args: *mut ::pyo3::ffi::PyObject,
 //! ) -> *mut ::pyo3::ffi::PyObject {
@@ -75,7 +75,7 @@
 //!         }),
 //!     )
 //! }
-//!  ```
+//! ```
 //!
 //! # When to use PyCell
 //! ## Using pyclasses from Rust

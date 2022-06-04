@@ -3,8 +3,8 @@
 
 // Optional python3.dll import library generator for Windows
 #[cfg(feature = "python3-dll-a")]
-#[path = "abi3_import_lib.rs"]
-mod abi3_import_lib;
+#[path = "import_lib.rs"]
+mod import_lib;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -440,6 +440,14 @@ print("mingw", get_platform().startswith("mingw"))
         let version = version.ok_or("missing value for version")?;
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
         let abi3 = abi3.unwrap_or(false);
+        // Fixup lib_name if it's not set
+        let lib_name = lib_name.or_else(|| {
+            if let Ok(Ok(target)) = env::var("TARGET").map(|target| target.parse::<Triple>()) {
+                default_lib_name_for_target(version, implementation, abi3, &target)
+            } else {
+                None
+            }
+        });
 
         Ok(InterpreterConfig {
             implementation,
@@ -454,6 +462,24 @@ print("mingw", get_platform().startswith("mingw"))
             suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
             extra_build_script_lines,
         })
+    }
+
+    #[cfg(feature = "python3-dll-a")]
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn generate_import_libs(&mut self) -> Result<()> {
+        // Auto generate python3.dll import libraries for Windows targets.
+        if self.lib_dir.is_none() {
+            let target = target_triple_from_env();
+            let py_version = if self.abi3 { None } else { Some(self.version) };
+            self.lib_dir = import_lib::generate_import_lib(&target, py_version)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "python3-dll-a"))]
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn generate_import_libs(&mut self) -> Result<()> {
+        Ok(())
     }
 
     #[doc(hidden)]
@@ -1390,27 +1416,16 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
 
-    let lib_name = if cross_compile_config.target.operating_system == OperatingSystem::Windows {
-        let mingw = cross_compile_config.target.environment == Environment::Gnu;
-
-        Some(default_lib_name_windows(
-            version,
-            implementation,
-            abi3,
-            mingw,
-        ))
-    } else if is_linking_libpython_for_target(&cross_compile_config.target) {
-        Some(default_lib_name_unix(version, implementation, None))
-    } else {
-        None
-    };
+    let lib_name =
+        default_lib_name_for_target(version, implementation, abi3, &cross_compile_config.target);
 
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
-    if abi3 && lib_dir.is_none() {
-        lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&cross_compile_config.target)?;
+    if lib_dir.is_none() {
+        let py_version = if abi3 { None } else { Some(version) };
+        lib_dir = self::import_lib::generate_import_lib(&cross_compile_config.target, py_version)?;
     }
 
     Ok(InterpreterConfig {
@@ -1510,6 +1525,26 @@ fn load_cross_compile_config(
 //
 // This contains only the limited ABI symbols.
 const WINDOWS_ABI3_LIB_NAME: &str = "python3";
+
+fn default_lib_name_for_target(
+    version: PythonVersion,
+    implementation: PythonImplementation,
+    abi3: bool,
+    target: &Triple,
+) -> Option<String> {
+    if target.operating_system == OperatingSystem::Windows {
+        Some(default_lib_name_windows(
+            version,
+            implementation,
+            abi3,
+            false,
+        ))
+    } else if is_linking_libpython_for_target(target) {
+        Some(default_lib_name_unix(version, implementation, None))
+    } else {
+        None
+    }
+}
 
 fn default_lib_name_windows(
     version: PythonVersion,
@@ -1723,7 +1758,12 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     // Auto generate python3.dll import libraries for Windows targets.
     #[cfg(feature = "python3-dll-a")]
     {
-        interpreter_config.lib_dir = self::abi3_import_lib::generate_abi3_import_lib(&host)?;
+        let py_version = if interpreter_config.abi3 {
+            None
+        } else {
+            Some(interpreter_config.version)
+        };
+        interpreter_config.lib_dir = self::import_lib::generate_import_lib(&host, py_version)?;
     }
 
     Ok(interpreter_config)
@@ -2130,7 +2170,7 @@ mod tests {
                 version: PythonVersion { major: 3, minor: 8 },
                 shared: true,
                 abi3: false,
-                lib_name: Some("python3.8".into()),
+                lib_name: Some("python38".into()),
                 lib_dir: Some("/usr/lib/mingw".into()),
                 executable: None,
                 pointer_width: None,

@@ -1,7 +1,9 @@
+use std::borrow::Cow;
+
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, Ident};
 
 use crate::attributes::{CrateAttribute, TextSignatureAttribute};
 
@@ -66,7 +68,7 @@ pub struct PythonDoc(TokenStream);
 /// e.g. concat!("...", "\n", "\0")
 pub fn get_doc(
     attrs: &[syn::Attribute],
-    text_signature: Option<(&syn::Ident, &TextSignatureAttribute)>,
+    text_signature: Option<(Cow<'_, Ident>, &TextSignatureAttribute)>,
 ) -> PythonDoc {
     let mut tokens = TokenStream::new();
     let comma = syn::token::Comma(Span::call_site());
@@ -167,21 +169,6 @@ pub(crate) fn remove_lifetime(tref: &syn::TypeReference) -> syn::TypeReference {
     let mut tref = tref.to_owned();
     tref.lifetime = None;
     tref
-}
-
-/// Replace `Self` keyword in type with `cls`
-pub(crate) fn replace_self(ty: &mut syn::Type, cls: &syn::Type) {
-    match ty {
-        syn::Type::Reference(tref) => replace_self(&mut tref.elem, cls),
-        syn::Type::Path(tpath) => {
-            if let Some(ident) = tpath.path.get_ident() {
-                if ident == "Self" {
-                    *ty = cls.to_owned();
-                }
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Extract the path to the pyo3 crate, or use the default (`::pyo3`).

@@ -26,7 +26,7 @@ pub enum PyMemAllocatorDomain {
 }
 
 // skipped PyMemAllocatorName
-
+#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyMemAllocatorEx {
@@ -40,7 +40,10 @@ pub struct PyMemAllocatorEx {
 }
 
 extern "C" {
+    #[cfg(not(PyPy))]
     pub fn PyMem_GetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);
+    #[cfg(not(PyPy))]
     pub fn PyMem_SetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);
+    #[cfg(not(PyPy))]
     pub fn PyMem_SetupDebugHooks();
 }

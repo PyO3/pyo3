@@ -541,8 +541,9 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
     ///
-    /// If calling this method becomes performance-critical, the [`intern!`] macro can be used
-    /// to intern `attr_name`, thereby avoiding repeated temporary allocations of Python strings.
+    /// If calling this method becomes performance-critical, the [`intern!`](crate::intern) macro
+    /// can be used to intern `attr_name`, thereby avoiding repeated temporary allocations of
+    /// Python strings.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -577,8 +578,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
-    /// to intern `attr_name`.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `attr_name`.
     ///
     /// # Example: `intern!`ing the attribute name
     ///
@@ -660,8 +661,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
-    /// to intern `name`.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `name`.
     pub fn call_method<N, A>(
         &self,
         py: Python<'_>,
@@ -691,8 +692,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
-    /// to intern `name`.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `name`.
     pub fn call_method1<N, A>(&self, py: Python<'_>, name: N, args: A) -> PyResult<PyObject>
     where
         N: IntoPy<Py<PyString>>,
@@ -705,8 +706,8 @@ impl<T> Py<T> {
     ///
     /// This is equivalent to the Python expression `self.name()`.
     ///
-    /// To avoid repeated temporary allocations of Python strings, the [`intern!`] macro can be used
-    /// to intern `name`.
+    /// To avoid repeated temporary allocations of Python strings, the [`intern!`](crate::intern)
+    /// macro can be used to intern `name`.
     pub fn call_method0<N>(&self, py: Python<'_>, name: N) -> PyResult<PyObject>
     where
         N: IntoPy<Py<PyString>>,

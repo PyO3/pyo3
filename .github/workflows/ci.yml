@@ -18,8 +18,8 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
       - run: pip install nox
       - uses: actions-rs/toolchain@v1
         with:
@@ -34,8 +34,8 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
       - run: pip install nox
       - uses: actions-rs/toolchain@v1
         with:
@@ -54,7 +54,7 @@ jobs:
         target: [powerpc64le-unknown-linux-gnu, s390x-unknown-linux-gnu, wasm32-wasi]
     name: check-${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -90,7 +90,7 @@ jobs:
           "3.8",
           "3.9",
           "3.10",
-          "3.11.0-alpha.6",
+          "3.11.0-beta.1",
           "pypy-3.7",
           "pypy-3.8",
           "pypy-3.9"
@@ -146,10 +146,10 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.platform.python-architecture }}
@@ -277,11 +277,17 @@ jobs:
         env:
           XWIN_ARCH: x86_64
         run: |
+          set -ex
           sudo apt-get install -y mingw-w64 llvm
           rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
           python -m pip install cargo-xwin
+          # abi3
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          # non-abi3
+          export PYO3_CROSS_PYTHON_VERSION=3.9
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - name: Test cross compile to Windows with maturin
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
         uses: messense/maturin-action@v1
@@ -311,8 +317,8 @@ jobs:
         os: ["windows", "macos", "ubuntu"]
     runs-on: ${{ matrix.os }}-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.10"
       - uses: Swatinem/rust-cache@v1

@@ -7,19 +7,17 @@ use crate::err::PyResult;
 use crate::ffi::{
     self, PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
 };
-#[cfg(not(PyPy))]
-use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 use crate::ffi::{
-    PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
-    PyDateTime_DATE_GET_SECOND,
+    PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND,
+    PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
 };
 use crate::ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
 use crate::ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
 use crate::ffi::{
-    PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
-    PyDateTime_TIME_GET_SECOND,
+    PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND,
+    PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
 };
 use crate::instance::PyNativeType;
 use crate::types::PyTuple;
@@ -153,10 +151,9 @@ pub trait PyTimeAccess {
     /// Returns whether this date is the later of two moments with the
     /// same representation, during a repeated interval.
     ///
-    /// This typically occurs at the end of daylight savings time, or during
-    /// leap seconds. Only valid if the represented time is ambiguous. See
-    /// [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
-    #[cfg(not(PyPy))]
+    /// This typically occurs at the end of daylight savings time. Only valid if the
+    /// represented time is ambiguous.
+    /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     fn get_fold(&self) -> bool;
 }
 
@@ -267,8 +264,12 @@ impl PyDateTime {
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
-    /// signifies a leap second
-    #[cfg(not(PyPy))]
+    /// signifies this this datetime is the later of two moments with the same representation,
+    /// during a repeated interval.
+    ///
+    /// This typically occurs at the end of daylight savings time. Only valid if the
+    /// represented time is ambiguous.
+    /// See [PEP 495](https://www.python.org/dev/peps/pep-0495/) for more detail.
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_fold<'p>(
         py: Python<'p>,
@@ -358,7 +359,6 @@ impl PyTimeAccess for PyDateTime {
         unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
     }
 
-    #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) > 0 }
     }
@@ -412,8 +412,7 @@ impl PyTime {
         }
     }
 
-    #[cfg(not(PyPy))]
-    /// Alternate constructor that takes a `fold` argument
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
     pub fn new_with_fold<'p>(
         py: Python<'p>,
         hour: u8,
@@ -456,7 +455,6 @@ impl PyTimeAccess for PyTime {
         unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
     }
 
-    #[cfg(not(PyPy))]
     fn get_fold(&self) -> bool {
         unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
     }
@@ -547,7 +545,6 @@ fn opt_to_pyobj(py: Python<'_>, opt: Option<&PyObject>) -> *mut ffi::PyObject {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(PyPy))]
     #[test]
     fn test_new_with_fold() {
         crate::Python::with_gil(|py| {
