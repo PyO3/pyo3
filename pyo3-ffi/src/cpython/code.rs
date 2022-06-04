@@ -1,5 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+
+#[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_uchar, c_void};
 
 // skipped _Py_CODEUNIT
@@ -137,9 +139,15 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), Py_3_10, not(Py_3_11)))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::PyTuple_GET_SIZE((*op).co_freevars)
+}
+
+#[inline]
+#[cfg(all(not(Py_3_10), Py_3_11, not(PyPy)))]
+pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
+    (*op).co_nfreevars
 }
 
 extern "C" {
