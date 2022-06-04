@@ -5,7 +5,6 @@ use crate::pyport::Py_ssize_t;
 use std::os::raw::c_uchar;
 use std::os::raw::{c_char, c_int, c_void};
 
-
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
