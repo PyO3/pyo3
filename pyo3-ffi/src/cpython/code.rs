@@ -79,6 +79,9 @@ pub struct PyCodeObject {
     pub co_code_adaptive: [c_char; 1],
 }
 
+#[cfg(all(not(PyPy), Py_3_7, not(Py_3_8)))]
+opaque_struct!(PyCodeObject);
+
 #[cfg(PyPy)]
 #[repr(C)]
 #[derive(Copy, Clone)]

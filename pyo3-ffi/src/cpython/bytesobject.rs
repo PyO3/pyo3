@@ -1,5 +1,5 @@
 use crate::object::*;
-use crate::pyport::{Py_hash_t, Py_ssize_t};
+use crate::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
 #[cfg(not(any(PyPy, Py_LIMITED_API)))]
@@ -8,7 +8,7 @@ use std::os::raw::{c_char, c_int};
 pub struct PyBytesObject {
     pub ob_base: PyVarObject,
     #[cfg(PyPy)]
-    pub ob_shash: Py_hash_t,
+    pub ob_shash: crate::Py_hash_t,
     pub ob_sval: [c_char; 1],
 }
 
