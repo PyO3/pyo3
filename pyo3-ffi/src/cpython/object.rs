@@ -364,10 +364,6 @@ extern "C" {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut _PyNone_Type: PyTypeObject;
-}
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
     pub static mut _PyNotImplemented_Type: PyTypeObject;
 }
 
