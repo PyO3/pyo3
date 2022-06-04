@@ -364,8 +364,11 @@ extern "C" {
 // skipped Py_SETREF
 // skipped Py_XSETREF
 
-// skipped _PyNone_Type
-// skipped _PyNotImplemented_Type
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub static mut _PyNone_Type: PyTypeObject;
+    pub static mut _PyNotImplemented_Type: PyTypeObject;
+}
 
 // skipped _Py_SwappedOp
 

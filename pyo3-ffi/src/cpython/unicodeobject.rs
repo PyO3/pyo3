@@ -93,10 +93,10 @@ pub struct PyCompactUnicodeObject {
 
 #[repr(C)]
 pub union PyUnicodeObjectData {
-    any: *mut c_void,
-    latin1: *mut Py_UCS1,
-    ucs2: *mut Py_UCS2,
-    ucs4: *mut Py_UCS4,
+    pub any: *mut c_void,
+    pub latin1: *mut Py_UCS1,
+    pub ucs2: *mut Py_UCS2,
+    pub ucs4: *mut Py_UCS4,
 }
 
 #[repr(C)]
