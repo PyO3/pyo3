@@ -81,7 +81,7 @@ pub struct PyDescrObject {
 pub struct PyMethodDescrObject {
     pub d_common: PyDescrObject,
     pub d_method: *mut PyMethodDef,
-    #[cfg(not(PyPy))]
+    #[cfg(all(not(PyPy), Py_3_8))]
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
