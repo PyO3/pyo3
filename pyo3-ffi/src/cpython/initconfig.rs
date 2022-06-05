@@ -168,7 +168,7 @@ pub struct PyConfig {
     #[cfg(Py_3_11)]
     pub _is_python_build: c_int,
     #[cfg(all(Py_3_9, not(Py_3_10)))]
-    pub orig_argv: PyWideStringList,
+    pub _orig_argv: PyWideStringList,
 }
 
 extern "C" {
