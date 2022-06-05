@@ -2,21 +2,18 @@
 
 use super::PyMapping;
 use crate::err::PyResult;
-use crate::ffi::addr_of_mut_shim;
-use crate::ffi::{PyDictProxy_Type, PyObject_TypeCheck};
 use crate::types::dict::PyDictItem;
 #[cfg(test)]
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
 use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence};
 use crate::PyErr;
-#[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyObject, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
 
 #[inline]
 #[allow(non_snake_case)]
 unsafe fn PyDictProxy_Check(object: *mut crate::ffi::PyObject) -> c_int {
-    PyObject_TypeCheck(object, addr_of_mut_shim!(PyDictProxy_Type))
+    ffi::PyObject_TypeCheck(object, ffi::addr_of_mut_shim!(ffi::PyDictProxy_Type))
 }
 
 /// Represents a Python `mappingproxy`.
