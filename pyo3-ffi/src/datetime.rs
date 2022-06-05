@@ -51,8 +51,6 @@ pub struct _PyDateTime_BaseTime {
     pub hastzinfo: c_char,
     #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-    #[cfg(not(PyPy))]
-    pub fold: c_uchar,
 }
 
 #[repr(C)]
@@ -98,8 +96,6 @@ pub struct _PyDateTime_BaseDateTime {
     pub hastzinfo: c_char,
     #[cfg(not(PyPy))]
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-    #[cfg(not(PyPy))]
-    pub fold: c_uchar,
 }
 
 #[repr(C)]

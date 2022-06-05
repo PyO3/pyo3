@@ -24,7 +24,14 @@ pub struct PyBaseExceptionObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySyntaxErrorObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub msg: *mut PyObject,
     pub filename: *mut PyObject,
     pub lineno: *mut PyObject,
@@ -41,7 +48,14 @@ pub struct PySyntaxErrorObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyImportErrorObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub msg: *mut PyObject,
     pub name: *mut PyObject,
     pub path: *mut PyObject,
@@ -51,7 +65,14 @@ pub struct PyImportErrorObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyUnicodeErrorObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub encoding: *mut PyObject,
     pub object: *mut PyObject,
     pub start: Py_ssize_t,
@@ -63,7 +84,14 @@ pub struct PyUnicodeErrorObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PySystemExitObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub code: *mut PyObject,
 }
 
@@ -71,7 +99,14 @@ pub struct PySystemExitObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyOSErrorObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub myerrno: *mut PyObject,
     pub strerror: *mut PyObject,
     pub filename: *mut PyObject,
@@ -84,7 +119,14 @@ pub struct PyOSErrorObject {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyStopIterationObject {
-    pub exception_base: PyBaseExceptionObject,
+    pub ob_base: PyObject,
+    pub dict: *mut PyObject,
+    pub args: *mut PyObject,
+    pub traceback: *mut PyObject,
+    pub context: *mut PyObject,
+    pub cause: *mut PyObject,
+    pub suppress_context: char,
+
     pub value: *mut PyObject,
 }
 

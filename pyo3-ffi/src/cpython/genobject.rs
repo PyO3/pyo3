@@ -1,19 +1,14 @@
 use crate::object::*;
 use crate::PyFrameObject;
 #[cfg(not(PyPy))]
-use crate::{Py_ssize_t, _PyErr_StackItem};
+use crate::_PyErr_StackItem;
 use std::os::raw::c_int;
 
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyGenObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_prev: *mut PyObject,
-    pub ob_refcnt: Py_ssize_t,
-    pub ob_type: *mut PyTypeObject,
+    pub ob_base: PyObject,
     pub gi_frame: *mut PyFrameObject,
     #[cfg(not(Py_3_10))]
     pub gi_running: c_int,

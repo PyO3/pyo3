@@ -11,13 +11,15 @@ use std::os::raw::{c_char, c_int, c_uchar, c_void};
 #[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
+#[cfg(all(not(PyPy), not(Py_3_8)))]
+opaque_struct!(PyCodeObject);
+
 #[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
-    #[cfg(Py_3_8)]
     pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
     pub co_nlocals: c_int,
@@ -40,13 +42,9 @@ pub struct PyCodeObject {
     pub co_zombieframe: *mut c_void,
     pub co_weakreflist: *mut PyObject,
     pub co_extra: *mut c_void,
-    #[cfg(Py_3_8)]
     pub co_opcache_map: *mut c_uchar,
-    #[cfg(all(Py_3_8, not(Py_3_11)))]
     pub co_opcache: *mut _PyOpcache,
-    #[cfg(Py_3_8)]
     pub co_opcache_flag: c_int,
-    #[cfg(Py_3_8)]
     pub co_opcache_size: c_uchar,
 }
 
@@ -80,9 +78,6 @@ pub struct PyCodeObject {
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }
-
-#[cfg(all(not(PyPy), Py_3_7, not(Py_3_8)))]
-opaque_struct!(PyCodeObject);
 
 #[cfg(PyPy)]
 #[repr(C)]
