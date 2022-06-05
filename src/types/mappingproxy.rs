@@ -192,7 +192,7 @@ mod tests {
     use super::*;
     #[cfg(not(PyPy))]
     use crate::{types::PyList, PyTypeInfo};
-    use crate::{types::PyTuple, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{types::PyTuple, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
