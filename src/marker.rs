@@ -942,6 +942,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)]
     fn test_allow_threads_releases_and_acquires_gil() {
         Python::with_gil(|py| {
             let b = std::sync::Arc::new(std::sync::Barrier::new(2));

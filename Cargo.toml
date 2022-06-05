@@ -168,3 +168,8 @@ members = [
 no-default-features = true
 features = ["macros", "num-bigint", "num-complex", "hashbrown", "serde", "multiple-pymethods", "indexmap", "eyre"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[patch.crates-io]
+# Instant misspells emscripten_get_now by including a leading underscore.
+# https://github.com/sebcrozet/instant/pull/47
+instant = { git = 'https://github.com/hoodmane/instant/', branch= 'emscripten-no-leading-underscore' }

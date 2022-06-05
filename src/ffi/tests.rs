@@ -6,6 +6,7 @@ use crate::types::PyString;
 #[cfg(target_endian = "little")]
 use libc::wchar_t;
 
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[test]
 fn test_datetime_fromtimestamp() {
     Python::with_gil(|py| {
@@ -23,6 +24,7 @@ fn test_datetime_fromtimestamp() {
     })
 }
 
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[test]
 fn test_date_fromtimestamp() {
     Python::with_gil(|py| {
@@ -40,6 +42,7 @@ fn test_date_fromtimestamp() {
     })
 }
 
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[test]
 fn test_utc_timezone() {
     Python::with_gil(|py| {
@@ -183,6 +186,7 @@ fn ucs4() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[cfg(not(PyPy))]
 fn test_get_tzinfo() {
     crate::Python::with_gil(|py| {

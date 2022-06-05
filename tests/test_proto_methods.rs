@@ -698,6 +698,7 @@ impl OnceFuture {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 fn test_await() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -747,6 +748,7 @@ impl AsyncIterator {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 fn test_anext_aiter() {
     let gil = Python::acquire_gil();
     let py = gil.python();

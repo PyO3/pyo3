@@ -729,6 +729,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)]
     fn test_clone_without_gil() {
         use crate::{Py, PyAny};
         use std::{sync::Arc, thread};
@@ -799,6 +800,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)]
     fn test_clone_in_other_thread() {
         use crate::Py;
         use std::{sync::Arc, thread};

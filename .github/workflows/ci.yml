@@ -339,3 +339,35 @@ jobs:
         with:
           file: coverage.lcov
           name: ${{ matrix.os }}
+
+  emscripten:
+    name: emscripten
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.11.0-beta.1
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-emscripten
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 14
+      - run: pip install nox
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            .nox/emscripten
+          key: ${{ hashFiles('emscripten/*') }} -  ${{ hashFiles('noxfile.py') }}
+      - uses: Swatinem/rust-cache@v1
+        with:
+          key: cargo-emscripten-wasm32
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: nox -s build_emscripten
+      - name: Test
+        run: nox -s test_emscripten

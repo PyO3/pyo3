@@ -229,6 +229,7 @@ impl UnsendableChild {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", ignore)]
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let obj = std::thread::spawn(|| -> PyResult<_> {
         Python::with_gil(|py| {
@@ -259,6 +260,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
 
 /// If a class is marked as `unsendable`, it panics when accessed by another thread.
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
     expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
 )]
@@ -267,6 +269,7 @@ fn panic_unsendable_base() {
 }
 
 #[test]
+#[cfg_attr(target_arch = "wasm32", ignore)]
 #[should_panic(
     expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread!"
 )]
