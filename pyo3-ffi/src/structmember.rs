@@ -1,15 +1,28 @@
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
+use std::ptr;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PyMemberDef {
     pub name: *mut c_char,
     pub type_code: c_int,
     pub offset: Py_ssize_t,
     pub flags: c_int,
     pub doc: *mut c_char,
+}
+
+impl Default for PyMemberDef {
+    fn default() -> PyMemberDef {
+        PyMemberDef {
+            name: ptr::null_mut(),
+            type_code: 0,
+            offset: 0,
+            flags: 0,
+            doc: ptr::null_mut(),
+        }
+    }
 }
 
 /* Types */

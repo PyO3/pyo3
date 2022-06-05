@@ -184,7 +184,7 @@ mod negative_impls {
     impl !Ungil for crate::ffi::PyCodeObject {}
     #[cfg(not(Py_LIMITED_API))]
     impl !Ungil for crate::ffi::PyDictKeysObject {}
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
     impl !Ungil for crate::ffi::PyArena {}
 }
 

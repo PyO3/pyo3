@@ -39,25 +39,27 @@ extern "C" {
     pub fn PyGC_IsEnabled() -> c_int;
 }
 
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(not(Py_LIMITED_API))]
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
     pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
     pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 impl Default for PyObjectArenaAllocator {
     #[inline]
     fn default() -> Self {
         unsafe { std::mem::zeroed() }
     }
 }
-#[cfg(not(Py_LIMITED_API))]
+
 extern "C" {
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
 }
 

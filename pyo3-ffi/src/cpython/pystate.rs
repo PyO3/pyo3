@@ -8,7 +8,7 @@ use std::os::raw::c_int;
 
 // skipped _PyInterpreterState_GetMainModule
 
-pub type Py_tracefunc = extern "C" fn(
+pub type Py_tracefunc = unsafe extern "C" fn(
     obj: *mut PyObject,
     frame: *mut PyFrameObject,
     what: c_int,
@@ -26,7 +26,17 @@ pub const PyTrace_OPCODE: c_int = 7;
 
 // skipped PyTraceInfo
 // skipped CFrame
-// skipped _PyErr_StackItem
+
+#[cfg(not(PyPy))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct _PyErr_StackItem {
+    pub exc_type: *mut PyObject,
+    pub exc_value: *mut PyObject,
+    pub exc_traceback: *mut PyObject,
+    pub previous_item: *mut _PyErr_StackItem,
+}
+
 // skipped _PyStackChunk
 // skipped _ts (aka PyThreadState)
 

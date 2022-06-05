@@ -43,7 +43,6 @@ fn make_time<'p>(
     )
 }
 
-#[cfg(not(PyPy))]
 #[pyfunction]
 fn time_with_fold<'p>(
     py: Python<'p>,
@@ -78,7 +77,6 @@ fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     )
 }
 
-#[cfg(not(PyPy))]
 #[pyfunction]
 fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
@@ -152,7 +150,6 @@ fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     )
 }
 
-#[cfg(not(PyPy))]
 #[pyfunction]
 fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
@@ -227,13 +224,9 @@ pub fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
     m.add_function(wrap_pyfunction!(get_time_tzinfo, m)?)?;
 
-    // Functions not supported by PyPy
-    #[cfg(not(PyPy))]
-    {
-        m.add_function(wrap_pyfunction!(time_with_fold, m)?)?;
-        m.add_function(wrap_pyfunction!(get_time_tuple_fold, m)?)?;
-        m.add_function(wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
-    }
+    m.add_function(wrap_pyfunction!(time_with_fold, m)?)?;
+    m.add_function(wrap_pyfunction!(get_time_tuple_fold, m)?)?;
+    m.add_function(wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
 
     m.add_class::<TzClass>()?;
 

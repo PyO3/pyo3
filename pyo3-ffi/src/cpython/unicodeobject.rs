@@ -1,4 +1,6 @@
-use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_UNICODE, Py_hash_t, Py_ssize_t};
+#[cfg(not(PyPy))]
+use crate::Py_hash_t;
+use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_UNICODE, Py_ssize_t};
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 
@@ -32,6 +34,7 @@ use std::os::raw::{c_char, c_int, c_uint, c_void};
 pub struct PyASCIIObject {
     pub ob_base: PyObject,
     pub length: Py_ssize_t,
+    #[cfg(not(PyPy))]
     pub hash: Py_hash_t,
     /// A bit field with various properties.
     ///
@@ -90,10 +93,10 @@ pub struct PyCompactUnicodeObject {
 
 #[repr(C)]
 pub union PyUnicodeObjectData {
-    any: *mut c_void,
-    latin1: *mut Py_UCS1,
-    ucs2: *mut Py_UCS2,
-    ucs4: *mut Py_UCS4,
+    pub any: *mut c_void,
+    pub latin1: *mut Py_UCS1,
+    pub ucs2: *mut Py_UCS2,
+    pub ucs4: *mut Py_UCS4,
 }
 
 #[repr(C)]

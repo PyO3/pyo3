@@ -1,20 +1,25 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+
+#[allow(unused_imports)]
 use std::os::raw::{c_char, c_int, c_uchar, c_void};
 
 // skipped _Py_CODEUNIT
 // skipped _Py_OPCODE
 // skipped _Py_OPARG
 
-#[cfg(Py_3_8)]
+#[cfg(all(Py_3_8, not(PyPy), not(Py_3_11)))]
 opaque_struct!(_PyOpcache);
 
+#[cfg(all(not(PyPy), not(Py_3_8)))]
+opaque_struct!(PyCodeObject);
+
+#[cfg(all(not(PyPy), Py_3_8, not(Py_3_11)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
-    #[cfg(Py_3_8)]
     pub co_posonlyargcount: c_int,
     pub co_kwonlyargcount: c_int,
     pub co_nlocals: c_int,
@@ -27,21 +32,62 @@ pub struct PyCodeObject {
     pub co_varnames: *mut PyObject,
     pub co_freevars: *mut PyObject,
     pub co_cellvars: *mut PyObject,
-    pub co_cell2arg: *mut c_uchar,
+    pub co_cell2arg: *mut Py_ssize_t,
     pub co_filename: *mut PyObject,
     pub co_name: *mut PyObject,
+    #[cfg(not(Py_3_10))]
     pub co_lnotab: *mut PyObject,
+    #[cfg(Py_3_10)]
+    pub co_linetable: *mut PyObject,
     pub co_zombieframe: *mut c_void,
     pub co_weakreflist: *mut PyObject,
     pub co_extra: *mut c_void,
-    #[cfg(Py_3_8)]
     pub co_opcache_map: *mut c_uchar,
-    #[cfg(Py_3_8)]
     pub co_opcache: *mut _PyOpcache,
-    #[cfg(Py_3_8)]
     pub co_opcache_flag: c_int,
-    #[cfg(Py_3_8)]
     pub co_opcache_size: c_uchar,
+}
+
+#[cfg(all(not(PyPy), Py_3_11))]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCodeObject {
+    pub ob_base: PyVarObject,
+    pub co_consts: *mut PyObject,
+    pub co_names: *mut PyObject,
+    pub co_exceptiontable: *mut PyObject,
+    pub co_flags: c_int,
+    pub co_warmup: c_int,
+    pub co_argcount: c_int,
+    pub co_posonlyargcount: c_int,
+    pub co_kwonlyargcount: c_int,
+    pub co_stacksize: c_int,
+    pub co_firstlineno: c_int,
+    pub co_nlocalsplus: c_int,
+    pub co_nlocals: c_int,
+    pub co_nplaincellvars: c_int,
+    pub co_ncellvars: c_int,
+    pub co_nfreevars: c_int,
+    pub co_localsplusnames: *mut PyObject,
+    pub co_localspluskinds: *mut PyObject,
+    pub co_filename: *mut PyObject,
+    pub co_name: *mut PyObject,
+    pub co_qualname: *mut PyObject,
+    pub co_linetable: *mut PyObject,
+    pub co_weakreflist: *mut PyObject,
+    pub co_extra: *mut c_void,
+    pub co_code_adaptive: [c_char; 1],
+}
+
+#[cfg(PyPy)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCodeObject {
+    pub ob_base: PyObject,
+    pub co_name: *mut PyObject,
+    pub co_filename: *mut PyObject,
+    pub co_argcount: c_int,
+    pub co_flags: c_int,
 }
 
 /* Masks for co_flags */
@@ -88,9 +134,15 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(all(not(PyPy), Py_3_10, not(Py_3_11)))]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::PyTuple_GET_SIZE((*op).co_freevars)
+}
+
+#[inline]
+#[cfg(all(not(Py_3_10), Py_3_11, not(PyPy)))]
+pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> c_int {
+    (*op).co_nfreevars
 }
 
 extern "C" {

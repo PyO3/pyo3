@@ -302,8 +302,6 @@ pub use self::fileutils::*;
 pub use self::floatobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::funcobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::genobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -317,7 +315,7 @@ pub use self::moduleobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::osmodule::*;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 pub use self::pyarena::*;
 pub use self::pycapsule::*;
 pub use self::pyerrors::*;
@@ -374,8 +372,6 @@ mod floatobject;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod funcobject;
 // skipped genericaliasobject.h
-#[cfg(not(Py_LIMITED_API))]
-mod genobject;
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;
@@ -400,7 +396,7 @@ mod osmodule;
 // skipped picklebufobject.h
 // skipped pyctype.h
 // skipped py_curses.h
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 mod pyarena;
 mod pycapsule;
 // skipped pydecimal.h

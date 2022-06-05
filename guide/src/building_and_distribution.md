@@ -84,7 +84,26 @@ Once built, symlink (or copy) and rename the shared library from Cargo's `target
 
 You can then open a Python shell in the output directory and you'll be able to run `import your_module`.
 
+If you're packaging your library for redistribution, you should indicated the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name. This prevents incompatible interpreters from trying to import your library. If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
+
 See, as an example, Bazel rules to build PyO3 on Linux at https://github.com/TheButlah/rules_pyo3.
+
+#### Platform tags
+
+Rather than using just the `.so` or `.pyd` extension suggested above (depending on OS), uou can prefix the shared library extension with a platform tag to indicate the interpreter it is compatible with. You can query your interpreter's platform tag from the `sysconfig` module. Some example outputs of this are seen below:
+
+```bash
+# CPython 3.10 on macOS
+.cpython-310-darwin.so
+
+# PyPy 7.3 (Python 3.8) on Linux
+$ python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))'
+.pypy38-pp73-x86_64-linux-gnu.so
+```
+
+So, for example, a valid module library name on CPython 3.10 for macOS is `your_module.cpython-310-darwin.so`, and its equivalent when compiled for PyPy 7.3 on Linux would be `your_module.pypy38-pp73-x86_64-linux-gnu.so`.
+
+See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platform tags.
 
 #### macOS
 
