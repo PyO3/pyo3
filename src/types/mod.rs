@@ -16,7 +16,6 @@ pub use self::datetime::{
     PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict};
-pub use self::mappingproxy::{IntoPyMappingProxy, PyMappingProxy};
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
@@ -25,6 +24,7 @@ pub use self::function::{PyCFunction, PyFunction};
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::mapping::PyMapping;
+pub use self::mappingproxy::{IntoPyMappingProxy, PyMappingProxy};
 pub use self::module::PyModule;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;

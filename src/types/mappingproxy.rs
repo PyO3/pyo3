@@ -1,17 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use super::PyMapping;
-use crate::err::{PyResult};
-use crate::ffi::{PyDictProxy_Type, PyObject_TypeCheck};
+use crate::err::PyResult;
 use crate::ffi::addr_of_mut_shim;
-use crate::types::{IntoPyDict, PyAny, PyDict, PyList, PyString, PyIterator, PySequence};
+use crate::ffi::{PyDictProxy_Type, PyObject_TypeCheck};
 use crate::types::dict::PyDictItem;
 #[cfg(test)]
-use crate::types::dict::{PyDictKeys, PyDictValues, PyDictItems, PyDictItem};
+use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
+use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence, PyString};
 #[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyObject, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
-
 
 #[inline]
 #[allow(non_snake_case)]
@@ -59,7 +58,10 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
-            let dict = ffi::PyObject_CallMethodNoArgs(self.as_ptr(), PyString::new(self.py(), "copy").as_ptr());
+            let dict = ffi::PyObject_CallMethodNoArgs(
+                self.as_ptr(),
+                PyString::new(self.py(), "copy").as_ptr(),
+            );
             self.py().from_owned_ptr_or_err(dict)
         }
     }
@@ -81,15 +83,16 @@ impl PyMappingProxy {
         PyAny::get_item(self, key).ok()
     }
 
-
     /// Returns a list of mappingproxy keys.
     ///
     /// This is equivalent to the Python expression `list(mappingproxy.keys())`.
     pub fn keys(&self) -> &PyList {
         unsafe {
-            let keys = ffi::PyObject_CallMethodNoArgs(self.as_ptr(), PyString::new(self.py(), "keys").as_ptr());
-            self.py()
-                .from_owned_ptr::<PySequence>(keys).list().unwrap()
+            let keys = ffi::PyObject_CallMethodNoArgs(
+                self.as_ptr(),
+                PyString::new(self.py(), "keys").as_ptr(),
+            );
+            self.py().from_owned_ptr::<PySequence>(keys).list().unwrap()
         }
     }
 
@@ -98,9 +101,14 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `list(mappingproxy.values())`.
     pub fn values(&self) -> &PyList {
         unsafe {
-            let values = ffi::PyObject_CallMethodNoArgs(self.as_ptr(), PyString::new(self.py(), "values").as_ptr());
+            let values = ffi::PyObject_CallMethodNoArgs(
+                self.as_ptr(),
+                PyString::new(self.py(), "values").as_ptr(),
+            );
             self.py()
-                .from_owned_ptr::<PySequence>(values).list().unwrap()
+                .from_owned_ptr::<PySequence>(values)
+                .list()
+                .unwrap()
         }
     }
 
@@ -109,9 +117,14 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `list(mappingproxy.items())`.
     pub fn items(&self) -> &PyList {
         unsafe {
-            let items = ffi::PyObject_CallMethodNoArgs(self.as_ptr(), PyString::new(self.py(), "items").as_ptr());
+            let items = ffi::PyObject_CallMethodNoArgs(
+                self.as_ptr(),
+                PyString::new(self.py(), "items").as_ptr(),
+            );
             self.py()
-                .from_owned_ptr::<PySequence>(items).list().unwrap()
+                .from_owned_ptr::<PySequence>(items)
+                .list()
+                .unwrap()
         }
     }
 
@@ -129,7 +142,7 @@ impl PyMappingProxy {
 
 pub struct PyMappingProxyIterator<'py> {
     iterator: &'py PyIterator,
-    mappingproxy: &'py PyMappingProxy
+    mappingproxy: &'py PyMappingProxy,
 }
 
 impl<'py> Iterator for PyMappingProxyIterator<'py> {
@@ -137,11 +150,10 @@ impl<'py> Iterator for PyMappingProxyIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next()
+        self.iterator
+            .next()
             .map(Result::unwrap)
-            .and_then(
-                |key| self.mappingproxy.get_item(key).map(|value| (key, value))
-            )
+            .and_then(|key| self.mappingproxy.get_item(key).map(|value| (key, value)))
     }
 }
 
@@ -152,7 +164,7 @@ impl<'a> std::iter::IntoIterator for &'a PyMappingProxy {
     fn into_iter(self) -> Self::IntoIter {
         PyMappingProxyIterator {
             iterator: PyIterator::from_object(self.py(), self).unwrap(),
-            mappingproxy: self
+            mappingproxy: self,
         }
     }
 }
@@ -187,7 +199,14 @@ mod tests {
     fn test_new() {
         Python::with_gil(|py| {
             let mappingproxy = [(7, 32)].into_py_mappingproxy(py).unwrap();
-            assert_eq!(32, mappingproxy.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                32,
+                mappingproxy
+                    .get_item(7i32)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
             assert!(mappingproxy.get_item(8i32).is_none());
             let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, mappingproxy.extract().unwrap());
@@ -202,8 +221,22 @@ mod tests {
         Python::with_gil(|py| {
             let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
             let mappingproxy = PyMappingProxy::from_sequence(py, items.to_object(py)).unwrap();
-            assert_eq!(1, mappingproxy.get_item("a").unwrap().extract::<i32>().unwrap());
-            assert_eq!(2, mappingproxy.get_item("b").unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                1,
+                mappingproxy
+                    .get_item("a")
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert_eq!(
+                2,
+                mappingproxy
+                    .get_item("b")
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
             let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
             assert_eq!(map, mappingproxy.extract().unwrap());
             let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
@@ -226,7 +259,10 @@ mod tests {
             let mappingproxy = [(7, 32)].into_py_mappingproxy(py).unwrap();
 
             let new_dict = mappingproxy.copy().unwrap();
-            assert_eq!(32, new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                32,
+                new_dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
+            );
             assert!(new_dict.get_item(8i32).is_none());
         });
     }
@@ -260,7 +296,14 @@ mod tests {
             let mut v = HashMap::new();
             v.insert(7, 32);
             let mappingproxy = v.into_py_mappingproxy(py).unwrap();
-            assert_eq!(32, mappingproxy.get_item(7i32).unwrap().extract::<i32>().unwrap());
+            assert_eq!(
+                32,
+                mappingproxy
+                    .get_item(7i32)
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
             assert!(mappingproxy.get_item(8i32).is_none());
         });
     }
