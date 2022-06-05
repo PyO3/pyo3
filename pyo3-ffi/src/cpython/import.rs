@@ -34,7 +34,7 @@ extern "C" {
 #[derive(Copy, Clone)]
 pub struct _inittab {
     pub name: *const c_char,
-    pub initfun: Option<unsafe extern "C" fn() -> *mut PyObject>,
+    pub initfunc: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
