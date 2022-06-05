@@ -16,6 +16,7 @@ pub use self::datetime::{
     PyTzInfoAccess,
 };
 pub use self::dict::{IntoPyDict, PyDict};
+pub use self::mappingproxy::{IntoPyMappingProxy, PyMappingProxy};
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
@@ -275,6 +276,7 @@ mod function;
 mod iterator;
 mod list;
 mod mapping;
+mod mappingproxy;
 mod module;
 mod num;
 mod sequence;

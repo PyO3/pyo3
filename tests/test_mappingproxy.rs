@@ -34,7 +34,7 @@ fn get_value_from_mappingproxy_of_integers(){
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let items = (0..LEN).map(|i| (i, i - 1)).collect::<Vec<(usize, usize)>>();
+    let items: Vec<(usize, usize)> = (1..LEN).map(|i| (i, i - 1)).collect();
     let mappingproxy = items.to_vec().into_py_mappingproxy(py).unwrap();
     assert_eq!(
         items,
@@ -46,7 +46,7 @@ fn get_value_from_mappingproxy_of_integers(){
                 )
         ).collect::<Vec<(usize, usize)>>()
     );
-    for index in 0..LEN {
+    for index in 1..LEN {
         assert_eq!(
             mappingproxy.get_item(index).unwrap().extract::<usize>().unwrap(),
             index - 1
