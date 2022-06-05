@@ -214,15 +214,15 @@ pub type printfunc =
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PyTypeObject {
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(Py_3_9)))]
     pub ob_refcnt: Py_ssize_t,
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(Py_3_9)))]
     pub ob_pypy_link: Py_ssize_t,
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(Py_3_9)))]
     pub ob_type: *mut PyTypeObject,
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(Py_3_9)))]
     pub ob_size: Py_ssize_t,
-    #[cfg(not(PyPy))]
+    #[cfg(not(all(PyPy, not(Py_3_9))))]
     pub ob_base: object::PyVarObject,
     pub tp_name: *const c_char,
     pub tp_basicsize: Py_ssize_t,
@@ -276,7 +276,7 @@ pub struct PyTypeObject {
     pub tp_finalize: Option<object::destructor>,
     #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<super::vectorcallfunc>,
-    #[cfg(all(Py_3_8, not(Py_3_9)))]
+    #[cfg(any(all(PyPy, Py_3_8), all(not(PyPy), Py_3_8, not(Py_3_9))))]
     pub tp_print: Option<printfunc>,
     #[cfg(PyPy)]
     pub tp_pypy_flags: std::os::raw::c_long,
@@ -304,6 +304,7 @@ pub struct PyHeapTypeObject {
     pub ht_name: *mut object::PyObject,
     pub ht_slots: *mut object::PyObject,
     pub ht_qualname: *mut object::PyObject,
+    #[cfg(not(PyPy))]
     pub ht_cached_keys: *mut c_void,
     #[cfg(Py_3_9)]
     pub ht_module: *mut object::PyObject,

@@ -120,11 +120,17 @@ pub struct PyOSErrorObject {
 #[derive(Debug)]
 pub struct PyStopIterationObject {
     pub ob_base: PyObject,
+    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
+    #[cfg(not(PyPy))]
     pub suppress_context: char,
 
     pub value: *mut PyObject,
