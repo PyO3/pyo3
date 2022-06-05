@@ -32,6 +32,7 @@ pub struct PyFrameObject {
     #[cfg(not(Py_3_10))]
     pub f_stacktop: *mut *mut PyObject,
     pub f_trace: *mut PyObject,
+    #[cfg(Py_3_10)]
     pub f_stackdepth: c_int,
     pub f_trace_lines: c_char,
     pub f_trace_opcodes: c_char,
@@ -43,6 +44,7 @@ pub struct PyFrameObject {
     pub f_iblock: c_int,
     #[cfg(not(Py_3_10))]
     pub f_executing: c_char,
+    #[cfg(Py_3_10)]
     pub f_state: PyFrameState,
     pub f_blockstack: [PyTryBlock; crate::CO_MAXBLOCKS],
     pub f_localsplus: [*mut PyObject; 1],
