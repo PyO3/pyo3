@@ -3,7 +3,7 @@
 use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
-use crate::types::{PyAny, PyList};
+use crate::types::{PyAny, PyList, PyMappingProxy};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
@@ -444,12 +444,19 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-        let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict.iter() {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match <PyDict as PyTryFrom>::try_from(ob) {
+            Ok(dict) => {
+                let mut ret = HashMap::with_capacity_and_hasher(dict.len(), S::default());
+                for (k, v) in dict.iter() {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(_) => {
+                let mappingproxy = <PyMappingProxy as PyTryFrom>::try_from(ob)?;
+                mappingproxy.copy()?.extract()
+            }
         }
-        Ok(ret)
     }
 }
 
@@ -459,12 +466,19 @@ where
     V: FromPyObject<'source>,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
-        let mut ret = BTreeMap::new();
-        for (k, v) in dict.iter() {
-            ret.insert(K::extract(k)?, V::extract(v)?);
+        match <PyDict as PyTryFrom>::try_from(ob) {
+            Ok(dict) => {
+                let mut ret = BTreeMap::new();
+                for (k, v) in dict.iter() {
+                    ret.insert(K::extract(k)?, V::extract(v)?);
+                }
+                Ok(ret)
+            }
+            Err(_) => {
+                let mappingproxy = <PyMappingProxy as PyTryFrom>::try_from(ob)?;
+                mappingproxy.copy()?.extract()
+            }
         }
-        Ok(ret)
     }
 }
 

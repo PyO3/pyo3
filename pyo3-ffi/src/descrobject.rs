@@ -21,7 +21,7 @@ pub struct PyGetSetDef {
 #[derive(Copy, Clone, Debug)]
 pub struct PyDictProxyObject {
     pub ob_base: PyObject,
-    pub mapping: PyObject
+    pub mapping: *mut PyObject
 }
 
 // skipped non-limited wrapperfunc
