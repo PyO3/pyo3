@@ -7,7 +7,8 @@ use crate::ffi::{PyDictProxy_Type, PyObject_TypeCheck};
 use crate::types::dict::PyDictItem;
 #[cfg(test)]
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
-use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence, PyString};
+use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence};
+use crate::PyErr;
 #[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyObject, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
@@ -57,13 +58,8 @@ impl PyMappingProxy {
     ///
     /// This is equivalent to the Python expression `self.copy()`.
     pub fn copy(&self) -> PyResult<&PyDict> {
-        unsafe {
-            let dict = ffi::PyObject_CallMethodNoArgs(
-                self.as_ptr(),
-                PyString::new(self.py(), "copy").as_ptr(),
-            );
-            self.py().from_owned_ptr_or_err(dict)
-        }
+        self.call_method0("copy")
+            .and_then(|object| object.downcast().map_err(PyErr::from))
     }
 
     /// Checks if the mappingproxy is empty, i.e. `len(self) == 0`.
@@ -88,11 +84,9 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `list(mappingproxy.keys())`.
     pub fn keys(&self) -> &PyList {
         unsafe {
-            let keys = ffi::PyObject_CallMethodNoArgs(
-                self.as_ptr(),
-                PyString::new(self.py(), "keys").as_ptr(),
-            );
-            self.py().from_owned_ptr::<PySequence>(keys).list().unwrap()
+            PySequence::try_from_unchecked(self.call_method0("keys").unwrap())
+                .list()
+                .unwrap()
         }
     }
 
@@ -101,12 +95,7 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `list(mappingproxy.values())`.
     pub fn values(&self) -> &PyList {
         unsafe {
-            let values = ffi::PyObject_CallMethodNoArgs(
-                self.as_ptr(),
-                PyString::new(self.py(), "values").as_ptr(),
-            );
-            self.py()
-                .from_owned_ptr::<PySequence>(values)
+            PySequence::try_from_unchecked(self.call_method0("values").unwrap())
                 .list()
                 .unwrap()
         }
@@ -117,12 +106,7 @@ impl PyMappingProxy {
     /// This is equivalent to the Python expression `list(mappingproxy.items())`.
     pub fn items(&self) -> &PyList {
         unsafe {
-            let items = ffi::PyObject_CallMethodNoArgs(
-                self.as_ptr(),
-                PyString::new(self.py(), "items").as_ptr(),
-            );
-            self.py()
-                .from_owned_ptr::<PySequence>(items)
+            PySequence::try_from_unchecked(self.call_method0("items").unwrap())
                 .list()
                 .unwrap()
         }
