@@ -6,8 +6,8 @@ use crate::types::dict::PyDictItem;
 #[cfg(all(test, not(PyPy)))]
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
 use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence};
-#[cfg(not(PyPy))]
 use crate::PyObject;
+#[cfg(not(PyPy))]
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
 
