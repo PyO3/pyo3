@@ -7,7 +7,9 @@ use crate::types::dict::PyDictItem;
 use crate::types::dict::{PyDictItems, PyDictKeys, PyDictValues};
 use crate::types::{IntoPyDict, PyAny, PyDict, PyIterator, PyList, PySequence};
 use crate::PyErr;
-use crate::{ffi, AsPyPointer, PyObject, PyTryFrom, Python, ToPyObject};
+#[cfg(not(PyPy))]
+use crate::PyObject;
+use crate::{ffi, AsPyPointer, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
 
 #[inline]
