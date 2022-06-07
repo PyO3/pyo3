@@ -1,26 +1,28 @@
 CURDIR=$(abspath .)
 
+# These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
+PYMAJORMINORMICRO ?= 3.11.0
+PYPRERELEASE ?= b1 # I'm not sure how to split 3.11.0b1 in Make.
+
+EMSCRIPTEN_VERSION=3.1.13
+
 export EMSDKDIR = $(BUILDROOT)/emsdk
 
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
 
-# BASH_ENV tells bash to run pyodide_env.sh on startup, which sets various
-# environment variables. The next line instructs make to use bash to run each
-# command.
+# BASH_ENV tells bash to source emsdk_env.sh on startup.
 export BASH_ENV := $(CURDIR)/env.sh
+# Use bash to run each command so that env.sh will be used.
 SHELL := /bin/bash
 
-EMSCRIPTEN_VERSION=3.1.13
 
-PYMAJORMINORMICRO ?= 3.11.0
-PYPRERELEASE ?= b1
-
+# Set version variables.
 version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
-export PYMAJOR=$(word 1,$(version_tuple))
-export PYMINOR=$(word 2,$(version_tuple))
-export PYMICRO=$(word 3,$(version_tuple))
+PYMAJOR=$(word 1,$(version_tuple))
+PYMINOR=$(word 2,$(version_tuple))
+PYMICRO=$(word 3,$(version_tuple))
 PYVERSION=$(PYMAJORMINORMICRO)$(PYPRERELEASE)
 PYMAJORMINOR=$(PYMAJOR).$(PYMINOR)
 
@@ -29,7 +31,7 @@ PYTHONURL=https://www.python.org/ftp/python/$(PYMAJORMINORMICRO)/Python-$(PYVERS
 PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
 PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
 
-export PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
+PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
 
 all: $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a
 
@@ -38,6 +40,7 @@ $(BUILDROOT)/.exists:
 	touch $@
 
 
+# Install emscripten
 $(EMSDKDIR): $(CURDIR)/emscripten_patches/* $(BUILDROOT)/.exists
 	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $(EMSCRIPTEN_VERSION) $(EMSDKDIR)
 	$(EMSDKDIR)/emsdk install $(EMSCRIPTEN_VERSION)
@@ -70,11 +73,15 @@ $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a : $(PYTHONBUILD)/Makefile
 	cd $(PYTHONBUILD) && \
 		emmake make -j3 libpython$(PYMAJORMINOR).a
 
+	# Generate sysconfigdata
 	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python3.11 -m sysconfig --generate-posix-vars
 	cp `cat pybuilddir.txt`/$(SYSCONFIGDATA_NAME).py $(PYTHONBUILD)/Lib
 
 	mkdir -p $(PYTHONLIBDIR)
+	# Copy libexpat.a, libmpdec.a, and libpython3.11.a
+	# In noxfile, we explicitly link libexpat and libmpdec via RUSTFLAGS
 	find $(PYTHONBUILD) -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
+	# Install Python stdlib
 	cp -r $(PYTHONBUILD)/Lib $(PYTHONLIBDIR)/python$(PYMAJORMINOR)
 
 clean:
