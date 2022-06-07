@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 #[rustversion::stable]
-#[cfg_attr(target_arch = "wasm32", ignore)]
+#[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[test]
 fn test_compile_errors() {
     // stable - require all tests to pass
@@ -9,7 +9,7 @@ fn test_compile_errors() {
 }
 
 #[cfg(not(feature = "nightly"))]
-#[cfg_attr(target_arch = "wasm32", ignore)]
+#[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
 #[rustversion::nightly]
 #[test]
 fn test_compile_errors() {
@@ -19,7 +19,7 @@ fn test_compile_errors() {
 }
 
 #[cfg(feature = "nightly")]
-#[cfg_attr(target_arch = "wasm32", ignore)]
+#[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[rustversion::nightly]
 #[test]
 fn test_compile_errors() {

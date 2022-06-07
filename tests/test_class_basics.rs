@@ -229,7 +229,6 @@ impl UnsendableChild {
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", ignore)]
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     let obj = std::thread::spawn(|| -> PyResult<_> {
         Python::with_gil(|py| {

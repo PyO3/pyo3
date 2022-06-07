@@ -698,7 +698,7 @@ impl OnceFuture {
 }
 
 #[test]
-#[cfg_attr(target_arch = "wasm32", ignore)]
+#[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -748,7 +748,7 @@ impl AsyncIterator {
 }
 
 #[test]
-#[cfg_attr(target_arch = "wasm32", ignore)]
+#[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
