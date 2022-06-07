@@ -375,7 +375,7 @@ fn method_defs_to_pyclass_info(
             name: "__dict__\0".as_ptr() as *mut c_char,
             get: Some(ffi::PyObject_GenericGetDict),
             set: Some(ffi::PyObject_GenericSetDict),
-            doc: ptr::null_mut(),
+            doc: ptr::null(),
             closure: ptr::null_mut(),
         });
     }
@@ -435,7 +435,7 @@ const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
     set: None,
-    doc: ptr::null_mut(),
+    doc: ptr::null(),
     closure: ptr::null_mut(),
 };
 
