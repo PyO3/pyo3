@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix FFI definition `_inittab` field `initfunc` typo'd as `initfun`. [#2431](https://github.com/PyO3/pyo3/pull/2431)
 - Fix FFI definitions `_PyDateTime_BaseTime` and `_PyDateTime_BaseDateTime` incorrectly having `fold` member. [#2432](https://github.com/PyO3/pyo3/pull/2432)
 - Fix FFI definitions `PyTypeObject`. `PyHeapTypeObject`, and `PyCFunctionObject` having incorrect members on PyPy 3.9. [#2428](https://github.com/PyO3/pyo3/pull/2428)
+- Fix FFI definition `PyGetSetDef` to have `*const c_char` for `doc` member (not `*mut c_char`). [#2439](https://github.com/PyO3/pyo3/pull/2439)
 
 ## [0.16.5] - 2022-05-15
 
