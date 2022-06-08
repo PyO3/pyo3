@@ -20,9 +20,8 @@ unsafe fn PyDictProxy_Check(object: *mut crate::ffi::PyObject) -> c_int {
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
-pyobject_native_type!(
+pyobject_native_type_core!(
     PyMappingProxy,
-    ffi::PyDictProxyObject,
     ffi::PyDictProxy_Type,
     #checkfunction=PyDictProxy_Check
 );
