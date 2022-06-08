@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to PyO3! All are welcome - please consider reading our [Code of Conduct](Code-of-Conduct.md) to keep our community positive and inclusive.
+Thank you for your interest in contributing to PyO3! All are welcome - please consider reading our [Code of Conduct](https://github.com/PyO3/pyo3/blob/main/Code-of-Conduct.md) to keep our community positive and inclusive.
 
 If you are searching for ideas how to contribute, proceed to the ["Getting started contributing"](#getting-started-contributing) section. If you have found a specific issue to contribute to and need information about the development process, you may find the section ["Writing pull requests"](#writing-pull-requests) helpful.
 
@@ -21,6 +21,7 @@ To work and develop PyO3, you need Python & Rust installed on your system.
 * We encourage the use of [rustup](https://rustup.rs/) to be able to select and choose specific toolchains based on the project.
 * [Pyenv](https://github.com/pyenv/pyenv) is also highly recommended for being able to choose a specific Python version.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
+* [`nox`][nox] is used to automate many of our CI tasks.
 
 ### Caveats
 
@@ -48,7 +49,10 @@ There are some specific areas of focus where help is currently needed for the do
 - Not all APIs had docs or examples when they were made. The goal is to have documentation on all PyO3 APIs ([#306](https://github.com/PyO3/pyo3/issues/306)). If you see an API lacking a doc, please write one and open a PR!
 
 You can build the docs (including all features) with
-```cargo xtask doc --open```
+
+```shell
+cargo xtask doc --open
+```
 
 #### Doctests
 
@@ -60,8 +64,11 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, [install `mdbook`](https://rust-lang.github.io/mdBook/cli/index.html). Then, run
-```mdbook build -d ../gh-pages-build guide --open```
+First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+
+```shell
+nox -s build-guide -- --open
+```
 
 ### Help design the next PyO3
 
@@ -129,3 +136,6 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 
 - [davidhewitt](https://github.com/sponsors/davidhewitt)
 - [messense](https://github.com/sponsors/messense)
+
+[mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[nox]: https://github.com/theacodes/nox

@@ -36,3 +36,7 @@
 [Appendix C: Trait bounds](trait_bounds.md)
 [Appendix D: Python typing hints](python_typing_hints.md)
 [CHANGELOG](changelog.md)
+
+---
+
+[Contributing](contributing.md)

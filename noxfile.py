@@ -1,7 +1,7 @@
+import re
 import time
 from glob import glob
 from pathlib import Path
-import re
 
 import nox
 
@@ -193,3 +193,8 @@ def test_emscripten(session: nox.Session):
     session.run(
         "bash", "-c", f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test"
     )
+
+
+@nox.session(name="build-guide", venv_backend="none")
+def build_guide(session: nox.Session):
+    session.run("mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
