@@ -90,7 +90,7 @@ jobs:
           "3.8",
           "3.9",
           "3.10",
-          "3.11.0-beta.1",
+          "3.11-dev",
           "pypy-3.7",
           "pypy-3.8",
           "pypy-3.9"
@@ -346,8 +346,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
+        id: setup-python
         with:
-          python-version: 3.11.0-beta.1
+          python-version: 3.11-dev
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -362,12 +363,12 @@ jobs:
         with:
           path: |
             .nox/emscripten
-          key: ${{ hashFiles('emscripten/*') }} -  ${{ hashFiles('noxfile.py') }}
+          key: ${{ hashFiles('emscripten/*') }} - ${{ hashFiles('noxfile.py') }} - ${{ steps.setup-python.outputs.python-path }}
       - uses: Swatinem/rust-cache@v1
         with:
           key: cargo-emscripten-wasm32
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
-        run: nox -s build_emscripten
+        run: nox -s build-emscripten
       - name: Test
-        run: nox -s test_emscripten
+        run: nox -s test-emscripten
