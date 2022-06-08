@@ -42,45 +42,45 @@ jobs:
       # Build some internal docs and inject a banner on top of it.
       - name: Build the internal docs
         run: |
-          mkdir target
-          mkdir -p gh-pages-build/internal
-          echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > target/banner.html
+          echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > banner.html
           cargo xtask doc --internal
-          cp -r target/doc gh-pages-build/internal
         env:
-          RUSTDOCFLAGS: "--cfg docsrs --Z unstable-options --document-hidden-items --html-before-content target/banner.html"
+          RUSTDOCFLAGS: "--cfg docsrs --Z unstable-options --document-hidden-items --html-before-content banner.html"
 
       - name: Deploy internal docs
         if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./gh-pages-build/internal
-          destination_dir: internal
+          publish_dir: ./target/doc
+          destination_dir: internal/doc
           full_commit_message: "Upload internal documentation"
 
       - name: Clear the extra artefacts created earlier
         run: rm -rf target
 
-      # This builds the book in gh-pages-build. See https://github.com/rust-lang-nursery/mdBook/issues/698
+      # This builds the book in target/guide.
       - name: Build the guide
-        run: mdbook build -d ../gh-pages-build guide
+        run: |
+          pip install nox
+          nox -s build-guide
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
-        # This adds the docs to gh-pages-build/doc
+      # This adds the docs to target/guide/doc
       - name: Build the doc
         run: |
           cargo xtask doc
-          cp -r target/doc gh-pages-build/doc
-          echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > gh-pages-build/doc/index.html
+          echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/guide/doc/index.html
+        env:
+          CARGO_TARGET_DIR: target/guide
 
       - name: Deploy docs and the guide
         if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./gh-pages-build/
+          publish_dir: ./target/guide/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
 
