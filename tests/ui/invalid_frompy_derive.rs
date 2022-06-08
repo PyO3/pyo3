@@ -165,4 +165,14 @@ struct InvalidFromPyWithLiteral {
     field: String,
 }
 
+#[derive(FromPyObject)]
+struct InvalidTupleGetter(#[pyo3(item("foo"))] String);
+
+#[derive(FromPyObject)]
+#[pyo3(transparent)]
+struct InvalidTransparentWithGetter {
+    #[pyo3(item("foo"))]
+    field: String,
+}
+
 fn main() {}

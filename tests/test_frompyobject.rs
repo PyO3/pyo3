@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString, PyTuple};
+use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 
 #[macro_use]
 mod common;
@@ -546,8 +546,25 @@ fn test_from_py_with_enum() {
             .expect("failed to create tuple");
 
         let zap = ZapEnum::extract(py_zap).unwrap();
-        let expected_zap = ZapEnum::Zap(String::from("whatever"), 3usize);
+        let expected_zap = ZapEnum::Zip(2);
 
         assert_eq!(zap, expected_zap);
+    });
+}
+
+#[derive(Debug, FromPyObject, PartialEq)]
+#[pyo3(transparent)]
+pub struct TransparentFromPyWith {
+    #[pyo3(from_py_with = "PyAny::len")]
+    len: usize,
+}
+
+#[test]
+fn test_transparent_from_py_with() {
+    Python::with_gil(|py| {
+        let result = TransparentFromPyWith::extract(PyList::new(py, &[1, 2, 3])).unwrap();
+        let expected = TransparentFromPyWith { len: 3 };
+
+        assert_eq!(result, expected);
     });
 }
