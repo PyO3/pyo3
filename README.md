@@ -223,6 +223,7 @@ Our [contributing notes](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 If you don't have time to contribute yourself but still wish to support the project's future success, some of our maintainers have GitHub sponsorship pages:
 
 - [davidhewitt](https://github.com/sponsors/davidhewitt)
+- [messense](https://github.com/sponsors/messense)
 
 ## License
 
