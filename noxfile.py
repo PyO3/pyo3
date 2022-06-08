@@ -1,4 +1,5 @@
 import re
+import sys
 import time
 from glob import glob
 from pathlib import Path
@@ -139,7 +140,7 @@ class EmscriptenInfo:
         self.builddir = rootdir / ".nox/emscripten"
         self.builddir.mkdir(exist_ok=True, parents=True)
 
-        self.pyversion = "3.11.0b1"
+        self.pyversion = sys.version.split()[0]
         self.pymajor, self.pyminor, self.pymicro = self.pyversion.split(".")
         self.pymicro, self.pydev = re.match(
             "([0-9]*)([^0-9].*)?", self.pymicro
@@ -151,7 +152,7 @@ class EmscriptenInfo:
         self.pymajorminormicro = f"{self.pymajorminor}.{self.pymicro}"
 
 
-@nox.session(venv_backend="none")
+@nox.session(name="build-emscripten", venv_backend="none")
 def build_emscripten(session: nox.Session):
     info = EmscriptenInfo()
     session.run(
@@ -165,7 +166,7 @@ def build_emscripten(session: nox.Session):
     )
 
 
-@nox.session(venv_backend="none")
+@nox.session(name="test-emscripten", venv_backend="none")
 def test_emscripten(session: nox.Session):
     info = EmscriptenInfo()
 
