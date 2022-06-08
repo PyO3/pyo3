@@ -24,11 +24,6 @@ pub struct PyDictProxyObject {
     pub ob_base: PyObject,
     pub mapping: *mut PyObject,
 }
-
-// skipped non-limited wrapperfunc
-// skipped non-limited wrapperfunc_kwds
-// skipped non-limited struct wrapperbase
-// skipped non-limited PyWrapperFlag_KEYWORDS
 impl Default for PyGetSetDef {
     fn default() -> PyGetSetDef {
         PyGetSetDef {
