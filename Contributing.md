@@ -128,3 +128,4 @@ At the moment there is no official organisation that accepts sponsorship on PyO3
 In the meanwhile, some of our maintainers have personal GitHub sponsorship pages and would be grateful for your support:
 
 - [davidhewitt](https://github.com/sponsors/davidhewitt)
+- [messense](https://github.com/sponsors/messense)
