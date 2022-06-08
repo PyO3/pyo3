@@ -18,12 +18,6 @@ pub struct PyGetSetDef {
     pub closure: *mut c_void,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct PyDictProxyObject {
-    pub ob_base: PyObject,
-    pub mapping: *mut PyObject,
-}
 impl Default for PyGetSetDef {
     fn default() -> PyGetSetDef {
         PyGetSetDef {
