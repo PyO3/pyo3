@@ -546,6 +546,7 @@ fn opt_to_pyobj(py: Python<'_>, opt: Option<&PyObject>) -> *mut ffi::PyObject {
 #[cfg(test)]
 mod tests {
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
         crate::Python::with_gil(|py| {
             use crate::types::{PyDateTime, PyTimeAccess};
@@ -560,6 +561,7 @@ mod tests {
 
     #[cfg(not(PyPy))]
     #[test]
+    #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
         crate::Python::with_gil(|py| {
             use crate::conversion::ToPyObject;

@@ -1,5 +1,7 @@
 import time
 from glob import glob
+from pathlib import Path
+import re
 
 import nox
 
@@ -128,3 +130,66 @@ def contributors(session: nox.Session) -> None:
 
     for author in authors:
         print(f"@{author}")
+
+
+class EmscriptenInfo:
+    def __init__(self):
+        rootdir = Path(__file__).parent
+        self.emscripten_dir = rootdir / "emscripten"
+        self.builddir = rootdir / ".nox/emscripten"
+        self.builddir.mkdir(exist_ok=True, parents=True)
+
+        self.pyversion = "3.11.0b1"
+        self.pymajor, self.pyminor, self.pymicro = self.pyversion.split(".")
+        self.pymicro, self.pydev = re.match(
+            "([0-9]*)([^0-9].*)?", self.pymicro
+        ).groups()
+        if self.pydev is None:
+            self.pydev = ""
+
+        self.pymajorminor = f"{self.pymajor}.{self.pyminor}"
+        self.pymajorminormicro = f"{self.pymajorminor}.{self.pymicro}"
+
+
+@nox.session(venv_backend="none")
+def build_emscripten(session: nox.Session):
+    info = EmscriptenInfo()
+    session.run(
+        "make",
+        "-C",
+        str(info.emscripten_dir),
+        f"BUILDROOT={info.builddir}",
+        f"PYMAJORMINORMICRO={info.pymajorminormicro}",
+        f"PYPRERELEASE={info.pydev}",
+        external=True,
+    )
+
+
+@nox.session(venv_backend="none")
+def test_emscripten(session: nox.Session):
+    info = EmscriptenInfo()
+
+    libdir = info.builddir / f"install/Python-{info.pyversion}/lib"
+    pythonlibdir = libdir / f"python{info.pymajorminor}"
+
+    target = "wasm32-unknown-emscripten"
+
+    session.env["CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER"] = "python " + str(
+        info.emscripten_dir / "runner.py"
+    )
+    session.env["RUSTFLAGS"] = " ".join(
+        [
+            f"-L native={libdir}",
+            "-C link-arg=--preload-file",
+            f"-C link-arg={pythonlibdir}@/lib/python{info.pymajorminor}",
+            f"-C link-arg=-lpython{info.pymajorminor}",
+            "-C link-arg=-lexpat",
+            "-C link-arg=-lmpdec",
+        ]
+    )
+    session.env["CARGO_BUILD_TARGET"] = target
+    session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
+    session.run("rustup", "target", "add", target, "--toolchain", "stable")
+    session.run(
+        "bash", "-c", f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test"
+    )
