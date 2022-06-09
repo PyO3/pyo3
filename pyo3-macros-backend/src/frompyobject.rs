@@ -14,7 +14,6 @@ use syn::{
 };
 
 /// Describes derivation input of an enum.
-#[derive(Debug)]
 struct Enum<'a> {
     enum_ident: &'a Ident,
     variants: Vec<Container<'a>>,
@@ -86,34 +85,42 @@ impl<'a> Enum<'a> {
     }
 }
 
+struct NamedStructField<'a> {
+    ident: &'a syn::Ident,
+    getter: Option<FieldGetter>,
+    from_py_with: Option<FromPyWithAttribute>,
+}
+
+struct TupleStructField {
+    from_py_with: Option<FromPyWithAttribute>,
+}
+
 /// Container Style
 ///
 /// Covers Structs, Tuplestructs and corresponding Newtypes.
-#[derive(Debug)]
 enum ContainerType<'a> {
     /// Struct Container, e.g. `struct Foo { a: String }`
     ///
     /// Variant contains the list of field identifiers and the corresponding extraction call.
-    Struct(Vec<(&'a Ident, FieldPyO3Attributes)>),
+    Struct(Vec<NamedStructField<'a>>),
     /// Newtype struct container, e.g. `#[transparent] struct Foo { a: String }`
     ///
     /// The field specified by the identifier is extracted directly from the object.
-    StructNewtype(&'a Ident),
+    StructNewtype(&'a syn::Ident, Option<FromPyWithAttribute>),
     /// Tuple struct, e.g. `struct Foo(String)`.
     ///
     /// Variant contains a list of conversion methods for each of the fields that are directly
     ///  extracted from the tuple.
-    Tuple(Vec<FieldPyO3Attributes>),
+    Tuple(Vec<TupleStructField>),
     /// Tuple newtype, e.g. `#[transparent] struct Foo(String)`
     ///
     /// The wrapped field is directly extracted from the object.
-    TupleNewtype,
+    TupleNewtype(Option<FromPyWithAttribute>),
 }
 
 /// Data container
 ///
 /// Either describes a struct or an enum variant.
-#[derive(Debug)]
 struct Container<'a> {
     path: syn::Path,
     ty: ContainerType<'a>,
@@ -125,55 +132,72 @@ impl<'a> Container<'a> {
     ///
     /// Fails if the variant has no fields or incompatible attributes.
     fn new(fields: &'a Fields, path: syn::Path, options: ContainerOptions) -> Result<Self> {
-        ensure_spanned!(
-            !fields.is_empty(),
-            fields.span() => "cannot derive FromPyObject for empty structs and variants"
-        );
-        if options.transparent {
-            ensure_spanned!(
-                fields.len() == 1,
-                fields.span() => "transparent structs and variants can only have 1 field"
-            );
-        }
-        let style = match (fields, options.transparent) {
-            (Fields::Unnamed(_), true) => ContainerType::TupleNewtype,
-            (Fields::Unnamed(unnamed), false) => match unnamed.unnamed.len() {
-                1 => ContainerType::TupleNewtype,
-                _ => {
-                    let fields = unnamed
-                        .unnamed
-                        .iter()
-                        .map(|field| FieldPyO3Attributes::from_attrs(&field.attrs))
-                        .collect::<Result<Vec<_>>>()?;
+        let style = match fields {
+            Fields::Unnamed(unnamed) if !unnamed.unnamed.is_empty() => {
+                let mut tuple_fields = unnamed
+                    .unnamed
+                    .iter()
+                    .map(|field| {
+                        let attrs = FieldPyO3Attributes::from_attrs(&field.attrs)?;
+                        ensure_spanned!(
+                            attrs.getter.is_none(),
+                            field.span() => "`getter` is not permitted on tuple struct elements."
+                        );
+                        Ok(TupleStructField {
+                            from_py_with: attrs.from_py_with,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
 
-                    ContainerType::Tuple(fields)
+                if tuple_fields.len() == 1 {
+                    // Always treat a 1-length tuple struct as "transparent", even without the
+                    // explicit annotation.
+                    let field = tuple_fields.pop().unwrap();
+                    ContainerType::TupleNewtype(field.from_py_with)
+                } else if options.transparent {
+                    bail_spanned!(
+                        fields.span() => "transparent structs and variants can only have 1 field"
+                    );
+                } else {
+                    ContainerType::Tuple(tuple_fields)
                 }
-            },
-            (Fields::Named(named), true) => {
-                let field = named
+            }
+            Fields::Named(named) if !named.named.is_empty() => {
+                let mut struct_fields = named
                     .named
                     .iter()
-                    .next()
-                    .expect("Check for len 1 is done above");
-                let ident = field
-                    .ident
-                    .as_ref()
-                    .expect("Named fields should have identifiers");
-                ContainerType::StructNewtype(ident)
-            }
-            (Fields::Named(named), false) => {
-                let mut fields = Vec::new();
-                for field in named.named.iter() {
-                    let ident = field
-                        .ident
-                        .as_ref()
-                        .expect("Named fields should have identifiers");
-                    let attrs = FieldPyO3Attributes::from_attrs(&field.attrs)?;
-                    fields.push((ident, attrs))
+                    .map(|field| {
+                        let ident = field
+                            .ident
+                            .as_ref()
+                            .expect("Named fields should have identifiers");
+                        let attrs = FieldPyO3Attributes::from_attrs(&field.attrs)?;
+
+                        Ok(NamedStructField {
+                            ident,
+                            getter: attrs.getter,
+                            from_py_with: attrs.from_py_with,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                if options.transparent {
+                    ensure_spanned!(
+                        struct_fields.len() == 1,
+                        fields.span() => "transparent structs and variants can only have 1 field"
+                    );
+                    let field = struct_fields.pop().unwrap();
+                    ensure_spanned!(
+                        field.getter.is_none(),
+                        field.ident.span() => "`transparent` structs may not have a `getter` for the inner field"
+                    );
+                    ContainerType::StructNewtype(field.ident, field.from_py_with)
+                } else {
+                    ContainerType::Struct(struct_fields)
                 }
-                ContainerType::Struct(fields)
             }
-            (Fields::Unit, _) => unreachable!(), // covered by length check above
+            _ => bail_spanned!(
+                fields.span() => "cannot derive FromPyObject for empty structs and variants"
+            ),
         };
         let err_name = options.annotation.map_or_else(
             || path.segments.last().unwrap().ident.to_string(),
@@ -202,39 +226,63 @@ impl<'a> Container<'a> {
     /// Build derivation body for a struct.
     fn build(&self) -> TokenStream {
         match &self.ty {
-            ContainerType::StructNewtype(ident) => self.build_newtype_struct(Some(ident)),
-            ContainerType::TupleNewtype => self.build_newtype_struct(None),
+            ContainerType::StructNewtype(ident, from_py_with) => {
+                self.build_newtype_struct(Some(ident), from_py_with)
+            }
+            ContainerType::TupleNewtype(from_py_with) => {
+                self.build_newtype_struct(None, from_py_with)
+            }
             ContainerType::Tuple(tups) => self.build_tuple_struct(tups),
             ContainerType::Struct(tups) => self.build_struct(tups),
         }
     }
 
-    fn build_newtype_struct(&self, field_ident: Option<&Ident>) -> TokenStream {
+    fn build_newtype_struct(
+        &self,
+        field_ident: Option<&Ident>,
+        from_py_with: &Option<FromPyWithAttribute>,
+    ) -> TokenStream {
         let self_ty = &self.path;
         let struct_name = self.name();
         if let Some(ident) = field_ident {
             let field_name = ident.to_string();
-            quote!(
-                ::std::result::Result::Ok(#self_ty{
-                    #ident: _pyo3::impl_::frompyobject::extract_struct_field(obj, #struct_name, #field_name)?
-                })
-            )
+            match from_py_with {
+                None => quote! {
+                    Ok(#self_ty {
+                        #ident: _pyo3::impl_::frompyobject::extract_struct_field(obj, #struct_name, #field_name)?
+                    })
+                },
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! {
+                    Ok(#self_ty {
+                        #ident: _pyo3::impl_::frompyobject::extract_struct_field_with(#expr_path, obj, #struct_name, #field_name)?
+                    })
+                },
+            }
         } else {
-            quote!(
-                _pyo3::impl_::frompyobject::extract_tuple_struct_field(obj, #struct_name, 0).map(#self_ty)
-            )
+            match from_py_with {
+                None => quote!(
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field(obj, #struct_name, 0).map(#self_ty)
+                ),
+                Some(FromPyWithAttribute {
+                    value: expr_path, ..
+                }) => quote! (
+                    _pyo3::impl_::frompyobject::extract_tuple_struct_field_with(#expr_path, obj, #struct_name, 0).map(#self_ty)
+                ),
+            }
         }
     }
 
-    fn build_tuple_struct(&self, tups: &[FieldPyO3Attributes]) -> TokenStream {
+    fn build_tuple_struct(&self, struct_fields: &[TupleStructField]) -> TokenStream {
         let self_ty = &self.path;
         let struct_name = &self.name();
-        let field_idents: Vec<_> = (0..tups.len())
+        let field_idents: Vec<_> = (0..struct_fields.len())
             .into_iter()
             .map(|i| format_ident!("arg{}", i))
             .collect();
-        let fields = tups.iter().zip(&field_idents).enumerate().map(|(index, (attrs, ident))| {
-            match &attrs.from_py_with {
+        let fields = struct_fields.iter().zip(&field_idents).enumerate().map(|(index, (field, ident))| {
+            match &field.from_py_with {
                 None => quote!(
                     _pyo3::impl_::frompyobject::extract_tuple_struct_field(#ident, #struct_name, #index)?
                 ),
@@ -253,13 +301,14 @@ impl<'a> Container<'a> {
         )
     }
 
-    fn build_struct(&self, tups: &[(&Ident, FieldPyO3Attributes)]) -> TokenStream {
+    fn build_struct(&self, struct_fields: &[NamedStructField<'_>]) -> TokenStream {
         let self_ty = &self.path;
         let struct_name = &self.name();
         let mut fields: Punctuated<TokenStream, syn::Token![,]> = Punctuated::new();
-        for (ident, attrs) in tups {
+        for field in struct_fields {
+            let ident = &field.ident;
             let field_name = ident.to_string();
-            let getter = match &attrs.getter {
+            let getter = match field.getter.as_ref().unwrap_or(&FieldGetter::GetAttr(None)) {
                 FieldGetter::GetAttr(Some(name)) => {
                     quote!(getattr(_pyo3::intern!(obj.py(), #name)))
                 }
@@ -269,7 +318,7 @@ impl<'a> Container<'a> {
                 FieldGetter::GetItem(Some(key)) => quote!(get_item(#key)),
                 FieldGetter::GetItem(None) => quote!(get_item(#field_name)),
             };
-            let extractor = match &attrs.from_py_with {
+            let extractor = match &field.from_py_with {
                 None => {
                     quote!(_pyo3::impl_::frompyobject::extract_struct_field(obj.#getter?, #struct_name, #field_name)?)
                 }
@@ -297,7 +346,6 @@ struct ContainerOptions {
 }
 
 /// Attributes for deriving FromPyObject scoped on containers.
-#[derive(Debug)]
 enum ContainerPyO3Attribute {
     /// Treat the Container as a Wrapper, directly extract its fields from the input object.
     Transparent(attributes::kw::transparent),
@@ -365,7 +413,7 @@ impl ContainerOptions {
 /// Attributes for deriving FromPyObject scoped on fields.
 #[derive(Clone, Debug)]
 struct FieldPyO3Attributes {
-    getter: FieldGetter,
+    getter: Option<FieldGetter>,
     from_py_with: Option<FromPyWithAttribute>,
 }
 
@@ -457,7 +505,7 @@ impl FieldPyO3Attributes {
         }
 
         Ok(FieldPyO3Attributes {
-            getter: getter.unwrap_or(FieldGetter::GetAttr(None)),
+            getter,
             from_py_with,
         })
     }
