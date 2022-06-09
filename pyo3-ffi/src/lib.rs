@@ -264,7 +264,6 @@ macro_rules! opaque_struct {
     };
 }
 
-#[macro_export]
 macro_rules! addr_of_mut_shim {
     ($place:expr) => {{
         #[cfg(addr_of)]

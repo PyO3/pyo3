@@ -11,9 +11,22 @@ use crate::PyObject;
 use crate::{ffi, AsPyPointer, PyErr, PyTryFrom, Python, ToPyObject};
 use std::os::raw::c_int;
 
+macro_rules! addr_of_mut_shim {
+    ($place:expr) => {{
+        #[cfg(addr_of)]
+        {
+            ::std::ptr::addr_of_mut!($place)
+        }
+        #[cfg(not(addr_of))]
+        {
+            &mut $place as *mut _
+        }
+    }};
+}
+
 #[allow(non_snake_case)]
 unsafe fn PyDictProxy_Check(object: *mut crate::ffi::PyObject) -> c_int {
-    ffi::PyObject_TypeCheck(object, ffi::addr_of_mut_shim!(ffi::PyDictProxy_Type))
+    ffi::PyObject_TypeCheck(object, addr_of_mut_shim!(ffi::PyDictProxy_Type))
 }
 
 /// Represents a Python `mappingproxy`.
