@@ -103,7 +103,9 @@ pub fn impl_methods(
             syn::ImplItem::Method(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
-                match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
+                let (method, interface) = pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)?;
+                trait_impls.push(interface);
+                match method {
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
                         methods.push(quote!(#(#attrs)* #token_stream));

@@ -1,8 +1,10 @@
+// Copyright (c) 2017-present PyO3 Project and Contributors
+
 use std::borrow::Cow;
 
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
+use syn::Type;
 use syn::{spanned::Spanned, Ident};
 
 use crate::attributes::{CrateAttribute, TextSignatureAttribute};
@@ -176,4 +178,53 @@ pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
     attr.as_ref()
         .map(|p| p.value.0.clone())
         .unwrap_or_else(|| syn::parse_str("::pyo3").unwrap())
+}
+
+/// Generates a unique identifier based on a type and (optionally) a field.
+///
+/// For the same input values, the result should be the same output, and for different input values,
+/// the output should be different. No other guarantees are made (do not try to parse it).
+pub(crate) fn generate_unique_ident(class: &Type, field: Option<&Ident>) -> Ident {
+    let span = if let Some(field) = field {
+        field.span()
+    } else {
+        class.span()
+    };
+
+    let mut result = "".to_string();
+
+    // Attempt to generate something unique for each type
+    // Types that cannot be annotated with #[pyclass] are ignored
+    match class {
+        Type::Array(_) => unreachable!("Cannot generate a unique name for an array: {:?}", class),
+        Type::BareFn(_) => unreachable!("Cannot generate a unique name for a function: {:?}", class),
+        Type::Group(_) => unreachable!("Cannot generate a unique name for a group: {:?}", class),
+        Type::ImplTrait(_) => unreachable!("Cannot generate a unique name for an impl trait: {:?}", class),
+        Type::Infer(_) => unreachable!("Cannot generate a unique name for an inferred type: {:?}", class),
+        Type::Macro(_) => unreachable!("Cannot generate a unique name for a macro: {:?}", class),
+        Type::Never(_) => {
+            result += "_never";
+        },
+        Type::Paren(_) => unreachable!("Cannot generate a unique name for a type in parenthesis: {:?}", class),
+        Type::Path(path) => {
+            result += "_path";
+            for segment in &path.path.segments {
+                result += "_";
+                result += &*segment.ident.to_string();
+            }
+        }
+        Type::Ptr(_) => unreachable!("Cannot generate a unique name for a pointer: {:?}", class),
+        Type::Reference(_) => unreachable!("Cannot generate a unique name for a reference: {:?}", class),
+        Type::Slice(_) => unreachable!("Cannot generate a unique name for a slice: {:?}", class),
+        Type::TraitObject(_) => unreachable!("Cannot generate a unique name for a trait object: {:?}", class),
+        Type::Tuple(_) => unreachable!("Cannot generate a unique name for a tuple: {:?}", class),
+        _ => unreachable!("Cannot generate a unique name for an unknown type: {:?}", class),
+    }
+
+    if let Some(field) = field {
+        result += "_";
+        result += &*field.to_string()
+    }
+
+    Ident::new(&*result, span)
 }

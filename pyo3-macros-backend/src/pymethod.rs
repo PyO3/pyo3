@@ -4,13 +4,13 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::utils::{ensure_not_async_fn, remove_lifetime, unwrap_ty_group, PythonDoc};
+use crate::utils::{ensure_not_async_fn, remove_lifetime, unwrap_ty_group, PythonDoc, generate_unique_ident};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
 };
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
@@ -167,61 +167,63 @@ pub fn gen_py_method(
     sig: &mut syn::Signature,
     meth_attrs: &mut Vec<syn::Attribute>,
     options: PyFunctionOptions,
-) -> Result<GeneratedPyMethod> {
+) -> Result<(GeneratedPyMethod, TokenStream)> {
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
     let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
     let spec = &method.spec;
 
+    let interface = generate_get_field_info(cls, &method);
+
     Ok(match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
         (_, FnType::ClassAttribute) => {
-            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec))
+            (GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec)), interface)
         }
         (PyMethodKind::Proto(proto_kind), _) => {
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
                     let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
-                    GeneratedPyMethod::Proto(slot)
+                    (GeneratedPyMethod::Proto(slot), interface)
                 }
                 PyMethodProtoKind::Call => {
-                    GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
+                    (GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?), interface)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
+                    (GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec)), interface)
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
-                    GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
+                    (GeneratedPyMethod::SlotTraitImpl(method.method_name, proto), interface)
                 }
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?),
-        (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::Fn(_)) => (GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?), interface),
+        (_, FnType::FnClass) => (GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
             Some(quote!(_pyo3::ffi::METH_CLASS)),
-        )?),
-        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
+        )?), interface),
+        (_, FnType::FnStatic) => (GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
             Some(quote!(_pyo3::ffi::METH_STATIC)),
-        )?),
+        )?), interface),
         // special prototypes
-        (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
+        (_, FnType::FnNew) => (GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?), interface),
 
-        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
+        (_, FnType::Getter(self_type)) => (GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
             PropertyType::Function { self_type, spec },
-        )?),
-        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
+        )?), interface),
+        (_, FnType::Setter(self_type)) => (GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
             PropertyType::Function { self_type, spec },
-        )?),
+        )?), interface),
         (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
@@ -1236,4 +1238,26 @@ impl ToTokens for TokenGenerator {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0().to_tokens(tokens)
     }
+}
+
+fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> TokenStream {
+    let ident_prefix = generate_unique_ident(cls, Some(field.spec.name));
+
+    let field_info_name = format_ident!("{}_info", ident_prefix);
+    let field_args_name = format_ident!("{}_args", ident_prefix);
+
+    let field_name = TokenTree::Literal(Literal::string(&*field.method_name));
+
+    let output = quote! {
+        const #field_args_name: [pyo3::interface::ArgumentInfo; 0] = []; //TODO
+
+        const #field_info_name: pyo3::interface::FieldInfo = pyo3::interface::FieldInfo {
+            name: #field_name,
+            kind: pyo3::interface::FieldKind::New, //TODO
+            py_type: None, //TODO
+            arguments: &#field_args_name,
+        };
+    };
+
+    output
 }
