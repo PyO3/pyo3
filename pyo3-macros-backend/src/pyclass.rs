@@ -15,7 +15,7 @@ use crate::pymethod::{
 };
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Literal, Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
@@ -1006,13 +1006,15 @@ fn generate_class_info(
     let class_field_info = format_ident!("{}_struct_field_info", ident_prefix);
     let class_info = format_ident!("{}_struct_info", ident_prefix);
 
+    let name = Literal::string(&*get_class_python_name(cls, args).to_string());
+
     quote! {
         const #class_field_info: [pyo3::interface::FieldInfo; 0] = [
             //TODO
         ];
 
         const #class_info: pyo3::interface::ClassInfo = pyo3::interface::ClassInfo {
-            name: "", //TODO
+            name: #name,
             base: "", //TODO
             fields: &#class_field_info,
         };
