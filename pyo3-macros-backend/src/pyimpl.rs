@@ -9,7 +9,7 @@ use crate::{
     pymethod::{self, is_proto_method},
     utils::get_pyo3_crate,
 };
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
 use syn::{parse::{Parse, ParseStream}, spanned::Spanned, Result, Type};
@@ -279,14 +279,17 @@ fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
 }
 
 fn generate_impl_info(cls: &Type, fields: Vec<Ident>) -> TokenStream {
-    println!("Generating impl {:?}", cls);
-
     let ident_prefix = generate_unique_ident(cls, None);
     let fields_info = format_ident!("{}_fields_info", ident_prefix);
 
+    let field_size = Literal::usize_suffixed(fields.len());
+
+    let fields = fields.iter()
+        .map(|field| quote!(&#field));
+
     quote! {
-        const #fields_info: [&'static pyo3::interface::FieldInfo; 0] = [
-            //TODO
+        const #fields_info: [&'static pyo3::interface::FieldInfo; #field_size] = [
+            #(#fields),*
         ];
 
         impl pyo3::interface::GetClassFields for #cls {
