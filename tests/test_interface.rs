@@ -1,6 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
+use pyo3::interface::GetClassInfo;
+use pyo3::interface::GetClassFields;
 
 mod common;
 
@@ -22,4 +24,12 @@ impl Simple {
 #[test]
 fn compiles() {
     // Nothing to do: if we reach this point, the compilation was successful :)
+}
+
+#[test]
+fn simple_info() {
+    let class_info = Simple::info();
+    let fields_info = Simple::fields_info();
+    println!("Class:  {:?}", class_info);
+    println!("Fields: {:?}", fields_info);
 }

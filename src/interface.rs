@@ -7,8 +7,12 @@
 #[derive(Debug)]
 pub struct ModuleInfo {}
 
-/// Python Interface information for a class.
-pub struct ClassInfo {}
+#[derive(Debug)]
+pub struct ClassInfo {
+    pub name: &'static str,
+    pub base: &'static str,
+    pub fields: &'static [FieldInfo],
+}
 
 /// Python Interface information for a field (attribute, function, method…).
 #[derive(Debug)]
@@ -111,4 +115,12 @@ pub enum TypeInfo {
 
     /// Any type that doesn't receive special treatment from PyO3.
     Other(&'static str),
+}
+
+pub trait GetClassInfo {
+    fn info() -> &'static ClassInfo;
+}
+
+pub trait GetClassFields {
+    fn fields_info() -> &'static [&'static FieldInfo];
 }

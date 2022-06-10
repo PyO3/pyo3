@@ -9,14 +9,11 @@ use crate::{
     pymethod::{self, is_proto_method},
     utils::get_pyo3_crate,
 };
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
-use syn::{
-    parse::{Parse, ParseStream},
-    spanned::Spanned,
-    Result,
-};
+use syn::{parse::{Parse, ParseStream}, spanned::Spanned, Result, Type};
+use crate::utils::generate_unique_ident;
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -94,6 +91,7 @@ pub fn impl_methods(
 ) -> syn::Result<TokenStream> {
     let mut trait_impls = Vec::new();
     let mut proto_impls = Vec::new();
+    let mut field_infos = Vec::new();
     let mut methods = Vec::new();
 
     let mut implemented_proto_fragments = HashSet::new();
@@ -103,8 +101,9 @@ pub fn impl_methods(
             syn::ImplItem::Method(meth) => {
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
-                let (method, interface) = pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)?;
+                let (method, interface, field_info) = pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)?;
                 trait_impls.push(interface);
+                field_infos.push(field_info);
                 match method {
                     GeneratedPyMethod::Method(token_stream) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
@@ -145,6 +144,9 @@ pub fn impl_methods(
     }
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
+
+    let impl_info = generate_impl_info(ty, field_infos);
+    trait_impls.push(impl_info);
 
     let krate = get_pyo3_crate(&options.krate);
 
@@ -274,4 +276,23 @@ fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
         .iter()
         .filter(|attr| attr.path.is_ident("cfg"))
         .collect()
+}
+
+fn generate_impl_info(cls: &Type, fields: Vec<Ident>) -> TokenStream {
+    println!("Generating impl {:?}", cls);
+
+    let ident_prefix = generate_unique_ident(cls, None);
+    let fields_info = format_ident!("{}_fields_info", ident_prefix);
+
+    quote! {
+        const #fields_info: [&'static pyo3::interface::FieldInfo; 0] = [
+            //TODO
+        ];
+
+        impl pyo3::interface::GetClassFields for #cls {
+            fn fields_info() -> &'static [&'static pyo3::interface::FieldInfo] {
+                &#fields_info
+            }
+        }
+    }
 }

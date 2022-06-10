@@ -167,67 +167,69 @@ pub fn gen_py_method(
     sig: &mut syn::Signature,
     meth_attrs: &mut Vec<syn::Attribute>,
     options: PyFunctionOptions,
-) -> Result<(GeneratedPyMethod, TokenStream)> {
+) -> Result<(GeneratedPyMethod, TokenStream, Ident)> {
     check_generic(sig)?;
     ensure_not_async_fn(sig)?;
     ensure_function_options_valid(&options)?;
     let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
     let spec = &method.spec;
 
-    let interface = generate_get_field_info(cls, &method);
+    let (interface, info_ident) = generate_get_field_info(cls, &method);
 
-    Ok(match (method.kind, &spec.tp) {
+    let result = match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
         (_, FnType::ClassAttribute) => {
-            (GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec)), interface)
+            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec))
         }
         (PyMethodKind::Proto(proto_kind), _) => {
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
                     let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
-                    (GeneratedPyMethod::Proto(slot), interface)
+                    GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
-                    (GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?), interface)
+                    GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    (GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec)), interface)
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
-                    (GeneratedPyMethod::SlotTraitImpl(method.method_name, proto), interface)
+                    GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
                 }
             }
         }
         // ordinary functions (with some specialties)
-        (_, FnType::Fn(_)) => (GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?), interface),
-        (_, FnType::FnClass) => (GeneratedPyMethod::Method(impl_py_method_def(
+        (_, FnType::Fn(_)) => GeneratedPyMethod::Method(impl_py_method_def(cls, spec, None)?),
+        (_, FnType::FnClass) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
             Some(quote!(_pyo3::ffi::METH_CLASS)),
-        )?), interface),
-        (_, FnType::FnStatic) => (GeneratedPyMethod::Method(impl_py_method_def(
+        )?),
+        (_, FnType::FnStatic) => GeneratedPyMethod::Method(impl_py_method_def(
             cls,
             spec,
             Some(quote!(_pyo3::ffi::METH_STATIC)),
-        )?), interface),
+        )?),
         // special prototypes
-        (_, FnType::FnNew) => (GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?), interface),
+        (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
 
-        (_, FnType::Getter(self_type)) => (GeneratedPyMethod::Method(impl_py_getter_def(
+        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
             PropertyType::Function { self_type, spec },
-        )?), interface),
-        (_, FnType::Setter(self_type)) => (GeneratedPyMethod::Method(impl_py_setter_def(
+        )?),
+        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
             cls,
             PropertyType::Function { self_type, spec },
-        )?), interface),
+        )?),
         (_, FnType::FnModule) => {
             unreachable!("methods cannot be FnModule")
         }
-    })
+    };
+
+    Ok((result, interface, info_ident))
 }
 
 pub fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
@@ -1240,7 +1242,7 @@ impl ToTokens for TokenGenerator {
     }
 }
 
-fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> TokenStream {
+fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> (TokenStream, Ident) {
     let ident_prefix = generate_unique_ident(cls, Some(field.spec.name));
 
     let field_info_name = format_ident!("{}_info", ident_prefix);
@@ -1259,5 +1261,5 @@ fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> TokenStream
         };
     };
 
-    output
+    (output, field_info_name)
 }

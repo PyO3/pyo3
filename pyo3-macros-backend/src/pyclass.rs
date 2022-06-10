@@ -16,7 +16,7 @@ use crate::pymethod::{
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -306,6 +306,8 @@ fn impl_class(
 ) -> syn::Result<TokenStream> {
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, Some(&args.options.deprecations));
 
+    let class_info = generate_class_info(cls, args, &field_options);
+
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
         args,
@@ -323,6 +325,8 @@ fn impl_class(
             #pytypeinfo_impl
 
             #py_class_impl
+
+            #class_info
         };
     })
 }
@@ -990,5 +994,33 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         }
 
         _pyo3::inventory::collect!(#inventory_class_name);
+    }
+}
+
+fn generate_class_info(
+    cls: &syn::Ident,
+    args: &PyClassArgs,
+    field_options: &Vec<(&syn::Field, FieldPyO3Options)>,
+) -> TokenStream {
+    let ident_prefix = format_ident!("_path_{}", cls);
+    let class_field_info = format_ident!("{}_struct_field_info", ident_prefix);
+    let class_info = format_ident!("{}_struct_info", ident_prefix);
+
+    quote! {
+        const #class_field_info: [pyo3::interface::FieldInfo; 0] = [
+            //TODO
+        ];
+
+        const #class_info: pyo3::interface::ClassInfo = pyo3::interface::ClassInfo {
+            name: "", //TODO
+            base: "", //TODO
+            fields: &#class_field_info,
+        };
+
+        impl pyo3::interface::GetClassInfo for #cls {
+            fn info() -> &'static pyo3::interface::ClassInfo {
+                &#class_info
+            }
+        }
     }
 }
