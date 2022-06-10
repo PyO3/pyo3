@@ -4,12 +4,14 @@
 //! which are responsible for generating parts of the interface files.
 
 /// Python Interface information for a module.
+#[derive(Debug)]
 pub struct ModuleInfo {}
 
 /// Python Interface information for a class.
 pub struct ClassInfo {}
 
 /// Python Interface information for a field (attribute, function, method…).
+#[derive(Debug)]
 pub struct FieldInfo {
     pub name: &'static str,
     pub kind: FieldKind,
@@ -17,6 +19,7 @@ pub struct FieldInfo {
     pub arguments: &'static [ArgumentInfo],
 }
 
+#[derive(Debug)]
 pub enum FieldKind {
     /// The special 'new' method
     New,
@@ -36,6 +39,7 @@ pub enum FieldKind {
     StaticMethod,
 }
 
+#[derive(Debug)]
 pub struct ArgumentInfo {
     pub name: &'static str,
     pub kind: ArgumentKind,
@@ -44,6 +48,7 @@ pub struct ArgumentInfo {
     pub is_modified: bool,
 }
 
+#[derive(Debug)]
 pub enum ArgumentKind {
     /// A normal argument, that can be passed positionally or by keyword.
     Regular,
@@ -61,6 +66,7 @@ pub enum ArgumentKind {
 ///
 /// The current implementation is not able to generate custom generics.
 /// All generic types can only be hardcoded in PyO3.
+#[derive(Debug)]
 pub enum TypeInfo {
     /// The type `typing.Any`, which represents a dynamically-typed value (unknown type).
     Any,
