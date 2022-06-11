@@ -951,7 +951,9 @@ unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
     }
 }
 
-impl ::pyo3::PyClass for MyClass { }
+impl ::pyo3::PyClass for MyClass {
+    type Frozen = pyo3::pyclass::boolean_struct::False;
+}
 
 impl<'a> ::pyo3::derive_utils::ExtractExt<'a> for &'a mut MyClass {
     type Target = ::pyo3::PyRefMut<'a, MyClass>;
@@ -974,7 +976,6 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type Layout = PyCell<MyClass>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
-    type Mutability = pyo3::pycell::Mutable;
     type PyClassMutability = pyo3::pycell::MutableClass;
     type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
     type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;

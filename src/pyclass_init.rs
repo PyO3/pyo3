@@ -1,7 +1,6 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::callback::IntoPyCallbackOutput;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
-use crate::pyclass::MutablePyClass;
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
@@ -270,8 +269,8 @@ where
 
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
-    S: MutablePyClass<BaseType = B>,
-    B: MutablePyClass,
+    S: PyClass<BaseType = B>,
+    B: PyClass,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
