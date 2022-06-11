@@ -1,7 +1,7 @@
 use crate::utils::*;
 use anyhow::{ensure, Result};
 use std::io;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -35,9 +35,9 @@ impl Default for Subcommand {
 
 #[derive(StructOpt, Default)]
 pub struct CoverageOpts {
-    /// Creates an lcov output instead of printing to the terminal.
-    #[structopt(long)]
-    pub output_lcov: Option<String>,
+    /// Creates an lcov output file.
+    #[structopt(long, default_value = "lcov.info")]
+    pub output_lcov: String,
 }
 
 #[derive(StructOpt)]
@@ -102,7 +102,9 @@ impl Subcommand {
                 crate::fmt::python::run()?;
             }
             Subcommand::Clippy => crate::clippy::run()?,
-            Subcommand::Coverage(opts) => crate::llvm_cov::run(opts)?,
+            Subcommand::Coverage(opts) => {
+                let _ = crate::llvm_cov::run(opts)?;
+            }
             Subcommand::TestPy => crate::pytests::run(None)?,
             Subcommand::Test => crate::test::run()?,
         };
@@ -116,7 +118,7 @@ impl Subcommand {
     }
 }
 
-pub fn run(command: &mut Command) -> Result<()> {
+pub fn run(command: &mut Command) -> Result<Output> {
     let command_str = format_command(command);
     let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
     if github_actions {
@@ -125,22 +127,23 @@ pub fn run(command: &mut Command) -> Result<()> {
         println!("Running: {}", command_str);
     }
 
-    let status = command.spawn()?.wait()?;
+    let output = command.output()?;
 
     ensure! {
-        status.success(),
-        "process did not run successfully ({exit}): {command}",
-        exit = match status.code() {
+        output.status.success(),
+        "process did not run successfully ({exit}): {command}:\n{stderr}",
+        exit = match output.status.code() {
             Some(code) => format!("exit code {}", code),
             None => "terminated by signal".into(),
         },
         command = command_str,
+        stderr = String::from_utf8_lossy(&output.stderr)
     };
 
     if github_actions {
         println!("::endgroup::")
     }
-    Ok(())
+    Ok(output)
 }
 
 #[derive(Copy, Clone, Debug)]

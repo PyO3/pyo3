@@ -2,10 +2,13 @@ use crate::cli;
 use crate::cli::CoverageOpts;
 use crate::utils::*;
 use anyhow::{Context, Result};
-use std::{collections::HashMap, process::Command};
+use std::{
+    collections::HashMap,
+    process::{Command, Output},
+};
 
 /// Runs `cargo llvm-cov` for the PyO3 codebase.
-pub fn run(opts: CoverageOpts) -> Result<()> {
+pub fn run(opts: CoverageOpts) -> Result<Output> {
     let env = get_coverage_env()?;
 
     cli::run(llvm_cov_command(&["clean", "--workspace"]).envs(&env))?;
@@ -45,14 +48,11 @@ pub fn run(opts: CoverageOpts) -> Result<()> {
 
     crate::pytests::run(&env)?;
 
-    match opts.output_lcov {
-        Some(path) => {
-            cli::run(llvm_cov_command(&["--no-run", "--lcov", "--output-path", &path]).envs(&env))?
-        }
-        None => cli::run(llvm_cov_command(&["--no-run", "--summary-only"]).envs(&env))?,
-    }
+    let output = cli::run(
+        llvm_cov_command(&["--no-run", "--lcov", "--output-path", &opts.output_lcov]).envs(&env),
+    )?;
 
-    Ok(())
+    Ok(output)
 }
 
 fn llvm_cov_command(args: &[&str]) -> Command {
@@ -73,7 +73,9 @@ fn llvm_cov_command(args: &[&str]) -> Command {
 fn get_coverage_env() -> Result<HashMap<String, String>> {
     let mut env = HashMap::new();
 
-    let output = String::from_utf8(llvm_cov_command(&["show-env"]).output()?.stdout)?;
+    let output = cli::run(&mut llvm_cov_command(&["show-env"])).context("Unable to run llvm-cov. If it is not installed, you can install it with `cargo install cargo-llvm-cov`.")?;
+
+    let output = std::str::from_utf8(&output.stdout)?;
 
     for line in output.trim().split('\n') {
         let (key, value) = split_once(line, '=')
