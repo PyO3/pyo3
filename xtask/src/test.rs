@@ -45,6 +45,14 @@ pub fn run() -> anyhow::Result<()> {
             .arg("--quiet"),
     )?;
 
+    // If the nightly toolchain is not installed, this will install it
+    cli::run(
+        Command::new("rustup")
+            .arg("toolchain")
+            .arg("install")
+            .arg("nightly"),
+    )?;
+
     cli::run(
         Command::new("cargo")
             .arg("+nightly")
