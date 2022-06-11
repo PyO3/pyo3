@@ -120,8 +120,14 @@ mod tests {
             let obj = vec![10, 20].to_object(py);
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
-            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
-            assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
+            assert_eq!(
+                10_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
+            assert_eq!(
+                20_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
             assert!(it.next().is_none());
         });
     }
@@ -138,7 +144,10 @@ mod tests {
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
-            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+            assert_eq!(
+                10_i32,
+                it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+            );
         });
 
         Python::with_gil(|py| {
@@ -167,7 +176,10 @@ mod tests {
                 let inst = obj.as_ref(py);
                 let mut it = inst.iter().unwrap();
 
-                assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+                assert_eq!(
+                    10_i32,
+                    it.next().unwrap().unwrap().extract::<'_, i32>().unwrap()
+                );
                 assert!(it.next().unwrap().unwrap().is_none());
             }
             assert_eq!(count, none.get_refcnt(py));

@@ -135,7 +135,7 @@ fn ascii() {
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
 
-            assert_eq!(PyUnicode_GET_LENGTH(ptr), s.len().unwrap() as _);
+            assert_eq!(PyUnicode_GET_LENGTH(ptr), s.len().unwrap() as Py_ssize_t);
             assert_eq!(PyUnicode_IS_READY(ptr), 1);
 
             // This has potential to mutate object. But it should be a no-op since
@@ -175,7 +175,10 @@ fn ucs4() {
             // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
 
-            assert_eq!(PyUnicode_GET_LENGTH(ptr), py_string.len().unwrap() as _);
+            assert_eq!(
+                PyUnicode_GET_LENGTH(ptr),
+                py_string.len().unwrap() as Py_ssize_t
+            );
             assert_eq!(PyUnicode_IS_READY(ptr), 1);
 
             // This has potential to mutate object. But it should be a no-op since

@@ -508,13 +508,13 @@ mod tests {
 
             assert_eq!(iter.size_hint(), (3, Some(3)));
 
-            assert_eq!(1, iter.next().unwrap().extract().unwrap());
+            assert_eq!(1_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
             assert_eq!(iter.size_hint(), (2, Some(2)));
 
-            assert_eq!(2, iter.next().unwrap().extract().unwrap());
+            assert_eq!(2_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
             assert_eq!(iter.size_hint(), (1, Some(1)));
 
-            assert_eq!(3, iter.next().unwrap().extract().unwrap());
+            assert_eq!(3_i32, iter.next().unwrap().extract::<'_, i32>().unwrap());
             assert_eq!(iter.size_hint(), (0, Some(0)));
         });
     }
@@ -527,7 +527,7 @@ mod tests {
             assert_eq!(3, tuple.len());
 
             for (i, item) in tuple.iter().enumerate() {
-                assert_eq!(i + 1, item.extract().unwrap());
+                assert_eq!(i + 1, item.extract::<'_, usize>().unwrap());
             }
         });
     }
@@ -541,9 +541,9 @@ mod tests {
 
             let slice = tuple.as_slice();
             assert_eq!(3, slice.len());
-            assert_eq!(1, slice[0].extract().unwrap());
-            assert_eq!(2, slice[1].extract().unwrap());
-            assert_eq!(3, slice[2].extract().unwrap());
+            assert_eq!(1_i32, slice[0].extract::<'_, i32>().unwrap());
+            assert_eq!(2_i32, slice[1].extract::<'_, i32>().unwrap());
+            assert_eq!(3_i32, slice[2].extract::<'_, i32>().unwrap());
         });
     }
 
