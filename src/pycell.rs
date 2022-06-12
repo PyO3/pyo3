@@ -433,8 +433,6 @@ pub struct PyCell<T: PyClassImpl> {
     contents: PyCellContents<T>,
 }
 
-// This struct has mirrored definitions in `weaklist_offset` and `dict_offset`,
-// who need the same struct layout to function correctly.
 #[repr(C)]
 pub(crate) struct PyCellContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
@@ -627,54 +625,11 @@ impl<T: PyClass> PyCell<T> {
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
     pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
+        use memoffset::offset_of;
         use std::convert::TryInto;
-        use std::mem::MaybeUninit;
 
-        #[cfg(addr_of)]
-        let offset = unsafe {
-            // The much simpler way, using addr_of!
-            let cell = MaybeUninit::<Self>::uninit();
-            let base_ptr = cell.as_ptr();
-            let dict_ptr = std::ptr::addr_of!((*base_ptr).contents.dict);
-            (dict_ptr.cast::<u8>()).offset_from(base_ptr.cast::<u8>())
-        };
-        #[cfg(not(addr_of))]
-        let offset = unsafe {
-            // The annoying way using a dummy struct because there's no way to get
-            // a pointer without going through a reference, which is insta-UB
-            // if it is not initialized.
+        let offset = offset_of!(PyCell<T>, contents) + offset_of!(PyCellContents<T>, dict);
 
-            use std::mem::size_of;
-
-            #[repr(C)]
-            struct PyCellDummy<T: PyClassImpl> {
-                ob_base: MaybeUninit<<T::BaseType as PyClassBaseType>::LayoutAsBase>,
-                contents: PyCellContentsDummy<T>,
-            }
-
-            #[repr(C)]
-            struct PyCellContentsDummy<T: PyClassImpl> {
-                value: MaybeUninit<T>,
-                borrow_checker: MaybeUninit<<T::PyClassMutability as PyClassMutability>::Storage>,
-                thread_checker: MaybeUninit<T::ThreadChecker>,
-                dict: MaybeUninit<T::Dict>,
-                weakref: MaybeUninit<T::WeakRef>,
-            }
-
-            assert_eq!(size_of::<PyCell<T>>(), size_of::<PyCellDummy<T>>());
-            assert_eq!(
-                size_of::<PyCellContents<T>>(),
-                size_of::<PyCellContentsDummy<T>>()
-            );
-
-            // All of the pycelldummy's fields are maybeuninit, which require no initialization
-            let cell = MaybeUninit::<PyCellDummy<T>>::uninit().assume_init();
-
-            let base_ptr: *const PyCellDummy<T> = &cell;
-            let dict_ptr: *const MaybeUninit<T::Dict> = &(*base_ptr).contents.dict;
-
-            (dict_ptr.cast::<u8>()).offset_from(base_ptr.cast::<u8>())
-        };
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
         offset.try_into().expect("offset should fit in Py_ssize_t")
@@ -682,55 +637,11 @@ impl<T: PyClass> PyCell<T> {
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
     pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
+        use memoffset::offset_of;
         use std::convert::TryInto;
-        use std::mem::MaybeUninit;
 
-        #[cfg(addr_of)]
-        let offset = unsafe {
-            // The much simpler way, using addr_of!
-            let cell = MaybeUninit::<Self>::uninit();
-            let base_ptr = cell.as_ptr();
-            let weaklist_ptr = std::ptr::addr_of!((*base_ptr).contents.weakref);
-            (weaklist_ptr.cast::<u8>()).offset_from(base_ptr.cast::<u8>())
-        };
-        #[cfg(not(addr_of))]
-        let offset = unsafe {
-            // The annoying way using a dummy struct because there's no way to get
-            // a pointer without going through a reference, which is insta-UB
-            // if it is not initialized.
+        let offset = offset_of!(PyCell<T>, contents) + offset_of!(PyCellContents<T>, weakref);
 
-            use std::mem::size_of;
-
-            #[repr(C)]
-            struct PyCellDummy<T: PyClassImpl> {
-                ob_base: MaybeUninit<<T::BaseType as PyClassBaseType>::LayoutAsBase>,
-                contents: PyCellContentsDummy<T>,
-            }
-
-            #[repr(C)]
-            struct PyCellContentsDummy<T: PyClassImpl> {
-                value: MaybeUninit<T>,
-                borrow_checker: MaybeUninit<<T::PyClassMutability as PyClassMutability>::Storage>,
-                thread_checker: MaybeUninit<T::ThreadChecker>,
-                dict: MaybeUninit<T::Dict>,
-                weakref: MaybeUninit<T::WeakRef>,
-            }
-
-            assert_eq!(size_of::<PyCell<T>>(), size_of::<PyCellDummy<T>>());
-            assert_eq!(
-                size_of::<PyCellContents<T>>(),
-                size_of::<PyCellContentsDummy<T>>()
-            );
-
-            // All of the pycelldummy's fields are maybeuninit, which require no initialization
-            let cell = MaybeUninit::<PyCellDummy<T>>::uninit().assume_init();
-
-            let base_ptr: *const PyCellDummy<T> = &cell;
-            let weaklist_ptr: *const MaybeUninit<<T as PyClassImpl>::WeakRef> =
-                &(*base_ptr).contents.weakref;
-
-            (weaklist_ptr.cast::<u8>()).offset_from(base_ptr.cast::<u8>())
-        };
         // Py_ssize_t may not be equal to isize on all platforms
         #[allow(clippy::useless_conversion)]
         offset.try_into().expect("offset should fit in Py_ssize_t")
