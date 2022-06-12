@@ -452,9 +452,12 @@ where
                 }
                 Ok(ret)
             }
-            Err(_) => {
-                let mappingproxy = <PyMappingProxy as PyTryFrom>::try_from(ob)?;
-                mappingproxy.copy()?.extract()
+            Err(msg) => {
+                if let Ok(mappingproxy) = <PyMappingProxy as PyTryFrom>::try_from(ob) {
+                    mappingproxy.copy()?.extract()
+                } else {
+                    Err(PyErr::from(msg))
+                }
             }
         }
     }
