@@ -217,6 +217,19 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
+macro_rules! addr_of_mut_shim {
+    ($place:expr) => {{
+        #[cfg(addr_of)]
+        {
+            ::std::ptr::addr_of_mut!($place)
+        }
+        #[cfg(not(addr_of))]
+        {
+            &mut $place as *mut _
+        }
+    }};
+}
+
 pub struct EmptySlot(());
 pub struct BorrowChecker(Cell<BorrowFlag>);
 
@@ -1089,7 +1102,7 @@ where
     fn ensure_threadsafe(&self) {}
     unsafe fn tp_dealloc(slf: *mut ffi::PyObject, py: Python<'_>) {
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if T::type_object_raw(py) == &mut PyBaseObject_Type {
+        if T::type_object_raw(py) == addr_of_mut_shim!(PyBaseObject_Type) {
             return get_tp_free(ffi::Py_TYPE(slf))(slf as _);
         }
 
