@@ -4,10 +4,11 @@
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom,
+    Python, ToPyObject,
 };
 use std::borrow::Cow;
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::str;
 
@@ -69,7 +70,6 @@ impl<'a> PyStringData<'a> {
     /// C APIs that skip input validation (like `PyUnicode_FromKindAndData`) and should
     /// never occur for strings that were created from Python code.
     pub fn to_string(self, py: Python<'_>) -> PyResult<Cow<'a, str>> {
-        use std::ffi::CStr;
         match self {
             Self::Ucs1(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
@@ -224,6 +224,29 @@ impl PyString {
                 };
                 String::from_utf8_lossy(bytes.as_bytes())
             }
+        }
+    }
+
+    /// Returns an iterator over the PyString.
+    ///
+    /// Does not allocate anything (python or rust heap).
+    pub fn chars<'a>(&'a self) -> impl ExactSizeIterator<Item = PyResult<char>> + 'a {
+        unsafe {
+            let len = ffi::PyUnicode_GetLength(self.as_ptr());
+            (0..len).map(move |i| {
+                let c = ffi::PyUnicode_ReadChar(self.as_ptr(), i);
+                match char::from_u32(c) {
+                    Some(c) => Ok(c),
+                    None => Err(exceptions::PyUnicodeDecodeError::new(
+                        self.py(),
+                        CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
+                        &c.to_ne_bytes(),
+                        i as usize..(i + 1) as usize,
+                        CStr::from_bytes_with_nul(b"invalid codepoint\0").unwrap(),
+                    )?
+                    .into()),
+                }
+            })
         }
     }
 
@@ -617,6 +640,34 @@ mod tests {
                 .to_string()
                 .contains("'utf-32' codec can't decode bytes in position 0-7"));
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("𠀀�".into()));
+        });
+    }
+
+    #[test]
+    fn test_string_chars() {
+        Python::with_gil(|py| {
+            let s: &PyString = PyString::new(py, "哈哈🐈");
+            let result = s.chars().collect::<PyResult<String>>();
+            assert_eq!(result.unwrap(), "哈哈🐈");
+        });
+    }
+
+    #[test]
+    fn test_string_chars_ucs4_invalid() {
+        Python::with_gil(|py| {
+            // U+20000 (valid) & U+d800 (never valid)
+            let buffer = b"\x00\x00\x02\x00\x00\xd8\x00\x00\x00\x00\x00\x00";
+            let ptr = unsafe {
+                crate::ffi::PyUnicode_FromKindAndData(
+                    crate::ffi::PyUnicode_4BYTE_KIND as _,
+                    buffer.as_ptr() as *const _,
+                    2,
+                )
+            };
+            assert!(!ptr.is_null());
+            let s: &PyString = unsafe { py.from_owned_ptr(ptr) };
+            let err = s.chars().collect::<PyResult<String>>().unwrap_err();
+            assert!(err.get_type(py).is(PyUnicodeDecodeError::type_object(py)));
         });
     }
 
