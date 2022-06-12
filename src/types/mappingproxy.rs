@@ -339,6 +339,15 @@ mod tests {
     }
 
     #[test]
+    fn test_isempty() {
+        Python::with_gil(|py| {
+            let map: HashMap<usize, usize> = HashMap::new();
+            let mappingproxy = map.into_py_mappingproxy(py).unwrap();
+            assert!(mappingproxy.is_empty());
+        });
+    }
+
+    #[test]
     fn test_keys() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
