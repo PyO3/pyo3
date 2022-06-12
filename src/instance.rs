@@ -1117,4 +1117,32 @@ a = A()
             Ok(())
         })
     }
+
+    #[cfg(feature = "macros")]
+    mod using_macros {
+        use super::*;
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate")]
+        struct SomeClass(i32);
+
+        #[test]
+        fn instance_borrow_methods() {
+            // More detailed tests of the underlying semantics in pycell.rs
+            Python::with_gil(|py| {
+                let instance = Py::new(py, SomeClass(0)).unwrap();
+                assert_eq!(instance.borrow(py).0, 0);
+                assert_eq!(instance.try_borrow(py).unwrap().0, 0);
+                assert_eq!(instance.borrow_mut(py).0, 0);
+                assert_eq!(instance.try_borrow_mut(py).unwrap().0, 0);
+
+                instance.borrow_mut(py).0 = 123;
+
+                assert_eq!(instance.borrow(py).0, 123);
+                assert_eq!(instance.try_borrow(py).unwrap().0, 123);
+                assert_eq!(instance.borrow_mut(py).0, 123);
+                assert_eq!(instance.try_borrow_mut(py).unwrap().0, 123);
+            })
+        }
+    }
 }

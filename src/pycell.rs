@@ -1086,3 +1086,102 @@ where
         <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(slf, py)
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+
+    use super::*;
+
+    #[crate::pyclass]
+    #[pyo3(crate = "crate")]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    struct SomeClass(i32);
+
+    #[test]
+    fn pycell_replace() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            assert_eq!(*cell.borrow(), SomeClass(0));
+
+            let previous = cell.replace(SomeClass(123));
+            assert_eq!(previous, SomeClass(0));
+            assert_eq!(*cell.borrow(), SomeClass(123));
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+    fn pycell_replace_panic() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let _guard = cell.borrow();
+
+            cell.replace(SomeClass(123));
+        })
+    }
+
+    #[test]
+    fn pycell_replace_with() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            assert_eq!(*cell.borrow(), SomeClass(0));
+
+            let previous = cell.replace_with(|value| {
+                *value = SomeClass(2);
+                SomeClass(123)
+            });
+            assert_eq!(previous, SomeClass(2));
+            assert_eq!(*cell.borrow(), SomeClass(123));
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+    fn pycell_replace_with_panic() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let _guard = cell.borrow();
+
+            cell.replace_with(|_| SomeClass(123));
+        })
+    }
+
+    #[test]
+    fn pycell_swap() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+            assert_eq!(*cell.borrow(), SomeClass(0));
+            assert_eq!(*cell2.borrow(), SomeClass(123));
+
+            cell.swap(cell2);
+            assert_eq!(*cell.borrow(), SomeClass(123));
+            assert_eq!(*cell2.borrow(), SomeClass(0));
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+    fn pycell_swap_panic() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+
+            let _guard = cell.borrow();
+            cell.swap(cell2);
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "Already borrowed: PyBorrowMutError")]
+    fn pycell_swap_panic_other_borrowed() {
+        Python::with_gil(|py| {
+            let cell = PyCell::new(py, SomeClass(0)).unwrap();
+            let cell2 = PyCell::new(py, SomeClass(123)).unwrap();
+
+            let _guard = cell2.borrow();
+            cell.swap(cell2);
+        })
+    }
+}
