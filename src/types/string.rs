@@ -230,7 +230,7 @@ impl PyString {
     /// Returns an iterator over the PyString.
     ///
     /// Does not allocate anything (python or rust heap).
-    pub fn chars<'a>(&'a self) -> impl ExactSizeIterator<Item = PyResult<char>> + 'a {
+    pub fn chars(&self) -> impl ExactSizeIterator<Item = PyResult<char>> + '_{
         unsafe {
             let len = ffi::PyUnicode_GetLength(self.as_ptr());
             (0..len).map(move |i| {
