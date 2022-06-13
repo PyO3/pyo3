@@ -8,19 +8,19 @@
 pub struct ModuleInfo {}
 
 #[derive(Debug)]
-pub struct ClassInfo {
-    pub name: &'static str,
-    pub base: &'static str,
-    pub fields: &'static [FieldInfo],
+pub struct ClassInfo<'a> {
+    pub name: &'a str,
+    pub base: &'a str,
+    pub fields: &'a [FieldInfo<'a>],
 }
 
 /// Python Interface information for a field (attribute, function, method…).
 #[derive(Debug)]
-pub struct FieldInfo {
-    pub name: &'static str,
+pub struct FieldInfo<'a> {
+    pub name: &'a str,
     pub kind: FieldKind,
-    pub py_type: Option<&'static TypeInfo>,
-    pub arguments: &'static [ArgumentInfo],
+    pub py_type: Option<&'a TypeInfo<'a>>,
+    pub arguments: &'a [ArgumentInfo<'a>],
 }
 
 #[derive(Debug)]
@@ -44,10 +44,10 @@ pub enum FieldKind {
 }
 
 #[derive(Debug)]
-pub struct ArgumentInfo {
-    pub name: &'static str,
+pub struct ArgumentInfo<'a> {
+    pub name: &'a str,
     pub kind: ArgumentKind,
-    pub py_type: Option<&'static TypeInfo>,
+    pub py_type: Option<&'a TypeInfo<'a>>,
     pub default_value: bool,
     pub is_modified: bool,
 }
@@ -71,7 +71,7 @@ pub enum ArgumentKind {
 /// The current implementation is not able to generate custom generics.
 /// All generic types can only be hardcoded in PyO3.
 #[derive(Debug)]
-pub enum TypeInfo {
+pub enum TypeInfo<'a> {
     /// The type `typing.Any`, which represents a dynamically-typed value (unknown type).
     Any,
 
@@ -79,7 +79,7 @@ pub enum TypeInfo {
     None,
 
     /// The type `typing.Callable`, which represents a function-like object.
-    Callable(Option<&'static [&'static TypeInfo]>, &'static TypeInfo),
+    Callable(Option<&'a [&'a TypeInfo<'a>]>, &'a TypeInfo<'a>),
 
     /// The type `typing.NoReturn`, which represents a function that never returns.
     NoReturn,
@@ -88,44 +88,46 @@ pub enum TypeInfo {
     AnyTuple,
 
     /// A tuple of the specified types.
-    Tuple(&'static [&'static TypeInfo]),
+    Tuple(&'a [&'a TypeInfo<'a>]),
 
     /// A tuple of unknown size, in which all elements have the same type.
-    UnsizedTuple(&'static TypeInfo),
+    UnsizedTuple(&'a TypeInfo<'a>),
 
     /// A union of multiple types.
-    Union(&'static [&'static TypeInfo]),
+    Union(&'a [&'a TypeInfo<'a>]),
 
     /// An optional value.
-    Optional(&'static TypeInfo),
+    Optional(&'a TypeInfo<'a>),
 
-    Dict(&'static TypeInfo, &'static TypeInfo),
+    Dict(&'a TypeInfo<'a>, &'a TypeInfo<'a>),
 
-    Mapping(&'static TypeInfo, &'static TypeInfo),
+    Mapping(&'a TypeInfo<'a>, &'a TypeInfo<'a>),
 
-    List(&'static TypeInfo),
+    List(&'a TypeInfo<'a>),
 
-    Set(&'static TypeInfo),
+    Set(&'a TypeInfo<'a>),
 
-    FrozenSet(&'static TypeInfo),
+    FrozenSet(&'a TypeInfo<'a>),
 
-    Sequence(&'static TypeInfo),
+    Sequence(&'a TypeInfo<'a>),
 
-    Iterator(&'static TypeInfo),
+    Iterable(&'a TypeInfo<'a>),
 
-    Builtin(&'static str),
+    Iterator(&'a TypeInfo<'a>),
+
+    Builtin(&'a str),
 
     /// Any type that doesn't receive special treatment from PyO3.
     Other {
-        module: &'static str,
-        name: &'static str,
+        module: &'a str,
+        name: &'a str,
     },
 }
 
 pub trait GetClassInfo {
-    fn info() -> &'static ClassInfo;
+    fn info() -> &'static ClassInfo<'static>;
 }
 
 pub trait GetClassFields {
-    fn fields_info() -> &'static [&'static FieldInfo];
+    fn fields_info() -> &'static [&'static FieldInfo<'static>];
 }
