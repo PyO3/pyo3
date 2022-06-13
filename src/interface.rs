@@ -113,8 +113,13 @@ pub enum TypeInfo {
 
     Iterator(&'static TypeInfo),
 
+    Builtin(&'static str),
+
     /// Any type that doesn't receive special treatment from PyO3.
-    Other(&'static str),
+    Other {
+        module: &'static str,
+        name: &'static str,
+    },
 }
 
 pub trait GetClassInfo {
