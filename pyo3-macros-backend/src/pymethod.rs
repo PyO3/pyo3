@@ -1249,13 +1249,23 @@ fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> (TokenStrea
     let field_args_name = format_ident!("{}_args", ident_prefix);
 
     let field_name = TokenTree::Literal(Literal::string(&*field.method_name));
+    let field_kind = match &field.spec.tp {
+        FnType::Getter(_) => quote!(pyo3::interface::FieldKind::Getter),
+        FnType::Setter(_) => quote!(pyo3::interface::FieldKind::Setter),
+        FnType::Fn(_) => quote!(pyo3::interface::FieldKind::Function),
+        FnType::FnNew => quote!(pyo3::interface::FieldKind::New),
+        FnType::FnClass => quote!(pyo3::interface::FieldKind::ClassMethod),
+        FnType::FnStatic => quote!(pyo3::interface::FieldKind::StaticMethod),
+        FnType::FnModule => todo!("FnModule is not currently supported"),
+        FnType::ClassAttribute => quote!(pyo3::interface::FieldKind::ClassAttribute),
+    };
 
     let output = quote! {
         const #field_args_name: [pyo3::interface::ArgumentInfo; 0] = []; //TODO
 
         const #field_info_name: pyo3::interface::FieldInfo = pyo3::interface::FieldInfo {
             name: #field_name,
-            kind: pyo3::interface::FieldKind::New, //TODO
+            kind: #field_kind,
             py_type: None, //TODO
             arguments: &#field_args_name,
         };
