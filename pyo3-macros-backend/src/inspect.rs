@@ -28,18 +28,18 @@ pub(crate) fn generate_class_inspection(
     let name = Literal::string(&*get_class_python_name(cls, args).to_string());
 
     quote! {
-        const #class_field_info: [pyo3::interface::FieldInfo; 0] = [
+        const #class_field_info: [&'static _pyo3::inspect::fields::FieldInfo<'static>; 0] = [
             //TODO
         ];
 
-        const #class_info: pyo3::interface::ClassInfo = pyo3::interface::ClassInfo {
+        const #class_info: _pyo3::inspect::classes::ClassStructInfo<'static> = _pyo3::inspect::classes::ClassStructInfo {
             name: #name,
-            base: "", //TODO
+            base: ::std::option::Option::None, //TODO
             fields: &#class_field_info,
         };
 
-        impl pyo3::interface::GetClassInfo for #cls {
-            fn info() -> &'static pyo3::interface::ClassInfo {
+        impl _pyo3::inspect::classes::InspectStruct<'static> for #cls {
+            fn inspect_struct() -> &'static _pyo3::inspect::classes::ClassStructInfo<'static> {
                 &#class_info
             }
         }
@@ -64,12 +64,12 @@ pub(crate) fn generate_impl_inspection(
         .map(|field| quote!(&#field));
 
     quote! {
-        const #fields_info: [&'static pyo3::interface::FieldInfo; #field_size] = [
+        const #fields_info: [&'static _pyo3::inspect::fields::FieldInfo<'static>; #field_size] = [
             #(#fields),*
         ];
 
-        impl pyo3::interface::GetClassFields for #cls {
-            fn fields_info() -> &'static [&'static pyo3::interface::FieldInfo] {
+        impl _pyo3::inspect::classes::InspectImpl<'static> for #cls {
+            fn inspect_impl() -> &'static [&'static _pyo3::inspect::fields::FieldInfo<'static>] {
                 &#fields_info
             }
         }
@@ -92,23 +92,23 @@ pub(crate) fn generate_fields_inspection(
 
     let field_name = TokenTree::Literal(Literal::string(&*field.method_name));
     let field_kind = match &field.spec.tp {
-        FnType::Getter(_) => quote!(pyo3::interface::FieldKind::Getter),
-        FnType::Setter(_) => quote!(pyo3::interface::FieldKind::Setter),
-        FnType::Fn(_) => quote!(pyo3::interface::FieldKind::Function),
-        FnType::FnNew => quote!(pyo3::interface::FieldKind::New),
-        FnType::FnClass => quote!(pyo3::interface::FieldKind::ClassMethod),
-        FnType::FnStatic => quote!(pyo3::interface::FieldKind::StaticMethod),
+        FnType::Getter(_) => quote!(_pyo3::inspect::fields::FieldKind::Getter),
+        FnType::Setter(_) => quote!(_pyo3::inspect::fields::FieldKind::Setter),
+        FnType::Fn(_) => quote!(_pyo3::inspect::fields::FieldKind::Function),
+        FnType::FnNew => quote!(_pyo3::inspect::fields::FieldKind::New),
+        FnType::FnClass => quote!(_pyo3::inspect::fields::FieldKind::ClassMethod),
+        FnType::FnStatic => quote!(_pyo3::inspect::fields::FieldKind::StaticMethod),
         FnType::FnModule => todo!("FnModule is not currently supported"),
-        FnType::ClassAttribute => quote!(pyo3::interface::FieldKind::ClassAttribute),
+        FnType::ClassAttribute => quote!(_pyo3::inspect::fields::FieldKind::ClassAttribute),
     };
 
     let output = quote! {
-        const #field_args_name: [pyo3::interface::ArgumentInfo; 0] = []; //TODO
+        const #field_args_name: [_pyo3::inspect::fields::ArgumentInfo<'static>; 0] = []; //TODO
 
-        const #field_info_name: pyo3::interface::FieldInfo = pyo3::interface::FieldInfo {
+        const #field_info_name: _pyo3::inspect::fields::FieldInfo<'static> = _pyo3::inspect::fields::FieldInfo {
             name: #field_name,
             kind: #field_kind,
-            py_type: None, //TODO
+            py_type: ::std::option::Option::None, //TODO
             arguments: &#field_args_name,
         };
     };

@@ -1,8 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::interface::GetClassInfo;
-use pyo3::interface::GetClassFields;
+use pyo3::inspect::classes::InspectClass;
 
 mod common;
 
@@ -28,8 +27,8 @@ fn compiles() {
 
 #[test]
 fn simple_info() {
-    let class_info = Simple::info();
-    let fields_info = Simple::fields_info();
+    let class_info = Simple::inspect();
     println!("Class:  {:?}", class_info);
-    println!("Fields: {:?}", fields_info);
+
+    assert!(false)
 }
