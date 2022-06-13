@@ -4,16 +4,17 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::utils::{ensure_not_async_fn, remove_lifetime, unwrap_ty_group, PythonDoc, generate_unique_ident};
+use crate::utils::{ensure_not_async_fn, remove_lifetime, unwrap_ty_group, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
     pyfunction::PyFunctionOptions,
 };
-use proc_macro2::{Literal, Span, TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
+use crate::inspect::generate_fields_inspection;
 
 pub enum GeneratedPyMethod {
     Method(TokenStream),
@@ -23,8 +24,8 @@ pub enum GeneratedPyMethod {
 
 pub struct PyMethod<'a> {
     kind: PyMethodKind,
-    method_name: String,
-    spec: FnSpec<'a>,
+    pub(crate) method_name: String,
+    pub(crate) spec: FnSpec<'a>,
 }
 
 enum PyMethodKind {
@@ -174,7 +175,7 @@ pub fn gen_py_method(
     let method = PyMethod::parse(sig, &mut *meth_attrs, options)?;
     let spec = &method.spec;
 
-    let (interface, info_ident) = generate_get_field_info(cls, &method);
+    let (interface, info_ident) = generate_fields_inspection(cls, &method);
 
     let result = match (method.kind, &spec.tp) {
         // Class attributes go before protos so that class attributes can be used to set proto
@@ -1240,36 +1241,4 @@ impl ToTokens for TokenGenerator {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0().to_tokens(tokens)
     }
-}
-
-fn generate_get_field_info(cls: &syn::Type, field: &PyMethod<'_>) -> (TokenStream, Ident) {
-    let ident_prefix = generate_unique_ident(cls, Some(field.spec.name));
-
-    let field_info_name = format_ident!("{}_info", ident_prefix);
-    let field_args_name = format_ident!("{}_args", ident_prefix);
-
-    let field_name = TokenTree::Literal(Literal::string(&*field.method_name));
-    let field_kind = match &field.spec.tp {
-        FnType::Getter(_) => quote!(pyo3::interface::FieldKind::Getter),
-        FnType::Setter(_) => quote!(pyo3::interface::FieldKind::Setter),
-        FnType::Fn(_) => quote!(pyo3::interface::FieldKind::Function),
-        FnType::FnNew => quote!(pyo3::interface::FieldKind::New),
-        FnType::FnClass => quote!(pyo3::interface::FieldKind::ClassMethod),
-        FnType::FnStatic => quote!(pyo3::interface::FieldKind::StaticMethod),
-        FnType::FnModule => todo!("FnModule is not currently supported"),
-        FnType::ClassAttribute => quote!(pyo3::interface::FieldKind::ClassAttribute),
-    };
-
-    let output = quote! {
-        const #field_args_name: [pyo3::interface::ArgumentInfo; 0] = []; //TODO
-
-        const #field_info_name: pyo3::interface::FieldInfo = pyo3::interface::FieldInfo {
-            name: #field_name,
-            kind: #field_kind,
-            py_type: None, //TODO
-            arguments: &#field_args_name,
-        };
-    };
-
-    (output, field_info_name)
 }

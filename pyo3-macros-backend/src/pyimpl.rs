@@ -9,11 +9,11 @@ use crate::{
     pymethod::{self, is_proto_method},
     utils::get_pyo3_crate,
 };
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
 use quote::{format_ident, quote};
-use syn::{parse::{Parse, ParseStream}, spanned::Spanned, Result, Type};
-use crate::utils::generate_unique_ident;
+use syn::{parse::{Parse, ParseStream}, spanned::Spanned, Result};
+use crate::inspect::generate_impl_inspection;
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -145,7 +145,7 @@ pub fn impl_methods(
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
 
-    let impl_info = generate_impl_info(ty, field_infos);
+    let impl_info = generate_impl_inspection(ty, field_infos);
     trait_impls.push(impl_info);
 
     let krate = get_pyo3_crate(&options.krate);
@@ -276,26 +276,4 @@ fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
         .iter()
         .filter(|attr| attr.path.is_ident("cfg"))
         .collect()
-}
-
-fn generate_impl_info(cls: &Type, fields: Vec<Ident>) -> TokenStream {
-    let ident_prefix = generate_unique_ident(cls, None);
-    let fields_info = format_ident!("{}_fields_info", ident_prefix);
-
-    let field_size = Literal::usize_suffixed(fields.len());
-
-    let fields = fields.iter()
-        .map(|field| quote!(&#field));
-
-    quote! {
-        const #fields_info: [&'static pyo3::interface::FieldInfo; #field_size] = [
-            #(#fields),*
-        ];
-
-        impl pyo3::interface::GetClassFields for #cls {
-            fn fields_info() -> &'static [&'static pyo3::interface::FieldInfo] {
-                &#fields_info
-            }
-        }
-    }
 }

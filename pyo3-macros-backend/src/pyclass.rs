@@ -15,12 +15,13 @@ use crate::pymethod::{
 };
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
-use proc_macro2::{Literal, Span, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::{Span, TokenStream};
+use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, spanned::Spanned, Result, Token};
+use crate::inspect::generate_class_inspection;
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -223,7 +224,7 @@ pub fn build_py_class(
 }
 
 /// `#[pyo3()]` options for pyclass fields
-struct FieldPyO3Options {
+pub(crate) struct FieldPyO3Options {
     get: bool,
     set: bool,
     name: Option<NameAttribute>,
@@ -288,7 +289,7 @@ impl FieldPyO3Options {
     }
 }
 
-fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
+pub(crate) fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
     args.options
         .name
         .as_ref()
@@ -306,7 +307,7 @@ fn impl_class(
 ) -> syn::Result<TokenStream> {
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, Some(&args.options.deprecations));
 
-    let class_info = generate_class_info(cls, args, &field_options);
+    let class_info = generate_class_inspection(cls, args, &field_options);
 
     let py_class_impl = PyClassImplsBuilder::new(
         cls,
@@ -994,35 +995,5 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         }
 
         _pyo3::inventory::collect!(#inventory_class_name);
-    }
-}
-
-fn generate_class_info(
-    cls: &syn::Ident,
-    args: &PyClassArgs,
-    field_options: &Vec<(&syn::Field, FieldPyO3Options)>,
-) -> TokenStream {
-    let ident_prefix = format_ident!("_path_{}", cls);
-    let class_field_info = format_ident!("{}_struct_field_info", ident_prefix);
-    let class_info = format_ident!("{}_struct_info", ident_prefix);
-
-    let name = Literal::string(&*get_class_python_name(cls, args).to_string());
-
-    quote! {
-        const #class_field_info: [pyo3::interface::FieldInfo; 0] = [
-            //TODO
-        ];
-
-        const #class_info: pyo3::interface::ClassInfo = pyo3::interface::ClassInfo {
-            name: #name,
-            base: "", //TODO
-            fields: &#class_field_info,
-        };
-
-        impl pyo3::interface::GetClassInfo for #cls {
-            fn info() -> &'static pyo3::interface::ClassInfo {
-                &#class_info
-            }
-        }
     }
 }
