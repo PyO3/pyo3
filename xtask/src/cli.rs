@@ -111,7 +111,6 @@ impl Subcommand {
             }
             Subcommand::Clippy => crate::clippy::run()?,
             Subcommand::Coverage(opts) => crate::llvm_cov::run(opts)?,
-
             Subcommand::TestPy => crate::pytests::run(None)?,
             Subcommand::Test => crate::test::run()?,
         };
@@ -125,7 +124,7 @@ impl Subcommand {
     }
 }
 
-// Run a command as a child process, inheriting stdin, stdout and stderr.
+/// Run a command as a child process, inheriting stdin, stdout and stderr.
 pub fn run(command: &mut Command) -> Result<()> {
     let command_str = format_command(command);
     let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
