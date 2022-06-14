@@ -11,6 +11,7 @@ use crate::{
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::NonNull;
+use crate::inspect::types::TypeInfo;
 
 /// Types that are built into the Python interpreter.
 ///
@@ -947,6 +948,13 @@ where
         unsafe {
             ob.extract::<&T::AsRefTarget>()
                 .map(|val| Py::from_borrowed_ptr(ob.py(), val.as_ptr()))
+        }
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
         }
     }
 }

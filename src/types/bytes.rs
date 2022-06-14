@@ -6,6 +6,7 @@ use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
 use std::str;
+use crate::inspect::types::TypeInfo;
 
 /// Represents a Python `bytes` object.
 ///
@@ -128,13 +129,22 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBytes::new(py, self).to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("bytes")
+    }
 }
 
 impl<'a> FromPyObject<'a> for &'a [u8] {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
     }
+
+    fn type_input() -> TypeInfo {
+        Self::type_output()
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use super::PyBytes;

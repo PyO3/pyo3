@@ -11,6 +11,7 @@ use crate::types::PySequence;
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToPyObject,
 };
+use crate::inspect::types::TypeInfo;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -367,6 +368,10 @@ where
         let mut iter = self.into_iter().map(|e| e.into_py(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::List(Box::new(T::type_output()))
     }
 }
 

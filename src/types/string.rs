@@ -10,6 +10,7 @@ use crate::{
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
+use crate::inspect::types::TypeInfo;
 
 /// Represents raw data backing a Python `str`.
 ///
@@ -296,12 +297,20 @@ impl<'a> IntoPy<PyObject> for &'a str {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         PyString::new(py, self).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 
@@ -341,11 +350,19 @@ impl IntoPy<PyObject> for char {
         let mut bytes = [0u8; 4];
         PyString::new(py, self.encode_utf8(&mut bytes)).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, &self).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 
@@ -354,6 +371,10 @@ impl<'a> IntoPy<PyObject> for &'a String {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 /// Allows extracting strings from Python objects.
@@ -361,6 +382,10 @@ impl<'a> IntoPy<PyObject> for &'a String {
 impl<'source> FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_str()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 
@@ -371,6 +396,10 @@ impl FromPyObject<'_> for String {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_str()
             .map(ToOwned::to_owned)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 
@@ -385,6 +414,10 @@ impl FromPyObject<'_> for char {
                 "expected a string of length 1",
             ))
         }
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 

@@ -7,6 +7,7 @@ mod min_const_generics {
     use crate::{
         ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
     };
+    use crate::inspect::types::TypeInfo;
 
     impl<T, const N: usize> IntoPy<PyObject> for [T; N]
     where
@@ -37,6 +38,10 @@ mod min_const_generics {
                 list
             }
         }
+
+        fn type_output() -> TypeInfo {
+            TypeInfo::List(Box::new(T::type_output()))
+        }
     }
 
     impl<T, const N: usize> ToPyObject for [T; N]
@@ -54,6 +59,10 @@ mod min_const_generics {
     {
         fn extract(obj: &'a PyAny) -> PyResult<Self> {
             create_array_from_obj(obj)
+        }
+
+        fn type_input() -> TypeInfo {
+            TypeInfo::Sequence(Box::new(T::type_input()))
         }
     }
 
@@ -179,6 +188,7 @@ mod array_impls {
         ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
     };
     use std::mem::{transmute_copy, ManuallyDrop};
+    use crate::inspect::types::TypeInfo;
 
     macro_rules! array_impls {
         ($($N:expr),+) => {
@@ -238,6 +248,10 @@ mod array_impls {
                             list
                         }
                     }
+
+                    fn type_output() -> TypeInfo {
+                        TypeInfo::List(Box::new(T::type_output()))
+                    }
                 }
 
                 impl<T> ToPyObject for [T; $N]
@@ -257,6 +271,10 @@ mod array_impls {
                         let mut array = [T::default(); $N];
                         extract_sequence_into_slice(obj, &mut array)?;
                         Ok(array)
+                    }
+
+                    fn type_input() -> TypeInfo {
+                        TypeInfo::Sequence(Box::new(T::type_input()))
                     }
                 }
             )+

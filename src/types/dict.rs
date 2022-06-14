@@ -10,6 +10,7 @@ use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python,
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
+use crate::inspect::types::TypeInfo;
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -361,6 +362,10 @@ where
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Dict(Box::new(K::type_output()), Box::new(V::type_output()))
+    }
 }
 
 impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
@@ -373,6 +378,10 @@ where
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Dict(Box::new(K::type_output()), Box::new(V::type_output()))
     }
 }
 
@@ -451,6 +460,10 @@ where
         }
         Ok(ret)
     }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Mapping(Box::new(K::type_input()), Box::new(V::type_input()))
+    }
 }
 
 impl<'source, K, V> FromPyObject<'source> for BTreeMap<K, V>
@@ -465,6 +478,10 @@ where
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Mapping(Box::new(K::type_input()), Box::new(V::type_input()))
     }
 }
 

@@ -9,6 +9,7 @@ use crate::{
 use std::convert::TryFrom;
 use std::i64;
 use std::os::raw::c_long;
+use crate::inspect::types::TypeInfo;
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
@@ -22,6 +23,10 @@ macro_rules! int_fits_larger_int {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 (self as $larger_type).into_py(py)
             }
+
+            fn type_output() -> TypeInfo {
+                TypeInfo::Builtin("int")
+            }
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
@@ -29,6 +34,10 @@ macro_rules! int_fits_larger_int {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+            }
+
+            fn type_input() -> TypeInfo {
+                TypeInfo::Builtin("int")
             }
         }
     };

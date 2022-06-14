@@ -5,6 +5,7 @@ use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::os::raw::c_double;
+use crate::inspect::types::TypeInfo;
 
 /// Represents a Python `float` object.
 ///
@@ -44,6 +45,10 @@ impl IntoPy<PyObject> for f64 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("float")
+    }
 }
 
 impl<'source> FromPyObject<'source> for f64 {
@@ -60,6 +65,10 @@ impl<'source> FromPyObject<'source> for f64 {
 
         Ok(v)
     }
+
+    fn type_input() -> TypeInfo {
+        <f64>::type_output()
+    }
 }
 
 impl ToPyObject for f32 {
@@ -72,11 +81,19 @@ impl IntoPy<PyObject> for f32 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, f64::from(self)).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("float")
+    }
 }
 
 impl<'source> FromPyObject<'source> for f32 {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
+    }
+
+    fn type_input() -> TypeInfo {
+        <f32>::type_output()
     }
 }
 

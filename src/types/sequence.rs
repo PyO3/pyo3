@@ -6,6 +6,7 @@ use crate::types::{PyAny, PyList, PyTuple};
 use crate::{ffi, PyNativeType, ToPyObject};
 use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
+use crate::inspect::types::TypeInfo;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -271,6 +272,10 @@ where
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         extract_sequence(obj)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Sequence(Box::new(T::type_input()))
     }
 }
 

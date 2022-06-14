@@ -2,8 +2,9 @@ use crate::intern;
 use crate::types::PyType;
 use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 use std::borrow::Cow;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use crate::inspect::types::TypeInfo;
 
 impl ToPyObject for Path {
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -38,6 +39,10 @@ impl<'a> IntoPy<PyObject> for &'a Path {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        <&OsStr>::type_output()
+    }
 }
 
 impl<'a> ToPyObject for Cow<'a, Path> {
@@ -52,6 +57,10 @@ impl<'a> IntoPy<PyObject> for Cow<'a, Path> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        <&OsStr>::type_output()
+    }
 }
 
 impl ToPyObject for PathBuf {
@@ -65,11 +74,19 @@ impl IntoPy<PyObject> for PathBuf {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_os_string().to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        <OsString>::type_output()
+    }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PathBuf {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.as_os_str().to_object(py)
+    }
+
+    fn type_output() -> TypeInfo {
+        <&OsStr>::type_output()
     }
 }
 

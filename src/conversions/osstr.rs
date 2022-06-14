@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 #[cfg(not(windows))]
 use std::os::raw::c_char;
+use crate::inspect::types::TypeInfo;
 
 impl ToPyObject for OsStr {
     fn to_object(&self, py: Python<'_>) -> PyObject {
@@ -115,6 +116,10 @@ impl IntoPy<PyObject> for &'_ OsStr {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 impl ToPyObject for Cow<'_, OsStr> {
@@ -129,6 +134,10 @@ impl IntoPy<PyObject> for Cow<'_, OsStr> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 impl ToPyObject for OsString {
@@ -142,11 +151,19 @@ impl IntoPy<PyObject> for OsString {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
+    }
 }
 
 impl<'a> IntoPy<PyObject> for &'a OsString {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("str")
     }
 }
 

@@ -216,6 +216,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
+use crate::inspect::types::TypeInfo;
 
 pub struct EmptySlot(());
 pub struct BorrowChecker(Cell<BorrowFlag>);
@@ -887,6 +888,13 @@ impl<T: PyClass> IntoPy<PyObject> for PyRef<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
+    }
 }
 
 impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T> {
@@ -984,6 +992,13 @@ impl<'p, T: MutablePyClass> Drop for PyRefMut<'p, T> {
 impl<T: MutablePyClass> IntoPy<PyObject> for PyRefMut<'_, T> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.inner.as_ptr()) }
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
     }
 }
 

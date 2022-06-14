@@ -26,6 +26,7 @@ use crate::{
     FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::{cmp, hash};
+use crate::inspect::types::TypeInfo;
 
 impl<K, V, H> ToPyObject for hashbrown::HashMap<K, V, H>
 where
@@ -50,6 +51,10 @@ where
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Dict(Box::new(K::type_output()), Box::new(V::type_output()))
+    }
 }
 
 impl<'source, K, V, S> FromPyObject<'source> for hashbrown::HashMap<K, V, S>
@@ -65,6 +70,10 @@ where
             ret.insert(K::extract(k)?, V::extract(v)?);
         }
         Ok(ret)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Mapping(Box::new(K::type_input()), Box::new(V::type_input()))
     }
 }
 
@@ -97,6 +106,10 @@ where
         }
         set.into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_output()))
+    }
 }
 
 impl<'source, K, S> FromPyObject<'source> for hashbrown::HashSet<K, S>
@@ -107,6 +120,10 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_input()))
     }
 }
 

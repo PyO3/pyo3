@@ -9,6 +9,7 @@ use crate::{
     PyRefMut, Python,
 };
 use std::ptr::NonNull;
+use crate::inspect::types::TypeInfo;
 
 /// Returns a borrowed pointer to a Python object.
 ///
@@ -244,6 +245,14 @@ impl<T> ToBorrowedObject for T where T: ToPyObject {}
 pub trait IntoPy<T>: Sized {
     /// Performs the conversion.
     fn into_py(self, py: Python<'_>) -> T;
+
+    /// The Python type of the resulting object.
+    ///
+    /// This function is used during inspection to extract the Python type from the Rust types.
+    /// The default implementation always returns `Any` (the type for untyped values).
+    fn type_output() -> TypeInfo {
+        TypeInfo::Any
+    }
 }
 
 /// Extract a type from a Python object.
@@ -289,6 +298,20 @@ pub trait IntoPy<T>: Sized {
 pub trait FromPyObject<'source>: Sized {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'source PyAny) -> PyResult<Self>;
+
+    /// The Python type of the accepted object.
+    ///
+    /// This function is used during inspection to extract the Python type from the Rust types.
+    /// The default implementation always returns `Any` (the type for untyped values).
+    ///
+    /// This function can be used to select which Python type is used when converting from Python to Rust,
+    /// whereas the same function in [`IntoPy`] is used to select the Python type used when converting from Rust to
+    /// Python.
+    /// These can be different to facilitate duck-typing: a dictionary is often declared as `Mapping[a, b]` when appearing
+    /// as an input, and `Dict[a, b]` when appearing as an output.
+    fn type_input() -> TypeInfo {
+        TypeInfo::Any
+    }
 }
 
 /// Identity conversion: allows using existing `PyObject` instances where
@@ -319,6 +342,10 @@ where
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.map_or_else(|| py.None(), |val| val.into_py(py))
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Optional(Box::new(T::type_output()))
+    }
 }
 
 /// `()` is converted to Python `None`.
@@ -331,6 +358,10 @@ impl ToPyObject for () {
 impl IntoPy<PyObject> for () {
     fn into_py(self, py: Python<'_>) -> PyObject {
         py.None()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::None
     }
 }
 
@@ -351,6 +382,13 @@ where
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         PyTryFrom::try_from(obj).map_err(Into::into)
     }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
+    }
 }
 
 impl<'a, T> FromPyObject<'a> for T
@@ -360,6 +398,13 @@ where
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         let cell: &PyCell<Self> = PyTryFrom::try_from(obj)?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
     }
 }
 
@@ -371,6 +416,13 @@ where
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow().map_err(Into::into)
     }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
+    }
 }
 
 impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
@@ -380,6 +432,13 @@ where
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow_mut().map_err(Into::into)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Class {
+            module: T::MODULE,
+            name: T::NAME,
+        }
     }
 }
 
@@ -393,6 +452,10 @@ where
         } else {
             T::extract(obj).map(Some)
         }
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Optional(Box::new(T::type_input()))
     }
 }
 
@@ -505,6 +568,10 @@ where
 impl IntoPy<Py<PyTuple>> for () {
     fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
         PyTuple::empty(py).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Tuple(vec![])
     }
 }
 

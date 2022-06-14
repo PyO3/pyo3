@@ -225,6 +225,7 @@ mod impl_ {
 }
 
 pub use impl_::*;
+use crate::inspect::types::TypeInfo;
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
 where
@@ -271,6 +272,10 @@ where
         }
         set.into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_output()))
+    }
 }
 
 impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
@@ -281,6 +286,10 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_input()))
     }
 }
 
@@ -297,6 +306,10 @@ where
         }
         set.into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_output()))
+    }
 }
 
 impl<'source, K> FromPyObject<'source> for BTreeSet<K>
@@ -306,6 +319,10 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::Set(Box::new(K::type_input()))
     }
 }
 

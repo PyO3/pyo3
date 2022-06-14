@@ -18,6 +18,7 @@ mod impls;
 
 pub use err_state::PyErrArguments;
 use err_state::{boxed_args, PyErrState, PyErrStateNormalized};
+use crate::inspect::types::TypeInfo;
 
 /// Represents a Python exception.
 ///
@@ -675,6 +676,10 @@ impl IntoPy<PyObject> for PyErr {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.into_value(py).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::Builtin("Exception")
+    }
 }
 
 impl ToPyObject for PyErr {
@@ -686,6 +691,10 @@ impl ToPyObject for PyErr {
 impl<'a> IntoPy<PyObject> for &'a PyErr {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.clone_ref(py).into_py(py)
+    }
+
+    fn type_output() -> TypeInfo {
+        <PyErr>::type_output()
     }
 }
 

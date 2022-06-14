@@ -5,7 +5,7 @@ use crate::inspect::types::TypeInfo;
 pub struct FieldInfo<'a> {
     pub name: &'a str,
     pub kind: FieldKind,
-    pub py_type: Option<&'a TypeInfo<'a>>,
+    pub py_type: Option<fn() -> TypeInfo>,
     pub arguments: &'a [ArgumentInfo<'a>],
 }
 
@@ -33,7 +33,7 @@ pub enum FieldKind {
 pub struct ArgumentInfo<'a> {
     pub name: &'a str,
     pub kind: ArgumentKind,
-    pub py_type: Option<&'a TypeInfo<'a>>,
+    pub py_type: Option<fn() -> TypeInfo>,
     pub default_value: bool,
     pub is_modified: bool,
 }
