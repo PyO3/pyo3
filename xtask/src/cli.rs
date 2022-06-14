@@ -1,7 +1,7 @@
 use crate::utils::*;
 use anyhow::{ensure, Result};
 use std::io;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -33,11 +33,19 @@ impl Default for Subcommand {
     }
 }
 
-#[derive(StructOpt, Default)]
+#[derive(StructOpt)]
 pub struct CoverageOpts {
-    /// Creates an lcov output instead of printing to the terminal.
-    #[structopt(long)]
-    pub output_lcov: Option<String>,
+    /// Creates an lcov output file.
+    #[structopt(long, default_value = "lcov.info")]
+    pub output_lcov: String,
+}
+
+impl Default for CoverageOpts {
+    fn default() -> Self {
+        Self {
+            output_lcov: String::from("lcov.info"),
+        }
+    }
 }
 
 #[derive(StructOpt)]
@@ -116,6 +124,7 @@ impl Subcommand {
     }
 }
 
+/// Run a command as a child process, inheriting stdin, stdout and stderr.
 pub fn run(command: &mut Command) -> Result<()> {
     let command_str = format_command(command);
     let github_actions = std::env::var_os("GITHUB_ACTIONS").is_some();
@@ -141,6 +150,28 @@ pub fn run(command: &mut Command) -> Result<()> {
         println!("::endgroup::")
     }
     Ok(())
+}
+
+/// Like `run`, but does not inherit stdin, stdout and stderr.
+pub fn run_with_output(command: &mut Command) -> Result<Output> {
+    let command_str = format_command(command);
+
+    println!("Running: {}", command_str);
+
+    let output = command.output()?;
+
+    ensure! {
+        output.status.success(),
+        "process did not run successfully ({exit}): {command}:\n{stderr}",
+        exit = match output.status.code() {
+            Some(code) => format!("exit code {}", code),
+            None => "terminated by signal".into(),
+        },
+        command = command_str,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    };
+
+    Ok(output)
 }
 
 #[derive(Copy, Clone, Debug)]
