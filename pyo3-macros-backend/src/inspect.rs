@@ -4,7 +4,7 @@
 //! The generated structures are read-only.
 
 use proc_macro2::{Ident, Literal, TokenStream, TokenTree};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::spanned::Spanned;
 use syn::Type;
 use crate::method::FnType;
@@ -89,6 +89,7 @@ pub(crate) fn generate_fields_inspection(
 
     let field_info_name = format_ident!("{}_info", ident_prefix);
     let field_args_name = format_ident!("{}_args", ident_prefix);
+    let field_type_fn_name = format_ident!("{}_output_fn", ident_prefix);
 
     let field_name = TokenTree::Literal(Literal::string(&*field.method_name));
     let field_kind = match &field.spec.tp {
@@ -101,14 +102,24 @@ pub(crate) fn generate_fields_inspection(
         FnType::FnModule => todo!("FnModule is not currently supported"),
         FnType::ClassAttribute => quote!(_pyo3::inspect::fields::FieldKind::ClassAttribute),
     };
+    let field_type = match &field.spec.output {
+        Type::Path(path) if path.path.get_ident().filter(|i| i.to_string() == "Self").is_some() => {
+            cls.to_token_stream()
+        }
+        other => other.to_token_stream(),
+    };
 
     let output = quote! {
+        fn #field_type_fn_name() -> _pyo3::inspect::types::TypeInfo {
+            <#field_type as _pyo3::conversion::IntoPy<_>>::type_output()
+        }
+
         const #field_args_name: [_pyo3::inspect::fields::ArgumentInfo<'static>; 0] = []; //TODO
 
         const #field_info_name: _pyo3::inspect::fields::FieldInfo<'static> = _pyo3::inspect::fields::FieldInfo {
             name: #field_name,
             kind: #field_kind,
-            py_type: ::std::option::Option::None, //TODO
+            py_type: Some(#field_type_fn_name),
             arguments: &#field_args_name,
         };
     };

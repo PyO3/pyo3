@@ -39,6 +39,7 @@ fn simple_info() {
 #[test]
 fn types() {
     assert_eq!("bool", format!("{}", <bool>::type_output()));
+    assert_eq!("bool", format!("{}", <bool as IntoPy<_>>::type_output()));
     assert_eq!("bytes", format!("{}", <&[u8]>::type_output()));
     assert_eq!("str", format!("{}", <String>::type_output()));
     assert_eq!("str", format!("{}", <char>::type_output()));
