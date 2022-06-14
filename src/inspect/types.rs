@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 /// The current implementation is not able to generate custom generics.
 /// All generic types can only be hardcoded in PyO3.
 #[derive(Debug)]
-pub enum TypeInfo<'a> {
+pub enum TypeInfo {
     /// The type `typing.Any`, which represents a dynamically-typed value (unknown type).
     Any,
 
@@ -13,7 +13,7 @@ pub enum TypeInfo<'a> {
     None,
 
     /// The type `typing.Callable`, which represents a function-like object.
-    Callable(Option<&'a [&'a TypeInfo<'a>]>, &'a TypeInfo<'a>),
+    Callable(Option<Vec<TypeInfo>>, Box<TypeInfo>),
 
     /// The type `typing.NoReturn`, which represents a function that never returns.
     NoReturn,
@@ -22,53 +22,53 @@ pub enum TypeInfo<'a> {
     AnyTuple,
 
     /// A tuple of the specified types.
-    Tuple(&'a [&'a TypeInfo<'a>]),
+    Tuple(Vec<TypeInfo>),
 
     /// A tuple of unknown size, in which all elements have the same type.
-    UnsizedTuple(&'a TypeInfo<'a>),
+    UnsizedTuple(Box<TypeInfo>),
 
     /// A union of multiple types.
-    Union(&'a [&'a TypeInfo<'a>]),
+    Union(Vec<TypeInfo>),
 
     /// An optional value.
-    Optional(&'a TypeInfo<'a>),
+    Optional(Box<TypeInfo>),
 
-    Dict(&'a TypeInfo<'a>, &'a TypeInfo<'a>),
+    Dict(Box<TypeInfo>, Box<TypeInfo>),
 
-    Mapping(&'a TypeInfo<'a>, &'a TypeInfo<'a>),
+    Mapping(Box<TypeInfo>, Box<TypeInfo>),
 
-    List(&'a TypeInfo<'a>),
+    List(Box<TypeInfo>),
 
-    Set(&'a TypeInfo<'a>),
+    Set(Box<TypeInfo>),
 
-    FrozenSet(&'a TypeInfo<'a>),
+    FrozenSet(Box<TypeInfo>),
 
-    Sequence(&'a TypeInfo<'a>),
+    Sequence(Box<TypeInfo>),
 
-    Iterable(&'a TypeInfo<'a>),
+    Iterable(Box<TypeInfo>),
 
-    Iterator(&'a TypeInfo<'a>),
+    Iterator(Box<TypeInfo>),
 
-    Builtin(&'a str),
+    Builtin(&'static str),
 
     /// Any type that doesn't receive special treatment from PyO3.
     Class {
-        module: &'a str,
-        name: &'a str,
+        module: Option<&'static str>,
+        name: &'static str,
     },
 }
 
-impl<'a> TypeInfo<'a> {
-    pub fn module_name(&self) -> Option<&'a str> {
+impl TypeInfo {
+    pub fn module_name(&self) -> Option<&'static str> {
         match self {
-            TypeInfo::Class { module, .. } => { Some(module) }
+            TypeInfo::Class { module, .. } => { *module }
             TypeInfo::Builtin(_) => None,
             _ => Some("typing"),
         }
     }
 }
 
-impl<'a> Display for TypeInfo<'a> {
+impl Display for TypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeInfo::Any => write!(f, "Any"),
@@ -77,7 +77,7 @@ impl<'a> Display for TypeInfo<'a> {
                 if let Some(args) = args {
                     write!(f, "Callable[[")?;
                     let mut is_first = true;
-                    for arg in *args {
+                    for arg in args {
                         if !is_first {
                             write!(f, ", ")?;
                         }
@@ -94,7 +94,7 @@ impl<'a> Display for TypeInfo<'a> {
             TypeInfo::Tuple(args) => {
                 write!(f, "Tuple[")?;
                 let mut is_first = true;
-                for arg in *args {
+                for arg in args {
                     if !is_first {
                         write!(f, ", ")?;
                     }
@@ -110,7 +110,7 @@ impl<'a> Display for TypeInfo<'a> {
             TypeInfo::Union(args) => {
                 write!(f, "Union[")?;
                 let mut is_first = true;
-                for arg in *args {
+                for arg in args {
                     if !is_first {
                         write!(f, ", ")?;
                     }
@@ -141,35 +141,35 @@ fn type_info_display() {
     assert_eq!("Any", format!("{}", TypeInfo::Any));
     assert_eq!("None", format!("{}", TypeInfo::None));
     assert_eq!("int", format!("{}", TypeInfo::Builtin("int")));
-    assert_eq!("Callable[..., int]", format!("{}", TypeInfo::Callable(None, &TypeInfo::Builtin("int"))));
-    assert_eq!("Callable[[int, bool], int]", format!("{}", TypeInfo::Callable(Some(&[&TypeInfo::Builtin("int"), &TypeInfo::Builtin("bool")]), &TypeInfo::Builtin("int"))));
+    assert_eq!("Callable[..., int]", format!("{}", TypeInfo::Callable(None, Box::new(TypeInfo::Builtin("int")))));
+    assert_eq!("Callable[[int, bool], int]", format!("{}", TypeInfo::Callable(Some(vec![TypeInfo::Builtin("int"), TypeInfo::Builtin("bool")]), Box::new(TypeInfo::Builtin("int")))));
     assert_eq!("NoReturn", format!("{}", TypeInfo::NoReturn));
     assert_eq!("Tuple[...]", format!("{}", TypeInfo::AnyTuple));
-    assert_eq!("Tuple[int, bool, int]", format!("{}", TypeInfo::Tuple(&[&TypeInfo::Builtin("int"), &TypeInfo::Builtin("bool"), &TypeInfo::Builtin("int")])));
-    assert_eq!("Tuple[()]", format!("{}", TypeInfo::Tuple(&[])));
-    assert_eq!("Tuple[int, ...]", format!("{}", TypeInfo::UnsizedTuple(&TypeInfo::Builtin("int"))));
-    assert_eq!("Union[int, bool]", format!("{}", TypeInfo::Union(&[&TypeInfo::Builtin("int"), &TypeInfo::Builtin("bool")])));
-    assert_eq!("Optional[int]", format!("{}", TypeInfo::Optional(&TypeInfo::Builtin("int"))));
-    assert_eq!("Optional[Any]", format!("{}", TypeInfo::Optional(&TypeInfo::Any)));
-    assert_eq!("Dict[str, int]", format!("{}", TypeInfo::Dict(&TypeInfo::Builtin("str"), &TypeInfo::Builtin("int"))));
-    assert_eq!("Mapping[str, int]", format!("{}", TypeInfo::Mapping(&TypeInfo::Builtin("str"), &TypeInfo::Builtin("int"))));
-    assert_eq!("List[str]", format!("{}", TypeInfo::List(&TypeInfo::Builtin("str"))));
-    assert_eq!("Set[str]", format!("{}", TypeInfo::Set(&TypeInfo::Builtin("str"))));
-    assert_eq!("FrozenSet[str]", format!("{}", TypeInfo::FrozenSet(&TypeInfo::Builtin("str"))));
-    assert_eq!("Sequence[str]", format!("{}", TypeInfo::Sequence(&TypeInfo::Builtin("str"))));
-    assert_eq!("Iterable[str]", format!("{}", TypeInfo::Iterable(&TypeInfo::Builtin("str"))));
-    assert_eq!("Iterator[str]", format!("{}", TypeInfo::Iterator(&TypeInfo::Builtin("str"))));
-    assert_eq!("MyClass", format!("{}", TypeInfo::Class { module: "whatever", name: "MyClass" }));
+    assert_eq!("Tuple[int, bool, int]", format!("{}", TypeInfo::Tuple(vec![TypeInfo::Builtin("int"), TypeInfo::Builtin("bool"), TypeInfo::Builtin("int")])));
+    assert_eq!("Tuple[()]", format!("{}", TypeInfo::Tuple(vec![])));
+    assert_eq!("Tuple[int, ...]", format!("{}", TypeInfo::UnsizedTuple(Box::new(TypeInfo::Builtin("int")))));
+    assert_eq!("Union[int, bool]", format!("{}", TypeInfo::Union(vec![TypeInfo::Builtin("int"), TypeInfo::Builtin("bool")])));
+    assert_eq!("Optional[int]", format!("{}", TypeInfo::Optional(Box::new(TypeInfo::Builtin("int")))));
+    assert_eq!("Optional[Any]", format!("{}", TypeInfo::Optional(Box::new(TypeInfo::Any))));
+    assert_eq!("Dict[str, int]", format!("{}", TypeInfo::Dict(Box::new(TypeInfo::Builtin("str")), Box::new(TypeInfo::Builtin("int")))));
+    assert_eq!("Mapping[str, int]", format!("{}", TypeInfo::Mapping(Box::new(TypeInfo::Builtin("str")), Box::new(TypeInfo::Builtin("int")))));
+    assert_eq!("List[str]", format!("{}", TypeInfo::List(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("Set[str]", format!("{}", TypeInfo::Set(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("FrozenSet[str]", format!("{}", TypeInfo::FrozenSet(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("Sequence[str]", format!("{}", TypeInfo::Sequence(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("Iterable[str]", format!("{}", TypeInfo::Iterable(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("Iterator[str]", format!("{}", TypeInfo::Iterator(Box::new(TypeInfo::Builtin("str")))));
+    assert_eq!("MyClass", format!("{}", TypeInfo::Class { module: Some("whatever"), name: "MyClass" }));
 
     // Just to be sure, a complicated (real life!) example
     assert_eq!(
         "List[Callable[[Common, Common], List[List[Tuple[Common, Common]]]]]",
         format!("{}", TypeInfo::List(
             &TypeInfo::Callable(
-                Some(&[&TypeInfo::Class { module: "foo", name: "Common" }, &TypeInfo::Class { module: "foo", name: "Common" }]),
+                Some(vec![TypeInfo::Class { module: None, name: "Common" }, TypeInfo::Class { module: None, name: "Common" }]),
                 &TypeInfo::List(
                     &TypeInfo::List(
-                        &TypeInfo::Tuple(&[&TypeInfo::Class { module: "foo", name: "Common" }, &TypeInfo::Class { module: "foo", name: "Common" }])
+                        &TypeInfo::Tuple(vec![TypeInfo::Class { module: None, name: "Common" }, TypeInfo::Class { module: None, name: "Common" }])
                     )
                 ),
             ),
