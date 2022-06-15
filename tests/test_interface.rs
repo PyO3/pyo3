@@ -229,6 +229,7 @@ struct Complicated {
 #[allow(unused_variables)]
 #[pymethods]
 impl Complicated {
+    #[new]
     fn new(foo: PyObject, parent: PyObject) -> Self {
         unreachable!("This is just a stub")
     }

@@ -150,12 +150,35 @@ pub(crate) fn generate_fields_inspection(
         .map(|it| it.to_token_stream())
         .unwrap_or_else(|| cls.to_token_stream());
 
+    let mut args: Vec<TokenStream> = vec![];
+    for arg in &field.spec.args {
+        let name = Literal::string(&*arg.name.to_string());
+        let typ = generate_type(arg.ty)
+            .map(|it| it.to_token_stream())
+            .unwrap_or_else(|| cls.to_token_stream());
+
+        let is_mutable = arg.mutability.is_some();
+
+        args.push(quote! {
+            _pyo3::inspect::fields::ArgumentInfo {
+                name: #name,
+                kind: _pyo3::inspect::fields::ArgumentKind::PositionOrKeyword, //TODO
+                py_type: ::std::option::Option::Some(|| <#typ as _pyo3::conversion::FromPyObject>::type_input()),
+                default_value: false,
+                is_modified: #is_mutable,
+            }
+        });
+    }
+    let args_size = Literal::usize_suffixed(args.len());
+
     let output = quote! {
         fn #field_type_fn_name() -> _pyo3::inspect::types::TypeInfo {
             <#field_type as _pyo3::conversion::IntoPy<_>>::type_output()
         }
 
-        const #field_args_name: [_pyo3::inspect::fields::ArgumentInfo<'static>; 0] = []; //TODO
+        const #field_args_name: [_pyo3::inspect::fields::ArgumentInfo<'static>; #args_size] = [
+             #(#args),*
+        ];
 
         const #field_info_name: _pyo3::inspect::fields::FieldInfo<'static> = _pyo3::inspect::fields::FieldInfo {
             name: #field_name,
