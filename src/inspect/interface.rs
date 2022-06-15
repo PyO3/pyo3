@@ -1,7 +1,6 @@
 //! Generates a Python interface file (.pyi) using the inspected elements.
 
 use std::fmt::{Display, Formatter};
-use libc::write;
 use crate::inspect::classes::ClassInfo;
 use crate::inspect::fields::{ArgumentInfo, ArgumentKind, FieldInfo, FieldKind};
 
