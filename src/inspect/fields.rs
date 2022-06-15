@@ -13,8 +13,6 @@ pub struct FieldInfo<'a> {
 pub enum FieldKind {
     /// The special 'new' method
     New,
-    /// A top-level or instance attribute
-    Attribute,
     /// A top-level or instance getter
     Getter,
     /// A top-level or instance setter
@@ -41,12 +39,14 @@ pub struct ArgumentInfo<'a> {
 #[derive(Debug)]
 pub enum ArgumentKind {
     /// A normal argument, that can be passed positionally or by keyword.
-    Regular,
+    PositionOrKeyword,
     /// A normal argument that can only be passed positionally (not by keyword).
-    PositionalOnly,
+    Position,
+    /// A normal argument that can only be passed by keyword (not positionally).
+    Keyword,
     /// An argument that represents all positional arguments that were provided on the call-site
     /// but do not match any declared regular argument.
-    Vararg,
+    VarArg,
     /// An argument that represents all keyword arguments that were provided on the call-site
     /// but do not match any declared regular argument.
     KeywordArg,

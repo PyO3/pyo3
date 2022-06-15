@@ -7,3 +7,4 @@ pub mod types;
 pub mod fields;
 pub mod classes;
 pub mod modules;
+pub mod interface;
