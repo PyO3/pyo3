@@ -225,9 +225,9 @@ pub fn build_py_class(
 
 /// `#[pyo3()]` options for pyclass fields
 pub(crate) struct FieldPyO3Options {
-    get: bool,
-    set: bool,
-    name: Option<NameAttribute>,
+    pub(crate) get: bool,
+    pub(crate) set: bool,
+    pub(crate) name: Option<NameAttribute>,
 }
 
 enum FieldPyO3Option {

@@ -5,6 +5,7 @@ use pyo3::inspect::classes::{ClassInfo, ClassStructInfo, InspectClass};
 use pyo3::inspect::fields::{ArgumentInfo, ArgumentKind, FieldInfo, FieldKind};
 use pyo3::inspect::interface::InterfaceGenerator;
 use pyo3::inspect::types::TypeInfo;
+use pyo3::types::PyType;
 
 mod common;
 
@@ -122,7 +123,7 @@ const EXPECTED_COMPLICATED: &str = r#"class Complicated(Simple):
     def value(self, value: int) -> None: ...
     def __new__(cls, /, foo: str = ..., **parent: Any) -> None: ...
     @staticmethod
-    def static(input: Complicated) -> Complicated: ...
+    def staticmeth(input: Complicated) -> Complicated: ...
     @classmethod
     def classmeth(cls, /, input: Union[Complicated, str, int]) -> Complicated: ...
     counter: int = ...
@@ -180,7 +181,7 @@ fn complicated_manual() {
                 ],
             },
             &FieldInfo {
-                name: "static",
+                name: "staticmeth",
                 kind: FieldKind::StaticMethod,
                 py_type: Some(|| TypeInfo::Class { module: None, name: "Complicated" }),
                 arguments: &[
@@ -217,6 +218,46 @@ fn complicated_manual() {
     };
 
     assert_eq!(EXPECTED_COMPLICATED, format!("{}", InterfaceGenerator::new(class)))
+}
+
+#[pyclass]
+struct Complicated {
+    #[pyo3(get, set)]
+    value: usize,
+}
+
+#[allow(unused_variables)]
+#[pymethods]
+impl Complicated {
+    fn new(foo: PyObject, parent: PyObject) -> Self {
+        unreachable!("This is just a stub")
+    }
+
+    #[pyo3(name = "staticmeth")]
+    #[staticmethod]
+    fn static_method(input: PyObject) -> Complicated {
+        unreachable!("This is just a stub")
+    }
+
+    #[pyo3(name = "classmeth")]
+    #[classmethod]
+    fn class_method(cls: &PyType, input: ClassMethodInput) -> Complicated {
+        unreachable!("This is just a stub")
+    }
+}
+
+#[derive(FromPyObject)]
+enum ClassMethodInput {
+    // Complicated(PyCell<Complicated>),
+    String(String),
+    Int(usize),
+}
+
+#[test]
+fn complicated_derived() {
+    let inspect = Complicated::inspect();
+    println!("Inspection results: {:#?}", inspect);
+    assert_eq!(EXPECTED_COMPLICATED, format!("{}", InterfaceGenerator::new(inspect)))
 }
 
 //endregion

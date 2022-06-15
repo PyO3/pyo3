@@ -27,9 +27,53 @@ pub(crate) fn generate_class_inspection(
 
     let name = Literal::string(&*get_class_python_name(cls, args).to_string());
 
+    let mut fields: Vec<TokenStream> = vec![];
+    for (field, options) in field_options {
+        let typ = generate_type(&field.ty)
+            .map(|it| Box::new(it) as Box<dyn ToTokens>)
+            .unwrap_or_else(|| Box::new(cls));
+        let name = options.name.as_ref()
+            .map(|it| Literal::string(&*it.value.0.to_string()))
+            .or_else(|| field.ident.as_ref().map(|it| Literal::string(&*it.to_string())));
+
+        if let Some(name) = name {
+            if options.get {
+                fields.push(quote! {
+                    &_pyo3::inspect::fields::FieldInfo {
+                        name: #name,
+                        kind: _pyo3::inspect::fields::FieldKind::Getter,
+                        py_type: ::std::option::Option::Some(|| <#typ as _pyo3::conversion::IntoPy<_>>::type_output()),
+                        arguments: &[],
+                    }
+                });
+            }
+
+            if options.set {
+                fields.push(quote! {
+                    &_pyo3::inspect::fields::FieldInfo {
+                        name: #name,
+                        kind: _pyo3::inspect::fields::FieldKind::Setter,
+                        py_type: ::std::option::Option::Some(|| _pyo3::inspect::types::TypeInfo::None),
+                        arguments: &[
+                            _pyo3::inspect::fields::ArgumentInfo {
+                                name: #name,
+                                kind: _pyo3::inspect::fields::ArgumentKind::Position,
+                                py_type: ::std::option::Option::Some(|| <#typ as _pyo3::conversion::IntoPy<_>>::type_output()),
+                                default_value: false,
+                                is_modified: false,
+                            }
+                        ],
+                    }
+                });
+            }
+        }
+    }
+
+    let field_size = Literal::usize_suffixed(fields.len());
+
     quote! {
-        const #class_field_info: [&'static _pyo3::inspect::fields::FieldInfo<'static>; 0] = [
-            //TODO
+        const #class_field_info: [&'static _pyo3::inspect::fields::FieldInfo<'static>; #field_size] = [
+            #(#fields),*
         ];
 
         const #class_info: _pyo3::inspect::classes::ClassStructInfo<'static> = _pyo3::inspect::classes::ClassStructInfo {
@@ -102,12 +146,9 @@ pub(crate) fn generate_fields_inspection(
         FnType::FnModule => todo!("FnModule is not currently supported"),
         FnType::ClassAttribute => quote!(_pyo3::inspect::fields::FieldKind::ClassAttribute),
     };
-    let field_type = match &field.spec.output {
-        Type::Path(path) if path.path.get_ident().filter(|i| i.to_string() == "Self").is_some() => {
-            cls.to_token_stream()
-        }
-        other => other.to_token_stream(),
-    };
+    let field_type = generate_type(&field.spec.output)
+        .map(|it| it.to_token_stream())
+        .unwrap_or_else(|| cls.to_token_stream());
 
     let output = quote! {
         fn #field_type_fn_name() -> _pyo3::inspect::types::TypeInfo {
@@ -125,6 +166,15 @@ pub(crate) fn generate_fields_inspection(
     };
 
     (output, field_info_name)
+}
+
+fn generate_type(target: &Type) -> Option<impl ToTokens + '_> {
+    match target {
+        Type::Path(path) if path.path.get_ident().filter(|i| i.to_string() == "Self").is_some() => {
+            None
+        }
+        other => Some(other)
+    }
 }
 
 /// Generates a unique identifier based on a type and (optionally) a field.
