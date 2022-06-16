@@ -109,24 +109,24 @@ error: Python objects are shared, so 'self' cannot be moved out of the Python in
 124 |     fn method_self_by_value(self){}
     |                             ^^^^
 
-error[E0592]: duplicate definitions with name `__pymethod___new____`
+error[E0201]: duplicate definitions with name `__pymethod___new____`:
    --> tests/ui/invalid_pymethods.rs:129:1
     |
 129 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
-    | duplicate definitions for `__pymethod___new____`
-    | other definition for `__pymethod___new____`
+    | previous definition of `__pymethod___new____` here
+    | duplicate definition
     |
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0592]: duplicate definitions with name `__pymethod_func__`
+error[E0201]: duplicate definitions with name `__pymethod_func__`:
    --> tests/ui/invalid_pymethods.rs:140:1
     |
 140 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
-    | duplicate definitions for `__pymethod_func__`
-    | other definition for `__pymethod_func__`
+    | previous definition of `__pymethod_func__` here
+    | duplicate definition
     |
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)

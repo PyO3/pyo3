@@ -430,7 +430,6 @@ pub fn impl_wrap_pyfunction(
         doc,
         deprecations: options.deprecations,
         text_signature: options.text_signature,
-        krate: krate.clone(),
         unsafety: func.sig.unsafety,
     };
 
@@ -442,7 +441,6 @@ pub fn impl_wrap_pyfunction(
     let methoddef = spec.get_methoddef(wrapper_ident);
 
     let wrapped_pyfunction = quote! {
-        #wrapper
 
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
         // will actually bring both the module and the function into scope.
@@ -461,6 +459,8 @@ pub fn impl_wrap_pyfunction(
             impl #name::MakeDef {
                 const DEF: #krate::impl_::pyfunction::PyMethodDef = #methoddef;
             }
+
+            #wrapper
         };
     };
     Ok(wrapped_pyfunction)

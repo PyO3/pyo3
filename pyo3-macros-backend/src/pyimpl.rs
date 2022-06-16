@@ -6,7 +6,7 @@ use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
-    pymethod::{self, is_proto_method},
+    pymethod::{self, is_proto_method, MethodAndMethodDef, MethodAndSlotDef},
     utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
@@ -95,6 +95,7 @@ pub fn impl_methods(
     let mut trait_impls = Vec::new();
     let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
+    let mut associated_methods = Vec::new();
 
     let mut implemented_proto_fragments = HashSet::new();
 
@@ -104,18 +105,26 @@ pub fn impl_methods(
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
-                    GeneratedPyMethod::Method(token_stream) => {
+                    GeneratedPyMethod::Method(MethodAndMethodDef {
+                        associated_method,
+                        method_def,
+                    }) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        methods.push(quote!(#(#attrs)* #token_stream));
+                        associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        methods.push(quote!(#(#attrs)* #method_def));
                     }
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
                         trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::Proto(token_stream) => {
+                    GeneratedPyMethod::Proto(MethodAndSlotDef {
+                        associated_method,
+                        slot_def,
+                    }) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        proto_impls.push(quote!(#(#attrs)* #token_stream))
+                        proto_impls.push(quote!(#(#attrs)* #slot_def));
+                        associated_methods.push(quote!(#(#attrs)* #associated_method));
                     }
                 }
             }
@@ -127,8 +136,12 @@ pub fn impl_methods(
                         attributes,
                     };
                     let attrs = get_cfg_attributes(&konst.attrs);
-                    let meth = gen_py_const(ty, &spec);
-                    methods.push(quote!(#(#attrs)* #meth));
+                    let MethodAndMethodDef {
+                        associated_method,
+                        method_def,
+                    } = gen_py_const(ty, &spec);
+                    methods.push(quote!(#(#attrs)* #method_def));
+                    associated_methods.push(quote!(#(#attrs)* #associated_method));
                     if is_proto_method(&spec.python_name().to_string()) {
                         // If this is a known protocol method e.g. __contains__, then allow this
                         // symbol even though it's not an uppercase constant.
@@ -158,32 +171,41 @@ pub fn impl_methods(
             #(#trait_impls)*
 
             #items
+
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            impl #ty {
+                #(#associated_methods)*
+            }
         };
     })
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> TokenStream {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
     let deprecations = &spec.attributes.deprecations;
     let python_name = &spec.null_terminated_python_name();
-    quote! {
+
+    let associated_method = quote! {
+        fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
+            #deprecations
+            ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
+        }
+    };
+
+    let method_def = quote! {
         _pyo3::class::PyMethodDefType::ClassAttribute({
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
-                _pyo3::impl_::pymethods::PyClassAttributeFactory({
-                    impl #cls {
-                        #[doc(hidden)]
-                        #[allow(non_snake_case)]
-                        fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
-                            #deprecations
-                            ::std::result::Result::Ok(_pyo3::IntoPy::into_py(#cls::#member, py))
-                        }
-                    }
-                    #cls::#wrapper_ident
-                })
+                _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
             )
         })
+    };
+
+    MethodAndMethodDef {
+        associated_method,
+        method_def,
     }
 }
 

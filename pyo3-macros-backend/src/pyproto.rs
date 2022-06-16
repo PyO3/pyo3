@@ -5,6 +5,7 @@ use crate::method::{FnSpec, FnType};
 use crate::proto_method::impl_method_proto;
 use crate::pyfunction::PyFunctionOptions;
 use crate::pymethod;
+use crate::pymethod::MethodAndMethodDef;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use quote::ToTokens;
@@ -48,7 +49,8 @@ fn impl_proto_impl(
     proto: &defs::Proto,
 ) -> syn::Result<TokenStream> {
     let mut trait_impls = TokenStream::new();
-    let mut py_methods = Vec::new();
+    let mut associated_methods = Vec::new();
+    let mut method_defs = Vec::new();
     let mut method_names = HashSet::new();
     let module = proto.module();
 
@@ -72,7 +74,10 @@ fn impl_proto_impl(
                     None
                 };
 
-                let method = if let FnType::Fn(_) = &fn_spec.tp {
+                let MethodAndMethodDef {
+                    associated_method,
+                    method_def,
+                } = if let FnType::Fn(_) = &fn_spec.tp {
                     pymethod::impl_py_method_def(ty, &fn_spec, flags)?
                 } else {
                     bail_spanned!(
@@ -80,17 +85,24 @@ fn impl_proto_impl(
                     );
                 };
 
-                py_methods.push(method);
+                associated_methods.push(associated_method);
+                method_defs.push(method_def);
             }
         }
     }
-    let items = impl_proto_items(method_names, py_methods, ty, proto);
+    let items = impl_proto_items(method_names, method_defs, ty, proto);
 
     Ok(quote! {
         const _: () = {
             use ::pyo3 as _pyo3; // pyproto doesn't support specifying #[pyo3(crate)]
             #trait_impls
             #items
+
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            impl #ty {
+                #(#associated_methods)*
+            }
         };
     })
 }
