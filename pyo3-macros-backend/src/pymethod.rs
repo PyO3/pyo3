@@ -178,7 +178,7 @@ pub fn gen_py_method(
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
         (_, FnType::ClassAttribute) => {
-            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec))
+            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec)?)
         }
         (PyMethodKind::Proto(proto_kind), _) => {
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
@@ -348,12 +348,25 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> TokenStream {
     }}
 }
 
-fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
+fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
+    let (py_arg, args) = split_off_python_arg(&spec.args);
+    ensure_spanned!(
+        args.is_empty(),
+        args[0].ty.span() => "#[classattr] can only have one argument (of type pyo3::Python)"
+    );
+
     let name = &spec.name;
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(py))
+    } else {
+        quote!(#cls::#name())
+    };
+
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
     let deprecations = &spec.deprecations;
     let python_name = spec.null_terminated_python_name();
-    quote! {
+
+    let classattr = quote! {
         _pyo3::class::PyMethodDefType::ClassAttribute({
             _pyo3::class::PyClassAttributeDef::new(
                 #python_name,
@@ -363,7 +376,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                         #[allow(non_snake_case)]
                         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
                             #deprecations
-                            let mut ret = #cls::#name();
+                            let mut ret = #fncall;
                             if false {
                                 use _pyo3::impl_::ghost::IntoPyResult;
                                 ret.assert_into_py_result();
@@ -375,7 +388,8 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
                 })
             )
         })
-    }
+    };
+    Ok(classattr)
 }
 
 fn impl_call_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {

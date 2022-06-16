@@ -45,6 +45,11 @@ impl Foo {
     fn a_foo() -> Foo {
         Foo { x: 1 }
     }
+
+    #[classattr]
+    fn a_foo_with_py(py: Python<'_>) -> Py<Foo> {
+        Py::new(py, Foo { x: 1 }).unwrap()
+    }
 }
 
 #[test]
@@ -57,6 +62,7 @@ fn class_attributes() {
     py_assert!(py, foo_obj, "foo_obj.a == 5");
     py_assert!(py, foo_obj, "foo_obj.B == 'bar'");
     py_assert!(py, foo_obj, "foo_obj.a_foo.x == 1");
+    py_assert!(py, foo_obj, "foo_obj.a_foo_with_py.x == 1");
 }
 
 // Ignored because heap types are not immutable:
