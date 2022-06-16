@@ -1,8 +1,8 @@
-error: class attribute methods cannot take arguments
- --> tests/ui/invalid_pymethods.rs:9:29
+error: #[classattr] can only have one argument (of type pyo3::Python)
+ --> tests/ui/invalid_pymethods.rs:9:34
   |
 9 |     fn class_attr_with_args(foo: i32) {}
-  |                             ^^^
+  |                                  ^^^
 
 error: `#[classattr]` does not take any arguments
   --> tests/ui/invalid_pymethods.rs:14:5

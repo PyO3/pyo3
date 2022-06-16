@@ -374,13 +374,7 @@ impl<'a> FnSpec<'a> {
 
         let (fn_type, skip_first_arg, fixed_convention) = match fn_type_attr {
             Some(MethodTypeAttribute::StaticMethod) => (FnType::FnStatic, false, None),
-            Some(MethodTypeAttribute::ClassAttribute) => {
-                ensure_spanned!(
-                    sig.inputs.is_empty(),
-                    sig.inputs.span() => "class attribute methods cannot take arguments"
-                );
-                (FnType::ClassAttribute, false, None)
-            }
+            Some(MethodTypeAttribute::ClassAttribute) => (FnType::ClassAttribute, false, None),
             Some(MethodTypeAttribute::New) => {
                 if let Some(name) = &python_name {
                     bail_spanned!(name.span() => "`name` not allowed with `#[new]`");
