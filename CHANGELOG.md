@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix FFI definition `PyGetSetDef` to have `*const c_char` for `doc` member (not `*mut c_char`). [#2439](https://github.com/PyO3/pyo3/pull/2439)
 - Fix `#[pyo3(from_py_with = "...")]` being ignored for 1-element tuple structs and transparent structs. [#2440](https://github.com/PyO3/pyo3/pull/2440)
 - Use `memoffset` for computing PyCell offsets [#2450](https://github.com/PyO3/pyo3/pull/2450)
+- Fix incorrect enum names being returned by `repr` for enums renamed by `#[pyclass(name)]` [#2457](https://github.com/PyO3/pyo3/pull/2457)
 
 ## [0.16.5] - 2022-05-15
 

@@ -433,7 +433,7 @@ fn impl_enum_class(
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
             // Assuming all variants are unit variants because they are the only type we support.
-            let repr = format!("{}.{}", cls, variant_name);
+            let repr = format!("{}.{}", get_class_python_name(cls, args), variant_name);
             quote! { #cls::#variant_name => #repr, }
         });
         let mut repr_impl: syn::ImplItemMethod = syn::parse_quote! {
