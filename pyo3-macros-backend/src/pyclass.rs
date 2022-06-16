@@ -11,7 +11,8 @@ use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
 use crate::pyimpl::{gen_py_const, PyClassMethodsType};
 use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, PropertyType, SlotDef, __INT__, __REPR__, __RICHCMP__,
+    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
+    SlotDef, __INT__, __REPR__, __RICHCMP__,
 };
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
@@ -539,7 +540,7 @@ fn generate_default_protocol_slot(
     cls: &syn::Type,
     method: &mut syn::ImplItemMethod,
     slot: &SlotDef,
-) -> syn::Result<TokenStream> {
+) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
         &mut method.sig,
         &mut Vec::new(),
@@ -557,7 +558,7 @@ fn generate_default_protocol_slot(
 fn enum_default_methods<'a>(
     cls: &'a syn::Ident,
     unit_variant_names: impl IntoIterator<Item = &'a syn::Ident>,
-) -> Vec<TokenStream> {
+) -> Vec<MethodAndMethodDef> {
     let cls_type = syn::parse_quote!(#cls);
     let variant_to_attribute = |ident: &syn::Ident| ConstSpec {
         rust_ident: ident.clone(),
@@ -588,7 +589,7 @@ fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVarian
 fn descriptors_to_items(
     cls: &syn::Ident,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
-) -> syn::Result<Vec<TokenStream>> {
+) -> syn::Result<Vec<MethodAndMethodDef>> {
     let ty = syn::parse_quote!(#cls);
     field_options
         .into_iter()
@@ -666,8 +667,8 @@ struct PyClassImplsBuilder<'a> {
     cls: &'a syn::Ident,
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
-    default_methods: Vec<TokenStream>,
-    default_slots: Vec<TokenStream>,
+    default_methods: Vec<MethodAndMethodDef>,
+    default_slots: Vec<MethodAndSlotDef>,
     doc: Option<PythonDoc>,
 }
 
@@ -676,8 +677,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         cls: &'a syn::Ident,
         attr: &'a PyClassArgs,
         methods_type: PyClassMethodsType,
-        default_methods: Vec<TokenStream>,
-        default_slots: Vec<TokenStream>,
+        default_methods: Vec<MethodAndMethodDef>,
+        default_slots: Vec<MethodAndSlotDef>,
     ) -> Self {
         Self {
             cls,
@@ -838,8 +839,18 @@ impl<'a> PyClassImplsBuilder<'a> {
             None
         };
 
-        let default_methods = &self.default_methods;
-        let default_slots = &self.default_slots;
+        let default_methods = self
+            .default_methods
+            .iter()
+            .map(|meth| &meth.associated_method)
+            .chain(
+                self.default_slots
+                    .iter()
+                    .map(|meth| &meth.associated_method),
+            );
+
+        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
+        let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
         let freelist_slots = self.freelist_slots();
 
         let deprecations = &self.attr.deprecations;
@@ -907,8 +918,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                     let collector = PyClassImplCollector::<Self>::new();
                     #deprecations;
                     static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
-                        methods: &[#(#default_methods),*],
-                        slots: &[#(#default_slots),* #(#freelist_slots),*],
+                        methods: &[#(#default_method_defs),*],
+                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
                     visitor(&INTRINSIC_ITEMS);
                     #pymethods_items
@@ -918,6 +929,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #dict_offset
 
                 #weaklist_offset
+            }
+
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            impl #cls {
+                #(#default_methods)*
             }
 
             #inventory_class
