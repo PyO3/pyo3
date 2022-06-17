@@ -70,8 +70,11 @@ given signatures should be interpreted as follows:
     <details>
     <summary>Return type</summary>
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
-    If the `object` is not of the type specified in the signature, the generated code will
-    automatically `return NotImplemented`.
+    If the second argument `object` is not of the type specified in the
+    signature, the generated code will automatically `return NotImplemented`.
+
+    You can use [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result
+    to the requested comparison.
     </details>
 
   - `__getattr__(<self>, object) -> object`
@@ -611,3 +614,4 @@ For details, look at the `#[pymethods]` regarding GC methods.
 [`PySequenceProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/sequence/trait.PySequenceProtocol.html
 [`PyIterProtocol`]: {{#PYO3_DOCS_URL}}/pyo3/class/iter/trait.PyIterProtocol.html
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
+[`CompareOp::matches`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.CompareOp.html#method.matches

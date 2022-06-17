@@ -10,6 +10,7 @@ use crate::{
     IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyObject, PyResult, PyTypeInfo, Python,
 };
 use std::{
+    cmp::Ordering,
     convert::TryInto,
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_uint, c_void},
@@ -452,6 +453,7 @@ pub enum CompareOp {
 }
 
 impl CompareOp {
+    /// Conversion from the C enum.
     pub fn from_raw(op: c_int) -> Option<Self> {
         match op {
             ffi::Py_LT => Some(CompareOp::Lt),
@@ -461,6 +463,37 @@ impl CompareOp {
             ffi::Py_GT => Some(CompareOp::Gt),
             ffi::Py_GE => Some(CompareOp::Ge),
             _ => None,
+        }
+    }
+
+    /// Returns if a Rust [`std::cmp::Ordering`] matches this ordering query.
+    ///
+    /// Usage example:
+    ///
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::class::basic::CompareOp;
+    ///
+    /// #[pyclass]
+    /// struct Size {
+    ///     size: usize
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Size {
+    ///     fn __richcmp__(&self, other: &Size, op: CompareOp) -> bool {
+    ///         op.matches(self.size.cmp(&other.size))
+    ///     }
+    /// }
+    /// ```
+    pub fn matches(&self, result: Ordering) -> bool {
+        match self {
+            CompareOp::Eq => result == Ordering::Equal,
+            CompareOp::Ne => result != Ordering::Equal,
+            CompareOp::Lt => result == Ordering::Less,
+            CompareOp::Le => result != Ordering::Greater,
+            CompareOp::Gt => result == Ordering::Greater,
+            CompareOp::Ge => result != Ordering::Less,
         }
     }
 }
@@ -597,3 +630,18 @@ pub trait Frozen: boolean_struct::private::Boolean {}
 
 impl Frozen for boolean_struct::True {}
 impl Frozen for boolean_struct::False {}
+
+mod tests {
+    #[test]
+    fn test_compare_op_matches() {
+        use super::CompareOp;
+        use std::cmp::Ordering;
+
+        assert!(CompareOp::Eq.matches(Ordering::Equal));
+        assert!(CompareOp::Ne.matches(Ordering::Less));
+        assert!(CompareOp::Ge.matches(Ordering::Greater));
+        assert!(CompareOp::Gt.matches(Ordering::Greater));
+        assert!(CompareOp::Le.matches(Ordering::Equal));
+        assert!(CompareOp::Lt.matches(Ordering::Less));
+    }
+}
