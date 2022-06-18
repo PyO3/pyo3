@@ -323,7 +323,7 @@ pub mod class {
 
     #[doc(hidden)]
     pub use self::methods::{
-        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
+        PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodType, PySetterDef,
     };
 
     pub mod basic {

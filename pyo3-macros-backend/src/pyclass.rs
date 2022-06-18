@@ -9,10 +9,10 @@ use crate::attributes::{
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::FnSpec;
-use crate::pyimpl::{gen_py_const, PyClassMethodsType};
+use crate::pyimpl::{gen_py_const, GeneratedClassItems, PyClassMethodsType};
 use crate::pymethod::{
-    impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef, MethodAndSlotDef, PropertyType,
-    SlotDef, __INT__, __REPR__, __RICHCMP__,
+    impl_py_getter_def, impl_py_setter_def, MethodAndClassAttributeDef, MethodAndSlotDef,
+    PropertyType, SlotDef, __INT__, __REPR__, __RICHCMP__,
 };
 use crate::utils::{self, get_pyo3_crate, PythonDoc};
 use crate::PyFunctionOptions;
@@ -312,7 +312,6 @@ fn impl_class(
         args,
         methods_type,
         descriptors_to_items(cls, field_options)?,
-        vec![],
     )
     .doc(doc)
     .impl_all();
@@ -505,17 +504,22 @@ fn impl_enum_class(
         (richcmp_impl, richcmp_slot)
     };
 
-    let default_slots = vec![default_repr_slot, default_int_slot, default_richcmp_slot];
+    let default_items = GeneratedClassItems {
+        slot_defs: vec![
+            (vec![], default_repr_slot),
+            (vec![], default_int_slot),
+            (vec![], default_richcmp_slot),
+        ],
+        class_attributes: enum_variant_attributes(cls, variants.iter().map(|v| v.ident))
+            .into_iter()
+            .map(|def| (vec![], def))
+            .collect(),
+        ..Default::default()
+    };
 
-    let pyclass_impls = PyClassImplsBuilder::new(
-        cls,
-        args,
-        methods_type,
-        enum_default_methods(cls, variants.iter().map(|v| v.ident)),
-        default_slots,
-    )
-    .doc(doc)
-    .impl_all();
+    let pyclass_impls = PyClassImplsBuilder::new(cls, args, methods_type, default_items)
+        .doc(doc)
+        .impl_all();
 
     quote! {
         const _: () = {
@@ -555,10 +559,10 @@ fn generate_default_protocol_slot(
     )
 }
 
-fn enum_default_methods<'a>(
+fn enum_variant_attributes<'a>(
     cls: &'a syn::Ident,
     unit_variant_names: impl IntoIterator<Item = &'a syn::Ident>,
-) -> Vec<MethodAndMethodDef> {
+) -> Vec<MethodAndClassAttributeDef> {
     let cls_type = syn::parse_quote!(#cls);
     let variant_to_attribute = |ident: &syn::Ident| ConstSpec {
         rust_ident: ident.clone(),
@@ -586,44 +590,46 @@ fn extract_variant_data(variant: &syn::Variant) -> syn::Result<PyClassEnumVarian
     Ok(PyClassEnumVariant { ident })
 }
 
-fn descriptors_to_items(
+fn descriptors_to_items<'a>(
     cls: &syn::Ident,
-    field_options: Vec<(&syn::Field, FieldPyO3Options)>,
-) -> syn::Result<Vec<MethodAndMethodDef>> {
+    field_options: Vec<(&'a syn::Field, FieldPyO3Options)>,
+) -> syn::Result<GeneratedClassItems<'a>> {
     let ty = syn::parse_quote!(#cls);
-    field_options
-        .into_iter()
-        .enumerate()
-        .flat_map(|(field_index, (field, options))| {
-            let name_err = if options.name.is_some() && !options.get && !options.set {
-                Some(Err(err_spanned!(options.name.as_ref().unwrap().span() => "`name` is useless without `get` or `set`")))
-            } else {
-                None
-            };
+    let mut items = GeneratedClassItems::default();
+    for (field_index, (field, options)) in field_options.into_iter().enumerate() {
+        if options.name.is_some() && !options.get && !options.set {
+            bail_spanned!(options.name.as_ref().unwrap().span() => "`name` is useless without `get` or `set`")
+        };
 
-            let getter = if options.get {
-                Some(impl_py_getter_def(&ty, PropertyType::Descriptor {
-                    field_index,
-                    field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
+        if options.get {
+            items.getters.push((
+                vec![],
+                impl_py_getter_def(
+                    &ty,
+                    PropertyType::Descriptor {
+                        field_index,
+                        field,
+                        python_name: options.name.as_ref(),
+                    },
+                )?,
+            ));
+        };
 
-            let setter = if options.set {
-                Some(impl_py_setter_def(&ty, PropertyType::Descriptor {
-                    field_index,
-                    field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
-
-            name_err.into_iter().chain(getter).chain(setter)
-        })
-        .collect::<syn::Result<_>>()
+        if options.set {
+            items.setters.push((
+                vec![],
+                impl_py_setter_def(
+                    &ty,
+                    PropertyType::Descriptor {
+                        field_index,
+                        field,
+                        python_name: options.name.as_ref(),
+                    },
+                )?,
+            ));
+        };
+    }
+    Ok(items)
 }
 
 fn impl_pytypeinfo(
@@ -667,8 +673,7 @@ struct PyClassImplsBuilder<'a> {
     cls: &'a syn::Ident,
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
-    default_methods: Vec<MethodAndMethodDef>,
-    default_slots: Vec<MethodAndSlotDef>,
+    default_items: GeneratedClassItems<'a>,
     doc: Option<PythonDoc>,
 }
 
@@ -677,15 +682,41 @@ impl<'a> PyClassImplsBuilder<'a> {
         cls: &'a syn::Ident,
         attr: &'a PyClassArgs,
         methods_type: PyClassMethodsType,
-        default_methods: Vec<MethodAndMethodDef>,
-        default_slots: Vec<MethodAndSlotDef>,
+        mut default_items: GeneratedClassItems<'a>,
     ) -> Self {
+        // Insert freelist slots if necessary
+        if attr.options.freelist.is_some() {
+            default_items.slot_defs.push((
+                vec![],
+                MethodAndSlotDef {
+                    associated_method: quote!(),
+                    slot_def: quote! {
+                        _pyo3::ffi::PyType_Slot {
+                            slot: _pyo3::ffi::Py_tp_alloc,
+                            pfunc: _pyo3::impl_::pyclass::alloc_with_freelist::<#cls> as *mut _,
+                        }
+                    },
+                },
+            ));
+            default_items.slot_defs.push((
+                vec![],
+                MethodAndSlotDef {
+                    associated_method: quote!(),
+                    slot_def: quote! {
+                        _pyo3::ffi::PyType_Slot {
+                            slot: _pyo3::ffi::Py_tp_free,
+                            pfunc: _pyo3::impl_::pyclass::free_with_freelist::<#cls> as *mut _,
+                        }
+                    },
+                },
+            ));
+        }
+
         Self {
             cls,
             attr,
             methods_type,
-            default_methods,
-            default_slots,
+            default_items,
             doc: None,
         }
     }
@@ -839,19 +870,8 @@ impl<'a> PyClassImplsBuilder<'a> {
             None
         };
 
-        let default_methods = self
-            .default_methods
-            .iter()
-            .map(|meth| &meth.associated_method)
-            .chain(
-                self.default_slots
-                    .iter()
-                    .map(|meth| &meth.associated_method),
-            );
-
-        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
-        let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
-        let freelist_slots = self.freelist_slots();
+        let default_items = &self.default_items;
+        let default_methods = self.default_items.associated_methods();
 
         let deprecations = &self.attr.deprecations;
 
@@ -917,10 +937,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
                     #deprecations;
-                    static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
-                        methods: &[#(#default_method_defs),*],
-                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
-                    };
+                    static INTRINSIC_ITEMS: PyClassItems = #default_items;
                     visitor(&INTRINSIC_ITEMS);
                     #pymethods_items
                     #pyproto_items
@@ -962,29 +979,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 }
             }
         })
-    }
-
-    fn freelist_slots(&self) -> Vec<TokenStream> {
-        let cls = self.cls;
-
-        if self.attr.options.freelist.is_some() {
-            vec![
-                quote! {
-                    _pyo3::ffi::PyType_Slot {
-                        slot: _pyo3::ffi::Py_tp_alloc,
-                        pfunc: _pyo3::impl_::pyclass::alloc_with_freelist::<#cls> as *mut _,
-                    }
-                },
-                quote! {
-                    _pyo3::ffi::PyType_Slot {
-                        slot: _pyo3::ffi::Py_tp_free,
-                        pfunc: _pyo3::impl_::pyclass::free_with_freelist::<#cls> as *mut _,
-                    }
-                },
-            ]
-        } else {
-            Vec::new()
-        }
     }
 }
 

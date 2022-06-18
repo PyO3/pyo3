@@ -31,10 +31,37 @@ pub struct MethodAndSlotDef {
     pub slot_def: TokenStream,
 }
 
+/// Generated code for a single pymethod item.
+pub struct MethodAndClassAttributeDef {
+    /// The implementation of the Python wrapper for the pymethod
+    pub associated_method: TokenStream,
+    /// The attribute def which will be used to create this attribute
+    pub attribute_def: TokenStream,
+}
+
+/// Generated code for a single pymethod item.
+pub struct MethodAndGetterDef {
+    /// The implementation of the Python wrapper for the pymethod
+    pub associated_method: TokenStream,
+    /// The getter def which will be used bind the getter
+    pub getter_def: TokenStream,
+}
+
+/// Generated code for a single pymethod item.
+pub struct MethodAndSetterDef {
+    /// The implementation of the Python wrapper for the pymethod
+    pub associated_method: TokenStream,
+    /// The setter def which will be used bind the setter
+    pub setter_def: TokenStream,
+}
+
 pub enum GeneratedPyMethod {
     Method(MethodAndMethodDef),
     Proto(MethodAndSlotDef),
     SlotTraitImpl(String, TokenStream),
+    ClassAttribute(MethodAndClassAttributeDef),
+    Getter(MethodAndGetterDef),
+    Setter(MethodAndSetterDef),
 }
 
 pub struct PyMethod<'a> {
@@ -194,7 +221,7 @@ pub fn gen_py_method(
         // Class attributes go before protos so that class attributes can be used to set proto
         // method to None.
         (_, FnType::ClassAttribute) => {
-            GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec)?)
+            GeneratedPyMethod::ClassAttribute(impl_py_class_attribute(cls, spec)?)
         }
         (PyMethodKind::Proto(proto_kind), _) => {
             ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
@@ -230,11 +257,11 @@ pub fn gen_py_method(
         // special prototypes
         (_, FnType::FnNew) => GeneratedPyMethod::Proto(impl_py_method_def_new(cls, spec)?),
 
-        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
+        (_, FnType::Getter(self_type)) => GeneratedPyMethod::Getter(impl_py_getter_def(
             cls,
             PropertyType::Function { self_type, spec },
         )?),
-        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Method(impl_py_setter_def(
+        (_, FnType::Setter(self_type)) => GeneratedPyMethod::Setter(impl_py_setter_def(
             cls,
             PropertyType::Function { self_type, spec },
         )?),
@@ -282,14 +309,9 @@ pub fn impl_py_method_def(
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
     let associated_method = spec.get_wrapper_function(&wrapper_ident, Some(cls))?;
     let add_flags = flags.map(|flags| quote!(.flags(#flags)));
-    let methoddef_type = match spec.tp {
-        FnType::FnStatic => quote!(Static),
-        FnType::FnClass => quote!(Class),
-        _ => quote!(Method),
-    };
     let methoddef = spec.get_methoddef(quote! { #cls::#wrapper_ident });
     let method_def = quote! {
-        _pyo3::class::PyMethodDefType::#methoddef_type(#methoddef #add_flags)
+        #methoddef #add_flags
     };
     Ok(MethodAndMethodDef {
         associated_method,
@@ -367,7 +389,10 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> MethodAndSlotDef {
     }
 }
 
-fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<MethodAndMethodDef> {
+fn impl_py_class_attribute(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+) -> syn::Result<MethodAndClassAttributeDef> {
     let (py_arg, args) = split_off_python_arg(&spec.args);
     ensure_spanned!(
         args.is_empty(),
@@ -397,18 +422,16 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
         }
     };
 
-    let method_def = quote! {
-        _pyo3::class::PyMethodDefType::ClassAttribute({
-            _pyo3::class::PyClassAttributeDef::new(
-                #python_name,
-                _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
-            )
-        })
+    let attribute_def = quote! {
+        _pyo3::class::PyClassAttributeDef::new(
+            #python_name,
+            _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+        )
     };
 
-    Ok(MethodAndMethodDef {
+    Ok(MethodAndClassAttributeDef {
         associated_method,
-        method_def,
+        attribute_def,
     })
 }
 
@@ -438,7 +461,7 @@ fn impl_call_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStre
 pub fn impl_py_setter_def(
     cls: &syn::Type,
     property_type: PropertyType<'_>,
-) -> Result<MethodAndMethodDef> {
+) -> Result<MethodAndSetterDef> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -492,6 +515,7 @@ pub fn impl_py_setter_def(
             _value: *mut _pyo3::ffi::PyObject,
             _: *mut ::std::os::raw::c_void
         ) -> ::std::os::raw::c_int {
+            #deprecations
             let gil = _pyo3::GILPool::new();
             let _py = gil.python();
             _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
@@ -508,20 +532,17 @@ pub fn impl_py_setter_def(
         }
     };
 
-    let method_def = quote! {
-        _pyo3::class::PyMethodDefType::Setter({
-            #deprecations
-            _pyo3::class::PySetterDef::new(
-                #python_name,
-                _pyo3::impl_::pymethods::PySetter(#cls::#wrapper_ident),
-                #doc
-            )
-        })
+    let setter_def = quote! {
+        _pyo3::class::PySetterDef::new(
+            #python_name,
+            _pyo3::impl_::pymethods::PySetter(#cls::#wrapper_ident),
+            #doc
+        )
     };
 
-    Ok(MethodAndMethodDef {
+    Ok(MethodAndSetterDef {
         associated_method,
-        method_def,
+        setter_def,
     })
 }
 
@@ -546,7 +567,7 @@ fn impl_call_getter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStre
 pub fn impl_py_getter_def(
     cls: &syn::Type,
     property_type: PropertyType<'_>,
-) -> Result<MethodAndMethodDef> {
+) -> Result<MethodAndGetterDef> {
     let python_name = property_type.null_terminated_python_name()?;
     let deprecations = property_type.deprecations();
     let doc = property_type.doc();
@@ -615,6 +636,7 @@ pub fn impl_py_getter_def(
             _slf: *mut _pyo3::ffi::PyObject,
             _: *mut ::std::os::raw::c_void
         ) -> *mut _pyo3::ffi::PyObject {
+            #deprecations
             let gil = _pyo3::GILPool::new();
             let _py = gil.python();
             _pyo3::callback::panic_result_into_callback_output(_py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
@@ -625,20 +647,17 @@ pub fn impl_py_getter_def(
         }
     };
 
-    let method_def = quote! {
-        _pyo3::class::PyMethodDefType::Getter({
-            #deprecations
-            _pyo3::class::PyGetterDef::new(
-                #python_name,
-                _pyo3::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
-                #doc
-            )
-        })
+    let getter_def = quote! {
+        _pyo3::class::PyGetterDef::new(
+            #python_name,
+            _pyo3::impl_::pymethods::PyGetter(#cls::#wrapper_ident),
+            #doc
+        )
     };
 
-    Ok(MethodAndMethodDef {
+    Ok(MethodAndGetterDef {
         associated_method,
-        method_def,
+        getter_def,
     })
 }
 

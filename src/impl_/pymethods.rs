@@ -36,24 +36,6 @@ impl IPowModulo {
     }
 }
 
-/// `PyMethodDefType` represents different types of Python callable objects.
-/// It is used by the `#[pymethods]` and `#[pyproto]` annotations.
-#[derive(Debug)]
-pub enum PyMethodDefType {
-    /// Represents class method
-    Class(PyMethodDef),
-    /// Represents static method
-    Static(PyMethodDef),
-    /// Represents normal method
-    Method(PyMethodDef),
-    /// Represents class attribute, used by `#[attribute]`
-    ClassAttribute(PyClassAttributeDef),
-    /// Represents getter descriptor, used by `#[getter]`
-    Getter(PyGetterDef),
-    /// Represents setter descriptor, used by `#[setter]`
-    Setter(PySetterDef),
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum PyMethodType {
     PyCFunction(PyCFunction),

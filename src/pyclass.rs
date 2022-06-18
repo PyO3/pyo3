@@ -8,7 +8,7 @@ use crate::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassImpl,
         PyClassItems,
     },
-    IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyObject, PyResult, PyTypeInfo, Python,
+    IntoPy, IntoPyPointer, PyCell, PyErr, PyObject, PyResult, PyTypeInfo, Python,
 };
 use std::{
     convert::TryInto,
@@ -332,27 +332,22 @@ fn method_defs_to_pyclass_info(
     let mut property_defs_map = std::collections::HashMap::new();
 
     for_all_items(&mut |items| {
+        for getter in items.getters {
+            getter.copy_to(
+                property_defs_map
+                    .entry(getter.name)
+                    .or_insert(PY_GET_SET_DEF_INIT),
+            );
+        }
+        for setter in items.setters {
+            setter.copy_to(
+                property_defs_map
+                    .entry(setter.name)
+                    .or_insert(PY_GET_SET_DEF_INIT),
+            )
+        }
         for def in items.methods {
-            match def {
-                PyMethodDefType::Getter(getter) => {
-                    getter.copy_to(
-                        property_defs_map
-                            .entry(getter.name)
-                            .or_insert(PY_GET_SET_DEF_INIT),
-                    );
-                }
-                PyMethodDefType::Setter(setter) => {
-                    setter.copy_to(
-                        property_defs_map
-                            .entry(setter.name)
-                            .or_insert(PY_GET_SET_DEF_INIT),
-                    );
-                }
-                PyMethodDefType::Method(def)
-                | PyMethodDefType::Class(def)
-                | PyMethodDefType::Static(def) => method_defs.push(def.as_method_def().unwrap()),
-                PyMethodDefType::ClassAttribute(_) => {}
-            }
+            method_defs.push(def.as_method_def().unwrap())
         }
     });
 

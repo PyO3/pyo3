@@ -5,7 +5,8 @@ use crate::{
     pycell::{GetBorrowChecker, Mutability, PyCellLayout, PyClassMutability},
     pyclass_init::PyObjectInit,
     type_object::PyLayout,
-    Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
+    Py, PyAny, PyCell, PyClass, PyClassAttributeDef, PyErr, PyGetterDef, PyMethodDef, PyNativeType,
+    PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
     marker::PhantomData,
@@ -134,8 +135,11 @@ impl<T> Clone for PyClassImplCollector<T> {
 impl<T> Copy for PyClassImplCollector<T> {}
 
 pub struct PyClassItems {
-    pub methods: &'static [PyMethodDefType],
+    pub methods: &'static [PyMethodDef],
     pub slots: &'static [ffi::PyType_Slot],
+    pub class_attributes: &'static [PyClassAttributeDef],
+    pub getters: &'static [PyGetterDef],
+    pub setters: &'static [PySetterDef],
 }
 
 // Allow PyClassItems in statics
@@ -787,6 +791,9 @@ macro_rules! items_trait {
                 &PyClassItems {
                     methods: &[],
                     slots: &[],
+                    class_attributes: &[],
+                    getters: &[],
+                    setters: &[],
                 }
             }
         }
@@ -823,10 +830,6 @@ mod pyproto_traits {
 }
 #[cfg(feature = "pyproto")]
 pub use pyproto_traits::*;
-
-// Protocol slots from #[pymethods] if not using inventory.
-#[cfg(not(feature = "multiple-pymethods"))]
-items_trait!(PyMethodsProtocolItems, methods_protocol_items);
 
 // Thread checkers
 

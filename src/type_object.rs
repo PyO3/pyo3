@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
+use crate::conversion::IntoPyPointer;
 use crate::impl_::pyclass::PyClassItems;
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
 use crate::pyclass::PyClass;
 use crate::types::{PyAny, PyType};
-use crate::{conversion::IntoPyPointer, PyMethodDefType};
 use crate::{ffi, AsPyPointer, PyNativeType, PyObject, PyResult, Python};
 use parking_lot::{const_mutex, Mutex};
 use std::thread::{self, ThreadId};
@@ -166,23 +166,21 @@ impl LazyStaticType {
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
         for_all_items(&mut |class_items| {
-            for def in class_items.methods {
-                if let PyMethodDefType::ClassAttribute(attr) = def {
-                    let key = extract_cstr_or_leak_cstring(
-                        attr.name,
-                        "class attribute name cannot contain nul bytes",
-                    )
-                    .unwrap();
+            for attr in class_items.class_attributes {
+                let key = extract_cstr_or_leak_cstring(
+                    attr.name,
+                    "class attribute name cannot contain nul bytes",
+                )
+                .unwrap();
 
-                    match (attr.meth.0)(py) {
-                        Ok(val) => items.push((key, val)),
-                        Err(e) => panic!(
-                            "An error occurred while initializing `{}.{}`: {}",
-                            name,
-                            attr.name.trim_end_matches('\0'),
-                            e
-                        ),
-                    }
+                match (attr.meth.0)(py) {
+                    Ok(val) => items.push((key, val)),
+                    Err(e) => panic!(
+                        "An error occurred while initializing `{}.{}`: {}",
+                        name,
+                        attr.name.trim_end_matches('\0'),
+                        e
+                    ),
                 }
             }
         });

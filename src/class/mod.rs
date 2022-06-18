@@ -27,9 +27,7 @@ pub use self::gc::{PyGCProtocol, PyTraverseError, PyVisit};
 pub use self::iter::PyIterProtocol;
 pub use self::mapping::PyMappingProtocol;
 #[doc(hidden)]
-pub use self::methods::{
-    PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
-};
+pub use self::methods::{PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodType, PySetterDef};
 pub use self::number::PyNumberProtocol;
 pub use self::pyasync::PyAsyncProtocol;
 pub use self::sequence::PySequenceProtocol;

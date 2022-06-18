@@ -6,12 +6,15 @@ use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
-    pymethod::{self, is_proto_method, MethodAndMethodDef, MethodAndSlotDef},
+    pymethod::{
+        self, is_proto_method, MethodAndClassAttributeDef, MethodAndGetterDef, MethodAndMethodDef,
+        MethodAndSetterDef, MethodAndSlotDef,
+    },
     utils::get_pyo3_crate,
 };
 use proc_macro2::TokenStream;
 use pymethod::GeneratedPyMethod;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
@@ -86,16 +89,101 @@ pub fn build_py_methods(
     }
 }
 
+#[derive(Default)]
+pub struct GeneratedClassItems<'a> {
+    pub method_defs: Vec<(Vec<&'a syn::Attribute>, MethodAndMethodDef)>,
+    pub slot_defs: Vec<(Vec<&'a syn::Attribute>, MethodAndSlotDef)>,
+    pub class_attributes: Vec<(Vec<&'a syn::Attribute>, MethodAndClassAttributeDef)>,
+    pub getters: Vec<(Vec<&'a syn::Attribute>, MethodAndGetterDef)>,
+    pub setters: Vec<(Vec<&'a syn::Attribute>, MethodAndSetterDef)>,
+}
+
+impl GeneratedClassItems<'_> {
+    pub fn associated_methods(&self) -> impl Iterator<Item = TokenStream> + '_ {
+        self.method_defs
+            .iter()
+            .map(
+                |(
+                    attrs,
+                    MethodAndMethodDef {
+                        associated_method, ..
+                    },
+                )| quote!(#(#attrs)* #associated_method),
+            )
+            .chain(self.slot_defs.iter().map(
+                |(
+                    attrs,
+                    MethodAndSlotDef {
+                        associated_method, ..
+                    },
+                )| quote!(#(#attrs)* #associated_method),
+            ))
+            .chain(self.class_attributes.iter().map(
+                |(
+                    attrs,
+                    MethodAndClassAttributeDef {
+                        associated_method, ..
+                    },
+                )| quote!(#(#attrs)* #associated_method),
+            ))
+            .chain(self.getters.iter().map(
+                |(
+                    attrs,
+                    MethodAndGetterDef {
+                        associated_method, ..
+                    },
+                )| quote!(#(#attrs)* #associated_method),
+            ))
+            .chain(self.setters.iter().map(
+                |(
+                    attrs,
+                    MethodAndSetterDef {
+                        associated_method, ..
+                    },
+                )| quote!(#(#attrs)* #associated_method),
+            ))
+    }
+}
+
+impl ToTokens for GeneratedClassItems<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let methods = self
+            .method_defs
+            .iter()
+            .map(|(attrs, MethodAndMethodDef { method_def, .. })| quote!(#(#attrs)* #method_def));
+        let slots = self
+            .slot_defs
+            .iter()
+            .map(|(attrs, MethodAndSlotDef { slot_def, .. })| quote!(#(#attrs)* #slot_def));
+        let class_attributes = self.class_attributes.iter().map(|(attrs, MethodAndClassAttributeDef { attribute_def, .. })| quote!(#(#attrs)* #attribute_def));
+        let getters = self
+            .getters
+            .iter()
+            .map(|(attrs, MethodAndGetterDef { getter_def, .. })| quote!(#(#attrs)* #getter_def));
+        let setters = self
+            .setters
+            .iter()
+            .map(|(attrs, MethodAndSetterDef { setter_def, .. })| quote!(#(#attrs)* #setter_def));
+        tokens.extend(quote! {
+            _pyo3::impl_::pyclass::PyClassItems {
+                methods: &[#(#methods),*],
+                slots: &[#(#slots),*],
+                class_attributes: &[#(#class_attributes),*],
+                getters: &[#(#getters),*],
+                setters: &[#(#setters),*],
+            }
+        })
+    }
+}
+
 pub fn impl_methods(
     ty: &syn::Type,
     impls: &mut [syn::ImplItem],
     methods_type: PyClassMethodsType,
     options: PyImplOptions,
 ) -> syn::Result<TokenStream> {
+    let mut items = GeneratedClassItems::default();
     let mut trait_impls = Vec::new();
-    let mut proto_impls = Vec::new();
-    let mut methods = Vec::new();
-    let mut associated_methods = Vec::new();
 
     let mut implemented_proto_fragments = HashSet::new();
 
@@ -105,26 +193,30 @@ pub fn impl_methods(
                 let mut fun_options = PyFunctionOptions::from_attrs(&mut meth.attrs)?;
                 fun_options.krate = fun_options.krate.or_else(|| options.krate.clone());
                 match pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs, fun_options)? {
-                    GeneratedPyMethod::Method(MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    }) => {
+                    GeneratedPyMethod::Method(method_def) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        associated_methods.push(quote!(#(#attrs)* #associated_method));
-                        methods.push(quote!(#(#attrs)* #method_def));
+                        items.method_defs.push((attrs, method_def));
                     }
                     GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
                         implemented_proto_fragments.insert(method_name);
                         let attrs = get_cfg_attributes(&meth.attrs);
                         trait_impls.push(quote!(#(#attrs)* #token_stream));
                     }
-                    GeneratedPyMethod::Proto(MethodAndSlotDef {
-                        associated_method,
-                        slot_def,
-                    }) => {
+                    GeneratedPyMethod::Proto(slot_def) => {
                         let attrs = get_cfg_attributes(&meth.attrs);
-                        proto_impls.push(quote!(#(#attrs)* #slot_def));
-                        associated_methods.push(quote!(#(#attrs)* #associated_method));
+                        items.slot_defs.push((attrs, slot_def));
+                    }
+                    GeneratedPyMethod::ClassAttribute(attribute_def) => {
+                        let attrs = get_cfg_attributes(&meth.attrs);
+                        items.class_attributes.push((attrs, attribute_def));
+                    }
+                    GeneratedPyMethod::Getter(getter) => {
+                        let attrs = get_cfg_attributes(&meth.attrs);
+                        items.getters.push((attrs, getter));
+                    }
+                    GeneratedPyMethod::Setter(setter) => {
+                        let attrs = get_cfg_attributes(&meth.attrs);
+                        items.setters.push((attrs, setter));
                     }
                 }
             }
@@ -135,13 +227,6 @@ pub fn impl_methods(
                         rust_ident: konst.ident.clone(),
                         attributes,
                     };
-                    let attrs = get_cfg_attributes(&konst.attrs);
-                    let MethodAndMethodDef {
-                        associated_method,
-                        method_def,
-                    } = gen_py_const(ty, &spec);
-                    methods.push(quote!(#(#attrs)* #method_def));
-                    associated_methods.push(quote!(#(#attrs)* #associated_method));
                     if is_proto_method(&spec.python_name().to_string()) {
                         // If this is a known protocol method e.g. __contains__, then allow this
                         // symbol even though it's not an uppercase constant.
@@ -149,19 +234,25 @@ pub fn impl_methods(
                             .attrs
                             .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
                     }
+                    let attrs = get_cfg_attributes(&konst.attrs);
+                    items
+                        .class_attributes
+                        .push((attrs, gen_py_const(ty, &spec)));
                 }
             }
             _ => (),
         }
     }
 
-    add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments);
+    add_shared_proto_slots(ty, &mut items, implemented_proto_fragments);
 
     let krate = get_pyo3_crate(&options.krate);
 
+    let associated_methods = items.associated_methods();
+
     let items = match methods_type {
-        PyClassMethodsType::Specialization => impl_py_methods(ty, methods, proto_impls),
-        PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls),
+        PyClassMethodsType::Specialization => impl_py_methods(ty, &items),
+        PyClassMethodsType::Inventory => submit_methods_inventory(ty, &items),
     };
 
     Ok(quote! {
@@ -181,7 +272,7 @@ pub fn impl_methods(
     })
 }
 
-pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> MethodAndMethodDef {
+pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> MethodAndClassAttributeDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
     let deprecations = &spec.attributes.deprecations;
@@ -194,35 +285,26 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec) -> MethodAndMethodDef {
         }
     };
 
-    let method_def = quote! {
-        _pyo3::class::PyMethodDefType::ClassAttribute({
-            _pyo3::class::PyClassAttributeDef::new(
-                #python_name,
-                _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
-            )
-        })
+    let attribute_def = quote! {
+        _pyo3::class::PyClassAttributeDef::new(
+            #python_name,
+            _pyo3::impl_::pymethods::PyClassAttributeFactory(#cls::#wrapper_ident)
+        )
     };
 
-    MethodAndMethodDef {
+    MethodAndClassAttributeDef {
         associated_method,
-        method_def,
+        attribute_def,
     }
 }
 
-fn impl_py_methods(
-    ty: &syn::Type,
-    methods: Vec<TokenStream>,
-    proto_impls: Vec<TokenStream>,
-) -> TokenStream {
+fn impl_py_methods(ty: &syn::Type, items: &GeneratedClassItems<'_>) -> TokenStream {
     quote! {
         impl _pyo3::impl_::pyclass::PyMethods<#ty>
             for _pyo3::impl_::pyclass::PyClassImplCollector<#ty>
         {
             fn py_methods(self) -> &'static _pyo3::impl_::pyclass::PyClassItems {
-                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = _pyo3::impl_::pyclass::PyClassItems {
-                    methods: &[#(#methods),*],
-                    slots: &[#(#proto_impls),*]
-                };
+                static ITEMS: _pyo3::impl_::pyclass::PyClassItems = #items;
                 &ITEMS
             }
         }
@@ -231,7 +313,7 @@ fn impl_py_methods(
 
 fn add_shared_proto_slots(
     ty: &syn::Type,
-    proto_impls: &mut Vec<TokenStream>,
+    items: &mut GeneratedClassItems<'_>,
     mut implemented_proto_fragments: HashSet<String>,
 ) {
     macro_rules! try_add_shared_slot {
@@ -239,7 +321,13 @@ fn add_shared_proto_slots(
             let first_implemented = implemented_proto_fragments.remove($first);
             let second_implemented = implemented_proto_fragments.remove($second);
             if first_implemented || second_implemented {
-                proto_impls.push(quote! { _pyo3::impl_::pyclass::$slot!(#ty) })
+                items.slot_defs.push((
+                    vec![],
+                    MethodAndSlotDef {
+                        associated_method: quote!(),
+                        slot_def: quote! { _pyo3::impl_::pyclass::$slot!(#ty) },
+                    },
+                ))
             }
         }};
     }
@@ -276,15 +364,11 @@ fn add_shared_proto_slots(
     assert!(implemented_proto_fragments.is_empty());
 }
 
-fn submit_methods_inventory(
-    ty: &syn::Type,
-    methods: Vec<TokenStream>,
-    proto_impls: Vec<TokenStream>,
-) -> TokenStream {
+fn submit_methods_inventory(ty: &syn::Type, items: &GeneratedClassItems<'_>) -> TokenStream {
     quote! {
         _pyo3::inventory::submit! {
             type Inventory = <#ty as _pyo3::impl_::pyclass::PyClassImpl>::Inventory;
-            Inventory::new(_pyo3::impl_::pyclass::PyClassItems { methods: &[#(#methods),*], slots: &[#(#proto_impls),*] })
+            Inventory::new(#items)
         }
     }
 }
