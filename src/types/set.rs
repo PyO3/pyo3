@@ -407,12 +407,12 @@ mod tests {
 
             // iter method
             for el in set.iter() {
-                assert_eq!(1i32, el.extract().unwrap());
+                assert_eq!(1i32, el.extract::<'_, i32>().unwrap());
             }
 
             // intoiterator iteration
             for el in set {
-                assert_eq!(1i32, el.extract().unwrap());
+                assert_eq!(1i32, el.extract::<'_, i32>().unwrap());
             }
         });
     }

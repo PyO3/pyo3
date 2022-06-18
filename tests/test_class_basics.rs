@@ -347,14 +347,23 @@ fn test_tuple_struct_class() {
 }
 
 #[pyclass(dict, subclass)]
-struct DunderDictSupport {}
+struct DunderDictSupport {
+    // Make sure that dict_offset runs with non-zero sized Self
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
+    let inst = PyCell::new(
+        py,
+        DunderDictSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        },
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
@@ -371,7 +380,13 @@ fn dunder_dict_support() {
 fn access_dunder_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
+    let inst = PyCell::new(
+        py,
+        DunderDictSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        },
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
@@ -393,7 +408,16 @@ struct InheritDict {
 fn inherited_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, (InheritDict { _value: 0 }, DunderDictSupport {})).unwrap();
+    let inst = PyCell::new(
+        py,
+        (
+            InheritDict { _value: 0 },
+            DunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        ),
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
@@ -405,14 +429,23 @@ fn inherited_dict() {
 }
 
 #[pyclass(weakref, dict)]
-struct WeakRefDunderDictSupport {}
+struct WeakRefDunderDictSupport {
+    // Make sure that weaklist_offset runs with non-zero sized Self
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, WeakRefDunderDictSupport {}).unwrap();
+    let inst = PyCell::new(
+        py,
+        WeakRefDunderDictSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        },
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
@@ -421,14 +454,22 @@ fn weakref_dunder_dict_support() {
 }
 
 #[pyclass(weakref, subclass)]
-struct WeakRefSupport {}
+struct WeakRefSupport {
+    _pad: [u8; 32],
+}
 
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_9)), ignore)]
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, WeakRefSupport {}).unwrap();
+    let inst = PyCell::new(
+        py,
+        WeakRefSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        },
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
@@ -447,7 +488,16 @@ struct InheritWeakRef {
 fn inherited_weakref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new(py, (InheritWeakRef { _value: 0 }, WeakRefSupport {})).unwrap();
+    let inst = PyCell::new(
+        py,
+        (
+            InheritWeakRef { _value: 0 },
+            WeakRefSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        ),
+    )
+    .unwrap();
     py_run!(
         py,
         inst,
