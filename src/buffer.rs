@@ -56,7 +56,7 @@ impl<T> Debug for PyBuffer<T> {
 }
 
 /// Represents the type of a Python buffer element.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ElementType {
     /// A signed integer type and its width in bytes.
     SignedInteger { bytes: usize },
@@ -686,6 +686,170 @@ mod tests {
     use crate::Python;
 
     #[test]
+    fn test_debug() {
+        // PyBuffer {
+        //    buf: 0x00000001012c65d0,
+        //    obj: 0x00000001012c65b0,
+        //    len: 5,
+        //    itemsize: 1,
+        //    readonly: 1,
+        //    ndim: 1,
+        //    format: 0x00000001016747d8,
+        //    shape: 0x0000600001b74010,
+        //    strides: 0x0000600001b74018,
+        //    suboffsets: 0x0000000000000000,
+        //    internal: 0x0000000000000000,
+        //}
+        Python::with_gil(|py| {
+            let bytes = py.eval("b'abcde'", None, None).unwrap();
+            let buffer: PyBuffer<u8> = PyBuffer::get(bytes).unwrap();
+
+            let dbg = format!("{:?}", buffer);
+
+            assert!(dbg.starts_with("PyBuffer"));
+            assert!(dbg.contains("{ buf: "));
+            assert!(dbg.contains(", obj: "));
+            assert!(dbg.contains(", len: 5"));
+            assert!(dbg.contains(", itemsize: 1"));
+            assert!(dbg.contains(", readonly: 1"));
+            assert!(dbg.contains(", ndim: 1"));
+            assert!(dbg.contains(", format: "));
+            assert!(dbg.contains(", shape: "));
+            assert!(dbg.contains(", strides: "));
+            assert!(dbg.contains(", suboffsets: "));
+            assert!(dbg.contains(", internal: "));
+        });
+    }
+
+    #[test]
+    fn test_element_type_from_format() {
+        use super::ElementType;
+        use super::ElementType::*;
+        use std::ffi::CStr;
+        use std::mem::size_of;
+        use std::os::raw;
+
+        for (cstr, expected) in [
+            // @ prefix goes to native_element_type_from_type_char
+            (
+                "@b\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_schar>(),
+                },
+            ),
+            (
+                "@c\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_char>(),
+                },
+            ),
+            (
+                "@b\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_schar>(),
+                },
+            ),
+            (
+                "@B\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_uchar>(),
+                },
+            ),
+            ("@?\0", Bool),
+            (
+                "@h\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_short>(),
+                },
+            ),
+            (
+                "@H\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ushort>(),
+                },
+            ),
+            (
+                "@i\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_int>(),
+                },
+            ),
+            (
+                "@I\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_uint>(),
+                },
+            ),
+            (
+                "@l\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_long>(),
+                },
+            ),
+            (
+                "@L\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ulong>(),
+                },
+            ),
+            (
+                "@q\0",
+                SignedInteger {
+                    bytes: size_of::<raw::c_longlong>(),
+                },
+            ),
+            (
+                "@Q\0",
+                UnsignedInteger {
+                    bytes: size_of::<raw::c_ulonglong>(),
+                },
+            ),
+            (
+                "@n\0",
+                SignedInteger {
+                    bytes: size_of::<libc::ssize_t>(),
+                },
+            ),
+            (
+                "@N\0",
+                UnsignedInteger {
+                    bytes: size_of::<libc::size_t>(),
+                },
+            ),
+            ("@e\0", Float { bytes: 2 }),
+            ("@f\0", Float { bytes: 4 }),
+            ("@d\0", Float { bytes: 8 }),
+            ("@z\0", Unknown),
+            // = prefix goes to standard_element_type_from_type_char
+            ("=b\0", SignedInteger { bytes: 1 }),
+            ("=c\0", UnsignedInteger { bytes: 1 }),
+            ("=B\0", UnsignedInteger { bytes: 1 }),
+            ("=?\0", Bool),
+            ("=h\0", SignedInteger { bytes: 2 }),
+            ("=H\0", UnsignedInteger { bytes: 2 }),
+            ("=l\0", SignedInteger { bytes: 4 }),
+            ("=l\0", SignedInteger { bytes: 4 }),
+            ("=I\0", UnsignedInteger { bytes: 4 }),
+            ("=L\0", UnsignedInteger { bytes: 4 }),
+            ("=q\0", SignedInteger { bytes: 8 }),
+            ("=Q\0", UnsignedInteger { bytes: 8 }),
+            ("=e\0", Float { bytes: 2 }),
+            ("=f\0", Float { bytes: 4 }),
+            ("=d\0", Float { bytes: 8 }),
+            ("=z\0", Unknown),
+            ("=0\0", Unknown),
+            // unknown prefix -> Unknown
+            (":b\0", Unknown),
+        ] {
+            assert_eq!(
+                ElementType::from_format(&CStr::from_bytes_with_nul(&cstr.as_bytes()).unwrap()),
+                expected,
+                "element from format &Cstr: {cstr:?}"
+            );
+        }
+    }
+
+    #[test]
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
@@ -713,6 +877,8 @@ mod tests {
             assert_eq!(slice[2].get(), b'c');
 
             assert_eq!(unsafe { *(buffer.get_ptr(&[1]) as *mut u8) }, b'b');
+
+            assert!(buffer.as_mut_slice(py).is_none());
 
             assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
             let mut arr = [0; 5];
