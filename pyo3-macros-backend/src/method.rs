@@ -481,18 +481,13 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => {
                 let call = rust_call(vec![]);
                 quote! {
-                    unsafe extern "C" fn #ident (
+                    unsafe fn #ident<'py>(
+                        #py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
-                        _args: *mut _pyo3::ffi::PyObject,
-                    ) -> *mut _pyo3::ffi::PyObject
-                    {
+                    ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         #deprecations
-                        let gil = _pyo3::GILPool::new();
-                        let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
-                            #self_conversion
-                            #call
-                        }))
+                        #self_conversion
+                        #call
                     }
                 }
             }
@@ -500,20 +495,17 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, true)?;
                 let call = rust_call(args);
                 quote! {
-                    unsafe extern "C" fn #ident (
+                    unsafe fn #ident<'py>(
+                        #py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                         _args: *const *mut _pyo3::ffi::PyObject,
                         _nargs: _pyo3::ffi::Py_ssize_t,
-                        _kwnames: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                    {
+                        _kwnames: *mut _pyo3::ffi::PyObject
+                    ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         #deprecations
-                        let gil = _pyo3::GILPool::new();
-                        let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
-                            #self_conversion
-                            #arg_convert
-                            #call
-                        }))
+                        #self_conversion
+                        #arg_convert
+                        #call
                     }
                 }
             }
@@ -521,19 +513,16 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
                 let call = rust_call(args);
                 quote! {
-                    unsafe extern "C" fn #ident (
+                    unsafe fn #ident<'py>(
+                        #py: _pyo3::Python<'py>,
                         _slf: *mut _pyo3::ffi::PyObject,
                         _args: *mut _pyo3::ffi::PyObject,
-                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                    {
+                        _kwargs: *mut _pyo3::ffi::PyObject
+                    ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
                         #deprecations
-                        let gil = _pyo3::GILPool::new();
-                        let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
-                            #self_conversion
-                            #arg_convert
-                            #call
-                        }))
+                        #self_conversion
+                        #arg_convert
+                        #call
                     }
                 }
             }
@@ -541,21 +530,19 @@ impl<'a> FnSpec<'a> {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
                 let call = quote! { #rust_name(#(#args),*) };
                 quote! {
-                    unsafe extern "C" fn #ident (
+                    unsafe fn #ident(
+                        #py: _pyo3::Python<'_>,
                         subtype: *mut _pyo3::ffi::PyTypeObject,
                         _args: *mut _pyo3::ffi::PyObject,
-                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                    {
+                        _kwargs: *mut _pyo3::ffi::PyObject
+                    ) -> _pyo3::PyResult<*mut _pyo3::ffi::PyObject> {
+                        use _pyo3::callback::IntoPyCallbackOutput;
                         #deprecations
-                        use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
-                        let gil = _pyo3::GILPool::new();
-                        let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
-                            #arg_convert
-                            let result = #call;
-                            let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
-                            initializer.into_new_object(#py, subtype)
-                        }))
+                        #arg_convert
+                        let result = #call;
+                        let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
+                        let cell = initializer.create_cell_from_subtype(#py, subtype)?;
+                        ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
                     }
                 }
             }
@@ -571,21 +558,66 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => quote! {
                 _pyo3::impl_::pymethods::PyMethodDef::noargs(
                     #python_name,
-                    _pyo3::impl_::pymethods::PyCFunction(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunction({
+                        unsafe extern "C" fn trampoline(
+                            _slf: *mut _pyo3::ffi::PyObject,
+                            _args: *mut _pyo3::ffi::PyObject,
+                        ) -> *mut _pyo3::ffi::PyObject
+                        {
+                            _pyo3::impl_::trampoline::noargs(
+                                _slf,
+                                _args,
+                                #wrapper
+                            )
+                        }
+                        trampoline
+                    }),
                     #doc,
                 )
             },
             CallingConvention::Fastcall => quote! {
                 _pyo3::impl_::pymethods::PyMethodDef::fastcall_cfunction_with_keywords(
                     #python_name,
-                    _pyo3::impl_::pymethods::PyCFunctionFastWithKeywords(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunctionFastWithKeywords({
+                        unsafe extern "C" fn trampoline(
+                            _slf: *mut _pyo3::ffi::PyObject,
+                            _args: *const *mut _pyo3::ffi::PyObject,
+                            _nargs: _pyo3::ffi::Py_ssize_t,
+                            _kwnames: *mut _pyo3::ffi::PyObject
+                        ) -> *mut _pyo3::ffi::PyObject
+                        {
+                            _pyo3::impl_::trampoline::fastcall_with_keywords(
+                                _slf,
+                                _args,
+                                _nargs,
+                                _kwnames,
+                                #wrapper
+                            )
+                        }
+                        trampoline
+                    }),
                     #doc,
                 )
             },
             CallingConvention::Varargs => quote! {
                 _pyo3::impl_::pymethods::PyMethodDef::cfunction_with_keywords(
                     #python_name,
-                    _pyo3::impl_::pymethods::PyCFunctionWithKeywords(#wrapper),
+                    _pyo3::impl_::pymethods::PyCFunctionWithKeywords({
+                        unsafe extern "C" fn trampoline(
+                            _slf: *mut _pyo3::ffi::PyObject,
+                            _args: *mut _pyo3::ffi::PyObject,
+                            _kwargs: *mut _pyo3::ffi::PyObject,
+                        ) -> *mut _pyo3::ffi::PyObject
+                        {
+                            _pyo3::impl_::trampoline::cfunction_with_keywords(
+                                _slf,
+                                _args,
+                                _kwargs,
+                                #wrapper
+                            )
+                        }
+                        trampoline
+                    }),
                     #doc,
                 )
             },

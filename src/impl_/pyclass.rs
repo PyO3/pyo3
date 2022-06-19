@@ -943,7 +943,15 @@ impl<T: PyClass> PyClassBaseType for T {
 
 /// Implementation of tp_dealloc for all pyclasses
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
+    /// Trampoline so that std::panic::catch_unwind only gets monomorphized once for
+    /// all tp_dealloc implementations
+    unsafe fn trampoline_dealloc(
+        obj: *mut ffi::PyObject,
+        f: for<'py> unsafe fn(*mut ffi::PyObject, Python<'py>),
+    ) {
+        crate::callback::handle_panic(|py| Ok(f(obj, py)))
+    }
+    trampoline_dealloc(obj, T::Layout::tp_dealloc)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

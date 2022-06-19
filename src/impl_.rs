@@ -17,3 +17,5 @@ pub mod pyclass;
 pub mod pyfunction;
 pub mod pymethods;
 pub mod pymodule;
+#[doc(hidden)]
+pub mod trampoline;
