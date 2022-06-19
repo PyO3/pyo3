@@ -842,7 +842,7 @@ mod tests {
             (":b\0", Unknown),
         ] {
             assert_eq!(
-                ElementType::from_format(&CStr::from_bytes_with_nul(&cstr.as_bytes()).unwrap()),
+                ElementType::from_format(CStr::from_bytes_with_nul(cstr.as_bytes()).unwrap()),
                 expected,
                 "element from format &Cstr: {cstr:?}"
             );
@@ -904,6 +904,11 @@ mod tests {
             assert_eq!(buffer.format().to_str().unwrap(), "f");
             assert_eq!(buffer.shape(), [4]);
 
+            // array creates a 1D contiguious buffer, so it's both C and F contiguous.  This would
+            // be more interesting if we can come up with a 2D buffer but I think it would need a
+            // third-party lib or a custom class.
+
+            // C-contiguous fns
             let slice = buffer.as_slice(py).unwrap();
             assert_eq!(slice.len(), 4);
             assert_eq!(slice[0].get(), 1.0);
@@ -921,6 +926,25 @@ mod tests {
             assert_eq!(slice[2].get(), 12.0);
 
             assert_eq!(buffer.to_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
+
+            // F-contiguous fns
+            let buffer = PyBuffer::get(array).unwrap();
+            let slice = buffer.as_fortran_slice(py).unwrap();
+            assert_eq!(slice.len(), 4);
+            assert_eq!(slice[1].get(), 11.0);
+
+            let mut_slice = buffer.as_fortran_mut_slice(py).unwrap();
+            assert_eq!(mut_slice.len(), 4);
+            assert_eq!(mut_slice[2].get(), 12.0);
+            mut_slice[3].set(2.75);
+            assert_eq!(slice[3].get(), 2.75);
+
+            buffer
+                .copy_from_fortran_slice(py, &[10.0f32, 11.0, 12.0, 13.0])
+                .unwrap();
+            assert_eq!(slice[2].get(), 12.0);
+
+            assert_eq!(buffer.to_fortran_vec(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
         });
     }
 }
