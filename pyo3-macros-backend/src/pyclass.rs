@@ -61,7 +61,7 @@ pub struct PyClassPyO3Options {
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
     pub freelist: Option<FreelistAttribute>,
-    pub immutable: Option<kw::immutable>,
+    pub frozen: Option<kw::frozen>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
@@ -78,7 +78,7 @@ enum PyClassPyO3Option {
     Dict(kw::dict),
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
-    Immutable(kw::immutable),
+    Frozen(kw::frozen),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
@@ -101,8 +101,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Extends)
         } else if lookahead.peek(attributes::kw::freelist) {
             input.parse().map(PyClassPyO3Option::Freelist)
-        } else if lookahead.peek(attributes::kw::immutable) {
-            input.parse().map(PyClassPyO3Option::Immutable)
+        } else if lookahead.peek(attributes::kw::frozen) {
+            input.parse().map(PyClassPyO3Option::Frozen)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -160,7 +160,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Dict(dict) => set_option!(dict),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
-            PyClassPyO3Option::Immutable(immutable) => set_option!(immutable),
+            PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
@@ -713,12 +713,14 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
 
         quote! {
-            impl _pyo3::PyClass for #cls { }
+            impl _pyo3::PyClass for #cls {
+                type Frozen = <Self::PyClassMutability as _pyo3::pycell::PyClassMutability>::Frozen;
+            }
         }
     }
     fn impl_extractext(&self) -> TokenStream {
         let cls = self.cls;
-        if self.attr.options.immutable.is_some() {
+        if self.attr.options.frozen.is_some() {
             quote! {
                 impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
                 {
@@ -855,17 +857,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let deprecations = &self.attr.deprecations;
 
-        let mutability = if self.attr.options.immutable.is_some() {
-            quote! {
-                 _pyo3::pycell::Immutable
-            }
-        } else {
-            quote! {
-                _pyo3::pycell::Mutable
-            }
-        };
-
-        let class_mutability = if self.attr.options.immutable.is_some() {
+        let class_mutability = if self.attr.options.frozen.is_some() {
             quote! {
                 ImmutableChild
             }
@@ -907,7 +899,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
-                type Mutability = #mutability;
                 type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::pycell::PyClassMutability>::#class_mutability;
                 type Dict = #dict;
                 type WeakRef = #weakref;

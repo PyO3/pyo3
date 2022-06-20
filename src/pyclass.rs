@@ -1,5 +1,4 @@
 //! `PyClass` and related traits.
-use crate::pycell::{Immutable, Mutable};
 use crate::{
     callback::IntoPyCallbackOutput,
     exceptions::PyTypeError,
@@ -25,13 +24,9 @@ use std::{
 pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {
+    /// Frozen or not
+    type Frozen: Frozen;
 }
-
-pub trait MutablePyClass: PyClass<Mutability = Mutable> {}
-pub trait ImmutablePyClass: PyClass<Mutability = Immutable> {}
-
-impl<T> MutablePyClass for T where T: PyClass<Mutability = Mutable> {}
-impl<T> ImmutablePyClass for T where T: PyClass<Mutability = Immutable> {}
 
 fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
     Box::into_raw(vec.into_boxed_slice()) as _
@@ -578,3 +573,27 @@ pub(crate) unsafe extern "C" fn no_constructor_defined(
         ))
     })
 }
+
+/// A mechanism to have associated True / False values in the absence of
+/// associated const equality.
+pub mod boolean_struct {
+
+    pub(crate) mod private {
+        use super::*;
+
+        /// A way to "seal" the boolean traits.
+        pub trait Boolean {}
+
+        impl Boolean for True {}
+        impl Boolean for False {}
+    }
+
+    pub struct True(());
+    pub struct False(());
+}
+
+/// A trait which is used to describe whether a `#[pyclass]` is frozen.
+pub trait Frozen: boolean_struct::private::Boolean {}
+
+impl Frozen for boolean_struct::True {}
+impl Frozen for boolean_struct::False {}

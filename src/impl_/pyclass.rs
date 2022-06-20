@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError},
     ffi,
     impl_::freelist::FreeList,
-    pycell::{GetBorrowChecker, Mutability, PyCellLayout, PyClassMutability},
+    pycell::{GetBorrowChecker, PyCellLayout, PyClassMutability},
     pyclass_init::PyObjectInit,
     type_object::PyLayout,
     Py, PyAny, PyCell, PyClass, PyErr, PyMethodDefType, PyNativeType, PyResult, PyTypeInfo, Python,
@@ -163,9 +163,6 @@ pub trait PyClassImpl: Sized {
 
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
-
-    /// Immutable or mutable
-    type Mutability: Mutability;
 
     /// Immutable or mutable
     type PyClassMutability: PyClassMutability + GetBorrowChecker<Self>;

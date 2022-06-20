@@ -1,3 +1,4 @@
+use crate::pyclass::boolean_struct::False;
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::conversion::PyTryFrom;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
@@ -5,8 +6,8 @@ use crate::gil;
 use crate::pycell::{PyBorrowError, PyBorrowMutError, PyCell};
 use crate::types::{PyDict, PyString, PyTuple};
 use crate::{
-    ffi, pyclass::MutablePyClass, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -432,7 +433,7 @@ where
     /// [`try_borrow_mut`](#method.try_borrow_mut).
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
     where
-        T: MutablePyClass,
+        T: PyClass<Frozen = False>,
     {
         self.as_ref(py).borrow_mut()
     }
@@ -462,7 +463,7 @@ where
         py: Python<'py>,
     ) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
     where
-        T: MutablePyClass,
+        T: PyClass<Frozen = False>,
     {
         self.as_ref(py).try_borrow_mut()
     }
@@ -908,7 +909,7 @@ where
 
 impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
 where
-    T: MutablePyClass,
+    T: PyClass<Frozen = False>,
 {
     fn from(pyref: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.py(), pyref.as_ptr()) }
@@ -1115,5 +1116,33 @@ a = A()
             instance.setattr(py, "foo", "bar").unwrap_err();
             Ok(())
         })
+    }
+
+    #[cfg(feature = "macros")]
+    mod using_macros {
+        use super::*;
+
+        #[crate::pyclass]
+        #[pyo3(crate = "crate")]
+        struct SomeClass(i32);
+
+        #[test]
+        fn instance_borrow_methods() {
+            // More detailed tests of the underlying semantics in pycell.rs
+            Python::with_gil(|py| {
+                let instance = Py::new(py, SomeClass(0)).unwrap();
+                assert_eq!(instance.borrow(py).0, 0);
+                assert_eq!(instance.try_borrow(py).unwrap().0, 0);
+                assert_eq!(instance.borrow_mut(py).0, 0);
+                assert_eq!(instance.try_borrow_mut(py).unwrap().0, 0);
+
+                instance.borrow_mut(py).0 = 123;
+
+                assert_eq!(instance.borrow(py).0, 123);
+                assert_eq!(instance.try_borrow(py).unwrap().0, 123);
+                assert_eq!(instance.borrow_mut(py).0, 123);
+                assert_eq!(instance.try_borrow_mut(py).unwrap().0, 123);
+            })
+        }
     }
 }

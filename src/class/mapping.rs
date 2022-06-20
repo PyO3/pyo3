@@ -5,12 +5,13 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::callback::IntoPyCallbackOutput;
-use crate::{pyclass::MutablePyClass, FromPyObject, PyClass, PyObject};
+use crate::pyclass::boolean_struct::False;
+use crate::{FromPyObject, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
 #[deprecated(since = "0.16.0", note = "prefer `#[pymethods]` to `#[pyproto]`")]
-pub trait PyMappingProtocol<'p>: PyClass {
+pub trait PyMappingProtocol<'p>: PyClass<Frozen = False> {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PyMappingLenProtocol<'p>,
@@ -52,13 +53,13 @@ pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Result: IntoPyCallbackOutput<PyObject>;
 }
 
-pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
+pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> + PyClass<Frozen = False> {
     type Key: FromPyObject<'p>;
     type Value: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }
 
-pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> + MutablePyClass {
+pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> + PyClass<Frozen = False> {
     type Key: FromPyObject<'p>;
     type Result: IntoPyCallbackOutput<()>;
 }

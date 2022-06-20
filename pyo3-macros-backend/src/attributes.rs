@@ -15,6 +15,7 @@ pub mod kw {
     syn::custom_keyword!(extends);
     syn::custom_keyword!(freelist);
     syn::custom_keyword!(from_py_with);
+    syn::custom_keyword!(frozen);
     syn::custom_keyword!(gc);
     syn::custom_keyword!(get);
     syn::custom_keyword!(item);
@@ -29,7 +30,6 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
-    syn::custom_keyword!(immutable);
 }
 
 #[derive(Clone, Debug)]

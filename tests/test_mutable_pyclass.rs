@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::pycell::{
     BorrowChecker, ExtendsMutableAncestor, ImmutableClass, MutableClass, PyClassMutability,
 };
+use pyo3::pyclass::boolean_struct::{False, True};
 use pyo3::PyClass;
 
 #[pyclass(subclass)]
@@ -13,7 +14,7 @@ struct MutableBase;
 #[pyclass(extends = MutableBase, subclass)]
 struct MutableChildOfMutableBase;
 
-#[pyclass(extends = MutableBase, immutable, subclass)]
+#[pyclass(extends = MutableBase, frozen, subclass)]
 struct ImmutableChildOfMutableBase;
 
 #[pyclass(extends = MutableChildOfMutableBase)]
@@ -22,19 +23,19 @@ struct MutableChildOfMutableChildOfMutableBase;
 #[pyclass(extends = ImmutableChildOfMutableBase)]
 struct MutableChildOfImmutableChildOfMutableBase;
 
-#[pyclass(extends = MutableChildOfMutableBase, immutable)]
+#[pyclass(extends = MutableChildOfMutableBase, frozen)]
 struct ImmutableChildOfMutableChildOfMutableBase;
 
-#[pyclass(extends = ImmutableChildOfMutableBase, immutable)]
+#[pyclass(extends = ImmutableChildOfMutableBase, frozen)]
 struct ImmutableChildOfImmutableChildOfMutableBase;
 
-#[pyclass(immutable, subclass)]
+#[pyclass(frozen, subclass)]
 struct ImmutableBase;
 
 #[pyclass(extends = ImmutableBase, subclass)]
 struct MutableChildOfImmutableBase;
 
-#[pyclass(extends = ImmutableBase, immutable, subclass)]
+#[pyclass(extends = ImmutableBase, frozen, subclass)]
 struct ImmutableChildOfImmutableBase;
 
 #[pyclass(extends = MutableChildOfImmutableBase)]
@@ -43,16 +44,16 @@ struct MutableChildOfMutableChildOfImmutableBase;
 #[pyclass(extends = ImmutableChildOfImmutableBase)]
 struct MutableChildOfImmutableChildOfImmutableBase;
 
-#[pyclass(extends = MutableChildOfImmutableBase, immutable)]
+#[pyclass(extends = MutableChildOfImmutableBase, frozen)]
 struct ImmutableChildOfMutableChildOfImmutableBase;
 
-#[pyclass(extends = ImmutableChildOfImmutableBase, immutable)]
+#[pyclass(extends = ImmutableChildOfImmutableBase, frozen)]
 struct ImmutableChildOfImmutableChildOfImmutableBase;
 
-fn assert_mutable<T: PyClass<PyClassMutability = MutableClass>>() {}
-fn assert_immutable<T: PyClass<PyClassMutability = ImmutableClass>>() {}
+fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
+fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
 fn assert_mutable_with_mutable_ancestor<
-    T: PyClass<PyClassMutability = ExtendsMutableAncestor<MutableClass>>,
+    T: PyClass<Frozen = False, PyClassMutability = ExtendsMutableAncestor<MutableClass>>,
 >()
 // These horrible bounds are necessary for Rust 1.48 but not newer versions
 where
@@ -63,7 +64,7 @@ where
 {
 }
 fn assert_immutable_with_mutable_ancestor<
-    T: PyClass<PyClassMutability = ExtendsMutableAncestor<ImmutableClass>>,
+    T: PyClass<Frozen = True, PyClassMutability = ExtendsMutableAncestor<ImmutableClass>>,
 >()
 // These horrible bounds are necessary for Rust 1.48 but not newer versions
 where
