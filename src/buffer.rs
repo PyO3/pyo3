@@ -729,7 +729,7 @@ mod tests {
         use std::mem::size_of;
         use std::os::raw;
 
-        for (cstr, expected) in [
+        for (cstr, expected) in &[
             // @ prefix goes to native_element_type_from_type_char
             (
                 "@b\0",
@@ -843,8 +843,9 @@ mod tests {
         ] {
             assert_eq!(
                 ElementType::from_format(CStr::from_bytes_with_nul(cstr.as_bytes()).unwrap()),
-                expected,
-                "element from format &Cstr: {cstr:?}"
+                *expected,
+                "element from format &Cstr: {:?}",
+                cstr,
             );
         }
     }
