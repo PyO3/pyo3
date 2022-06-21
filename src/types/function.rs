@@ -57,7 +57,7 @@ where
 }
 
 impl PyCFunction {
-    /// Create a new built-in function with keywords.
+    /// Create a new built-in function with keywords (*args and/or **kwargs).
     pub fn new_with_keywords<'a>(
         fun: ffi::PyCFunctionWithKeywords,
         name: &'static str,
@@ -74,7 +74,7 @@ impl PyCFunction {
         )
     }
 
-    /// Create a new built-in function without keywords.
+    /// Create a new built-in function without keywords (no arguments).
     pub fn new<'a>(
         fun: ffi::PyCFunction,
         name: &'static str,
