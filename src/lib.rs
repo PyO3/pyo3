@@ -405,7 +405,18 @@ pub mod proc_macro {
 #[cfg(all(feature = "macros", feature = "pyproto"))]
 pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
-pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule, FromPyObject};
+pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
+
+/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
+///
+#[cfg_attr(docsrs, cfg_attr(docsrs, doc = include_str!("../guide/pyclass_parameters.md")))]
+///
+/// For more on creating Python classes,
+/// see the [class section of the guide][1].
+///
+/// [1]: https://pyo3.rs/latest/class.html
+#[cfg(feature = "macros")]
+pub use pyo3_macros::pyclass;
 
 #[cfg(feature = "macros")]
 #[macro_use]
