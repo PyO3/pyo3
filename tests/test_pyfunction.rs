@@ -307,7 +307,7 @@ fn test_pycfunction_new() {
 fn test_pycfunction_new_with_keywords() {
     use pyo3::ffi;
     use std::ffi::CString;
-    use std::os::raw::c_char;
+    use std::os::raw::{c_char, c_long};
     use std::ptr;
 
     let gil = Python::acquire_gil();
@@ -318,10 +318,10 @@ fn test_pycfunction_new_with_keywords() {
         args: *mut ffi::PyObject,
         kwds: *mut ffi::PyObject,
     ) -> *mut ffi::PyObject {
-        let mut foo = 0_i64;
-        let mut bar = 0_i64;
-        let foo_ptr: *mut i64 = &mut foo;
-        let bar_ptr: *mut i64 = &mut bar;
+        let mut foo: c_long = 0;
+        let mut bar: c_long = 0;
+        let foo_ptr: *mut c_long = &mut foo;
+        let bar_ptr: *mut c_long = &mut bar;
 
         let foo_name = CString::new("foo").unwrap();
         let foo_name_raw: *mut c_char = foo_name.into_raw();
