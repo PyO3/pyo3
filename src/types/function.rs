@@ -74,7 +74,7 @@ impl PyCFunction {
         )
     }
 
-    /// Create a new built-in function without keywords (no arguments).
+    /// Create a new built-in function which takes no arguments.
     pub fn new<'a>(
         fun: ffi::PyCFunction,
         name: &'static str,
