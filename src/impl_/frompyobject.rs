@@ -46,7 +46,7 @@ where
     T: FromPyObject<'py>,
 {
     match obj.extract() {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
             err,
@@ -63,7 +63,7 @@ pub fn extract_struct_field_with<'py, T>(
     field_name: &str,
 ) -> PyResult<T> {
     match extractor(obj) {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_struct_field(
             obj.py(),
             err,
@@ -97,7 +97,7 @@ where
     T: FromPyObject<'py>,
 {
     match obj.extract() {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
             err,
@@ -114,7 +114,7 @@ pub fn extract_tuple_struct_field_with<'py, T>(
     index: usize,
 ) -> PyResult<T> {
     match extractor(obj) {
-        ok @ Ok(_) => ok,
+        Ok(value) => Ok(value),
         Err(err) => Err(failed_to_extract_tuple_struct_field(
             obj.py(),
             err,

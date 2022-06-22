@@ -552,15 +552,14 @@ impl<'a> FnSpec<'a> {
                         _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
                     {
                         #deprecations
-                        use _pyo3::callback::IntoPyCallbackOutput;
+                        use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
                         let gil = _pyo3::GILPool::new();
                         let #py = gil.python();
                         _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #arg_convert
                             let result = #rust_call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
-                            let cell = initializer.create_cell_from_subtype(#py, subtype)?;
-                            ::std::result::Result::Ok(cell as *mut _pyo3::ffi::PyObject)
+                            initializer.into_new_object(#py, subtype)
                         }))
                     }
                 }
