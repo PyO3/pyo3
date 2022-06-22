@@ -225,6 +225,7 @@ pub struct EmptySlot(());
 pub struct BorrowChecker(Cell<BorrowFlag>);
 
 pub trait PyClassBorrowChecker {
+    /// Initial value for self
     fn new() -> Self;
 
     /// Increments immutable borrow count, if possible
@@ -243,7 +244,7 @@ pub trait PyClassBorrowChecker {
 impl PyClassBorrowChecker for EmptySlot {
     #[inline]
     fn new() -> Self {
-        Self(())
+        EmptySlot(())
     }
 
     #[inline]

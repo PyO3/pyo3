@@ -28,8 +28,8 @@ pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
 
 /// Represents the `__dict__` field for `#[pyclass]`.
 pub trait PyClassDict {
-    /// Initializes a [PyObject](crate::ffi::PyObject) `__dict__` reference.
-    fn new() -> Self;
+    /// Initial form of a [PyObject](crate::ffi::PyObject) `__dict__` reference.
+    const INIT: Self;
     /// Empties the dictionary of its key-value pairs.
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {}
@@ -39,7 +39,7 @@ pub trait PyClassDict {
 /// Represents the `__weakref__` field for `#[pyclass]`.
 pub trait PyClassWeakRef {
     /// Initializes a `weakref` instance.
-    fn new() -> Self;
+    const INIT: Self;
     /// Clears the weak references to the given object.
     ///
     /// # Safety
@@ -55,18 +55,12 @@ pub struct PyClassDummySlot;
 
 impl PyClassDict for PyClassDummySlot {
     private_impl! {}
-    #[inline]
-    fn new() -> Self {
-        PyClassDummySlot
-    }
+    const INIT: Self = PyClassDummySlot;
 }
 
 impl PyClassWeakRef for PyClassDummySlot {
     private_impl! {}
-    #[inline]
-    fn new() -> Self {
-        PyClassDummySlot
-    }
+    const INIT: Self = PyClassDummySlot;
 }
 
 /// Actual dict field, which holds the pointer to `__dict__`.
@@ -77,10 +71,7 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
     private_impl! {}
-    #[inline]
-    fn new() -> Self {
-        Self(std::ptr::null_mut())
-    }
+    const INIT: Self = Self(std::ptr::null_mut());
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {
         if !self.0.is_null() {
@@ -97,10 +88,7 @@ pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {
     private_impl! {}
-    #[inline]
-    fn new() -> Self {
-        Self(std::ptr::null_mut())
-    }
+    const INIT: Self = Self(std::ptr::null_mut());
     #[inline]
     unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python<'_>) {
         if !self.0.is_null() {
