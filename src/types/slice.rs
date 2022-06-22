@@ -19,6 +19,7 @@ pyobject_native_type!(
 );
 
 /// Represents Python `slice` indices.
+#[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
     pub start: isize,
     pub stop: isize,
@@ -86,5 +87,65 @@ impl PySlice {
 impl ToPyObject for PySliceIndices {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         PySlice::new(py, self.start, self.stop, self.step).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_py_slice_indices_new() {
+        let start = 0;
+        let stop = 0;
+        let step = 0;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = 100;
+        let step = 10;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = -10;
+        let step = -1;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
+
+        let start = 0;
+        let stop = -10;
+        let step = 20;
+        assert_eq!(
+            PySliceIndices::new(start, stop, step),
+            PySliceIndices {
+                start,
+                stop,
+                step,
+                slicelength: 0
+            }
+        );
     }
 }
