@@ -161,3 +161,32 @@ enum TestReprParse {
 fn test_repr_parse() {
     assert_eq!(std::mem::align_of::<TestReprParse>(), 8);
 }
+
+#[pyclass(name = "MyEnum")]
+#[derive(Debug, PartialEq, Clone)]
+pub enum RenameEnum {
+    Variant,
+}
+
+#[test]
+fn test_rename_enum_repr_correct() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, RenameEnum::Variant).unwrap();
+        py_assert!(py, var1, "repr(var1) == 'MyEnum.Variant'");
+    })
+}
+
+#[pyclass]
+#[derive(Debug, PartialEq, Clone)]
+pub enum RenameVariantEnum {
+    #[pyo3(name = "VARIANT")]
+    Variant,
+}
+
+#[test]
+fn test_rename_variant_repr_correct() {
+    Python::with_gil(|py| {
+        let var1 = Py::new(py, RenameVariantEnum::Variant).unwrap();
+        py_assert!(py, var1, "repr(var1) == 'RenameVariantEnum.VARIANT'");
+    })
+}
