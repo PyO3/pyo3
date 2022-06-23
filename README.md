@@ -199,6 +199,7 @@ about this topic.
     - Quite easy to follow as there's not much code.
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js_
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python_
+- [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
 
 ## Articles and other media
 
