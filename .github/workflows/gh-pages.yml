@@ -55,6 +55,7 @@ jobs:
           publish_dir: ./target/doc
           destination_dir: internal/doc
           full_commit_message: "Upload internal documentation"
+          force_orphan: true
 
       - name: Clear the extra artefacts created earlier
         run: rm -rf target
@@ -83,6 +84,7 @@ jobs:
           publish_dir: ./target/guide/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
+          force_orphan: true
 
   guide-release:
     needs: guide-build
