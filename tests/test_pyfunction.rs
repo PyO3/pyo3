@@ -274,6 +274,88 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 }
 
 #[test]
+fn test_pycfunction_new() {
+    use pyo3::ffi;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    unsafe extern "C" fn c_fn(
+        _self: *mut ffi::PyObject,
+        _args: *mut ffi::PyObject,
+    ) -> *mut ffi::PyObject {
+        ffi::PyLong_FromLong(4200)
+    }
+
+    let py_fn = PyCFunction::new(
+        c_fn,
+        "py_fn",
+        "py_fn for test (this is the docstring)",
+        py.into(),
+    )
+    .unwrap();
+
+    py_assert!(py, py_fn, "py_fn() == 4200");
+    py_assert!(
+        py,
+        py_fn,
+        "py_fn.__doc__ == 'py_fn for test (this is the docstring)'"
+    );
+}
+
+#[test]
+fn test_pycfunction_new_with_keywords() {
+    use pyo3::ffi;
+    use std::ffi::CString;
+    use std::os::raw::{c_char, c_long};
+    use std::ptr;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    unsafe extern "C" fn c_fn(
+        _self: *mut ffi::PyObject,
+        args: *mut ffi::PyObject,
+        kwds: *mut ffi::PyObject,
+    ) -> *mut ffi::PyObject {
+        let mut foo: c_long = 0;
+        let mut bar: c_long = 0;
+        let foo_ptr: *mut c_long = &mut foo;
+        let bar_ptr: *mut c_long = &mut bar;
+
+        let foo_name = CString::new("foo").unwrap();
+        let foo_name_raw: *mut c_char = foo_name.into_raw();
+        let kw_bar_name = CString::new("kw_bar").unwrap();
+        let kw_bar_name_raw: *mut c_char = kw_bar_name.into_raw();
+
+        let mut arglist = vec![foo_name_raw, kw_bar_name_raw, ptr::null_mut()];
+        let arglist_ptr: *mut *mut c_char = arglist.as_mut_ptr();
+
+        let arg_pattern: *const c_char = CString::new("l|l").unwrap().into_raw();
+
+        ffi::PyArg_ParseTupleAndKeywords(args, kwds, arg_pattern, arglist_ptr, foo_ptr, bar_ptr);
+
+        ffi::PyLong_FromLong(foo * bar)
+    }
+
+    let py_fn = PyCFunction::new_with_keywords(
+        c_fn,
+        "py_fn",
+        "py_fn for test (this is the docstring)",
+        py.into(),
+    )
+    .unwrap();
+
+    py_assert!(py, py_fn, "py_fn(42, kw_bar=100) == 4200");
+    py_assert!(py, py_fn, "py_fn(foo=42, kw_bar=100) == 4200");
+    py_assert!(
+        py,
+        py_fn,
+        "py_fn.__doc__ == 'py_fn for test (this is the docstring)'"
+    );
+}
+
+#[test]
 fn test_closure() {
     let gil = Python::acquire_gil();
     let py = gil.python();
