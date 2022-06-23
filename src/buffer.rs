@@ -687,37 +687,26 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        // PyBuffer {
-        //    buf: 0x00000001012c65d0,
-        //    obj: 0x00000001012c65b0,
-        //    len: 5,
-        //    itemsize: 1,
-        //    readonly: 1,
-        //    ndim: 1,
-        //    format: 0x00000001016747d8,
-        //    shape: 0x0000600001b74010,
-        //    strides: 0x0000600001b74018,
-        //    suboffsets: 0x0000000000000000,
-        //    internal: 0x0000000000000000,
-        //}
         Python::with_gil(|py| {
             let bytes = py.eval("b'abcde'", None, None).unwrap();
             let buffer: PyBuffer<u8> = PyBuffer::get(bytes).unwrap();
-
-            let dbg = format!("{:?}", buffer);
-
-            assert!(dbg.starts_with("PyBuffer"));
-            assert!(dbg.contains("{ buf: "));
-            assert!(dbg.contains(", obj: "));
-            assert!(dbg.contains(", len: 5"));
-            assert!(dbg.contains(", itemsize: 1"));
-            assert!(dbg.contains(", readonly: 1"));
-            assert!(dbg.contains(", ndim: 1"));
-            assert!(dbg.contains(", format: "));
-            assert!(dbg.contains(", shape: "));
-            assert!(dbg.contains(", strides: "));
-            assert!(dbg.contains(", suboffsets: "));
-            assert!(dbg.contains(", internal: "));
+            let expected = format!(
+                concat!(
+                    "PyBuffer {{ buf: {:?}, obj: {:?}, ",
+                    "len: 5, itemsize: 1, readonly: 1, ",
+                    "ndim: 1, format: {:?}, shape: {:?}, ",
+                    "strides: {:?}, suboffsets: {:?}, internal: {:?} }}",
+                ),
+                buffer.0.buf,
+                buffer.0.obj,
+                buffer.0.format,
+                buffer.0.shape,
+                buffer.0.strides,
+                buffer.0.suboffsets,
+                buffer.0.internal
+            );
+            let debug_repr = format!("{:?}", buffer);
+            assert_eq!(debug_repr, expected);
         });
     }
 
