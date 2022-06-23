@@ -484,7 +484,10 @@ impl PyAny {
     /// This is equivalent to the Python expression `help()`.
     pub fn call0(&self) -> PyResult<&PyAny> {
         cfg_if::cfg_if! {
-            if #[cfg(all(Py_3_9, not(PyPy)))] {
+            if #[cfg(all(
+                not(PyPy),
+                any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // PyObject_CallNoArgs was added to python in 3.9 but to limited API in 3.10
+            ))] {
                 // Optimized path on python 3.9+
                 unsafe {
                     self.py().from_owned_ptr_or_err(ffi::PyObject_CallNoArgs(self.as_ptr()))
