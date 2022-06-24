@@ -9,6 +9,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyMapping;
 use pyo3::types::PySequence;
+use pyo3::PyTypeInfo;
 
 mod common;
 
@@ -115,6 +116,16 @@ fn test_delitem() {
 #[test]
 fn mapping_is_not_sequence() {
     Python::with_gil(|py| {
+        // downcast to PyMapping requires isinstance(<cls>, collections.abc.Mapping) to pass, so we
+        // have to register the class first
+        PyModule::import(py, "collections.abc")
+            .unwrap()
+            .getattr("Mapping")
+            .unwrap()
+            .getattr("register")
+            .unwrap()
+            .call1((Mapping::type_object(py),))
+            .unwrap();
         let mut index = HashMap::new();
         index.insert("Foo".into(), 1);
         index.insert("Bar".into(), 2);

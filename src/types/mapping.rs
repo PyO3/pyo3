@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::types::{PyAny, PySequence};
+use crate::types::{PyAny, PyModule, PySequence};
 use crate::{ffi, AsPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -105,10 +105,34 @@ impl PyMapping {
 }
 
 impl<'v> PyTryFrom<'v> for PyMapping {
+    // for Python < 3.10 or if using the Py_LIMITED_API, call into python to check
+    // isinstance(value, collections.abc.Mapping) to determine downcastability
+    #[cfg(any(Py_LIMITED_API, Py_3_6, Py_3_7, Py_3_8, Py_3_9))]
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
+        let value = value.into();
+        let is_mapping = Python::with_gil(|py| {
+            let builtins = PyModule::import(py, "builtins")?;
+            let mapping_abc = PyModule::import(py, "collections.abc")?.getattr("Mapping")?;
+            builtins
+                .getattr("isinstance")?
+                .call1((value, mapping_abc))?
+                .extract::<bool>()
+        });
+        if is_mapping.unwrap_or(false) {
+            unsafe { Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value)) }
+        } else {
+            Err(PyDowncastError::new(value, "Mapping"))
+        }
+    }
+
+    // for Python >= 3.10 and not using the Py_LIMITED_API, check Py_TPFLAGS_MAPPING to determine
+    // downcastability
+    #[cfg(not(any(Py_LIMITED_API, Py_3_6, Py_3_7, Py_3_8, Py_3_9)))]
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
         unsafe {
-            if ffi::PyMapping_Check(value.as_ptr()) != 0 {
+            let ty = ffi::Py_TYPE(value);
+            if ffi::PyType_HasFeature(ty, fft::Py_TPFLAGS_MAPPING) != 0 {
                 Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError::new(value, "Mapping"))
