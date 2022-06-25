@@ -859,9 +859,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
-            PyClassMethodsType::Specialization => {
-                (quote! { visitor(collector.py_methods()); }, None, None)
-            }
+            PyClassMethodsType::Specialization => (quote! { collector.py_methods() }, None, None),
             PyClassMethodsType::Inventory => {
                 // To allow multiple #[pymethods] block, we define inventory types.
                 let inventory_class_name = syn::Ident::new(
@@ -870,9 +868,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 );
                 (
                     quote! {
-                        for inventory in _pyo3::inventory::iter::<<Self as _pyo3::impl_::pyclass::PyClassImpl>::Inventory>() {
-                            visitor(_pyo3::impl_::pyclass::PyClassInventory::items(inventory));
-                        }
+                        ::std::boxed::Box::new(
+                            ::std::iter::Iterator::map(
+                                _pyo3::inventory::iter::<<Self as _pyo3::impl_::pyclass::PyClassImpl>::Inventory>(),
+                                _pyo3::impl_::pyclass::PyClassInventory::items
+                            )
+                        )
                     },
                     Some(quote! { type Inventory = #inventory_class_name; }),
                     Some(define_inventory_class(&inventory_class_name)),
@@ -882,15 +883,15 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let pyproto_items = if cfg!(feature = "pyproto") {
             Some(quote! {
-                visitor(collector.object_protocol_items());
-                visitor(collector.number_protocol_items());
-                visitor(collector.iter_protocol_items());
-                visitor(collector.gc_protocol_items());
-                visitor(collector.descr_protocol_items());
-                visitor(collector.mapping_protocol_items());
-                visitor(collector.sequence_protocol_items());
-                visitor(collector.async_protocol_items());
-                visitor(collector.buffer_protocol_items());
+                collector.object_protocol_items(),
+                collector.number_protocol_items(),
+                collector.iter_protocol_items(),
+                collector.gc_protocol_items(),
+                collector.descr_protocol_items(),
+                collector.mapping_protocol_items(),
+                collector.sequence_protocol_items(),
+                collector.async_protocol_items(),
+                collector.buffer_protocol_items(),
             })
         } else {
             None
@@ -959,7 +960,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
 
-                fn for_all_items(visitor: &mut dyn ::std::ops::FnMut(& _pyo3::impl_::pyclass::PyClassItems)) {
+                fn items_iter() -> _pyo3::impl_::pyclass::PyClassItemsIter {
                     use _pyo3::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<Self>::new();
                     #deprecations;
@@ -967,9 +968,11 @@ impl<'a> PyClassImplsBuilder<'a> {
                         methods: &[#(#default_method_defs),*],
                         slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
-                    visitor(&INTRINSIC_ITEMS);
-                    #pymethods_items
-                    #pyproto_items
+                    PyClassItemsIter::new(
+                        &INTRINSIC_ITEMS,
+                        #pymethods_items,
+                        #pyproto_items
+                    )
                 }
 
                 #dict_offset

@@ -38,7 +38,7 @@ where
 pub fn extract_argument_with_default<'py, T>(
     obj: Option<&'py PyAny>,
     arg_name: &str,
-    default: impl FnOnce() -> T,
+    default: fn() -> T,
 ) -> PyResult<T>
 where
     T: FromPyObject<'py>,
@@ -57,7 +57,7 @@ where
 pub fn from_py_with<'py, T>(
     obj: &'py PyAny,
     arg_name: &str,
-    extractor: impl FnOnce(&'py PyAny) -> PyResult<T>,
+    extractor: fn(&'py PyAny) -> PyResult<T>,
 ) -> PyResult<T> {
     // Safety: obj is not None (see safety
     match extractor(obj) {
@@ -71,8 +71,8 @@ pub fn from_py_with<'py, T>(
 pub fn from_py_with_with_default<'py, T>(
     obj: Option<&'py PyAny>,
     arg_name: &str,
-    extractor: impl FnOnce(&'py PyAny) -> PyResult<T>,
-    default: impl FnOnce() -> T,
+    extractor: fn(&'py PyAny) -> PyResult<T>,
+    default: fn() -> T,
 ) -> PyResult<T> {
     match obj {
         Some(obj) => from_py_with(obj, arg_name, extractor),

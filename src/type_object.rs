@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::impl_::pyclass::PyClassItems;
+use crate::impl_::pyclass::PyClassItemsIter;
 use crate::internal_tricks::extract_cstr_or_leak_cstring;
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
@@ -105,8 +105,18 @@ impl LazyStaticType {
     }
 
     pub fn get_or_init<T: PyClass>(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
-        let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
-        self.ensure_init(py, type_object, T::NAME, &T::for_all_items);
+        fn inner<T: PyClass>() -> *mut ffi::PyTypeObject {
+            // Safety: `py` is held by the caller of `get_or_init`.
+            let py = unsafe { Python::assume_gil_acquired() };
+            create_type_object::<T>(py)
+        }
+
+        // Uses explicit GILOnceCell::get_or_init::<fn() -> *mut ffi::PyTypeObject> monomorphization
+        // so that only this one monomorphization is instantiated (instead of one closure monormization for each T).
+        let type_object = *self
+            .value
+            .get_or_init::<fn() -> *mut ffi::PyTypeObject>(py, inner::<T>);
+        self.ensure_init(py, type_object, T::NAME, T::items_iter());
         type_object
     }
 
@@ -115,7 +125,7 @@ impl LazyStaticType {
         py: Python<'_>,
         type_object: *mut ffi::PyTypeObject,
         name: &str,
-        for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
+        items_iter: PyClassItemsIter,
     ) {
         // We might want to fill the `tp_dict` with python instances of `T`
         // itself. In order to do so, we must first initialize the type object
@@ -165,7 +175,7 @@ impl LazyStaticType {
         // means that another thread can continue the initialization in the
         // meantime: at worst, we'll just make a useless computation.
         let mut items = vec![];
-        for_all_items(&mut |class_items| {
+        for class_items in items_iter {
             for def in class_items.methods {
                 if let PyMethodDefType::ClassAttribute(attr) = def {
                     let key = extract_cstr_or_leak_cstring(
@@ -185,7 +195,7 @@ impl LazyStaticType {
                     }
                 }
             }
-        });
+        }
 
         // Now we hold the GIL and we can assume it won't be released until we
         // return from the function.
