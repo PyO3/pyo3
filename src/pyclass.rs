@@ -5,7 +5,7 @@ use crate::{
     ffi,
     impl_::pyclass::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc, PyClassImpl,
-        PyClassItems,
+        PyClassItemsIter,
     },
     IntoPy, IntoPyPointer, PyCell, PyErr, PyMethodDefType, PyObject, PyResult, PyTypeInfo, Python,
 };
@@ -48,7 +48,7 @@ where
             tp_dealloc::<T>,
             T::dict_offset(),
             T::weaklist_offset(),
-            &T::for_all_items,
+            T::items_iter,
             T::IS_BASETYPE,
             T::IS_MAPPING,
         )
@@ -69,7 +69,7 @@ unsafe fn create_type_object_impl(
     tp_dealloc: ffi::destructor,
     dict_offset: Option<ffi::Py_ssize_t>,
     weaklist_offset: Option<ffi::Py_ssize_t>,
-    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
+    get_items_iter: fn() -> PyClassItemsIter,
     is_basetype: bool,
     is_mapping: bool,
 ) -> PyResult<*mut ffi::PyTypeObject> {
@@ -97,7 +97,7 @@ unsafe fn create_type_object_impl(
     let PyClassInfo {
         method_defs,
         property_defs,
-    } = method_defs_to_pyclass_info(for_all_items, dict_offset.is_none());
+    } = method_defs_to_pyclass_info(get_items_iter(), dict_offset.is_none());
 
     // normal methods
     if !method_defs.is_empty() {
@@ -120,7 +120,7 @@ unsafe fn create_type_object_impl(
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
     let mut buffer_procs: ffi::PyBufferProcs = Default::default();
 
-    for_all_items(&mut |items| {
+    for items in get_items_iter() {
         for slot in items.slots {
             match slot.slot {
                 ffi::Py_tp_new => has_new = true,
@@ -142,7 +142,7 @@ unsafe fn create_type_object_impl(
             }
         }
         slots.extend_from_slice(items.slots);
-    });
+    }
 
     if !is_mapping {
         // If mapping methods implemented, define sequence methods get implemented too.
@@ -320,14 +320,11 @@ struct PyClassInfo {
     property_defs: Vec<ffi::PyGetSetDef>,
 }
 
-fn method_defs_to_pyclass_info(
-    for_all_items: &dyn Fn(&mut dyn FnMut(&PyClassItems)),
-    has_dict: bool,
-) -> PyClassInfo {
+fn method_defs_to_pyclass_info(items_iter: PyClassItemsIter, has_dict: bool) -> PyClassInfo {
     let mut method_defs = Vec::new();
     let mut property_defs_map = std::collections::HashMap::new();
 
-    for_all_items(&mut |items| {
+    for items in items_iter {
         for def in items.methods {
             match def {
                 PyMethodDefType::Getter(getter) => {
@@ -350,7 +347,7 @@ fn method_defs_to_pyclass_info(
                 PyMethodDefType::ClassAttribute(_) => {}
             }
         }
-    });
+    }
 
     // TODO: use into_values when on MSRV Rust >= 1.54
     let mut property_defs: Vec<_> = property_defs_map

@@ -177,7 +177,7 @@ pub trait PyClassImpl: Sized {
     #[cfg(feature = "multiple-pymethods")]
     type Inventory: PyClassInventory;
 
-    fn for_all_items(visitor: &mut dyn FnMut(&PyClassItems));
+    fn items_iter() -> PyClassItemsIter;
 
     #[inline]
     fn dict_offset() -> Option<ffi::Py_ssize_t> {
@@ -186,6 +186,208 @@ pub trait PyClassImpl: Sized {
     #[inline]
     fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
         None
+    }
+}
+
+/// Iterator used to process all class items during type instantiation.
+pub struct PyClassItemsIter {
+    /// Iteration state
+    idx: usize,
+    /// Items from the `#[pyclass]` macro
+    pyclass_items: &'static PyClassItems,
+    /// Items from the `#[pymethods]` macro
+    #[cfg(not(feature = "multiple-pymethods"))]
+    pymethods_items: &'static PyClassItems,
+    /// Items from the `#[pymethods]` macro with inventory
+    #[cfg(feature = "multiple-pymethods")]
+    pymethods_items: Box<dyn Iterator<Item = &'static PyClassItems>>,
+
+    // pyproto items, to be removed soon.
+    #[cfg(feature = "pyproto")]
+    object_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    descr_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    gc_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    iter_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    mapping_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    number_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    async_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    sequence_protocol_items: &'static PyClassItems,
+    #[cfg(feature = "pyproto")]
+    buffer_protocol_items: &'static PyClassItems,
+}
+
+impl PyClassItemsIter {
+    #[cfg_attr(feature = "pyproto", allow(clippy::too_many_arguments))]
+    pub fn new(
+        pyclass_items: &'static PyClassItems,
+        #[cfg(not(feature = "multiple-pymethods"))] pymethods_items: &'static PyClassItems,
+        #[cfg(feature = "multiple-pymethods")] pymethods_items: Box<
+            dyn Iterator<Item = &'static PyClassItems>,
+        >,
+        #[cfg(feature = "pyproto")] object_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] descr_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] gc_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] iter_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] mapping_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] number_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] async_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] sequence_protocol_items: &'static PyClassItems,
+        #[cfg(feature = "pyproto")] buffer_protocol_items: &'static PyClassItems,
+    ) -> Self {
+        Self {
+            idx: 0,
+            pyclass_items,
+            pymethods_items,
+            #[cfg(feature = "pyproto")]
+            object_protocol_items,
+            #[cfg(feature = "pyproto")]
+            descr_protocol_items,
+            #[cfg(feature = "pyproto")]
+            gc_protocol_items,
+            #[cfg(feature = "pyproto")]
+            iter_protocol_items,
+            #[cfg(feature = "pyproto")]
+            mapping_protocol_items,
+            #[cfg(feature = "pyproto")]
+            number_protocol_items,
+            #[cfg(feature = "pyproto")]
+            async_protocol_items,
+            #[cfg(feature = "pyproto")]
+            sequence_protocol_items,
+            #[cfg(feature = "pyproto")]
+            buffer_protocol_items,
+        }
+    }
+}
+
+impl Iterator for PyClassItemsIter {
+    type Item = &'static PyClassItems;
+
+    #[cfg(not(feature = "multiple-pymethods"))]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.idx {
+            0 => {
+                self.idx += 1;
+                Some(self.pyclass_items)
+            }
+            1 => {
+                self.idx += 1;
+                Some(self.pymethods_items)
+            }
+            #[cfg(feature = "pyproto")]
+            2 => {
+                self.idx += 1;
+                Some(self.object_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            3 => {
+                self.idx += 1;
+                Some(self.descr_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            4 => {
+                self.idx += 1;
+                Some(self.gc_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            5 => {
+                self.idx += 1;
+                Some(self.iter_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            6 => {
+                self.idx += 1;
+                Some(self.mapping_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            7 => {
+                self.idx += 1;
+                Some(self.number_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            8 => {
+                self.idx += 1;
+                Some(self.async_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            9 => {
+                self.idx += 1;
+                Some(self.sequence_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            10 => {
+                self.idx += 1;
+                Some(self.buffer_protocol_items)
+            }
+            // Termination clause
+            // NB self.idx reaches different final value (2 vs 11) depending on pyproto feature
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "multiple-pymethods")]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.idx {
+            0 => {
+                self.idx += 1;
+                Some(self.pyclass_items)
+            }
+            #[cfg(feature = "pyproto")]
+            1 => {
+                self.idx += 1;
+                Some(self.object_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            2 => {
+                self.idx += 1;
+                Some(self.descr_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            3 => {
+                self.idx += 1;
+                Some(self.gc_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            4 => {
+                self.idx += 1;
+                Some(self.iter_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            5 => {
+                self.idx += 1;
+                Some(self.mapping_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            6 => {
+                self.idx += 1;
+                Some(self.number_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            7 => {
+                self.idx += 1;
+                Some(self.async_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            8 => {
+                self.idx += 1;
+                Some(self.sequence_protocol_items)
+            }
+            #[cfg(feature = "pyproto")]
+            9 => {
+                self.idx += 1;
+                Some(self.buffer_protocol_items)
+            }
+            // Termination clause
+            // NB self.idx reaches different final value (1 vs 10) depending on pyproto feature
+            _ => self.pymethods_items.next(),
+        }
     }
 }
 
@@ -808,10 +1010,6 @@ mod pyproto_traits {
 }
 #[cfg(feature = "pyproto")]
 pub use pyproto_traits::*;
-
-// Protocol slots from #[pymethods] if not using inventory.
-#[cfg(not(feature = "multiple-pymethods"))]
-items_trait!(PyMethodsProtocolItems, methods_protocol_items);
 
 // Thread checkers
 
