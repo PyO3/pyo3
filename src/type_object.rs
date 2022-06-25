@@ -105,7 +105,15 @@ impl LazyStaticType {
     }
 
     pub fn get_or_init<T: PyClass>(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
-        let type_object = *self.value.get_or_init(py, || create_type_object::<T>(py));
+        fn inner<T: PyClass>() -> *mut ffi::PyTypeObject {
+            // Safety: `py` is held by the caller of `get_or_init`.
+            let py = unsafe { Python::assume_gil_acquired() };
+            create_type_object::<T>(py)
+        }
+
+        // Uses explicit GILOnceCell::get_or_init::<fn() -> *mut ffi::PyTypeObject> monomorphization
+        // so that only this one monomorphization is instantiated (instead of one closure monormization for each T).
+        let type_object = *self.value.get_or_init::<fn() -> *mut ffi::PyTypeObject>(py, inner::<T>);
         self.ensure_init(py, type_object, T::NAME, &T::for_all_items);
         type_object
     }
