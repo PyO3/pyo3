@@ -1,4 +1,5 @@
 import re
+import subprocess
 import sys
 import time
 from glob import glob
@@ -199,3 +200,32 @@ def test_emscripten(session: nox.Session):
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     session.run("mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
+
+
+@nox.session(name="address-sanitizer", venv_backend="none")
+def address_sanitizer(session: nox.Session):
+    session.run(
+        "cargo",
+        "+nightly",
+        "test",
+        f"--target={_get_rust_target()}",
+        "--",
+        "--test-threads=1",
+        env={
+            "RUSTFLAGS": "-Zsanitizer=address",
+            "RUSTDOCFLAGS": "-Zsanitizer=address",
+            "ASAN_OPTIONS": "detect_leaks=0",
+        },
+        external=True,
+    )
+
+
+def _get_rust_target() -> str:
+    output = subprocess.check_output(["rustc", "-vV"], text=True)
+
+    for line in output.splitlines():
+        if line.startswith(_HOST_LINE_START):
+            return line[len(_HOST_LINE_START) :].strip()
+
+
+_HOST_LINE_START = "host: "
