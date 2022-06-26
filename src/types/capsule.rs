@@ -2,7 +2,7 @@
 use crate::Python;
 use crate::{ffi, AsPyPointer, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_int;
 
 /// Represents a Python Capsule
@@ -100,12 +100,21 @@ impl PyCapsule {
         destructor: F,
     ) -> PyResult<&'py Self> {
         AssertNotZeroSized::assert_not_zero_sized(&value);
-        let val = Box::new(CapsuleContents { value, destructor });
+        // Take ownership of a copy of `name` so that the string is guaranteed to live as long
+        // as the capsule. PyCapsule_new purely saves the pointer in the capsule so doesn't
+        // guarantee ownership itself.
+        let name = name.to_owned();
+        let name_ptr = name.as_ptr();
+        let val = Box::new(CapsuleContents {
+            value,
+            destructor,
+            name,
+        });
 
         let cap_ptr = unsafe {
             ffi::PyCapsule_New(
                 Box::into_raw(val) as *mut c_void,
-                name.as_ptr(),
+                name_ptr,
                 Some(capsule_destructor::<T, F>),
             )
         };
@@ -221,6 +230,7 @@ impl PyCapsule {
 struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void)> {
     value: T,
     destructor: D,
+    name: CString,
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
@@ -229,7 +239,9 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 ) {
     let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
     let ctx = ffi::PyCapsule_GetContext(capsule);
-    let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
+    let CapsuleContents {
+        value, destructor, ..
+    } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
     destructor(value, ctx)
 }
 
