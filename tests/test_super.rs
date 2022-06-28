@@ -12,8 +12,8 @@ impl BaseClass {
         BaseClass { val1: 10 }
     }
 
-    pub fn method1(&self) -> PyResult<usize> {
-        Ok(self.val1)
+    pub fn method1(&self) -> usize {
+        self.val1
     }
 }
 
@@ -27,7 +27,7 @@ impl SubClass {
         (SubClass {}, BaseClass::new())
     }
 
-    fn method2<'a>(self_: PyRef<Self>, py: Python<'a>) -> PyResult<&'a PyAny> {
+    fn method2<'a>(self_: PyRef<'_, Self>, py: Python<'a>) -> PyResult<&'a PyAny> {
         let any: Py<PyAny> = self_.into_py(py);
         let super_ = any.into_ref(py).py_super()?;
         super_.call_method("method1", (), None)
