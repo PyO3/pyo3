@@ -240,7 +240,6 @@ fn impl_arg_param(
                 }
             }
             (Some(default), _) => {
-                
                 quote_arg_span! {
                     _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)
                 }
@@ -263,7 +262,6 @@ fn impl_arg_param(
     } else {
         match (spec.default_value(name), arg.optional.is_some()) {
             (Some(default), true) if default.to_string() != "None" => {
-
                 quote_arg_span! {
                     _pyo3::impl_::extract_argument::extract_argument_with_default(#arg_value, #name_str, || Some(#default))
                 }
@@ -312,7 +310,7 @@ fn impl_arg_param(
 
         Ok(quote_arg_span! {
             let #mut_ _tmp: #target_ty = #arg_value_or_default?;
-            #[allow(clippy::needless_option_as_deref)]
+            #[allow(clippy::needless_option_as_deref, clippy::borrow_deref_ref)]
             let #arg_name = #borrow_tmp;
         })
     } else {
