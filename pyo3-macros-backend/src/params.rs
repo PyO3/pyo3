@@ -240,6 +240,7 @@ fn impl_arg_param(
                 }
             }
             (Some(default), _) => {
+                
                 quote_arg_span! {
                     _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)
                 }
@@ -262,6 +263,7 @@ fn impl_arg_param(
     } else {
         match (spec.default_value(name), arg.optional.is_some()) {
             (Some(default), true) if default.to_string() != "None" => {
+
                 quote_arg_span! {
                     _pyo3::impl_::extract_argument::extract_argument_with_default(#arg_value, #name_str, || Some(#default))
                 }
@@ -314,8 +316,9 @@ fn impl_arg_param(
             let #arg_name = #borrow_tmp;
         })
     } else {
+        let ty = arg.ty;
         Ok(quote_arg_span! {
-            let #arg_name = #arg_value_or_default?;
+            let #arg_name: #ty = #arg_value_or_default?;
         })
     };
 }
