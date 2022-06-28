@@ -48,9 +48,10 @@ fn test_utc_timezone() {
     Python::with_gil(|py| {
         let utc_timezone = unsafe {
             PyDateTime_IMPORT();
-            &*(&PyDateTime_TimeZone_UTC() as *const *mut crate::ffi::PyObject
-                as *const crate::PyObject)
+            PyDateTime_TimeZone_UTC()
         };
+        let utc_timezone =
+            unsafe { &*((&utc_timezone) as *const *mut PyObject as *const Py<PyAny>) };
         let locals = PyDict::new(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
         py.run(
