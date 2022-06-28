@@ -29,10 +29,10 @@ struct MyClass { }
 struct MyClass { }
 ```
 
-[params-1]: ../prelude/struct.PyAny.html
+[params-1]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [params-2]: https://en.wikipedia.org/wiki/Free_list
-[params-3]: std::marker::Send
-[params-4]: std::rc::Rc
-[params-5]: std::sync::Arc
+[params-3]: https://doc.rust-lang.org/std/marker/trait.Send.html
+[params-4]: https://doc.rust-lang.org/std/rc/struct.Rc.html
+[params-5]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 [params-6]: https://docs.python.org/3/library/weakref.html
 [params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
