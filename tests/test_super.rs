@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use pyo3::prelude::*;
 
 #[pyclass(subclass)]
