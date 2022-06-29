@@ -1,7 +1,7 @@
 use crate::ffi;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyTuple, PyType};
-use crate::{AsPyPointer, Py, PyAny, PyErr, PyResult, Python};
+use crate::types::PyType;
+use crate::{PyAny, PyResult, Python};
 
 /// Represents a Python `super` object.
 ///
@@ -9,18 +9,54 @@ use crate::{AsPyPointer, Py, PyAny, PyErr, PyResult, Python};
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 
-pyobject_native_type_core!(PySuper, ffi::PySuper_Type, #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(PySuper, ffi::PySuper_Type);
 
 impl PySuper {
+    /// Constructs a new super object. More read about super object: [docs](https://docs.python.org/3/library/functions.html#super)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::PySuper;
+    ///
+    ///#[pyclass(subclass)]
+    /// struct BaseClass {
+    ///     val1: usize,
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl BaseClass {
+    ///     #[new]
+    ///     fn new() -> Self {
+    ///         BaseClass { val1: 10 }
+    ///     }
+    ///
+    ///     pub fn method(&self) -> usize {
+    ///         self.val1
+    ///     }
+    /// }
+    ///
+    /// #[pyclass(extends=BaseClass)]
+    /// struct SubClass {}
+    ///
+    /// #[pymethods]
+    /// impl SubClass {
+    ///     #[new]
+    ///     fn new() -> (Self, BaseClass) {
+    ///         (SubClass {}, BaseClass::new())
+    ///     }
+    ///
+    ///     fn method<'a>(self_: PyRef<'_, Self>, py: Python<'a>) -> PyResult<&'a PyAny> {
+    ///         let any: Py<PyAny> = self_.into_py(py);
+    ///         let super_ = any.into_ref(py).py_super()?;
+    ///         super_.call_method("method", (), None)
+    ///     }
+    /// }
+    /// ```
     pub fn new<'py>(py: Python<'py>, ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
-        let args = PyTuple::new(py, &[ty, obj]);
-        let type_ = PySuper::type_object_raw(py);
-        let super_ = unsafe { ffi::PyObject_CallObject(type_ as *mut _, args.as_ptr()) };
-        if let Some(exc) = PyErr::take(py) {
-            return Err(exc);
-        }
-
-        let super_: PyResult<Py<PySuper>> = unsafe { Py::from_borrowed_ptr_or_err(py, super_) };
-        super_.map(|o| o.into_ref(py))
+        let super_ = PySuper::type_object(py).call1((ty, obj))?;
+        let super_ = super_.downcast::<PySuper>()?;
+        Ok(super_)
     }
 }
