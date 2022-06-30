@@ -79,21 +79,6 @@ pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// A proc macro used to expose Rust structs and fieldless enums as Python objects.
-///
-#[cfg_attr(docsrs, cfg_attr(docsrs, doc = include_str!("../docs/pyclass_parameters.md")))]
-///
-/// For more on creating Python classes,
-/// see the [class section of the guide][1].
-///
-/// [1]: https://pyo3.rs/latest/class.html
-/// [params-1]: ../prelude/struct.PyAny.html
-/// [params-2]: https://en.wikipedia.org/wiki/Free_list
-/// [params-3]: std::marker::Send
-/// [params-4]: std::rc::Rc
-/// [params-5]: std::sync::Arc
-/// [params-6]: https://docs.python.org/3/library/weakref.html
-/// [params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     use syn::Item;

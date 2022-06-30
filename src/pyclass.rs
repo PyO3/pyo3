@@ -17,15 +17,16 @@ use std::{
     ptr,
 };
 
-/// If `PyClass` is implemented for a Rust type `T`, then we can use `T` in the Python
-/// world, via `PyCell`.
+/// Types that can be used as Python classes.
 ///
-/// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
-/// so you normally don't have to use this trait directly.
+/// The `#[pyclass]` attribute implements this trait for your Rust struct -
+/// you shouldn't implement this trait directly.
 pub trait PyClass:
     PyTypeInfo<AsRefTarget = PyCell<Self>> + PyClassImpl<Layout = PyCell<Self>>
 {
-    /// Frozen or not
+    /// Whether the pyclass is frozen.
+    ///
+    /// This can be enabled via `#[pyclass(frozen)]`.
     type Frozen: Frozen;
 }
 
@@ -604,10 +605,11 @@ pub(crate) unsafe extern "C" fn no_constructor_defined(
     })
 }
 
-/// A mechanism to have associated True / False values in the absence of
-/// associated const equality.
+/// A workaround for [associated const equality](https://github.com/rust-lang/rust/issues/92827).
+///
+/// This serves to have True / False values in the [`PyClass`] trait's `Frozen` type.
+#[doc(hidden)]
 pub mod boolean_struct {
-
     pub(crate) mod private {
         use super::*;
 
@@ -623,6 +625,7 @@ pub mod boolean_struct {
 }
 
 /// A trait which is used to describe whether a `#[pyclass]` is frozen.
+#[doc(hidden)]
 pub trait Frozen: boolean_struct::private::Boolean {}
 
 impl Frozen for boolean_struct::True {}

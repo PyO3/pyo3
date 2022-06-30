@@ -195,15 +195,7 @@ Python::with_gil(|py|{
 
 ## Customizing the class
 
-{{#include ../../pyo3-macros/docs/pyclass_parameters.md}}
-
-[params-1]: {{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyAny.html
-[params-2]: https://en.wikipedia.org/wiki/Free_list
-[params-3]: https://doc.rust-lang.org/stable/std/marker/trait.Send.html
-[params-4]: https://doc.rust-lang.org/stable/std/rc/struct.Rc.html
-[params-5]: https://doc.rust-lang.org/stable/std/sync/struct.Rc.html
-[params-6]: https://docs.python.org/3/library/weakref.html
-[params-mapping]: ./class/protocols.md#mapping--sequence-types
+{{#include ../pyclass_parameters.md}}
 
 These parameters are covered in various sections of this guide.
 

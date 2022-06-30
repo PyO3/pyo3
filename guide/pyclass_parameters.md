@@ -6,6 +6,7 @@
 | `dict` | Gives instances of this class an empty `__dict__` to store custom attributes. |
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
+| <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrowchecker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
@@ -27,3 +28,11 @@ struct MyClass { }
 #[pyo3(name = "SomeName", subclass)]
 struct MyClass { }
 ```
+
+[params-1]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
+[params-2]: https://en.wikipedia.org/wiki/Free_list
+[params-3]: https://doc.rust-lang.org/std/marker/trait.Send.html
+[params-4]: https://doc.rust-lang.org/std/rc/struct.Rc.html
+[params-5]: https://doc.rust-lang.org/std/sync/struct.Arc.html
+[params-6]: https://docs.python.org/3/library/weakref.html
+[params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
