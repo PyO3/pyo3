@@ -164,6 +164,32 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     ty
 }
 
+/// Check if a type has a named lifetime
+///
+/// ```rust
+/// use pyo3_macros_backend::has_named_lifetime;
+///
+/// let with_lifetime = syn::parse_str::<syn::Type>("Foo::<'a>::BAR").unwrap();
+/// assert!(has_named_lifetime(&with_lifetime));
+/// let without_lifetime = syn::parse_str::<syn::Type>("Foo::BAR").unwrap();
+/// assert!(!has_named_lifetime(&without_lifetime));
+/// ```
+pub fn has_named_lifetime(ty: &syn::Type) -> bool {
+    use syn::visit::Visit;
+
+    struct WhetherLifetime(bool);
+
+    impl<'a> Visit<'a> for WhetherLifetime {
+        fn visit_lifetime(&mut self, _: &'a syn::Lifetime) {
+            self.0 = true;
+        }
+    }
+
+    let mut visitor = WhetherLifetime(false);
+    visitor.visit_type(&ty);
+    visitor.0
+}
+
 /// Remove lifetime from reference
 pub(crate) fn remove_lifetime(tref: &syn::TypeReference) -> syn::TypeReference {
     let mut tref = tref.to_owned();

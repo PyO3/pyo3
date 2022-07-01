@@ -313,15 +313,20 @@ fn impl_arg_param(
             #[allow(clippy::needless_option_as_deref, clippy::borrow_deref_ref)]
             let #arg_name = #borrow_tmp;
         })
-    } else if cfg!(feature = "pyproto") {
-        // arg.ty is kinda weird
-        Ok(quote_arg_span! {
-            let #arg_name = #arg_value_or_default?;
-        })
     } else {
         let ty = arg.ty;
-        Ok(quote_arg_span! {
-            let #arg_name: #ty = #arg_value_or_default?;
-        })
+
+        if crate::utils::has_named_lifetime(&ty) {
+            Ok(quote_arg_span! {
+                let #arg_name = #arg_value_or_default?;
+            })
+        } else {
+            // If the type has no named lifetime, also emit a type annotation
+            // to help avoid weird error messages, such as:
+            // "consider giving `arg0` the explicit type `Option<T>`, where the type parameter `T` is specified"
+            Ok(quote_arg_span! {
+                let #arg_name: #ty = #arg_value_or_default?;
+            })
+        }
     };
 }

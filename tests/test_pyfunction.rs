@@ -470,3 +470,17 @@ fn required_argument_after_option() {
         py_assert!(py, f, "f(x=None, y=5) == 5");
     })
 }
+
+#[test]
+fn call_named_lifetime() {
+    #[pyfunction]
+    fn with_lifetime<'named>(_x: &'named PyAny) -> bool {
+        true
+    }
+
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(with_lifetime, py).unwrap();
+
+        py_assert!(py, f, "f(42)");
+    })
+}

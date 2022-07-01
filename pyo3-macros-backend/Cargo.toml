@@ -20,7 +20,7 @@ proc-macro2 = { version = "1", default-features = false }
 [dependencies.syn]
 version = "1.0.56"
 default-features = false
-features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
+features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits", "visit"]
 
 [features]
 pyproto = []

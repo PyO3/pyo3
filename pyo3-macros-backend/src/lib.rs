@@ -34,4 +34,4 @@ pub use pyfunction::{build_py_function, PyFunctionOptions};
 pub use pyimpl::{build_py_methods, PyClassMethodsType};
 #[cfg(feature = "pyproto")]
 pub use pyproto::build_py_proto;
-pub use utils::get_doc;
+pub use utils::{get_doc, has_named_lifetime};
