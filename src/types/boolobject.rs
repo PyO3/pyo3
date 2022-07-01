@@ -1,4 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::inspect::types::TypeInfo;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
@@ -46,6 +47,10 @@ impl IntoPy<PyObject> for bool {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyBool::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("bool")
+    }
 }
 
 /// Converts a Python `bool` to a Rust `bool`.
@@ -54,6 +59,10 @@ impl IntoPy<PyObject> for bool {
 impl<'source> FromPyObject<'source> for bool {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+    }
+
+    fn type_input() -> TypeInfo {
+        Self::type_output()
     }
 }
 

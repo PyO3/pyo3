@@ -2,6 +2,7 @@
 
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
 use crate::exceptions::PyUnicodeDecodeError;
+use crate::inspect::types::TypeInfo;
 use crate::types::PyBytes;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python,
@@ -296,12 +297,20 @@ impl<'a> IntoPy<PyObject> for &'a str {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl<'a> IntoPy<Py<PyString>> for &'a str {
     #[inline]
     fn into_py(self, py: Python<'_>) -> Py<PyString> {
         PyString::new(py, self).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -318,6 +327,10 @@ impl IntoPy<PyObject> for Cow<'_, str> {
     #[inline]
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
+    }
+
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
     }
 }
 
@@ -341,11 +354,19 @@ impl IntoPy<PyObject> for char {
         let mut bytes = [0u8; 4];
         PyString::new(py, self.encode_utf8(&mut bytes)).into()
     }
+
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 impl IntoPy<PyObject> for String {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, &self).into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("str")
     }
 }
 
@@ -354,6 +375,10 @@ impl<'a> IntoPy<PyObject> for &'a String {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        <String>::type_output()
+    }
 }
 
 /// Allows extracting strings from Python objects.
@@ -361,6 +386,10 @@ impl<'a> IntoPy<PyObject> for &'a String {
 impl<'source> FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_str()
+    }
+
+    fn type_input() -> TypeInfo {
+        <String>::type_input()
     }
 }
 
@@ -371,6 +400,10 @@ impl FromPyObject<'_> for String {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_str()
             .map(ToOwned::to_owned)
+    }
+
+    fn type_input() -> TypeInfo {
+        Self::type_output()
     }
 }
 
@@ -385,6 +418,10 @@ impl FromPyObject<'_> for char {
                 "expected a string of length 1",
             ))
         }
+    }
+
+    fn type_input() -> TypeInfo {
+        <String>::type_input()
     }
 }
 

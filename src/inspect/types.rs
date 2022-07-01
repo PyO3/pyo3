@@ -272,7 +272,7 @@ impl Display for TypeInfo {
 mod test {
     use crate::inspect::types::{ModuleName, TypeInfo};
 
-    fn assert_display(t: &TypeInfo, expected: &str) {
+    pub fn assert_display(t: &TypeInfo, expected: &str) {
         assert_eq!(format!("{}", t), expected)
     }
 
@@ -392,5 +392,71 @@ mod test {
             &dict,
             "Mapping[int, Callable[[Union[int, str], Any], bool]]",
         );
+    }
+}
+
+#[cfg(test)]
+mod conversion {
+    use crate::inspect::types::test::assert_display;
+    use crate::{FromPyObject, IntoPy};
+
+    #[test]
+    fn unsigned_int() {
+        assert_display(&usize::type_output(), "int");
+        assert_display(&usize::type_input(), "int");
+
+        assert_display(&u8::type_output(), "int");
+        assert_display(&u8::type_input(), "int");
+
+        assert_display(&u16::type_output(), "int");
+        assert_display(&u16::type_input(), "int");
+
+        assert_display(&u32::type_output(), "int");
+        assert_display(&u32::type_input(), "int");
+
+        assert_display(&u64::type_output(), "int");
+        assert_display(&u64::type_input(), "int");
+    }
+
+    #[test]
+    fn signed_int() {
+        assert_display(&isize::type_output(), "int");
+        assert_display(&isize::type_input(), "int");
+
+        assert_display(&i8::type_output(), "int");
+        assert_display(&i8::type_input(), "int");
+
+        assert_display(&i16::type_output(), "int");
+        assert_display(&i16::type_input(), "int");
+
+        assert_display(&i32::type_output(), "int");
+        assert_display(&i32::type_input(), "int");
+
+        assert_display(&i64::type_output(), "int");
+        assert_display(&i64::type_input(), "int");
+    }
+
+    #[test]
+    fn float() {
+        assert_display(&f32::type_output(), "float");
+        assert_display(&f32::type_input(), "float");
+
+        assert_display(&f64::type_output(), "float");
+        assert_display(&f64::type_input(), "float");
+    }
+
+    #[test]
+    fn bool() {
+        assert_display(&bool::type_output(), "bool");
+        assert_display(&bool::type_input(), "bool");
+    }
+
+    #[test]
+    fn text() {
+        assert_display(&String::type_output(), "str");
+        assert_display(&String::type_input(), "str");
+
+        assert_display(&<&[u8]>::type_output(), "bytes");
+        assert_display(&<&[u8]>::type_input(), "bytes");
     }
 }
