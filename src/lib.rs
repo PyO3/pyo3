@@ -407,6 +407,8 @@ mod macros;
 #[cfg(all(test, feature = "macros"))]
 mod test_hygiene;
 
+pub mod inspect;
+
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
