@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyValueError;
+use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::once_cell::GILOnceCell;
 use crate::type_object::PyTypeInfo;
@@ -287,6 +288,10 @@ where
             return Err(PyValueError::new_err("Can't extract `str` to `Vec`"));
         }
         extract_sequence(obj)
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::sequence_of(T::type_input())
     }
 }
 

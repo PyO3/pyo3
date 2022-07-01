@@ -399,6 +399,7 @@ mod test {
 mod conversion {
     use crate::inspect::types::test::assert_display;
     use crate::{FromPyObject, IntoPy};
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn unsigned_int() {
@@ -458,5 +459,19 @@ mod conversion {
 
         assert_display(&<&[u8]>::type_output(), "bytes");
         assert_display(&<&[u8]>::type_input(), "bytes");
+    }
+
+    #[test]
+    fn collections() {
+        assert_display(&<Vec<usize>>::type_output(), "List[int]");
+        assert_display(&<Vec<usize>>::type_input(), "Sequence[int]");
+
+        assert_display(&<HashSet<usize>>::type_output(), "Set[int]");
+        assert_display(&<HashSet<usize>>::type_input(), "Set[int]");
+
+        assert_display(&<HashMap<usize, f32>>::type_output(), "Dict[int, float]");
+        assert_display(&<HashMap<usize, f32>>::type_input(), "Mapping[int, float]");
+
+        assert_display(&<(usize, f32)>::type_input(), "Tuple[int, float]");
     }
 }
