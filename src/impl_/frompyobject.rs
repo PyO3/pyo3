@@ -16,11 +16,9 @@ pub fn failed_to_extract_enum(
     );
     for ((variant_name, error_name), error) in variant_names.iter().zip(error_names).zip(errors) {
         use std::fmt::Write;
-
-        err_msg.push('\n');
         write!(
             &mut err_msg,
-            "- variant {variant_name} ({error_name}): {error_msg}",
+            "\n- variant {variant_name} ({error_name}): {error_msg}",
             variant_name = variant_name,
             error_name = error_name,
             error_msg = extract_traceback(py, error.clone_ref(py)),
@@ -36,7 +34,7 @@ fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
 
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
-        write!(&mut error_msg, ", caused by  {}", cause).unwrap();
+        write!(&mut error_msg, ", caused by {}", cause).unwrap();
         error = cause
     }
     error_msg
