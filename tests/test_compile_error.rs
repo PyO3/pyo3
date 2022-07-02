@@ -109,10 +109,6 @@ fn _test_compile_errors() {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
         t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/missing_intopy.rs");
-
-        // Only run this with these features to avoid different outputs
-        #[cfg(all(feature = "full", not(feature = "abi3")))]
-        t.compile_fail("tests/ui/missing_clone.rs");
     }
 
     #[rustversion::before(1.62)]

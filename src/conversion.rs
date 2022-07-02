@@ -598,6 +598,23 @@ where
     }
 }
 
+/// ```rust,compile_fail
+/// use pyo3::prelude::*;
+///
+/// #[pyclass]
+/// struct TestClass {
+///     num: u32,
+/// }
+///
+/// let t = TestClass { num: 10 };
+///
+/// Python::with_gil(|py| {
+///     let pyvalue = Py::new(py, t).unwrap().to_object(py);
+///     let t: TestClass = pyvalue.extract(py).unwrap();
+/// })
+/// ```
+mod test_no_clone {}
+
 #[cfg(test)]
 mod tests {
     use crate::types::{IntoPyDict, PyAny, PyDict, PyList};
