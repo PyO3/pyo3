@@ -4,8 +4,7 @@ error[E0277]: the trait bound `Result<(), MyError>: IntoPyCallbackOutput<_>` is 
 21  | #[pyfunction]
     | ^^^^^^^^^^^^^ the trait `IntoPyCallbackOutput<_>` is not implemented for `Result<(), MyError>`
     |
-    = help: the following implementations were found:
-              <Result<T, E> as IntoPyCallbackOutput<U>>
+    = help: the trait `IntoPyCallbackOutput<U>` is implemented for `Result<T, E>`
 note: required by a bound in `pyo3::callback::convert`
    --> src/callback.rs:182:8
     |

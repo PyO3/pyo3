@@ -1076,7 +1076,8 @@ impl BuildFlags {
         script.push_str("config = sysconfig.get_config_vars()\n");
 
         for k in &BuildFlags::ALL {
-            script.push_str(&format!("print(config.get('{}', '0'))\n", k));
+            use std::fmt::Write;
+            writeln!(&mut script, "print(config.get('{}', '0'))", k).unwrap();
         }
 
         let stdout = run_python_script(interpreter.as_ref(), &script)?;
@@ -1225,7 +1226,8 @@ fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
             sysconfigdata files found:",
         );
         for path in sysconfig_paths {
-            error_msg += &format!("\n\t{}", path.display());
+            use std::fmt::Write;
+            write!(&mut error_msg, "\n\t{}", path.display()).unwrap();
         }
         bail!("{}\n", error_msg);
     }
