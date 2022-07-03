@@ -5,6 +5,10 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.16.* to 0.17
 
+### The `multiple-pymethods` feature now requires Rust 1.62
+
+Due to limitations in the `inventory` crate which the `multiple-pymethods` feature depends on, this feature now
+requires Rust 1.62. For more information see [dtolnay/inventory#32](https://github.com/dtolnay/inventory/issues/32).
 
 ### Added `impl IntoPy<Py<PyString>> for &str`
 

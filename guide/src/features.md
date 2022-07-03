@@ -69,7 +69,7 @@ These macros require a number of dependencies which may not be needed by users w
 
 ### `multiple-pymethods`
 
-This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block.
+This feature enables a dependency on `inventory`, which enables each `#[pyclass]` to have more than one `#[pymethods]` block. This feature also requires a minimum Rust version of 1.62 due to limitations in the `inventory` crate.
 
 Most users should only need a single `#[pymethods]` per `#[pyclass]`. In addition, not all platforms (e.g. Wasm) are supported by `inventory`. For this reason this feature is not enabled by default, meaning fewer dependencies and faster compilation for the majority of users.
 
