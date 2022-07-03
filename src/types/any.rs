@@ -888,7 +888,7 @@ impl PyAny {
     ///
     /// This is equivalent to the Python expression `super()`
     pub fn py_super(&self) -> PyResult<&PySuper> {
-        PySuper::new(self.py(), self.get_type(), self)
+        PySuper::new(self.get_type(), self)
     }
 }
 

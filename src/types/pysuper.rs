@@ -1,7 +1,7 @@
 use crate::ffi;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyType;
-use crate::{PyAny, PyResult, Python};
+use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
 ///
@@ -46,14 +46,14 @@ impl PySuper {
     ///         (SubClass {}, BaseClass::new())
     ///     }
     ///
-    ///     fn method<'a>(self_: PyRef<'_, Self>, py: Python<'a>) -> PyResult<&'a PyAny> {
-    ///         let any: Py<PyAny> = self_.into_py(py);
-    ///         let super_ = any.into_ref(py).py_super()?;
+    ///     fn method(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+    ///         let super_ = self_.py_super()?;
     ///         super_.call_method("method", (), None)
     ///     }
     /// }
     /// ```
-    pub fn new<'py>(py: Python<'py>, ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
+    pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
+        let py = ty.py();
         let super_ = PySuper::type_object(py).call1((ty, obj))?;
         let super_ = super_.downcast::<PySuper>()?;
         Ok(super_)

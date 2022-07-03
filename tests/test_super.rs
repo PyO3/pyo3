@@ -1,4 +1,4 @@
-#![cfg(feature = "macros")]
+#![cfg(all(feature = "macros", not(PyPy)))]
 
 use pyo3::prelude::*;
 
@@ -29,9 +29,8 @@ impl SubClass {
         (SubClass {}, BaseClass::new())
     }
 
-    fn method<'a>(self_: PyRef<'_, Self>, py: Python<'a>) -> PyResult<&'a PyAny> {
-        let any: Py<PyAny> = self_.into_py(py);
-        let super_ = any.into_ref(py).py_super()?;
+    fn method(self_: &PyCell<Self>) -> PyResult<&PyAny> {
+        let super_ = self_.py_super()?;
         super_.call_method("method", (), None)
     }
 }

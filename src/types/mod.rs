@@ -27,6 +27,7 @@ pub use self::mapping::PyMapping;
 pub use self::module::PyModule;
 pub use self::num::PyLong;
 pub use self::num::PyLong as PyInt;
+#[cfg(not(PyPy))]
 pub use self::pysuper::PySuper;
 pub use self::sequence::PySequence;
 pub use self::set::PySet;
@@ -278,6 +279,7 @@ mod list;
 mod mapping;
 mod module;
 mod num;
+#[cfg(not(PyPy))]
 mod pysuper;
 mod sequence;
 mod set;
