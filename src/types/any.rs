@@ -3,7 +3,9 @@ use crate::conversion::{AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyTryF
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyDict, PyIterator, PyList, PyString, PySuper, PyTuple, PyType};
+#[cfg(not(PyPy))]
+use crate::types::PySuper;
+use crate::types::{PyDict, PyIterator, PyList, PyString, PyTuple, PyType};
 use crate::{err, ffi, Py, PyNativeType, PyObject, Python};
 use std::cell::UnsafeCell;
 use std::cmp::Ordering;
@@ -887,6 +889,7 @@ impl PyAny {
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.
     ///
     /// This is equivalent to the Python expression `super()`
+    #[cfg(not(PyPy))]
     pub fn py_super(&self) -> PyResult<&PySuper> {
         PySuper::new(self.get_type(), self)
     }
