@@ -28,7 +28,7 @@ indoc = { version = "1.0.3", optional = true }
 unindent = { version = "0.1.4", optional = true }
 
 # support crate for multiple-pymethods feature
-inventory = { version = "0.2.0", optional = true }
+inventory = { version = "0.3.0", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
@@ -98,7 +98,7 @@ nightly = []
 full = [
     "macros",
     "pyproto",
-    "multiple-pymethods",
+    # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
     "num-bigint",
     "num-complex",
     "hashbrown",

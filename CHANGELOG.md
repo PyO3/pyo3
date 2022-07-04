@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Packaging
+
+- Update inventory dependency to `0.3` (the `multiple-pymethods` feature now requires Rust 1.62 for correctness). [#2492](https://github.com/PyO3/pyo3/pull/2492)
+
 ### Added
 
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)

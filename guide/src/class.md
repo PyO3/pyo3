@@ -944,9 +944,9 @@ This simple technique works for the case when there is zero or one implementatio
 The `#[pyclass]` macro expands to roughly the code seen below. The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:
 
 ```rust
-# #[cfg(not(feature = "multiple-pymethods"))] {
+# #[cfg(not(any(feature = "multiple-pymethods", feature = "pyproto")))] {
 # use pyo3::prelude::*;
-// Note: the implementation differs slightly with the `multiple-pymethods` feature enabled.
+// Note: the implementation differs slightly with the `pyproto` or `multiple-pymethods` features enabled.
 struct MyClass {
     # #[allow(dead_code)]
     num: i32,

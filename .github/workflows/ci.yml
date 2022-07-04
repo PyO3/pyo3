@@ -72,8 +72,8 @@ jobs:
             echo "suppress_build_script_link_lines=true" >> config.txt
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
             PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features full
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "full multiple-pymethods"
+            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full multiple-pymethods"
           done
 
   build:
@@ -84,6 +84,7 @@ jobs:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
+        extra_features: ["multiple-pymethods"]  # Because MSRV doesn't support this
         rust: [stable]
         python-version: [
           "3.7",
@@ -124,6 +125,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
             msrv: "MSRV"
+            extra_features: ""
 
           # Test the `nightly` feature
           - rust: nightly
@@ -134,7 +136,7 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
-            extra_features: "nightly"
+            extra_features: "nightly multiple-pymethods"
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
@@ -145,6 +147,7 @@ jobs:
                 python-architecture: "x86",
                 rust-target: "i686-pc-windows-msvc",
               }
+            extra_features: "multiple-pymethods"
     steps:
       - uses: actions/checkout@v3
 
