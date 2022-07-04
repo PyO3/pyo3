@@ -1,7 +1,7 @@
 #![cfg(not(Py_LIMITED_API))]
 
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{timezone_utc, IntoPyDict};
 use pyo3_ffi::PyDateTime_IMPORT;
 
 fn _get_subclasses<'p>(
@@ -110,11 +110,9 @@ fn test_datetime_utc() {
 
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
-    let timezone = datetime.getattr("timezone").unwrap();
-    let utc = timezone.getattr("utc").unwrap().to_object(py);
+    let utc = timezone_utc(py);
 
-    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(utc)).unwrap();
 
     let locals = [("dt", dt)].into_py_dict(py);
 
