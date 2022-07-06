@@ -2,6 +2,7 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::once_cell::GILOnceCell;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PySequence, PyType};
 use crate::{
     ffi, AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject,
@@ -106,6 +107,15 @@ impl PyMapping {
             self.py()
                 .from_owned_ptr_or_err(ffi::PyMapping_Items(self.as_ptr()))
         }
+    }
+
+    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard library).
+    /// This is required for a class to be downcastable from `PyAny` to `PyMapping`.
+    pub fn register_mapping_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object(py);
+        let mapping_abc = get_mapping_abc(py);
+        mapping_abc.getattr(py, "register")?.call1(py, (ty,))?;
+        Ok(())
     }
 }
 
