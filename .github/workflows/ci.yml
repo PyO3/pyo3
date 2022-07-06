@@ -186,6 +186,9 @@ jobs:
           for PROJ in ${PROJECTS[@]}; do
             cargo update --manifest-path "$PROJ/Cargo.toml" -p parking_lot --precise 0.11.0
           done
+          cargo update -p plotters --precise 0.3.1
+          cargo update -p plotters-svg --precise 0.3.1
+          cargo update -p plotters-backend --precise 0.3.2
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
