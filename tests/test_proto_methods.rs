@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
-use pyo3::{prelude::*, py_run, PyCell, PyTypeInfo};
+use pyo3::{prelude::*, py_run, PyCell};
 use std::{isize, iter};
 
 mod common;
@@ -210,14 +210,7 @@ impl Mapping {
 #[test]
 fn mapping() {
     Python::with_gil(|py| {
-        PyModule::import(py, "collections.abc")
-            .unwrap()
-            .getattr("Mapping")
-            .unwrap()
-            .getattr("register")
-            .unwrap()
-            .call1((Mapping::type_object(py),))
-            .unwrap();
+        PyMapping::register_mapping_abc_subclass::<Mapping>(py).unwrap();
 
         let inst = Py::new(
             py,
