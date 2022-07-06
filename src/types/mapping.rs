@@ -109,39 +109,29 @@ impl PyMapping {
         }
     }
 
-    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard library).
+    /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
+    /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
     /// This is required for a class to be downcastable from `PyAny` to `PyMapping`.
     pub fn register_mapping_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
         let mapping_abc = get_mapping_abc(py);
-        mapping_abc.getattr(py, "register")?.call1(py, (ty,))?;
+        mapping_abc.call_method1("register", (ty,))?;
         Ok(())
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> &Py<PyType> {
-    MAPPING_ABC.get_or_init(py, || {
-        let mapping_abc = py
-            .import("collections.abc")
-            .expect("coud not import 'collections.abc'")
-            .getattr("Mapping")
-            .expect("coud not access 'Mapping' from 'collections.abc'")
-            .downcast::<PyType>()
-            .expect("could not access 'collections.abc.Mapping'");
-        mapping_abc.into_py(py)
-    })
-}
-
-fn is_mapping_abc_subclass(value: &PyAny) -> bool {
-    let is_mapping = Python::with_gil(|py| {
-        let builtins = py.import("builtins")?;
-        let mapping_abc = get_mapping_abc(py);
-        builtins
-            .getattr("isinstance")?
-            .call1((value, mapping_abc))?
-            .extract::<bool>()
-    });
-    is_mapping.unwrap_or(false)
+fn get_mapping_abc(py: Python<'_>) -> &'_ PyType {
+    MAPPING_ABC
+        .get_or_init(py, || {
+            py.import("collections.abc")
+                .expect("coud not import 'collections.abc'")
+                .getattr("Mapping")
+                .expect("coud not access 'Mapping' from 'collections.abc'")
+                .downcast::<PyType>()
+                .expect("could not access 'collections.abc.Mapping'")
+                .into_py(py)
+        })
+        .as_ref(py)
 }
 
 impl<'v> PyTryFrom<'v> for PyMapping {
@@ -150,7 +140,10 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     /// `isinstance(<class>, collections.abc.Mapping) == True`.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
-        if is_mapping_abc_subclass(value) {
+        if value
+            .is_instance(get_mapping_abc(value.py()))
+            .unwrap_or(false)
+        {
             unsafe { Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value)) }
         } else {
             Err(PyDowncastError::new(value, "Mapping"))
