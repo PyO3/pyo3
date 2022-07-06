@@ -189,12 +189,7 @@ unsafe fn create_type_object_impl(
         name: py_class_qualified_name(module_name, name)?,
         basicsize: basicsize as c_int,
         itemsize: 0,
-        flags: py_class_flags(
-            has_traverse,
-            is_basetype,
-            #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
-            is_mapping,
-        ),
+        flags: py_class_flags(has_traverse, is_basetype),
         slots: slots.as_mut_ptr(),
     };
 
@@ -304,11 +299,7 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
     .into_raw())
 }
 
-fn py_class_flags(
-    is_gc: bool,
-    is_basetype: bool,
-    #[cfg(all(Py_3_10, not(Py_LIMITED_API)))] is_mapping: bool,
-) -> c_uint {
+fn py_class_flags(is_gc: bool, is_basetype: bool) -> c_uint {
     let mut flags = ffi::Py_TPFLAGS_DEFAULT;
 
     if is_gc {
@@ -317,14 +308,6 @@ fn py_class_flags(
 
     if is_basetype {
         flags |= ffi::Py_TPFLAGS_BASETYPE;
-    }
-
-    #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
-    {
-        if is_mapping {
-            flags |= ffi::Py_TPFLAGS_MAPPING;
-            flags &= !ffi::Py_TPFLAGS_SEQUENCE;
-        }
     }
 
     // `c_ulong` and `c_uint` have the same size
