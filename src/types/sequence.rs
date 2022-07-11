@@ -1,8 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::exceptions::PyValueError;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{PyAny, PyList, PyTuple};
+use crate::types::{PyAny, PyList, PyString, PyTuple};
 use crate::{ffi, PyNativeType, ToPyObject};
 use crate::{AsPyPointer, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
@@ -270,6 +270,9 @@ where
     T: FromPyObject<'a>,
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        if let Ok(true) = obj.is_instance_of::<PyString>() {
+            return Err(PyValueError::new_err("Can't extract `str` to `Vec`"));
+        }
         extract_sequence(obj)
     }
 }
