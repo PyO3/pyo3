@@ -148,6 +148,11 @@ pub fn print_feature_cfgs() {
     if rustc_minor_version >= 51 {
         println!("cargo:rustc-cfg=addr_of");
     }
+
+    // Enable use of Option::insert on Rust 1.53 and greater
+    if rustc_minor_version >= 53 {
+        println!("cargo:rustc-cfg=option_insert");
+    }
 }
 
 /// Private exports used in PyO3's build.rs

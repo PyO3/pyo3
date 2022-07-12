@@ -4,7 +4,7 @@ use std::borrow::Cow;
 
 use crate::attributes::NameAttribute;
 use crate::method::{CallingConvention, ExtractErrorMode};
-use crate::utils::{ensure_not_async_fn, remove_lifetime, unwrap_ty_group, PythonDoc};
+use crate::utils::{ensure_not_async_fn, PythonDoc};
 use crate::{deprecations::Deprecations, utils};
 use crate::{
     method::{FnArg, FnSpec, FnType, SelfType},
@@ -12,7 +12,6 @@ use crate::{
 };
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use syn::Ident;
 use syn::{ext::IdentExt, spanned::Spanned, Result};
 
 /// Generated code for a single pymethod item.
@@ -839,81 +838,66 @@ impl Ty {
         arg: &FnArg<'_>,
         extract_error_mode: ExtractErrorMode,
     ) -> TokenStream {
+        let name_str = arg.name.unraw().to_string();
         match self {
-            Ty::Object => {
-                let extract = handle_error(
-                    extract_error_mode,
-                    py,
-                    quote! {
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident).extract()
-                    },
-                );
-                extract_object(arg.ty, ident, extract)
-            }
-            Ty::MaybeNullObject => {
-                let extract = handle_error(
-                    extract_error_mode,
-                    py,
-                    quote! {
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(
-                            if #ident.is_null() {
-                                _pyo3::ffi::Py_None()
-                            } else {
-                                #ident
-                            }
-                        ).extract()
-                    },
-                );
-                extract_object(arg.ty, ident, extract)
-            }
-            Ty::NonNullObject => {
-                let extract = handle_error(
-                    extract_error_mode,
-                    py,
-                    quote! {
-                        #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr()).extract()
-                    },
-                );
-                extract_object(arg.ty, ident, extract)
-            }
-            Ty::IPowModulo => {
-                let extract = handle_error(
-                    extract_error_mode,
-                    py,
-                    quote! {
-                        #ident.extract(#py)
-                    },
-                );
-                extract_object(arg.ty, ident, extract)
-            }
-            Ty::CompareOp => {
-                let extract = handle_error(
-                    extract_error_mode,
-                    py,
-                    quote! {
-                        _pyo3::class::basic::CompareOp::from_raw(#ident)
-                            .ok_or_else(|| _pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))
-                    },
-                );
+            Ty::Object => extract_object(
+                extract_error_mode,
+                py,
+                &name_str,
                 quote! {
-                    let #ident = #extract;
-                }
-            }
+                    #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident)
+                },
+            ),
+            Ty::MaybeNullObject => extract_object(
+                extract_error_mode,
+                py,
+                &name_str,
+                quote! {
+                    #py.from_borrowed_ptr::<_pyo3::PyAny>(
+                        if #ident.is_null() {
+                            _pyo3::ffi::Py_None()
+                        } else {
+                            #ident
+                        }
+                    )
+                },
+            ),
+            Ty::NonNullObject => extract_object(
+                extract_error_mode,
+                py,
+                &name_str,
+                quote! {
+                    #py.from_borrowed_ptr::<_pyo3::PyAny>(#ident.as_ptr())
+                },
+            ),
+            Ty::IPowModulo => extract_object(
+                extract_error_mode,
+                py,
+                &name_str,
+                quote! {
+                    #ident.to_borrowed_any(#py)
+                },
+            ),
+            Ty::CompareOp => handle_error(
+                extract_error_mode,
+                py,
+                quote! {
+                    _pyo3::class::basic::CompareOp::from_raw(#ident)
+                        .ok_or_else(|| _pyo3::exceptions::PyValueError::new_err("invalid comparison operator"))
+                },
+            ),
             Ty::PySsizeT => {
                 let ty = arg.ty;
-                let extract = handle_error(
+                handle_error(
                     extract_error_mode,
                     py,
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| _pyo3::exceptions::PyValueError::new_err(e.to_string()))
                     },
-                );
-                quote! {
-                    let #ident = #extract;
-                }
+                )
             }
             // Just pass other types through unmodified
-            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => quote! {},
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => quote! { #ident },
         }
     }
 }
@@ -934,19 +918,23 @@ fn handle_error(
     }
 }
 
-fn extract_object(target: &syn::Type, ident: &syn::Ident, extract: TokenStream) -> TokenStream {
-    if let syn::Type::Reference(tref) = unwrap_ty_group(target) {
-        let tref = remove_lifetime(tref);
-        let mut_ = tref.mutability;
+fn extract_object(
+    extract_error_mode: ExtractErrorMode,
+    py: &syn::Ident,
+    name: &str,
+    source: TokenStream,
+) -> TokenStream {
+    handle_error(
+        extract_error_mode,
+        py,
         quote! {
-            let #mut_ #ident: <#tref as _pyo3::derive_utils::ExtractExt<'_>>::Target = #extract;
-            let #ident = &#mut_ *#ident;
-        }
-    } else {
-        quote! {
-            let #ident = #extract;
-        }
-    }
+            _pyo3::impl_::extract_argument::extract_argument(
+                #source,
+                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                #name
+            )
+        },
+    )
 }
 
 enum ReturnMode {
@@ -1096,12 +1084,8 @@ fn generate_method_body(
 ) -> Result<TokenStream> {
     let self_conversion = spec.tp.self_conversion(Some(cls), extract_error_mode);
     let rust_name = spec.name;
-    let (arg_idents, arg_count, conversions) =
-        extract_proto_arguments(py, &spec.args, arguments, extract_error_mode)?;
-    if arg_count != arguments.len() {
-        bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", arguments.len(), arg_count));
-    }
-    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#arg_idents),*)) };
+    let args = extract_proto_arguments(py, spec, arguments, extract_error_mode)?;
+    let call = quote! { _pyo3::callback::convert(#py, #cls::#rust_name(_slf, #(#args),*)) };
     let body = if let Some(return_mode) = return_mode {
         return_mode.return_call_output(py, call)
     } else {
@@ -1109,7 +1093,6 @@ fn generate_method_body(
     };
     Ok(quote! {
         #self_conversion
-        #conversions
         #body
     })
 }
@@ -1243,30 +1226,30 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
 
 fn extract_proto_arguments(
     py: &syn::Ident,
-    method_args: &[FnArg<'_>],
+    spec: &FnSpec<'_>,
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
-) -> Result<(Vec<Ident>, usize, TokenStream)> {
-    let mut arg_idents = Vec::with_capacity(method_args.len());
+) -> Result<Vec<TokenStream>> {
+    let mut args = Vec::with_capacity(spec.args.len());
     let mut non_python_args = 0;
 
-    let mut args_conversions = Vec::with_capacity(proto_args.len());
-
-    for arg in method_args {
+    for arg in &spec.args {
         if arg.py {
-            arg_idents.push(py.clone());
+            args.push(quote! { #py });
         } else {
             let ident = syn::Ident::new(&format!("arg{}", non_python_args), Span::call_site());
             let conversions = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty.span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(py, &ident, arg, extract_error_mode);
             non_python_args += 1;
-            args_conversions.push(conversions);
-            arg_idents.push(ident);
+            args.push(conversions);
         }
     }
-    let conversions = quote!(#(#args_conversions)*);
-    Ok((arg_idents, non_python_args, conversions))
+
+    if non_python_args != proto_args.len() {
+        bail_spanned!(spec.name.span() => format!("Expected {} arguments, got {}", proto_args.len(), non_python_args));
+    }
+    Ok(args)
 }
 
 struct StaticIdent(&'static str);
