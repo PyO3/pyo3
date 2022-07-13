@@ -40,7 +40,7 @@ pub struct KeywordAttribute<K, V> {
 
 /// A helper type which parses the inner type via a literal string
 /// e.g. LitStrValue<Path> -> parses "some::path" in quotes.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LitStrValue<T>(pub T);
 
 impl<T: Parse> Parse for LitStrValue<T> {
@@ -57,7 +57,7 @@ impl<T: ToTokens> ToTokens for LitStrValue<T> {
 }
 
 /// A helper type which parses a name via a literal string
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameLitStr(pub Ident);
 
 impl Parse for NameLitStr {

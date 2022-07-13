@@ -69,7 +69,7 @@ pub fn target_triple_from_env() -> Triple {
 ///
 /// When the `PYO3_NO_PYTHON` variable is set, or during cross compile situations, then alternative
 /// strategies are used to populate this type.
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct InterpreterConfig {
     /// The Python implementation flavor.
     ///
@@ -634,7 +634,7 @@ impl FromStr for PythonVersion {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PythonImplementation {
     CPython,
     PyPy,
@@ -742,7 +742,7 @@ fn require_libdir_for_target(target: &Triple) -> bool {
 ///
 /// Usually this is collected from the environment (i.e. `PYO3_CROSS_*` and `CARGO_CFG_TARGET_*`)
 /// when a cross-compilation configuration is detected.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CrossCompileConfig {
     /// The directory containing the Python library to link against.
     pub lib_dir: Option<PathBuf>,
@@ -1036,7 +1036,7 @@ impl FromStr for BuildFlag {
 /// is the equivalent of `#ifdef {varname}` in C.
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[derive(Clone, Default)]
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 

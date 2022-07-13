@@ -964,7 +964,7 @@ impl<'a, T: PyClass<Frozen = False>> std::convert::TryFrom<&'a PyCell<T>>
 
 impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&*(self.deref()), f)
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 

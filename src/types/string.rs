@@ -16,7 +16,7 @@ use std::str;
 /// Python internally stores strings in various representations. This enumeration
 /// represents those variations.
 #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PyStringData<'a> {
     /// UCS1 representation.
     Ucs1(&'a [u8]),
