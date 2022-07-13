@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `timezone_utc()`. [#1588](https://github.com/PyO3/pyo3/pull/1588)
 - Implement `ToPyObject` for `[T; N]`. [#2313](https://github.com/PyO3/pyo3/pull/2313)
 - Added the internal `IntoPyResult` trait to give better error messages when function return types do not implement `IntoPy`. [#2326](https://github.com/PyO3/pyo3/pull/2326)
 - Add `PyDictKeys`, `PyDictValues` and `PyDictItems` Rust types to represent `dict_keys`, `dict_values` and `dict_items` types. [#2358](https://github.com/PyO3/pyo3/pull/2358)
@@ -26,10 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `CompareOp::matches` to easily implement `__richcmp__` as the result of a
   Rust `std::cmp::Ordering` comparison. [#2460](https://github.com/PyO3/pyo3/pull/2460)
 - Supprt `#[pyo3(name)]` on enum variants [#2457](https://github.com/PyO3/pyo3/pull/2457)
-- Add `PySuper` object [#2049](https://github.com/PyO3/pyo3/issues/2049) 
+- Add `PySuper` object [#2049](https://github.com/PyO3/pyo3/issues/2049)
 
 ### Changed
 
+- Change datetime constructors taking a `tzinfo` to take `Option<&PyTzInfo>` instead of `Option<&PyObject>`: `PyDateTime::new()`, `PyDateTime::new_with_fold()`, `PyTime::new()`, and `PyTime::new_with_fold()`. [#1588](https://github.com/PyO3/pyo3/pull/1588)
 - Several methods of `Py` and `PyAny` now accept `impl IntoPy<Py<PyString>>` rather than just `&str` to allow use of the `intern!` macro. [#2312](https://github.com/PyO3/pyo3/pull/2312)
 - Move `PyTypeObject::type_object` method to `PyTypeInfo` trait, and deprecate `PyTypeObject` trait. [#2287](https://github.com/PyO3/pyo3/pull/2287)
 - The deprecated `pyproto` feature is now disabled by default. [#2322](https://github.com/PyO3/pyo3/pull/2322)
