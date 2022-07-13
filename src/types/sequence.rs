@@ -367,6 +367,19 @@ mod tests {
             assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_ok());
         });
     }
+
+    #[test]
+    fn test_strings_cannot_be_extracted_to_vec() {
+        Python::with_gil(|py| {
+            let v = "London Calling";
+            let ob = v.to_object(py);
+
+            assert!(ob.extract::<Vec<&str>>(py).is_err());
+            assert!(ob.extract::<Vec<String>>(py).is_err());
+            assert!(ob.extract::<Vec<char>>(py).is_err());
+        });
+    }
+
     #[test]
     fn test_seq_empty() {
         Python::with_gil(|py| {
