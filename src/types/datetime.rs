@@ -561,14 +561,12 @@ mod tests {
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            {
-                let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
-                py_run!(
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(timezone_utc(py))).unwrap();
+            py_run!(
                 py,
                 dt,
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100, datetime.timezone.utc)"
             );
-            }
         })
     }
 
