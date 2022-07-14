@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Rust `std::cmp::Ordering` comparison. [#2460](https://github.com/PyO3/pyo3/pull/2460)
 - Supprt `#[pyo3(name)]` on enum variants [#2457](https://github.com/PyO3/pyo3/pull/2457)
 - Add `PySuper` object [#2049](https://github.com/PyO3/pyo3/issues/2049)
+- Add support for generating PyPy Windows import library. [#2506](https://github.com/PyO3/pyo3/pull/2506)
 
 ### Changed
 

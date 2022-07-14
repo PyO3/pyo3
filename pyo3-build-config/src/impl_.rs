@@ -471,7 +471,8 @@ print("mingw", get_platform().startswith("mingw"))
         if self.lib_dir.is_none() {
             let target = target_triple_from_env();
             let py_version = if self.abi3 { None } else { Some(self.version) };
-            self.lib_dir = import_lib::generate_import_lib(&target, py_version)?;
+            self.lib_dir =
+                import_lib::generate_import_lib(&target, self.implementation, py_version)?;
         }
         Ok(())
     }
@@ -1427,7 +1428,13 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     #[cfg(feature = "python3-dll-a")]
     if lib_dir.is_none() {
         let py_version = if abi3 { None } else { Some(version) };
-        lib_dir = self::import_lib::generate_import_lib(&cross_compile_config.target, py_version)?;
+        lib_dir = self::import_lib::generate_import_lib(
+            &cross_compile_config.target,
+            cross_compile_config
+                .implementation
+                .unwrap_or(PythonImplementation::CPython),
+            py_version,
+        )?;
     }
 
     Ok(InterpreterConfig {
@@ -1765,7 +1772,11 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         } else {
             Some(interpreter_config.version)
         };
-        interpreter_config.lib_dir = self::import_lib::generate_import_lib(&host, py_version)?;
+        interpreter_config.lib_dir = self::import_lib::generate_import_lib(
+            &host,
+            interpreter_config.implementation,
+            py_version,
+        )?;
     }
 
     Ok(interpreter_config)
