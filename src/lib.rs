@@ -390,18 +390,6 @@ mod version;
 
 pub use crate::conversions::*;
 
-#[doc(hidden)]
-#[deprecated(
-    since = "0.15.0",
-    note = "please import this with `use pyo3::...` or from the prelude instead"
-)]
-#[cfg(feature = "macros")]
-pub mod proc_macro {
-    #[cfg(feature = "pyproto")]
-    pub use pyo3_macros::pyproto;
-    pub use pyo3_macros::{pyclass, pyfunction, pymethods, pymodule};
-}
-
 #[cfg(all(feature = "macros", feature = "pyproto"))]
 pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
