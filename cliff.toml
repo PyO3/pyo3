@@ -3,7 +3,7 @@
 [changelog]
 # changelog header
 header = """
-# Changelog\n
+# Changelog
 
 All notable changes to this project will be documented in this file. For help with updating to new
 PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration.html).
@@ -22,7 +22,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
     {% for commit in commits %}
-        - {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }}\
+        - {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} {% if commit.body %}{{ commit.body | upper_first }}{% endif %}\
     {% endfor %}
 {% endfor %}\n
 """
@@ -37,10 +37,10 @@ footer = """
 # parse the commits based on https://www.conventionalcommits.org
 conventional_commits = true
 # filter out the commits that are not conventional
-filter_unconventional = false
+filter_unconventional = true
 # regex for preprocessing the commit messages
 commit_preprocessors = [
-    { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/PyO3/pyo3/pull/${2}))"},
+    { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "[#${2}](https://github.com/PyO3/pyo3/pull/${2})"},
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
