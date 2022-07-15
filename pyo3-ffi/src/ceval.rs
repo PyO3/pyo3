@@ -73,8 +73,12 @@ extern "C" {
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
 }
 
-// skipped Py_EnterRecursiveCall
-// skipped Py_LeaveRecursiveCall
+extern "C" {
+    #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+    pub fn Py_EnterRecursiveCall(arg1: *const c_char);
+    #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+    pub fn Py_LeaveRecursiveCall();
+}
 
 extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
