@@ -108,7 +108,13 @@ macro_rules! import_exception {
                     .get_or_init(py, || {
                         let imp = py
                             .import(stringify!($module))
-                            .expect(concat!("Can not import module: ", stringify!($module)));
+                            .unwrap_or_else(|err| {
+                                let traceback = err
+                                    .traceback(py)
+                                    .map(|tb| tb.format().expect("raised exception will have a traceback"))
+                                    .unwrap_or_default();
+                                ::std::panic!("Can not import module {}: {}\n{}", stringify!($module), err, traceback);
+                            });
                         let cls = imp.getattr(stringify!($name)).expect(concat!(
                             "Can not load exception class: {}.{}",
                             stringify!($module),

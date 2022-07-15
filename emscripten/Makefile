@@ -3,7 +3,7 @@ CURDIR=$(abspath .)
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
 PYMAJORMINORMICRO ?= 3.11.0
-PYPRERELEASE ?= b1 # I'm not sure how to split 3.11.0b1 in Make.
+PYPRERELEASE ?= b4 # I'm not sure how to split 3.11.0b4 in Make.
 
 EMSCRIPTEN_VERSION=3.1.13
 
