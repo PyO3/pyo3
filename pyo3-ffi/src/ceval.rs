@@ -74,9 +74,11 @@ extern "C" {
 }
 
 extern "C" {
-    #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(Py_3_9)]
+    #[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
     pub fn Py_EnterRecursiveCall(arg1: *const c_char);
-    #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(Py_3_9)]
+    #[cfg_attr(PyPy, link_name = "PyPy_LeaveRecursiveCall")]
     pub fn Py_LeaveRecursiveCall();
 }
 
