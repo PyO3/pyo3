@@ -1,17 +1,11 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::CALL_ATTRIBUTE`: use `fn __call__` instead of `#[call]`
-  --> tests/ui/deprecations.rs:10:7
-   |
-10 |     #[call]
-   |       ^^^^
-   |
-note: the lint level is defined here
-  --> tests/ui/deprecations.rs:1:9
-   |
-1  | #![deny(deprecated)]
-   |         ^^^^^^^^^^
-
 error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
-  --> tests/ui/deprecations.rs:14:11
-   |
-14 | #[pyclass(gc)]
-   |           ^^
+ --> tests/ui/deprecations.rs:5:11
+  |
+5 | #[pyclass(gc)]
+  |           ^^
+  |
+note: the lint level is defined here
+ --> tests/ui/deprecations.rs:1:9
+  |
+1 | #![deny(deprecated)]
+  |         ^^^^^^^^^^

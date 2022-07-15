@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 
 use crate::attributes::TextSignatureAttribute;
-use crate::deprecations::Deprecation;
 use crate::params::{accept_args_kwargs, impl_arg_params};
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
@@ -266,7 +265,6 @@ impl<'a> FnSpec<'a> {
         let PyFunctionOptions {
             text_signature,
             name,
-            mut deprecations,
             ..
         } = options;
 
@@ -274,7 +272,7 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             args: fn_attrs,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
+        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0))?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
@@ -316,7 +314,7 @@ impl<'a> FnSpec<'a> {
             args: arguments,
             output: ty,
             doc,
-            deprecations,
+            deprecations: Deprecations::new(),
             text_signature,
             unsafety: sig.unsafety,
         })
@@ -609,7 +607,6 @@ struct MethodAttributes {
 fn parse_method_attributes(
     attrs: &mut Vec<syn::Attribute>,
     mut python_name: Option<syn::Ident>,
-    deprecations: &mut Deprecations,
 ) -> Result<MethodAttributes> {
     let mut new_attrs = Vec::new();
     let mut args = Vec::new();
@@ -632,12 +629,7 @@ fn parse_method_attributes(
                 } else if name.is_ident("init") || name.is_ident("__init__") {
                     bail_spanned!(name.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if name.is_ident("call") || name.is_ident("__call__") {
-                    deprecations.push(Deprecation::CallAttribute, name.span());
-                    ensure_spanned!(
-                        python_name.is_none(),
-                        python_name.span() => "`name` may not be used with `#[call]`"
-                    );
-                    python_name = Some(syn::Ident::new("__call__", Span::call_site()));
+                    bail_spanned!(name.span() => "use `fn __call__` instead of `#[call]` attribute since PyO3 0.17.0");
                 } else if name.is_ident("classmethod") {
                     set_ty!(MethodTypeAttribute::ClassMethod, name);
                 } else if name.is_ident("staticmethod") {
