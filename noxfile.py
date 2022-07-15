@@ -187,6 +187,7 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
             "-C link-arg=-lmpdec",
+            "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
     session.env["CARGO_BUILD_TARGET"] = target
