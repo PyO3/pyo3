@@ -6,19 +6,6 @@
 
 use crate::{types::PyModule, PyCell, PyClass, PyErr, Python};
 
-/// Utility trait to enable &PyClass as a pymethod/function argument
-#[doc(hidden)]
-pub trait ExtractExt<'a> {
-    type Target: crate::FromPyObject<'a>;
-}
-
-impl<'a, T> ExtractExt<'a> for T
-where
-    T: crate::FromPyObject<'a>,
-{
-    type Target = T;
-}
-
 /// A trait for types that can be borrowed from a cell.
 ///
 /// This serves to unify the use of `PyRef` and `PyRefMut` in automatically

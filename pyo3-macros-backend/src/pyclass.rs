@@ -777,21 +777,36 @@ impl<'a> PyClassImplsBuilder<'a> {
         let cls = self.cls;
         if self.attr.options.frozen.is_some() {
             quote! {
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a #cls
                 {
-                    type Target = _pyo3::PyRef<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+                    }
                 }
             }
         } else {
             quote! {
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a #cls
                 {
-                    type Target = _pyo3::PyRef<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRef<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+                    }
                 }
 
-                impl<'a> _pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+                impl<'a, 'py> _pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut #cls
                 {
-                    type Target = _pyo3::PyRefMut<'a, #cls>;
+                    type Holder = ::std::option::Option<_pyo3::PyRefMut<'py, #cls>>;
+
+                    #[inline]
+                    fn extract(obj: &'py _pyo3::PyAny, holder: &'a mut Self::Holder) -> _pyo3::PyResult<Self> {
+                        _pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
+                    }
                 }
             }
         }

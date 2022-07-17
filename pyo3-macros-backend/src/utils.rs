@@ -164,13 +164,6 @@ pub fn unwrap_ty_group(mut ty: &syn::Type) -> &syn::Type {
     ty
 }
 
-/// Remove lifetime from reference
-pub(crate) fn remove_lifetime(tref: &syn::TypeReference) -> syn::TypeReference {
-    let mut tref = tref.to_owned();
-    tref.lifetime = None;
-    tref
-}
-
 /// Extract the path to the pyo3 crate, or use the default (`::pyo3`).
 pub(crate) fn get_pyo3_crate(attr: &Option<CrateAttribute>) -> syn::Path {
     attr.as_ref()

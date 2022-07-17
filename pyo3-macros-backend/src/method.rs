@@ -460,9 +460,6 @@ impl<'a> FnSpec<'a> {
         let deprecations = &self.deprecations;
         let self_conversion = self.tp.self_conversion(cls, ExtractErrorMode::Raise);
         let self_arg = self.tp.self_arg();
-        let arg_names = (0..self.args.len())
-            .map(|pos| syn::Ident::new(&format!("arg{}", pos), Span::call_site()))
-            .collect::<Vec<_>>();
         let py = syn::Ident::new("_py", Span::call_site());
         let func_name = &self.name;
         let rust_name = if let Some(cls) = cls {
@@ -472,19 +469,22 @@ impl<'a> FnSpec<'a> {
         };
 
         // The method call is necessary to generate a decent error message.
-        let rust_call = quote! {
-            let mut ret = #rust_name(#self_arg #(#arg_names),*);
+        let rust_call = |args: Vec<TokenStream>| {
+            quote! {
+                let mut ret = #rust_name(#self_arg #(#args),*);
 
-            if false {
-                use _pyo3::impl_::ghost::IntoPyResult;
-                ret.assert_into_py_result();
+                if false {
+                    use _pyo3::impl_::ghost::IntoPyResult;
+                    ret.assert_into_py_result();
+                }
+
+                _pyo3::callback::convert(#py, ret)
             }
-
-            _pyo3::callback::convert(#py, ret)
         };
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
+                let call = rust_call(vec![]);
                 quote! {
                     unsafe extern "C" fn #ident (
                         _slf: *mut _pyo3::ffi::PyObject,
@@ -496,13 +496,14 @@ impl<'a> FnSpec<'a> {
                         let #py = gil.python();
                         _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
-                            #rust_call
+                            #call
                         }))
                     }
                 }
             }
             CallingConvention::Fastcall => {
-                let arg_convert = impl_arg_params(self, cls, &py, true)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, &py, true)?;
+                let call = rust_call(args);
                 quote! {
                     unsafe extern "C" fn #ident (
                         _slf: *mut _pyo3::ffi::PyObject,
@@ -516,13 +517,14 @@ impl<'a> FnSpec<'a> {
                         _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
-                            #rust_call
+                            #call
                         }))
                     }
                 }
             }
             CallingConvention::Varargs => {
-                let arg_convert = impl_arg_params(self, cls, &py, false)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
+                let call = rust_call(args);
                 quote! {
                     unsafe extern "C" fn #ident (
                         _slf: *mut _pyo3::ffi::PyObject,
@@ -535,14 +537,14 @@ impl<'a> FnSpec<'a> {
                         _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
-                            #rust_call
+                            #call
                         }))
                     }
                 }
             }
             CallingConvention::TpNew => {
-                let rust_call = quote! { #rust_name(#(#arg_names),*) };
-                let arg_convert = impl_arg_params(self, cls, &py, false)?;
+                let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
+                let call = quote! { #rust_name(#(#args),*) };
                 quote! {
                     unsafe extern "C" fn #ident (
                         subtype: *mut _pyo3::ffi::PyTypeObject,
@@ -555,7 +557,7 @@ impl<'a> FnSpec<'a> {
                         let #py = gil.python();
                         _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
                             #arg_convert
-                            let result = #rust_call;
+                            let result = #call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
                             initializer.into_new_object(#py, subtype)
                         }))

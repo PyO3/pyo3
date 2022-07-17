@@ -733,7 +733,7 @@ where
             .try_borrow_mut()?
             .__ipow__(
                 extract_or_return_not_implemented!(other),
-                match modulo.extract(py) {
+                match modulo.to_borrowed_any(py).extract() {
                     Ok(value) => value,
                     Err(_) => {
                         let res = crate::ffi::Py_NotImplemented();
