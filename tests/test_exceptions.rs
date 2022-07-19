@@ -20,20 +20,20 @@ fn fail_to_open_file() -> PyResult<()> {
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
+    Python::with_gil(|py| {
+        let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
 
-    py_run!(
-        py,
-        fail_to_open_file,
-        r#"
+        py_run!(
+            py,
+            fail_to_open_file,
+            r#"
         try:
             fail_to_open_file()
         except FileNotFoundError as e:
             assert str(e) == "No such file or directory (os error 2)"
         "#
-    );
+        );
+    });
 }
 
 #[derive(Debug)]
@@ -65,20 +65,21 @@ fn call_fail_with_custom_error() -> PyResult<()> {
 
 #[test]
 fn test_custom_error() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let call_fail_with_custom_error = wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
+    Python::with_gil(|py| {
+        let call_fail_with_custom_error =
+            wrap_pyfunction!(call_fail_with_custom_error)(py).unwrap();
 
-    py_run!(
-        py,
-        call_fail_with_custom_error,
-        r#"
+        py_run!(
+            py,
+            call_fail_with_custom_error,
+            r#"
         try:
             call_fail_with_custom_error()
         except OSError as e:
             assert str(e) == "Oh no!"
         "#
-    );
+        );
+    });
 }
 
 #[test]

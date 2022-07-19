@@ -13,7 +13,7 @@ fn bench_clean_gilpool_new(b: &mut Bencher<'_>) {
 fn bench_clean_acquire_gil(b: &mut Bencher<'_>) {
     // Acquiring first GIL will also create a "clean" GILPool, so this measures the Python overhead.
     b.iter(|| {
-        let _ = Python::acquire_gil();
+        let _ = Python::with_gil(|_| {});
     });
 }
 
@@ -25,7 +25,7 @@ fn bench_dirty_acquire_gil(b: &mut Bencher<'_>) {
             let _ = obj.clone();
         },
         |_| {
-            let _ = Python::acquire_gil();
+            let _ = Python::with_gil(|_| {});
         },
         BatchSize::NumBatches(1),
     );

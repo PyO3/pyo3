@@ -89,35 +89,35 @@ fn reader() -> Reader {
 
 #[test]
 fn test_nested_iter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let reader: PyObject = reader().into_py(py);
-    py_assert!(
-        py,
-        reader,
-        "list(reader.get_iter(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
-    );
+    Python::with_gil(|py| {
+        let reader: PyObject = reader().into_py(py);
+        py_assert!(
+            py,
+            reader,
+            "list(reader.get_iter(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
+        );
+    });
 }
 
 #[test]
 fn test_clone_ref() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let reader: PyObject = reader().into_py(py);
-    py_assert!(py, reader, "reader == reader.clone_ref()");
-    py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
+    Python::with_gil(|py| {
+        let reader: PyObject = reader().into_py(py);
+        py_assert!(py, reader, "reader == reader.clone_ref()");
+        py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
+    });
 }
 
 #[test]
 fn test_nested_iter_reset() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let reader = PyCell::new(py, reader()).unwrap();
-    py_assert!(
-        py,
-        reader,
-        "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
-    );
-    let reader_ref = reader.borrow();
-    assert!(reader_ref.inner.is_empty());
+    Python::with_gil(|py| {
+        let reader = PyCell::new(py, reader()).unwrap();
+        py_assert!(
+            py,
+            reader,
+            "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
+        );
+        let reader_ref = reader.borrow();
+        assert!(reader_ref.inner.is_empty());
+    });
 }

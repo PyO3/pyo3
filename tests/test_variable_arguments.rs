@@ -25,24 +25,24 @@ impl MyClass {
 
 #[test]
 fn variable_args() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let my_obj = py.get_type::<MyClass>();
-    py_assert!(py, my_obj, "my_obj.test_args() == ()");
-    py_assert!(py, my_obj, "my_obj.test_args(1) == (1,)");
-    py_assert!(py, my_obj, "my_obj.test_args(1, 2) == (1, 2)");
+    Python::with_gil(|py| {
+        let my_obj = py.get_type::<MyClass>();
+        py_assert!(py, my_obj, "my_obj.test_args() == ()");
+        py_assert!(py, my_obj, "my_obj.test_args(1) == (1,)");
+        py_assert!(py, my_obj, "my_obj.test_args(1, 2) == (1, 2)");
+    });
 }
 
 #[test]
 fn variable_kwargs() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let my_obj = py.get_type::<MyClass>();
-    py_assert!(py, my_obj, "my_obj.test_kwargs() == None");
-    py_assert!(py, my_obj, "my_obj.test_kwargs(test=1) == {'test': 1}");
-    py_assert!(
-        py,
-        my_obj,
-        "my_obj.test_kwargs(test1=1, test2=2) == {'test1':1, 'test2':2}"
-    );
+    Python::with_gil(|py| {
+        let my_obj = py.get_type::<MyClass>();
+        py_assert!(py, my_obj, "my_obj.test_kwargs() == None");
+        py_assert!(py, my_obj, "my_obj.test_kwargs(test=1) == {'test': 1}");
+        py_assert!(
+            py,
+            my_obj,
+            "my_obj.test_kwargs(test1=1, test2=2) == {'test1':1, 'test2':2}"
+        );
+    });
 }

@@ -41,15 +41,14 @@ impl UnaryArithmetic {
 
 #[test]
 fn unary_arithmetic() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, UnaryArithmetic::new(2.7)).unwrap();
-    py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
-    py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
-    py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
-    py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
-    py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, UnaryArithmetic::new(2.7)).unwrap();
+        py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
+        py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
+        py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
+        py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
+        py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
+    });
 }
 
 #[pyclass]
@@ -135,26 +134,26 @@ impl InPlaceOperations {
 
 #[test]
 fn inplace_operations() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let init = |value, code| {
-        let c = PyCell::new(py, InPlaceOperations { value }).unwrap();
-        py_run!(py, c, code);
-    };
+    Python::with_gil(|py| {
+        let init = |value, code| {
+            let c = PyCell::new(py, InPlaceOperations { value }).unwrap();
+            py_run!(py, c, code);
+        };
 
-    init(0, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
-    init(10, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
-    init(3, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
-    init(3, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
-    init(12, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
-    init(12, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
-    init(12, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
-    init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
-    init(3, "d = c; c **= 4; assert repr(c) == repr(d) == 'IPO(81)'");
-    init(
-        3,
-        "d = c; c.__ipow__(4); assert repr(c) == repr(d) == 'IPO(81)'",
-    );
+        init(0, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
+        init(10, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
+        init(3, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
+        init(3, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
+        init(12, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
+        init(12, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
+        init(12, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
+        init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
+        init(3, "d = c; c **= 4; assert repr(c) == repr(d) == 'IPO(81)'");
+        init(
+            3,
+            "d = c; c.__ipow__(4); assert repr(c) == repr(d) == 'IPO(81)'",
+        );
+    });
 }
 
 #[pyclass]
@@ -205,36 +204,35 @@ impl BinaryArithmetic {
 
 #[test]
 fn binary_arithmetic() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, BinaryArithmetic {}).unwrap();
+        py_run!(py, c, "assert c + c == 'BA + BA'");
+        py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
+        py_run!(py, c, "assert c + 1 == 'BA + 1'");
+        py_run!(py, c, "assert c - 1 == 'BA - 1'");
+        py_run!(py, c, "assert c * 1 == 'BA * 1'");
+        py_run!(py, c, "assert c << 1 == 'BA << 1'");
+        py_run!(py, c, "assert c >> 1 == 'BA >> 1'");
+        py_run!(py, c, "assert c & 1 == 'BA & 1'");
+        py_run!(py, c, "assert c ^ 1 == 'BA ^ 1'");
+        py_run!(py, c, "assert c | 1 == 'BA | 1'");
+        py_run!(py, c, "assert c ** 1 == 'BA ** 1 (mod: None)'");
 
-    let c = PyCell::new(py, BinaryArithmetic {}).unwrap();
-    py_run!(py, c, "assert c + c == 'BA + BA'");
-    py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
-    py_run!(py, c, "assert c + 1 == 'BA + 1'");
-    py_run!(py, c, "assert c - 1 == 'BA - 1'");
-    py_run!(py, c, "assert c * 1 == 'BA * 1'");
-    py_run!(py, c, "assert c << 1 == 'BA << 1'");
-    py_run!(py, c, "assert c >> 1 == 'BA >> 1'");
-    py_run!(py, c, "assert c & 1 == 'BA & 1'");
-    py_run!(py, c, "assert c ^ 1 == 'BA ^ 1'");
-    py_run!(py, c, "assert c | 1 == 'BA | 1'");
-    py_run!(py, c, "assert c ** 1 == 'BA ** 1 (mod: None)'");
+        // Class with __add__ only should not allow the reverse op;
+        // this is consistent with Python classes.
 
-    // Class with __add__ only should not allow the reverse op;
-    // this is consistent with Python classes.
+        py_expect_exception!(py, c, "1 + c", PyTypeError);
+        py_expect_exception!(py, c, "1 - c", PyTypeError);
+        py_expect_exception!(py, c, "1 * c", PyTypeError);
+        py_expect_exception!(py, c, "1 << c", PyTypeError);
+        py_expect_exception!(py, c, "1 >> c", PyTypeError);
+        py_expect_exception!(py, c, "1 & c", PyTypeError);
+        py_expect_exception!(py, c, "1 ^ c", PyTypeError);
+        py_expect_exception!(py, c, "1 | c", PyTypeError);
+        py_expect_exception!(py, c, "1 ** c", PyTypeError);
 
-    py_expect_exception!(py, c, "1 + c", PyTypeError);
-    py_expect_exception!(py, c, "1 - c", PyTypeError);
-    py_expect_exception!(py, c, "1 * c", PyTypeError);
-    py_expect_exception!(py, c, "1 << c", PyTypeError);
-    py_expect_exception!(py, c, "1 >> c", PyTypeError);
-    py_expect_exception!(py, c, "1 & c", PyTypeError);
-    py_expect_exception!(py, c, "1 ^ c", PyTypeError);
-    py_expect_exception!(py, c, "1 | c", PyTypeError);
-    py_expect_exception!(py, c, "1 ** c", PyTypeError);
-
-    py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
+        py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
+    });
 }
 
 #[pyclass]
@@ -281,28 +279,27 @@ impl RhsArithmetic {
 
 #[test]
 fn rhs_arithmetic() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, RhsArithmetic {}).unwrap();
-    py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
-    py_run!(py, c, "assert 1 + c == '1 + RA'");
-    py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
-    py_run!(py, c, "assert 1 - c == '1 - RA'");
-    py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
-    py_run!(py, c, "assert 1 * c == '1 * RA'");
-    py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
-    py_run!(py, c, "assert 1 << c == '1 << RA'");
-    py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
-    py_run!(py, c, "assert 1 >> c == '1 >> RA'");
-    py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
-    py_run!(py, c, "assert 1 & c == '1 & RA'");
-    py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
-    py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
-    py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
-    py_run!(py, c, "assert 1 | c == '1 | RA'");
-    py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
-    py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, RhsArithmetic {}).unwrap();
+        py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
+        py_run!(py, c, "assert 1 + c == '1 + RA'");
+        py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
+        py_run!(py, c, "assert 1 - c == '1 - RA'");
+        py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
+        py_run!(py, c, "assert 1 * c == '1 * RA'");
+        py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
+        py_run!(py, c, "assert 1 << c == '1 << RA'");
+        py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
+        py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+        py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
+        py_run!(py, c, "assert 1 & c == '1 & RA'");
+        py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
+        py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+        py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
+        py_run!(py, c, "assert 1 | c == '1 | RA'");
+        py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
+        py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+    });
 }
 
 #[pyclass]
@@ -411,32 +408,31 @@ impl LhsAndRhs {
 
 #[test]
 fn lhs_fellback_to_rhs() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, LhsAndRhs {}).unwrap();
-    // If the light hand value is `LhsAndRhs`, LHS is used.
-    py_run!(py, c, "assert c + 1 == 'LR + 1'");
-    py_run!(py, c, "assert c - 1 == 'LR - 1'");
-    py_run!(py, c, "assert c * 1 == 'LR * 1'");
-    py_run!(py, c, "assert c << 1 == 'LR << 1'");
-    py_run!(py, c, "assert c >> 1 == 'LR >> 1'");
-    py_run!(py, c, "assert c & 1 == 'LR & 1'");
-    py_run!(py, c, "assert c ^ 1 == 'LR ^ 1'");
-    py_run!(py, c, "assert c | 1 == 'LR | 1'");
-    py_run!(py, c, "assert c ** 1 == 'LR ** 1'");
-    py_run!(py, c, "assert c @ 1 == 'LR @ 1'");
-    // Fellback to RHS because of type mismatching
-    py_run!(py, c, "assert 1 + c == '1 + RA'");
-    py_run!(py, c, "assert 1 - c == '1 - RA'");
-    py_run!(py, c, "assert 1 * c == '1 * RA'");
-    py_run!(py, c, "assert 1 << c == '1 << RA'");
-    py_run!(py, c, "assert 1 >> c == '1 >> RA'");
-    py_run!(py, c, "assert 1 & c == '1 & RA'");
-    py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
-    py_run!(py, c, "assert 1 | c == '1 | RA'");
-    py_run!(py, c, "assert 1 ** c == '1 ** RA'");
-    py_run!(py, c, "assert 1 @ c == '1 @ RA'");
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, LhsAndRhs {}).unwrap();
+        // If the light hand value is `LhsAndRhs`, LHS is used.
+        py_run!(py, c, "assert c + 1 == 'LR + 1'");
+        py_run!(py, c, "assert c - 1 == 'LR - 1'");
+        py_run!(py, c, "assert c * 1 == 'LR * 1'");
+        py_run!(py, c, "assert c << 1 == 'LR << 1'");
+        py_run!(py, c, "assert c >> 1 == 'LR >> 1'");
+        py_run!(py, c, "assert c & 1 == 'LR & 1'");
+        py_run!(py, c, "assert c ^ 1 == 'LR ^ 1'");
+        py_run!(py, c, "assert c | 1 == 'LR | 1'");
+        py_run!(py, c, "assert c ** 1 == 'LR ** 1'");
+        py_run!(py, c, "assert c @ 1 == 'LR @ 1'");
+        // Fellback to RHS because of type mismatching
+        py_run!(py, c, "assert 1 + c == '1 + RA'");
+        py_run!(py, c, "assert 1 - c == '1 - RA'");
+        py_run!(py, c, "assert 1 * c == '1 * RA'");
+        py_run!(py, c, "assert 1 << c == '1 << RA'");
+        py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+        py_run!(py, c, "assert 1 & c == '1 & RA'");
+        py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+        py_run!(py, c, "assert 1 | c == '1 | RA'");
+        py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+        py_run!(py, c, "assert 1 @ c == '1 @ RA'");
+    });
 }
 
 #[pyclass]
@@ -480,54 +476,52 @@ impl RichComparisons2 {
 
 #[test]
 fn rich_comparisons() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, RichComparisons {}).unwrap();
-    py_run!(py, c, "assert (c < c) == 'RC < RC'");
-    py_run!(py, c, "assert (c < 1) == 'RC < 1'");
-    py_run!(py, c, "assert (1 < c) == 'RC > 1'");
-    py_run!(py, c, "assert (c <= c) == 'RC <= RC'");
-    py_run!(py, c, "assert (c <= 1) == 'RC <= 1'");
-    py_run!(py, c, "assert (1 <= c) == 'RC >= 1'");
-    py_run!(py, c, "assert (c == c) == 'RC == RC'");
-    py_run!(py, c, "assert (c == 1) == 'RC == 1'");
-    py_run!(py, c, "assert (1 == c) == 'RC == 1'");
-    py_run!(py, c, "assert (c != c) == 'RC != RC'");
-    py_run!(py, c, "assert (c != 1) == 'RC != 1'");
-    py_run!(py, c, "assert (1 != c) == 'RC != 1'");
-    py_run!(py, c, "assert (c > c) == 'RC > RC'");
-    py_run!(py, c, "assert (c > 1) == 'RC > 1'");
-    py_run!(py, c, "assert (1 > c) == 'RC < 1'");
-    py_run!(py, c, "assert (c >= c) == 'RC >= RC'");
-    py_run!(py, c, "assert (c >= 1) == 'RC >= 1'");
-    py_run!(py, c, "assert (1 >= c) == 'RC <= 1'");
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, RichComparisons {}).unwrap();
+        py_run!(py, c, "assert (c < c) == 'RC < RC'");
+        py_run!(py, c, "assert (c < 1) == 'RC < 1'");
+        py_run!(py, c, "assert (1 < c) == 'RC > 1'");
+        py_run!(py, c, "assert (c <= c) == 'RC <= RC'");
+        py_run!(py, c, "assert (c <= 1) == 'RC <= 1'");
+        py_run!(py, c, "assert (1 <= c) == 'RC >= 1'");
+        py_run!(py, c, "assert (c == c) == 'RC == RC'");
+        py_run!(py, c, "assert (c == 1) == 'RC == 1'");
+        py_run!(py, c, "assert (1 == c) == 'RC == 1'");
+        py_run!(py, c, "assert (c != c) == 'RC != RC'");
+        py_run!(py, c, "assert (c != 1) == 'RC != 1'");
+        py_run!(py, c, "assert (1 != c) == 'RC != 1'");
+        py_run!(py, c, "assert (c > c) == 'RC > RC'");
+        py_run!(py, c, "assert (c > 1) == 'RC > 1'");
+        py_run!(py, c, "assert (1 > c) == 'RC < 1'");
+        py_run!(py, c, "assert (c >= c) == 'RC >= RC'");
+        py_run!(py, c, "assert (c >= 1) == 'RC >= 1'");
+        py_run!(py, c, "assert (1 >= c) == 'RC <= 1'");
+    });
 }
 
 #[test]
 fn rich_comparisons_python_3_type_error() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c2 = PyCell::new(py, RichComparisons2 {}).unwrap();
-    py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
-    py_expect_exception!(py, c2, "1 < c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 <= c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 <= 1", PyTypeError);
-    py_expect_exception!(py, c2, "1 <= c2", PyTypeError);
-    py_run!(py, c2, "assert (c2 == c2) == True");
-    py_run!(py, c2, "assert (c2 == 1) == True");
-    py_run!(py, c2, "assert (1 == c2) == True");
-    py_run!(py, c2, "assert (c2 != c2) == False");
-    py_run!(py, c2, "assert (c2 != 1) == False");
-    py_run!(py, c2, "assert (1 != c2) == False");
-    py_expect_exception!(py, c2, "c2 > c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 > 1", PyTypeError);
-    py_expect_exception!(py, c2, "1 > c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 >= c2", PyTypeError);
-    py_expect_exception!(py, c2, "c2 >= 1", PyTypeError);
-    py_expect_exception!(py, c2, "1 >= c2", PyTypeError);
+    Python::with_gil(|py| {
+        let c2 = PyCell::new(py, RichComparisons2 {}).unwrap();
+        py_expect_exception!(py, c2, "c2 < c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 < 1", PyTypeError);
+        py_expect_exception!(py, c2, "1 < c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 <= c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 <= 1", PyTypeError);
+        py_expect_exception!(py, c2, "1 <= c2", PyTypeError);
+        py_run!(py, c2, "assert (c2 == c2) == True");
+        py_run!(py, c2, "assert (c2 == 1) == True");
+        py_run!(py, c2, "assert (1 == c2) == True");
+        py_run!(py, c2, "assert (c2 != c2) == False");
+        py_run!(py, c2, "assert (c2 != 1) == False");
+        py_run!(py, c2, "assert (1 != c2) == False");
+        py_expect_exception!(py, c2, "c2 > c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 > 1", PyTypeError);
+        py_expect_exception!(py, c2, "1 > c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 >= c2", PyTypeError);
+        py_expect_exception!(py, c2, "c2 >= 1", PyTypeError);
+        py_expect_exception!(py, c2, "1 >= c2", PyTypeError);
+    });
 }
 
 // Checks that binary operations for which the arguments don't match the
@@ -608,31 +602,31 @@ mod return_not_implemented {
     }
 
     fn _test_binary_dunder(dunder: &str) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        py_run!(
-            py,
-            c2,
-            &format!(
-                "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
-                dunder
-            )
-        );
+        Python::with_gil(|py| {
+            let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+            py_run!(
+                py,
+                c2,
+                &format!(
+                    "class Other: pass\nassert c2.__{}__(Other()) is NotImplemented",
+                    dunder
+                )
+            );
+        });
     }
 
     fn _test_binary_operator(operator: &str, dunder: &str) {
         _test_binary_dunder(dunder);
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
-        py_expect_exception!(
-            py,
-            c2,
-            &format!("class Other: pass\nc2 {} Other()", operator),
-            PyTypeError
-        );
+        Python::with_gil(|py| {
+            let c2 = PyCell::new(py, RichComparisonToSelf {}).unwrap();
+            py_expect_exception!(
+                py,
+                c2,
+                &format!("class Other: pass\nc2 {} Other()", operator),
+                PyTypeError
+            );
+        });
     }
 
     fn _test_inplace_binary_operator(operator: &str, dunder: &str) {

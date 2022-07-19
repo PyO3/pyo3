@@ -377,18 +377,17 @@ impl Iterator {
 
 #[test]
 fn iterator() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let inst = Py::new(
-        py,
-        Iterator {
-            iter: Box::new(5..8),
-        },
-    )
-    .unwrap();
-    py_assert!(py, inst, "iter(inst) is inst");
-    py_assert!(py, inst, "list(inst) == [5, 6, 7]");
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            Iterator {
+                iter: Box::new(5..8),
+            },
+        )
+        .unwrap();
+        py_assert!(py, inst, "iter(inst) is inst");
+        py_assert!(py, inst, "list(inst) == [5, 6, 7]");
+    });
 }
 
 #[pyclass]
@@ -406,15 +405,14 @@ struct NotCallable;
 
 #[test]
 fn callable() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let c = Py::new(py, Callable).unwrap();
+        py_assert!(py, c, "callable(c)");
+        py_assert!(py, c, "c(7) == 42");
 
-    let c = Py::new(py, Callable).unwrap();
-    py_assert!(py, c, "callable(c)");
-    py_assert!(py, c, "c(7) == 42");
-
-    let nc = Py::new(py, NotCallable).unwrap();
-    py_assert!(py, nc, "not callable(nc)");
+        let nc = Py::new(py, NotCallable).unwrap();
+        py_assert!(py, nc, "not callable(nc)");
+    });
 }
 
 #[pyclass]
@@ -434,17 +432,16 @@ impl SetItem {
 
 #[test]
 fn setitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
-    py_run!(py, c, "c[1] = 2");
-    {
-        let c = c.borrow();
-        assert_eq!(c.key, 1);
-        assert_eq!(c.val, 2);
-    }
-    py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
+        py_run!(py, c, "c[1] = 2");
+        {
+            let c = c.borrow();
+            assert_eq!(c.key, 1);
+            assert_eq!(c.val, 2);
+        }
+        py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
+    });
 }
 
 #[pyclass]
@@ -461,16 +458,15 @@ impl DelItem {
 
 #[test]
 fn delitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
-    py_run!(py, c, "del c[1]");
-    {
-        let c = c.borrow();
-        assert_eq!(c.key, 1);
-    }
-    py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
+        py_run!(py, c, "del c[1]");
+        {
+            let c = c.borrow();
+            assert_eq!(c.key, 1);
+        }
+        py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
+    });
 }
 
 #[pyclass]
@@ -491,18 +487,17 @@ impl SetDelItem {
 
 #[test]
 fn setdelitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
-    py_run!(py, c, "c[1] = 2");
-    {
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
+        py_run!(py, c, "c[1] = 2");
+        {
+            let c = c.borrow();
+            assert_eq!(c.val, Some(2));
+        }
+        py_run!(py, c, "del c[1]");
         let c = c.borrow();
-        assert_eq!(c.val, Some(2));
-    }
-    py_run!(py, c, "del c[1]");
-    let c = c.borrow();
-    assert_eq!(c.val, None);
+        assert_eq!(c.val, None);
+    });
 }
 
 #[pyclass]
@@ -517,13 +512,12 @@ impl Contains {
 
 #[test]
 fn contains() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Contains {}).unwrap();
-    py_run!(py, c, "assert 1 in c");
-    py_run!(py, c, "assert -1 not in c");
-    py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
+    Python::with_gil(|py| {
+        let c = Py::new(py, Contains {}).unwrap();
+        py_run!(py, c, "assert 1 in c");
+        py_run!(py, c, "assert -1 not in c");
+        py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
+    });
 }
 
 #[pyclass]
@@ -548,13 +542,12 @@ impl GetItem {
 
 #[test]
 fn test_getitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let ob = Py::new(py, GetItem {}).unwrap();
 
-    let ob = Py::new(py, GetItem {}).unwrap();
-
-    py_assert!(py, ob, "ob[1] == 'int'");
-    py_assert!(py, ob, "ob[100:200:1] == 'slice'");
+        py_assert!(py, ob, "ob[1] == 'int'");
+        py_assert!(py, ob, "ob[100:200:1] == 'slice'");
+    });
 }
 
 #[pyclass]
@@ -572,11 +565,11 @@ impl ClassWithGetAttr {
 
 #[test]
 fn getattr_doesnt_override_member() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
-    py_assert!(py, inst, "inst.data == 4");
-    py_assert!(py, inst, "inst.a == 8");
+    Python::with_gil(|py| {
+        let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+        py_assert!(py, inst, "inst.data == 4");
+        py_assert!(py, inst, "inst.a == 8");
+    });
 }
 
 #[pyclass]
@@ -594,11 +587,11 @@ impl ClassWithGetAttribute {
 
 #[test]
 fn getattribute_overrides_member() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
-    py_assert!(py, inst, "inst.data == 8");
-    py_assert!(py, inst, "inst.y == 8");
+    Python::with_gil(|py| {
+        let inst = PyCell::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
+        py_assert!(py, inst, "inst.data == 8");
+        py_assert!(py, inst, "inst.y == 8");
+    });
 }
 
 #[pyclass]
@@ -627,13 +620,13 @@ impl ClassWithGetAttrAndGetAttribute {
 
 #[test]
 fn getattr_and_getattribute() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
-    py_assert!(py, inst, "inst.exists == 42");
-    py_assert!(py, inst, "inst.lucky == 57");
-    py_expect_exception!(py, inst, "inst.error", PyValueError);
-    py_expect_exception!(py, inst, "inst.unlucky", PyAttributeError);
+    Python::with_gil(|py| {
+        let inst = PyCell::new(py, ClassWithGetAttrAndGetAttribute).unwrap();
+        py_assert!(py, inst, "inst.exists == 42");
+        py_assert!(py, inst, "inst.lucky == 57");
+        py_expect_exception!(py, inst, "inst.error", PyValueError);
+        py_expect_exception!(py, inst, "inst.unlucky", PyAttributeError);
+    });
 }
 
 /// Wraps a Python future and yield it once.
@@ -674,10 +667,9 @@ impl OnceFuture {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_await() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let once = py.get_type::<OnceFuture>();
-    let source = r#"
+    Python::with_gil(|py| {
+        let once = py.get_type::<OnceFuture>();
+        let source = r#"
 import asyncio
 import sys
 
@@ -691,11 +683,12 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-    let globals = PyModule::import(py, "__main__").unwrap().dict();
-    globals.set_item("Once", once).unwrap();
-    py.run(source, Some(globals), None)
-        .map_err(|e| e.print(py))
-        .unwrap();
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        globals.set_item("Once", once).unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    });
 }
 
 #[pyclass]
@@ -724,10 +717,9 @@ impl AsyncIterator {
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
 fn test_anext_aiter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let once = py.get_type::<OnceFuture>();
-    let source = r#"
+    Python::with_gil(|py| {
+        let once = py.get_type::<OnceFuture>();
+        let source = r#"
 import asyncio
 import sys
 
@@ -745,14 +737,15 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 
 asyncio.run(main())
 "#;
-    let globals = PyModule::import(py, "__main__").unwrap().dict();
-    globals.set_item("Once", once).unwrap();
-    globals
-        .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
-        .unwrap();
-    py.run(source, Some(globals), None)
-        .map_err(|e| e.print(py))
-        .unwrap();
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        globals.set_item("Once", once).unwrap();
+        globals
+            .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
+            .unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    });
 }
 
 /// Increment the count when `__get__` is called.
@@ -789,11 +782,10 @@ impl DescrCounter {
 
 #[test]
 fn descr_getset() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let counter = py.get_type::<DescrCounter>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    Python::with_gil(|py| {
+        let counter = py.get_type::<DescrCounter>();
+        let source = pyo3::indoc::indoc!(
+            r#"
 class Class:
     counter = Counter()
 
@@ -816,12 +808,13 @@ assert c.counter.count == 4
 del c.counter
 assert c.counter.count == 1
 "#
-    );
-    let globals = PyModule::import(py, "__main__").unwrap().dict();
-    globals.set_item("Counter", counter).unwrap();
-    py.run(source, Some(globals), None)
-        .map_err(|e| e.print(py))
-        .unwrap();
+        );
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        globals.set_item("Counter", counter).unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    });
 }
 
 #[pyclass]

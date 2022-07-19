@@ -85,9 +85,7 @@ impl Drop for TestBufferClass {
 fn test_buffer() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Python::with_gil(|py| {
         let instance = Py::new(
             py,
             TestBufferClass {
@@ -98,7 +96,7 @@ fn test_buffer() {
         .unwrap();
         let env = [("ob", instance)].into_py_dict(py);
         py_assert!(py, *env, "bytes(ob) == b' 23'");
-    }
+    });
 
     assert!(drop_called.load(Ordering::Relaxed));
 }
@@ -107,28 +105,27 @@ fn test_buffer() {
 fn test_buffer_referenced() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    let buf = {
+    let buf: PyBuffer<u8> = {
         let input = vec![b' ', b'2', b'3'];
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let instance: PyObject = TestBufferClass {
-            vec: input.clone(),
-            drop_called: drop_called.clone(),
-        }
-        .into_py(py);
+        Python::with_gil(|py| {
+            let instance: PyObject = TestBufferClass {
+                vec: input.clone(),
+                drop_called: drop_called.clone(),
+            }
+            .into_py(py);
 
-        let buf = PyBuffer::<u8>::get(instance.as_ref(py)).unwrap();
-        assert_eq!(buf.to_vec(py).unwrap(), input);
-        drop(instance);
-        buf
+            let buf = PyBuffer::<u8>::get(instance.as_ref(py)).unwrap();
+            assert_eq!(buf.to_vec(py).unwrap(), input);
+            drop(instance);
+            buf
+        })
     };
 
     assert!(!drop_called.load(Ordering::Relaxed));
 
-    {
-        let _py = Python::acquire_gil().python();
+    Python::with_gil(|_| {
         drop(buf);
-    }
+    });
 
     assert!(drop_called.load(Ordering::Relaxed));
 }

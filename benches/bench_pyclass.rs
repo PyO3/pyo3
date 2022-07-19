@@ -27,13 +27,13 @@ impl MyClass {
 }
 
 pub fn first_time_init(b: &mut criterion::Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    b.iter(|| {
-        // This is using an undocumented internal PyO3 API to measure pyclass performance; please
-        // don't use this in your own code!
-        let ty = LazyStaticType::new();
-        ty.get_or_init::<MyClass>(py);
+    Python::with_gil(|py| {
+        b.iter(|| {
+            // This is using an undocumented internal PyO3 API to measure pyclass performance; please
+            // don't use this in your own code!
+            let ty = LazyStaticType::new();
+            ty.get_or_init::<MyClass>(py);
+        });
     });
 }
 

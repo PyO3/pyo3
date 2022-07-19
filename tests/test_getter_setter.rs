@@ -46,25 +46,24 @@ impl ClassWithProperties {
 
 #[test]
 fn class_with_properties() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let inst = Py::new(py, ClassWithProperties { num: 10 }).unwrap();
 
-    let inst = Py::new(py, ClassWithProperties { num: 10 }).unwrap();
+        py_run!(py, inst, "assert inst.get_num() == 10");
+        py_run!(py, inst, "assert inst.get_num() == inst.DATA");
+        py_run!(py, inst, "inst.DATA = 20");
+        py_run!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
 
-    py_run!(py, inst, "assert inst.get_num() == 10");
-    py_run!(py, inst, "assert inst.get_num() == inst.DATA");
-    py_run!(py, inst, "inst.DATA = 20");
-    py_run!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
+        py_expect_exception!(py, inst, "del inst.DATA", PyAttributeError);
 
-    py_expect_exception!(py, inst, "del inst.DATA", PyAttributeError);
+        py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
+        py_run!(py, inst, "inst.unwrapped = 42");
+        py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
+        py_run!(py, inst, "assert inst.data_list == [42]");
 
-    py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
-    py_run!(py, inst, "inst.unwrapped = 42");
-    py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
-    py_run!(py, inst, "assert inst.data_list == [42]");
-
-    let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
-    py_assert!(py, *d, "C.DATA.__doc__ == 'a getter for data'");
+        let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
+        py_assert!(py, *d, "C.DATA.__doc__ == 'a getter for data'");
+    });
 }
 
 #[pyclass]
@@ -84,25 +83,24 @@ impl GetterSetter {
 
 #[test]
 fn getter_setter_autogen() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            GetterSetter {
+                num: 10,
+                text: "Hello".to_string(),
+            },
+        )
+        .unwrap();
 
-    let inst = Py::new(
-        py,
-        GetterSetter {
-            num: 10,
-            text: "Hello".to_string(),
-        },
-    )
-    .unwrap();
-
-    py_run!(py, inst, "assert inst.num == 10");
-    py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
-    py_run!(
-        py,
-        inst,
-        "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
-    );
+        py_run!(py, inst, "assert inst.num == 10");
+        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run!(
+            py,
+            inst,
+            "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
+        );
+    });
 }
 
 #[pyclass]
@@ -126,13 +124,12 @@ impl RefGetterSetter {
 #[test]
 fn ref_getter_setter() {
     // Regression test for #837
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let inst = Py::new(py, RefGetterSetter { num: 10 }).unwrap();
 
-    let inst = Py::new(py, RefGetterSetter { num: 10 }).unwrap();
-
-    py_run!(py, inst, "assert inst.num == 10");
-    py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run!(py, inst, "assert inst.num == 10");
+        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    });
 }
 
 #[pyclass]
@@ -153,12 +150,11 @@ impl TupleClassGetterSetter {
 
 #[test]
 fn tuple_struct_getter_setter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
 
-    let inst = Py::new(py, TupleClassGetterSetter(10)).unwrap();
-
-    py_assert!(py, inst, "inst.num == 10");
-    py_run!(py, inst, "inst.num = 20");
-    py_assert!(py, inst, "inst.num == 20");
+        py_assert!(py, inst, "inst.num == 10");
+        py_run!(py, inst, "inst.num = 20");
+        py_assert!(py, inst, "inst.num == 20");
+    });
 }
