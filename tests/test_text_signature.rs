@@ -10,12 +10,12 @@ fn class_without_docs_or_signature() {
     #[pyclass]
     struct MyClass {}
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(py, typeobj, "typeobj.__doc__ is None");
-    py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
+        py_assert!(py, typeobj, "typeobj.__doc__ is None");
+        py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
+    });
 }
 
 #[test]
@@ -25,12 +25,12 @@ fn class_with_docs() {
     /// docs line2
     struct MyClass {}
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(py, typeobj, "typeobj.__doc__ == 'docs line1\\ndocs line2'");
-    py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
+        py_assert!(py, typeobj, "typeobj.__doc__ == 'docs line1\\ndocs line2'");
+        py_assert!(py, typeobj, "typeobj.__text_signature__ is None");
+    });
 }
 
 #[test]
@@ -53,20 +53,20 @@ fn class_with_docs_and_signature() {
         }
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.__doc__ == 'docs line1\\ndocs line2\\ndocs line3'"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.__text_signature__ == '(a, b=None, *, c=42)'"
-    );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.__doc__ == 'docs line1\\ndocs line2\\ndocs line3'"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.__text_signature__ == '(a, b=None, *, c=42)'"
+        );
+    });
 }
 
 #[test]
@@ -86,20 +86,20 @@ fn class_with_signature() {
         }
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.__doc__ is None or typeobj.__doc__ == ''"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.__text_signature__ == '(a, b=None, *, c=42)'"
-    );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.__doc__ is None or typeobj.__doc__ == ''"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.__text_signature__ == '(a, b=None, *, c=42)'"
+        );
+    });
 }
 
 #[test]
@@ -110,11 +110,11 @@ fn test_function() {
         let _ = (a, b, c);
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let f = wrap_pyfunction!(my_function)(py).unwrap();
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(my_function)(py).unwrap();
 
-    py_assert!(py, f, "f.__text_signature__ == '(a, b=None, *, c=42)'");
+        py_assert!(py, f, "f.__text_signature__ == '(a, b=None, *, c=42)'");
+    });
 }
 
 #[test]
@@ -129,15 +129,15 @@ fn test_pyfn() {
         Ok(())
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let m = wrap_pymodule!(my_module)(py);
+    Python::with_gil(|py| {
+        let m = wrap_pymodule!(my_module)(py);
 
-    py_assert!(
-        py,
-        m,
-        "m.my_function.__text_signature__ == '(a, b=None, *, c=42)'"
-    );
+        py_assert!(
+            py,
+            m,
+            "m.my_function.__text_signature__ == '(a, b=None, *, c=42)'"
+        );
+    });
 }
 
 #[test]
@@ -167,30 +167,30 @@ fn test_methods() {
         }
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.method.__text_signature__ == '($self, a)'"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.pyself_method.__text_signature__ == '($self, b)'"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.class_method.__text_signature__ == '($cls, c)'"
-    );
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.static_method.__text_signature__ == '(d)'"
-    );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.method.__text_signature__ == '($self, a)'"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.pyself_method.__text_signature__ == '($self, b)'"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.class_method.__text_signature__ == '($cls, c)'"
+        );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.static_method.__text_signature__ == '(d)'"
+        );
+    });
 }
 
 #[test]
@@ -210,15 +210,15 @@ fn test_raw_identifiers() {
         fn r#method(&self) {}
     }
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<MyClass>();
+    Python::with_gil(|py| {
+        let typeobj = py.get_type::<MyClass>();
 
-    py_assert!(py, typeobj, "typeobj.__text_signature__ == '($self)'");
+        py_assert!(py, typeobj, "typeobj.__text_signature__ == '($self)'");
 
-    py_assert!(
-        py,
-        typeobj,
-        "typeobj.method.__text_signature__ == '($self)'"
-    );
+        py_assert!(
+            py,
+            typeobj,
+            "typeobj.method.__text_signature__ == '($self)'"
+        );
+    });
 }

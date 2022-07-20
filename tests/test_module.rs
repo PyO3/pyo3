@@ -67,51 +67,50 @@ fn module_with_functions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 fn test_module_with_functions() {
     use pyo3::wrap_pymodule;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = [(
+            "module_with_functions",
+            wrap_pymodule!(module_with_functions)(py),
+        )]
+        .into_py_dict(py);
 
-    let d = [(
-        "module_with_functions",
-        wrap_pymodule!(module_with_functions)(py),
-    )]
-    .into_py_dict(py);
-
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.__doc__ == 'This module is implemented in Rust.'"
-    );
-    py_assert!(py, *d, "module_with_functions.no_parameters() == 42");
-    py_assert!(py, *d, "module_with_functions.foo == 'bar'");
-    py_assert!(py, *d, "module_with_functions.AnonClass != None");
-    py_assert!(py, *d, "module_with_functions.LocatedClass != None");
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.LocatedClass.__module__ == 'module'"
-    );
-    py_assert!(py, *d, "module_with_functions.double(3) == 6");
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.double.__doc__ == 'Doubles the given value'"
-    );
-    py_assert!(py, *d, "module_with_functions.also_double(3) == 6");
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.also_double.__doc__ == 'Doubles the given value'"
-    );
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2"
-    );
-    py_assert!(
-        py,
-        *d,
-        "module_with_functions.with_module() == 'module_with_functions'"
-    );
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.__doc__ == 'This module is implemented in Rust.'"
+        );
+        py_assert!(py, *d, "module_with_functions.no_parameters() == 42");
+        py_assert!(py, *d, "module_with_functions.foo == 'bar'");
+        py_assert!(py, *d, "module_with_functions.AnonClass != None");
+        py_assert!(py, *d, "module_with_functions.LocatedClass != None");
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.LocatedClass.__module__ == 'module'"
+        );
+        py_assert!(py, *d, "module_with_functions.double(3) == 6");
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.double.__doc__ == 'Doubles the given value'"
+        );
+        py_assert!(py, *d, "module_with_functions.also_double(3) == 6");
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.also_double.__doc__ == 'Doubles the given value'"
+        );
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2"
+        );
+        py_assert!(
+            py,
+            *d,
+            "module_with_functions.with_module() == 'module_with_functions'"
+        );
+    });
 }
 
 #[pymodule]
@@ -125,39 +124,37 @@ fn some_name(_: Python<'_>, m: &PyModule) -> PyResult<()> {
 fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
 
-    let d = [("different_name", wrap_pymodule!(some_name)(py))].into_py_dict(py);
-
-    py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
+        py_run!(py, *d, "assert different_name.__name__ == 'other_name'");
+    });
 }
 
 #[test]
 fn test_module_from_code() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let adder_mod = PyModule::from_code(
+            py,
+            "def add(a,b):\n\treturn a+b",
+            "adder_mod.py",
+            "adder_mod",
+        )
+        .expect("Module code should be loaded");
 
-    let adder_mod = PyModule::from_code(
-        py,
-        "def add(a,b):\n\treturn a+b",
-        "adder_mod.py",
-        "adder_mod",
-    )
-    .expect("Module code should be loaded");
+        let add_func = adder_mod
+            .getattr("add")
+            .expect("Add function should be in the module")
+            .to_object(py);
 
-    let add_func = adder_mod
-        .getattr("add")
-        .expect("Add function should be in the module")
-        .to_object(py);
+        let ret_value: i32 = add_func
+            .call1(py, (1, 2))
+            .expect("A value should be returned")
+            .extract(py)
+            .expect("The value should be able to be converted to an i32");
 
-    let ret_value: i32 = add_func
-        .call1(py, (1, 2))
-        .expect("A value should be returned")
-        .extract(py)
-        .expect("The value should be able to be converted to an i32");
-
-    assert_eq!(ret_value, 3);
+        assert_eq!(ret_value, 3);
+    });
 }
 
 #[pyfunction]
@@ -174,12 +171,11 @@ fn raw_ident_module(_py: Python<'_>, module: &PyModule) -> PyResult<()> {
 fn test_raw_idents() {
     use pyo3::wrap_pymodule;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let module = wrap_pymodule!(raw_ident_module)(py);
 
-    let module = wrap_pymodule!(raw_ident_module)(py);
-
-    py_assert!(py, module, "module.move() == 42");
+        py_assert!(py, module, "module.move() == 42");
+    });
 }
 
 #[pyfunction]
@@ -197,31 +193,30 @@ fn foobar_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 #[test]
 fn test_custom_names() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let module = pyo3::wrap_pymodule!(foobar_module)(py);
 
-    let module = pyo3::wrap_pymodule!(foobar_module)(py);
-
-    py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
-    py_assert!(py, module, "module.foobar() == 42");
+        py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
+        py_assert!(py, module, "module.foobar() == 42");
+    });
 }
 
 #[test]
 fn test_module_dict() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let module = pyo3::wrap_pymodule!(foobar_module)(py);
+    Python::with_gil(|py| {
+        let module = pyo3::wrap_pymodule!(foobar_module)(py);
 
-    py_assert!(py, module, "module.yay == 'me'");
+        py_assert!(py, module, "module.yay == 'me'");
+    });
 }
 
 #[test]
 fn test_module_dunder_all() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let module = pyo3::wrap_pymodule!(foobar_module)(py);
+    Python::with_gil(|py| {
+        let module = pyo3::wrap_pymodule!(foobar_module)(py);
 
-    py_assert!(py, module, "module.__all__ == ['foobar']");
+        py_assert!(py, module, "module.__all__ == ['foobar']");
+    });
 }
 
 #[pyfunction]
@@ -261,25 +256,25 @@ fn supermodule(py: Python<'_>, module: &PyModule) -> PyResult<()> {
 fn test_module_nesting() {
     use pyo3::wrap_pymodule;
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let supermodule = wrap_pymodule!(supermodule)(py);
+    Python::with_gil(|py| {
+        let supermodule = wrap_pymodule!(supermodule)(py);
 
-    py_assert!(
-        py,
-        supermodule,
-        "supermodule.superfunction() == 'Superfunction'"
-    );
-    py_assert!(
-        py,
-        supermodule,
-        "supermodule.submodule.subfunction() == 'Subfunction'"
-    );
-    py_assert!(
-        py,
-        supermodule,
-        "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
-    );
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.superfunction() == 'Superfunction'"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule.subfunction() == 'Subfunction'"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
+        );
+    });
 }
 
 // Test that argument parsing specification works for pyfunctions
@@ -302,15 +297,15 @@ fn vararg_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 #[test]
 fn test_vararg_module() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let m = pyo3::wrap_pymodule!(vararg_module)(py);
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(vararg_module)(py);
 
-    py_assert!(py, m, "m.ext_vararg_fn() == [5, ()]");
-    py_assert!(py, m, "m.ext_vararg_fn(1, 2) == [1, (2,)]");
+        py_assert!(py, m, "m.ext_vararg_fn() == [5, ()]");
+        py_assert!(py, m, "m.ext_vararg_fn(1, 2) == [1, (2,)]");
 
-    py_assert!(py, m, "m.int_vararg_fn() == [5, ()]");
-    py_assert!(py, m, "m.int_vararg_fn(1, 2) == [1, (2,)]");
+        py_assert!(py, m, "m.int_vararg_fn() == [5, ()]");
+        py_assert!(py, m, "m.int_vararg_fn(1, 2) == [1, (2,)]");
+    });
 }
 
 #[test]
@@ -397,36 +392,36 @@ fn module_with_functions_with_module(_py: Python<'_>, m: &PyModule) -> PyResult<
 
 #[test]
 fn test_module_functions_with_module() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let m = pyo3::wrap_pymodule!(module_with_functions_with_module)(py);
-    py_assert!(
-        py,
-        m,
-        "m.pyfunction_with_module() == 'module_with_functions_with_module'"
-    );
-    py_assert!(
-        py,
-        m,
-        "m.pyfunction_with_module_and_py() == 'module_with_functions_with_module'"
-    );
-    py_assert!(
-        py,
-        m,
-        "m.pyfunction_with_module_and_default_arg() \
+    Python::with_gil(|py| {
+        let m = pyo3::wrap_pymodule!(module_with_functions_with_module)(py);
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module() == 'module_with_functions_with_module'"
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_and_py() == 'module_with_functions_with_module'"
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_and_default_arg() \
                         == ('module_with_functions_with_module', 'foo')"
-    );
-    py_assert!(
-        py,
-        m,
-        "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_module_and_args_kwargs(1, x=1, y=2) \
                         == ('module_with_functions_with_module', 1, 2)"
-    );
-    py_assert!(
-        py,
-        m,
-        "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
-    );
+        );
+        py_assert!(
+            py,
+            m,
+            "m.pyfunction_with_pass_module_in_attribute() == 'module_with_functions_with_module'"
+        );
+    });
 }
 
 #[test]

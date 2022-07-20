@@ -16,20 +16,19 @@ struct Cloneable {
 fn test_cloneable_pyclass() {
     let c = Cloneable { x: 10 };
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
 
-    let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
-
-    let c2: Cloneable = py_c.extract(py).unwrap();
-    assert_eq!(c, c2);
-    {
-        let rc: PyRef<'_, Cloneable> = py_c.extract(py).unwrap();
-        assert_eq!(&c, &*rc);
-        // Drops PyRef before taking PyRefMut
-    }
-    let mrc: PyRefMut<'_, Cloneable> = py_c.extract(py).unwrap();
-    assert_eq!(&c, &*mrc);
+        let c2: Cloneable = py_c.extract(py).unwrap();
+        assert_eq!(c, c2);
+        {
+            let rc: PyRef<'_, Cloneable> = py_c.extract(py).unwrap();
+            assert_eq!(&c, &*rc);
+            // Drops PyRef before taking PyRefMut
+        }
+        let mrc: PyRefMut<'_, Cloneable> = py_c.extract(py).unwrap();
+        assert_eq!(&c, &*mrc);
+    });
 }
 
 #[pyclass(subclass)]
@@ -63,103 +62,98 @@ struct PolymorphicContainer {
 
 #[test]
 fn test_polymorphic_container_stores_base_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let p = PyCell::new(
+            py,
+            PolymorphicContainer {
+                inner: Py::new(py, BaseClass::default()).unwrap(),
+            },
+        )
+        .unwrap()
+        .to_object(py);
 
-    let p = PyCell::new(
-        py,
-        PolymorphicContainer {
-            inner: Py::new(py, BaseClass::default()).unwrap(),
-        },
-    )
-    .unwrap()
-    .to_object(py);
-
-    py_assert!(py, p, "p.inner.foo() == 'BaseClass'");
+        py_assert!(py, p, "p.inner.foo() == 'BaseClass'");
+    });
 }
 
 #[test]
 fn test_polymorphic_container_stores_sub_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let p = PyCell::new(
-        py,
-        PolymorphicContainer {
-            inner: Py::new(py, BaseClass::default()).unwrap(),
-        },
-    )
-    .unwrap()
-    .to_object(py);
-
-    p.as_ref(py)
-        .setattr(
-            "inner",
-            PyCell::new(
-                py,
-                PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
-            )
-            .unwrap(),
+    Python::with_gil(|py| {
+        let p = PyCell::new(
+            py,
+            PolymorphicContainer {
+                inner: Py::new(py, BaseClass::default()).unwrap(),
+            },
         )
-        .unwrap();
+        .unwrap()
+        .to_object(py);
 
-    py_assert!(py, p, "p.inner.foo() == 'SubClass'");
+        p.as_ref(py)
+            .setattr(
+                "inner",
+                PyCell::new(
+                    py,
+                    PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+
+        py_assert!(py, p, "p.inner.foo() == 'SubClass'");
+    });
 }
 
 #[test]
 fn test_polymorphic_container_does_not_accept_other_types() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let p = PyCell::new(
+            py,
+            PolymorphicContainer {
+                inner: Py::new(py, BaseClass::default()).unwrap(),
+            },
+        )
+        .unwrap()
+        .to_object(py);
 
-    let p = PyCell::new(
-        py,
-        PolymorphicContainer {
-            inner: Py::new(py, BaseClass::default()).unwrap(),
-        },
-    )
-    .unwrap()
-    .to_object(py);
+        let setattr = |value: PyObject| p.as_ref(py).setattr("inner", value);
 
-    let setattr = |value: PyObject| p.as_ref(py).setattr("inner", value);
-
-    assert!(setattr(1i32.into_py(py)).is_err());
-    assert!(setattr(py.None()).is_err());
-    assert!(setattr((1i32, 2i32).into_py(py)).is_err());
+        assert!(setattr(1i32.into_py(py)).is_err());
+        assert!(setattr(py.None()).is_err());
+        assert!(setattr((1i32, 2i32).into_py(py)).is_err());
+    });
 }
 
 #[test]
 fn test_pyref_as_base() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
-    let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
+        // First try PyRefMut
+        let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
+        let mut base: PyRefMut<'_, BaseClass> = sub.into_super();
+        assert_eq!(120, base.value);
+        base.value = 999;
+        assert_eq!(999, base.value);
+        drop(base);
 
-    // First try PyRefMut
-    let sub: PyRefMut<'_, SubClass> = cell.borrow_mut();
-    let mut base: PyRefMut<'_, BaseClass> = sub.into_super();
-    assert_eq!(120, base.value);
-    base.value = 999;
-    assert_eq!(999, base.value);
-    drop(base);
-
-    // Repeat for PyRef
-    let sub: PyRef<'_, SubClass> = cell.borrow();
-    let base: PyRef<'_, BaseClass> = sub.into_super();
-    assert_eq!(999, base.value);
+        // Repeat for PyRef
+        let sub: PyRef<'_, SubClass> = cell.borrow();
+        let base: PyRef<'_, BaseClass> = sub.into_super();
+        assert_eq!(999, base.value);
+    });
 }
 
 #[test]
 fn test_pycell_deref() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
-    let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
-
-    // Should be able to deref as PyAny
-    assert_eq!(
-        cell.call_method0("foo")
-            .and_then(PyAny::extract::<&str>)
-            .unwrap(),
-        "SubClass"
-    );
+        // Should be able to deref as PyAny
+        assert_eq!(
+            cell.call_method0("foo")
+                .and_then(PyAny::extract::<&str>)
+                .unwrap(),
+            "SubClass"
+        );
+    });
 }

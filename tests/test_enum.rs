@@ -28,12 +28,12 @@ fn return_enum() -> MyEnum {
 
 #[test]
 fn test_return_enum() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let f = wrap_pyfunction!(return_enum)(py).unwrap();
-    let mynum = py.get_type::<MyEnum>();
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(return_enum)(py).unwrap();
+        let mynum = py.get_type::<MyEnum>();
 
-    py_run!(py, f mynum, "assert f() == mynum.Variant")
+        py_run!(py, f mynum, "assert f() == mynum.Variant")
+    });
 }
 
 #[pyfunction]

@@ -796,12 +796,12 @@ mod tests {
 
     #[test]
     fn set_typeerror() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let err: PyErr = exceptions::PyTypeError::new_err(());
-        err.restore(py);
-        assert!(PyErr::occurred(py));
-        drop(PyErr::fetch(py));
+        Python::with_gil(|py| {
+            let err: PyErr = exceptions::PyTypeError::new_err(());
+            err.restore(py);
+            assert!(PyErr::occurred(py));
+            drop(PyErr::fetch(py));
+        });
     }
 
     #[test]

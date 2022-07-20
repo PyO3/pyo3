@@ -25,14 +25,14 @@ impl MutRefArg {
 
 #[test]
 fn mut_ref_arg() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
-    let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
+    Python::with_gil(|py| {
+        let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
+        let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
-    py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
-    let inst2 = inst2.as_ref(py).borrow();
-    assert_eq!(inst2.n, 100);
+        py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
+        let inst2 = inst2.as_ref(py).borrow();
+        assert_eq!(inst2.n, 100);
+    });
 }
 
 #[pyclass]
@@ -50,27 +50,25 @@ fn get_zero() -> PyUsize {
 /// Checks that we can use return a custom class in arbitrary function and use those functions
 /// both in rust and python
 fn return_custom_class() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        // Using from rust
+        assert_eq!(get_zero().value, 0);
 
-    // Using from rust
-    assert_eq!(get_zero().value, 0);
-
-    // Using from python
-    let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
-    py_assert!(py, get_zero, "get_zero().value == 0");
+        // Using from python
+        let get_zero = wrap_pyfunction!(get_zero)(py).unwrap();
+        py_assert!(py, get_zero, "get_zero().value == 0");
+    });
 }
 
 #[test]
 fn intopytuple_primitive() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let tup = (1, 2, "foo");
-    py_assert!(py, tup, "tup == (1, 2, 'foo')");
-    py_assert!(py, tup, "tup[0] == 1");
-    py_assert!(py, tup, "tup[1] == 2");
-    py_assert!(py, tup, "tup[2] == 'foo'");
+    Python::with_gil(|py| {
+        let tup = (1, 2, "foo");
+        py_assert!(py, tup, "tup == (1, 2, 'foo')");
+        py_assert!(py, tup, "tup[0] == 1");
+        py_assert!(py, tup, "tup[1] == 2");
+        py_assert!(py, tup, "tup[2] == 'foo'");
+    });
 }
 
 #[pyclass]
@@ -78,43 +76,40 @@ struct SimplePyClass {}
 
 #[test]
 fn intopytuple_pyclass() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let tup = (
-        PyCell::new(py, SimplePyClass {}).unwrap(),
-        PyCell::new(py, SimplePyClass {}).unwrap(),
-    );
-    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
-    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
-    py_assert!(py, tup, "tup[0] != tup[1]");
+    Python::with_gil(|py| {
+        let tup = (
+            PyCell::new(py, SimplePyClass {}).unwrap(),
+            PyCell::new(py, SimplePyClass {}).unwrap(),
+        );
+        py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+        py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
+        py_assert!(py, tup, "tup[0] != tup[1]");
+    });
 }
 
 #[test]
 fn pytuple_primitive_iter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let tup = PyTuple::new(py, [1u32, 2, 3].iter());
-    py_assert!(py, tup, "tup == (1, 2, 3)");
+    Python::with_gil(|py| {
+        let tup = PyTuple::new(py, [1u32, 2, 3].iter());
+        py_assert!(py, tup, "tup == (1, 2, 3)");
+    });
 }
 
 #[test]
 fn pytuple_pyclass_iter() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let tup = PyTuple::new(
-        py,
-        [
-            PyCell::new(py, SimplePyClass {}).unwrap(),
-            PyCell::new(py, SimplePyClass {}).unwrap(),
-        ]
-        .iter(),
-    );
-    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
-    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
-    py_assert!(py, tup, "tup[0] != tup[1]");
+    Python::with_gil(|py| {
+        let tup = PyTuple::new(
+            py,
+            [
+                PyCell::new(py, SimplePyClass {}).unwrap(),
+                PyCell::new(py, SimplePyClass {}).unwrap(),
+            ]
+            .iter(),
+        );
+        py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+        py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
+        py_assert!(py, tup, "tup[0] != tup[1]");
+    });
 }
 
 #[pyclass(dict, module = "test_module")]
@@ -149,16 +144,15 @@ fn add_module(py: Python<'_>, module: &PyModule) -> PyResult<()> {
 #[test]
 #[cfg_attr(all(Py_LIMITED_API, not(Py_3_10)), ignore)]
 fn test_pickle() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let module = PyModule::new(py, "test_module").unwrap();
-    module.add_class::<PickleSupport>().unwrap();
-    add_module(py, module).unwrap();
-    let inst = PyCell::new(py, PickleSupport {}).unwrap();
-    py_run!(
-        py,
-        inst,
-        r#"
+    Python::with_gil(|py| {
+        let module = PyModule::new(py, "test_module").unwrap();
+        module.add_class::<PickleSupport>().unwrap();
+        add_module(py, module).unwrap();
+        let inst = PyCell::new(py, PickleSupport {}).unwrap();
+        py_run!(
+            py,
+            inst,
+            r#"
         inst.a = 1
         assert inst.__dict__ == {'a': 1}
 
@@ -167,7 +161,8 @@ fn test_pickle() {
 
         assert inst2.__dict__ == {'a': 1}
     "#
-    );
+        );
+    });
 }
 
 /// Testing https://github.com/PyO3/pyo3/issues/1106. A result type that
@@ -203,7 +198,7 @@ fn result_conversion_function() -> Result<(), MyError> {
 
 #[test]
 fn test_result_conversion() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    wrap_pyfunction!(result_conversion_function)(py).unwrap();
+    Python::with_gil(|py| {
+        wrap_pyfunction!(result_conversion_function)(py).unwrap();
+    });
 }

@@ -75,42 +75,41 @@ fn map_dict(py: Python<'_>) -> &pyo3::types::PyDict {
 
 #[test]
 fn test_getitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let d = map_dict(py);
+    Python::with_gil(|py| {
+        let d = map_dict(py);
 
-    py_assert!(py, *d, "m['1'] == 0");
-    py_assert!(py, *d, "m['2'] == 1");
-    py_assert!(py, *d, "m['3'] == 2");
-    py_expect_exception!(py, *d, "print(m['4'])", PyKeyError);
+        py_assert!(py, *d, "m['1'] == 0");
+        py_assert!(py, *d, "m['2'] == 1");
+        py_assert!(py, *d, "m['3'] == 2");
+        py_expect_exception!(py, *d, "print(m['4'])", PyKeyError);
+    });
 }
 
 #[test]
 fn test_setitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let d = map_dict(py);
+    Python::with_gil(|py| {
+        let d = map_dict(py);
 
-    py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
-    py_run!(py, *d, "m['0'] = 0; assert m['0'] == 0");
-    py_assert!(py, *d, "len(m) == 4");
-    py_expect_exception!(py, *d, "m[0] = 'hello'", PyTypeError);
-    py_expect_exception!(py, *d, "m[0] = -1", PyTypeError);
+        py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
+        py_run!(py, *d, "m['0'] = 0; assert m['0'] == 0");
+        py_assert!(py, *d, "len(m) == 4");
+        py_expect_exception!(py, *d, "m[0] = 'hello'", PyTypeError);
+        py_expect_exception!(py, *d, "m[0] = -1", PyTypeError);
+    });
 }
 
 #[test]
 fn test_delitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let d = map_dict(py);
-    py_run!(
-        py,
-        *d,
-        "del m['1']; assert len(m) == 2 and m['2'] == 1 and m['3'] == 2"
-    );
-    py_expect_exception!(py, *d, "del m[-1]", PyTypeError);
-    py_expect_exception!(py, *d, "del m['4']", PyKeyError);
+    Python::with_gil(|py| {
+        let d = map_dict(py);
+        py_run!(
+            py,
+            *d,
+            "del m['1']; assert len(m) == 2 and m['2'] == 1 and m['3'] == 2"
+        );
+        py_expect_exception!(py, *d, "del m[-1]", PyTypeError);
+        py_expect_exception!(py, *d, "del m['4']", PyKeyError);
+    });
 }
 
 #[test]

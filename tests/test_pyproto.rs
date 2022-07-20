@@ -29,24 +29,23 @@ impl PyMappingProtocol for Len {
 
 #[test]
 fn len() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let inst = Py::new(py, Len { l: 10 }).unwrap();
+        py_assert!(py, inst, "len(inst) == 10");
+        unsafe {
+            assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
+            assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
+        }
 
-    let inst = Py::new(py, Len { l: 10 }).unwrap();
-    py_assert!(py, inst, "len(inst) == 10");
-    unsafe {
-        assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
-        assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
-    }
-
-    let inst = Py::new(
-        py,
-        Len {
-            l: (isize::MAX as usize) + 1,
-        },
-    )
-    .unwrap();
-    py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+        let inst = Py::new(
+            py,
+            Len {
+                l: (isize::MAX as usize) + 1,
+            },
+        )
+        .unwrap();
+        py_expect_exception!(py, inst, "len(inst)", PyOverflowError);
+    });
 }
 
 #[pyclass]
@@ -67,18 +66,17 @@ impl PyIterProtocol for Iterator {
 
 #[test]
 fn iterator() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let inst = Py::new(
-        py,
-        Iterator {
-            iter: Box::new(5..8),
-        },
-    )
-    .unwrap();
-    py_assert!(py, inst, "iter(inst) is inst");
-    py_assert!(py, inst, "list(inst) == [5, 6, 7]");
+    Python::with_gil(|py| {
+        let inst = Py::new(
+            py,
+            Iterator {
+                iter: Box::new(5..8),
+            },
+        )
+        .unwrap();
+        py_assert!(py, inst, "iter(inst) is inst");
+        py_assert!(py, inst, "list(inst) == [5, 6, 7]");
+    });
 }
 
 #[pyclass]
@@ -97,12 +95,11 @@ impl PyObjectProtocol for StringMethods {
 
 #[test]
 fn string_methods() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let obj = Py::new(py, StringMethods {}).unwrap();
-    py_assert!(py, obj, "str(obj) == 'str'");
-    py_assert!(py, obj, "repr(obj) == 'repr'");
+    Python::with_gil(|py| {
+        let obj = Py::new(py, StringMethods {}).unwrap();
+        py_assert!(py, obj, "str(obj) == 'str'");
+        py_assert!(py, obj, "repr(obj) == 'repr'");
+    });
 }
 
 #[pyclass]
@@ -122,19 +119,18 @@ impl PyObjectProtocol for Comparisons {
 
 #[test]
 fn comparisons() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let zero = Py::new(py, Comparisons { val: 0 }).unwrap();
+        let one = Py::new(py, Comparisons { val: 1 }).unwrap();
+        let ten = Py::new(py, Comparisons { val: 10 }).unwrap();
+        let minus_one = Py::new(py, Comparisons { val: -1 }).unwrap();
+        py_assert!(py, one, "hash(one) == 1");
+        py_assert!(py, ten, "hash(ten) == 10");
+        py_assert!(py, minus_one, "hash(minus_one) == -2");
 
-    let zero = Py::new(py, Comparisons { val: 0 }).unwrap();
-    let one = Py::new(py, Comparisons { val: 1 }).unwrap();
-    let ten = Py::new(py, Comparisons { val: 10 }).unwrap();
-    let minus_one = Py::new(py, Comparisons { val: -1 }).unwrap();
-    py_assert!(py, one, "hash(one) == 1");
-    py_assert!(py, ten, "hash(ten) == 10");
-    py_assert!(py, minus_one, "hash(minus_one) == -2");
-
-    py_assert!(py, one, "bool(one) is True");
-    py_assert!(py, zero, "not zero");
+        py_assert!(py, one, "bool(one) is True");
+        py_assert!(py, zero, "not zero");
+    });
 }
 
 #[pyclass]
@@ -181,21 +177,20 @@ impl PySequenceProtocol for Sequence {
 
 #[test]
 fn sequence() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Sequence::default()).unwrap();
-    py_assert!(py, c, "list(c) == ['A', 'B', 'C', 'D', 'E', 'F', 'G']");
-    py_assert!(py, c, "c[-1] == 'G'");
-    py_run!(
-        py,
-        c,
-        r#"
+    Python::with_gil(|py| {
+        let c = Py::new(py, Sequence::default()).unwrap();
+        py_assert!(py, c, "list(c) == ['A', 'B', 'C', 'D', 'E', 'F', 'G']");
+        py_assert!(py, c, "c[-1] == 'G'");
+        py_run!(
+            py,
+            c,
+            r#"
     c[0] = 'H'
     assert c[0] == 'H'
 "#
-    );
-    py_expect_exception!(py, c, "c['abc']", PyTypeError);
+        );
+        py_expect_exception!(py, c, "c['abc']", PyTypeError);
+    });
 }
 
 #[pyclass]
@@ -215,17 +210,16 @@ impl PyMappingProtocol for SetItem {
 
 #[test]
 fn setitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
-    py_run!(py, c, "c[1] = 2");
-    {
-        let c = c.borrow();
-        assert_eq!(c.key, 1);
-        assert_eq!(c.val, 2);
-    }
-    py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
+        py_run!(py, c, "c[1] = 2");
+        {
+            let c = c.borrow();
+            assert_eq!(c.key, 1);
+            assert_eq!(c.val, 2);
+        }
+        py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
+    });
 }
 
 #[pyclass]
@@ -242,16 +236,15 @@ impl PyMappingProtocol<'a> for DelItem {
 
 #[test]
 fn delitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
-    py_run!(py, c, "del c[1]");
-    {
-        let c = c.borrow();
-        assert_eq!(c.key, 1);
-    }
-    py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
+        py_run!(py, c, "del c[1]");
+        {
+            let c = c.borrow();
+            assert_eq!(c.key, 1);
+        }
+        py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
+    });
 }
 
 #[pyclass]
@@ -272,18 +265,17 @@ impl PyMappingProtocol for SetDelItem {
 
 #[test]
 fn setdelitem() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
-    py_run!(py, c, "c[1] = 2");
-    {
+    Python::with_gil(|py| {
+        let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
+        py_run!(py, c, "c[1] = 2");
+        {
+            let c = c.borrow();
+            assert_eq!(c.val, Some(2));
+        }
+        py_run!(py, c, "del c[1]");
         let c = c.borrow();
-        assert_eq!(c.val, Some(2));
-    }
-    py_run!(py, c, "del c[1]");
-    let c = c.borrow();
-    assert_eq!(c.val, None);
+        assert_eq!(c.val, None);
+    });
 }
 
 #[pyclass]
@@ -298,26 +290,24 @@ impl PySequenceProtocol for Contains {
 
 #[test]
 fn contains() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let c = Py::new(py, Contains {}).unwrap();
-    py_run!(py, c, "assert 1 in c");
-    py_run!(py, c, "assert -1 not in c");
-    py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
+    Python::with_gil(|py| {
+        let c = Py::new(py, Contains {}).unwrap();
+        py_run!(py, c, "assert 1 in c");
+        py_run!(py, c, "assert -1 not in c");
+        py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
+    });
 }
 
 #[test]
 fn test_basics() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let v = PySlice::new(py, 1, 10, 2);
-    let indices = v.indices(100).unwrap();
-    assert_eq!(1, indices.start);
-    assert_eq!(10, indices.stop);
-    assert_eq!(2, indices.step);
-    assert_eq!(5, indices.slicelength);
+    Python::with_gil(|py| {
+        let v = PySlice::new(py, 1, 10, 2);
+        let indices = v.indices(100).unwrap();
+        assert_eq!(1, indices.start);
+        assert_eq!(10, indices.stop);
+        assert_eq!(2, indices.step);
+        assert_eq!(5, indices.slicelength);
+    });
 }
 
 #[pyclass]
@@ -342,13 +332,12 @@ impl<'p> PyMappingProtocol<'p> for Test {
 
 #[test]
 fn test_cls_impl() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        let ob = Py::new(py, Test {}).unwrap();
 
-    let ob = Py::new(py, Test {}).unwrap();
-
-    py_assert!(py, ob, "ob[1] == 'int'");
-    py_assert!(py, ob, "ob[100:200:1] == 'slice'");
+        py_assert!(py, ob, "ob[1] == 'int'");
+        py_assert!(py, ob, "ob[100:200:1] == 'slice'");
+    });
 }
 
 #[pyclass]
@@ -366,11 +355,11 @@ impl PyObjectProtocol for ClassWithGetAttr {
 
 #[test]
 fn getattr_doesnt_override_member() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
-    py_assert!(py, inst, "inst.data == 4");
-    py_assert!(py, inst, "inst.a == 8");
+    Python::with_gil(|py| {
+        let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+        py_assert!(py, inst, "inst.data == 4");
+        py_assert!(py, inst, "inst.a == 8");
+    });
 }
 
 /// Wraps a Python future and yield it once.
@@ -415,11 +404,10 @@ impl PyIterProtocol for OnceFuture {
 
 #[test]
 fn test_await() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let once = py.get_type::<OnceFuture>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    Python::with_gil(|py| {
+        let once = py.get_type::<OnceFuture>();
+        let source = pyo3::indoc::indoc!(
+            r#"
 import asyncio
 import sys
 
@@ -435,12 +423,13 @@ asyncio.set_event_loop(loop)
 assert loop.run_until_complete(main()) is None
 loop.close()
 "#
-    );
-    let globals = PyModule::import(py, "__main__").unwrap().dict();
-    globals.set_item("Once", once).unwrap();
-    py.run(source, Some(globals), None)
-        .map_err(|e| e.print(py))
-        .unwrap();
+        );
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        globals.set_item("Once", once).unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    });
 }
 
 /// Increment the count when `__get__` is called.
@@ -475,11 +464,10 @@ impl PyDescrProtocol for DescrCounter {
 
 #[test]
 fn descr_getset() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let counter = py.get_type::<DescrCounter>();
-    let source = pyo3::indoc::indoc!(
-        r#"
+    Python::with_gil(|py| {
+        let counter = py.get_type::<DescrCounter>();
+        let source = pyo3::indoc::indoc!(
+            r#"
 class Class:
     counter = Counter()
 c = Class()
@@ -488,10 +476,11 @@ assert c.counter.count == 2
 c.counter = Counter()
 assert c.counter.count == 3
 "#
-    );
-    let globals = PyModule::import(py, "__main__").unwrap().dict();
-    globals.set_item("Counter", counter).unwrap();
-    py.run(source, Some(globals), None)
-        .map_err(|e| e.print(py))
-        .unwrap();
+        );
+        let globals = PyModule::import(py, "__main__").unwrap().dict();
+        globals.set_item("Counter", counter).unwrap();
+        py.run(source, Some(globals), None)
+            .map_err(|e| e.print(py))
+            .unwrap();
+    });
 }

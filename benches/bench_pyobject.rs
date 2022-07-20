@@ -3,12 +3,12 @@ use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use pyo3::prelude::*;
 
 fn drop_many_objects(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    b.iter(|| {
-        for _ in 0..1000 {
-            std::mem::drop(py.None());
-        }
+    Python::with_gil(|py| {
+        b.iter(|| {
+            for _ in 0..1000 {
+                std::mem::drop(py.None());
+            }
+        });
     });
 }
 

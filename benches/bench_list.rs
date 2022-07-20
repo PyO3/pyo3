@@ -4,52 +4,52 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 fn iter_list(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 100_000;
-    let list = PyList::new(py, 0..LEN);
-    let mut sum = 0;
-    b.iter(|| {
-        for x in list.iter() {
-            let i: u64 = x.extract().unwrap();
-            sum += i;
-        }
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let list = PyList::new(py, 0..LEN);
+        let mut sum = 0;
+        b.iter(|| {
+            for x in list.iter() {
+                let i: u64 = x.extract().unwrap();
+                sum += i;
+            }
+        });
     });
 }
 
 fn list_new(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 50_000;
-    b.iter(|| PyList::new(py, 0..LEN));
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        b.iter(|| PyList::new(py, 0..LEN));
+    });
 }
 
 fn list_get_item(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 50_000;
-    let list = PyList::new(py, 0..LEN);
-    let mut sum = 0;
-    b.iter(|| {
-        for i in 0..LEN {
-            sum += list.get_item(i).unwrap().extract::<usize>().unwrap();
-        }
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let list = PyList::new(py, 0..LEN);
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += list.get_item(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
     });
 }
 
 #[cfg(not(Py_LIMITED_API))]
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 50_000;
-    let list = PyList::new(py, 0..LEN);
-    let mut sum = 0;
-    b.iter(|| {
-        for i in 0..LEN {
-            unsafe {
-                sum += list.get_item_unchecked(i).extract::<usize>().unwrap();
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let list = PyList::new(py, 0..LEN);
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                unsafe {
+                    sum += list.get_item_unchecked(i).extract::<usize>().unwrap();
+                }
             }
-        }
+        });
     });
 }
 

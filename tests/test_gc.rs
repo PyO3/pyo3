@@ -15,27 +15,21 @@ struct ClassWithFreelist {}
 
 #[test]
 fn class_with_freelist() {
-    let ptr;
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    let ptr = Python::with_gil(|py| {
         let inst = Py::new(py, ClassWithFreelist {}).unwrap();
         let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
-        ptr = inst.as_ptr();
+        let ptr = inst.as_ptr();
         drop(inst);
-    }
+        ptr
+    });
 
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    Python::with_gil(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
         let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_ne!(ptr, inst4.as_ptr())
-    }
+    });
 }
 
 struct TestDropCall {
@@ -60,9 +54,7 @@ fn data_is_dropped() {
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
 
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Python::with_gil(|py| {
         let data_is_dropped = DataIsDropped {
             member1: TestDropCall {
                 drop_called: Arc::clone(&drop_called1),
@@ -75,7 +67,7 @@ fn data_is_dropped() {
         assert!(!drop_called1.load(Ordering::Relaxed));
         assert!(!drop_called2.load(Ordering::Relaxed));
         drop(inst);
-    }
+    });
 
     assert!(drop_called1.load(Ordering::Relaxed));
     assert!(drop_called2.load(Ordering::Relaxed));
@@ -95,8 +87,9 @@ impl GcIntegration {
     }
 
     fn __clear__(&mut self) {
-        let gil = Python::acquire_gil();
-        self.self_ref = gil.python().None();
+        Python::with_gil(|py| {
+            self.self_ref = py.None();
+        });
     }
 }
 
@@ -104,9 +97,7 @@ impl GcIntegration {
 fn gc_integration() {
     let drop_called = Arc::new(AtomicBool::new(false));
 
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Python::with_gil(|py| {
         let inst = PyCell::new(
             py,
             GcIntegration {
@@ -122,12 +113,12 @@ fn gc_integration() {
         borrow.self_ref = inst.to_object(py);
 
         py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
-    }
+    });
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    py.run("import gc; gc.collect()", None, None).unwrap();
-    assert!(drop_called.load(Ordering::Relaxed));
+    Python::with_gil(|py| {
+        py.run("import gc; gc.collect()", None, None).unwrap();
+        assert!(drop_called.load(Ordering::Relaxed));
+    });
 }
 
 #[pyclass(subclass)]
@@ -180,9 +171,7 @@ fn inheritance_with_new_methods_with_drop() {
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
 
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    Python::with_gil(|py| {
         let _typebase = py.get_type::<BaseClassWithDrop>();
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
@@ -192,7 +181,7 @@ fn inheritance_with_new_methods_with_drop() {
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
         let base: &mut BaseClassWithDrop = obj_ref_mut.as_mut();
         base.data = Some(Arc::clone(&drop_called2));
-    }
+    });
 
     assert!(drop_called1.load(Ordering::Relaxed));
     assert!(drop_called2.load(Ordering::Relaxed));
@@ -228,40 +217,39 @@ unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ff
 
 #[test]
 fn gc_during_borrow() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    Python::with_gil(|py| {
+        unsafe {
+            // declare a dummy visitor function
+            extern "C" fn novisit(
+                _object: *mut pyo3::ffi::PyObject,
+                _arg: *mut core::ffi::c_void,
+            ) -> std::os::raw::c_int {
+                0
+            }
 
-    unsafe {
-        // declare a dummy visitor function
-        extern "C" fn novisit(
-            _object: *mut pyo3::ffi::PyObject,
-            _arg: *mut core::ffi::c_void,
-        ) -> std::os::raw::c_int {
-            0
+            // get the traverse function
+            let ty = TraversableClass::type_object(py).as_type_ptr();
+            let traverse = get_type_traverse(ty).unwrap();
+
+            // create an object and check that traversing it works normally
+            // when it's not borrowed
+            let cell = PyCell::new(py, TraversableClass::new()).unwrap();
+            let obj = cell.to_object(py);
+            assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
+            traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
+            assert!(cell.borrow().traversed.load(Ordering::Relaxed));
+
+            // create an object and check that it is not traversed if the GC
+            // is invoked while it is already borrowed mutably
+            let cell2 = PyCell::new(py, TraversableClass::new()).unwrap();
+            let obj2 = cell2.to_object(py);
+            let guard = cell2.borrow_mut();
+            assert!(!guard.traversed.load(Ordering::Relaxed));
+            traverse(obj2.as_ptr(), novisit, std::ptr::null_mut());
+            assert!(!guard.traversed.load(Ordering::Relaxed));
+            drop(guard);
         }
-
-        // get the traverse function
-        let ty = TraversableClass::type_object(py).as_type_ptr();
-        let traverse = get_type_traverse(ty).unwrap();
-
-        // create an object and check that traversing it works normally
-        // when it's not borrowed
-        let cell = PyCell::new(py, TraversableClass::new()).unwrap();
-        let obj = cell.to_object(py);
-        assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
-        traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
-        assert!(cell.borrow().traversed.load(Ordering::Relaxed));
-
-        // create an object and check that it is not traversed if the GC
-        // is invoked while it is already borrowed mutably
-        let cell2 = PyCell::new(py, TraversableClass::new()).unwrap();
-        let obj2 = cell2.to_object(py);
-        let guard = cell2.borrow_mut();
-        assert!(!guard.traversed.load(Ordering::Relaxed));
-        traverse(obj2.as_ptr(), novisit, std::ptr::null_mut());
-        assert!(!guard.traversed.load(Ordering::Relaxed));
-        drop(guard);
-    }
+    });
 }
 
 #[pyclass]

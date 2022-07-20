@@ -5,62 +5,62 @@ use pyo3::types::IntoPyDict;
 use std::collections::{BTreeMap, HashMap};
 
 fn iter_dict(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 100_000;
-    let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    let mut sum = 0;
-    b.iter(|| {
-        for (k, _v) in dict.iter() {
-            let i: u64 = k.extract().unwrap();
-            sum += i;
-        }
-    });
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+        let mut sum = 0;
+        b.iter(|| {
+            for (k, _v) in dict.iter() {
+                let i: u64 = k.extract().unwrap();
+                sum += i;
+            }
+        });
+    })
 }
 
 fn dict_new(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 50_000;
-    b.iter(|| (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py));
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        b.iter(|| (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py));
+    });
 }
 
 fn dict_get_item(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 50_000;
-    let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    let mut sum = 0;
-    b.iter(|| {
-        for i in 0..LEN {
-            sum += dict.get_item(i).unwrap().extract::<usize>().unwrap();
-        }
+    Python::with_gil(|py| {
+        const LEN: usize = 50_000;
+        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+        let mut sum = 0;
+        b.iter(|| {
+            for i in 0..LEN {
+                sum += dict.get_item(i).unwrap().extract::<usize>().unwrap();
+            }
+        });
     });
 }
 
 fn extract_hashmap(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 100_000;
-    let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| HashMap::<u64, u64>::extract(dict));
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+        b.iter(|| HashMap::<u64, u64>::extract(dict));
+    });
 }
 
 fn extract_btreemap(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 100_000;
-    let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| BTreeMap::<u64, u64>::extract(dict));
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+        b.iter(|| BTreeMap::<u64, u64>::extract(dict));
+    });
 }
 
 #[cfg(feature = "hashbrown")]
 fn extract_hashbrown_map(b: &mut Bencher<'_>) {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    const LEN: usize = 100_000;
-    let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
-    b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict));
+    Python::with_gil(|py| {
+        const LEN: usize = 100_000;
+        let dict = (0..LEN as u64).map(|i| (i, i * 2)).into_py_dict(py);
+        b.iter(|| hashbrown::HashMap::<u64, u64>::extract(dict));
+    });
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
