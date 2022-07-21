@@ -42,7 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow `#[classattr]` methods to be fallible. [#2385](https://github.com/PyO3/pyo3/pull/2385)
 - Prevent multiple `#[pymethods]` with the same name for a single `#[pyclass]`. [#2399](https://github.com/PyO3/pyo3/pull/2399)
 - Fixup `lib_name` when using `PYO3_CONFIG_FILE`. [#2404](https://github.com/PyO3/pyo3/pull/2404)
+- Iterators over `PySet` and `PyDict` will now panic if the underlying collection is mutated during the iteration. [#2380](https://github.com/PyO3/pyo3/pull/2380)
 - Allow `#[classattr]` take `Python` argument. [#2456](https://github.com/PyO3/pyo3/pull/2456)
+- Rework `PyCapsule` type to resolve multiple soundness issues: [#2485](https://github.com/PyO3/pyo3/pull/2485)
+  - `PyCapsule::new` and `PyCapsule::new_with_destructor` now take `name: Option<CString>` instead of `&CStr`.
+  - The destructor `F` in `PyCapsule::new_with_destructor` must now be `Send`.
+  - `PyCapsule::get_context` deprecated in favour of `PyCapsule::context` which doesn't take a `py: Python<'_>` argument.
+  - `PyCapsule::set_context` no longer takes a `py: Python<'_>` argument.
+  - `PyCapsule::name` now returns `PyResult<Option<&CStr>>` instead of `&CStr`.
 - `FromPyObject::extract` now raises an error if source type is `PyString` and target type is `Vec<T>`. [#2500](https://github.com/PyO3/pyo3/pull/2500)
 
 ### Removed
