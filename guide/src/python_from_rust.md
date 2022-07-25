@@ -45,7 +45,7 @@ fn main() -> PyResult<()> {
             "",
         )?.getattr("example")?.into();
 
-        // call object without empty arguments
+        // call object without any arguments
         fun.call0(py)?;
 
         // call object with PyTuple
