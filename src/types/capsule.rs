@@ -2,8 +2,9 @@
 use crate::Python;
 use crate::{ffi, AsPyPointer, PyAny};
 use crate::{pyobject_native_type_core, PyErr, PyResult};
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_int;
+use std::thread::{self, ThreadId};
 
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
@@ -100,12 +101,23 @@ impl PyCapsule {
         destructor: F,
     ) -> PyResult<&'py Self> {
         AssertNotZeroSized::assert_not_zero_sized(&value);
-        let val = Box::new(CapsuleContents { value, destructor });
+        // Take ownership of a copy of `name` so that the string is guaranteed to live as long
+        // as the capsule. PyCapsule_new purely saves the pointer in the capsule so doesn't
+        // guarantee ownership itself.
+        let name = name.to_owned();
+        let name_ptr = name.as_ptr();
+        let thread_id = thread::current().id();
+        let val = Box::new(CapsuleContents {
+            value,
+            destructor,
+            thread_id,
+            name,
+        });
 
         let cap_ptr = unsafe {
             ffi::PyCapsule_New(
                 Box::into_raw(val) as *mut c_void,
-                name.as_ptr(),
+                name_ptr,
                 Some(capsule_destructor::<T, F>),
             )
         };
@@ -211,7 +223,12 @@ impl PyCapsule {
     pub fn name(&self) -> &CStr {
         unsafe {
             let ptr = ffi::PyCapsule_GetName(self.as_ptr());
-            CStr::from_ptr(ptr)
+            if ptr.is_null() {
+                ffi::PyErr_Clear();
+                CStr::from_bytes_with_nul_unchecked(b"\0")
+            } else {
+                CStr::from_ptr(ptr)
+            }
         }
     }
 }
@@ -221,6 +238,9 @@ impl PyCapsule {
 struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void)> {
     value: T,
     destructor: D,
+    // Thread id is stored as a safety fix for lack of D: Send bound on the destructor
+    thread_id: ThreadId,
+    name: CString,
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
@@ -229,7 +249,23 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 ) {
     let ptr = ffi::PyCapsule_GetPointer(capsule, ffi::PyCapsule_GetName(capsule));
     let ctx = ffi::PyCapsule_GetContext(capsule);
-    let CapsuleContents { value, destructor } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
+    let CapsuleContents {
+        value,
+        destructor,
+        thread_id,
+        ..
+    } = *Box::from_raw(ptr as *mut CapsuleContents<T, F>);
+    if thread_id != thread::current().id() {
+        ffi::PyErr_WarnEx(
+            ffi::PyExc_RuntimeWarning,
+            b"capsule destructor called in thread other than the one the capsule was created in, skipping the destructor\0".as_ptr().cast(),
+            1,
+        );
+        if !ffi::PyErr_Occurred().is_null() {
+            ffi::PyErr_WriteUnraisable(ffi::_Py_NewRef(ffi::Py_None()));
+        }
+        return;
+    }
     destructor(value, ctx)
 }
 

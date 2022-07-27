@@ -4,6 +4,7 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5 | #[pyclass(extends=PyDict)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
   |
+  = help: the trait `PyClass` is implemented for `TestClass`
   = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -13,6 +14,7 @@ error[E0277]: the trait bound `PyDict: PyClass` is not satisfied
 5   | #[pyclass(extends=PyDict)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `PyDict`
     |
+    = help: the trait `PyClass` is implemented for `TestClass`
     = note: required because of the requirements on the impl of `PyClassBaseType` for `PyDict`
 note: required by a bound in `ThreadCheckerInherited`
    --> src/impl_/pyclass.rs

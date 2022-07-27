@@ -1,21 +1,21 @@
-error[E0277]: the trait bound `PyAny: Ungil` is not satisfied in `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
+error[E0277]: the trait bound `PyAny: Ungil` is not satisfied in `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 11:28]`
    --> tests/ui/send_wrapper.rs:11:12
     |
-11  |           py.allow_threads(|| {
-    |  ____________^^^^^^^^^^^^^_-
-    | |            |
-    | |            within `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`, the trait `Ungil` is not implemented for `PyAny`
-12  | |             let smuggled: &PyString = *wrapped;
-13  | |             println!("{:?}", smuggled);
-14  | |         });
-    | |_________- within this `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
+11  |         py.allow_threads(|| {
+    |            ^^^^^^^^^^^^^ -- within this `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 11:28]`
+    |            |
+    |            within `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 11:28]`, the trait `Ungil` is not implemented for `PyAny`
     |
     = note: required because it appears within the type `PyString`
     = note: required because it appears within the type `&PyString`
     = note: required because it appears within the type `*mut &PyString`
     = note: required because it appears within the type `SendWrapper<&PyString>`
     = note: required because it appears within the type `&SendWrapper<&PyString>`
-    = note: required because it appears within the type `[closure@$DIR/tests/ui/send_wrapper.rs:11:26: 14:10]`
+note: required because it's used within this closure
+   --> tests/ui/send_wrapper.rs:11:26
+    |
+11  |         py.allow_threads(|| {
+    |                          ^^
 note: required by a bound in `pyo3::Python::<'py>::allow_threads`
    --> src/marker.rs
     |
