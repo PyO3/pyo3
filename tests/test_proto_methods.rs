@@ -210,7 +210,7 @@ impl Mapping {
 #[test]
 fn mapping() {
     Python::with_gil(|py| {
-        PyMapping::register_mapping_abc_subclass::<Mapping>(py).unwrap();
+        PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
 
         let inst = Py::new(
             py,

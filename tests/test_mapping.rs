@@ -120,10 +120,8 @@ fn mapping_is_not_sequence() {
         index.insert("Bar".into(), 2);
         let m = Py::new(py, Mapping { index }).unwrap();
 
-        // downcast to PyMapping requires isinstance(<cls>, collections.abc.Mapping) to pass, so we
-        // have to register the class first
-        PyMapping::register_mapping_abc_subclass::<Mapping>(py)
-            .expect("failed to register 'Mapping' as a subclass of 'collections.abc.Mapping'");
+        PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
+
         assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
         assert!(m.as_ref(py).downcast::<PySequence>().is_err());
     });

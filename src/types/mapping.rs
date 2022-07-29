@@ -111,16 +111,15 @@ impl PyMapping {
 
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
     /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
-    /// This is required for a class to be downcastable from `PyAny` to `PyMapping`.
-    pub fn register_mapping_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
+    pub fn register_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        let mapping_abc = get_mapping_abc(py);
-        mapping_abc.call_method1("register", (ty,))?;
+        get_mapping_abc(py).call_method1("register", (ty,))?;
         Ok(())
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> &'_ PyType {
+fn get_mapping_abc(py: Python<'_>) -> &PyType {
     MAPPING_ABC
         .get_or_init(py, || {
             py.import("collections.abc")
