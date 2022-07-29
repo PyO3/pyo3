@@ -5,7 +5,7 @@ BUILDROOT ?= $(CURDIR)/builddir
 PYMAJORMINORMICRO ?= 3.11.0
 PYPRERELEASE ?= b5 # I'm not sure how to split 3.11.0b5 in Make.
 
-EMSCRIPTEN_VERSION=3.1.14
+EMSCRIPTEN_VERSION=3.1.17
 
 export EMSDKDIR = $(BUILDROOT)/emsdk
 
