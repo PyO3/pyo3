@@ -2,10 +2,14 @@
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::PyValueError;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{PyAny, PyList, PyString, PyTuple};
+use crate::once_cell::GILOnceCell;
+use crate::type_object::PyTypeInfo;
+use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
 use crate::{ffi, PyNativeType, ToPyObject};
-use crate::{AsPyPointer, IntoPyPointer, Py, Python};
+use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
+
+static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -250,6 +254,15 @@ impl PySequence {
                 .from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
         }
     }
+
+    /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
+    /// library). This is equvalent to `collections.abc.Sequence.register(T)` in Python.
+    /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
+    pub fn register_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+        let ty = T::type_object(py);
+        get_sequence_abc(py).call_method1("register", (ty,))?;
+        Ok(())
+    }
 }
 
 #[inline]
@@ -289,15 +302,33 @@ where
     Ok(v)
 }
 
+fn get_sequence_abc(py: Python<'_>) -> &PyType {
+    SEQUENCE_ABC
+        .get_or_init(py, || {
+            py.import("collections.abc")
+                .expect("coud not import 'collections.abc'")
+                .getattr("Sequence")
+                .expect("coud not access 'Sequence' from 'collections.abc'")
+                .downcast::<PyType>()
+                .expect("could not access 'collections.abc.Sequence'")
+                .into_py(py)
+        })
+        .as_ref(py)
+}
+
 impl<'v> PyTryFrom<'v> for PySequence {
+    /// Downcasting to `PySequence` requires the concrete class to be a subclass (or registered
+    /// subclass) of `collections.abc.Sequence` (from the Python standard library) - i.e.
+    /// `isinstance(<class>, collections.abc.Sequence) == True`.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         let value = value.into();
-        unsafe {
-            if ffi::PySequence_Check(value.as_ptr()) != 0 {
-                Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
-            } else {
-                Err(PyDowncastError::new(value, "Sequence"))
-            }
+        if value
+            .is_instance(get_sequence_abc(value.py()))
+            .unwrap_or(false)
+        {
+            unsafe { Ok(<PySequence as PyTryFrom>::try_from_unchecked(value)) }
+        } else {
+            Err(PyDowncastError::new(value, "Sequence"))
         }
     }
 

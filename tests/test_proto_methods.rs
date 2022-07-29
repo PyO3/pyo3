@@ -318,6 +318,8 @@ impl Sequence {
 #[test]
 fn sequence() {
     Python::with_gil(|py| {
+        PySequence::register_abc_subclass::<Sequence>(py).unwrap();
+
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
         let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();
