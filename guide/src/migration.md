@@ -5,6 +5,59 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.16.* to 0.17
 
+### Downcasting (`PyTryFrom`) has been changed for `PyMapping` and `PySequence` types
+
+Previously the safety checks for downcasting to `PyTryFrom` and `PyMapping`
+used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
+Unfortunately these functions are not sufficient for distinguishing such types,
+leading to inconsistent behavior (see
+[pyo3/pyo3#2072](https://github.com/PyO3/pyo3/issues/2072)).
+
+PyO3 0.17 changes these downcast checks to explicityly test if the type is a
+subclass of the corresponding abstract base class `collections.abc.Mapping` or
+`collections.abc.Sequence`. Note this requires calling into Python, which may
+incur a performance penalty over the previous method. If this performance
+penatly is a problem, you may be able to perform your own checks and use
+`try_from_unchecked` (unsafe).
+
+Another side-effect is that a pyclass defined in Rust with PyO3 will need to
+be _registered_ with the corresponding Python abstract base class for
+downcasting to succeed. `PySequence::register_abc_subclass` and
+`PyMapping:register_abc_subclass` have been added to make it easy to do this
+from Rust code. These are equivalent to calling
+`collections.abc.Mapping.register(MappingPyClass)` or
+`collections.abc.Sequence.register(SequencePyClass)` from Python.
+
+For example, for a mapping class defined in Rust:
+```rust,compile_fail
+use pyo3::prelude::*;
+use std::collections::HashMap;
+
+#[pyclass(mapping)]
+struct Mapping {
+    index: HashMap<String, usize>,
+}
+
+#[pymethods]
+impl Mapping {
+    #[new]
+    fn new(elements: Option<&PyList>) -> PyResult<Self> {
+    // ...
+    // truncated implementation of this mapping pyclass - basically a wrapper around a HashMap
+}
+
+```
+
+You must register the class with `collections.abc.Mapping` before the downcast will work:
+```rust,compile_fail
+let m = Py::new(py, Mapping { index }).unwrap();
+assert!(m.as_ref(py).downcast::<PyMapping>().is_err());
+PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
+assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
+```
+
+Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/904)).
+
 ### The `multiple-pymethods` feature now requires Rust 1.62
 
 Due to limitations in the `inventory` crate which the `multiple-pymethods` feature depends on, this feature now
