@@ -116,6 +116,8 @@ maturin init --bindings pyo3
 maturin develop
 ```
 
+If you want to be able to run `cargo test` or use this project in a Cargo workspace and are running into linker issues, there are some workarounds in [the FAQ](https://pyo3.rs/latest/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror).
+
 As well as with `maturin`, it is possible to build using [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds). Both offer more flexibility than `maturin` but require more configuration to get started.
 
 ### Using Python from Rust

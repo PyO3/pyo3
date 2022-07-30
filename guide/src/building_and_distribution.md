@@ -141,7 +141,7 @@ PyO3's `extension-module` feature is used to disable [linking](https://en.wikipe
 
 This is necessary because by default PyO3 links to `libpython`. This makes binaries, tests, and examples "just work". However, Python extensions on unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
-The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build. If you have an extension module as well as other outputs in a single project, you need to use optional Cargo features to disable the `extension-module` when you're not building the extension module. See [the FAQ](faq.md#i-cant-run-cargo-test-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) for an example workaround.
+The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build. If you have an extension module as well as other outputs in a single project, you need to use optional Cargo features to disable the `extension-module` when you're not building the extension module. See [the FAQ](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) for an example workaround.
 
 ### `Py_LIMITED_API`/`abi3`
 

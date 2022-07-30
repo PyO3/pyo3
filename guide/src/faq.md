@@ -15,9 +15,21 @@ PyO3 provides a struct [`GILOnceCell`] which works equivalently to `OnceCell` bu
 
 [`GILOnceCell`]: {{#PYO3_DOCS_URL}}/pyo3/once_cell/struct.GILOnceCell.html
 
-## I can't run `cargo test`: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
+## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"!
 
-Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
+Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated. Linking errors can also happen when building in a cargo workspace where a different crate also uses PyO3 (see [#2521](https://github.com/PyO3/pyo3/issues/2521)). For now, there are three ways we can work around these issues.
+
+1. Make the `extension-module` feature optional. Build with `maturin develop --features "extension-module"`
+
+```toml
+[dependencies.pyo3]
+{{#PYO3_CRATE_VERSION}}
+
+[features]
+extension-module = ["pyo3/extension-module"]
+```
+
+2. Make the `extension-module` feature optional and default. Run tests with `cargo test --no-default-features`:
 
 ```toml
 [dependencies.pyo3]
@@ -26,6 +38,15 @@ Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` t
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
+```
+
+3. If you are using a [`pyproject.toml`](https://maturin.rs/metadata.html) file to control maturin settings, add the following section:
+
+```toml
+[tool.maturin]
+features = ["pyo3/extension-module"]
+# Or for maturin 0.12:
+# cargo-extra-args = ["--features", "pyo3/extension-module"]
 ```
 
 ## I can't run `cargo test`: my crate cannot be found for tests in `tests/` directory!
