@@ -25,7 +25,7 @@ PYTHON_CONFIGURE_OPTS="--enable-shared"
 ### Building
 
 
-There are a number of build and python package management systems such as [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds)  we recommend the use of `maturin`. It is developed to work with PyO3 and is the most "batteries included" experience. `maturin` is just a python package so you can add it in any way that you install python packages. 
+There are a number of build and python package management systems such as [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) or [manually](https://pyo3.rs/latest/building_and_distribution.html#manual-builds)  we recommend the use of `maturin` which you can install [here](https://maturin.rs/installation.html). It is developed to work with PyO3 and is the most "batteries included" experience. `maturin` is just a python package so you can add it in any way that you install python packages. 
 
 System Python: 
 ```bash
@@ -73,6 +73,15 @@ After this, you can initialise the new project
 maturin init
 ```
 
+If `maturin` is already installed you can create a new project using that directly as well: 
+
+```bash
+maturin new -b pyo3 pyo3-example
+cd pyo3-example
+pyenv virtualenv pyo3
+pyenv local pyo3
+```
+
 # Adding to an existing project
 
 Sadly currently `maturin` cannot be run in existing projects, so if you want to use python in an existing project you basically have two options: 
@@ -106,7 +115,7 @@ You should also create a `pyproject.toml` with the following contents:
 
 ```toml
 [build-system]
-requires = ["maturin>=0.12,<0.13"]
+requires = ["maturin>=0.13,<0.14"]
 build-backend = "maturin"
 
 [project]
