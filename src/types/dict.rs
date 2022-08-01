@@ -3,7 +3,7 @@
 use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
-use crate::types::{PyAny, PyList};
+use crate::types::{PyAny, PyList, PySequence};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
@@ -34,6 +34,13 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyDictKeys_Check
 );
 
+#[cfg(not(PyPy))]
+impl PyDictKeys {
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+}
+
 /// Represents a Python `dict_values`.
 #[cfg(not(PyPy))]
 #[repr(transparent)]
@@ -46,6 +53,13 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyDictValues_Check
 );
 
+#[cfg(not(PyPy))]
+impl PyDictValues {
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+}
+
 /// Represents a Python `dict_items`.
 #[cfg(not(PyPy))]
 #[repr(transparent)]
@@ -57,6 +71,13 @@ pyobject_native_type_core!(
     ffi::PyDictItems_Type,
     #checkfunction=ffi::PyDictItems_Check
 );
+
+#[cfg(not(PyPy))]
+impl PyDictItems {
+    pub fn as_sequence(&self) -> &PySequence {
+        unsafe { PySequence::try_from_unchecked(self) }
+    }
+}
 
 impl PyDict {
     /// Creates a new empty dictionary.
@@ -972,6 +993,14 @@ mod tests {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
             assert!(keys.is_instance(PyDictKeys::type_object(py)).unwrap());
+            assert_eq!(
+                keys.cast_as::<PyDictKeys>()
+                    .unwrap()
+                    .as_sequence()
+                    .len()
+                    .unwrap(),
+                3
+            );
         })
     }
 
@@ -982,6 +1011,15 @@ mod tests {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
             assert!(values.is_instance(PyDictValues::type_object(py)).unwrap());
+            assert_eq!(
+                values
+                    .cast_as::<PyDictValues>()
+                    .unwrap()
+                    .as_sequence()
+                    .len()
+                    .unwrap(),
+                3
+            );
         })
     }
 
@@ -992,6 +1030,15 @@ mod tests {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items.is_instance(PyDictItems::type_object(py)).unwrap());
+            assert_eq!(
+                items
+                    .cast_as::<PyDictItems>()
+                    .unwrap()
+                    .as_sequence()
+                    .len()
+                    .unwrap(),
+                3
+            );
         })
     }
 }
