@@ -22,3 +22,6 @@ pip-wheel-metadata
 valgrind-python.supp
 *.pyd
 lcov.info
+.idea/
+.vscode/
+.python-version
