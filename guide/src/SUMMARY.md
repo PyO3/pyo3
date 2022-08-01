@@ -4,6 +4,7 @@
 
 ---
 
+- [Getting Started](getting_started.md)
 - [Python Modules](module.md)
 - [Python Functions](function.md)
 - [Python Classes](class.md)
