@@ -36,6 +36,7 @@ pyobject_native_type_core!(
 
 #[cfg(not(PyPy))]
 impl PyDictKeys {
+    /// Returns `self` cast as a `PySequence`.
     pub fn as_sequence(&self) -> &PySequence {
         unsafe { PySequence::try_from_unchecked(self) }
     }
@@ -55,6 +56,7 @@ pyobject_native_type_core!(
 
 #[cfg(not(PyPy))]
 impl PyDictValues {
+    /// Returns `self` cast as a `PySequence`.
     pub fn as_sequence(&self) -> &PySequence {
         unsafe { PySequence::try_from_unchecked(self) }
     }
@@ -74,6 +76,7 @@ pyobject_native_type_core!(
 
 #[cfg(not(PyPy))]
 impl PyDictItems {
+    /// Returns `self` cast as a `PySequence`.
     pub fn as_sequence(&self) -> &PySequence {
         unsafe { PySequence::try_from_unchecked(self) }
     }
