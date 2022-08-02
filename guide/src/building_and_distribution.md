@@ -135,6 +135,29 @@ rustflags = [
 ]
 ```
 
+Using the MacOS system python3 (`/usr/bin/python3`, as opposed to python installed via homebrew, pyenv, nix, etc.) may result in runtime errors such as `Library not loaded: @rpath/Python3.framework/Versions/3.8/Python3`. These can be resolved with another addition to `.cargo/config.toml`:
+
+```toml
+[build]
+rustflags = [
+  "-C", "link-args=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks",
+]
+```
+
+Alternatively, on rust >= 1.56, one can include in `build.rs`:
+
+```rust
+fn main() {
+    println!(
+        "cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/Library/Frameworks"
+    );
+}
+```
+
+For more discussion on and workarounds for MacOS linking problems [see this issue](https://github.com/PyO3/pyo3/issues/1800#issuecomment-906786649).
+
+Finally, don't forget that on MacOS the `extension-module` feature will cause `cargo test` to fail without the `--no-default-features` flag (see [the FAQ](https://pyo3.rs/main/faq.html#i-cant-run-cargo-test-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror)).
+
 ### The `extension-module` feature
 
 PyO3's `extension-module` feature is used to disable [linking](https://en.wikipedia.org/wiki/Linker_(computing)) to `libpython` on unix targets.
