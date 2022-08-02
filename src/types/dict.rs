@@ -3,14 +3,10 @@
 use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
-#[cfg(PyPy)]
 use crate::types::{PyAny, PyList};
-#[cfg(not(PyPy))]
-use crate::types::{PyAny, PyList, PySequence};
-
-#[cfg(not(PyPy))]
-use crate::IntoPyPointer;
 use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+#[cfg(not(PyPy))]
+use crate::{types::PySequence, IntoPyPointer};
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
 use std::{cmp, collections, hash};
