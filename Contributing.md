@@ -96,7 +96,7 @@ If you are adding a new feature, you should add it to the `full` feature in our 
 
 You can run these tests yourself with
 ```cargo xtask ci```
-See [it's documentation](https://github.com/PyO3/pyo3/tree/main/xtask#readme) for more commands you can run.
+See [its documentation](https://github.com/PyO3/pyo3/tree/main/xtask#readme) for more commands you can run.
 
 ## Python and Rust version support policy
 
