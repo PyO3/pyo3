@@ -161,6 +161,7 @@ impl PyDict {
     /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
     ///
     /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
+    #[cfg(not(PyPy))]
     pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
     where
         K: ToPyObject,
@@ -584,6 +585,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(PyPy))]
     fn test_get_item_with_error() {
         Python::with_gil(|py| {
             let mut v = HashMap::new();
@@ -600,8 +602,7 @@ mod tests {
             );
             assert!(dict.get_item_with_error(8i32).unwrap().is_none());
 
-            let dict_clone = dict.clone();
-            if let Err(err) = dict.get_item_with_error(dict_clone) {
+            if let Err(err) = dict.get_item_with_error(dict) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
             } else {
                 panic!()
