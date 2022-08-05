@@ -601,12 +601,10 @@ mod tests {
                     .unwrap()
             );
             assert!(dict.get_item_with_error(8i32).unwrap().is_none());
-
-            if let Err(err) = dict.get_item_with_error(dict) {
-                assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
-            } else {
-                panic!()
-            };
+            assert!(dict
+                .get_item_with_error(dict)
+                .unwrap_err()
+                .is_instance_of::<exceptions::PyTypeError>(py));
         });
     }
 
