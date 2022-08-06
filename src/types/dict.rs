@@ -156,6 +156,27 @@ impl PyDict {
         }
     }
 
+    /// Gets an item from the dictionary,
+    ///
+    /// returns `Ok(None)` if item is not present, or `Err(PyErr)` if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item_with_error`.
+    #[cfg(not(PyPy))]
+    pub fn get_item_with_error<K>(&self, key: K) -> PyResult<Option<&PyAny>>
+    where
+        K: ToPyObject,
+    {
+        unsafe {
+            let ptr =
+                ffi::PyDict_GetItemWithError(self.as_ptr(), key.to_object(self.py()).as_ptr());
+            if !ffi::PyErr_Occurred().is_null() {
+                return Err(PyErr::fetch(self.py()));
+            }
+
+            Ok(NonNull::new(ptr).map(|p| self.py().from_owned_ptr(ffi::_Py_NewRef(p.as_ptr()))))
+        }
+    }
+
     /// Sets an item value.
     ///
     /// This is equivalent to the Python statement `self[key] = value`.
@@ -472,6 +493,8 @@ where
 mod tests {
     use super::*;
     #[cfg(not(PyPy))]
+    use crate::exceptions;
+    #[cfg(not(PyPy))]
     use crate::{types::PyList, PyTypeInfo};
     use crate::{types::PyTuple, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
@@ -559,6 +582,30 @@ mod tests {
             let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
             assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
             assert!(dict.get_item(8i32).is_none());
+        });
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn test_get_item_with_error() {
+        Python::with_gil(|py| {
+            let mut v = HashMap::new();
+            v.insert(7, 32);
+            let ob = v.to_object(py);
+            let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            assert_eq!(
+                32,
+                dict.get_item_with_error(7i32)
+                    .unwrap()
+                    .unwrap()
+                    .extract::<i32>()
+                    .unwrap()
+            );
+            assert!(dict.get_item_with_error(8i32).unwrap().is_none());
+            assert!(dict
+                .get_item_with_error(dict)
+                .unwrap_err()
+                .is_instance_of::<exceptions::PyTypeError>(py));
         });
     }
 
