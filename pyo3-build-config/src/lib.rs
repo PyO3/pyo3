@@ -16,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::{env, process::Command};
+use std::{env, process::Command, str::FromStr};
 
 #[cfg(feature = "resolve-config")]
 use once_cell::sync::OnceCell;
@@ -27,6 +27,7 @@ pub use impl_::{
     BuildFlag, BuildFlags, CrossCompileConfig, InterpreterConfig, PythonImplementation,
     PythonVersion, Triple,
 };
+use target_lexicon::OperatingSystem;
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
@@ -46,23 +47,27 @@ pub fn use_pyo3_cfgs() {
     get().emit_pyo3_cfgs();
 }
 
-/// Adds linker arguments (for macOS) suitable for PyO3's `extension-module` feature.
+/// Adds linker arguments suitable for PyO3's `extension-module` feature.
 ///
 /// This should be called from a build script.
 ///
-/// This is currently a no-op on non-macOS platforms, however may emit additional linker arguments
-/// in future if deemed necessarys.
+/// The following link flags are added:
+/// - macOS: `-undefined dynamic_lookup`
+/// - wasm32-unknown-emscripten: `-sSIDE_MODULE=2 -sWASM_BIGINT`
+///
+/// All other platforms currently are no-ops, however this may change as necessary
+/// in future.
 pub fn add_extension_module_link_args() {
-    _add_extension_module_link_args(
-        &impl_::cargo_env_var("CARGO_CFG_TARGET_OS").unwrap(),
-        std::io::stdout(),
-    )
+    _add_extension_module_link_args(&impl_::target_triple_from_env(), std::io::stdout())
 }
 
-fn _add_extension_module_link_args(target_os: &str, mut writer: impl std::io::Write) {
-    if target_os == "macos" {
+fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
+    if triple.operating_system == OperatingSystem::Darwin {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
+    } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
+        writeln!(writer, "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2").unwrap();
+        writeln!(writer, "cargo:rustc-cdylib-link-arg=-sWASM_BIGINT").unwrap();
     }
 }
 
@@ -220,14 +225,31 @@ mod tests {
         let mut buf = Vec::new();
 
         // Does nothing on non-mac
-        _add_extension_module_link_args("windows", &mut buf);
+        _add_extension_module_link_args(
+            &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
+            &mut buf,
+        );
         assert_eq!(buf, Vec::new());
 
-        _add_extension_module_link_args("macos", &mut buf);
+        _add_extension_module_link_args(
+            &Triple::from_str("x86_64-apple-darwin").unwrap(),
+            &mut buf,
+        );
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-undefined\n\
              cargo:rustc-cdylib-link-arg=dynamic_lookup\n"
+        );
+
+        buf.clear();
+        _add_extension_module_link_args(
+            &Triple::from_str("wasm32-unknown-emscripten").unwrap(),
+            &mut buf,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buf).unwrap(),
+            "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2\n\
+             cargo:rustc-cdylib-link-arg=-sWASM_BIGINT\n"
         );
     }
 }
