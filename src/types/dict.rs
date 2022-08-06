@@ -492,6 +492,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(PyPy))]
     use crate::exceptions;
     #[cfg(not(PyPy))]
     use crate::{types::PyList, PyTypeInfo};
