@@ -189,6 +189,7 @@ jobs:
           cargo update -p plotters --precise 0.3.1
           cargo update -p plotters-svg --precise 0.3.1
           cargo update -p plotters-backend --precise 0.3.2
+          cargo update -p serde --precise 1.0.142
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
