@@ -8,7 +8,7 @@ use crate::{
     ffi, AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyTryFrom, Python, ToPyObject,
 };
 
-static MAPPING_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static MAPPING_ABC: GILOnceCell<PyResult<Py<PyType>>> = GILOnceCell::new();
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 #[repr(transparent)]
@@ -112,25 +112,25 @@ impl PyMapping {
     /// Register a pyclass as a subclass of `collections.abc.Mapping` (from the Python standard
     /// library). This is equvalent to `collections.abc.Mapping.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PyMapping`.
-    pub fn register_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        get_mapping_abc(py).call_method1("register", (ty,))?;
+        get_mapping_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
 }
 
-fn get_mapping_abc(py: Python<'_>) -> &PyType {
+fn get_mapping_abc(py: Python<'_>) -> Result<&PyType, PyErr> {
     MAPPING_ABC
         .get_or_init(py, || {
-            py.import("collections.abc")
-                .expect("coud not import 'collections.abc'")
-                .getattr("Mapping")
-                .expect("coud not access 'Mapping' from 'collections.abc'")
-                .downcast::<PyType>()
-                .expect("could not access 'collections.abc.Mapping'")
-                .into_py(py)
+            Ok(py
+                .import("collections.abc")?
+                .getattr("Mapping")?
+                .downcast::<PyType>()?
+                .into_py(py))
         })
-        .as_ref(py)
+        .as_ref()
+        .map(|t| t.as_ref(py))
+        .map_err(|e| e.clone_ref(py))
 }
 
 impl<'v> PyTryFrom<'v> for PyMapping {
@@ -139,14 +139,15 @@ impl<'v> PyTryFrom<'v> for PyMapping {
     /// `isinstance(<class>, collections.abc.Mapping) == True`.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyMapping, PyDowncastError<'v>> {
         let value = value.into();
-        if value
-            .is_instance(get_mapping_abc(value.py()))
-            .unwrap_or(false)
-        {
-            unsafe { Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value)) }
-        } else {
-            Err(PyDowncastError::new(value, "Mapping"))
+
+        // TODO: surface specific errors in this chain to the user
+        if let Ok(abc) = get_mapping_abc(value.py()) {
+            if value.is_instance(abc).unwrap_or(false) {
+                unsafe { return Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value)) }
+            }
         }
+
+        Err(PyDowncastError::new(value, "Mapping"))
     }
 
     #[inline]

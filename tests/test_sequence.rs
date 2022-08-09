@@ -326,7 +326,7 @@ fn sequence_is_not_mapping() {
     )
     .unwrap();
 
-    PySequence::register_abc_subclass::<OptionList>(py).unwrap();
+    PySequence::register::<OptionList>(py).unwrap();
 
     assert!(list.as_ref().downcast::<PyMapping>().is_err());
     assert!(list.as_ref().downcast::<PySequence>().is_ok());

@@ -9,7 +9,7 @@ use crate::{ffi, PyNativeType, ToPyObject};
 use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
 
-static SEQUENCE_ABC: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static SEQUENCE_ABC: GILOnceCell<PyResult<Py<PyType>>> = GILOnceCell::new();
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -258,9 +258,9 @@ impl PySequence {
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
     /// library). This is equvalent to `collections.abc.Sequence.register(T)` in Python.
     /// This registration is required for a pyclass to be downcastable from `PyAny` to `PySequence`.
-    pub fn register_abc_subclass<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
+    pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        get_sequence_abc(py).call_method1("register", (ty,))?;
+        get_sequence_abc(py)?.call_method1("register", (ty,))?;
         Ok(())
     }
 }
@@ -302,18 +302,18 @@ where
     Ok(v)
 }
 
-fn get_sequence_abc(py: Python<'_>) -> &PyType {
+fn get_sequence_abc(py: Python<'_>) -> Result<&PyType, PyErr> {
     SEQUENCE_ABC
         .get_or_init(py, || {
-            py.import("collections.abc")
-                .expect("coud not import 'collections.abc'")
-                .getattr("Sequence")
-                .expect("coud not access 'Sequence' from 'collections.abc'")
-                .downcast::<PyType>()
-                .expect("could not access 'collections.abc.Sequence'")
-                .into_py(py)
+            Ok(py
+                .import("collections.abc")?
+                .getattr("Sequence")?
+                .downcast::<PyType>()?
+                .into_py(py))
         })
-        .as_ref(py)
+        .as_ref()
+        .map(|t| t.as_ref(py))
+        .map_err(|e| e.clone_ref(py))
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
@@ -322,14 +322,15 @@ impl<'v> PyTryFrom<'v> for PySequence {
     /// `isinstance(<class>, collections.abc.Sequence) == True`.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
         let value = value.into();
-        if value
-            .is_instance(get_sequence_abc(value.py()))
-            .unwrap_or(false)
-        {
-            unsafe { Ok(<PySequence as PyTryFrom>::try_from_unchecked(value)) }
-        } else {
-            Err(PyDowncastError::new(value, "Sequence"))
+
+        // TODO: surface specific errors in this chain to the user
+        if let Ok(abc) = get_sequence_abc(value.py()) {
+            if value.is_instance(abc).unwrap_or(false) {
+                unsafe { return Ok(<PySequence as PyTryFrom>::try_from_unchecked(value)) }
+            }
         }
+
+        Err(PyDowncastError::new(value, "Sequence"))
     }
 
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {

@@ -120,7 +120,7 @@ fn mapping_is_not_sequence() {
         index.insert("Bar".into(), 2);
         let m = Py::new(py, Mapping { index }).unwrap();
 
-        PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
+        PyMapping::register::<Mapping>(py).unwrap();
 
         assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
         assert!(m.as_ref(py).downcast::<PySequence>().is_err());

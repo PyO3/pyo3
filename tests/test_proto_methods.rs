@@ -210,7 +210,7 @@ impl Mapping {
 #[test]
 fn mapping() {
     Python::with_gil(|py| {
-        PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
+        PyMapping::register::<Mapping>(py).unwrap();
 
         let inst = Py::new(
             py,
@@ -318,7 +318,7 @@ impl Sequence {
 #[test]
 fn sequence() {
     Python::with_gil(|py| {
-        PySequence::register_abc_subclass::<Sequence>(py).unwrap();
+        PySequence::register::<Sequence>(py).unwrap();
 
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 

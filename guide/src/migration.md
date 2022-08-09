@@ -22,10 +22,9 @@ penatly is a problem, you may be able to perform your own checks and use
 
 Another side-effect is that a pyclass defined in Rust with PyO3 will need to
 be _registered_ with the corresponding Python abstract base class for
-downcasting to succeed. `PySequence::register_abc_subclass` and
-`PyMapping:register_abc_subclass` have been added to make it easy to do this
-from Rust code. These are equivalent to calling
-`collections.abc.Mapping.register(MappingPyClass)` or
+downcasting to succeed. `PySequence::register` and `PyMapping:register` have
+been added to make it easy to do this from Rust code. These are equivalent to
+calling `collections.abc.Mapping.register(MappingPyClass)` or
 `collections.abc.Sequence.register(SequencePyClass)` from Python.
 
 For example, for a mapping class defined in Rust:
@@ -52,7 +51,7 @@ You must register the class with `collections.abc.Mapping` before the downcast w
 ```rust,compile_fail
 let m = Py::new(py, Mapping { index }).unwrap();
 assert!(m.as_ref(py).downcast::<PyMapping>().is_err());
-PyMapping::register_abc_subclass::<Mapping>(py).unwrap();
+PyMapping::register::<Mapping>(py).unwrap();
 assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
 ```
 
