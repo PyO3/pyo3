@@ -55,7 +55,7 @@ PyMapping::register::<Mapping>(py).unwrap();
 assert!(m.as_ref(py).downcast::<PyMapping>().is_ok());
 ```
 
-Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/904)).
+Note that this requirement may go away in the future when a pyclass is able to inherit from the abstract base class directly (see [pyo3/pyo3#991](https://github.com/PyO3/pyo3/issues/991)).
 
 ### The `multiple-pymethods` feature now requires Rust 1.62
 
