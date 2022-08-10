@@ -129,6 +129,10 @@ fn get_type_object<T: PyTypeInfo>(py: Python<'_>) -> &PyType {
 
 If this leads to errors, simply implement `IntoPy`. Because pyclasses already implement `IntoPy`, you probably don't need to worry about this.
 
+### Each `#[pymodule]` can now only be initialized once per process
+
+To make PyO3 modules sound in the presence of Python sub-interpreters, for now it has been necessary to explicitly disable the ability to initialize a `#[pymodule]` more than once in the same process. Attempting to do this will now raise an `ImportError`.
+
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies
