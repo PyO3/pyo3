@@ -5,9 +5,9 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.16.* to 0.17
 
-### Downcasting (`PyTryFrom`) has been changed for `PyMapping` and `PySequence` types
+### Type checks have been changed for `PyMapping` and `PySequence` types
 
-Previously the safety checks for downcasting to `PyTryFrom` and `PyMapping`
+Previously the type checks for `PyMapping` and `PySequence` (implemented in `PyTryFrom`)
 used the Python C-API functions `PyMapping_Check` and `PySequence_Check`.
 Unfortunately these functions are not sufficient for distinguishing such types,
 leading to inconsistent behavior (see
