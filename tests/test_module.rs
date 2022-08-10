@@ -184,17 +184,16 @@ fn custom_named_fn() -> usize {
     42
 }
 
-#[pymodule]
-fn foobar_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
-    m.dict().set_item("yay", "me")?;
-    Ok(())
-}
-
 #[test]
 fn test_custom_names() {
+    #[pymodule]
+    fn custom_names(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
+        Ok(())
+    }
+
     Python::with_gil(|py| {
-        let module = pyo3::wrap_pymodule!(foobar_module)(py);
+        let module = pyo3::wrap_pymodule!(custom_names)(py);
 
         py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
         py_assert!(py, module, "module.foobar() == 42");
@@ -203,8 +202,14 @@ fn test_custom_names() {
 
 #[test]
 fn test_module_dict() {
+    #[pymodule]
+    fn module_dict(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+        m.dict().set_item("yay", "me")?;
+        Ok(())
+    }
+
     Python::with_gil(|py| {
-        let module = pyo3::wrap_pymodule!(foobar_module)(py);
+        let module = pyo3::wrap_pymodule!(module_dict)(py);
 
         py_assert!(py, module, "module.yay == 'me'");
     });
@@ -213,7 +218,14 @@ fn test_module_dict() {
 #[test]
 fn test_module_dunder_all() {
     Python::with_gil(|py| {
-        let module = pyo3::wrap_pymodule!(foobar_module)(py);
+        #[pymodule]
+        fn dunder_all(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+            m.dict().set_item("yay", "me")?;
+            m.add_function(wrap_pyfunction!(custom_named_fn, m)?)?;
+            Ok(())
+        }
+
+        let module = pyo3::wrap_pymodule!(dunder_all)(py);
 
         py_assert!(py, module, "module.__all__ == ['foobar']");
     });

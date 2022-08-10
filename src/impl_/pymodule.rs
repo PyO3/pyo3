@@ -1,10 +1,13 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::cell::UnsafeCell;
+use std::{
+    cell::UnsafeCell,
+    sync::atomic::{self, AtomicBool},
+};
 
 use crate::{
-    callback::panic_result_into_callback_output, ffi, types::PyModule, GILPool, IntoPyPointer, Py,
-    PyObject, PyResult, Python,
+    callback::panic_result_into_callback_output, exceptions::PyImportError, ffi, types::PyModule,
+    GILPool, IntoPyPointer, Py, PyObject, PyResult, Python,
 };
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
@@ -12,6 +15,7 @@ pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     initializer: ModuleInitializer,
+    initialized: AtomicBool,
 }
 
 /// Wrapper to enable initializer to be used in const fns.
@@ -50,6 +54,7 @@ impl ModuleDef {
         ModuleDef {
             ffi_def,
             initializer,
+            initialized: AtomicBool::new(false),
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
@@ -57,6 +62,11 @@ impl ModuleDef {
         let module = unsafe {
             Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
         };
+        if self.initialized.swap(true, atomic::Ordering::SeqCst) {
+            return Err(PyImportError::new_err(
+                "PyO3 modules may only be initialized once per interpreter process",
+            ));
+        }
         (self.initializer.0)(py, module.as_ref(py))?;
         Ok(module.into())
     }
