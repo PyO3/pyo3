@@ -312,8 +312,7 @@ fn get_sequence_abc(py: Python<'_>) -> Result<&PyType, PyErr> {
                 .into_py(py))
         })
         .as_ref()
-        .map(|t| t.as_ref(py))
-        .map_err(|e| e.clone_ref(py))
+        .map_or_else(|e| Err(e.clone_ref(py)), |t| Ok(t.as_ref(py)))
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
