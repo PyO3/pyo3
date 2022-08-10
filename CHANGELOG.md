@@ -53,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyCapsule::name` now returns `PyResult<Option<&CStr>>` instead of `&CStr`.
 - `FromPyObject::extract` now raises an error if source type is `PyString` and target type is `Vec<T>`. [#2500](https://github.com/PyO3/pyo3/pull/2500)
 - Only allow each `#[pymodule]` to be initialized once. [#2523](https://github.com/PyO3/pyo3/pull/2523)
-- `pyo3_build_config::add_extension_module_link_args()` now also emits linker arguments for `wasm32-unknown-emscripten`. [#2538](https://github.com/PyO3/pyo3/pull/2538)
+- `pyo3_build_config::add_extension_module_link_args()` now also emits linker arguments for `wasm32-unknown-emscripten`. [#2500](https://github.com/PyO3/pyo3/pull/2500)
+- Downcasting (`PyTryFrom`) behavior has changed for `PySequence` and `PyMapping`: classes are now required to inherit from (or register with) the corresponding Python standard library abstract base class. See the [migration guide](https://pyo3.rs/latest/migration.html) for information on fixing broken downcasts. [#2477](https://github.com/PyO3/pyo3/pull/2477)
 
 ### Removed
 

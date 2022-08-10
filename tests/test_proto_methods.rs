@@ -210,6 +210,8 @@ impl Mapping {
 #[test]
 fn mapping() {
     Python::with_gil(|py| {
+        PyMapping::register::<Mapping>(py).unwrap();
+
         let inst = Py::new(
             py,
             Mapping {
@@ -218,7 +220,6 @@ fn mapping() {
         )
         .unwrap();
 
-        //
         let mapping: &PyMapping = inst.as_ref(py).downcast().unwrap();
 
         py_assert!(py, inst, "len(inst) == 0");
@@ -317,6 +318,8 @@ impl Sequence {
 #[test]
 fn sequence() {
     Python::with_gil(|py| {
+        PySequence::register::<Sequence>(py).unwrap();
+
         let inst = Py::new(py, Sequence { values: vec![] }).unwrap();
 
         let sequence: &PySequence = inst.as_ref(py).downcast().unwrap();

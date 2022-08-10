@@ -2,7 +2,7 @@
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyList};
+use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
 
 use pyo3::py_run;
 
@@ -311,4 +311,23 @@ fn test_option_list_get() {
         py_assert!(py, list, "list[1] == None");
         py_expect_exception!(py, list, "list[2]", PyIndexError);
     });
+}
+
+#[test]
+fn sequence_is_not_mapping() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let list = PyCell::new(
+        py,
+        OptionList {
+            items: vec![Some(1), None],
+        },
+    )
+    .unwrap();
+
+    PySequence::register::<OptionList>(py).unwrap();
+
+    assert!(list.as_ref().downcast::<PyMapping>().is_err());
+    assert!(list.as_ref().downcast::<PySequence>().is_ok());
 }
