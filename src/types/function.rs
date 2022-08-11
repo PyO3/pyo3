@@ -1,11 +1,13 @@
 use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
-use crate::prelude::*;
+use crate::impl_::panic::PanicTrap;
+use crate::panic::PanicException;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
     types, AsPyPointer,
 };
+use crate::{prelude::*, GILPool};
 use std::os::raw::c_void;
 
 /// Represents a builtin Python function object.
@@ -40,20 +42,20 @@ where
     F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
-    let result = std::panic::catch_unwind(|| {
+    let trap = PanicTrap::new("uncaught panic during drop_closure");
+    let pool = GILPool::new();
+    if let Err(payload) = std::panic::catch_unwind(|| {
         let boxed_fn: Box<F> = Box::from_raw(ffi::PyCapsule_GetPointer(
             capsule_ptr,
             CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
         ) as *mut F);
         drop(boxed_fn)
-    });
-    if let Err(err) = result {
-        // This second layer of catch_unwind is useful as eprintln! can also panic.
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            eprintln!("--- PyO3 intercepted a panic when dropping a closure");
-            eprintln!("{:?}", err);
-        }));
-    }
+    }) {
+        let py = pool.python();
+        let err = PanicException::from_panic_payload(payload);
+        err.write_unraisable(py, "when dropping a closure".into_py(py));
+    };
+    trap.disarm();
 }
 
 impl PyCFunction {

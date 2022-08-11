@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PyCapsule::new` and `PyCapsule::new_with_destructor` now take ownership of a copy of the `name` to resolve a possible use-after-free.
   - `PyCapsule::name` now returns an empty `CStr` instead of dereferencing a null pointer if the capsule has no name.
   - The destructor `F` in `PyCapsule::new_with_destructor` will never be called if the capsule is deleted from a thread other than the one which the capsule was created in (a warning will be emitted).
+- Panics during drop of panic payload caught by PyO3 will now abort. [#2544](https://github.com/PyO3/pyo3/pull/2544)
 
 ## [0.16.5] - 2022-05-15
 

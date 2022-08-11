@@ -319,19 +319,20 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> TokenStream {
             arg: *mut ::std::os::raw::c_void,
         ) -> ::std::os::raw::c_int
         {
+            let trap = _pyo3::impl_::panic::PanicTrap::new("uncaught panic inside __traverse__ handler");
             let pool = _pyo3::GILPool::new();
             let py = pool.python();
-            _pyo3::callback::abort_on_traverse_panic(::std::panic::catch_unwind(move || {
-                let slf = py.from_borrowed_ptr::<_pyo3::PyCell<#cls>>(slf);
+            let slf = py.from_borrowed_ptr::<_pyo3::PyCell<#cls>>(slf);
 
-                let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
-                let borrow = slf.try_borrow();
-                if let ::std::result::Result::Ok(borrow) = borrow {
-                    _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
-                } else {
-                    0
-                }
-            }))
+            let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
+            let borrow = slf.try_borrow();
+            let retval = if let ::std::result::Result::Ok(borrow) = borrow {
+                _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
+            } else {
+                0
+            };
+            trap.disarm();
+            retval
         }
         _pyo3::ffi::PyType_Slot {
             slot: _pyo3::ffi::Py_tp_traverse,
