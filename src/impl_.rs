@@ -11,6 +11,7 @@ pub mod freelist;
 pub mod frompyobject;
 pub mod ghost;
 pub(crate) mod not_send;
+pub mod panic;
 #[doc(hidden)]
 pub mod pyclass;
 #[doc(hidden)]
