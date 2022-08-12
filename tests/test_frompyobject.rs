@@ -532,7 +532,7 @@ fn test_from_py_with_tuple_struct_error() {
     });
 }
 
-#[derive(Debug, FromPyObject, PartialEq)]
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
 pub enum ZapEnum {
     Zip(#[pyo3(from_py_with = "PyAny::len")] usize),
     Zap(String, #[pyo3(from_py_with = "PyAny::len")] usize),
@@ -552,7 +552,7 @@ fn test_from_py_with_enum() {
     });
 }
 
-#[derive(Debug, FromPyObject, PartialEq)]
+#[derive(Debug, FromPyObject, PartialEq, Eq)]
 #[pyo3(transparent)]
 pub struct TransparentFromPyWith {
     #[pyo3(from_py_with = "PyAny::len")]

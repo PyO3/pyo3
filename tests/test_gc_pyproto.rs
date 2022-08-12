@@ -195,7 +195,7 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
-        let obj: &PyCell<SubClassWithDrop> = PyTryInto::try_into(&*inst).unwrap();
+        let obj: &PyCell<SubClassWithDrop> = PyTryInto::try_into(inst).unwrap();
         let mut obj_ref_mut = obj.borrow_mut();
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
         let base: &mut BaseClassWithDrop = obj_ref_mut.as_mut();
