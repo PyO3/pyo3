@@ -6,7 +6,7 @@ use pyo3::{py_run, wrap_pyfunction};
 mod common;
 
 #[pyclass]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MyEnum {
     Variant,
     OtherVariant,
@@ -163,7 +163,7 @@ fn test_repr_parse() {
 }
 
 #[pyclass(name = "MyEnum")]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameEnum {
     Variant,
 }
@@ -177,7 +177,7 @@ fn test_rename_enum_repr_correct() {
 }
 
 #[pyclass]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameVariantEnum {
     #[pyo3(name = "VARIANT")]
     Variant,

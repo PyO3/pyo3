@@ -52,6 +52,7 @@ fn _test_compile_errors() {
     tests_rust_1_58(&t);
     tests_rust_1_60(&t);
     tests_rust_1_62(&t);
+    tests_rust_1_63(&t);
 
     #[rustversion::since(1.49)]
     fn tests_rust_1_49(t: &trybuild::TestCases) {
@@ -85,9 +86,6 @@ fn _test_compile_errors() {
     fn tests_rust_1_58(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pyfunctions.rs");
         t.compile_fail("tests/ui/invalid_pymethods.rs");
-        t.compile_fail("tests/ui/not_send.rs");
-        t.compile_fail("tests/ui/not_send2.rs");
-        t.compile_fail("tests/ui/not_send3.rs");
         #[cfg(Py_LIMITED_API)]
         t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     }
@@ -107,12 +105,22 @@ fn _test_compile_errors() {
     #[rustversion::since(1.62)]
     fn tests_rust_1_62(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
-        t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/missing_intopy.rs");
     }
 
     #[rustversion::before(1.62)]
     fn tests_rust_1_62(_t: &trybuild::TestCases) {}
+
+    #[rustversion::since(1.63)]
+    fn tests_rust_1_63(t: &trybuild::TestCases) {
+        t.compile_fail("tests/ui/invalid_result_conversion.rs");
+        t.compile_fail("tests/ui/not_send.rs");
+        t.compile_fail("tests/ui/not_send2.rs");
+        t.compile_fail("tests/ui/not_send3.rs");
+    }
+
+    #[rustversion::before(1.63)]
+    fn tests_rust_1_63(_t: &trybuild::TestCases) {}
 }
 
 #[cfg(feature = "nightly")]
