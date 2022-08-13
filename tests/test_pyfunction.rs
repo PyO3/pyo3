@@ -3,9 +3,11 @@
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
-use pyo3::types::{self, PyCFunction};
 #[cfg(not(Py_LIMITED_API))]
-use pyo3::types::{PyDateTime, PyFunction};
+use pyo3::types::PyDateTime;
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+use pyo3::types::PyFunction;
+use pyo3::types::{self, PyCFunction};
 
 mod common;
 
@@ -70,7 +72,7 @@ assert a, array.array("i", [2, 4, 6, 8])
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 #[pyfunction]
 fn function_with_pyfunction_arg(fun: &PyFunction) -> PyResult<&PyAny> {
     fun.call((), None)
@@ -96,7 +98,7 @@ fn test_functions_with_function_args() {
         "#
         );
 
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
         {
             let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 

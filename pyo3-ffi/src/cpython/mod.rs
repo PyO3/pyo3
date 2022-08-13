@@ -12,6 +12,7 @@ pub(crate) mod dictobject;
 // skipped fileobject.h
 // skipped fileutils.h
 pub(crate) mod frameobject;
+pub(crate) mod funcobject;
 pub(crate) mod genobject;
 pub(crate) mod import;
 #[cfg(all(Py_3_8, not(PyPy)))]
@@ -44,6 +45,7 @@ pub use self::descrobject::*;
 #[cfg(not(PyPy))]
 pub use self::dictobject::*;
 pub use self::frameobject::*;
+pub use self::funcobject::*;
 pub use self::genobject::*;
 pub use self::import::*;
 #[cfg(all(Py_3_8, not(PyPy)))]

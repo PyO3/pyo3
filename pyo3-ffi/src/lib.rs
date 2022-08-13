@@ -299,8 +299,6 @@ pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
 pub use self::floatobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::funcobject::*;
 pub use self::import::*;
 pub use self::intrcheck::*;
 pub use self::iterobject::*;
@@ -368,8 +366,6 @@ mod fileobject;
 mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
-#[cfg(not(Py_LIMITED_API))]
-pub(crate) mod funcobject;
 // skipped genericaliasobject.h
 mod import;
 // skipped interpreteridobject.h

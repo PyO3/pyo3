@@ -1,8 +1,8 @@
 use std::os::raw::c_int;
 
-use crate::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::PyObject;
 
-#[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
+#[cfg(all(not(PyPy), not(Py_3_10)))]
 #[repr(C)]
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
@@ -22,7 +22,7 @@ pub struct PyFunctionObject {
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
-#[cfg(all(not(PyPy), not(Py_LIMITED_API), Py_3_10))]
+#[cfg(all(not(PyPy), Py_3_10))]
 #[repr(C)]
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
@@ -44,25 +44,24 @@ pub struct PyFunctionObject {
     pub func_version: u32,
 }
 
-#[cfg(all(PyPy, not(Py_LIMITED_API)))]
+#[cfg(PyPy)]
 #[repr(C)]
 pub struct PyFunctionObject {
     pub ob_base: PyObject,
     pub func_name: *mut PyObject,
 }
 
-#[cfg(all(not(PyPy), Py_LIMITED_API))]
-opaque_struct!(PyFunctionObject);
-
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg(not(PyPy))] // broken, see https://foss.heptapod.net/pypy/pypy/-/issues/3776
     #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
-    pub static mut PyFunction_Type: PyTypeObject;
+    pub static mut PyFunction_Type: crate::PyTypeObject;
 }
 
+#[cfg(not(PyPy))]
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut_shim!(PyFunction_Type)) as c_int
+    (crate::Py_TYPE(op) == addr_of_mut_shim!(PyFunction_Type)) as c_int
 }
 
 extern "C" {
