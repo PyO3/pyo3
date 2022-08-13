@@ -20,7 +20,9 @@ pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
 pub use self::frozenset::PyFrozenSet;
-pub use self::function::{PyCFunction, PyFunction};
+pub use self::function::PyCFunction;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+pub use self::function::PyFunction;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::mapping::PyMapping;

@@ -166,7 +166,8 @@ impl PyCFunction {
 
 /// Represents a Python function object.
 #[repr(transparent)]
+#[cfg(not(any(PyPy, Py_LIMITED_API)))]
 pub struct PyFunction(PyAny);
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(PyPy, Py_LIMITED_API)))]
 pyobject_native_type_core!(PyFunction, ffi::PyFunction_Type, #checkfunction=ffi::PyFunction_Check);
