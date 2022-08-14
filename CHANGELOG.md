@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pyo3_build_config::add_extension_module_link_args()` now also emits linker arguments for `wasm32-unknown-emscripten`. [#2538](https://github.com/PyO3/pyo3/pull/2538)
 - Downcasting (`PyTryFrom`) behavior has changed for `PySequence` and `PyMapping`: classes are now required to inherit from (or register with) the corresponding Python standard library abstract base class. See the [migration guide](https://pyo3.rs/latest/migration.html) for information on fixing broken downcasts. [#2477](https://github.com/PyO3/pyo3/pull/2477)
 - Disable `PyFunction` on `Py_LIMITED_API` and PyPy. [#2542](https://github.com/PyO3/pyo3/pull/2542)
+- Panics during drop of panic payload caught by PyO3 will now abort. [#2544](https://github.com/PyO3/pyo3/pull/2544)
 
 ### Removed
 
