@@ -743,7 +743,7 @@ mod tests {
             let obj: Arc<Py<PyAny>> = Arc::new(get_object(py));
             let thread_obj = Arc::clone(&obj);
 
-            let count = (&*obj).get_refcnt(py);
+            let count = obj.get_refcnt(py);
             println!(
                 "1: The object has been created and its reference count is {}",
                 count
