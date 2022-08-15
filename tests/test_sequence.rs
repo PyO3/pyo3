@@ -315,6 +315,7 @@ fn test_option_list_get() {
 
 #[test]
 fn sequence_is_not_mapping() {
+    #[allow(deprecated)]
     let gil = Python::acquire_gil();
     let py = gil.python();
 

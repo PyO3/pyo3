@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Downcasting (`PyTryFrom`) behavior has changed for `PySequence` and `PyMapping`: classes are now required to inherit from (or register with) the corresponding Python standard library abstract base class. See the [migration guide](https://pyo3.rs/latest/migration.html) for information on fixing broken downcasts. [#2477](https://github.com/PyO3/pyo3/pull/2477)
 - Disable `PyFunction` on `Py_LIMITED_API` and PyPy. [#2542](https://github.com/PyO3/pyo3/pull/2542)
 - Panics during drop of panic payload caught by PyO3 will now abort. [#2544](https://github.com/PyO3/pyo3/pull/2544)
-
+- Deprecate `Python::acquire_gil` [#2549](https://github.com/PyO3/pyo3/pull/2549).
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.15. [#2283](https://github.com/PyO3/pyo3/pull/2283)

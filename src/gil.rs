@@ -151,6 +151,7 @@ where
 /// use pyo3::Python;
 ///
 /// {
+///     #[allow(deprecated)]
 ///     let gil_guard = Python::acquire_gil();
 ///     let py = gil_guard.python();
 /// } // GIL is released when gil_guard is dropped
@@ -516,6 +517,7 @@ mod tests {
 
     #[test]
     fn test_owned() {
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object(py);
@@ -541,6 +543,7 @@ mod tests {
 
     #[test]
     fn test_owned_nested() {
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object(py);
@@ -574,6 +577,7 @@ mod tests {
 
     #[test]
     fn test_pyobject_drop_with_gil_decreases_refcnt() {
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object(py);
@@ -595,6 +599,7 @@ mod tests {
 
     #[test]
     fn test_pyobject_drop_without_gil_doesnt_decrease_refcnt() {
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object(py);
@@ -615,6 +620,7 @@ mod tests {
 
             {
                 // Next time the GIL is acquired, the object is released
+                #[allow(deprecated)]
                 let _gil = Python::acquire_gil();
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
@@ -627,6 +633,7 @@ mod tests {
         let get_gil_count = || GIL_COUNT.with(|c| c.get());
 
         assert_eq!(get_gil_count(), 0);
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         assert_eq!(get_gil_count(), 1);
 
@@ -640,6 +647,7 @@ mod tests {
         drop(pool);
         assert_eq!(get_gil_count(), 2);
 
+        #[allow(deprecated)]
         let gil2 = Python::acquire_gil();
         assert_eq!(get_gil_count(), 3);
 
@@ -656,6 +664,7 @@ mod tests {
     #[test]
     fn test_allow_threads() {
         // allow_threads should temporarily release GIL in PyO3's internal tracking too.
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -664,6 +673,7 @@ mod tests {
         py.allow_threads(move || {
             assert!(!gil_is_acquired());
 
+            #[allow(deprecated)]
             let gil = Python::acquire_gil();
             assert!(gil_is_acquired());
 
@@ -677,9 +687,11 @@ mod tests {
     #[test]
     fn dropping_gil_does_not_invalidate_references() {
         // Acquiring GIL for the second time should be safe - see #864
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
 
+        #[allow(deprecated)]
         let gil2 = Python::acquire_gil();
         let obj = py.eval("object()", None, None).unwrap();
         drop(gil2);
@@ -690,6 +702,7 @@ mod tests {
 
     #[test]
     fn test_clone_with_gil() {
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -850,6 +863,7 @@ mod tests {
         // update_counts can run arbitrary Python code during Py_DECREF.
         // if the locking is implemented incorrectly, it will deadlock.
 
+        #[allow(deprecated)]
         let gil = Python::acquire_gil();
         let obj = get_object(gil.python());
 
