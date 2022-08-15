@@ -379,9 +379,18 @@ impl<'py> Python<'py> {
     /// allowed, and will not deadlock. However, [`GILGuard`]s must be dropped in the reverse order
     /// to acquisition. If PyO3 detects this order is not maintained, it will panic when the out-of-order drop occurs.
     ///
+    /// # Deprecation
+    ///
+    /// This API has been deprecated for several reasons:
+    /// - GIL drop order tracking has turned out to be [error prone](https://github.com/PyO3/pyo3/issues/1683).
+    /// With a scoped API like `Python::with_gil`, these are always dropped in the correct order.
+    /// - It promotes passing and keeping the GILGuard around, which is almost always not what you actually want.
+    ///
     /// [`PyGILState_Ensure`]: crate::ffi::PyGILState_Ensure
     /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
     #[inline]
+    // Once removed, we can remove GILGuard's drop tracking.
+    #[deprecated(since = "0.17.0", note = "prefer Python::with_gil")]
     pub fn acquire_gil() -> GILGuard {
         GILGuard::acquire()
     }
@@ -1010,13 +1019,10 @@ mod tests {
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
 
-        {
-            let gil = Python::acquire_gil();
-            let _py = gil.python();
+        Python::with_gil(|_| {
             let state = unsafe { crate::ffi::PyGILState_Check() };
             assert_eq!(state, GIL_HELD);
-            drop(gil);
-        }
+        });
 
         let state = unsafe { crate::ffi::PyGILState_Check() };
         assert_eq!(state, GIL_NOT_HELD);
