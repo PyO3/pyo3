@@ -51,6 +51,8 @@ where
     }
 }
 
+type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
+
 #[derive(Default)]
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
@@ -59,7 +61,7 @@ struct PyTypeBuilder {
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
-    cleanup: Vec<Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>>,
+    cleanup: Vec<PyTypeBuilderCleanup>,
     is_mapping: bool,
     has_new: bool,
     has_dealloc: bool,
