@@ -37,13 +37,13 @@ where
 {
     match unsafe {
         PyTypeBuilder::default()
-            .with_type_doc(T::DOC)
-            .with_offsets(T::dict_offset(), T::weaklist_offset())
-            .with_slot(ffi::Py_tp_base, T::BaseType::type_object_raw(py))
-            .with_slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
+            .type_doc(T::DOC)
+            .offsets(T::dict_offset(), T::weaklist_offset())
+            .slot(ffi::Py_tp_base, T::BaseType::type_object_raw(py))
+            .slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
             .set_is_basetype(T::IS_BASETYPE)
             .set_is_mapping(T::IS_MAPPING)
-            .with_class_items(T::items_iter())
+            .class_items(T::items_iter())
             .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
     } {
         Ok(type_object) => type_object,
@@ -111,7 +111,7 @@ impl PyTypeBuilder {
 
     /// # Safety
     /// It is the caller's responsibility that `data` is of the correct type for the given slot.
-    unsafe fn push_raw_vec<T>(&mut self, slot: c_int, mut data: Vec<T>) {
+    unsafe fn push_raw_vec_slot<T>(&mut self, slot: c_int, mut data: Vec<T>) {
         if !data.is_empty() {
             // Python expects a zeroed entry to mark the end of the defs
             data.push(std::mem::zeroed());
@@ -121,12 +121,12 @@ impl PyTypeBuilder {
 
     /// # Safety
     /// The given pointer must be of the correct type for the given slot
-    unsafe fn with_slot<T>(mut self, slot: c_int, pfunc: *mut T) -> Self {
+    unsafe fn slot<T>(mut self, slot: c_int, pfunc: *mut T) -> Self {
         self.push_slot(slot, pfunc);
         self
     }
 
-    fn add_pymethod_def(&mut self, def: &PyMethodDefType) {
+    fn pymethod_def(&mut self, def: &PyMethodDefType) {
         const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
             name: ptr::null_mut(),
             get: None,
@@ -161,7 +161,7 @@ impl PyTypeBuilder {
     fn finalize_methods_and_properties(&mut self) {
         let method_defs = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
-        unsafe { self.push_raw_vec(ffi::Py_tp_methods, method_defs) };
+        unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
 
         let property_defs = std::mem::take(&mut self.property_defs_map);
         // TODO: use into_values when on MSRV Rust >= 1.54
@@ -182,7 +182,7 @@ impl PyTypeBuilder {
         }
 
         // Safety: Py_tp_members expects a raw vec of PyGetSetDef
-        unsafe { self.push_raw_vec(ffi::Py_tp_getset, property_defs) };
+        unsafe { self.push_raw_vec_slot(ffi::Py_tp_getset, property_defs) };
 
         // If mapping methods implemented, define sequence methods get implemented too.
         // CPython does the same for Python `class` statements.
@@ -227,19 +227,19 @@ impl PyTypeBuilder {
 
     /// # Safety
     /// All slots in the PyClassItemsIter should be correct
-    unsafe fn with_class_items(mut self, iter: PyClassItemsIter) -> Self {
+    unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
         for items in iter {
             for slot in items.slots {
                 self.push_slot(slot.slot, slot.pfunc);
             }
             for method in items.methods {
-                self.add_pymethod_def(method);
+                self.pymethod_def(method);
             }
         }
         self
     }
 
-    fn with_type_doc(mut self, type_doc: &'static str) -> Self {
+    fn type_doc(mut self, type_doc: &'static str) -> Self {
         if let Some(doc) = py_class_doc(type_doc) {
             unsafe { self.push_slot(ffi::Py_tp_doc, doc) }
         }
@@ -262,7 +262,7 @@ impl PyTypeBuilder {
         self
     }
 
-    fn with_offsets(
+    fn offsets(
         mut self,
         dict_offset: Option<ffi::Py_ssize_t>,
         #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
