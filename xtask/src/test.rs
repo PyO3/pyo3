@@ -37,7 +37,7 @@ pub fn run() -> anyhow::Result<()> {
 
     // Test MSRV
     cli::run(
-        Command::new("cargo")
+        Command::new(concat!(env!("CARGO_HOME"), "/bin/cargo"))
             .arg(format!("+{}", MSRV))
             .arg("test")
             .arg("--no-default-features")
@@ -54,7 +54,7 @@ pub fn run() -> anyhow::Result<()> {
     )?;
 
     cli::run(
-        Command::new("cargo")
+        Command::new(concat!(env!("CARGO_HOME"), "/bin/cargo"))
             .arg("+nightly")
             .arg("test")
             .arg("--no-default-features")
