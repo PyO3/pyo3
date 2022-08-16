@@ -22,3 +22,4 @@ pip-wheel-metadata
 valgrind-python.supp
 *.pyd
 lcov.info
+netlify_build/

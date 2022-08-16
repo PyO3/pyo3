@@ -1,0 +1,132 @@
+/0.1.0/doc/* https://docs.rs/pyo3/0.1.0/:splat
+/0.1.0/* https://pyo3.rs/0.1.0/:splat 200
+/0.2.0/doc/* https://docs.rs/pyo3/0.2.0/:splat
+/0.2.0/* https://pyo3.rs/0.2.0/:splat 200
+/0.2.1/doc/* https://docs.rs/pyo3/0.2.1/:splat
+/0.2.1/* https://pyo3.rs/0.2.1/:splat 200
+/0.2.2/doc/* https://docs.rs/pyo3/0.2.2/:splat
+/0.2.2/* https://pyo3.rs/0.2.2/:splat 200
+/pyo3-derive-backend-0.6.0/doc/* https://docs.rs/pyo3/pyo3-derive-backend-0.6.0/:splat
+/pyo3-derive-backend-0.6.0/* https://pyo3.rs/pyo3-derive-backend-0.6.0/:splat 200
+/v0.10.0/doc/* https://docs.rs/pyo3/0.10.0/:splat
+/v0.10.0/* https://pyo3.rs/v0.10.0/:splat 200
+/v0.10.1/doc/* https://docs.rs/pyo3/0.10.1/:splat
+/v0.10.1/* https://pyo3.rs/v0.10.1/:splat 200
+/v0.11.0/doc/* https://docs.rs/pyo3/0.11.0/:splat
+/v0.11.0/* https://pyo3.rs/v0.11.0/:splat 200
+/v0.11.1/doc/* https://docs.rs/pyo3/0.11.1/:splat
+/v0.11.1/* https://pyo3.rs/v0.11.1/:splat 200
+/v0.12.0/doc/* https://docs.rs/pyo3/0.12.0/:splat
+/v0.12.0/* https://pyo3.rs/v0.12.0/:splat 200
+/v0.12.1/doc/* https://docs.rs/pyo3/0.12.1/:splat
+/v0.12.1/* https://pyo3.rs/v0.12.1/:splat 200
+/v0.12.2/doc/* https://docs.rs/pyo3/0.12.2/:splat
+/v0.12.2/* https://pyo3.rs/v0.12.2/:splat 200
+/v0.12.3/doc/* https://docs.rs/pyo3/0.12.3/:splat
+/v0.12.3/* https://pyo3.rs/v0.12.3/:splat 200
+/v0.12.4/doc/* https://docs.rs/pyo3/0.12.4/:splat
+/v0.12.4/* https://pyo3.rs/v0.12.4/:splat 200
+/v0.13.0/doc/* https://docs.rs/pyo3/0.13.0/:splat
+/v0.13.0/* https://pyo3.rs/v0.13.0/:splat 200
+/v0.13.1/doc/* https://docs.rs/pyo3/0.13.1/:splat
+/v0.13.1/* https://pyo3.rs/v0.13.1/:splat 200
+/v0.13.2/doc/* https://docs.rs/pyo3/0.13.2/:splat
+/v0.13.2/* https://pyo3.rs/v0.13.2/:splat 200
+/v0.14.0/doc/* https://docs.rs/pyo3/0.14.0/:splat
+/v0.14.0/* https://pyo3.rs/v0.14.0/:splat 200
+/v0.14.1/doc/* https://docs.rs/pyo3/0.14.1/:splat
+/v0.14.1/* https://pyo3.rs/v0.14.1/:splat 200
+/v0.14.2/doc/* https://docs.rs/pyo3/0.14.2/:splat
+/v0.14.2/* https://pyo3.rs/v0.14.2/:splat 200
+/v0.14.3/doc/* https://docs.rs/pyo3/0.14.3/:splat
+/v0.14.3/* https://pyo3.rs/v0.14.3/:splat 200
+/v0.14.4/doc/* https://docs.rs/pyo3/0.14.4/:splat
+/v0.14.4/* https://pyo3.rs/v0.14.4/:splat 200
+/v0.14.5/doc/* https://docs.rs/pyo3/0.14.5/:splat
+/v0.14.5/* https://pyo3.rs/v0.14.5/:splat 200
+/v0.15.0/doc/* https://docs.rs/pyo3/0.15.0/:splat
+/v0.15.0/* https://pyo3.rs/v0.15.0/:splat 200
+/v0.15.1/doc/* https://docs.rs/pyo3/0.15.1/:splat
+/v0.15.1/* https://pyo3.rs/v0.15.1/:splat 200
+/v0.15.2/doc/* https://docs.rs/pyo3/0.15.2/:splat
+/v0.15.2/* https://pyo3.rs/v0.15.2/:splat 200
+/v0.16.0/doc/* https://docs.rs/pyo3/0.16.0/:splat
+/v0.16.0/* https://pyo3.rs/v0.16.0/:splat 200
+/v0.16.1/doc/* https://docs.rs/pyo3/0.16.1/:splat
+/v0.16.1/* https://pyo3.rs/v0.16.1/:splat 200
+/v0.16.2/doc/* https://docs.rs/pyo3/0.16.2/:splat
+/v0.16.2/* https://pyo3.rs/v0.16.2/:splat 200
+/v0.16.3/doc/* https://docs.rs/pyo3/0.16.3/:splat
+/v0.16.3/* https://pyo3.rs/v0.16.3/:splat 200
+/v0.16.4/doc/* https://docs.rs/pyo3/0.16.4/:splat
+/v0.16.4/* https://pyo3.rs/v0.16.4/:splat 200
+/v0.16.5/doc/* https://docs.rs/pyo3/0.16.5/:splat
+/v0.16.5/* https://pyo3.rs/v0.16.5/:splat 200
+/v0.2.3/doc/* https://docs.rs/pyo3/0.2.3/:splat
+/v0.2.3/* https://pyo3.rs/v0.2.3/:splat 200
+/v0.2.4/doc/* https://docs.rs/pyo3/0.2.4/:splat
+/v0.2.4/* https://pyo3.rs/v0.2.4/:splat 200
+/v0.2.5/doc/* https://docs.rs/pyo3/0.2.5/:splat
+/v0.2.5/* https://pyo3.rs/v0.2.5/:splat 200
+/v0.2.6/doc/* https://docs.rs/pyo3/0.2.6/:splat
+/v0.2.6/* https://pyo3.rs/v0.2.6/:splat 200
+/v0.2.7/doc/* https://docs.rs/pyo3/0.2.7/:splat
+/v0.2.7/* https://pyo3.rs/v0.2.7/:splat 200
+/v0.3.0/doc/* https://docs.rs/pyo3/0.3.0/:splat
+/v0.3.0/* https://pyo3.rs/v0.3.0/:splat 200
+/v0.3.1/doc/* https://docs.rs/pyo3/0.3.1/:splat
+/v0.3.1/* https://pyo3.rs/v0.3.1/:splat 200
+/v0.3.2/doc/* https://docs.rs/pyo3/0.3.2/:splat
+/v0.3.2/* https://pyo3.rs/v0.3.2/:splat 200
+/v0.4.0/doc/* https://docs.rs/pyo3/0.4.0/:splat
+/v0.4.0/* https://pyo3.rs/v0.4.0/:splat 200
+/v0.4.1/doc/* https://docs.rs/pyo3/0.4.1/:splat
+/v0.4.1/* https://pyo3.rs/v0.4.1/:splat 200
+/v0.5.0/doc/* https://docs.rs/pyo3/0.5.0/:splat
+/v0.5.0/* https://pyo3.rs/v0.5.0/:splat 200
+/v0.5.0-alpha.2/doc/* https://docs.rs/pyo3/0.5.0-alpha.2/:splat
+/v0.5.0-alpha.2/* https://pyo3.rs/v0.5.0-alpha.2/:splat 200
+/v0.5.0-alpha.3/doc/* https://docs.rs/pyo3/0.5.0-alpha.3/:splat
+/v0.5.0-alpha.3/* https://pyo3.rs/v0.5.0-alpha.3/:splat 200
+/v0.5.1/doc/* https://docs.rs/pyo3/0.5.1/:splat
+/v0.5.1/* https://pyo3.rs/v0.5.1/:splat 200
+/v0.5.2/doc/* https://docs.rs/pyo3/0.5.2/:splat
+/v0.5.2/* https://pyo3.rs/v0.5.2/:splat 200
+/v0.5.3/doc/* https://docs.rs/pyo3/0.5.3/:splat
+/v0.5.3/* https://pyo3.rs/v0.5.3/:splat 200
+/v0.5.4/doc/* https://docs.rs/pyo3/0.5.4/:splat
+/v0.5.4/* https://pyo3.rs/v0.5.4/:splat 200
+/v0.6.0/doc/* https://docs.rs/pyo3/0.6.0/:splat
+/v0.6.0/* https://pyo3.rs/v0.6.0/:splat 200
+/v0.6.0-alpha.1/doc/* https://docs.rs/pyo3/0.6.0-alpha.1/:splat
+/v0.6.0-alpha.1/* https://pyo3.rs/v0.6.0-alpha.1/:splat 200
+/v0.6.0-alpha.2/doc/* https://docs.rs/pyo3/0.6.0-alpha.2/:splat
+/v0.6.0-alpha.2/* https://pyo3.rs/v0.6.0-alpha.2/:splat 200
+/v0.6.0-alpha.3/doc/* https://docs.rs/pyo3/0.6.0-alpha.3/:splat
+/v0.6.0-alpha.3/* https://pyo3.rs/v0.6.0-alpha.3/:splat 200
+/v0.6.0-alpha.4/doc/* https://docs.rs/pyo3/0.6.0-alpha.4/:splat
+/v0.6.0-alpha.4/* https://pyo3.rs/v0.6.0-alpha.4/:splat 200
+/v0.7.0/doc/* https://docs.rs/pyo3/0.7.0/:splat
+/v0.7.0/* https://pyo3.rs/v0.7.0/:splat 200
+/v0.7.0-alpha.1/doc/* https://docs.rs/pyo3/0.7.0-alpha.1/:splat
+/v0.7.0-alpha.1/* https://pyo3.rs/v0.7.0-alpha.1/:splat 200
+/v0.8.0/doc/* https://docs.rs/pyo3/0.8.0/:splat
+/v0.8.0/* https://pyo3.rs/v0.8.0/:splat 200
+/v0.8.1/doc/* https://docs.rs/pyo3/0.8.1/:splat
+/v0.8.1/* https://pyo3.rs/v0.8.1/:splat 200
+/v0.8.2/doc/* https://docs.rs/pyo3/0.8.2/:splat
+/v0.8.2/* https://pyo3.rs/v0.8.2/:splat 200
+/v0.8.3/doc/* https://docs.rs/pyo3/0.8.3/:splat
+/v0.8.3/* https://pyo3.rs/v0.8.3/:splat 200
+/v0.8.4/doc/* https://docs.rs/pyo3/0.8.4/:splat
+/v0.8.4/* https://pyo3.rs/v0.8.4/:splat 200
+/v0.8.5/doc/* https://docs.rs/pyo3/0.8.5/:splat
+/v0.8.5/* https://pyo3.rs/v0.8.5/:splat 200
+/v0.9.0/doc/* https://docs.rs/pyo3/0.9.0/:splat
+/v0.9.0/* https://pyo3.rs/v0.9.0/:splat 200
+/v0.9.0-alpha.1/doc/* https://docs.rs/pyo3/0.9.0-alpha.1/:splat
+/v0.9.0-alpha.1/* https://pyo3.rs/v0.9.0-alpha.1/:splat 200
+/v0.9.1/doc/* https://docs.rs/pyo3/0.9.1/:splat
+/v0.9.1/* https://pyo3.rs/v0.9.1/:splat 200
+/v0.9.2/doc/* https://docs.rs/pyo3/0.9.2/:splat
+/v0.9.2/* https://pyo3.rs/v0.9.2/:splat 200
