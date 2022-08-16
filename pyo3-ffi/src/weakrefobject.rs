@@ -5,14 +5,7 @@ use std::os::raw::c_int;
 opaque_struct!(PyWeakReference);
 
 #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
-pub struct PyWeakReference {
-    pub ob_base: PyObject,
-    pub wr_object: *mut PyObject,
-    pub wr_callback: *mut PyObject,
-    pub hash: crate::Py_hash_t,
-    pub wr_prev: *mut PyWeakReference,
-    pub wr_next: *mut PyWeakReference,
-}
+pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

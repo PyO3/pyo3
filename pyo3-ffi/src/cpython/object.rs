@@ -292,6 +292,13 @@ pub struct PyTypeObject {
     pub tp_next: *mut PyTypeObject,
 }
 
+#[cfg(Py_3_11)]
+#[repr(C)]
+#[derive(Clone)]
+pub struct _specialization_cache {
+    pub getitem: *mut PyObject,
+}
+
 #[repr(C)]
 #[derive(Clone)]
 pub struct PyHeapTypeObject {
@@ -308,6 +315,10 @@ pub struct PyHeapTypeObject {
     pub ht_cached_keys: *mut c_void,
     #[cfg(Py_3_9)]
     pub ht_module: *mut object::PyObject,
+    #[cfg(Py_3_11)]
+    pub _ht_tpname: *mut c_char,
+    #[cfg(Py_3_11)]
+    pub _spec_cache: _specialization_cache,
 }
 
 impl Default for PyHeapTypeObject {

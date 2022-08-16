@@ -10,6 +10,8 @@ pub struct PyBaseExceptionObject {
     pub dict: *mut PyObject,
     #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub notes: *mut PyObject,
     #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
     #[cfg(not(PyPy))]
@@ -27,6 +29,8 @@ pub struct PySyntaxErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -51,6 +55,8 @@ pub struct PyImportErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -68,6 +74,8 @@ pub struct PyUnicodeErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -87,6 +95,8 @@ pub struct PySystemExitObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -102,6 +112,8 @@ pub struct PyOSErrorObject {
     pub ob_base: PyObject,
     pub dict: *mut PyObject,
     pub args: *mut PyObject,
+    #[cfg(Py_3_11)]
+    pub notes: *mut PyObject,
     pub traceback: *mut PyObject,
     pub context: *mut PyObject,
     pub cause: *mut PyObject,
@@ -124,6 +136,8 @@ pub struct PyStopIterationObject {
     pub dict: *mut PyObject,
     #[cfg(not(PyPy))]
     pub args: *mut PyObject,
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub notes: *mut PyObject,
     #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
     #[cfg(not(PyPy))]

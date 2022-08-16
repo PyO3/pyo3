@@ -33,6 +33,7 @@ pub(crate) mod pythonrun;
 // skipped sysmodule.h
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
+pub(crate) mod weakrefobject;
 
 pub use self::abstract_::*;
 #[cfg(not(PyPy))]
@@ -63,3 +64,4 @@ pub use self::pystate::*;
 pub use self::pythonrun::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
+pub use self::weakrefobject::*;
