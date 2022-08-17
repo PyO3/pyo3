@@ -298,7 +298,7 @@ impl PyTypeBuilder {
             }
 
             // Safety: Py_tp_members expects a raw vec of PyMemberDef
-            unsafe { self.push_raw_vec(ffi::Py_tp_members, members) };
+            unsafe { self.push_raw_vec_slot(ffi::Py_tp_members, members) };
         }
 
         // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
