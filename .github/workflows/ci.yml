@@ -190,7 +190,7 @@ jobs:
           cargo update -p plotters-svg --precise 0.3.1
           cargo update -p plotters-backend --precise 0.3.2
           cargo update -p serde --precise 1.0.142
-          cargo update -p anyhow --precise 1.0.60
+          cargo update -p bumpalo --precise 3.10.0
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
@@ -259,7 +259,7 @@ jobs:
         with:
           target: aarch64-unknown-linux-gnu
           manylinux: auto
-          args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
 
       - run: sudo rm -rf examples/maturin-starter/target
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
@@ -271,14 +271,14 @@ jobs:
         with:
           target: x86_64-unknown-linux-gnu
           manylinux: auto
-          args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'macos-latest' && matrix.python-version == '3.9' }}
         uses: messense/maturin-action@v1
         with:
           target: aarch64-apple-darwin
-          args: --release -i python3.9 --no-sdist -m examples/maturin-starter/Cargo.toml
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
 
       - name: Test cross compile to Windows
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
@@ -301,7 +301,7 @@ jobs:
         uses: messense/maturin-action@v1
         with:
           target: x86_64-pc-windows-gnu
-          args: -i python3.8 --no-sdist -m examples/maturin-starter/Cargo.toml --cargo-extra-args="--features abi3"
+          args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
 
     env:
       CARGO_TERM_VERBOSE: true
