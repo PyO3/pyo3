@@ -54,9 +54,8 @@ jobs:
       - name: Build the doc
         run: |
           cargo xtask doc
+          mv target/doc target/guide/doc
           echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/guide/doc/index.html
-        env:
-          CARGO_TARGET_DIR: target/guide
 
       - name: Deploy docs and the guide
         if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
