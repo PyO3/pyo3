@@ -1,8 +1,8 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyIndexError, PyValueError};
-use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyList, PyMapping, PySequence};
+use pyo3::{ffi, prelude::*, AsPyPointer};
 
 use pyo3::py_run;
 
@@ -279,7 +279,7 @@ fn test_generic_list_set() {
     });
 }
 
-#[pyclass]
+#[pyclass(sequence)]
 struct OptionList {
     #[pyo3(get, set)]
     items: Vec<Option<i64>>,
@@ -287,6 +287,10 @@ struct OptionList {
 
 #[pymethods]
 impl OptionList {
+    fn __len__(&self) -> usize {
+        self.items.len()
+    }
+
     fn __getitem__(&self, idx: isize) -> PyResult<Option<i64>> {
         match self.items.get(idx as usize) {
             Some(x) => Ok(*x),
@@ -331,4 +335,23 @@ fn sequence_is_not_mapping() {
 
     assert!(list.as_ref().downcast::<PyMapping>().is_err());
     assert!(list.as_ref().downcast::<PySequence>().is_ok());
+}
+
+#[test]
+fn sequence_length() {
+    Python::with_gil(|py| {
+        let list = PyCell::new(
+            py,
+            OptionList {
+                items: vec![Some(1), None],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(list.len().unwrap(), 2);
+        assert_eq!(unsafe { ffi::PySequence_Length(list.as_ptr()) }, 2);
+
+        assert_eq!(unsafe { ffi::PyMapping_Length(list.as_ptr()) }, -1);
+        unsafe { ffi::PyErr_Clear() };
+    })
 }

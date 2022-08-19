@@ -10,8 +10,9 @@
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
-| <span style="white-space: pre">`text_signature = "(arg1, arg2, ...)"`</span> |  Sets the text signature for the Python class' `__new__` method. |
+| `sequence` |  Inform PyO3 that this class is a [`Sequence`][params-sequence], and so leave its C-API mapping length slot empty. |
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
+| <span style="white-space: pre">`text_signature = "(arg1, arg2, ...)"`</span> |  Sets the text signature for the Python class' `__new__` method. |
 | `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread.|
 | `weakref` | Allows this class to be [weakly referenceable][params-6]. |
 
@@ -36,3 +37,4 @@ struct MyClass { }
 [params-5]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 [params-6]: https://docs.python.org/3/library/weakref.html
 [params-mapping]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types
+[params-sequence]: https://pyo3.rs/latest/class/protocols.html#mapping--sequence-types

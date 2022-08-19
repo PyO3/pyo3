@@ -21,4 +21,7 @@ struct InvalidModule {}
 #[pyclass(weakrev)]
 struct InvalidArg {}
 
+#[pyclass(mapping, sequence)]
+struct CannotBeMappingAndSequence {}
+
 fn main() {}

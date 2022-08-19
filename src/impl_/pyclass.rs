@@ -146,6 +146,9 @@ pub trait PyClassImpl: Sized {
     /// #[pyclass(mapping)]
     const IS_MAPPING: bool = false;
 
+    /// #[pyclass(sequence)]
+    const IS_SEQUENCE: bool = false;
+
     /// Layout
     type Layout: PyLayout<Self>;
 
