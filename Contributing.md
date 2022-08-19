@@ -11,7 +11,7 @@ If you want to become familiar with the codebase, see
 
 Please join in with any part of PyO3 which interests you. We use GitHub issues to record all bugs and ideas. Feel free to request an issue to be assigned to you if you want to work on it.
 
-You can browse the API of the non-public parts of PyO3 [here](https://pyo3.rs/internal/doc/pyo3/index.html).
+You can browse the API of the non-public parts of PyO3 [here](https://pyo3.netlify.app/internal/doc/pyo3/index.html).
 
 The following sections also contain specific ideas on where to start contributing to PyO3.
 
