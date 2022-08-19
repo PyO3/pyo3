@@ -11,9 +11,10 @@ use crate::{
 };
 use std::{
     cmp::Ordering,
+    collections::HashMap,
     convert::TryInto,
     ffi::{CStr, CString},
-    os::raw::{c_char, c_int, c_uint, c_void},
+    os::raw::{c_char, c_int, c_ulong, c_void},
     ptr,
 };
 
@@ -30,122 +31,159 @@ pub trait PyClass:
     type Frozen: Frozen;
 }
 
-fn into_raw<T>(vec: Vec<T>) -> *mut c_void {
-    Box::into_raw(vec.into_boxed_slice()) as _
-}
-
 pub(crate) fn create_type_object<T>(py: Python<'_>) -> *mut ffi::PyTypeObject
 where
     T: PyClass,
 {
     match unsafe {
-        create_type_object_impl(
-            py,
-            T::DOC,
-            T::MODULE,
-            T::NAME,
-            T::BaseType::type_object_raw(py),
-            std::mem::size_of::<T::Layout>(),
-            tp_dealloc::<T>,
-            T::dict_offset(),
-            T::weaklist_offset(),
-            T::items_iter,
-            T::IS_BASETYPE,
-            T::IS_MAPPING,
-        )
+        PyTypeBuilder::default()
+            .type_doc(T::DOC)
+            .offsets(T::dict_offset(), T::weaklist_offset())
+            .slot(ffi::Py_tp_base, T::BaseType::type_object_raw(py))
+            .slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
+            .set_is_basetype(T::IS_BASETYPE)
+            .set_is_mapping(T::IS_MAPPING)
+            .class_items(T::items_iter())
+            .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
     } {
         Ok(type_object) => type_object,
         Err(e) => type_object_creation_failed(py, e, T::NAME),
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-unsafe fn create_type_object_impl(
-    py: Python<'_>,
-    tp_doc: &str,
-    module_name: Option<&str>,
-    name: &str,
-    base_type_object: *mut ffi::PyTypeObject,
-    basicsize: usize,
-    tp_dealloc: ffi::destructor,
-    dict_offset: Option<ffi::Py_ssize_t>,
-    weaklist_offset: Option<ffi::Py_ssize_t>,
-    get_items_iter: fn() -> PyClassItemsIter,
-    is_basetype: bool,
+type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
+
+#[derive(Default)]
+struct PyTypeBuilder {
+    slots: Vec<ffi::PyType_Slot>,
+    method_defs: Vec<ffi::PyMethodDef>,
+    property_defs_map: HashMap<&'static str, ffi::PyGetSetDef>,
+    /// Used to patch the type objects for the things there's no
+    /// PyType_FromSpec API for... there's no reason this should work,
+    /// except for that it does and we have tests.
+    cleanup: Vec<PyTypeBuilderCleanup>,
     is_mapping: bool,
-) -> PyResult<*mut ffi::PyTypeObject> {
-    let mut slots = Vec::new();
-
-    fn push_slot(slots: &mut Vec<ffi::PyType_Slot>, slot: c_int, pfunc: *mut c_void) {
-        slots.push(ffi::PyType_Slot { slot, pfunc });
-    }
-
-    push_slot(&mut slots, ffi::Py_tp_base, base_type_object as _);
-    if let Some(doc) = py_class_doc(tp_doc) {
-        push_slot(&mut slots, ffi::Py_tp_doc, doc as _);
-    }
-
-    push_slot(&mut slots, ffi::Py_tp_dealloc, tp_dealloc as _);
-
-    #[cfg(Py_3_9)]
-    {
-        let members = py_class_members(dict_offset, weaklist_offset);
-        if !members.is_empty() {
-            push_slot(&mut slots, ffi::Py_tp_members, into_raw(members))
-        }
-    }
-
-    let PyClassInfo {
-        method_defs,
-        property_defs,
-    } = method_defs_to_pyclass_info(get_items_iter(), dict_offset.is_none());
-
-    // normal methods
-    if !method_defs.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_methods, into_raw(method_defs));
-    }
-
-    // properties
-    if !property_defs.is_empty() {
-        push_slot(&mut slots, ffi::Py_tp_getset, into_raw(property_defs));
-    }
-
-    // protocol methods
-    let mut has_new = false;
-    let mut has_getitem = false;
-    let mut has_setitem = false;
-    let mut has_traverse = false;
-    let mut has_clear = false;
-
+    has_new: bool,
+    has_dealloc: bool,
+    has_getitem: bool,
+    has_setitem: bool,
+    has_traverse: bool,
+    has_clear: bool,
+    has_dict: bool,
+    class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-    let mut buffer_procs: ffi::PyBufferProcs = Default::default();
+    buffer_procs: ffi::PyBufferProcs,
+}
 
-    for items in get_items_iter() {
-        for slot in items.slots {
-            match slot.slot {
-                ffi::Py_tp_new => has_new = true,
-                ffi::Py_mp_subscript => has_getitem = true,
-                ffi::Py_mp_ass_subscript => has_setitem = true,
-                ffi::Py_tp_traverse => has_traverse = true,
-                ffi::Py_tp_clear => has_clear = true,
-                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-                ffi::Py_bf_getbuffer => {
-                    // Safety: slot.pfunc is a valid function pointer
-                    buffer_procs.bf_getbuffer = Some(std::mem::transmute(slot.pfunc));
-                }
-                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-                ffi::Py_bf_releasebuffer => {
-                    // Safety: slot.pfunc is a valid function pointer
-                    buffer_procs.bf_releasebuffer = Some(std::mem::transmute(slot.pfunc));
-                }
-                _ => {}
+impl PyTypeBuilder {
+    /// # Safety
+    /// The given pointer must be of the correct type for the given slot
+    unsafe fn push_slot<T>(&mut self, slot: c_int, pfunc: *mut T) {
+        match slot {
+            ffi::Py_tp_new => self.has_new = true,
+            ffi::Py_tp_dealloc => self.has_dealloc = true,
+            ffi::Py_mp_subscript => self.has_getitem = true,
+            ffi::Py_mp_ass_subscript => self.has_setitem = true,
+            ffi::Py_tp_traverse => {
+                self.has_traverse = true;
+                self.class_flags |= ffi::Py_TPFLAGS_HAVE_GC;
             }
+            ffi::Py_tp_clear => self.has_clear = true,
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            ffi::Py_bf_getbuffer => {
+                // Safety: slot.pfunc is a valid function pointer
+                self.buffer_procs.bf_getbuffer = Some(std::mem::transmute(pfunc));
+            }
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            ffi::Py_bf_releasebuffer => {
+                // Safety: slot.pfunc is a valid function pointer
+                self.buffer_procs.bf_releasebuffer = Some(std::mem::transmute(pfunc));
+            }
+            _ => {}
         }
-        slots.extend_from_slice(items.slots);
+
+        self.slots.push(ffi::PyType_Slot {
+            slot,
+            pfunc: pfunc as _,
+        });
     }
 
-    if !is_mapping {
+    /// # Safety
+    /// It is the caller's responsibility that `data` is of the correct type for the given slot.
+    unsafe fn push_raw_vec_slot<T>(&mut self, slot: c_int, mut data: Vec<T>) {
+        if !data.is_empty() {
+            // Python expects a zeroed entry to mark the end of the defs
+            data.push(std::mem::zeroed());
+            self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
+        }
+    }
+
+    /// # Safety
+    /// The given pointer must be of the correct type for the given slot
+    unsafe fn slot<T>(mut self, slot: c_int, pfunc: *mut T) -> Self {
+        self.push_slot(slot, pfunc);
+        self
+    }
+
+    fn pymethod_def(&mut self, def: &PyMethodDefType) {
+        const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
+            name: ptr::null_mut(),
+            get: None,
+            set: None,
+            doc: ptr::null(),
+            closure: ptr::null_mut(),
+        };
+
+        match def {
+            PyMethodDefType::Getter(getter) => {
+                getter.copy_to(
+                    self.property_defs_map
+                        .entry(getter.name)
+                        .or_insert(PY_GET_SET_DEF_INIT),
+                );
+            }
+            PyMethodDefType::Setter(setter) => {
+                setter.copy_to(
+                    self.property_defs_map
+                        .entry(setter.name)
+                        .or_insert(PY_GET_SET_DEF_INIT),
+                );
+            }
+            PyMethodDefType::Method(def)
+            | PyMethodDefType::Class(def)
+            | PyMethodDefType::Static(def) => self.method_defs.push(def.as_method_def().unwrap()),
+            // These class attributes are added after the type gets created by LazyStaticType
+            PyMethodDefType::ClassAttribute(_) => {}
+        }
+    }
+
+    fn finalize_methods_and_properties(&mut self) {
+        let method_defs = std::mem::take(&mut self.method_defs);
+        // Safety: Py_tp_methods expects a raw vec of PyMethodDef
+        unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
+
+        let property_defs = std::mem::take(&mut self.property_defs_map);
+        // TODO: use into_values when on MSRV Rust >= 1.54
+        #[allow(unused_mut)]
+        let mut property_defs: Vec<_> = property_defs.into_iter().map(|(_, value)| value).collect();
+
+        // PyPy doesn't automatically add __dict__ getter / setter.
+        // PyObject_GenericGetDict not in the limited API until Python 3.10.
+        if self.has_dict {
+            #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
+            property_defs.push(ffi::PyGetSetDef {
+                name: "__dict__\0".as_ptr() as *mut c_char,
+                get: Some(ffi::PyObject_GenericGetDict),
+                set: Some(ffi::PyObject_GenericSetDict),
+                doc: ptr::null(),
+                closure: ptr::null_mut(),
+            });
+        }
+
+        // Safety: Py_tp_members expects a raw vec of PyGetSetDef
+        unsafe { self.push_raw_vec_slot(ffi::Py_tp_getset, property_defs) };
+
         // If mapping methods implemented, define sequence methods get implemented too.
         // CPython does the same for Python `class` statements.
 
@@ -154,122 +192,197 @@ unsafe fn create_type_object_impl(
 
         // Don't add these methods for "pure" mappings.
 
-        if has_getitem {
-            push_slot(
-                &mut slots,
-                ffi::Py_sq_item,
-                get_sequence_item_from_mapping as _,
-            );
+        if !self.is_mapping && self.has_getitem {
+            // Safety: This is the correct slot type for Py_sq_item
+            unsafe {
+                self.push_slot(
+                    ffi::Py_sq_item,
+                    get_sequence_item_from_mapping as *mut c_void,
+                )
+            }
         }
 
-        if has_setitem {
-            push_slot(
-                &mut slots,
-                ffi::Py_sq_ass_item,
-                assign_sequence_item_from_mapping as _,
-            );
+        if !self.is_mapping && self.has_setitem {
+            // Safety: This is the correct slot type for Py_sq_ass_item
+            unsafe {
+                self.push_slot(
+                    ffi::Py_sq_ass_item,
+                    assign_sequence_item_from_mapping as *mut c_void,
+                )
+            }
         }
     }
 
-    if !has_new {
-        push_slot(&mut slots, ffi::Py_tp_new, no_constructor_defined as _);
+    fn set_is_basetype(mut self, is_basetype: bool) -> Self {
+        if is_basetype {
+            self.class_flags |= ffi::Py_TPFLAGS_BASETYPE;
+        }
+        self
     }
 
-    if has_clear && !has_traverse {
-        return Err(PyTypeError::new_err(format!(
-            "`#[pyclass]` {} implements __clear__ without __traverse__",
-            name
-        )));
+    fn set_is_mapping(mut self, is_mapping: bool) -> Self {
+        self.is_mapping = is_mapping;
+        self
     }
 
-    // Add empty sentinel at the end
-    push_slot(&mut slots, 0, ptr::null_mut());
-
-    let mut spec = ffi::PyType_Spec {
-        name: py_class_qualified_name(module_name, name)?,
-        basicsize: basicsize as c_int,
-        itemsize: 0,
-        flags: py_class_flags(has_traverse, is_basetype),
-        slots: slots.as_mut_ptr(),
-    };
-
-    let type_object = ffi::PyType_FromSpec(&mut spec);
-    if type_object.is_null() {
-        Err(PyErr::fetch(py))
-    } else {
-        tp_init_additional(
-            type_object as _,
-            tp_doc,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            &buffer_procs,
-            #[cfg(not(Py_3_9))]
-            dict_offset,
-            #[cfg(not(Py_3_9))]
-            weaklist_offset,
-        );
-        Ok(type_object as _)
+    /// # Safety
+    /// All slots in the PyClassItemsIter should be correct
+    unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
+        for items in iter {
+            for slot in items.slots {
+                self.push_slot(slot.slot, slot.pfunc);
+            }
+            for method in items.methods {
+                self.pymethod_def(method);
+            }
+        }
+        self
     }
-}
 
-#[cold]
-fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &'static str) -> ! {
-    e.print(py);
-    panic!("An error occurred while initializing class {}", name)
-}
+    fn type_doc(mut self, type_doc: &'static str) -> Self {
+        if let Some(doc) = py_class_doc(type_doc) {
+            unsafe { self.push_slot(ffi::Py_tp_doc, doc) }
+        }
 
-/// Additional type initializations necessary before Python 3.10
-#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-unsafe fn tp_init_additional(
-    _type_object: *mut ffi::PyTypeObject,
-    _tp_doc: &str,
-    #[cfg(not(Py_3_9))] buffer_procs: &ffi::PyBufferProcs,
-    #[cfg(not(Py_3_9))] dict_offset: Option<ffi::Py_ssize_t>,
-    #[cfg(not(Py_3_9))] weaklist_offset: Option<ffi::Py_ssize_t>,
-) {
-    // Just patch the type objects for the things there's no
-    // PyType_FromSpec API for... there's no reason this should work,
-    // except for that it does and we have tests.
-
-    // Running this causes PyPy to segfault.
-    #[cfg(all(not(PyPy), not(Py_3_10)))]
-    {
-        if _tp_doc != "\0" {
+        // Running this causes PyPy to segfault.
+        #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(Py_3_10)))]
+        if type_doc != "\0" {
             // Until CPython 3.10, tp_doc was treated specially for
             // heap-types, and it removed the text_signature value from it.
             // We go in after the fact and replace tp_doc with something
             // that _does_ include the text_signature value!
-            ffi::PyObject_Free((*_type_object).tp_doc as _);
-            let data = ffi::PyObject_Malloc(_tp_doc.len());
-            data.copy_from(_tp_doc.as_ptr() as _, _tp_doc.len());
-            (*_type_object).tp_doc = data as _;
+            self.cleanup
+                .push(Box::new(move |_self, type_object| unsafe {
+                    ffi::PyObject_Free((*type_object).tp_doc as _);
+                    let data = ffi::PyObject_Malloc(type_doc.len());
+                    data.copy_from(type_doc.as_ptr() as _, type_doc.len());
+                    (*type_object).tp_doc = data as _;
+                }))
         }
+        self
     }
 
-    // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
-    // Python 3.9, so on older versions we must manually fixup the type object.
-    #[cfg(not(Py_3_9))]
-    {
-        (*(*_type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
-        (*(*_type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
+    fn offsets(
+        mut self,
+        dict_offset: Option<ffi::Py_ssize_t>,
+        #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
+    ) -> Self {
+        self.has_dict = dict_offset.is_some();
 
-        if let Some(dict_offset) = dict_offset {
-            (*_type_object).tp_dictoffset = dict_offset;
+        #[cfg(Py_3_9)]
+        {
+            #[inline(always)]
+            fn offset_def(
+                name: &'static str,
+                offset: ffi::Py_ssize_t,
+            ) -> ffi::structmember::PyMemberDef {
+                ffi::structmember::PyMemberDef {
+                    name: name.as_ptr() as _,
+                    type_code: ffi::structmember::T_PYSSIZET,
+                    offset,
+                    flags: ffi::structmember::READONLY,
+                    doc: std::ptr::null_mut(),
+                }
+            }
+
+            let mut members = Vec::new();
+
+            // __dict__ support
+            if let Some(dict_offset) = dict_offset {
+                members.push(offset_def("__dictoffset__\0", dict_offset));
+            }
+
+            // weakref support
+            if let Some(weaklist_offset) = weaklist_offset {
+                members.push(offset_def("__weaklistoffset__\0", weaklist_offset));
+            }
+
+            // Safety: Py_tp_members expects a raw vec of PyMemberDef
+            unsafe { self.push_raw_vec_slot(ffi::Py_tp_members, members) };
         }
 
-        if let Some(weaklist_offset) = weaklist_offset {
-            (*_type_object).tp_weaklistoffset = weaklist_offset;
+        // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
+        // Python 3.9, so on older versions we must manually fixup the type object.
+        #[cfg(all(not(Py_LIMITED_API), not(Py_3_9)))]
+        {
+            self.cleanup
+                .push(Box::new(move |builder, type_object| unsafe {
+                    (*(*type_object).tp_as_buffer).bf_getbuffer = builder.buffer_procs.bf_getbuffer;
+                    (*(*type_object).tp_as_buffer).bf_releasebuffer =
+                        builder.buffer_procs.bf_releasebuffer;
+
+                    if let Some(dict_offset) = dict_offset {
+                        (*type_object).tp_dictoffset = dict_offset;
+                    }
+
+                    if let Some(weaklist_offset) = weaklist_offset {
+                        (*type_object).tp_weaklistoffset = weaklist_offset;
+                    }
+                }));
+        }
+        self
+    }
+
+    fn build(
+        mut self,
+        py: Python<'_>,
+        name: &'static str,
+        module_name: Option<&'static str>,
+        basicsize: usize,
+    ) -> PyResult<*mut ffi::PyTypeObject> {
+        self.finalize_methods_and_properties();
+
+        if !self.has_new {
+            // Safety: This is the correct slot type for Py_tp_new
+            unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
+        }
+
+        if !self.has_dealloc {
+            panic!("PyTypeBuilder requires you to specify slot ffi::Py_tp_dealloc");
+        }
+
+        if self.has_clear && !self.has_traverse {
+            return Err(PyTypeError::new_err(format!(
+                "`#[pyclass]` {} implements __clear__ without __traverse__",
+                name
+            )));
+        }
+
+        // Add empty sentinel at the end
+        // Safety: python expects this empty slot
+        unsafe { self.push_slot(0, ptr::null_mut::<c_void>()) }
+
+        let mut spec = ffi::PyType_Spec {
+            name: py_class_qualified_name(module_name, name)?,
+            basicsize: basicsize as c_int,
+            itemsize: 0,
+            // `c_ulong` and `c_uint` have the same size
+            // on some platforms (like windows)
+            #[allow(clippy::useless_conversion)]
+            flags: (ffi::Py_TPFLAGS_DEFAULT | self.class_flags)
+                .try_into()
+                .unwrap(),
+            slots: self.slots.as_mut_ptr(),
+        };
+
+        // Safety: We've correctly setup the PyType_Spec at this point
+        let type_object = unsafe { ffi::PyType_FromSpec(&mut spec) };
+        if type_object.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            for cleanup in std::mem::take(&mut self.cleanup) {
+                cleanup(&self, type_object as _);
+            }
+
+            Ok(type_object as _)
         }
     }
 }
 
-#[cfg(any(Py_LIMITED_API, Py_3_10))]
-fn tp_init_additional(
-    _type_object: *mut ffi::PyTypeObject,
-    _tp_doc: &str,
-    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))] _buffer_procs: &ffi::PyBufferProcs,
-    #[cfg(not(Py_3_9))] _dict_offset: Option<ffi::Py_ssize_t>,
-    #[cfg(not(Py_3_9))] _weaklist_offset: Option<ffi::Py_ssize_t>,
-) {
+#[cold]
+fn type_object_creation_failed(py: Python<'_>, e: PyErr, name: &str) -> ! {
+    e.print(py);
+    panic!("An error occurred while initializing class {}", name)
 }
 
 fn py_class_doc(class_doc: &str) -> Option<*mut c_char> {
@@ -298,140 +411,6 @@ fn py_class_qualified_name(module_name: Option<&str>, class_name: &str) -> PyRes
     ))?
     .into_raw())
 }
-
-fn py_class_flags(is_gc: bool, is_basetype: bool) -> c_uint {
-    let mut flags = ffi::Py_TPFLAGS_DEFAULT;
-
-    if is_gc {
-        flags |= ffi::Py_TPFLAGS_HAVE_GC;
-    }
-
-    if is_basetype {
-        flags |= ffi::Py_TPFLAGS_BASETYPE;
-    }
-
-    // `c_ulong` and `c_uint` have the same size
-    // on some platforms (like windows)
-    #[allow(clippy::useless_conversion)]
-    flags.try_into().unwrap()
-}
-
-struct PyClassInfo {
-    method_defs: Vec<ffi::PyMethodDef>,
-    property_defs: Vec<ffi::PyGetSetDef>,
-}
-
-fn method_defs_to_pyclass_info(items_iter: PyClassItemsIter, has_dict: bool) -> PyClassInfo {
-    let mut method_defs = Vec::new();
-    let mut property_defs_map = std::collections::HashMap::new();
-
-    for items in items_iter {
-        for def in items.methods {
-            match def {
-                PyMethodDefType::Getter(getter) => {
-                    getter.copy_to(
-                        property_defs_map
-                            .entry(getter.name)
-                            .or_insert(PY_GET_SET_DEF_INIT),
-                    );
-                }
-                PyMethodDefType::Setter(setter) => {
-                    setter.copy_to(
-                        property_defs_map
-                            .entry(setter.name)
-                            .or_insert(PY_GET_SET_DEF_INIT),
-                    );
-                }
-                PyMethodDefType::Method(def)
-                | PyMethodDefType::Class(def)
-                | PyMethodDefType::Static(def) => method_defs.push(def.as_method_def().unwrap()),
-                PyMethodDefType::ClassAttribute(_) => {}
-            }
-        }
-    }
-
-    // TODO: use into_values when on MSRV Rust >= 1.54
-    let mut property_defs: Vec<_> = property_defs_map
-        .into_iter()
-        .map(|(_, value)| value)
-        .collect();
-
-    if !method_defs.is_empty() {
-        // Safety: Python expects a zeroed entry to mark the end of the defs
-        method_defs.push(unsafe { std::mem::zeroed() });
-    }
-
-    // PyPy doesn't automatically add __dict__ getter / setter.
-    // PyObject_GenericGetDict not in the limited API until Python 3.10.
-    if !has_dict {
-        #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
-        property_defs.push(ffi::PyGetSetDef {
-            name: "__dict__\0".as_ptr() as *mut c_char,
-            get: Some(ffi::PyObject_GenericGetDict),
-            set: Some(ffi::PyObject_GenericSetDict),
-            doc: ptr::null(),
-            closure: ptr::null_mut(),
-        });
-    }
-
-    if !property_defs.is_empty() {
-        // Safety: Python expects a zeroed entry to mark the end of the defs
-        property_defs.push(unsafe { std::mem::zeroed() });
-    }
-
-    PyClassInfo {
-        method_defs,
-        property_defs,
-    }
-}
-
-/// Generates the __dictoffset__ and __weaklistoffset__ members, to set tp_dictoffset and
-/// tp_weaklistoffset.
-///
-/// Only works on Python 3.9 and up.
-#[cfg(Py_3_9)]
-fn py_class_members(
-    dict_offset: Option<isize>,
-    weaklist_offset: Option<isize>,
-) -> Vec<ffi::structmember::PyMemberDef> {
-    #[inline(always)]
-    fn offset_def(name: &'static str, offset: ffi::Py_ssize_t) -> ffi::structmember::PyMemberDef {
-        ffi::structmember::PyMemberDef {
-            name: name.as_ptr() as _,
-            type_code: ffi::structmember::T_PYSSIZET,
-            offset,
-            flags: ffi::structmember::READONLY,
-            doc: std::ptr::null_mut(),
-        }
-    }
-
-    let mut members = Vec::new();
-
-    // __dict__ support
-    if let Some(dict_offset) = dict_offset {
-        members.push(offset_def("__dictoffset__\0", dict_offset));
-    }
-
-    // weakref support
-    if let Some(weaklist_offset) = weaklist_offset {
-        members.push(offset_def("__weaklistoffset__\0", weaklist_offset));
-    }
-
-    if !members.is_empty() {
-        // Safety: Python expects a zeroed entry to mark the end of the defs
-        members.push(unsafe { std::mem::zeroed() });
-    }
-
-    members
-}
-
-const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
-    name: ptr::null_mut(),
-    get: None,
-    set: None,
-    doc: ptr::null(),
-    closure: ptr::null_mut(),
-};
 
 /// Operators for the `__richcmp__` method
 #[derive(Debug, Clone, Copy)]
