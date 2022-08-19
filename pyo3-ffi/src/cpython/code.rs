@@ -76,8 +76,8 @@ pub struct PyCodeObject {
     pub co_linetable: *mut PyObject,
     pub co_weakreflist: *mut PyObject,
     pub _co_code: *mut PyObject,
-    pub _co_firsttraceable: c_int,
     pub _co_linearray: *mut c_char,
+    pub _co_firsttraceable: c_int,
     pub co_extra: *mut c_void,
     pub co_code_adaptive: [c_char; 1],
 }
