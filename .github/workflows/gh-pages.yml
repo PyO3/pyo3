@@ -39,6 +39,10 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
+      # Build some internal docs and inject a banner on top of it.
+      - name: Build the internal docs
+        run: cargo xtask doc --internal
+
       - name: Clear the extra artefacts created earlier
         run: rm -rf target
 
