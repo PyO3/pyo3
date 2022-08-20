@@ -767,9 +767,15 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclass(&self) -> TokenStream {
         let cls = self.cls;
 
+        let frozen = if self.attr.options.frozen.is_some() {
+            quote! { _pyo3::pyclass::boolean_struct::True }
+        } else {
+            quote! { _pyo3::pyclass::boolean_struct::False }
+        };
+
         quote! {
             impl _pyo3::PyClass for #cls {
-                type Frozen = <Self::PyClassMutability as _pyo3::pycell::PyClassMutability>::Frozen;
+                type Frozen = #frozen;
             }
         }
     }
@@ -970,7 +976,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
-                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::pycell::PyClassMutability>::#class_mutability;
+                type PyClassMutability = <<#base as _pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as _pyo3::impl_::pycell::PyClassMutability>::#class_mutability;
                 type Dict = #dict;
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
