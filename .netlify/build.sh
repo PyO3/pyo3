@@ -14,7 +14,7 @@ mkdir netlify_build
 cp .netlify/_redirects netlify_build/
 
 # Add latest redirect (proxy)
-echo "/latest/* https://pyo3.rs/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
+echo "/latest/* https://pyo3.github.io/pyo3/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
 
 ## Add landing page redirect
 echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
