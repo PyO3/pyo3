@@ -4,7 +4,10 @@ use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, 
 use crate::{ffi, PyCell, PyClass, PyErr, PyResult, Python};
 use crate::{
     ffi::PyTypeObject,
-    pycell::{PyCellContents, PyClassBorrowChecker, PyClassMutability},
+    pycell::{
+        impl_::{PyClassBorrowChecker, PyClassMutability},
+        PyCellContents,
+    },
     type_object::{get_tp_alloc, PyTypeInfo},
 };
 use std::{

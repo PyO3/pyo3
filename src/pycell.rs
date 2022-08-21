@@ -200,11 +200,7 @@ use crate::exceptions::PyRuntimeError;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
 };
-use crate::pyclass::PyClass;
-use crate::pyclass::{
-    boolean_struct::{False, True},
-    Frozen,
-};
+use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyAny;
@@ -215,175 +211,13 @@ use crate::{
     PyTypeInfo,
 };
 use crate::{ffi, IntoPy, PyErr, PyNativeType, PyObject, PyResult, Python};
-use std::cell::{Cell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::fmt;
-use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
-pub struct EmptySlot(());
-pub struct BorrowChecker(Cell<BorrowFlag>);
-
-pub trait PyClassBorrowChecker {
-    /// Initial value for self
-    fn new() -> Self;
-
-    /// Increments immutable borrow count, if possible
-    fn try_borrow(&self) -> Result<(), PyBorrowError>;
-
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError>;
-
-    /// Decrements immutable borrow count
-    fn release_borrow(&self);
-    /// Increments mutable borrow count, if possible
-    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError>;
-    /// Decremements mutable borrow count
-    fn release_borrow_mut(&self);
-}
-
-impl PyClassBorrowChecker for EmptySlot {
-    #[inline]
-    fn new() -> Self {
-        EmptySlot(())
-    }
-
-    #[inline]
-    fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        Ok(())
-    }
-
-    #[inline]
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
-        Ok(())
-    }
-
-    #[inline]
-    fn release_borrow(&self) {}
-
-    #[inline]
-    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        unreachable!()
-    }
-
-    #[inline]
-    fn release_borrow_mut(&self) {
-        unreachable!()
-    }
-}
-
-impl PyClassBorrowChecker for BorrowChecker {
-    #[inline]
-    fn new() -> Self {
-        Self(Cell::new(BorrowFlag::UNUSED))
-    }
-
-    fn try_borrow(&self) -> Result<(), PyBorrowError> {
-        let flag = self.0.get();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
-            self.0.set(flag.increment());
-            Ok(())
-        } else {
-            Err(PyBorrowError { _private: () })
-        }
-    }
-
-    fn try_borrow_unguarded(&self) -> Result<(), PyBorrowError> {
-        let flag = self.0.get();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
-            Ok(())
-        } else {
-            Err(PyBorrowError { _private: () })
-        }
-    }
-
-    fn release_borrow(&self) {
-        let flag = self.0.get();
-        self.0.set(flag.decrement())
-    }
-
-    fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        let flag = self.0.get();
-        if flag == BorrowFlag::UNUSED {
-            self.0.set(BorrowFlag::HAS_MUTABLE_BORROW);
-            Ok(())
-        } else {
-            Err(PyBorrowMutError { _private: () })
-        }
-    }
-
-    fn release_borrow_mut(&self) {
-        self.0.set(BorrowFlag::UNUSED)
-    }
-}
-
-pub trait PyClassMutability {
-    // The storage for this inheritance layer. Only the first mutable class in
-    // an inheritance hierarchy needs to store the borrow flag.
-    type Storage: PyClassBorrowChecker;
-    // The borrow flag needed to implement this class' mutability. Empty until
-    // the first mutable class, at which point it is BorrowChecker and will be
-    // for all subclasses.
-    type Checker: PyClassBorrowChecker;
-    type ImmutableChild: PyClassMutability;
-    type MutableChild: PyClassMutability;
-    type Frozen: Frozen;
-}
-
-pub trait GetBorrowChecker<T: PyClassImpl> {
-    fn borrow_checker(cell: &PyCell<T>) -> &<T::PyClassMutability as PyClassMutability>::Checker;
-}
-
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(cell: &PyCell<T>) -> &BorrowChecker {
-        &cell.contents.borrow_checker
-    }
-}
-
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(cell: &PyCell<T>) -> &EmptySlot {
-        &cell.contents.borrow_checker
-    }
-}
-
-impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
-    for ExtendsMutableAncestor<M>
-where
-    T::BaseType: PyClassImpl<Layout = PyCell<T::BaseType>>
-        + PyClassBaseType<LayoutAsBase = PyCell<T::BaseType>>,
-    <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
-{
-    fn borrow_checker(cell: &PyCell<T>) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&cell.ob_base)
-    }
-}
-
-pub struct ImmutableClass(());
-pub struct MutableClass(());
-pub struct ExtendsMutableAncestor<M: PyClassMutability>(PhantomData<M>);
-
-impl PyClassMutability for ImmutableClass {
-    type Storage = EmptySlot;
-    type Checker = EmptySlot;
-    type ImmutableChild = ImmutableClass;
-    type MutableChild = MutableClass;
-    type Frozen = True;
-}
-
-impl PyClassMutability for MutableClass {
-    type Storage = BorrowChecker;
-    type Checker = BorrowChecker;
-    type ImmutableChild = ExtendsMutableAncestor<ImmutableClass>;
-    type MutableChild = ExtendsMutableAncestor<MutableClass>;
-    type Frozen = False;
-}
-
-impl<M: PyClassMutability> PyClassMutability for ExtendsMutableAncestor<M> {
-    type Storage = EmptySlot;
-    type Checker = BorrowChecker;
-    type ImmutableChild = ExtendsMutableAncestor<ImmutableClass>;
-    type MutableChild = ExtendsMutableAncestor<MutableClass>;
-    type Frozen = M::Frozen;
-}
+pub(crate) mod impl_;
+use impl_::{GetBorrowChecker, PyClassBorrowChecker, PyClassMutability};
 
 /// Base layout of PyCell.
 #[doc(hidden)]
@@ -965,21 +799,6 @@ impl<'a, T: PyClass<Frozen = False>> std::convert::TryFrom<&'a PyCell<T>>
 impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BorrowFlag(usize);
-
-impl BorrowFlag {
-    pub(crate) const UNUSED: BorrowFlag = BorrowFlag(0);
-    const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::max_value());
-    const fn increment(self) -> Self {
-        Self(self.0 + 1)
-    }
-    const fn decrement(self) -> Self {
-        Self(self.0 - 1)
     }
 }
 

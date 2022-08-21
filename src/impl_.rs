@@ -7,15 +7,12 @@
 pub mod deprecations;
 pub mod extract_argument;
 pub mod freelist;
-#[doc(hidden)]
 pub mod frompyobject;
 pub mod ghost;
 pub(crate) mod not_send;
 pub mod panic;
-#[doc(hidden)]
+pub mod pycell;
 pub mod pyclass;
-#[doc(hidden)]
 pub mod pyfunction;
-#[doc(hidden)]
 pub mod pymethods;
 pub mod pymodule;
