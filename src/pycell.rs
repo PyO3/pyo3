@@ -57,9 +57,9 @@
 //! #
 //! // This function is exported to Python.
 //! unsafe extern "C" fn __pymethod_increment__(
-//!     _slf: *mut ::pyo3::ffi::PyObject,
-//!     _args: *mut ::pyo3::ffi::PyObject,
-//! ) -> *mut ::pyo3::ffi::PyObject {
+//!     _slf: *mut pyo3::ffi::PyObject,
+//!     _args: *mut pyo3::ffi::PyObject,
+//! ) -> *mut pyo3::ffi::PyObject {
 //!     use :: pyo3 as _pyo3;
 //!     let gil = _pyo3::GILPool::new();
 //!     let _py = gil.python();

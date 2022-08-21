@@ -951,8 +951,8 @@ struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
-unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
-    type AsRefTarget = ::pyo3::PyCell<Self>;
+unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
+    type AsRefTarget = pyo3::PyCell<Self>;
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
@@ -963,27 +963,27 @@ unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
     }
 }
 
-impl ::pyo3::PyClass for MyClass {
+impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> ::pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
 {
-    type Holder = ::std::option::Option<::pyo3::PyRef<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'py ::pyo3::PyAny, holder: &'a mut Self::Holder) -> ::pyo3::PyResult<Self> {
-        ::pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+    fn extract(obj: &'py pyo3::PyAny, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+        pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
     }
 }
 
-impl<'a, 'py> ::pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
 {
-    type Holder = ::std::option::Option<::pyo3::PyRefMut<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'py ::pyo3::PyAny, holder: &'a mut Self::Holder) -> ::pyo3::PyResult<Self> {
-        ::pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
+    fn extract(obj: &'py pyo3::PyAny, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+        pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
     }
 }
 
@@ -1001,9 +1001,9 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;
-    type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type BaseNativeType = ::pyo3::PyAny;
+    type Dict = pyo3::impl_::pyclass::PyClassDummySlot;
+    type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
+    type BaseNativeType = pyo3::PyAny;
 
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;
