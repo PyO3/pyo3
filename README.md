@@ -233,3 +233,5 @@ If you don't have time to contribute yourself but still wish to support the proj
 
 PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0).
 Python is licensed under the [Python License](https://docs.python.org/3/license.html).
+
+<a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>
