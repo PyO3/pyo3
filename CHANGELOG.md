@@ -59,9 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable `PyFunction` on `Py_LIMITED_API` and PyPy. [#2542](https://github.com/PyO3/pyo3/pull/2542)
 - Panics during drop of panic payload caught by PyO3 will now abort. [#2544](https://github.com/PyO3/pyo3/pull/2544)
 - Deprecate `Python::acquire_gil` [#2549](https://github.com/PyO3/pyo3/pull/2549).
+
 ### Removed
 
 - Remove all functionality deprecated in PyO3 0.15. [#2283](https://github.com/PyO3/pyo3/pull/2283)
+- Make the `Dict`, `WeakRef` and `BaseNativeType` members of the `PyClass` private implementation details. [#2572](https://github.com/PyO3/pyo3/pull/2572)
 
 ### Fixed
 
