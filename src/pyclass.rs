@@ -43,6 +43,7 @@ where
             .slot(ffi::Py_tp_dealloc, tp_dealloc::<T> as *mut c_void)
             .set_is_basetype(T::IS_BASETYPE)
             .set_is_mapping(T::IS_MAPPING)
+            .set_is_sequence(T::IS_SEQUENCE)
             .class_items(T::items_iter())
             .build(py, T::NAME, T::MODULE, std::mem::size_of::<T::Layout>())
     } {
@@ -63,6 +64,7 @@ struct PyTypeBuilder {
     /// except for that it does and we have tests.
     cleanup: Vec<PyTypeBuilderCleanup>,
     is_mapping: bool,
+    is_sequence: bool,
     has_new: bool,
     has_dealloc: bool,
     has_getitem: bool,
@@ -225,6 +227,11 @@ impl PyTypeBuilder {
         self
     }
 
+    fn set_is_sequence(mut self, is_sequence: bool) -> Self {
+        self.is_sequence = is_sequence;
+        self
+    }
+
     /// # Safety
     /// All slots in the PyClassItemsIter should be correct
     unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
@@ -346,6 +353,15 @@ impl PyTypeBuilder {
                 "`#[pyclass]` {} implements __clear__ without __traverse__",
                 name
             )));
+        }
+
+        // For sequences, implement sq_length instead of mp_length
+        if self.is_sequence {
+            for slot in &mut self.slots {
+                if slot.slot == ffi::Py_mp_length {
+                    slot.slot = ffi::Py_sq_length;
+                }
+            }
         }
 
         // Add empty sentinel at the end

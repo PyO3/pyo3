@@ -230,9 +230,9 @@ class ExampleContainer:
 
 This class implements a Python [sequence](https://docs.python.org/3/glossary.html#term-sequence).
 
-The `__len__` and `__getitem__` methods are also used to implement a Python [mapping](https://docs.python.org/3/glossary.html#term-mapping). In the Python C-API, these methods are not shared: the sequence `__len__` and `__getitem__` are defined by the `sq_len` and `sq_item` slots, and the mapping equivalents are `mp_len` and `mp_subscript`. There are similar distinctions for `__setitem__` and `__delitem__`.
+The `__len__` and `__getitem__` methods are also used to implement a Python [mapping](https://docs.python.org/3/glossary.html#term-mapping). In the Python C-API, these methods are not shared: the sequence `__len__` and `__getitem__` are defined by the `sq_length` and `sq_item` slots, and the mapping equivalents are `mp_length` and `mp_subscript`. There are similar distinctions for `__setitem__` and `__delitem__`.
 
-Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_len` and `mp_len` slots filled.
+Because there is no such distinction from Python, implementing these methods will fill the mapping and sequence slots simultaneously. A Python class with `__len__` implemented, for example, will have both the `sq_length` and `mp_length` slots filled.
 
 The PyO3 behavior in 0.16 has been changed to be closer to this Python behavior by default.
 

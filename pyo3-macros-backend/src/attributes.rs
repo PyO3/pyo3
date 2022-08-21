@@ -23,6 +23,7 @@ pub mod kw {
     syn::custom_keyword!(module);
     syn::custom_keyword!(name);
     syn::custom_keyword!(pass_module);
+    syn::custom_keyword!(sequence);
     syn::custom_keyword!(set);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(subclass);

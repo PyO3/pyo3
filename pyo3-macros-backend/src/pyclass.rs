@@ -65,6 +65,7 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub sequence: Option<kw::sequence>,
     pub subclass: Option<kw::subclass>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
@@ -82,6 +83,7 @@ enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    Sequence(kw::sequence),
     Subclass(kw::subclass),
     TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
@@ -109,6 +111,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::sequence) {
+            input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::text_signature) {
@@ -164,6 +168,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -315,7 +320,7 @@ fn impl_class(
         vec![],
     )
     .doc(doc)
-    .impl_all();
+    .impl_all()?;
 
     Ok(quote! {
         const _: () = {
@@ -414,7 +419,7 @@ pub fn build_py_enum(
             .map(|attr| (get_class_python_name(&enum_.ident, &args), attr)),
     );
     let enum_ = PyClassEnum::new(enum_)?;
-    Ok(impl_enum(enum_, &args, doc, method_type))
+    impl_enum(enum_, &args, doc, method_type)
 }
 
 /// `#[pyo3()]` options for pyclass enum variants
@@ -462,7 +467,7 @@ fn impl_enum(
     args: &PyClassArgs,
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let krate = get_pyo3_crate(&args.options.krate);
     impl_enum_class(enum_, args, doc, methods_type, krate)
 }
@@ -473,7 +478,7 @@ fn impl_enum_class(
     doc: PythonDoc,
     methods_type: PyClassMethodsType,
     krate: syn::Path,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let cls = enum_.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = enum_.variants;
@@ -569,9 +574,9 @@ fn impl_enum_class(
         default_slots,
     )
     .doc(doc)
-    .impl_all();
+    .impl_all()?;
 
-    quote! {
+    Ok(quote! {
         const _: () = {
             use #krate as _pyo3;
 
@@ -587,7 +592,7 @@ fn impl_enum_class(
                 #default_richcmp
             }
         };
-    }
+    })
 }
 
 fn generate_default_protocol_slot(
@@ -752,16 +757,17 @@ impl<'a> PyClassImplsBuilder<'a> {
         }
     }
 
-    fn impl_all(&self) -> TokenStream {
-        vec![
+    fn impl_all(&self) -> Result<TokenStream> {
+        let tokens = vec![
             self.impl_pyclass(),
             self.impl_extractext(),
             self.impl_into_py(),
-            self.impl_pyclassimpl(),
+            self.impl_pyclassimpl()?,
             self.impl_freelist(),
         ]
         .into_iter()
-        .collect()
+        .collect();
+        Ok(tokens)
     }
 
     fn impl_pyclass(&self) -> TokenStream {
@@ -828,7 +834,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {}
         }
     }
-    fn impl_pyclassimpl(&self) -> TokenStream {
+    fn impl_pyclassimpl(&self) -> Result<TokenStream> {
         let cls = self.cls;
         let doc = self.doc.as_ref().map_or(quote! {"\0"}, |doc| quote! {#doc});
         let is_basetype = self.attr.options.subclass.is_some();
@@ -841,6 +847,12 @@ impl<'a> PyClassImplsBuilder<'a> {
             .unwrap_or_else(|| parse_quote! { _pyo3::PyAny });
         let is_subclass = self.attr.options.extends.is_some();
         let is_mapping: bool = self.attr.options.mapping.is_some();
+        let is_sequence: bool = self.attr.options.sequence.is_some();
+
+        ensure_spanned!(
+            !(is_mapping && is_sequence),
+            self.cls.span() => "a `#[pyclass]` cannot be both a `mapping` and a `sequence`"
+        );
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
@@ -959,12 +971,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! { _pyo3::PyAny }
         };
 
-        quote! {
+        Ok(quote! {
             impl _pyo3::impl_::pyclass::PyClassImpl for #cls {
                 const DOC: &'static str = #doc;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;
+                const IS_SEQUENCE: bool = #is_sequence;
 
                 type Layout = _pyo3::PyCell<Self>;
                 type BaseType = #base;
@@ -1002,7 +1015,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
 
             #inventory_class
-        }
+        })
     }
 
     fn impl_freelist(&self) -> TokenStream {

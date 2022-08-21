@@ -207,9 +207,11 @@ Mapping types usually will not want the sequence slots filled. Having them fille
 
 Use the `#[pyclass(mapping)]` annotation to instruct PyO3 to only fill the mapping slots, leaving the sequence ones empty. This will apply to `__getitem__`, `__setitem__`, and `__delitem__`.
 
+Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_length` slot instead of the `mp_length` slot for `__len__`. This will help libraries such as `numpy` recognise the class as a sequence, however will also cause CPython to automatically add the sequence length to any negative indices before passing them to `__getitem__`. (`__getitem__`, `__setitem__` and `__delitem__` mapping slots are still used for sequences, for slice operations.)
+
   - `__len__(<self>) -> usize`
 
-    Implements the built-in function `len()` for the sequence.
+    Implements the built-in function `len()`.
 
   - `__contains__(<self>, object) -> bool`
 
