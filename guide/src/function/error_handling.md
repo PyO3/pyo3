@@ -169,14 +169,14 @@ fn parse_int(s: String) -> PyResult<usize> {
 
 The Rust compiler will not permit implementation of traits for types outside of the crate where the type is defined. (This is known as the "orphan rule".)
 
-Given a type `OtherError` which is defined in thirdparty code, there are two main strategies available to integrate it with PyO3:
+Given a type `OtherError` which is defined in third-party code, there are two main strategies available to integrate it with PyO3:
 
 - Create a newtype wrapper, e.g. `MyOtherError`. Then implement `From<MyOtherError> for PyErr` (or `PyErrArguments`), as well as `From<OtherError>` for `MyOtherError`.
 - Use Rust's Result combinators such as `map_err` to write code freely to convert `OtherError` into whatever is needed. This requires boilerplate at every usage however gives unlimited flexibility.
 
 To detail the newtype strategy a little further, the key trick is to return `Result<T, MyOtherError>` from the `#[pyfunction]`. This means that PyO3 will make use of `From<MyOtherError> for PyErr` to create Python exceptions while the `#[pyfunction]` implementation can use `?` to convert `OtherError` to `MyOtherError` automatically.
 
-The following example demonstrates this for some imaginary thirdparty crate `some_crate` with a function `get_x` returning `Result<i32, OtherError>`:
+The following example demonstrates this for some imaginary third-party crate `some_crate` with a function `get_x` returning `Result<i32, OtherError>`:
 
 ```rust
 # mod some_crate {

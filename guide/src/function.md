@@ -197,12 +197,6 @@ Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
 
-### Closures
-
-Currently, there are no conversions between `Fn`s in Rust and callables in Python. This would
-definitely be possible and very useful, so contributions are welcome. In the meantime, you can do
-the following:
-
 ### Calling Python functions in Rust
 
 You can pass Python `def`'d functions and built-in functions to Rust functions [`PyFunction`]
@@ -217,13 +211,12 @@ with only positional args.
 
 ### Calling Rust functions in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use [`wrap_pyfunction!`]
-to get the corresponding [`PyCFunction`]. For dynamic functions, e.g. lambdas and functions that
-were passed as arguments, you must put them in some kind of owned container, e.g. a `Box`.
-(A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can
-then use a `#[pyclass]` struct with that container as a field as a way to pass the function over
-the FFI barrier. You can even make that class callable with `__call__` so it looks like a function
-in Python code.
+The ways to convert a Rust function into a Python object vary depending on the function:
+
+- Named functions, e.g. `fn foo()`: add `#[pyfunction]` and then use [`wrap_pyfunction!`] to get the corresponding [`PyCFunction`].
+- Anonymous functions (or closures), e.g. `foo: fn()` either:
+  - use a `#[pyclass]` struct which stores the function as a field and implement `__call__` to call the stored function.
+  - use `PyFunction::new_closure` to create an object directly from the function.
 
 [`PyAny::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.is_callable
 [`PyAny::call`]: {{#PYO3_DOCS_URL}}/pyo3/struct.PyAny.html#tymethod.call
