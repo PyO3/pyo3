@@ -45,10 +45,10 @@ It can't even print an user-readable representation of itself! We can fix that b
 
  ```rust
 # use pyo3::prelude::*;
-# 
+#
 # #[pyclass]
 # struct Number(i32);
-# 
+#
 #[pymethods]
 impl Number {
     // For `__repr__` we want to return a string that Python code could use to recreate
@@ -83,10 +83,10 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 # use pyo3::prelude::*;
-# 
+#
 # #[pyclass]
 # struct Number(i32);
-# 
+#
 #[pymethods]
 impl Number {
     fn __hash__(&self) -> u64 {
@@ -110,7 +110,7 @@ impl Number {
 > By default, all `#[pyclass]` types have a default hash implementation from Python.
 > Types which should not be hashable can override this by setting `__hash__` to None.
 > This is the same mechanism as for a pure-Python class. This is done like so:
-> 
+>
 > ```rust
 > # use pyo3::prelude::*;
 > #[pyclass]
@@ -174,16 +174,40 @@ impl Number {
 It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches
 the given `CompareOp`.
 
+Alternatively, if you want to leave some operations unimplemented, you can
+return `py.NotImplemented()` for some of the operations:
+
+
+```rust
+use pyo3::class::basic::CompareOp;
+
+# use pyo3::prelude::*;
+#
+# #[pyclass]
+# struct Number(i32);
+#
+#[pymethods]
+impl Number {
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => (self.0 == other.0).into_py(py),
+            CompareOp::Ne => (self.0 != other.0).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+}
+```
+
 ### Truthyness
 
 We'll consider `Number` to be `True` if it is nonzero:
 
 ```rust
 # use pyo3::prelude::*;
-# 
+#
 # #[pyclass]
 # struct Number(i32);
-# 
+#
 #[pymethods]
 impl Number {
     fn __bool__(&self) -> bool {
