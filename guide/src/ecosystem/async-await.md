@@ -1,4 +1,4 @@
-# Async / Await
+# Using `async` and `await`
 
 If you are working with a Python library that makes use of async functions or wish to provide
 Python bindings for an async Rust library, [`pyo3-asyncio`](https://github.com/awestlake87/pyo3-asyncio)

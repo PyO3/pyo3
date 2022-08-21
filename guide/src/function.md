@@ -1,4 +1,4 @@
-# Python Functions
+# Python functions
 
 The `#[pyfunction]` attribute is used to define a Python function from a Rust function. Once defined, the function needs to be added to a [module](./module.md) using the `wrap_pyfunction!` macro.
 
@@ -19,16 +19,19 @@ fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-This chapter of the guide explains full usage of the `#[pyfunction]` attribute. The following topics are covered:
+This chapter of the guide explains full usage of the `#[pyfunction]` attribute. In this first section, the following topics are covered:
 
 - [Function options](#function-options)
   - [`#[pyo3(name = "...")]`](#name)
   - [`#[pyo3(text_signature = "...")]`](#text_signature)
   - [`#[pyo3(pass_module)]`](#pass_module)
-- [Argument parsing](#argument-parsing)
-  - [`#[pyo3(from_py_with = "...")]`](#from_py_with)
+- [Per-argument options](#per-argument-options)
 - [Advanced function patterns](#advanced-function-patterns)
 - [`#[pyfn]` shorthand](#pyfn-shorthand)
+
+There are also additional sections on the following topics:
+
+- [Function Signatures](./function/signature.md)
 
 ## Function options
 
@@ -118,27 +121,7 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     }
     ```
 
-## Argument parsing
-
-The `#[pyfunction]` attribute supports specifying details of argument parsing. The details are given in the section ["Method arguments" of the Classes chapter](class.md#method-arguments).  Here is an example for a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
-
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-#[pyfunction(kwds="**")]
-fn num_kwds(kwds: Option<&PyDict>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?).unwrap();
-    Ok(())
-}
-```
-
-### Per-argument options
+## Per-argument options
 
 The `#[pyo3]` attribute can be used on individual arguments to modify properties of them in the generated function. It can take any combination of the following options:
 

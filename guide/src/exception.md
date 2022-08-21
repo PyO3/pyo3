@@ -1,4 +1,4 @@
-# Python Exceptions
+# Python exceptions
 
 ## Defining a new exception
 

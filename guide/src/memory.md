@@ -1,4 +1,4 @@
-# Memory Management
+# Memory management
 
 Rust and Python have very different notions of memory management.  Rust has
 a strict memory model with concepts of ownership, borrowing, and lifetimes,
@@ -13,7 +13,7 @@ PyO3 bridges the Rust and Python memory models with two different strategies for
 accessing memory allocated on Python's heap from inside Rust.  These are
 GIL-bound, or "owned" references, and GIL-independent `Py<Any>` smart pointers.
 
-## GIL-bound Memory
+## GIL-bound memory
 
 PyO3's GIL-bound, "owned references" (`&PyAny` etc.) make PyO3 more ergonomic to
 use by ensuring that their lifetime can never be longer than the duration the
@@ -119,7 +119,7 @@ dropped you do not retain access to any owned references created after the
 [documentation for `Python::new_pool()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.Python.html#method.new_pool)
 for more information on safety.
 
-## GIL-independent Memory
+## GIL-independent memory
 
 Sometimes we need a reference to memory on Python's heap that can outlive the
 GIL.  Python's `Py<PyAny>` is analogous to `Rc<T>`, but for variables whose
