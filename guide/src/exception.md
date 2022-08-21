@@ -52,35 +52,9 @@ fn mymodule(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 ## Raising an exception
 
-To raise an exception from `pyfunction`s and `pymethods`, you should return an `Err(PyErr)`.
-If returned to Python code, this [`PyErr`] will then be raised as a Python exception. Many PyO3 APIs also return [`PyResult`].
+As described in the [function error handling](./function/error_handling.md) chapter, to raise an exception from a `#[pyfunction]` or `#[pymethods]`, return an `Err(PyErr)`. PyO3 will automatically raise this exception for you when returing the result to Python.
 
-If a Rust type exists for the exception, then it is possible to use the `new_err` method.
-For example, each standard exception defined in the `pyo3::exceptions` module
-has a corresponding Rust type and exceptions defined by [`create_exception!`] and [`import_exception!`] macro have Rust types as well.
-
-```rust
-use pyo3::exceptions::PyZeroDivisionError;
-use pyo3::prelude::*;
-
-#[pyfunction]
-fn divide(a: i32, b: i32) -> PyResult<i32> {
-    match a.checked_div(b) {
-        Some(q) => Ok(q),
-        None => Err(PyZeroDivisionError::new_err("division by zero")),
-    }
-}
-#
-# fn main(){
-# 	Python::with_gil(|py|{
-# 		let fun = pyo3::wrap_pyfunction!(divide, py).unwrap();
-# 		fun.call1((1,0)).unwrap_err();
-# 		fun.call1((1,1)).unwrap();
-# 	});
-# }
-```
-
-You can manually write and fetch errors in the Python interpreter's global state:
+You can also manually write and fetch errors in the Python interpreter's global state:
 
 ```rust
 use pyo3::{Python, PyErr};
@@ -92,8 +66,6 @@ Python::with_gil(|py| {
     drop(PyErr::fetch(py));
 });
 ```
-
-If you already have a Python exception object, you can use [`PyErr::from_value`] to create a `PyErr` from it.
 
 ## Checking exception types
 
@@ -122,104 +94,6 @@ To check the type of an exception, you can similarly do:
 err.is_instance_of::<PyTypeError>(py);
 # });
 ```
-
-## Handling Rust errors
-
-The vast majority of operations in this library will return
-[`PyResult<T>`]({{#PYO3_DOCS_URL}}/pyo3/prelude/type.PyResult.html),
-which is an alias for the type `Result<T, PyErr>`.
-
-A [`PyErr`] represents a Python exception. Errors within the PyO3 library are also exposed as
-Python exceptions.
-
-If your code has a custom error type, adding an implementation of `std::convert::From<MyError> for PyErr`
-is usually enough. PyO3 will then automatically convert your error to a Python exception when needed.
-
-The following code snippet defines a Rust error named `CustomIOError`. In its `From<CustomIOError> for PyErr`
-implementation it returns a `PyErr` representing Python's `OSError`.
-
-```rust
-use pyo3::exceptions::PyOSError;
-use pyo3::prelude::*;
-use std::fmt;
-
-#[derive(Debug)]
-struct CustomIOError;
-
-impl std::error::Error for CustomIOError {}
-
-impl fmt::Display for CustomIOError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Oh no!")
-    }
-}
-
-impl std::convert::From<CustomIOError> for PyErr {
-    fn from(err: CustomIOError) -> PyErr {
-        PyOSError::new_err(err.to_string())
-    }
-}
-
-pub struct Connection { /* ... */}
-
-fn bind(addr: String) -> Result<Connection, CustomIOError> {
-    if &addr == "0.0.0.0"{
-        Err(CustomIOError)
-    } else {
-        Ok(Connection{ /* ... */})
-    }
-}
-
-#[pyfunction]
-fn connect(s: String) -> Result<(), CustomIOError> {
-    bind(s)?;
-    Ok(())
-}
-
-fn main() {
-    Python::with_gil(|py| {
-        let fun = pyo3::wrap_pyfunction!(connect, py).unwrap();
-        let err = fun.call1(("0.0.0.0",)).unwrap_err();
-        assert!(err.is_instance_of::<PyOSError>(py));
-    });
-}
-```
-
-This has been implemented for most of Rust's standard library errors, so that you can use the `?`
-("try") operator with them. The following code snippet will raise a `ValueError` in Python if
-`String::parse()` returns an error.
-
-```rust
-use pyo3::prelude::*;
-
-fn parse_int(s: String) -> PyResult<usize> {
-    Ok(s.parse::<usize>()?)
-}
-#
-# use pyo3::exceptions::PyValueError;
-#
-# fn main() {
-#     Python::with_gil(|py| {
-#         assert_eq!(parse_int(String::from("1")).unwrap(), 1);
-#         assert_eq!(parse_int(String::from("1337")).unwrap(), 1337);
-#
-#         assert!(parse_int(String::from("-1"))
-#             .unwrap_err()
-#             .is_instance_of::<PyValueError>(py));
-#         assert!(parse_int(String::from("foo"))
-#             .unwrap_err()
-#             .is_instance_of::<PyValueError>(py));
-#         assert!(parse_int(String::from("13.37"))
-#             .unwrap_err()
-#             .is_instance_of::<PyValueError>(py));
-#     })
-# }
-```
-
-If lazy construction of the Python exception instance is desired, the
-[`PyErrArguments`]({{#PYO3_DOCS_URL}}/pyo3/trait.PyErrArguments.html)
-trait can be implemented. In that case, actual exception argument creation is delayed
-until the `PyErr` is needed.
 
 ## Using exceptions defined in Python code
 

@@ -8,6 +8,7 @@
 - [Python modules](module.md)
 - [Python functions](function.md)
   - [Function signatures](function/signature.md)
+  - [Error handling](function/error_handling.md)
 - [Python classes](class.md)
   - [Class customizations](class/protocols.md)
     - [Basic object customization](class/object.md)
