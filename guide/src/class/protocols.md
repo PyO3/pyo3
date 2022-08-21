@@ -67,6 +67,8 @@ given signatures should be interpreted as follows:
 
     Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`).
     The `CompareOp` argument indicates the comparison operation being performed.
+
+    _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
     <details>
     <summary>Return type</summary>
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
