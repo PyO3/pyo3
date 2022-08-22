@@ -125,7 +125,7 @@ fn insert_lifetime(ty: &mut syn::Type) {
     match ty {
         syn::Type::Reference(ref mut r) => {
             r.lifetime.get_or_insert(syn::parse_quote! {'p});
-            insert_lifetime(&mut *r.elem);
+            insert_lifetime(&mut r.elem);
         }
         syn::Type::Path(ref mut path) => insert_lifetime_for_path(path),
         _ => {}

@@ -55,6 +55,7 @@ def clippy(session: nox.Session) -> None:
             "--workspace",
             "--",
             "--deny=warnings",
+            *session.posargs,
             external=True,
         )
 

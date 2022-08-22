@@ -41,7 +41,7 @@ jobs:
           toolchain: stable
           profile: minimal
           components: clippy
-      - run: nox -s clippy
+      - run: nox -s clippy -- --allow=clippy::borrow_deref_ref --allow=clippy::let_unit_value --allow=clippy::derive-partial-eq-without-eq
 
   check-target:
     needs: [fmt]
