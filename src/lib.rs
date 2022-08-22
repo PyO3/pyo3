@@ -72,8 +72,6 @@
 //! The following features are turned on by default:
 //! - `macros`: Enables various macros, including all the attribute macros excluding the deprecated
 //! `#[pyproto]` attribute.
-//! - `pyproto`: Adds the deprecated `#[pyproto]` attribute macro. Likely to become optional and
-//! then removed in the future.
 //!
 //! ## Optional feature flags
 //!
@@ -89,6 +87,7 @@
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
+//! - `pyproto`: Enables the deprecated `#[pyproto]` attribute macro. This will be removed in PyO3 0.18.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
