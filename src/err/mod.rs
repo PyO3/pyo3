@@ -437,11 +437,14 @@ impl PyErr {
     /// This is the opposite of `PyErr::fetch()`.
     #[inline]
     pub fn restore(self, py: Python<'_>) {
-        let (ptype, pvalue, ptraceback) = self
-            .state
-            .into_inner()
-            .expect("Cannot restore a PyErr while normalizing it")
-            .into_ffi_tuple(py);
+        let state = match self.state.into_inner() {
+            Some(state) => state,
+            // Safety: restore takes `self` by value so nothing else is accessing this err
+            // and the invariant is that state is always defined except during make_normalized
+            None => unsafe { std::hint::unreachable_unchecked() },
+        };
+
+        let (ptype, pvalue, ptraceback) = state.into_ffi_tuple(py);
         unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
     }
 
@@ -499,6 +502,11 @@ impl PyErr {
                 cause.map_or(std::ptr::null_mut(), |err| err.into_value(py).into_ptr()),
             );
         }
+    }
+
+    pub(crate) fn write_unraisable(self, py: Python<'_>, context: PyObject) {
+        self.restore(py);
+        unsafe { ffi::PyErr_WriteUnraisable(context.as_ptr()) };
     }
 
     #[inline]

@@ -5,6 +5,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
+use crate::impl_::panic::PanicTrap;
 use crate::panic::PanicException;
 use crate::{GILPool, IntoPyPointer};
 use crate::{IntoPy, PyObject, Python};
@@ -240,9 +241,15 @@ where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
 {
+    let trap = PanicTrap::new("uncaught panic at ffi boundary");
     let pool = GILPool::new();
     let py = pool.python();
-    panic_result_into_callback_output(py, panic::catch_unwind(move || -> PyResult<_> { body(py) }))
+    let out = panic_result_into_callback_output(
+        py,
+        panic::catch_unwind(move || -> PyResult<_> { body(py) }),
+    );
+    trap.disarm();
+    out
 }
 
 /// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
@@ -256,28 +263,11 @@ pub fn panic_result_into_callback_output<R>(
 where
     R: PyCallbackOutput,
 {
-    let py_result = match panic_result {
-        Ok(py_result) => py_result,
-        Err(payload) => Err(PanicException::from_panic_payload(payload)),
+    let py_err = match panic_result {
+        Ok(Ok(value)) => return value,
+        Ok(Err(py_err)) => py_err,
+        Err(payload) => PanicException::from_panic_payload(payload),
     };
-
-    py_result.unwrap_or_else(|py_err| {
-        py_err.restore(py);
-        R::ERR_VALUE
-    })
-}
-
-/// Aborts if panic has occurred. Used inside `__traverse__` implementations, where panicking is not possible.
-#[doc(hidden)]
-#[inline]
-pub fn abort_on_traverse_panic(
-    panic_result: Result<c_int, Box<dyn Any + Send + 'static>>,
-) -> c_int {
-    match panic_result {
-        Ok(traverse_result) => traverse_result,
-        Err(_payload) => {
-            eprintln!("FATAL: panic inside __traverse__ handler; aborting.");
-            ::std::process::abort()
-        }
-    }
+    py_err.restore(py);
+    R::ERR_VALUE
 }

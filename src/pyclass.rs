@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 //! `PyClass` and related traits.
 use crate::{
     callback::IntoPyCallbackOutput,

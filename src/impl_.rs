@@ -10,6 +10,7 @@ pub mod freelist;
 #[doc(hidden)]
 pub mod frompyobject;
 pub(crate) mod not_send;
+pub mod panic;
 #[doc(hidden)]
 pub mod pyclass;
 #[doc(hidden)]

@@ -1,10 +1,15 @@
 error[E0277]: the trait bound `PyAny: Ungil` is not satisfied in `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 8:28]`
-   --> tests/ui/not_send_auto_trait2.rs:8:12
+   --> tests/ui/not_send_auto_trait2.rs:8:26
     |
-8   |         py.allow_threads(|| {
-    |            ^^^^^^^^^^^^^ -- within this `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 8:28]`
-    |            |
-    |            within `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 8:28]`, the trait `Ungil` is not implemented for `PyAny`
+8   |           py.allow_threads(|| {
+    |              ------------- ^-
+    |              |             |
+    |  ____________|_____________within this `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 8:28]`
+    | |            |
+    | |            required by a bound introduced by this call
+9   | |             println!("{:?}", string);
+10  | |         });
+    | |_________^ within `[closure@$DIR/tests/ui/not_send_auto_trait2.rs:8:26: 8:28]`, the trait `Ungil` is not implemented for `PyAny`
     |
     = note: required because it appears within the type `PyString`
     = note: required because it appears within the type `&PyString`

@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 

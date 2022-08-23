@@ -6,13 +6,14 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.6] - 2022-08-23
 
 ### Changed
 - Fix soundness issues with `PyCapsule` type with select workarounds. Users are encourage to upgrade to PyO3 0.17 at their earliest convenience which contains API breakages which fix the issues in a long-term fashion. [#2522](https://github.com/PyO3/pyo3/pull/2522)
   - `PyCapsule::new` and `PyCapsule::new_with_destructor` now take ownership of a copy of the `name` to resolve a possible use-after-free.
   - `PyCapsule::name` now returns an empty `CStr` instead of dereferencing a null pointer if the capsule has no name.
   - The destructor `F` in `PyCapsule::new_with_destructor` will never be called if the capsule is deleted from a thread other than the one which the capsule was created in (a warning will be emitted).
+- Panics during drop of panic payload caught by PyO3 will now abort. [#2544](https://github.com/PyO3/pyo3/pull/2544)
 
 ## [0.16.5] - 2022-05-15
 
@@ -1173,7 +1174,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.5...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.16.6...HEAD
+[0.16.6]: https://github.com/pyo3/pyo3/compare/v0.16.5...v0.16.6
 [0.16.5]: https://github.com/pyo3/pyo3/compare/v0.16.4...v0.16.5
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/pyo3/pyo3/compare/v0.16.2...v0.16.3

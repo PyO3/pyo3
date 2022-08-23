@@ -41,7 +41,7 @@ jobs:
           toolchain: stable
           profile: minimal
           components: clippy
-      - run: nox -s clippy
+      - run: nox -s clippy -- --allow=clippy::borrow_deref_ref --allow=clippy::let_unit_value --allow=clippy::derive-partial-eq-without-eq
 
   check-target:
     needs: [fmt]
@@ -185,6 +185,7 @@ jobs:
           cargo update -p plotters --precise 0.3.1
           cargo update -p plotters-svg --precise 0.3.1
           cargo update -p plotters-backend --precise 0.3.2
+          cargo update -p bumpalo --precise 3.10.0
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
