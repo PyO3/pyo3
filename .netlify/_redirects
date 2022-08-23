@@ -62,6 +62,10 @@
 /v0.16.4/* https://pyo3.rs/v0.16.4/:splat 200
 /v0.16.5/doc/* https://docs.rs/pyo3/0.16.5/:splat
 /v0.16.5/* https://pyo3.rs/v0.16.5/:splat 200
+/v0.16.6/doc/* https://docs.rs/pyo3/0.16.6/:splat
+/v0.16.6/* https://pyo3.rs/v0.16.6/:splat 200
+/v0.17.0/doc/* https://docs.rs/pyo3/0.17.0/:splat
+/v0.17.0/* https://pyo3.rs/v0.17.0/:splat 200
 /v0.2.3/doc/* https://docs.rs/pyo3/0.2.3/:splat
 /v0.2.3/* https://pyo3.rs/v0.2.3/:splat 200
 /v0.2.4/doc/* https://docs.rs/pyo3/0.2.4/:splat
