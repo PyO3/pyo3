@@ -1,4 +1,4 @@
-# The PyO3 Ecosystem
+# The PyO3 ecosystem
 
 This portion of the guide is dedicated to crates which are external to the main PyO3 project and provide additional functionality you might find useful.
 

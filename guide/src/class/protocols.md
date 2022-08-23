@@ -44,7 +44,7 @@ given signatures should be interpreted as follows:
 
   - `__hash__(<self>) -> isize`
 
-    Objects that compare equal must have the same hash value.
+    Objects that compare equal must have the same hash value. Any type up to 64 bits may be returned instead of `isize`, PyO3 will convert to an isize automatically (wrapping unsigned types like `u64` and `usize`).
     <details>
     <summary>Disabling Python's default hash</summary>
     By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
@@ -67,6 +67,8 @@ given signatures should be interpreted as follows:
 
     Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`).
     The `CompareOp` argument indicates the comparison operation being performed.
+
+    _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
     <details>
     <summary>Return type</summary>
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.

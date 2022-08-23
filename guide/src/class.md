@@ -1,4 +1,4 @@
-# Python Classes
+# Python classes
 
 PyO3 exposes a group of attributes powered by Rust's proc macro system for defining Python classes as Rust structs.
 
@@ -614,29 +614,10 @@ impl MyClass {
 
 ## Method arguments
 
-By default, PyO3 uses function signatures to determine which arguments are required. Then it scans
-the incoming `args` and `kwargs` parameters. If it can not find all required
-parameters, it raises a `TypeError` exception. It is possible to override the default behavior
-with the `#[args(...)]` attribute. This attribute accepts a comma separated list of parameters in
-the form of `attr_name="default value"`. Each parameter has to match the method parameter by name.
+Similar to `#[pyfunction]`, the `#[args]` attribute can be used to specify the way that `#[pymethods]` accept arguments. Consult the documentation for [`function signatures`](./function/signature.md) to see the parameters this attribute accepts.
 
-Each parameter can be one of the following types:
+The following example defines a class `MyClass` with a method `method`. This method has an `#[args]` attribute which sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
- * `"/"`: positional-only arguments separator, each parameter defined before `"/"` is a
-   positional-only parameter.
-   Corresponds to python's `def meth(arg1, arg2, ..., /, argN..)`.
- * `"*"`: var arguments separator, each parameter defined after `"*"` is a keyword-only parameter.
-   Corresponds to python's `def meth(*, arg1.., arg2=..)`.
- * `args="*"`: "args" is var args, corresponds to Python's `def meth(*args)`. Type of the `args`
-   parameter has to be `&PyTuple`.
- * `kwargs="**"`: "kwargs" receives keyword arguments, corresponds to Python's `def meth(**kwargs)`.
-   The type of the `kwargs` parameter has to be `Option<&PyDict>`.
- * `arg="Value"`: arguments with default value. Corresponds to Python's `def meth(arg=Value)`.
-   If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
-   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated
-   code unmodified.
-
-Example:
 ```rust
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
@@ -665,35 +646,26 @@ impl MyClass {
         name: &str,
         py_args: &PyTuple,
         py_kwargs: Option<&PyDict>,
-    ) -> PyResult<String> {
+    ) -> String {
+        let num_before = self.num;
         self.num = num;
-        Ok(format!(
-            "py_args={:?}, py_kwargs={:?}, name={}, num={}",
-            py_args, py_kwargs, name, self.num
-        ))
-    }
-
-    fn make_change(&mut self, num: i32) -> PyResult<String> {
-        self.num = num;
-        Ok(format!("num={}", self.num))
+        format!(
+            "py_args={:?}, py_kwargs={:?}, name={}, num={} num_before={}",
+            py_args, py_kwargs, name, self.num, num_before,
+        )
     }
 }
 ```
-N.B. the position of the `"/"` and `"*"` arguments (if included) control the system of handling positional and keyword arguments. In Python:
-```python
-import mymodule
 
-mc = mymodule.MyClass()
-print(mc.method(44, False, "World", 666, x=44, y=55))
-print(mc.method(num=-1, name="World"))
-print(mc.make_change(44, False))
-```
-Produces output:
-```text
-py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44
-py_args=(), py_kwargs=None, name=World, num=-1
-num=44
-num=-1
+In Python this might be used like:
+
+```python
+>>> import mymodule
+>>> mc = mymodule.MyClass()
+>>> print(mc.method(44, False, "World", 666, x=44, y=55))
+py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44, num_before=-1
+>>> print(mc.method(num=-1, name="World"))
+py_args=(), py_kwargs=None, name=World, num=-1, num_before=44
 ```
 
 ## Making class method signatures available to Python
@@ -951,8 +923,8 @@ struct MyClass {
     # #[allow(dead_code)]
     num: i32,
 }
-unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
-    type AsRefTarget = ::pyo3::PyCell<Self>;
+unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
+    type AsRefTarget = pyo3::PyCell<Self>;
     const NAME: &'static str = "MyClass";
     const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
     #[inline]
@@ -963,27 +935,27 @@ unsafe impl ::pyo3::type_object::PyTypeInfo for MyClass {
     }
 }
 
-impl ::pyo3::PyClass for MyClass {
+impl pyo3::PyClass for MyClass {
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
-impl<'a, 'py> ::pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a MyClass
 {
-    type Holder = ::std::option::Option<::pyo3::PyRef<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRef<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'py ::pyo3::PyAny, holder: &'a mut Self::Holder) -> ::pyo3::PyResult<Self> {
-        ::pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
+    fn extract(obj: &'py pyo3::PyAny, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+        pyo3::impl_::extract_argument::extract_pyclass_ref(obj, holder)
     }
 }
 
-impl<'a, 'py> ::pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
+impl<'a, 'py> pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'py> for &'a mut MyClass
 {
-    type Holder = ::std::option::Option<::pyo3::PyRefMut<'py, MyClass>>;
+    type Holder = ::std::option::Option<pyo3::PyRefMut<'py, MyClass>>;
 
     #[inline]
-    fn extract(obj: &'py ::pyo3::PyAny, holder: &'a mut Self::Holder) -> ::pyo3::PyResult<Self> {
-        ::pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
+    fn extract(obj: &'py pyo3::PyAny, holder: &'a mut Self::Holder) -> pyo3::PyResult<Self> {
+        pyo3::impl_::extract_argument::extract_pyclass_ref_mut(obj, holder)
     }
 }
 
@@ -1001,9 +973,9 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::ThreadCheckerStub<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;
-    type Dict = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type WeakRef = ::pyo3::impl_::pyclass::PyClassDummySlot;
-    type BaseNativeType = ::pyo3::PyAny;
+    type Dict = pyo3::impl_::pyclass::PyClassDummySlot;
+    type WeakRef = pyo3::impl_::pyclass::PyClassDummySlot;
+    type BaseNativeType = pyo3::PyAny;
 
     fn items_iter() -> pyo3::impl_::pyclass::PyClassItemsIter {
         use pyo3::impl_::pyclass::*;

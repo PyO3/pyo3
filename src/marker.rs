@@ -288,6 +288,10 @@ impl Python<'_> {
     #[cfg_attr(PyPy, doc = "`prepare_freethreaded_python`")]
     /// for details.
     ///
+    /// If the current thread does not yet have a Python "thread state" associated with it,
+    /// a new one will be automatically created before `F` is executed and destroyed after `F`
+    /// completes.
+    ///
     /// # Panics
     ///
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not

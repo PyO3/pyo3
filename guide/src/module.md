@@ -1,4 +1,4 @@
-# Python Modules
+# Python modules
 
 You can create a module using `#[pymodule]`:
 
@@ -64,7 +64,7 @@ print(my_extension.__doc__)
 
 ## Python submodules
 
-You can create a module hierarchy within a single extension module by using 
+You can create a module hierarchy within a single extension module by using
 [`PyModule.add_submodule()`]({{#PYO3_DOCS_URL}}/pyo3/prelude/struct.PyModule.html#method.add_submodule).
 For example, you could define the modules `parent_module` and `parent_module.child_module`.
 
@@ -99,9 +99,9 @@ fn func() -> String {
 # })
 ```
 
-Note that this does not define a package, so this won’t allow Python code to directly import 
-submodules by using `from parent_module import child_module`. For more information, see 
-[#759](https://github.com/PyO3/pyo3/issues/759) and 
+Note that this does not define a package, so this won’t allow Python code to directly import
+submodules by using `from parent_module import child_module`. For more information, see
+[#759](https://github.com/PyO3/pyo3/issues/759) and
 [#1517](https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021).
 
 It is not necessary to add `#[pymodule]` on nested modules, which is only required on the top-level module.

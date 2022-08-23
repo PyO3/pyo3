@@ -1,4 +1,4 @@
-# Features Reference
+# Features reference
 
 PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.
 

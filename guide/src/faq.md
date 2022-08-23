@@ -1,4 +1,4 @@
-# Frequently Asked Questions / Troubleshooting
+# Frequently Asked Questions and troubleshooting
 
 ## I'm experiencing deadlocks using PyO3 with lazy_static or once_cell!
 
