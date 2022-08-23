@@ -94,6 +94,19 @@ pub struct PyMethodDef {
     pub ml_doc: *const c_char,
 }
 
+impl PyMethodDef {
+    pub const fn zeroed() -> PyMethodDef {
+        PyMethodDef {
+            ml_name: ptr::null(),
+            ml_meth: PyMethodDefPointer {
+                Void: ptr::null_mut(),
+            },
+            ml_flags: 0,
+            ml_doc: ptr::null(),
+        }
+    }
+}
+
 impl Default for PyMethodDef {
     fn default() -> PyMethodDef {
         PyMethodDef {
@@ -146,6 +159,12 @@ impl PyMethodDefPointer {
 
     pub fn is_null(&self) -> bool {
         self.as_ptr().is_null()
+    }
+
+    pub const fn zeroed() -> PyMethodDefPointer {
+        PyMethodDefPointer {
+            Void: ptr::null_mut(),
+        }
     }
 }
 
