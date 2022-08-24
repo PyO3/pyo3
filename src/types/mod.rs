@@ -17,7 +17,7 @@ pub use self::datetime::{
 };
 pub use self::dict::{IntoPyDict, PyDict};
 #[cfg(not(PyPy))]
-pub use self::dict::{PyDictItem, PyDictKeys, PyDictValues};
+pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::floatob::PyFloat;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
 pub use self::frame::PyFrame;
