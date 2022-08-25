@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix visibility of `PyDictItems`, `PyDictKeys`, and `PyDictValues` types added in PyO3 0.17.0.
+- Fix compile failure when using `#[pyo3(from_py_with = "...")]` attribute on an argument of type `Option<T>`. [#2592](https://github.com/PyO3/pyo3/pull/2592)
 
 ## [0.17.0] - 2022-08-23
 
