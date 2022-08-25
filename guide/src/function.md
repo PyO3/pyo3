@@ -23,6 +23,7 @@ This chapter of the guide explains full usage of the `#[pyfunction]` attribute. 
 
 - [Function options](#function-options)
   - [`#[pyo3(name = "...")]`](#name)
+  - [`#[pyo3(signature = (...))]`](#signature)
   - [`#[pyo3(text_signature = "...")]`](#text_signature)
   - [`#[pyo3(pass_module)]`](#pass_module)
 - [Per-argument options](#per-argument-options)
@@ -63,6 +64,10 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
     #     assert!(m.getattr(py, "no_args_py").is_err());
     # });
     ```
+
+  - <a name="signature"></a> `#[pyo3(signature = (...))]`
+
+    Defines the function signature in Python. See [Function Signatures](./function/signature.md).
 
   - <a name="text_signature"></a> `#[pyo3(text_signature = "...")]`
 

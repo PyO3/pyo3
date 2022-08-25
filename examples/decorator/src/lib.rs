@@ -36,7 +36,7 @@ impl PyCounter {
         self.count.get()
     }
 
-    #[args(args = "*", kwargs = "**")]
+    #[pyo3(signature = (*args, **kwargs))]
     fn __call__(
         &self,
         py: Python<'_>,

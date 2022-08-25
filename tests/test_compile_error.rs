@@ -38,6 +38,7 @@ fn _test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
+    t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
     #[cfg(not(Py_LIMITED_API))]
     t.compile_fail("tests/ui/invalid_pymethods_buffer.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");

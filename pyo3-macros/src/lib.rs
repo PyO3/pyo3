@@ -87,7 +87,7 @@ pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// | [`#[staticmethod]`][6]| Defines the method as a staticmethod, like Python's `@staticmethod` decorator.|
 /// | [`#[classmethod]`][7]  | Defines the method as a classmethod, like Python's `@classmethod` decorator.|
 /// | [`#[classattr]`][9]  | Defines a class variable. |
-/// | [`#[args]`][10]  | Define a method's default arguments and allows the function to receive `*args` and `**kwargs`.  |
+/// | [`#[args]`][10]  | Deprecated way to define a method's default arguments and allows the function to receive `*args` and `**kwargs`. Use `#[pyo3(signature = (...))]` instead. |
 /// | <nobr>[`#[pyo3(<option> = <value>)`][pyo3-method-options]<nobr> | Any of the `#[pyo3]` options supported on [`macro@pyfunction`]. |
 ///
 /// For more on creating class methods,

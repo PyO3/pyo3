@@ -291,16 +291,16 @@ fn test_module_nesting() {
 
 // Test that argument parsing specification works for pyfunctions
 
-#[pyfunction(a = 5, vararg = "*")]
-fn ext_vararg_fn(py: Python<'_>, a: i32, vararg: &PyTuple) -> PyObject {
-    [a.to_object(py), vararg.into()].to_object(py)
+#[pyfunction(signature = (a=5, *args))]
+fn ext_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
+    [a.to_object(py), args.into()].to_object(py)
 }
 
 #[pymodule]
 fn vararg_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    #[pyfn(m, a = 5, vararg = "*")]
-    fn int_vararg_fn(py: Python<'_>, a: i32, vararg: &PyTuple) -> PyObject {
-        ext_vararg_fn(py, a, vararg)
+    #[pyfn(m, signature = (a=5, *args))]
+    fn int_vararg_fn(py: Python<'_>, a: i32, args: &PyTuple) -> PyObject {
+        ext_vararg_fn(py, a, args)
     }
 
     m.add_function(wrap_pyfunction!(ext_vararg_fn, m)?).unwrap();
@@ -361,7 +361,7 @@ fn pyfunction_with_module_and_arg(module: &PyModule, string: String) -> PyResult
     module.name().map(|s| (s, string))
 }
 
-#[pyfunction(string = "\"foo\"")]
+#[pyfunction(signature = (string="foo"))]
 #[pyo3(pass_module)]
 fn pyfunction_with_module_and_default_arg<'a>(
     module: &'a PyModule,
@@ -370,7 +370,7 @@ fn pyfunction_with_module_and_default_arg<'a>(
     module.name().map(|s| (s, string.into()))
 }
 
-#[pyfunction(args = "*", kwargs = "**")]
+#[pyfunction(signature = (*args, **kwargs))]
 #[pyo3(pass_module)]
 fn pyfunction_with_module_and_args_kwargs<'a>(
     module: &'a PyModule,

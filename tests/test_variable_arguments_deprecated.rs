@@ -1,4 +1,5 @@
 #![cfg(feature = "macros")]
+#![allow(deprecated)]
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
@@ -11,13 +12,13 @@ struct MyClass {}
 #[pymethods]
 impl MyClass {
     #[staticmethod]
-    #[pyo3(signature = (*args))]
+    #[args(args = "*")]
     fn test_args(args: &PyTuple) -> &PyTuple {
         args
     }
 
     #[staticmethod]
-    #[pyo3(signature = (**kwargs))]
+    #[args(kwargs = "**")]
     fn test_kwargs(kwargs: Option<&PyDict>) -> Option<&PyDict> {
         kwargs
     }

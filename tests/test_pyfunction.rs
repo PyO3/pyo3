@@ -11,7 +11,7 @@ use pyo3::types::{self, PyCFunction};
 
 mod common;
 
-#[pyfunction(arg = "true")]
+#[pyfunction(signature = (arg = true))]
 fn optional_bool(arg: Option<bool>) -> String {
     format!("{:?}", arg)
 }
@@ -181,7 +181,7 @@ fn test_from_py_with_defaults() {
         int.unwrap_or(0)
     }
 
-    #[pyfunction(len = "0")]
+    #[pyfunction(signature = (len=0))]
     fn from_py_with_default(#[pyo3(from_py_with = "PyAny::len")] len: usize) -> usize {
         len
     }
