@@ -12,35 +12,18 @@ use crate::{
     pymethod::check_generic,
     utils::{self, ensure_not_async_fn, get_pyo3_crate},
 };
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::punctuated::Punctuated;
-use syn::{ext::IdentExt, spanned::Spanned, NestedMeta, Path, Result};
+use syn::{ext::IdentExt, spanned::Spanned, NestedMeta, Result};
 use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     token::Comma,
 };
+use syn::{punctuated::Punctuated, Path};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Argument {
-    PosOnlyArgsSeparator,
-    VarArgsSeparator,
-    VarArgs(syn::Path),
-    KeywordArgs(syn::Path),
-    PosOnlyArg(syn::Path, Option<String>),
-    Arg(syn::Path, Option<String>),
-    Kwarg(syn::Path, Option<String>),
-}
+mod signature;
 
-/// The attributes of the pyfunction macro
-#[derive(Default)]
-pub struct PyFunctionSignature {
-    pub arguments: Vec<Argument>,
-    has_kw: bool,
-    has_posonly_args: bool,
-    has_varargs: bool,
-    has_kwargs: bool,
-}
+pub use self::signature::{FunctionSignature, SignatureAttribute};
 
 #[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
@@ -88,16 +71,37 @@ impl PyFunctionArgPyO3Attributes {
     }
 }
 
-impl syn::parse::Parse for PyFunctionSignature {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Argument {
+    PosOnlyArgsSeparator,
+    VarArgsSeparator,
+    VarArgs(syn::Path),
+    KeywordArgs(syn::Path),
+    PosOnlyArg(syn::Path, Option<String>),
+    Arg(syn::Path, Option<String>),
+    Kwarg(syn::Path, Option<String>),
+}
+
+#[derive(Debug, Default)]
+pub struct DeprecatedArgs {
+    pub arguments: Vec<Argument>,
+    has_kw: bool,
+    has_posonly_args: bool,
+    has_varargs: bool,
+    has_kwargs: bool,
+}
+
+// Deprecated parsing mode for the signature
+impl syn::parse::Parse for DeprecatedArgs {
     fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
         let attr = Punctuated::<NestedMeta, syn::Token![,]>::parse_terminated(input)?;
         Self::from_meta(&attr)
     }
 }
 
-impl PyFunctionSignature {
+impl DeprecatedArgs {
     pub fn from_meta<'a>(iter: impl IntoIterator<Item = &'a NestedMeta>) -> syn::Result<Self> {
-        let mut slf = PyFunctionSignature::default();
+        let mut slf = DeprecatedArgs::default();
 
         for item in iter {
             slf.add_item(item)?
@@ -238,7 +242,8 @@ impl PyFunctionSignature {
 pub struct PyFunctionOptions {
     pub pass_module: Option<attributes::kw::pass_module>,
     pub name: Option<NameAttribute>,
-    pub signature: Option<PyFunctionSignature>,
+    pub deprecated_args: Option<DeprecatedArgs>,
+    pub signature: Option<SignatureAttribute>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub deprecations: Deprecations,
     pub krate: Option<CrateAttribute>,
@@ -266,7 +271,7 @@ impl Parse for PyFunctionOptions {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
                 //
                 // TODO deprecate in favour of #[pyfunction(signature = (a, b), name = "foo")]
-                options.signature = Some(input.parse()?);
+                options.deprecated_args = Some(input.parse()?);
                 break;
             }
         }
@@ -278,7 +283,7 @@ impl Parse for PyFunctionOptions {
 pub enum PyFunctionOption {
     Name(NameAttribute),
     PassModule(attributes::kw::pass_module),
-    Signature(PyFunctionSignature),
+    Signature(SignatureAttribute),
     TextSignature(TextSignatureAttribute),
     Crate(CrateAttribute),
 }
@@ -313,49 +318,26 @@ impl PyFunctionOptions {
         &mut self,
         attrs: impl IntoIterator<Item = PyFunctionOption>,
     ) -> Result<()> {
+        macro_rules! set_option {
+            ($key:ident) => {
+                {
+                    ensure_spanned!(
+                        self.$key.is_none(),
+                        $key.span() => concat!("`", stringify!($key), "` may only be specified once")
+                    );
+                    self.$key = Some($key);
+                }
+            };
+        }
         for attr in attrs {
             match attr {
-                PyFunctionOption::Name(name) => self.set_name(name)?,
-                PyFunctionOption::PassModule(kw) => {
-                    ensure_spanned!(
-                        self.pass_module.is_none(),
-                        kw.span() => "`pass_module` may only be specified once"
-                    );
-                    self.pass_module = Some(kw);
-                }
-                PyFunctionOption::Signature(signature) => {
-                    ensure_spanned!(
-                        self.signature.is_none(),
-                        // FIXME: improve the span of this error message
-                        Span::call_site() => "`signature` may only be specified once"
-                    );
-                    self.signature = Some(signature);
-                }
-                PyFunctionOption::TextSignature(text_signature) => {
-                    ensure_spanned!(
-                        self.text_signature.is_none(),
-                        text_signature.kw.span() => "`text_signature` may only be specified once"
-                    );
-                    self.text_signature = Some(text_signature);
-                }
-                PyFunctionOption::Crate(path) => {
-                    ensure_spanned!(
-                        self.krate.is_none(),
-                        path.span() => "`crate` may only be specified once"
-                    );
-                    self.krate = Some(path);
-                }
+                PyFunctionOption::Name(name) => set_option!(name),
+                PyFunctionOption::PassModule(pass_module) => set_option!(pass_module),
+                PyFunctionOption::Signature(signature) => set_option!(signature),
+                PyFunctionOption::TextSignature(text_signature) => set_option!(text_signature),
+                PyFunctionOption::Crate(krate) => set_option!(krate),
             }
         }
-        Ok(())
-    }
-
-    pub fn set_name(&mut self, name: NameAttribute) -> Result<()> {
-        ensure_spanned!(
-            self.name.is_none(),
-            name.span() => "`name` may only be specified once"
-        );
-        self.name = Some(name);
         Ok(())
     }
 }
@@ -377,11 +359,17 @@ pub fn impl_wrap_pyfunction(
     check_generic(&func.sig)?;
     ensure_not_async_fn(&func.sig)?;
 
-    let python_name = options
-        .name
-        .map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
+    let PyFunctionOptions {
+        pass_module,
+        name,
+        deprecated_args,
+        signature,
+        text_signature,
+        mut deprecations,
+        krate,
+    } = options;
 
-    let signature = options.signature.unwrap_or_default();
+    let python_name = name.map_or_else(|| func.sig.ident.unraw(), |name| name.value.0);
 
     let mut arguments = func
         .sig
@@ -390,7 +378,7 @@ pub fn impl_wrap_pyfunction(
         .map(FnArg::parse)
         .collect::<syn::Result<Vec<_>>>()?;
 
-    if options.pass_module.is_some() {
+    let tp = if pass_module.is_some() {
         const PASS_MODULE_ERR: &str = "expected &PyModule as first argument with `pass_module`";
         ensure_spanned!(
             !arguments.is_empty(),
@@ -401,35 +389,44 @@ pub fn impl_wrap_pyfunction(
             type_is_pymodule(arg.ty),
             arg.ty.span() => PASS_MODULE_ERR
         );
-    }
+        method::FnType::FnModule
+    } else {
+        method::FnType::FnStatic
+    };
+
+    let signature = if let Some(signature) = signature {
+        ensure_spanned!(
+            deprecated_args.is_none(),
+            signature.kw.span() => "cannot define both function signature and legacy arguments"
+        );
+        FunctionSignature::from_arguments_and_attribute(arguments, signature)?
+    } else if let Some(deprecated_args) = deprecated_args {
+        FunctionSignature::from_arguments_and_deprecated_args(arguments, deprecated_args)?
+    } else {
+        FunctionSignature::from_arguments(arguments, &mut deprecations)
+    };
 
     let ty = method::get_return_info(&func.sig.output);
 
     let doc = utils::get_doc(
         &func.attrs,
-        options
-            .text_signature
+        text_signature
             .as_ref()
             .map(|attr| (Cow::Borrowed(&python_name), attr)),
     );
 
-    let krate = get_pyo3_crate(&options.krate);
+    let krate = get_pyo3_crate(&krate);
 
     let spec = method::FnSpec {
-        tp: if options.pass_module.is_some() {
-            method::FnType::FnModule
-        } else {
-            method::FnType::FnStatic
-        },
+        tp,
         name: &func.sig.ident,
-        convention: CallingConvention::from_args(&arguments, &signature.arguments),
+        convention: CallingConvention::from_signature(&signature),
         python_name,
-        attrs: signature.arguments,
-        args: arguments,
+        signature,
         output: ty,
         doc,
-        deprecations: options.deprecations,
-        text_signature: options.text_signature,
+        deprecations,
+        text_signature,
         unsafety: func.sig.unsafety,
     };
 
@@ -481,92 +478,4 @@ fn type_is_pymodule(ty: &syn::Type) -> bool {
         }
     }
     false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Argument, PyFunctionSignature};
-    use proc_macro2::TokenStream;
-    use quote::quote;
-    use syn::parse_quote;
-
-    fn items(input: TokenStream) -> syn::Result<Vec<Argument>> {
-        let py_fn_attr: PyFunctionSignature = syn::parse2(input)?;
-        Ok(py_fn_attr.arguments)
-    }
-
-    #[test]
-    fn test_errs() {
-        assert!(items(quote! {test="1", test2}).is_err());
-        assert!(items(quote! {test, "*", args="*"}).is_err());
-        assert!(items(quote! {test, kwargs="**", args="*"}).is_err());
-        assert!(items(quote! {test, kwargs="**", args}).is_err());
-    }
-
-    #[test]
-    fn test_simple_args() {
-        let args = items(quote! {test1, test2, test3="None"}).unwrap();
-        assert!(
-            args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, None),
-                Argument::Arg(parse_quote! {test3}, Some("None".to_owned())),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_varargs() {
-        let args = items(quote! {test1, test2="None", "*", test3="None"}).unwrap();
-        assert!(
-            args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
-                Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test3}, Some("None".to_owned())),
-            ]
-        );
-
-        let args = items(quote! {"*", test1, test2}).unwrap();
-        assert!(
-            args == vec![
-                Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test1}, None),
-                Argument::Kwarg(parse_quote! {test2}, None),
-            ]
-        );
-
-        let args = items(quote! {"*", test1, test2="None"}).unwrap();
-        assert!(
-            args == vec![
-                Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test1}, None),
-                Argument::Kwarg(parse_quote! {test2}, Some("None".to_owned())),
-            ]
-        );
-
-        let args = items(quote! {"*", test1="None", test2}).unwrap();
-        assert!(
-            args == vec![
-                Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test1}, Some("None".to_owned())),
-                Argument::Kwarg(parse_quote! {test2}, None),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_all() {
-        let args =
-            items(quote! {test1, test2="None", args="*", test3="None", kwargs="**"}).unwrap();
-        assert!(
-            args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
-                Argument::VarArgs(parse_quote! {args}),
-                Argument::Kwarg(parse_quote! {test3}, Some("None".to_owned())),
-                Argument::KeywordArgs(parse_quote! {kwargs}),
-            ]
-        );
-    }
 }

@@ -1,25 +1,25 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-#[pyfunction(signature = ())]
+#[pyfunction]
 fn none() {}
 
-#[pyfunction(signature = (a, b = "bar", *, c = None))]
+#[pyfunction(b = "\"bar\"", "*", c = "None")]
 fn simple<'a>(a: i32, b: &'a str, c: Option<&'a PyDict>) -> (i32, &'a str, Option<&'a PyDict>) {
     (a, b, c)
 }
 
-#[pyfunction(signature = (a, b = "bar", *args, c = None))]
+#[pyfunction(b = "\"bar\"", args = "*", c = "None")]
 fn simple_args<'a>(
     a: i32,
     b: &'a str,
-    args: &'a PyTuple,
     c: Option<&'a PyDict>,
+    args: &'a PyTuple,
 ) -> (i32, &'a str, &'a PyTuple, Option<&'a PyDict>) {
     (a, b, args, c)
 }
 
-#[pyfunction(signature = (a, b = "bar", c = None, **kwargs))]
+#[pyfunction(b = "\"bar\"", c = "None", kwargs = "**")]
 fn simple_kwargs<'a>(
     a: i32,
     b: &'a str,
@@ -29,7 +29,7 @@ fn simple_kwargs<'a>(
     (a, b, c, kwargs)
 }
 
-#[pyfunction(signature = (a, b = "bar", *args, c = None, **kwargs))]
+#[pyfunction(a, b = "\"bar\"", args = "*", c = "None", kwargs = "**")]
 fn simple_args_kwargs<'a>(
     a: i32,
     b: &'a str,
@@ -46,7 +46,7 @@ fn simple_args_kwargs<'a>(
     (a, b, args, c, kwargs)
 }
 
-#[pyfunction(signature = (*args, **kwargs))]
+#[pyfunction(args = "*", kwargs = "**")]
 fn args_kwargs<'a>(
     args: &'a PyTuple,
     kwargs: Option<&'a PyDict>,
@@ -55,7 +55,7 @@ fn args_kwargs<'a>(
 }
 
 #[pymodule]
-pub fn pyfunctions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+pub fn deprecated_pyfunctions(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(none, m)?)?;
     m.add_function(wrap_pyfunction!(simple, m)?)?;
     m.add_function(wrap_pyfunction!(simple_args, m)?)?;

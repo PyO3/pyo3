@@ -632,9 +632,9 @@ impl MyClass {
 
 ## Method arguments
 
-Similar to `#[pyfunction]`, the `#[args]` attribute can be used to specify the way that `#[pymethods]` accept arguments. Consult the documentation for [`function signatures`](./function/signature.md) to see the parameters this attribute accepts.
+Similar to `#[pyfunction]`, the `#[pyo3(signature = (...))]` attribute can be used to specify the way that `#[pymethods]` accept arguments. Consult the documentation for [`function signatures`](./function/signature.md) to see the parameters this attribute accepts.
 
-The following example defines a class `MyClass` with a method `method`. This method has an `#[args]` attribute which sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
+The following example defines a class `MyClass` with a method `method`. This method has a signature which sets default values for `num` and `name`, and indicates that `py_args` should collect all extra positional arguments and `py_kwargs` all extra keyword arguments:
 
 ```rust
 # use pyo3::prelude::*;
@@ -647,29 +647,24 @@ use pyo3::types::{PyDict, PyTuple};
 #[pymethods]
 impl MyClass {
     #[new]
-    #[args(num = "-1")]
+    #[pyo3(signature = (num=-1))]
     fn new(num: i32) -> Self {
         MyClass { num }
     }
 
-    #[args(
-        num = "10",
-        py_args = "*",
-        name = "\"Hello\"",
-        py_kwargs = "**"
-    )]
+    #[pyo3(signature = (num=10, *py_args, name="Hello", **py_kwargs))]
     fn method(
         &mut self,
         num: i32,
-        name: &str,
         py_args: &PyTuple,
+        name: &str,
         py_kwargs: Option<&PyDict>,
     ) -> String {
         let num_before = self.num;
         self.num = num;
         format!(
-            "py_args={:?}, py_kwargs={:?}, name={}, num={} num_before={}",
-            py_args, py_kwargs, name, self.num, num_before,
+            "num={} (was previously={}), py_args={:?}, name={}, py_kwargs={:?} ",
+            num, num_before, py_args, name, py_kwargs,
         )
     }
 }

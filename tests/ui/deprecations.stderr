@@ -1,11 +1,18 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
- --> tests/ui/deprecations.rs:5:11
+error: use of deprecated constant `pyo3::impl_::deprecations::REQUIRED_ARGUMENT_AFTER_OPTION`: required arguments after an `Option<_>` argument are ambiguous and being phased out
+       = help: add a `#[pyo3(signature)]` annotation on this function to unambiguously specify the default values for all optional parameters
+ --> tests/ui/deprecations.rs:9:59
   |
-5 | #[pyclass(gc)]
-  |           ^^
+9 | fn function_with_required_after_option(_opt: Option<i32>, _x: i32) {}
+  |                                                           ^^
   |
 note: the lint level is defined here
  --> tests/ui/deprecations.rs:1:9
   |
 1 | #![deny(deprecated)]
   |         ^^^^^^^^^^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
+ --> tests/ui/deprecations.rs:5:11
+  |
+5 | #[pyclass(gc)]
+  |           ^^

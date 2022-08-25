@@ -3,11 +3,11 @@
 use std::borrow::Cow;
 
 use crate::attributes::TextSignatureAttribute;
-use crate::params::{accept_args_kwargs, impl_arg_params};
+use crate::deprecations::Deprecations;
+use crate::params::impl_arg_params;
 use crate::pyfunction::PyFunctionOptions;
-use crate::pyfunction::{PyFunctionArgPyO3Attributes, PyFunctionSignature};
+use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
 use crate::utils::{self, PythonDoc};
-use crate::{deprecations::Deprecations, pyfunction::Argument};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
@@ -22,8 +22,11 @@ pub struct FnArg<'a> {
     pub mutability: &'a Option<syn::token::Mut>,
     pub ty: &'a syn::Type,
     pub optional: Option<&'a syn::Type>,
+    pub default: Option<syn::Expr>,
     pub py: bool,
     pub attrs: PyFunctionArgPyO3Attributes,
+    pub is_varargs: bool,
+    pub is_kwargs: bool,
 }
 
 impl<'a> FnArg<'a> {
@@ -55,8 +58,11 @@ impl<'a> FnArg<'a> {
                     mutability,
                     ty: &cap.ty,
                     optional: utils::option_type_argument(&cap.ty),
+                    default: None,
                     py: utils::is_python(&cap.ty),
                     attrs: arg_attrs,
+                    is_varargs: false,
+                    is_kwargs: false,
                 })
             }
         }
@@ -193,11 +199,10 @@ impl CallingConvention {
     ///
     /// Different other slots (tp_call, tp_new) can have other requirements
     /// and are set manually (see `parse_fn_type` below).
-    pub fn from_args(args: &[FnArg<'_>], attrs: &[Argument]) -> Self {
-        let (_, accept_kwargs) = accept_args_kwargs(attrs);
-        if args.is_empty() {
+    pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
+        if signature.arguments.is_empty() {
             Self::Noargs
-        } else if accept_kwargs {
+        } else if signature.python_signature.accepts_kwargs {
             // for functions that accept **kwargs, always prefer varargs
             Self::Varargs
         } else if cfg!(not(feature = "abi3")) {
@@ -216,8 +221,7 @@ pub struct FnSpec<'a> {
     // Wrapped python name. This should not have any leading r#.
     // r# can be removed by syn::ext::IdentExt::unraw()
     pub python_name: syn::Ident,
-    pub attrs: Vec<Argument>,
-    pub args: Vec<FnArg<'a>>,
+    pub signature: FunctionSignature<'a>,
     pub output: syn::Type,
     pub doc: PythonDoc,
     pub deprecations: Deprecations,
@@ -265,12 +269,14 @@ impl<'a> FnSpec<'a> {
         let PyFunctionOptions {
             text_signature,
             name,
+            mut deprecations,
+            signature,
             ..
         } = options;
 
         let MethodAttributes {
             ty: fn_type_attr,
-            args: fn_attrs,
+            deprecated_args,
             mut python_name,
         } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0))?;
 
@@ -302,16 +308,23 @@ impl<'a> FnSpec<'a> {
                 .collect::<Result<_>>()?
         };
 
+        let signature = if let Some(signature) = signature {
+            FunctionSignature::from_arguments_and_attribute(arguments, signature)?
+        } else if let Some(deprecated_args) = deprecated_args {
+            FunctionSignature::from_arguments_and_deprecated_args(arguments, deprecated_args)?
+        } else {
+            FunctionSignature::from_arguments(arguments, &mut deprecations)
+        };
+
         let convention =
-            fixed_convention.unwrap_or_else(|| CallingConvention::from_args(&arguments, &fn_attrs));
+            fixed_convention.unwrap_or_else(|| CallingConvention::from_signature(&signature));
 
         Ok(FnSpec {
             tp: fn_type,
             name,
             convention,
             python_name,
-            attrs: fn_attrs,
-            args: arguments,
+            signature,
             output: ty,
             doc,
             deprecations: Deprecations::new(),
@@ -410,45 +423,6 @@ impl<'a> FnSpec<'a> {
             ),
         };
         Ok((fn_type, skip_first_arg, fixed_convention))
-    }
-
-    pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
-        for s in &self.attrs {
-            match s {
-                Argument::Arg(path, opt) | Argument::Kwarg(path, opt) => {
-                    if path.is_ident(name) {
-                        if let Some(val) = opt {
-                            let i: syn::Expr = syn::parse_str(val).unwrap();
-                            return Some(i.into_token_stream());
-                        }
-                    }
-                }
-                _ => (),
-            }
-        }
-        None
-    }
-
-    pub fn is_pos_only(&self, name: &syn::Ident) -> bool {
-        for s in &self.attrs {
-            if let Argument::PosOnlyArg(path, _) = s {
-                if path.is_ident(name) {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
-        for s in &self.attrs {
-            if let Argument::Kwarg(path, _) = s {
-                if path.is_ident(name) {
-                    return true;
-                }
-            }
-        }
-        false
     }
 
     /// Return a C wrapper function for this signature.
@@ -594,10 +568,10 @@ impl<'a> FnSpec<'a> {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Debug)]
 struct MethodAttributes {
     ty: Option<MethodTypeAttribute>,
-    args: Vec<Argument>,
+    deprecated_args: Option<DeprecatedArgs>,
     python_name: Option<syn::Ident>,
 }
 
@@ -606,7 +580,7 @@ fn parse_method_attributes(
     mut python_name: Option<syn::Ident>,
 ) -> Result<MethodAttributes> {
     let mut new_attrs = Vec::new();
-    let mut args = Vec::new();
+    let mut deprecated_args = None;
     let mut ty: Option<MethodTypeAttribute> = None;
 
     macro_rules! set_ty {
@@ -704,8 +678,11 @@ fn parse_method_attributes(
                         }
                     };
                 } else if path.is_ident("args") {
-                    let attrs = PyFunctionSignature::from_meta(&nested)?;
-                    args.extend(attrs.arguments)
+                    ensure_spanned!(
+                        deprecated_args.is_none(),
+                        nested.span() => "args may only be specified once"
+                    );
+                    deprecated_args = Some(DeprecatedArgs::from_meta(&nested)?);
                 } else {
                     new_attrs.push(attr)
                 }
@@ -718,7 +695,7 @@ fn parse_method_attributes(
 
     Ok(MethodAttributes {
         ty,
-        args,
+        deprecated_args,
         python_name,
     })
 }

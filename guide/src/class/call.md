@@ -71,7 +71,7 @@ def Counter(wraps):
 A [previous implementation] used a normal `u64`, which meant it required a `&mut self` receiver to update the count:
 
 ```rust,ignore
-#[args(args = "*", kwargs = "**")]
+#[pyo3(signature = (*args, **kwargs))]
 fn __call__(&mut self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Py<PyAny>> {
     self.count += 1;
     let name = self.wraps.getattr(py, "__name__")?;
@@ -98,7 +98,7 @@ As a result, something innocent like this will raise an exception:
 def say_hello():
     if say_hello.count < 2:
         print(f"hello from decorator")
-        
+
 say_hello()
 # RuntimeError: Already borrowed
 ```

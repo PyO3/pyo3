@@ -116,7 +116,7 @@ impl MyClass {
 #[pymethods]
 impl MyClass {
     #[args(has_default = "1")]
-    fn default_arg_before_required(&self, has_default: isize, required: isize) {}
+    fn default_arg_before_required_deprecated(&self, has_default: isize, required: isize) {}
 }
 
 #[pymethods]

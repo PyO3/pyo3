@@ -368,7 +368,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> MethodAndSlotDef {
 }
 
 fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<MethodAndMethodDef> {
-    let (py_arg, args) = split_off_python_arg(&spec.args);
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
         args[0].ty.span() => "#[classattr] can only have one argument (of type pyo3::Python)"
@@ -410,7 +410,7 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
 }
 
 fn impl_call_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
-    let (py_arg, args) = split_off_python_arg(&spec.args);
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
 
     if args.is_empty() {
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
@@ -523,7 +523,7 @@ pub fn impl_py_setter_def(
 }
 
 fn impl_call_getter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
-    let (py_arg, args) = split_off_python_arg(&spec.args);
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     ensure_spanned!(
         args.is_empty(),
         args[0].ty.span() => "getter function can only have one argument (of type pyo3::Python)"
@@ -1228,10 +1228,10 @@ fn extract_proto_arguments(
     proto_args: &[Ty],
     extract_error_mode: ExtractErrorMode,
 ) -> Result<Vec<TokenStream>> {
-    let mut args = Vec::with_capacity(spec.args.len());
+    let mut args = Vec::with_capacity(spec.signature.arguments.len());
     let mut non_python_args = 0;
 
-    for arg in &spec.args {
+    for arg in &spec.signature.arguments {
         if arg.py {
             args.push(quote! { #py });
         } else {

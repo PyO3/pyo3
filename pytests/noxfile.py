@@ -11,7 +11,7 @@ def test(session):
         session.install("numpy>=1.16")
     session.install("maturin")
     session.run_always("maturin", "develop")
-    session.run("pytest")
+    session.run("pytest", *session.posargs)
 
 
 @nox.session

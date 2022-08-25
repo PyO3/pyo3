@@ -46,7 +46,7 @@ fn class_with_docs_and_signature() {
     #[pymethods]
     impl MyClass {
         #[new]
-        #[args(a, b = "None", "*", c = 42)]
+        #[pyo3(signature = (a, b=None, *, c=42))]
         fn __new__(a: i32, b: Option<i32>, c: i32) -> Self {
             let _ = (a, b, c);
             Self {}
@@ -79,7 +79,7 @@ fn class_with_signature() {
     #[pymethods]
     impl MyClass {
         #[new]
-        #[args(a, b = "None", "*", c = 42)]
+        #[pyo3(signature = (a, b=None, *, c=42))]
         fn __new__(a: i32, b: Option<i32>, c: i32) -> Self {
             let _ = (a, b, c);
             Self {}
