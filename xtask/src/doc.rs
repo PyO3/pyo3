@@ -17,7 +17,7 @@ pub fn run(opts: DocOpts) -> anyhow::Result<()> {
 
     std::env::set_var("RUSTDOCFLAGS", flags.join(" "));
     cli::run(
-        Command::new("cargo")
+        Command::new(concat!(env!("CARGO_HOME"), "/bin/cargo"))
             .args(if opts.stable { None } else { Some("+nightly") })
             .arg("doc")
             .arg("--lib")
