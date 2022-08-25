@@ -189,7 +189,7 @@ impl<'source, T: Element> FromPyObject<'source> for PyBuffer<T> {
 }
 
 impl<T: Element> PyBuffer<T> {
-    /// Get the underlying buffer from the specified python object.
+    /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &PyAny) -> PyResult<PyBuffer<T>> {
         // TODO: use nightly API Box::new_uninit() once stable
         let mut buf = Box::new(mem::MaybeUninit::uninit());
@@ -616,8 +616,10 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
-    /// Release the buffer object, freeing the reference to the Python object
+    /// Releases the buffer object, freeing the reference to the Python object
     /// which owns the buffer.
+    ///
+    /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would acquire the GIL and call PyBuffer_Release

@@ -33,6 +33,7 @@ The table below contains the Python type and the corresponding function argument
 | `datetime.time` | -                             | `&PyTime`            |
 | `datetime.tzinfo` | -                           | `&PyTzInfo`          |
 | `datetime.timedelta` | -                        | `&PyDelta`           |
+| `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `&PySequence`        |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^2], `indexmap::IndexMap<K, V>`[^3] | `&PyMapping` |
