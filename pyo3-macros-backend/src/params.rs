@@ -220,7 +220,7 @@ fn impl_arg_param(
         );
         return Ok(quote_arg_span! {
             _pyo3::impl_::extract_argument::extract_optional_argument(
-                _kwargs.map(|kwargs| kwargs.as_ref()),
+                _kwargs.map(::std::convert::AsRef::as_ref),
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
                 #name_str
             )?
