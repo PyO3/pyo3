@@ -247,7 +247,7 @@ fn impl_arg_param(
             }
             (None, true) => {
                 quote_arg_span! {
-                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || Some(None))?
+                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || None)?
                 }
             }
             (None, false) => {

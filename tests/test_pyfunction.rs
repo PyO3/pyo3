@@ -165,6 +165,42 @@ fn test_function_with_custom_conversion_error() {
     });
 }
 
+#[test]
+fn test_from_py_with_defaults() {
+    fn optional_int(x: &PyAny) -> PyResult<Option<i32>> {
+        if x.is_none() {
+            Ok(None)
+        } else {
+            Some(x.extract()).transpose()
+        }
+    }
+
+    // issue 2280 combination of from_py_with and Option<T> did not compile
+    #[pyfunction]
+    fn from_py_with_option(#[pyo3(from_py_with = "optional_int")] int: Option<i32>) -> i32 {
+        int.unwrap_or(0)
+    }
+
+    #[pyfunction(len = "0")]
+    fn from_py_with_default(#[pyo3(from_py_with = "PyAny::len")] len: usize) -> usize {
+        len
+    }
+
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(from_py_with_option)(py).unwrap();
+
+        assert_eq!(f.call0().unwrap().extract::<i32>().unwrap(), 0);
+        assert_eq!(f.call1((123,)).unwrap().extract::<i32>().unwrap(), 123);
+        assert_eq!(f.call1((999,)).unwrap().extract::<i32>().unwrap(), 999);
+
+        let f2 = wrap_pyfunction!(from_py_with_default)(py).unwrap();
+
+        assert_eq!(f2.call0().unwrap().extract::<usize>().unwrap(), 0);
+        assert_eq!(f2.call1(("123",)).unwrap().extract::<usize>().unwrap(), 3);
+        assert_eq!(f2.call1(("1234",)).unwrap().extract::<usize>().unwrap(), 4);
+    });
+}
+
 #[pyclass]
 #[derive(Debug, FromPyObject)]
 struct ValueClass {
