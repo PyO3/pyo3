@@ -631,7 +631,7 @@ fn parse_method_attributes(
                 } else if name.is_ident("init") || name.is_ident("__init__") {
                     bail_spanned!(name.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if name.is_ident("call") || name.is_ident("__call__") {
-                    bail_spanned!(name.span() => "use `fn __call__` instead of `#[call]` attribute since PyO3 0.17.0");
+                    bail_spanned!(name.span() => "use `fn __call__` instead of `#[call]` attribute since PyO3 0.15.0");
                 } else if name.is_ident("classmethod") {
                     set_ty!(MethodTypeAttribute::ClassMethod, name);
                 } else if name.is_ident("staticmethod") {
