@@ -39,13 +39,6 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "::set-output name=tag_name::${TAG_NAME}"
 
-      # Build some internal docs and inject a banner on top of it.
-      - name: Build the internal docs
-        run: cargo xtask doc --internal
-
-      - name: Clear the extra artefacts created earlier
-        run: rm -rf target
-
       # This builds the book in target/guide.
       - name: Build the guide
         run: |
@@ -54,42 +47,14 @@ jobs:
         env:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
 
-      # This adds the docs to target/guide/doc
-      - name: Build the doc
-        run: |
-          cargo xtask doc
-          mv target/doc target/guide/doc
-          echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/guide/doc/index.html
-
       - name: Deploy docs and the guide
-        if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/guide/
           destination_dir: ${{ steps.prepare_tag.outputs.tag_name }}
           full_commit_message: "Upload documentation for ${{ steps.prepare_tag.outputs.tag_name }}"
-
-  guide-release:
-    needs: guide-build
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' }}
-    steps:
-      - name: Create latest tag redirects
-        env:
-          TAG_NAME: ${{ needs.build.outputs.tag_name }}
-        run: |
-          mkdir public
-          echo "<meta http-equiv=refresh content=0;url='$TAG_NAME/'>" > public/index.html
-          ln -sfT $TAG_NAME public/latest
-
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public/
-          full_commit_message: "Release ${{ needs.build.outputs.tag_name }}"
-          keep_files: true
 
   cargo-benchmark:
     if: ${{ github.ref_name == 'main' }}
