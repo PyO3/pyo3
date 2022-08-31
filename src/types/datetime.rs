@@ -472,7 +472,7 @@ impl PyTzInfoAccess for PyTime {
 /// For concrete time zone implementations, see [`timezone_utc`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
 #[repr(transparent)]
-pub struct PyTzInfo(PyAny);
+pub struct PyTzInfo(pub(crate) PyAny);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -485,6 +485,39 @@ pyobject_native_type!(
 pub fn timezone_utc(py: Python<'_>) -> &PyTzInfo {
     unsafe { &*(ensure_datetime_api(py).TimeZone_UTC as *const PyTzInfo) }
 }
+
+/// Equivalent to `datetime.timezone`
+// Not making this public yet as the implementation is slightly different from
+// original cpython.
+// #[crate::pyclass]
+// pub(crate) struct PyTimeZone {
+//     offset: PyDelta,
+//     // name
+// }
+//
+// #[crate::pymethods]
+// impl PyTimeZone {
+//     #[new]
+//     fn new(offset: PyDelta) -> Self {
+//         PyTimeZone { offset }
+//     }
+//
+//     fn utcoffset(&self, dt: &PyDateTime) -> PyDelta {
+//         self.offset
+//     }
+//
+//     fn tzname(&self, dt: &PyDateTime) -> PyString {
+//         todo!("_name_from_offset")
+//     }
+//
+//     fn dst(&self, py: Python<'_>, dt: &PyDateTime) {
+//         py.None()
+//     }
+//
+//     fn fromutc(&self, dt: &PyDateTime) -> PyDelta {
+//         dt.get_tzinfo() + self.offset
+//     }
+// }
 
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
