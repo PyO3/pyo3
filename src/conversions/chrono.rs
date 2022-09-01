@@ -29,24 +29,38 @@ use crate::types::{
 use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
-    div_mod_floor_64, DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset,
-    TimeZone, Timelike, NANOS_PER_MICRO, SECS_PER_DAY,
+    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
 };
 use std::convert::TryInto;
 
+const SECS_PER_DAY: i64 = 86_400;
+const MICROS_PER_SEC: i64 = 1_000_000;
+
 impl ToPyObject for Duration {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let micros = self.nanos / NANOS_PER_MICRO;
-        let (days, secs) = div_mod_floor_64(self.secs, SECS_PER_DAY);
-        // Python will check overflow so even if we reduce the size
-        // it will still overflow.
-        let days = days.try_into().unwrap_or(i32::MAX);
-        let secs = secs.try_into().unwrap_or(i32::MAX);
+        // This is the total number of microseconds in the duration,
+        // unlike std::time::Duration we can't have only the fractional part,
+        // so we need to calculate it ourselves.
+        let total_micros = self
+            .num_microseconds()
+            // num_microseconds returns None on overflow
+            .unwrap_or(i64::MAX);
+        let total_secs = total_micros / MICROS_PER_SEC;
+        let micros = total_micros - total_secs * MICROS_PER_SEC;
+        let days = self.num_days();
+        let secs = total_secs - days * SECS_PER_DAY;
 
         // We do not need to check i64 to i32 cast from rust because
         // python will panic with OverflowError.
         // Not sure if we need normalize here.
-        let delta = PyDelta::new(py, days, secs, micros, false).expect("Failed to construct delta");
+        let delta = PyDelta::new(
+            py,
+            days.try_into().unwrap_or(i32::MAX),
+            secs.try_into().unwrap_or(i32::MAX),
+            micros.try_into().unwrap_or(i32::MAX),
+            false,
+        )
+        .expect("Failed to construct delta");
         delta.into()
     }
 }
@@ -65,17 +79,18 @@ impl FromPyObject<'_> for Duration {
         // 0 <= seconds < 3600*24
         // -999999999 <= days <= 999999999
         let secs = delta.get_days() as i64 * SECS_PER_DAY + delta.get_seconds() as i64;
-        let nanos = delta.get_microseconds() * NANOS_PER_MICRO;
+        let micros = delta.get_microseconds() as i64;
 
-        Ok(Duration { secs, nanos })
+        Ok(Duration::microseconds(secs * MICROS_PER_SEC + micros))
     }
 }
 
 impl ToPyObject for NaiveDate {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let mdf = self.mdf();
-        let date = PyDate::new(py, self.year(), mdf.month() as u8, mdf.day() as u8)
-            .expect("Failed to construct date");
+        // This cast should be safe, right?
+        let month = self.month() as u8;
+        let day = self.day() as u8;
+        let date = PyDate::new(py, self.year(), month, day).expect("Failed to construct date");
         date.into()
     }
 }
@@ -99,14 +114,16 @@ impl FromPyObject<'_> for NaiveDate {
 
 impl ToPyObject for NaiveTime {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let (h, m, s) = self.hms();
+        let h = self.hour() as u8;
+        let m = self.minute() as u8;
+        let s = self.second() as u8;
         let ns = self.nanosecond();
         let (ms, fold) = match ns.checked_sub(1_000_000_000) {
             Some(ns) => (ns / 1000, true),
             None => (ns / 1000, false),
         };
-        let time = PyTime::new_with_fold(py, h as u8, m as u8, s as u8, ms, None, fold)
-            .expect("Failed to construct time");
+        let time =
+            PyTime::new_with_fold(py, h, m, s, ms, None, fold).expect("Failed to construct time");
         time.into()
     }
 }
@@ -121,17 +138,23 @@ impl FromPyObject<'_> for NaiveTime {
     fn extract(ob: &PyAny) -> PyResult<NaiveTime> {
         let time = <PyTime as PyTryFrom>::try_from(ob)?;
         let ms = time.get_fold() as u32 * 1_000_000 + time.get_microsecond();
-        let (h, m, s) = (time.get_hour(), time.get_minute(), time.get_second());
-        Ok(NaiveTime::from_hms_micro(h as u32, m as u32, s as u32, ms))
+        let h = time.get_hour() as u32;
+        let m = time.get_minute() as u32;
+        let s = time.get_second() as u32;
+        Ok(NaiveTime::from_hms_micro(h, m, s, ms))
     }
 }
 
 impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let (date, time) = (self.naive_utc().date(), self.naive_utc().time());
-        let mdf = date.mdf();
-        let (yy, mm, dd) = (date.year(), mdf.month(), mdf.day());
-        let (h, m, s) = time.hms();
+        let date = self.naive_utc().date();
+        let time = self.naive_utc().time();
+        let yy = date.year();
+        let mm = date.month() as u8;
+        let dd = date.day() as u8;
+        let h = time.hour() as u8;
+        let m = time.minute() as u8;
+        let s = time.second() as u8;
         let ns = time.nanosecond();
         let (ms, fold) = match ns.checked_sub(1_000_000_000) {
             Some(ns) => (ns / 1000, true),
@@ -139,19 +162,8 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
         };
         let tz = self.offset().fix().to_object(py);
         let tz = tz.cast_as(py).unwrap();
-        let datetime = PyDateTime::new_with_fold(
-            py,
-            yy,
-            mm as u8,
-            dd as u8,
-            h as u8,
-            m as u8,
-            s as u8,
-            ms,
-            Some(&tz),
-            fold,
-        )
-        .expect("Failed to construct datetime");
+        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, Some(&tz), fold)
+            .expect("Failed to construct datetime");
         datetime.into()
     }
 }
@@ -166,15 +178,17 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<FixedOffset>> {
         let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
         let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
-        let (h, m, s) = (dt.get_hour(), dt.get_minute(), dt.get_second());
+        let h = dt.get_hour().into();
+        let m = dt.get_minute().into();
+        let s = dt.get_second().into();
         let tz = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
             return Err(PyTypeError::new_err("Not datetime.timezone.tzinfo"));
         };
         let dt = NaiveDateTime::new(
-            NaiveDate::from_ymd(dt.get_year(), dt.get_month() as u32, dt.get_day() as u32),
-            NaiveTime::from_hms_micro(h as u32, m as u32, s as u32, ms),
+            NaiveDate::from_ymd(dt.get_year(), dt.get_month().into(), dt.get_day().into()),
+            NaiveTime::from_hms_micro(h, m, s, ms),
         );
         Ok(DateTime::from_utc(dt, tz))
     }
@@ -184,15 +198,17 @@ impl FromPyObject<'_> for DateTime<Utc> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<Utc>> {
         let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
         let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
-        let (h, m, s) = (dt.get_hour(), dt.get_minute(), dt.get_second());
+        let h = dt.get_hour().into();
+        let m = dt.get_minute().into();
+        let s = dt.get_second().into();
         let tz = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
             return Err(PyTypeError::new_err("Not datetime.timezone.utc"));
         };
         let dt = NaiveDateTime::new(
-            NaiveDate::from_ymd(dt.get_year(), dt.get_month() as u32, dt.get_day() as u32),
-            NaiveTime::from_hms_micro(h as u32, m as u32, s as u32, ms),
+            NaiveDate::from_ymd(dt.get_year(), dt.get_month().into(), dt.get_day().into()),
+            NaiveTime::from_hms_micro(h, m, s, ms),
         );
         Ok(DateTime::from_utc(dt, tz))
     }
@@ -259,8 +275,8 @@ impl FromPyObject<'_> for Utc {
 
 #[cfg(test)]
 mod test_chrono {
-    use crate::types::*;
-    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    // use crate::types::*;
+    // use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
 
     // TODO
 }

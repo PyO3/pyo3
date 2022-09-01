@@ -2,7 +2,7 @@
 
 pub mod anyhow;
 mod array;
-mod chrono;
+pub mod chrono;
 pub mod eyre;
 pub mod hashbrown;
 pub mod indexmap;
