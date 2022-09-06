@@ -99,7 +99,7 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
 }
 
 /// This type is used as a "dummy" type on which dtolnay specializations are
-/// applied to apply implementations from `#[pymethods]` & `#[pyproto]`
+/// applied to apply implementations from `#[pymethods]`
 pub struct PyClassImplCollector<T>(PhantomData<T>);
 
 impl<T> PyClassImplCollector<T> {
@@ -205,68 +205,20 @@ pub struct PyClassItemsIter {
     /// Items from the `#[pymethods]` macro with inventory
     #[cfg(feature = "multiple-pymethods")]
     pymethods_items: Box<dyn Iterator<Item = &'static PyClassItems>>,
-
-    // pyproto items, to be removed soon.
-    #[cfg(feature = "pyproto")]
-    object_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    descr_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    gc_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    iter_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    mapping_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    number_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    async_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    sequence_protocol_items: &'static PyClassItems,
-    #[cfg(feature = "pyproto")]
-    buffer_protocol_items: &'static PyClassItems,
 }
 
 impl PyClassItemsIter {
-    #[cfg_attr(feature = "pyproto", allow(clippy::too_many_arguments))]
     pub fn new(
         pyclass_items: &'static PyClassItems,
         #[cfg(not(feature = "multiple-pymethods"))] pymethods_items: &'static PyClassItems,
         #[cfg(feature = "multiple-pymethods")] pymethods_items: Box<
             dyn Iterator<Item = &'static PyClassItems>,
         >,
-        #[cfg(feature = "pyproto")] object_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] descr_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] gc_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] iter_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] mapping_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] number_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] async_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] sequence_protocol_items: &'static PyClassItems,
-        #[cfg(feature = "pyproto")] buffer_protocol_items: &'static PyClassItems,
     ) -> Self {
         Self {
             idx: 0,
             pyclass_items,
             pymethods_items,
-            #[cfg(feature = "pyproto")]
-            object_protocol_items,
-            #[cfg(feature = "pyproto")]
-            descr_protocol_items,
-            #[cfg(feature = "pyproto")]
-            gc_protocol_items,
-            #[cfg(feature = "pyproto")]
-            iter_protocol_items,
-            #[cfg(feature = "pyproto")]
-            mapping_protocol_items,
-            #[cfg(feature = "pyproto")]
-            number_protocol_items,
-            #[cfg(feature = "pyproto")]
-            async_protocol_items,
-            #[cfg(feature = "pyproto")]
-            sequence_protocol_items,
-            #[cfg(feature = "pyproto")]
-            buffer_protocol_items,
         }
     }
 }
@@ -285,53 +237,7 @@ impl Iterator for PyClassItemsIter {
                 self.idx += 1;
                 Some(self.pymethods_items)
             }
-            #[cfg(feature = "pyproto")]
-            2 => {
-                self.idx += 1;
-                Some(self.object_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            3 => {
-                self.idx += 1;
-                Some(self.descr_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            4 => {
-                self.idx += 1;
-                Some(self.gc_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            5 => {
-                self.idx += 1;
-                Some(self.iter_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            6 => {
-                self.idx += 1;
-                Some(self.mapping_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            7 => {
-                self.idx += 1;
-                Some(self.number_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            8 => {
-                self.idx += 1;
-                Some(self.async_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            9 => {
-                self.idx += 1;
-                Some(self.sequence_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            10 => {
-                self.idx += 1;
-                Some(self.buffer_protocol_items)
-            }
             // Termination clause
-            // NB self.idx reaches different final value (2 vs 11) depending on pyproto feature
             _ => None,
         }
     }
@@ -343,53 +249,7 @@ impl Iterator for PyClassItemsIter {
                 self.idx += 1;
                 Some(self.pyclass_items)
             }
-            #[cfg(feature = "pyproto")]
-            1 => {
-                self.idx += 1;
-                Some(self.object_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            2 => {
-                self.idx += 1;
-                Some(self.descr_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            3 => {
-                self.idx += 1;
-                Some(self.gc_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            4 => {
-                self.idx += 1;
-                Some(self.iter_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            5 => {
-                self.idx += 1;
-                Some(self.mapping_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            6 => {
-                self.idx += 1;
-                Some(self.number_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            7 => {
-                self.idx += 1;
-                Some(self.async_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            8 => {
-                self.idx += 1;
-                Some(self.sequence_protocol_items)
-            }
-            #[cfg(feature = "pyproto")]
-            9 => {
-                self.idx += 1;
-                Some(self.buffer_protocol_items)
-            }
             // Termination clause
-            // NB self.idx reaches different final value (1 vs 10) depending on pyproto feature
             _ => self.pymethods_items.next(),
         }
     }
@@ -964,26 +824,6 @@ unsafe fn bpo_35810_workaround(_py: Python<'_>, ty: *mut ffi::PyTypeObject) {
     ffi::Py_INCREF(ty as *mut ffi::PyObject);
 }
 
-// General methods implementation: either dtolnay specialization trait or inventory if
-// multiple-pymethods feature is enabled.
-
-macro_rules! items_trait {
-    ($name:ident, $function_name: ident) => {
-        pub trait $name<T> {
-            fn $function_name(self) -> &'static PyClassItems;
-        }
-
-        impl<T> $name<T> for &'_ PyClassImplCollector<T> {
-            fn $function_name(self) -> &'static PyClassItems {
-                &PyClassItems {
-                    methods: &[],
-                    slots: &[],
-                }
-            }
-        }
-    };
-}
-
 /// Implementation detail. Only to be used through our proc macro code.
 /// Method storage for `#[pyclass]`.
 /// Allows arbitrary `#[pymethod]` blocks to submit their methods,
@@ -996,24 +836,19 @@ pub trait PyClassInventory: inventory::Collect {
 
 // Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-items_trait!(PyMethods, py_methods);
-
-/// Items from `#[pyproto]` implementations
-#[cfg(feature = "pyproto")]
-mod pyproto_traits {
-    use super::*;
-    items_trait!(PyObjectProtocolItems, object_protocol_items);
-    items_trait!(PyDescrProtocolItems, descr_protocol_items);
-    items_trait!(PyGCProtocolItems, gc_protocol_items);
-    items_trait!(PyIterProtocolItems, iter_protocol_items);
-    items_trait!(PyMappingProtocolItems, mapping_protocol_items);
-    items_trait!(PyNumberProtocolItems, number_protocol_items);
-    items_trait!(PyAsyncProtocolItems, async_protocol_items);
-    items_trait!(PySequenceProtocolItems, sequence_protocol_items);
-    items_trait!(PyBufferProtocolItems, buffer_protocol_items);
+pub trait PyMethods<T> {
+    fn py_methods(self) -> &'static PyClassItems;
 }
-#[cfg(feature = "pyproto")]
-pub use pyproto_traits::*;
+
+#[cfg(not(feature = "multiple-pymethods"))]
+impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
+    fn py_methods(self) -> &'static PyClassItems {
+        &PyClassItems {
+            methods: &[],
+            slots: &[],
+        }
+    }
+}
 
 // Thread checkers
 

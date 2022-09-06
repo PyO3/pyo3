@@ -64,9 +64,6 @@ macros = ["pyo3-macros", "indoc", "unindent"]
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 
-# Enables deprecated #[pyproto] macro
-pyproto = ["pyo3-macros/pyproto"]
-
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
@@ -97,7 +94,6 @@ nightly = []
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
     "macros",
-    "pyproto",
     # "multiple-pymethods", # TODO re-add this when MSRV is greater than 1.62
     "num-bigint",
     "num-complex",

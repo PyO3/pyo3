@@ -56,29 +56,6 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// A proc macro used to implement Python's [dunder methods][1].
-///
-/// This attribute is required on blocks implementing [`PyObjectProtocol`][2],
-/// [`PyNumberProtocol`][3], [`PyGCProtocol`][4] and [`PyIterProtocol`][5].
-///
-/// [1]: https://docs.python.org/3/reference/datamodel.html#special-method-names
-/// [2]: ../class/basic/trait.PyObjectProtocol.html
-/// [3]: ../class/number/trait.PyNumberProtocol.html
-/// [4]: ../class/gc/trait.PyGCProtocol.html
-/// [5]: ../class/iter/trait.PyIterProtocol.html
-#[proc_macro_attribute]
-#[cfg(feature = "pyproto")]
-pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
-    let mut ast = parse_macro_input!(input as syn::ItemImpl);
-    let expanded = pyo3_macros_backend::build_py_proto(&mut ast).unwrap_or_compile_error();
-
-    quote!(
-        #ast
-        #expanded
-    )
-    .into()
-}
-
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     use syn::Item;
