@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Crate-private implementation of pycell
 
 use std::cell::Cell;

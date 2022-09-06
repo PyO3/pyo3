@@ -1,3 +1,5 @@
+//! Data types used to describe runtime Python types.
+
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 

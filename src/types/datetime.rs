@@ -234,6 +234,7 @@ pyobject_native_type!(
 );
 
 impl PyDateTime {
+    /// Creates a new `datetime.datetime` object.
     #[allow(clippy::too_many_arguments)]
     pub fn new<'p>(
         py: Python<'p>,

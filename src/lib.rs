@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 #![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
@@ -310,7 +311,13 @@ pub use crate::type_object::PyTypeInfo;
 pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
-// Old directory layout, to be rethought?
+/// Old module which contained some implementation details of the `#[pyproto]` module.
+///
+/// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
+/// of `use pyo3::class::basic::CompareOp`.
+///
+/// For compatibility reasons this has not yet been removed, however will be done so
+/// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
 pub mod class {
     #[doc(hidden)]
     pub use crate::impl_::pymethods as methods;
@@ -322,20 +329,48 @@ pub mod class {
         PyClassAttributeDef, PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef,
     };
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
+    /// of `use pyo3::class::basic::CompareOp`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod basic {
         pub use crate::pyclass::CompareOp;
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterANextOutput` instead
+    /// of `use pyo3::class::pyasync::IterANextOutput`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod pyasync {
         pub use crate::pyclass::{IterANextOutput, PyIterANextOutput};
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::IterNextOutput` instead
+    /// of `use pyo3::class::pyasync::IterNextOutput`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod iter {
         pub use crate::pyclass::{IterNextOutput, PyIterNextOutput};
     }
 
+    /// Old module which contained some implementation details of the `#[pyproto]` module.
+    ///
+    /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::PyTraverseError` instead
+    /// of `use pyo3::class::gc::PyTraverseError`.
+    ///
+    /// For compatibility reasons this has not yet been removed, however will be done so
+    /// once <https://github.com/rust-lang/rust/issues/30827> is resolved.
     pub mod gc {
-        pub use crate::impl_::pymethods::{PyTraverseError, PyVisit};
+        pub use crate::pyclass::{PyTraverseError, PyVisit};
     }
 }
 

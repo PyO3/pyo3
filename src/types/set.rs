@@ -143,6 +143,7 @@ mod impl_ {
         }
     }
 
+    /// PyO3 implementation of an iterator for a Python `set` object.
     pub struct PySetIterator<'p> {
         it: &'p PyIterator,
     }
@@ -165,6 +166,8 @@ mod impl_ {
 #[cfg(not(Py_LIMITED_API))]
 mod impl_ {
     use super::*;
+
+    /// PyO3 implementation of an iterator for a Python `set` object.
     pub struct PySetIterator<'py> {
         set: &'py super::PyAny,
         pos: ffi::Py_ssize_t,

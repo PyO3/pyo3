@@ -161,10 +161,12 @@ macro_rules! intern {
 pub struct Interned(&'static str, GILOnceCell<Py<PyString>>);
 
 impl Interned {
+    /// Creates an empty holder for an interned `str`.
     pub const fn new(value: &'static str) -> Self {
         Interned(value, GILOnceCell::new())
     }
 
+    /// Gets or creates the interned `str` value.
     #[inline]
     pub fn get<'py>(&'py self, py: Python<'py>) -> &'py PyString {
         self.1

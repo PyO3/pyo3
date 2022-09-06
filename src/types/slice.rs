@@ -18,16 +18,21 @@ pyobject_native_type!(
     #checkfunction=ffi::PySlice_Check
 );
 
-/// Represents Python `slice` indices.
+/// Return value from [`PySlice::indices`].
 #[derive(Debug, Eq, PartialEq)]
 pub struct PySliceIndices {
+    /// Start of the slice
     pub start: isize,
+    /// End of the slice
     pub stop: isize,
+    /// Increment to use when iterating the slice from `start` to `stop`.
     pub step: isize,
+    /// The length of the slice calculated from the original input sequence.
     pub slicelength: isize,
 }
 
 impl PySliceIndices {
+    /// Creates a new `PySliceIndices`.
     pub fn new(start: isize, stop: isize, step: isize) -> PySliceIndices {
         PySliceIndices {
             start,

@@ -96,6 +96,7 @@ pub struct LazyStaticType {
 }
 
 impl LazyStaticType {
+    /// Creates an uninitialized `LazyStaticType`.
     pub const fn new() -> Self {
         LazyStaticType {
             value: GILOnceCell::new(),
@@ -104,6 +105,7 @@ impl LazyStaticType {
         }
     }
 
+    /// Gets the type object contained by this `LazyStaticType`, initializing it if needed.
     pub fn get_or_init<T: PyClass>(&self, py: Python<'_>) -> *mut ffi::PyTypeObject {
         fn inner<T: PyClass>() -> *mut ffi::PyTypeObject {
             // Safety: `py` is held by the caller of `get_or_init`.

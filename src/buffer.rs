@@ -58,14 +58,23 @@ impl<T> Debug for PyBuffer<T> {
 /// Represents the type of a Python buffer element.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ElementType {
-    /// A signed integer type and its width in bytes.
-    SignedInteger { bytes: usize },
-    /// An unsigned integer type and its width in bytes.
-    UnsignedInteger { bytes: usize },
+    /// A signed integer type.
+    SignedInteger {
+        /// The width of the signed integer in bytes.
+        bytes: usize,
+    },
+    /// An unsigned integer type.
+    UnsignedInteger {
+        /// The width of the unsigned integer in bytes.
+        bytes: usize,
+    },
     /// A boolean type.
     Bool,
-    /// A float type and its width in bytes.
-    Float { bytes: usize },
+    /// A float type.
+    Float {
+        /// The width of the float in bytes.
+        bytes: usize,
+    },
     /// An unknown type. This may occur when parsing has failed.
     Unknown,
 }
@@ -607,6 +616,8 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
+    /// Release the buffer object, freeing the reference to the Python object
+    /// which owns the buffer.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would acquire the GIL and call PyBuffer_Release
