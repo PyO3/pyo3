@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 
 /// Designation of a Python type.
@@ -40,7 +41,7 @@ pub enum TypeInfo {
         /// The module this class comes from.
         module: ModuleName,
         /// The name of this class, as it appears in a type hint.
-        name: &'static str,
+        name: Cow<'static, str>,
         /// The generics accepted by this class (empty vector if this class is not generic).
         type_vars: Vec<TypeInfo>,
     },
@@ -54,14 +55,14 @@ pub enum ModuleName {
     /// The type is in the current module: it doesn't need to be imported in this module, but needs to be imported in others.
     CurrentModule,
     /// The type is in the specified module.
-    Module(&'static str),
+    Module(Cow<'static, str>),
 }
 
 impl TypeInfo {
     /// Returns the module in which a type is declared.
     ///
     /// Returns `None` if the type is declared in the current module.
-    pub fn module_name(&self) -> Option<&'static str> {
+    pub fn module_name(&self) -> Option<&str> {
         match self {
             TypeInfo::Any
             | TypeInfo::None
@@ -80,8 +81,8 @@ impl TypeInfo {
     /// Returns the name of a type.
     ///
     /// The name of a type is the part of the hint that is not generic (e.g. `List` instead of `List[int]`).
-    pub fn name(&self) -> &'static str {
-        match self {
+    pub fn name(&self) -> Cow<'_, str> {
+        Cow::from(match self {
             TypeInfo::Any => "Any",
             TypeInfo::None => "None",
             TypeInfo::NoReturn => "NoReturn",
@@ -89,7 +90,7 @@ impl TypeInfo {
             TypeInfo::Tuple(_) => "Tuple",
             TypeInfo::UnsizedTypedTuple(_) => "Tuple",
             TypeInfo::Class { name, .. } => name,
-        }
+        })
     }
 }
 
@@ -98,8 +99,8 @@ impl TypeInfo {
     /// The Python `Optional` type.
     pub fn optional_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Optional",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Optional"),
             type_vars: vec![t],
         }
     }
@@ -107,8 +108,8 @@ impl TypeInfo {
     /// The Python `Union` type.
     pub fn union_of(types: &[TypeInfo]) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Union",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Union"),
             type_vars: types.to_vec(),
         }
     }
@@ -116,8 +117,8 @@ impl TypeInfo {
     /// The Python `List` type.
     pub fn list_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "List",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("List"),
             type_vars: vec![t],
         }
     }
@@ -125,8 +126,8 @@ impl TypeInfo {
     /// The Python `Sequence` type.
     pub fn sequence_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Sequence",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Sequence"),
             type_vars: vec![t],
         }
     }
@@ -134,8 +135,8 @@ impl TypeInfo {
     /// The Python `Set` type.
     pub fn set_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Set",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Set"),
             type_vars: vec![t],
         }
     }
@@ -143,8 +144,8 @@ impl TypeInfo {
     /// The Python `FrozenSet` type.
     pub fn frozen_set_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "FrozenSet",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("FrozenSet"),
             type_vars: vec![t],
         }
     }
@@ -152,8 +153,8 @@ impl TypeInfo {
     /// The Python `Iterable` type.
     pub fn iterable_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Iterable",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Iterable"),
             type_vars: vec![t],
         }
     }
@@ -161,8 +162,8 @@ impl TypeInfo {
     /// The Python `Iterator` type.
     pub fn iterator_of(t: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Iterator",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Iterator"),
             type_vars: vec![t],
         }
     }
@@ -170,8 +171,8 @@ impl TypeInfo {
     /// The Python `Dict` type.
     pub fn dict_of(k: TypeInfo, v: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Dict",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Dict"),
             type_vars: vec![k, v],
         }
     }
@@ -179,8 +180,8 @@ impl TypeInfo {
     /// The Python `Mapping` type.
     pub fn mapping_of(k: TypeInfo, v: TypeInfo) -> TypeInfo {
         TypeInfo::Class {
-            module: ModuleName::Module("typing"),
-            name: "Mapping",
+            module: ModuleName::Module(Cow::from("typing")),
+            name: Cow::from("Mapping"),
             type_vars: vec![k, v],
         }
     }
@@ -189,7 +190,7 @@ impl TypeInfo {
     pub fn builtin(name: &'static str) -> TypeInfo {
         TypeInfo::Class {
             module: ModuleName::Builtin,
-            name,
+            name: Cow::from(name),
             type_vars: vec![],
         }
     }
@@ -270,6 +271,8 @@ impl Display for TypeInfo {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::Cow;
+
     use crate::inspect::types::{ModuleName, TypeInfo};
 
     pub fn assert_display(t: &TypeInfo, expected: &str) {
@@ -320,14 +323,14 @@ mod test {
     fn class() {
         let class1 = TypeInfo::Class {
             module: ModuleName::CurrentModule,
-            name: "MyClass",
+            name: Cow::from("MyClass"),
             type_vars: vec![],
         };
         assert_display(&class1, "MyClass");
 
         let class2 = TypeInfo::Class {
             module: ModuleName::CurrentModule,
-            name: "MyClass",
+            name: Cow::from("MyClass"),
             type_vars: vec![TypeInfo::builtin("int"), TypeInfo::builtin("bool")],
         };
         assert_display(&class2, "MyClass[int, bool]");
@@ -397,9 +400,10 @@ mod test {
 
 #[cfg(test)]
 mod conversion {
+    use std::collections::{HashMap, HashSet};
+
     use crate::inspect::types::test::assert_display;
     use crate::{FromPyObject, IntoPy};
-    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn unsigned_int() {
