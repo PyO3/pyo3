@@ -70,8 +70,7 @@
 //! ## Default feature flags
 //!
 //! The following features are turned on by default:
-//! - `macros`: Enables various macros, including all the attribute macros excluding the deprecated
-//! `#[pyproto]` attribute.
+//! - `macros`: Enables various macros, including all the attribute macros.
 //!
 //! ## Optional feature flags
 //!
@@ -87,7 +86,6 @@
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
-//! - `pyproto`: Enables the deprecated `#[pyproto]` attribute macro. This will be removed in PyO3 0.18.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
@@ -313,7 +311,6 @@ pub use crate::types::PyAny;
 pub use crate::version::PythonVersionInfo;
 
 // Old directory layout, to be rethought?
-#[cfg(not(feature = "pyproto"))]
 pub mod class {
     #[doc(hidden)]
     pub use crate::impl_::pymethods as methods;
@@ -359,8 +356,6 @@ mod internal_tricks;
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
-#[cfg(feature = "pyproto")]
-pub mod class;
 pub mod conversion;
 mod conversions;
 #[macro_use]
@@ -389,8 +384,6 @@ mod version;
 
 pub use crate::conversions::*;
 
-#[cfg(all(feature = "macros", feature = "pyproto"))]
-pub use pyo3_macros::pyproto;
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{pyfunction, pymethods, pymodule, FromPyObject};
 

@@ -914,22 +914,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         };
 
-        let pyproto_items = if cfg!(feature = "pyproto") {
-            Some(quote! {
-                collector.object_protocol_items(),
-                collector.number_protocol_items(),
-                collector.iter_protocol_items(),
-                collector.gc_protocol_items(),
-                collector.descr_protocol_items(),
-                collector.mapping_protocol_items(),
-                collector.sequence_protocol_items(),
-                collector.async_protocol_items(),
-                collector.buffer_protocol_items(),
-            })
-        } else {
-            None
-        };
-
         let default_methods = self
             .default_methods
             .iter()
@@ -1002,11 +986,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                         methods: &[#(#default_method_defs),*],
                         slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
-                    PyClassItemsIter::new(
-                        &INTRINSIC_ITEMS,
-                        #pymethods_items,
-                        #pyproto_items
-                    )
+                    PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
 
                 #dict_offset

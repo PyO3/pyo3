@@ -75,10 +75,6 @@ Most users should only need a single `#[pymethods]` per `#[pyclass]`. In additio
 
 See [the `#[pyclass]` implementation details](class.md#implementation-details) for more information.
 
-### `pyproto`
-
-This feature enables the `#[pyproto]` macro, which is a deprecated alternative to `#[pymethods]` for defining magic methods such as `__eq__`.
-
 ### `nightly`
 
 The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the `Python::allow_threads` function.
