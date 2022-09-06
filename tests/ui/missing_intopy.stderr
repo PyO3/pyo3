@@ -20,6 +20,9 @@ note: the following trait must be implemented
     | / pub trait IntoPy<T>: Sized {
     | |     /// Performs the conversion.
     | |     fn into_py(self, py: Python<'_>) -> T;
+    | |
+...   |
+    | |     }
     | | }
     | |_^
     = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

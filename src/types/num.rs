@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use crate::inspect::types::TypeInfo;
 use crate::{
     exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python,
     ToPyObject,
@@ -22,6 +23,10 @@ macro_rules! int_fits_larger_int {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 (self as $larger_type).into_py(py)
             }
+
+            fn type_output() -> TypeInfo {
+                <$larger_type>::type_output()
+            }
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
@@ -29,6 +34,10 @@ macro_rules! int_fits_larger_int {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+            }
+
+            fn type_input() -> TypeInfo {
+                <$larger_type>::type_input()
             }
         }
     };
@@ -56,6 +65,10 @@ macro_rules! int_fits_c_long {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, ffi::PyLong_FromLong(self as c_long)) }
             }
+
+            fn type_output() -> TypeInfo {
+                TypeInfo::builtin("int")
+            }
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
@@ -74,6 +87,10 @@ macro_rules! int_fits_c_long {
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
+
+            fn type_input() -> TypeInfo {
+                Self::type_output()
+            }
         }
     };
 }
@@ -91,6 +108,10 @@ macro_rules! int_convert_u64_or_i64 {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 unsafe { PyObject::from_owned_ptr(py, $pylong_from_ll_or_ull(self)) }
             }
+
+            fn type_output() -> TypeInfo {
+                TypeInfo::builtin("int")
+            }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
             fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
@@ -105,6 +126,10 @@ macro_rules! int_convert_u64_or_i64 {
                         result
                     }
                 }
+            }
+
+            fn type_input() -> TypeInfo {
+                Self::type_output()
             }
         }
     };
@@ -170,6 +195,10 @@ mod fast_128bit_int_conversion {
                         PyObject::from_owned_ptr(py, obj)
                     }
                 }
+
+                fn type_output() -> TypeInfo {
+                    TypeInfo::builtin("int")
+                }
             }
 
             impl<'source> FromPyObject<'source> for $rust_type {
@@ -191,6 +220,10 @@ mod fast_128bit_int_conversion {
                         crate::err::error_on_minusone(ob.py(), ok)?;
                         Ok(<$rust_type>::from_le_bytes(buffer))
                     }
+                }
+
+                fn type_input() -> TypeInfo {
+                    Self::type_output()
                 }
             }
         };
@@ -234,6 +267,10 @@ mod slow_128bit_int_conversion {
                         )
                     }
                 }
+
+                fn type_output() -> TypeInfo {
+                    TypeInfo::builtin("int")
+                }
             }
 
             impl<'source> FromPyObject<'source> for $rust_type {
@@ -252,6 +289,10 @@ mod slow_128bit_int_conversion {
                         let upper: $half_type = shifted.extract(py)?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)
                     }
+                }
+
+                fn type_input() -> TypeInfo {
+                    Self::type_output()
                 }
             }
         };

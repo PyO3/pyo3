@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `type_input()` and `type_output()` to get the Python type of any Python-compatible object. [#2490](https://github.com/PyO3/pyo3/pull/2490)
+
 ### Removed
 
 - Remove the deprecated `pyproto` feature, `#[pyproto]` macro, and all accompanying APIs. [#2587](https://github.com/PyO3/pyo3/pull/2587)

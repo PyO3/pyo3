@@ -2,6 +2,7 @@
 //
 
 use crate::err::{self, PyErr, PyResult};
+use crate::inspect::types::TypeInfo;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
 use crate::{ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, Python, ToPyObject};
@@ -271,6 +272,10 @@ where
         }
         set.into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(K::type_output())
+    }
 }
 
 impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
@@ -281,6 +286,10 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::set_of(K::type_input())
     }
 }
 
@@ -297,6 +306,10 @@ where
         }
         set.into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::set_of(K::type_output())
+    }
 }
 
 impl<'source, K> FromPyObject<'source> for BTreeSet<K>
@@ -306,6 +319,10 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+
+    fn type_input() -> TypeInfo {
+        TypeInfo::set_of(K::type_input())
     }
 }
 

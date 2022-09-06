@@ -6,6 +6,7 @@ use std::convert::TryInto;
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
+use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
@@ -367,6 +368,10 @@ where
         let mut iter = self.into_iter().map(|e| e.into_py(py));
         let list = new_from_iter(py, &mut iter);
         list.into()
+    }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::list_of(T::type_output())
     }
 }
 

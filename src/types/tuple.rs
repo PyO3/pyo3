@@ -3,6 +3,7 @@
 use std::convert::TryInto;
 
 use crate::ffi::{self, Py_ssize_t};
+use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
@@ -293,6 +294,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                ret
             }
         }
+
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
+        }
     }
 
     impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
@@ -303,6 +308,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
                 ret
             }
+        }
+
+        fn type_output() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
         }
     }
 
@@ -319,6 +328,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
+        }
+
+        fn type_input() -> TypeInfo {
+            TypeInfo::Tuple(Some(vec![$( $T::type_input() ),+]))
         }
     }
 });

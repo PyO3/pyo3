@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
+use crate::inspect::types::TypeInfo;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
@@ -44,6 +45,10 @@ impl IntoPy<PyObject> for f64 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, self).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("float")
+    }
 }
 
 impl<'source> FromPyObject<'source> for f64 {
@@ -60,6 +65,10 @@ impl<'source> FromPyObject<'source> for f64 {
 
         Ok(v)
     }
+
+    fn type_input() -> TypeInfo {
+        Self::type_output()
+    }
 }
 
 impl ToPyObject for f32 {
@@ -72,11 +81,19 @@ impl IntoPy<PyObject> for f32 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyFloat::new(py, f64::from(self)).into()
     }
+
+    fn type_output() -> TypeInfo {
+        TypeInfo::builtin("float")
+    }
 }
 
 impl<'source> FromPyObject<'source> for f32 {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
+    }
+
+    fn type_input() -> TypeInfo {
+        Self::type_output()
     }
 }
 
