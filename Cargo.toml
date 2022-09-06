@@ -32,7 +32,7 @@ inventory = { version = "0.3.0", optional = true }
 
 # crate integrations that can be added using the eponymous features
 anyhow = { version = "1.0", optional = true }
-chrono = { version = "0.4", path = "../chrono", optional = true }
+chrono = { version = "0.5.0-alpha.1", path = "../chrono", optional = true }
 eyre = { version = ">= 0.4, < 0.7", optional = true }
 hashbrown = { version = ">= 0.9, < 0.13", optional = true }
 indexmap = { version = ">= 1.6, < 1.8", optional = true }
@@ -42,7 +42,7 @@ serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-chrono = { version = "0.4", path = "../chrono" }
+chrono = { version = "0.5.0-alpha.1", path = "../chrono" }
 criterion = "0.3.5"
 trybuild = "1.0.49"
 rustversion = "1.0"
