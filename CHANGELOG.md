@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
 ### Removed
 
 - Remove the deprecated `pyproto` feature, `#[pyproto]` macro, and all accompanying APIs. [#2587](https://github.com/PyO3/pyo3/pull/2587)
