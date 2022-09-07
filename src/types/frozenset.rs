@@ -89,6 +89,7 @@ mod impl_ {
         }
     }
 
+    /// PyO3 implementation of an iterator for a Python `frozenset` object.
     pub struct PyFrozenSetIterator<'p> {
         it: &'p PyIterator,
     }
@@ -116,6 +117,7 @@ mod impl_ {
         }
     }
 
+    /// PyO3 implementation of an iterator for a Python `frozenset` object.
     pub struct PyFrozenSetIterator<'py> {
         set: &'py PyAny,
         pos: ffi::Py_ssize_t,

@@ -262,6 +262,7 @@ impl PyDict {
     }
 }
 
+/// PyO3 implementation of an iterator for a Python `dict` object.
 pub struct PyDictIterator<'py> {
     dict: &'py PyDict,
     ppos: ffi::Py_ssize_t,

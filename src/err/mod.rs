@@ -53,6 +53,8 @@ pub struct PyDowncastError<'a> {
 }
 
 impl<'a> PyDowncastError<'a> {
+    /// Create a new `PyDowncastError` representing a failure to convert the object
+    /// `from` into the type named in `to`.
     pub fn new(from: &'a PyAny, to: impl Into<Cow<'static, str>>) -> Self {
         PyDowncastError {
             from,

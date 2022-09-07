@@ -18,6 +18,10 @@ use std::{
     ptr,
 };
 
+mod gc;
+
+pub use self::gc::{PyTraverseError, PyVisit};
+
 /// Types that can be used as Python classes.
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
@@ -502,6 +506,7 @@ pub enum IterNextOutput<T, U> {
     Return(U),
 }
 
+/// Alias of `IterNextOutput` with `PyObject` yield & return values.
 pub type PyIterNextOutput = IterNextOutput<PyObject, PyObject>;
 
 impl IntoPyCallbackOutput<*mut ffi::PyObject> for PyIterNextOutput {
