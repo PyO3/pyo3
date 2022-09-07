@@ -43,6 +43,8 @@ mv target/guide netlify_build/main/
 cargo xtask doc
 mv target/doc netlify_build/main/doc/
 
+echo "<meta http-equiv=refresh content=0;url=pyo3/>" > netlify_build/main/doc/index.html
+
 ## Build internal docs
 
 echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > netlify_build/banner.html
