@@ -17,7 +17,11 @@ cp .netlify/_redirects netlify_build/
 echo "/latest/* https://pyo3.github.io/pyo3/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
 
 ## Add landing page redirect
-echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
+if [ "${CONTEXT}" == "deploy-preview" ]; then
+    echo "<meta http-equiv=refresh content=0;url=main/>" > netlify_build/index.html
+else
+    echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
+fi
 
 
 ## Build guide
@@ -49,7 +53,3 @@ mkdir -p netlify_build/internal
 mv target/doc netlify_build/internal/
 
 ls -l netlify_build/
-
-# TODO:
-# - netlify badges
-# - apply for open source plan
