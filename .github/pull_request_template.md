@@ -1,7 +1,7 @@
 Thank you for contributing to pyo3!
 
 Please consider adding the following to your pull request:
- - an entry in CHANGELOG.md
+ - an entry for this PR in newsfragments - see [https://pyo3.rs/main/contributing.html#documenting-changes]
  - docs to all new functions and / or detail in the guide
  - tests for all new or changed functions
 
