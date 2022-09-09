@@ -158,7 +158,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
         };
         let tz = self.offset().fix().to_object(py);
         let tz = tz.cast_as(py).unwrap();
-        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, Some(&tz), fold)
+        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, Some(tz), fold)
             .expect("Failed to construct datetime");
         datetime.into()
     }
@@ -372,7 +372,7 @@ mod test_chrono {
                     m as u8,
                     s as u8,
                     py_ms,
-                    Some(&py_tz),
+                    Some(py_tz),
                     f,
                 )
                 .unwrap();
@@ -398,7 +398,7 @@ mod test_chrono {
                     m as u8,
                     s as u8,
                     py_ms,
-                    Some(&py_tz),
+                    Some(py_tz),
                     f,
                 )
                 .unwrap();
@@ -425,7 +425,7 @@ mod test_chrono {
                     m as u8,
                     s as u8,
                     py_ms,
-                    Some(&py_tz),
+                    Some(py_tz),
                     f,
                 )
                 .unwrap();
@@ -451,7 +451,7 @@ mod test_chrono {
                     m as u8,
                     s as u8,
                     py_ms,
-                    Some(&py_tz),
+                    Some(py_tz),
                     f,
                 )
                 .unwrap();
@@ -469,14 +469,14 @@ mod test_chrono {
             let py_tz = Utc.to_object(py);
             let py_tz = py_tz.cast_as(py).unwrap();
             let py_datetime =
-                PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(&py_tz), false)
+                PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(py_tz), false)
                     .unwrap();
             assert!(py_datetime.extract::<DateTime<FixedOffset>>().is_ok());
             let offset = FixedOffset::east(3600);
             let py_tz = offset.to_object(py);
             let py_tz = py_tz.cast_as(py).unwrap();
             let py_datetime =
-                PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(&py_tz), false)
+                PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(py_tz), false)
                     .unwrap();
             assert!(py_datetime.extract::<DateTime<Utc>>().is_err());
         })
