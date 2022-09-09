@@ -55,7 +55,8 @@ impl ToPyObject for Duration {
 
         // We do not need to check i64 to i32 cast from rust because
         // python will panic with OverflowError.
-        // Not sure if we need normalize here.
+        // We pass false as the `normalize` parameter since we already made sure
+        // that seconds and microseconds are in the proper range.
         let delta = PyDelta::new(py, days.try_into().unwrap_or(i32::MAX), secs, micros, false)
             .expect("Failed to construct delta");
         delta.into()
@@ -281,83 +282,87 @@ mod test_chrono {
     fn test_pyo3_timedelta_topyobject() {
         use std::panic;
 
-        Python::with_gil(|py| {
-            let check = |s, ns, py_d, py_s, py_ms| {
-                let delta = Duration::seconds(s) + Duration::nanoseconds(ns);
+        let check = |delta: Duration, py_d, py_s, py_ms| {
+            Python::with_gil(|py| {
                 let delta = delta.to_object(py);
                 let delta: &PyDelta = delta.extract(py).unwrap();
                 let py_delta = PyDelta::new(py, py_d, py_s, py_ms, true).unwrap();
                 assert!(delta.eq(py_delta).unwrap());
-            };
-            let check_panic = |duration: Duration| {
-                assert!(panic::catch_unwind(|| {
-                    duration.to_object(py);
-                })
-                .is_err())
-            };
+            });
+        };
 
-            check(-86399999913600, 0, -999999999, 0, 0); // min
-            check(86399999999999, 999999000, 999999999, 86399, 999999); // max
+        let delta = Duration::days(-1) + Duration::seconds(1) + Duration::microseconds(-10);
+        check(delta, -1, 1, -10);
 
-            check_panic(Duration::min_value());
-            check_panic(Duration::max_value());
-            // TODO: check timedelta underflow
-        })
+        let delta = Duration::seconds(-86399999913600); // min
+        check(delta, -999999999, 0, 0);
+
+        let delta = Duration::seconds(86399999999999) + Duration::nanoseconds(999999000); // max
+        check(delta, 999999999, 86399, 999999);
+
+        let check_panic = |duration: Duration| {
+            Python::with_gil(|py| {
+                assert!(panic::catch_unwind(|| duration.to_object(py)).is_err());
+            });
+        };
+
+        check_panic(Duration::min_value());
+        check_panic(Duration::max_value());
     }
 
     #[test]
     fn test_pyo3_timedelta_frompyobject() {
-        Python::with_gil(|py| {
-            let check = |s, ns, py_d, py_s, py_ms| {
+        let check = |s, ns, py_d, py_s, py_ms| {
+            Python::with_gil(|py| {
                 let py_delta = PyDelta::new(py, py_d, py_s, py_ms, false).unwrap();
                 let py_delta: Duration = py_delta.extract().unwrap();
                 let delta = Duration::seconds(s) + Duration::nanoseconds(ns);
                 assert_eq!(py_delta, delta);
-            };
+            })
+        };
 
-            check(-86399999913600, 0, -999999999, 0, 0); // min
-            check(86399999999999, 999999000, 999999999, 86399, 999999); // max
-        })
+        check(-86399999913600, 0, -999999999, 0, 0); // min
+        check(86399999999999, 999999000, 999999999, 86399, 999999); // max
     }
 
     #[test]
     fn test_pyo3_date_topyobject() {
-        Python::with_gil(|py| {
-            let eq_ymd = |y, m, d| {
+        let eq_ymd = |y, m, d| {
+            Python::with_gil(|py| {
                 let date = NaiveDate::from_ymd(y, m, d).to_object(py);
                 let date: &PyDate = date.extract(py).unwrap();
                 let py_date = PyDate::new(py, y, m as u8, d as u8).unwrap();
                 assert_eq!(date.compare(py_date).unwrap(), Ordering::Equal);
-            };
+            })
+        };
 
-            eq_ymd(2012, 2, 29);
-            eq_ymd(1, 1, 1); // min
-            eq_ymd(3000, 6, 5); // future
-            eq_ymd(9999, 12, 31); // max
-        })
+        eq_ymd(2012, 2, 29);
+        eq_ymd(1, 1, 1); // min
+        eq_ymd(3000, 6, 5); // future
+        eq_ymd(9999, 12, 31); // max
     }
 
     #[test]
     fn test_pyo3_date_frompyobject() {
-        Python::with_gil(|py| {
-            let eq_ymd = |y, m, d| {
+        let eq_ymd = |y, m, d| {
+            Python::with_gil(|py| {
                 let py_date = PyDate::new(py, y, m as u8, d as u8).unwrap();
                 let py_date: NaiveDate = py_date.extract().unwrap();
                 let date = NaiveDate::from_ymd(y, m, d);
                 assert_eq!(py_date, date);
-            };
+            })
+        };
 
-            eq_ymd(2012, 2, 29);
-            eq_ymd(1, 1, 1); // min
-            eq_ymd(3000, 6, 5); // future
-            eq_ymd(9999, 12, 31); // max
-        })
+        eq_ymd(2012, 2, 29);
+        eq_ymd(1, 1, 1); // min
+        eq_ymd(3000, 6, 5); // future
+        eq_ymd(9999, 12, 31); // max
     }
 
     #[test]
     fn test_pyo3_datetime_topyobject() {
-        Python::with_gil(|py| {
-            let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
                 let datetime = DateTime::<Utc>::from_utc(datetime, Utc).to_object(py);
                 let datetime: &PyDateTime = datetime.extract(py).unwrap();
@@ -377,12 +382,14 @@ mod test_chrono {
                 )
                 .unwrap();
                 assert_eq!(datetime.compare(py_datetime).unwrap(), Ordering::Equal);
-            };
+            })
+        };
 
-            check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-            check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
-            let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let offset = FixedOffset::east(3600);
                 let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
                 let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset).to_object(py);
@@ -403,17 +410,17 @@ mod test_chrono {
                 )
                 .unwrap();
                 assert_eq!(datetime.compare(py_datetime).unwrap(), Ordering::Equal);
-            };
+            })
+        };
 
-            check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-            check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
-        })
+        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
     }
 
     #[test]
     fn test_pyo3_datetime_frompyobject() {
-        Python::with_gil(|py| {
-            let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let py_tz = Utc.to_object(py);
                 let py_tz = py_tz.cast_as(py).unwrap();
                 let py_datetime = PyDateTime::new_with_fold(
@@ -433,12 +440,14 @@ mod test_chrono {
                 let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
                 let datetime = DateTime::<Utc>::from_utc(datetime, Utc);
                 assert_eq!(py_datetime, datetime);
-            };
+            })
+        };
 
-            check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-            check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
-            let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let offset = FixedOffset::east(3600);
                 let py_tz = offset.to_object(py);
                 let py_tz = py_tz.cast_as(py).unwrap();
@@ -459,11 +468,13 @@ mod test_chrono {
                 let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
                 let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset);
                 assert_eq!(py_datetime, datetime);
-            };
+            })
+        };
 
-            check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-            check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
+        Python::with_gil(|py| {
             // extract utc with fixedoffset should fail
             // but fixedoffset from utc seemed to work, maybe because it is also considered fixedoffset?
             let py_tz = Utc.to_object(py);
@@ -541,33 +552,33 @@ mod test_chrono {
 
     #[test]
     fn test_pyo3_time_topyobject() {
-        Python::with_gil(|py| {
-            let hmsm = |h, m, s, ms, py_ms, f| {
+        let hmsm = |h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let time = NaiveTime::from_hms_micro(h, m, s, ms).to_object(py);
                 let time: &PyTime = time.extract(py).unwrap();
                 let py_time =
                     PyTime::new_with_fold(py, h as u8, m as u8, s as u8, py_ms, None, f).unwrap();
                 assert_eq!(time.compare(py_time).unwrap(), Ordering::Equal);
-            };
+            })
+        };
 
-            hmsm(3, 5, 7, 1_999_999, 999_999, true);
-            hmsm(3, 5, 7, 999_999, 999_999, false);
-        })
+        hmsm(3, 5, 7, 1_999_999, 999_999, true);
+        hmsm(3, 5, 7, 999_999, 999_999, false);
     }
 
     #[test]
     fn test_pyo3_time_frompyobject() {
-        Python::with_gil(|py| {
-            let hmsm = |h, m, s, ms, py_ms, f| {
+        let hmsm = |h, m, s, ms, py_ms, f| {
+            Python::with_gil(|py| {
                 let py_time =
                     PyTime::new_with_fold(py, h as u8, m as u8, s as u8, py_ms, None, f).unwrap();
                 let py_time: NaiveTime = py_time.extract().unwrap();
                 let time = NaiveTime::from_hms_micro(h, m, s, ms);
                 assert_eq!(py_time, time);
-            };
+            })
+        };
 
-            hmsm(3, 5, 7, 1_999_999, 999_999, true);
-            hmsm(3, 5, 7, 999_999, 999_999, false);
-        })
+        hmsm(3, 5, 7, 1_999_999, 999_999, true);
+        hmsm(3, 5, 7, 999_999, 999_999, false);
     }
 }
