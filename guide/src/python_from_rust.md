@@ -281,7 +281,7 @@ The example below shows:
   imported from `utils/foo.py`
 
 `src/main.rs`:
-```ignore
+```rust,ignore
 use pyo3::prelude::*;
 
 fn main() -> PyResult<()> {
@@ -311,7 +311,7 @@ from anywhere as long as your `app.py` is in the expected directory (in this exa
 that directory is `/usr/share/python_app`).
 
 `src/main.rs`:
-```no_run
+```rust,no_run
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::fs;
