@@ -23,6 +23,10 @@ else
     echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
 fi
 
+## Generate towncrier release notes
+
+pip install towncrier
+towncrier build --yes --version Unreleased --date TBC
 
 ## Build guide
 

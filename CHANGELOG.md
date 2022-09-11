@@ -6,15 +6,7 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- Added `type_input()` and `type_output()` to get the Python type of any Python-compatible object. [#2490](https://github.com/PyO3/pyo3/pull/2490)
-
-### Removed
-
-- Remove the deprecated `pyproto` feature, `#[pyproto]` macro, and all accompanying APIs. [#2587](https://github.com/PyO3/pyo3/pull/2587)
+<!-- towncrier release notes start -->
 
 ## [0.17.1] - 2022-08-28
 

@@ -17,3 +17,27 @@ exclude = '''
   )/
 )
 '''
+
+[tool.towncrier]
+filename = "CHANGELOG.md"
+version = "0.17.1"
+start_string = "<!-- towncrier release notes start -->\n"
+template = ".towncrier.template.md"
+title_format = "## [{version}] - {project_date}"
+issue_format = "[#{issue}](https://github.com/PyO3/pyo3/pull/{issue})"  # Note PyO3 shows pulls, not issues, in the CHANGELOG
+underlines = ["", "", ""]
+
+[tool.towncrier.fragment.packaging]
+name = "Packaging"
+
+[tool.towncrier.fragment.added]
+name = "Added"
+
+[tool.towncrier.fragment.changed]
+name = "Changed"
+
+[tool.towncrier.fragment.removed]
+name = "Removed"
+
+[tool.towncrier.fragment.fixed]
+name = "Fixed"
