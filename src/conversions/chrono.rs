@@ -55,9 +55,9 @@ impl ToPyObject for Duration {
 
         // We do not need to check i64 to i32 cast from rust because
         // python will panic with OverflowError.
-        // We pass false as the `normalize` parameter since we already made sure
-        // that seconds and microseconds are in the proper range.
-        let delta = PyDelta::new(py, days.try_into().unwrap_or(i32::MAX), secs, micros, false)
+        // We pass true as the `normalize` parameter since we'd need to do several checks here to
+        // avoid that, and it shouldn't have a big performance impact.
+        let delta = PyDelta::new(py, days.try_into().unwrap_or(i32::MAX), secs, micros, true)
             .expect("Failed to construct delta");
         delta.into()
     }
@@ -282,197 +282,253 @@ mod test_chrono {
     fn test_pyo3_timedelta_topyobject() {
         use std::panic;
 
-        let check = |delta: Duration, py_d, py_s, py_ms| {
+        // Utility function used to check different durations.
+        // The `name` parameter is used to identify the check in case of a failure.
+        let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
             Python::with_gil(|py| {
                 let delta = delta.to_object(py);
                 let delta: &PyDelta = delta.extract(py).unwrap();
-                let py_delta = PyDelta::new(py, py_d, py_s, py_ms, true).unwrap();
-                assert!(delta.eq(py_delta).unwrap());
+                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, true).unwrap();
+                assert!(
+                    delta.eq(py_delta).unwrap(),
+                    "{}: {} != {}",
+                    name,
+                    delta,
+                    py_delta
+                );
             });
         };
 
         let delta = Duration::days(-1) + Duration::seconds(1) + Duration::microseconds(-10);
-        check(delta, -1, 1, -10);
+        check("delta normalization", delta, -1, 1, -10);
 
         let delta = Duration::seconds(-86399999913600); // min
-        check(delta, -999999999, 0, 0);
+        check("delta min value", delta, -999999999, 0, 0);
 
         let delta = Duration::seconds(86399999999999) + Duration::nanoseconds(999999000); // max
-        check(delta, 999999999, 86399, 999999);
+        check("delta max value", delta, 999999999, 86399, 999999);
 
-        let check_panic = |duration: Duration| {
-            Python::with_gil(|py| {
-                assert!(panic::catch_unwind(|| duration.to_object(py)).is_err());
-            });
-        };
-
-        check_panic(Duration::min_value());
-        check_panic(Duration::max_value());
+        // Also check that trying to convert an out of bound value panics.
+        Python::with_gil(|py| {
+            assert!(panic::catch_unwind(|| Duration::min_value().to_object(py)).is_err());
+            assert!(panic::catch_unwind(|| Duration::max_value().to_object(py)).is_err());
+        });
     }
 
     #[test]
     fn test_pyo3_timedelta_frompyobject() {
-        let check = |s, ns, py_d, py_s, py_ms| {
+        // Utility function used to check different durations.
+        // The `name` parameter is used to identify the check in case of a failure.
+        let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
             Python::with_gil(|py| {
-                let py_delta = PyDelta::new(py, py_d, py_s, py_ms, false).unwrap();
+                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, false).unwrap();
                 let py_delta: Duration = py_delta.extract().unwrap();
-                let delta = Duration::seconds(s) + Duration::nanoseconds(ns);
-                assert_eq!(py_delta, delta);
+                assert_eq!(py_delta, delta, "{}: {} != {}", name, py_delta, delta);
             })
         };
 
-        check(-86399999913600, 0, -999999999, 0, 0); // min
-        check(86399999999999, 999999000, 999999999, 86399, 999999); // max
+        check(
+            "min value",
+            Duration::seconds(-86399999913600),
+            -999999999,
+            0,
+            0,
+        );
+        check(
+            "max value",
+            Duration::seconds(86399999999999) + Duration::microseconds(999999),
+            999999999,
+            86399,
+            999999,
+        );
     }
 
     #[test]
     fn test_pyo3_date_topyobject() {
-        let eq_ymd = |y, m, d| {
+        let eq_ymd = |name: &'static str, year, month, day| {
             Python::with_gil(|py| {
-                let date = NaiveDate::from_ymd(y, m, d).to_object(py);
+                let date = NaiveDate::from_ymd(year, month, day).to_object(py);
                 let date: &PyDate = date.extract(py).unwrap();
-                let py_date = PyDate::new(py, y, m as u8, d as u8).unwrap();
-                assert_eq!(date.compare(py_date).unwrap(), Ordering::Equal);
+                let py_date = PyDate::new(py, year, month as u8, day as u8).unwrap();
+                assert_eq!(
+                    date.compare(py_date).unwrap(),
+                    Ordering::Equal,
+                    "{}: {} != {}",
+                    name,
+                    date,
+                    py_date
+                );
             })
         };
 
-        eq_ymd(2012, 2, 29);
-        eq_ymd(1, 1, 1); // min
-        eq_ymd(3000, 6, 5); // future
-        eq_ymd(9999, 12, 31); // max
+        eq_ymd("past date", 2012, 2, 29);
+        eq_ymd("min date", 1, 1, 1);
+        eq_ymd("future date", 3000, 6, 5);
+        eq_ymd("max date", 9999, 12, 31);
     }
 
     #[test]
     fn test_pyo3_date_frompyobject() {
-        let eq_ymd = |y, m, d| {
+        let eq_ymd = |name: &'static str, year, month, day| {
             Python::with_gil(|py| {
-                let py_date = PyDate::new(py, y, m as u8, d as u8).unwrap();
+                let py_date = PyDate::new(py, year, month as u8, day as u8).unwrap();
                 let py_date: NaiveDate = py_date.extract().unwrap();
-                let date = NaiveDate::from_ymd(y, m, d);
-                assert_eq!(py_date, date);
+                let date = NaiveDate::from_ymd(year, month, day);
+                assert_eq!(py_date, date, "{}: {} != {}", name, date, py_date);
             })
         };
 
-        eq_ymd(2012, 2, 29);
-        eq_ymd(1, 1, 1); // min
-        eq_ymd(3000, 6, 5); // future
-        eq_ymd(9999, 12, 31); // max
+        eq_ymd("past date", 2012, 2, 29);
+        eq_ymd("min date", 1, 1, 1);
+        eq_ymd("future date", 3000, 6, 5);
+        eq_ymd("max date", 9999, 12, 31);
     }
 
     #[test]
     fn test_pyo3_datetime_topyobject() {
-        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
-            Python::with_gil(|py| {
-                let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
-                let datetime = DateTime::<Utc>::from_utc(datetime, Utc).to_object(py);
-                let datetime: &PyDateTime = datetime.extract(py).unwrap();
-                let py_tz = Utc.to_object(py);
-                let py_tz = py_tz.cast_as(py).unwrap();
-                let py_datetime = PyDateTime::new_with_fold(
-                    py,
-                    y,
-                    mo as u8,
-                    d as u8,
-                    h as u8,
-                    m as u8,
-                    s as u8,
-                    py_ms,
-                    Some(py_tz),
-                    f,
-                )
-                .unwrap();
-                assert_eq!(datetime.compare(py_datetime).unwrap(), Ordering::Equal);
-            })
-        };
+        let check_utc =
+            |name: &'static str, year, month, day, hour, minute, second, ms, py_ms, fold| {
+                Python::with_gil(|py| {
+                    let datetime = NaiveDate::from_ymd(year, month, day)
+                        .and_hms_micro(hour, minute, second, ms);
+                    let datetime = DateTime::<Utc>::from_utc(datetime, Utc).to_object(py);
+                    let datetime: &PyDateTime = datetime.extract(py).unwrap();
+                    let py_tz = Utc.to_object(py);
+                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_datetime = PyDateTime::new_with_fold(
+                        py,
+                        year,
+                        month as u8,
+                        day as u8,
+                        hour as u8,
+                        minute as u8,
+                        second as u8,
+                        py_ms,
+                        Some(py_tz),
+                        fold,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        datetime.compare(py_datetime).unwrap(),
+                        Ordering::Equal,
+                        "{}: {} != {}",
+                        name,
+                        datetime,
+                        py_datetime
+                    );
+                })
+            };
 
-        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check_utc("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check_utc("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
-        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
-            Python::with_gil(|py| {
-                let offset = FixedOffset::east(3600);
-                let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
-                let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset).to_object(py);
-                let datetime: &PyDateTime = datetime.extract(py).unwrap();
-                let py_tz = offset.to_object(py);
-                let py_tz = py_tz.cast_as(py).unwrap();
-                let py_datetime = PyDateTime::new_with_fold(
-                    py,
-                    y,
-                    mo as u8,
-                    d as u8,
-                    h as u8,
-                    m as u8,
-                    s as u8,
-                    py_ms,
-                    Some(py_tz),
-                    f,
-                )
-                .unwrap();
-                assert_eq!(datetime.compare(py_datetime).unwrap(), Ordering::Equal);
-            })
-        };
+        let check_fixed_offset =
+            |name: &'static str, year, month, day, hour, minute, ssecond, ms, py_ms, fold| {
+                Python::with_gil(|py| {
+                    let offset = FixedOffset::east(3600);
+                    let datetime = NaiveDate::from_ymd(year, month, day)
+                        .and_hms_micro(hour, minute, ssecond, ms);
+                    let datetime =
+                        DateTime::<FixedOffset>::from_utc(datetime, offset).to_object(py);
+                    let datetime: &PyDateTime = datetime.extract(py).unwrap();
+                    let py_tz = offset.to_object(py);
+                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_datetime = PyDateTime::new_with_fold(
+                        py,
+                        year,
+                        month as u8,
+                        day as u8,
+                        hour as u8,
+                        minute as u8,
+                        ssecond as u8,
+                        py_ms,
+                        Some(py_tz),
+                        fold,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        datetime.compare(py_datetime).unwrap(),
+                        Ordering::Equal,
+                        "{}: {} != {}",
+                        name,
+                        datetime,
+                        py_datetime
+                    );
+                })
+            };
 
-        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check_fixed_offset("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check_fixed_offset("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
     }
 
     #[test]
     fn test_pyo3_datetime_frompyobject() {
-        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
-            Python::with_gil(|py| {
-                let py_tz = Utc.to_object(py);
-                let py_tz = py_tz.cast_as(py).unwrap();
-                let py_datetime = PyDateTime::new_with_fold(
-                    py,
-                    y as i32,
-                    mo as u8,
-                    d as u8,
-                    h as u8,
-                    m as u8,
-                    s as u8,
-                    py_ms,
-                    Some(py_tz),
-                    f,
-                )
-                .unwrap();
-                let py_datetime: DateTime<Utc> = py_datetime.extract().unwrap();
-                let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
-                let datetime = DateTime::<Utc>::from_utc(datetime, Utc);
-                assert_eq!(py_datetime, datetime);
-            })
-        };
+        let check_utc =
+            |name: &'static str, year, month, day, hour, minute, second, ms, py_ms, fold| {
+                Python::with_gil(|py| {
+                    let py_tz = Utc.to_object(py);
+                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_datetime = PyDateTime::new_with_fold(
+                        py,
+                        year as i32,
+                        month as u8,
+                        day as u8,
+                        hour as u8,
+                        minute as u8,
+                        second as u8,
+                        py_ms,
+                        Some(py_tz),
+                        fold,
+                    )
+                    .unwrap();
+                    let py_datetime: DateTime<Utc> = py_datetime.extract().unwrap();
+                    let datetime = NaiveDate::from_ymd(year, month, day)
+                        .and_hms_micro(hour, minute, second, ms);
+                    let datetime = DateTime::<Utc>::from_utc(datetime, Utc);
+                    assert_eq!(
+                        py_datetime, datetime,
+                        "{}: {} != {}",
+                        name, datetime, py_datetime
+                    );
+                })
+            };
 
-        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check_utc("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check_utc("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
-        let check = |y, mo, d, h, m, s, ms, py_ms, f| {
-            Python::with_gil(|py| {
-                let offset = FixedOffset::east(3600);
-                let py_tz = offset.to_object(py);
-                let py_tz = py_tz.cast_as(py).unwrap();
-                let py_datetime = PyDateTime::new_with_fold(
-                    py,
-                    y as i32,
-                    mo as u8,
-                    d as u8,
-                    h as u8,
-                    m as u8,
-                    s as u8,
-                    py_ms,
-                    Some(py_tz),
-                    f,
-                )
-                .unwrap();
-                let py_datetime: DateTime<FixedOffset> = py_datetime.extract().unwrap();
-                let datetime = NaiveDate::from_ymd(y, mo, d).and_hms_micro(h, m, s, ms);
-                let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset);
-                assert_eq!(py_datetime, datetime);
-            })
-        };
+        let check_fixed_offset =
+            |name: &'static str, year, month, day, hour, minute, second, ms, py_ms, fold| {
+                Python::with_gil(|py| {
+                    let offset = FixedOffset::east(3600);
+                    let py_tz = offset.to_object(py);
+                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_datetime = PyDateTime::new_with_fold(
+                        py,
+                        year as i32,
+                        month as u8,
+                        day as u8,
+                        hour as u8,
+                        minute as u8,
+                        second as u8,
+                        py_ms,
+                        Some(py_tz),
+                        fold,
+                    )
+                    .unwrap();
+                    let py_datetime: DateTime<FixedOffset> = py_datetime.extract().unwrap();
+                    let datetime = NaiveDate::from_ymd(year, month, day)
+                        .and_hms_micro(hour, minute, second, ms);
+                    let datetime = DateTime::<FixedOffset>::from_utc(datetime, offset);
+                    assert_eq!(
+                        py_datetime, datetime,
+                        "{}: {} != {}",
+                        name, datetime, py_datetime
+                    );
+                })
+            };
 
-        check(2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
-        check(2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
+        check_fixed_offset("fold", 2014, 5, 6, 7, 8, 9, 1_999_999, 999_999, true);
+        check_fixed_offset("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
         Python::with_gil(|py| {
             // extract utc with fixedoffset should fail
@@ -552,33 +608,56 @@ mod test_chrono {
 
     #[test]
     fn test_pyo3_time_topyobject() {
-        let hmsm = |h, m, s, ms, py_ms, f| {
+        let check_time = |name: &'static str, hour, minute, second, ms, py_ms, fold| {
             Python::with_gil(|py| {
-                let time = NaiveTime::from_hms_micro(h, m, s, ms).to_object(py);
+                let time = NaiveTime::from_hms_micro(hour, minute, second, ms).to_object(py);
                 let time: &PyTime = time.extract(py).unwrap();
-                let py_time =
-                    PyTime::new_with_fold(py, h as u8, m as u8, s as u8, py_ms, None, f).unwrap();
-                assert_eq!(time.compare(py_time).unwrap(), Ordering::Equal);
+                let py_time = PyTime::new_with_fold(
+                    py,
+                    hour as u8,
+                    minute as u8,
+                    second as u8,
+                    py_ms,
+                    None,
+                    fold,
+                )
+                .unwrap();
+                assert_eq!(
+                    time.compare(py_time).unwrap(),
+                    Ordering::Equal,
+                    "{}: {} != {}",
+                    name,
+                    time,
+                    py_time
+                );
             })
         };
 
-        hmsm(3, 5, 7, 1_999_999, 999_999, true);
-        hmsm(3, 5, 7, 999_999, 999_999, false);
+        check_time("fold", 3, 5, 7, 1_999_999, 999_999, true);
+        check_time("non fold", 3, 5, 7, 999_999, 999_999, false);
     }
 
     #[test]
     fn test_pyo3_time_frompyobject() {
-        let hmsm = |h, m, s, ms, py_ms, f| {
+        let check_time = |name: &'static str, hour, minute, second, ms, py_ms, fold| {
             Python::with_gil(|py| {
-                let py_time =
-                    PyTime::new_with_fold(py, h as u8, m as u8, s as u8, py_ms, None, f).unwrap();
+                let py_time = PyTime::new_with_fold(
+                    py,
+                    hour as u8,
+                    minute as u8,
+                    second as u8,
+                    py_ms,
+                    None,
+                    fold,
+                )
+                .unwrap();
                 let py_time: NaiveTime = py_time.extract().unwrap();
-                let time = NaiveTime::from_hms_micro(h, m, s, ms);
-                assert_eq!(py_time, time);
+                let time = NaiveTime::from_hms_micro(hour, minute, second, ms);
+                assert_eq!(py_time, time, "{}: {} != {}", name, py_time, time);
             })
         };
 
-        hmsm(3, 5, 7, 1_999_999, 999_999, true);
-        hmsm(3, 5, 7, 999_999, 999_999, false);
+        check_time("fold", 3, 5, 7, 1_999_999, 999_999, true);
+        check_time("non fold", 3, 5, 7, 999_999, 999_999, false);
     }
 }
