@@ -17,8 +17,6 @@ pub enum Subcommand {
     Fmt,
     /// Runs `clippy`, denying all warnings.
     Clippy,
-    /// Runs `cargo llvm-cov` for the PyO3 codebase.
-    Coverage(CoverageOpts),
     /// Attempts to render the documentation.
     Doc(DocOpts),
     /// Runs various variations on `cargo test`
@@ -30,21 +28,6 @@ pub enum Subcommand {
 impl Default for Subcommand {
     fn default() -> Self {
         Self::Default
-    }
-}
-
-#[derive(StructOpt)]
-pub struct CoverageOpts {
-    /// Creates an lcov output file.
-    #[structopt(long, default_value = "lcov.info")]
-    pub output_lcov: String,
-}
-
-impl Default for CoverageOpts {
-    fn default() -> Self {
-        Self {
-            output_lcov: String::from("lcov.info"),
-        }
     }
 }
 
@@ -100,7 +83,6 @@ impl Subcommand {
                 } else {
                     Installed::warn_nox()
                 };
-                crate::llvm_cov::run(CoverageOpts::default())?;
                 installed.assert()?
             }
 
@@ -110,7 +92,6 @@ impl Subcommand {
                 crate::fmt::python::run()?;
             }
             Subcommand::Clippy => crate::clippy::run()?,
-            Subcommand::Coverage(opts) => crate::llvm_cov::run(opts)?,
             Subcommand::TestPy => crate::pytests::run(None)?,
             Subcommand::Test => crate::test::run()?,
         };

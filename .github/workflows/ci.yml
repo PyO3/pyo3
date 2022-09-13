@@ -344,7 +344,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - run: python -m pip install -U pip nox
-      - run: cargo xtask coverage --output-lcov coverage.lcov
+      - run: nox -s coverage
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov
