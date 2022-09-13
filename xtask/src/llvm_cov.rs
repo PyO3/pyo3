@@ -8,7 +8,7 @@ use std::{collections::HashMap, process::Command};
 pub fn run(opts: CoverageOpts) -> Result<()> {
     let env = get_coverage_env()?;
 
-    cli::run(llvm_cov_command(&["clean", "--workspace"]).envs(&env))?;
+    cli::run(llvm_cov_command(&["clean"]).envs(&env))?;
 
     cli::run(
         Command::new("cargo")
@@ -46,7 +46,7 @@ pub fn run(opts: CoverageOpts) -> Result<()> {
     crate::pytests::run(&env)?;
 
     cli::run(
-        llvm_cov_command(&["--no-run", "--lcov", "--output-path", &opts.output_lcov]).envs(&env),
+        llvm_cov_command(&["report", "--lcov", "--output-path", &opts.output_lcov]).envs(&env),
     )?;
 
     Ok(())
