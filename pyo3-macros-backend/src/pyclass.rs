@@ -526,13 +526,6 @@ fn impl_enum_class(
     };
 
     let (default_richcmp, default_richcmp_slot) = {
-        let variants_eq = variants.iter().map(|variant| {
-            let variant_name = variant.ident;
-            quote! {
-                (#cls::#variant_name, #cls::#variant_name) =>
-                    Ok(true.to_object(py)),
-            }
-        });
         let mut richcmp_impl: syn::ImplItemMethod = syn::parse_quote! {
             fn __pyo3__richcmp__(
                 &self,
@@ -544,16 +537,26 @@ fn impl_enum_class(
                 use ::core::result::Result::*;
                 match op {
                     _pyo3::basic::CompareOp::Eq => {
+                        let self_val = self.__pyo3__int__();
                         if let Ok(i) = other.extract::<#repr_type>() {
-                            let self_val = self.__pyo3__int__();
                             return Ok((self_val == i).to_object(py));
                         }
-                        let other = other.extract::<_pyo3::PyRef<Self>>()?;
-                        let other = &*other;
-                        match (self, other) {
-                            #(#variants_eq)*
-                            _ => Ok(false.to_object(py)),
+                        if let Ok(other) = other.extract::<_pyo3::PyRef<Self>>() {
+                            return Ok((self_val == other.__pyo3__int__()).to_object(py));
                         }
+
+                        return Ok(py.NotImplemented());
+                    }
+                    _pyo3::basic::CompareOp::Ne => {
+                        let self_val = self.__pyo3__int__();
+                        if let Ok(i) = other.extract::<#repr_type>() {
+                            return Ok((self_val != i).to_object(py));
+                        }
+                        if let Ok(other) = other.extract::<_pyo3::PyRef<Self>>() {
+                            return Ok((self_val != other.__pyo3__int__()).to_object(py));
+                        }
+
+                        return Ok(py.NotImplemented());
                     }
                     _ => Ok(py.NotImplemented()),
                 }
