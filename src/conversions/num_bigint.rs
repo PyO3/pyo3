@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-#![cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API, PyPy))))]
+#![cfg(all(feature = "num-bigint", not(any(Py_LIMITED_API))))]
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
 //! This is useful for converting Python integers when they may not fit in Rust's built-in integer types.
@@ -64,7 +64,7 @@ use crate::{
 use num_bigint::{BigInt, BigUint};
 use std::os::raw::{c_int, c_uchar};
 
-#[cfg(not(all(windows, PyPy)))]
+#[cfg(not(all(windows)))]
 unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
     err::error_on_minusone(
         ob.py(),
