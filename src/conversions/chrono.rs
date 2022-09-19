@@ -1,7 +1,9 @@
-#![cfg(feature = "chrono")]
+#![cfg(all(feature = "chrono", not(Py_LIMITED_API))]
 
 //! Conversions to and from [chrono](https://docs.rs/chrono/)’s `Duration`,
 //! `NaiveDate`, `NaiveTime`, `DateTime<Tz>`, `FixedOffset`, and `Utc`.
+//!
+//! Unavailable with the `abi3` feature.
 //!
 //! # Setup
 //!

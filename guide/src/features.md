@@ -96,12 +96,12 @@ Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from
 ### `chrono`
 
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
-- [Duration](https://docs.rs/chrono/0.4.22/chrono/struct.Duration.html) -> [`PyDelta`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDelta.html)
-- [FixedOffset](https://docs.rs/chrono/0.4.22/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDelta.html)
-- [Utc](https://docs.rs/chrono/0.4.22/chrono/offset/struct.Utc.html) -> [`PyTzInfo`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyTzInfo.html)
-- [NaiveDate](https://docs.rs/chrono/0.4.22/chrono/naive/struct.NaiveDate.html) -> [`PyDate`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDate.html)
-- [NaiveTime](https://docs.rs/chrono/0.4.22/chrono/naive/struct.NaiveTime.html) -> [`PyTime`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyTime.html)
-- [DateTime](https://docs.rs/chrono/0.4.22/chrono/struct.DateTime.html) -> [`PyDateTime`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDateTime.html)
+- [Duration](https://docs.rs/chrono/0.4.22/chrono/struct.Duration.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [FixedOffset](https://docs.rs/chrono/0.4.22/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDelta.html)
+- [Utc](https://docs.rs/chrono/0.4.22/chrono/offset/struct.Utc.html) -> [`PyTzInfo`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTzInfo.html)
+- [NaiveDate](https://docs.rs/chrono/0.4.22/chrono/naive/struct.NaiveDate.html) -> [`PyDate`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDate.html)
+- [NaiveTime](https://docs.rs/chrono/0.4.22/chrono/naive/struct.NaiveTime.html) -> [`PyTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyTime.html)
+- [DateTime](https://docs.rs/chrono/0.4.22/chrono/struct.DateTime.html) -> [`PyDateTime`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyDateTime.html)
 
 ### `eyre`
 
