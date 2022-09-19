@@ -94,6 +94,7 @@ These features enable conversions between Python types and types from other Rust
 Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `chrono`
+
 Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from [chrono](https://docs.rs/chrono)'s types to python:
 - [Duration](https://docs.rs/chrono/0.4.22/chrono/struct.Duration.html) -> [`PyDelta`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDelta.html)
 - [FixedOffset](https://docs.rs/chrono/0.4.22/chrono/offset/struct.FixedOffset.html) -> [`PyDelta`](https://docs.rs/pyo3/0.17.1/pyo3/types/struct.PyDelta.html)
