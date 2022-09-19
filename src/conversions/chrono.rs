@@ -12,6 +12,28 @@
 //! # change * to the latest versions
 //! pyo3 = { version = "*", features = ["chrono"] }
 //! chrono = "0.4"
+//! ```
+//!
+//! # Example: Convert a PyDateTime to chrono's DateTime<Utc>
+//!
+//! ```rust
+//! use chrono::{Utc, DateTime};
+//! use pyo3::{Python, ToPyObject, types::PyDateTime};
+//!
+//! fn main() {
+//!     pyo3::prepare_freethreaded_python();
+//!     Python::with_gil(|py| {
+//!         // Create an UTC datetime in python
+//!         let py_tz = Utc.to_object(py);
+//!         let py_tz = py_tz.cast_as(py).unwrap();
+//!         let pydatetime = PyDateTime::new(py, 2022, 1, 1, 12, 0, 0, 0, Some(py_tz)).unwrap();
+//!         println!("PyDateTime:\t{pydatetime}");
+//!         // Now convert it to chrono's DateTime<Utc>
+//!         let chrono_datetime: DateTime<Utc> = pydatetime.extract().unwrap();
+//!         println!("DateTime<Utc>:\t{chrono_datetime}");
+//!     });
+//! }
+//! ```
 // workaround for `extended_key_value_attributes`: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
 #![cfg_attr(docsrs, cfg_attr(docsrs, doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"chrono\"] }")))]
 #![cfg_attr(
