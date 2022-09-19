@@ -1,4 +1,4 @@
-#![cfg(all(feature = "chrono", not(Py_LIMITED_API))]
+#![cfg(all(feature = "chrono", not(Py_LIMITED_API)))]
 
 //! Conversions to and from [chrono](https://docs.rs/chrono/)’s `Duration`,
 //! `NaiveDate`, `NaiveTime`, `DateTime<Tz>`, `FixedOffset`, and `Utc`.
