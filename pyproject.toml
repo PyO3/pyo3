@@ -41,3 +41,10 @@ name = "Removed"
 
 [tool.towncrier.fragment.fixed]
 name = "Fixed"
+
+[tool.pyo3-bot]
+
+[tool.pyo3-bot.towncrier_changelog]
+enabled = true
+verify_pr_number = true
+changelog_skip_label = "skip-changelog"

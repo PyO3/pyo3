@@ -1,0 +1,15 @@
+name: Check Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+
+jobs:
+  check:
+    name: Check towncrier changelog entry
+    runs-on: ubuntu-latest
+    steps:
+    - uses: pllim/actions-towncrier-changelog@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BOT_USERNAME: pyo3-bot
