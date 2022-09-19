@@ -64,7 +64,6 @@ use crate::{
 use num_bigint::{BigInt, BigUint};
 use std::os::raw::{c_int, c_uchar};
 
-#[cfg(not(all(windows)))]
 unsafe fn extract(ob: &PyLong, buffer: &mut [c_uchar], is_signed: c_int) -> PyResult<()> {
     err::error_on_minusone(
         ob.py(),
