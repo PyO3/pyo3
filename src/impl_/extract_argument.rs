@@ -91,13 +91,14 @@ where
     }
 }
 
-/// Alternative to [`extract_argument`] used for `Option<T>` arguments (because they are implicitly treated
-/// as optional if at the end of the positional parameters).
+/// Alternative to [`extract_argument`] used for `Option<T>` arguments. This is necessary because Option<&T>
+/// does not implement `PyFunctionArgument` for `T: PyClass`.
 #[doc(hidden)]
 pub fn extract_optional_argument<'a, 'py, T>(
     obj: Option<&'py PyAny>,
     holder: &'a mut T::Holder,
     arg_name: &str,
+    default: fn() -> Option<T>,
 ) -> PyResult<Option<T>>
 where
     T: PyFunctionArgument<'a, 'py>,
@@ -105,12 +106,13 @@ where
     match obj {
         Some(obj) => {
             if obj.is_none() {
+                // Explicit `None` will result in None being used as the function argument
                 Ok(None)
             } else {
                 extract_argument(obj, holder, arg_name).map(Some)
             }
         }
-        None => Ok(None),
+        _ => Ok(default()),
     }
 }
 
@@ -132,16 +134,12 @@ where
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation.
-///
-/// # Safety
-/// - `obj` must not be None (this helper is only used for required function arguments).
 #[doc(hidden)]
 pub fn from_py_with<'py, T>(
     obj: &'py PyAny,
     arg_name: &str,
     extractor: fn(&'py PyAny) -> PyResult<T>,
 ) -> PyResult<T> {
-    // Safety: obj is not None (see safety
     match extractor(obj) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),

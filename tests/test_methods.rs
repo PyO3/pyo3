@@ -1029,3 +1029,28 @@ pymethods!(
         fn issue_1696(&self, _x: &InstanceMethod) {}
     }
 );
+
+#[test]
+fn test_option_pyclass_arg() {
+    // Option<&PyClass> argument with a default set in a signature regressed to a compile
+    // error in PyO3 0.17.0 - this test it continues to be accepted.
+
+    #[pyclass]
+    struct SomePyClass {}
+
+    #[pyfunction(arg = "None")]
+    fn option_class_arg(arg: Option<&SomePyClass>) -> Option<SomePyClass> {
+        arg.map(|_| SomePyClass {})
+    }
+
+    Python::with_gil(|py| {
+        let f = wrap_pyfunction!(option_class_arg, py).unwrap();
+        assert!(f.call0().unwrap().is_none());
+        let obj = Py::new(py, SomePyClass {}).unwrap();
+        assert!(f
+            .call1((obj,))
+            .unwrap()
+            .extract::<Py<SomePyClass>>()
+            .is_ok());
+    })
+}
