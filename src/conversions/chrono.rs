@@ -38,10 +38,10 @@
 //!         let py_tz = Utc.to_object(py);
 //!         let py_tz = py_tz.cast_as(py).unwrap();
 //!         let pydatetime = PyDateTime::new(py, 2022, 1, 1, 12, 0, 0, 0, Some(py_tz)).unwrap();
-//!         println!("PyDateTime:\t{pydatetime}");
+//!         println!("PyDateTime: {}", pydatetime);
 //!         // Now convert it to chrono's DateTime<Utc>
 //!         let chrono_datetime: DateTime<Utc> = pydatetime.extract().unwrap();
-//!         println!("DateTime<Utc>:\t{chrono_datetime}");
+//!         println!("DateTime<Utc>: {}", chrono_datetime);
 //!     });
 //! }
 //! ```
