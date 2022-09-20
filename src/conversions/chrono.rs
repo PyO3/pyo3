@@ -388,7 +388,7 @@ mod test_chrono {
                 let pydelta = PyDelta::new(py, low_days, 0, 0, true).unwrap();
                 // So we should never get here
                 if let Ok(_duration) = pydelta.extract::<Duration>() {
-                    return ();
+                    ()
                 }
             })
             .is_err());
@@ -401,7 +401,7 @@ mod test_chrono {
                 let pydelta = PyDelta::new(py, high_days, 0, 0, true).unwrap();
                 // So we should never get here
                 if let Ok(_duration) = pydelta.extract::<Duration>() {
-                    return ();
+                    ()
                 }
             })
             .is_err());
