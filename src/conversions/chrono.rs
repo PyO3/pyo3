@@ -50,11 +50,14 @@ use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess,
 };
-use crate::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject};
+use crate::{
+    AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+};
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
 };
+use pyo3_ffi::{PyDateTime_IMPORT, PyTimeZone_FromOffset};
 use std::convert::TryInto;
 
 impl ToPyObject for Duration {
@@ -234,19 +237,22 @@ impl FromPyObject<'_> for DateTime<Utc> {
     }
 }
 
+// Utiliy function used to convert PyDelta to timezone
+fn pytimezone_fromoffset<'a>(py: &Python<'a>, td: &PyDelta) -> &'a PyAny {
+    // Safety: py.from_borrowed_ptr needs the cast to be valid.
+    // Since we are forcing a &PyDelta as input, the cast should always be valid.
+    unsafe {
+        PyDateTime_IMPORT();
+        py.from_borrowed_ptr(PyTimeZone_FromOffset(td.as_ptr()))
+    }
+}
+
 impl ToPyObject for FixedOffset {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dt_module = py.import("datetime").expect("Failed to import datetime");
-        let dt_timezone = dt_module
-            .getattr("timezone")
-            .expect("Failed to getattr timezone");
         let seconds_offset = self.local_minus_utc();
         let td =
             PyDelta::new(py, 0, seconds_offset, 0, true).expect("Failed to contruct timedelta");
-        let offset = dt_timezone
-            .call1((td,))
-            .expect("Failed to call timezone with timedelta");
-        offset.into()
+        pytimezone_fromoffset(&py, &td).into()
     }
 }
 
@@ -295,6 +301,7 @@ impl FromPyObject<'_> for Utc {
 
 #[cfg(test)]
 mod test_chrono {
+    use crate::chrono::pytimezone_fromoffset;
     use crate::types::*;
     use crate::{Python, ToPyObject};
     use chrono::offset::{FixedOffset, Utc};
@@ -575,15 +582,18 @@ mod test_chrono {
     #[test]
     fn test_pyo3_offset_fixed_topyobject() {
         Python::with_gil(|py| {
-            let py_module = py.import("datetime").unwrap();
-            let py_timezone = py_module.getattr("timezone").unwrap();
+            // Chrono offset
             let offset = FixedOffset::east(3600).to_object(py);
-            let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_timedelta = py_timezone.call1((py_timedelta,)).unwrap();
+            // Python timezone from timedelta
+            let td = PyDelta::new(py, 0, 3600, 0, true).unwrap();
+            let py_timedelta = pytimezone_fromoffset(&py, td);
+            // Should be equal
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
+
+            // Same but with negative values
             let offset = FixedOffset::east(-3600).to_object(py);
-            let py_timedelta = PyDelta::new(py, 0, -3600, 0, true).unwrap();
-            let py_timedelta = py_timezone.call1((py_timedelta,)).unwrap();
+            let td = PyDelta::new(py, 0, -3600, 0, true).unwrap();
+            let py_timedelta = pytimezone_fromoffset(&py, td);
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
         })
     }
@@ -591,10 +601,8 @@ mod test_chrono {
     #[test]
     fn test_pyo3_offset_fixed_frompyobject() {
         Python::with_gil(|py| {
-            let py_module = py.import("datetime").unwrap();
-            let py_timezone = py_module.getattr("timezone").unwrap();
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_tzinfo = py_timezone.call1((py_timedelta,)).unwrap();
+            let py_tzinfo = pytimezone_fromoffset(&py, &py_timedelta);
             let offset: FixedOffset = py_tzinfo.extract().unwrap();
             assert_eq!(FixedOffset::east(3600), offset);
         })
@@ -604,9 +612,7 @@ mod test_chrono {
     fn test_pyo3_offset_utc_topyobject() {
         Python::with_gil(|py| {
             let utc = Utc.to_object(py);
-            let py_module = py.import("datetime").unwrap();
-            let py_timezone = py_module.getattr("timezone").unwrap();
-            let py_utc = py_timezone.getattr("utc").unwrap();
+            let py_utc = timezone_utc(py);
             assert!(utc.as_ref(py).is(py_utc));
         })
     }
@@ -614,17 +620,17 @@ mod test_chrono {
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
         Python::with_gil(|py| {
-            let py_module = py.import("datetime").unwrap();
-            let py_timezone = py_module.getattr("timezone").unwrap();
-            let py_utc = py_timezone.getattr("utc").unwrap();
+            let py_utc = timezone_utc(py);
             let py_utc: Utc = py_utc.extract().unwrap();
             assert_eq!(Utc, py_utc);
+
             let py_timedelta = PyDelta::new(py, 0, 0, 0, false).unwrap();
-            let py_timezone_utc = py_timezone.call1((py_timedelta,)).unwrap();
+            let py_timezone_utc = pytimezone_fromoffset(&py, &py_timedelta);
             let py_timezone_utc: Utc = py_timezone_utc.extract().unwrap();
             assert_eq!(Utc, py_timezone_utc);
+
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, false).unwrap();
-            let py_timezone = py_timezone.call1((py_timedelta,)).unwrap();
+            let py_timezone = pytimezone_fromoffset(&py, &py_timedelta);
             assert!(py_timezone.extract::<Utc>().is_err());
         })
     }
