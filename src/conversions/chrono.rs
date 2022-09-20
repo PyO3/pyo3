@@ -307,11 +307,10 @@ mod test_chrono {
     use chrono::offset::{FixedOffset, Utc};
     use chrono::{DateTime, Duration, NaiveDate, NaiveTime};
     use std::cmp::Ordering;
+    use std::panic;
 
     #[test]
     fn test_pyo3_timedelta_topyobject() {
-        use std::panic;
-
         // Utility function used to check different durations.
         // The `name` parameter is used to identify the check in case of a failure.
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
@@ -332,9 +331,12 @@ mod test_chrono {
         let delta = Duration::days(-1) + Duration::seconds(1) + Duration::microseconds(-10);
         check("delta normalization", delta, -1, 1, -10);
 
+        // Check the minimum value allowed by PyDelta, which is different
+        // from the minimum value allowed in Duration. This should pass.
         let delta = Duration::seconds(-86399999913600); // min
         check("delta min value", delta, -999999999, 0, 0);
 
+        // Same, for max value
         let delta = Duration::seconds(86399999999999) + Duration::nanoseconds(999999000); // max
         check("delta max value", delta, 999999999, 86399, 999999);
 
@@ -357,20 +359,53 @@ mod test_chrono {
             })
         };
 
+        // Check the minimum value allowed by PyDelta, which is different
+        // from the minimum value allowed in Duration. This should pass.
         check(
-            "min value",
+            "min pydelta value",
             Duration::seconds(-86399999913600),
             -999999999,
             0,
             0,
         );
+        // Same, for max value
         check(
-            "max value",
+            "max pydelta value",
             Duration::seconds(86399999999999) + Duration::microseconds(999999),
             999999999,
             86399,
             999999,
         );
+
+        // This check is to assert that we can't construct every possible Duration from a PyDelta
+        // since they have different bounds.
+        Python::with_gil(|py| {
+            let low_days: i32 = -1000000000;
+            // This is possible
+            assert!(panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
+            // This panics on PyDelta::new
+            assert!(panic::catch_unwind(|| {
+                let pydelta = PyDelta::new(py, low_days, 0, 0, true).unwrap();
+                // So we should never get here
+                if let Ok(_duration) = pydelta.extract::<Duration>() {
+                    return ();
+                }
+            })
+            .is_err());
+
+            let high_days: i32 = 1000000000;
+            // This is possible
+            assert!(panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
+            // This panics on PyDelta::new
+            assert!(panic::catch_unwind(|| {
+                let pydelta = PyDelta::new(py, high_days, 0, 0, true).unwrap();
+                // So we should never get here
+                if let Ok(_duration) = pydelta.extract::<Duration>() {
+                    return ();
+                }
+            })
+            .is_err());
+        });
     }
 
     #[test]
