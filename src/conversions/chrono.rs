@@ -250,8 +250,11 @@ fn pytimezone_fromoffset<'a>(py: &Python<'a>, td: &PyDelta) -> &'a PyAny {
 impl ToPyObject for FixedOffset {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let seconds_offset = self.local_minus_utc();
+        // XXX: Here we don't normalize, otherwise the meaning
+        // of the offset changes. Normalizing a negative PyDelta and converting
+        // back to rust would transform a `-00:00:01` offset into `23:59:59`.
         let td =
-            PyDelta::new(py, 0, seconds_offset, 0, true).expect("Failed to contruct timedelta");
+            PyDelta::new(py, 0, seconds_offset, 0, false).expect("Failed to contruct timedelta");
         pytimezone_fromoffset(&py, td).into()
     }
 }
@@ -295,6 +298,126 @@ impl FromPyObject<'_> for Utc {
             Ok(Utc)
         } else {
             Err(PyTypeError::new_err("Not datetime.timezone.utc"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    use proptest::prelude::*;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    proptest! {
+        #[test]
+        fn test_duration_roundtrip(days in -999999999i64..=999999999i64) {
+            // Test roundtrip convertion rust->python->rust for all allowed
+            // python values of durations (from -999999999 to 999999999 days),
+            Python::with_gil(|py| {
+                let dur = Duration::days(days);
+                let pydelta = dur.into_py(py);
+                let roundtripped: Duration = pydelta.extract(py).expect("Round trip");
+                assert_eq!(dur, roundtripped);
+            })
+        }
+
+        #[test]
+        fn test_fixedoffset_roundtrip(secs in -86_400i32..=86_400i32) {
+            Python::with_gil(|py| {
+                let offset = FixedOffset::east(secs);
+                let pyoffset = offset.into_py(py);
+                let roundtripped: FixedOffset = pyoffset.extract(py).expect("Round trip");
+                assert_eq!(offset, roundtripped);
+            })
+        }
+
+        #[test]
+        fn test_naivedate_roundtrip(
+            year in 1i32..=9999i32,
+            month in 1u32..=12u32,
+            day in 1u32..=31u32
+        ) {
+            // Test roundtrip convertion rust->python->rust for all allowed
+            // python dates (from year 1 to year 9999)
+            Python::with_gil(|py| {
+                // We use to `from_ymd_opt` constructor so that we only test valid `NaiveDate`s.
+                // This is to skip the test if we are creating an invalid date, like February 31.
+                if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
+                    let pydate = date.into_py(py);
+                    let roundtripped: NaiveDate = pydate.extract(py).expect("Round trip");
+                    assert_eq!(date, roundtripped);
+                }
+            })
+        }
+
+        #[test]
+        fn test_naivetime_roundtrip(
+            hour in 0u32..=24u32,
+            min in 0u32..=60u32,
+            sec in 0u32..=60u32,
+            micro in 0u32..=2_000_000u32
+        ) {
+            // Test roundtrip convertion rust->python->rust for naive times.
+            // Python time has a resolution of microseconds, so we only test
+            // NaiveTimes with microseconds resolution, even if NaiveTime has nanosecond
+            // resolution.
+            Python::with_gil(|py| {
+                // We use to `from_hms_micro_opt` constructor so that we only test valid `NaiveTime`s.
+                // This is to skip the test if we are creating an invalid time
+                if let Some(time) = NaiveTime::from_hms_micro_opt(hour, min, sec, micro) {
+                    let pytime = time.into_py(py);
+                    let roundtripped: NaiveTime = pytime.extract(py).expect("Round trip");
+                    assert_eq!(time, roundtripped);
+                }
+            })
+        }
+
+        #[test]
+        fn test_utc_datetime_roundtrip(
+            year in 1i32..=9999i32,
+            month in 1u32..=12u32,
+            day in 1u32..=31u32,
+            hour in 0u32..=24u32,
+            min in 0u32..=60u32,
+            sec in 0u32..=60u32,
+            micro in 0u32..=2_000_000u32
+        ) {
+            Python::with_gil(|py| {
+                let date_opt = NaiveDate::from_ymd_opt(year, month, day);
+                let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
+                if let (Some(date), Some(time)) = (date_opt, time_opt) {
+                    let dt: DateTime<Utc> = DateTime::from_utc(NaiveDateTime::new(date, time), Utc);
+                    let pydt = dt.into_py(py);
+                    let roundtripped: DateTime<Utc> = pydt.extract(py).expect("Round trip");
+                    assert_eq!(dt, roundtripped);
+                }
+            })
+        }
+
+        #[test]
+        fn test_fixedoffset_datetime_roundtrip(
+            year in 1i32..=9999i32,
+            month in 1u32..=12u32,
+            day in 1u32..=31u32,
+            hour in 0u32..=24u32,
+            min in 0u32..=60u32,
+            sec in 0u32..=60u32,
+            micro in 0u32..=2_000_000u32,
+            offset_secs in -86_400i32..=86_400i32
+        ) {
+            Python::with_gil(|py| {
+                let date_opt = NaiveDate::from_ymd_opt(year, month, day);
+                let time_opt = NaiveTime::from_hms_micro_opt(hour, min, sec, micro);
+                let offset = FixedOffset::east(offset_secs);
+                if let (Some(date), Some(time)) = (date_opt, time_opt) {
+                    let dt: DateTime<FixedOffset> = DateTime::from_utc(NaiveDateTime::new(date, time), offset);
+                    let pydt = dt.into_py(py);
+                    let roundtripped: DateTime<FixedOffset> = pydt.extract(py).expect("Round trip");
+                    assert_eq!(dt, roundtripped);
+                }
+            })
         }
     }
 }
@@ -625,7 +748,7 @@ mod test_chrono {
 
             // Same but with negative values
             let offset = FixedOffset::east(-3600).to_object(py);
-            let td = PyDelta::new(py, 0, -3600, 0, true).unwrap();
+            let td = PyDelta::new(py, 0, -3600, 0, false).unwrap();
             let py_timedelta = pytimezone_fromoffset(&py, td);
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
         })
