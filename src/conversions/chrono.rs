@@ -386,9 +386,8 @@ mod test_chrono {
             // This panics on PyDelta::new
             assert!(panic::catch_unwind(|| {
                 let pydelta = PyDelta::new(py, low_days, 0, 0, true).unwrap();
-                // So we should never get here
                 if let Ok(_duration) = pydelta.extract::<Duration>() {
-                    ()
+                    // So we should never get here
                 }
             })
             .is_err());
@@ -399,9 +398,8 @@ mod test_chrono {
             // This panics on PyDelta::new
             assert!(panic::catch_unwind(|| {
                 let pydelta = PyDelta::new(py, high_days, 0, 0, true).unwrap();
-                // So we should never get here
                 if let Ok(_duration) = pydelta.extract::<Duration>() {
-                    ()
+                    // So we should never get here
                 }
             })
             .is_err());
