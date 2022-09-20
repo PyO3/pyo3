@@ -252,7 +252,7 @@ impl ToPyObject for FixedOffset {
         let seconds_offset = self.local_minus_utc();
         let td =
             PyDelta::new(py, 0, seconds_offset, 0, true).expect("Failed to contruct timedelta");
-        pytimezone_fromoffset(&py, &td).into()
+        pytimezone_fromoffset(&py, td).into()
     }
 }
 
@@ -602,7 +602,7 @@ mod test_chrono {
     fn test_pyo3_offset_fixed_frompyobject() {
         Python::with_gil(|py| {
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
-            let py_tzinfo = pytimezone_fromoffset(&py, &py_timedelta);
+            let py_tzinfo = pytimezone_fromoffset(&py, py_timedelta);
             let offset: FixedOffset = py_tzinfo.extract().unwrap();
             assert_eq!(FixedOffset::east(3600), offset);
         })
@@ -625,12 +625,12 @@ mod test_chrono {
             assert_eq!(Utc, py_utc);
 
             let py_timedelta = PyDelta::new(py, 0, 0, 0, false).unwrap();
-            let py_timezone_utc = pytimezone_fromoffset(&py, &py_timedelta);
+            let py_timezone_utc = pytimezone_fromoffset(&py, py_timedelta);
             let py_timezone_utc: Utc = py_timezone_utc.extract().unwrap();
             assert_eq!(Utc, py_timezone_utc);
 
             let py_timedelta = PyDelta::new(py, 0, 3600, 0, false).unwrap();
-            let py_timezone = pytimezone_fromoffset(&py, &py_timedelta);
+            let py_timezone = pytimezone_fromoffset(&py, py_timedelta);
             assert!(py_timezone.extract::<Utc>().is_err());
         })
     }
