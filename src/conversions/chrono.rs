@@ -198,6 +198,14 @@ impl IntoPy<PyObject> for NaiveDateTime {
 impl FromPyObject<'_> for NaiveDateTime {
     fn extract(ob: &PyAny) -> PyResult<NaiveDateTime> {
         let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
+        // If the user tries to convert a timezone aware datetime into a naive one,
+        // we return a hard error. We could silently remove tzinfo, or assume local timezone
+        // and do a conversion, but better leave this decision to the user of the library.
+        if dt.get_tzinfo().is_some() {
+            return Err(PyErr::new::<crate::exceptions::PyTypeError, _>(format!(
+                "Trying to convert a timezone aware datetime into a NaiveDateTime."
+            )));
+        }
         let h = dt.get_hour().into();
         let m = dt.get_minute().into();
         let s = dt.get_second().into();
@@ -367,26 +375,43 @@ mod tests {
     use super::*;
 
     #[test]
+    // Only Python>=3.9 has the zoneinfo package
+    #[cfg(Py_3_9)]
     fn test_zoneinfo_is_not_fixedoffset() {
-        // This test should only run for python >= 3.9, but we can't
-        // force python's version with the `abi3-py39` feature since
-        // this module won't be compiled with the `abi3` feature enabled.
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);
-            // If this doesn't work, we assume we are using python<3.9
-            // and do not test anything.
-            if let Ok(_) = py.run(
+            py.run(
                 "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
                 None,
                 Some(locals),
-            ) {
-                let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().extract();
-                assert!(result.is_err());
-                let res = result.err().unwrap();
-                // Also check the error message is what we expect
-                let msg = res.value(py).repr().unwrap().to_string();
-                assert_eq!(msg, "TypeError('\"zoneinfo.ZoneInfo(key=\\'Europe/London\\')\" is not a fixed offset timezone')");
-            }
+            )
+            .unwrap();
+            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().extract();
+            assert!(result.is_err());
+            let res = result.err().unwrap();
+            // Also check the error message is what we expect
+            let msg = res.value(py).repr().unwrap().to_string();
+            assert_eq!(msg, "TypeError('\"zoneinfo.ZoneInfo(key=\\'Europe/London\\')\" is not a fixed offset timezone')");
+        });
+    }
+
+    #[test]
+    fn test_timezone_aware_to_naive_fails() {
+        // Test that if a user tries to convert a python's timezone aware datetime into a naive
+        // one, the conversion fails.
+        Python::with_gil(|py| {
+            let utc = timezone_utc(py);
+            let py_datetime = PyDateTime::new(py, 2022, 1, 1, 1, 0, 0, 0, Some(utc)).unwrap();
+            // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
+            let res: PyResult<NaiveDateTime> = py_datetime.extract();
+            assert!(res.is_err());
+            let res = res.err().unwrap();
+            // Also check the error message is what we expect
+            let msg = res.value(py).repr().unwrap().to_string();
+            assert_eq!(
+                msg,
+                "TypeError('Trying to convert a timezone aware datetime into a NaiveDateTime.')"
+            );
         });
     }
 
@@ -675,8 +700,6 @@ mod tests {
         check_fixed_offset("non fold", 2014, 5, 6, 7, 8, 9, 999_999, 999_999, false);
 
         Python::with_gil(|py| {
-            // extract utc with fixedoffset should fail
-            // but fixedoffset from utc seemed to work, maybe because it is also considered fixedoffset?
             let py_tz = Utc.to_object(py);
             let py_tz = py_tz.cast_as(py).unwrap();
             let py_datetime =
