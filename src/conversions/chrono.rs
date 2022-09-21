@@ -202,9 +202,9 @@ impl FromPyObject<'_> for NaiveDateTime {
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
         if dt.get_tzinfo().is_some() {
-            return Err(PyErr::new::<crate::exceptions::PyTypeError, _>(format!(
-                "Trying to convert a timezone aware datetime into a NaiveDateTime."
-            )));
+            return Err(PyErr::new::<crate::exceptions::PyTypeError, _>(
+                "Trying to convert a timezone aware datetime into a NaiveDateTime.",
+            ));
         }
         let h = dt.get_hour().into();
         let m = dt.get_minute().into();
