@@ -1,11 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::exceptions::PyTypeError;
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::once_cell::GILOnceCell;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyAny, PyList, PyString, PyTuple, PyType};
+use crate::types::{PyAny, PyList, PyTuple, PyType};
 use crate::{ffi, PyNativeType, ToPyObject};
 use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, Python};
 use crate::{FromPyObject, PyTryFrom};
@@ -284,9 +283,6 @@ where
     T: FromPyObject<'a>,
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        if let Ok(true) = obj.is_instance_of::<PyString>() {
-            return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
-        }
         extract_sequence(obj)
     }
 
@@ -405,14 +401,23 @@ mod tests {
     }
 
     #[test]
-    fn test_strings_cannot_be_extracted_to_vec() {
+    fn test_strings_can_be_extracted_to_vec() {
         Python::with_gil(|py| {
             let v = "London Calling";
             let ob = v.to_object(py);
 
-            assert!(ob.extract::<Vec<&str>>(py).is_err());
-            assert!(ob.extract::<Vec<String>>(py).is_err());
-            assert!(ob.extract::<Vec<char>>(py).is_err());
+            assert_eq!(
+                ob.extract::<Vec<&str>>(py).unwrap(),
+                ["L", "o", "n", "d", "o", "n", " ", "C", "a", "l", "l", "i", "n", "g"]
+            );
+            assert_eq!(
+                ob.extract::<Vec<String>>(py).unwrap(),
+                ["L", "o", "n", "d", "o", "n", " ", "C", "a", "l", "l", "i", "n", "g"]
+            );
+            assert_eq!(
+                ob.extract::<Vec<char>>(py).unwrap(),
+                ['L', 'o', 'n', 'd', 'o', 'n', ' ', 'C', 'a', 'l', 'l', 'i', 'n', 'g']
+            );
         });
     }
 
