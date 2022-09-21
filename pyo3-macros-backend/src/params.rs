@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::{
-    attributes::FromPyWithAttribute,
     method::{FnArg, FnSpec},
     pyfunction::Argument,
 };
@@ -222,7 +221,8 @@ fn impl_arg_param(
             _pyo3::impl_::extract_argument::extract_optional_argument(
                 _kwargs.map(::std::convert::AsRef::as_ref),
                 &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                #name_str
+                #name_str,
+                || None
             )?
         });
     }
@@ -230,76 +230,58 @@ fn impl_arg_param(
     let arg_value = quote_arg_span!(#args_array[#option_pos]);
     *option_pos += 1;
 
-    let tokens = if let Some(FromPyWithAttribute {
-        value: expr_path, ..
-    }) = &arg.attrs.from_py_with
-    {
-        match (spec.default_value(name), arg.optional.is_some()) {
-            (Some(default), true) if default.to_string() != "None" => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || Some(#default))?
-                }
+    let mut default = spec.default_value(name);
+
+    // Option<T> arguments have special treatment: the default should be specified _without_ the
+    // Some() wrapper. Maybe this should be changed in future?!
+    if arg.optional.is_some() {
+        default = Some(match &default {
+            Some(expression) if expression.to_string() != "None" => {
+                quote!(::std::option::Option::Some(#expression))
             }
-            (Some(default), _) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)?
-                }
+            _ => quote!(::std::option::Option::None),
+        })
+    }
+
+    let tokens = if let Some(expr_path) = arg.attrs.from_py_with.as_ref().map(|attr| &attr.value) {
+        if let Some(default) = default {
+            quote_arg_span! {
+                _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || #default)?
             }
-            (None, true) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::from_py_with_with_default(#arg_value, #name_str, #expr_path, || None)?
-                }
-            }
-            (None, false) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::from_py_with(
-                        _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
-                        #name_str,
-                        #expr_path,
-                    )?
-                }
+        } else {
+            quote_arg_span! {
+                _pyo3::impl_::extract_argument::from_py_with(
+                    _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                    #name_str,
+                    #expr_path,
+                )?
             }
         }
+    } else if arg.optional.is_some() {
+        quote_arg_span! {
+            _pyo3::impl_::extract_argument::extract_optional_argument(
+                #arg_value,
+                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                #name_str,
+                || #default
+            )?
+        }
+    } else if let Some(default) = default {
+        quote_arg_span! {
+            _pyo3::impl_::extract_argument::extract_argument_with_default(
+                #arg_value,
+                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                #name_str,
+                || #default
+            )?
+        }
     } else {
-        match (spec.default_value(name), arg.optional.is_some()) {
-            (Some(default), true) if default.to_string() != "None" => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::extract_argument_with_default(
-                        #arg_value,
-                        &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                        #name_str,
-                        || Some(#default)
-                    )?
-                }
-            }
-            (Some(default), _) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::extract_argument_with_default(
-                        #arg_value,
-                        &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                        #name_str,
-                        || #default
-                    )?
-                }
-            }
-            (None, true) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::extract_optional_argument(
-                        #arg_value,
-                        &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                        #name_str
-                    )?
-                }
-            }
-            (None, false) => {
-                quote_arg_span! {
-                    _pyo3::impl_::extract_argument::extract_argument(
-                        _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
-                        &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
-                        #name_str
-                    )?
-                }
-            }
+        quote_arg_span! {
+            _pyo3::impl_::extract_argument::extract_argument(
+                _pyo3::impl_::extract_argument::unwrap_required_argument(#arg_value),
+                &mut { _pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT },
+                #name_str
+            )?
         }
     };
     Ok(tokens)
