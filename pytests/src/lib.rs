@@ -11,6 +11,7 @@ pub mod othermod;
 pub mod path;
 pub mod pyclasses;
 pub mod pyfunctions;
+pub mod sequence;
 pub mod subclassing;
 
 #[pymodule]
@@ -26,6 +27,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(path::path))?;
     m.add_wrapped(wrap_pymodule!(pyclasses::pyclasses))?;
     m.add_wrapped(wrap_pymodule!(pyfunctions::pyfunctions))?;
+    m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
     m.add_wrapped(wrap_pymodule!(subclassing::subclassing))?;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
@@ -42,6 +44,7 @@ fn pyo3_pytests(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     sys_modules.set_item("pyo3_pytests.path", m.getattr("path")?)?;
     sys_modules.set_item("pyo3_pytests.pyclasses", m.getattr("pyclasses")?)?;
     sys_modules.set_item("pyo3_pytests.pyfunctions", m.getattr("pyfunctions")?)?;
+    sys_modules.set_item("pyo3_pytests.sequence", m.getattr("sequence")?)?;
     sys_modules.set_item("pyo3_pytests.subclassing", m.getattr("subclassing")?)?;
 
     Ok(())
