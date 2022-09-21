@@ -376,7 +376,9 @@ mod tests {
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
-    #[cfg(Py_3_9)]
+    // We skip the test on windows too since we'd need to install
+    // tzdata there to make this work.
+    #[cfg(all(Py_3_9, not(target_os = "windows")))]
     fn test_zoneinfo_is_not_fixedoffset() {
         Python::with_gil(|py| {
             let locals = crate::types::PyDict::new(py);
