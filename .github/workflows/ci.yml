@@ -249,7 +249,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install -U pip nox
-          cargo xtask test-py
+          nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
