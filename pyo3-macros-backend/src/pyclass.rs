@@ -197,9 +197,19 @@ pub fn build_py_class(
     );
     let krate = get_pyo3_crate(&args.options.krate);
 
+    if let Some(lt) = class.generics.lifetimes().next() {
+        bail_spanned!(
+            lt.span() =>
+            "#[pyclass] cannot have lifetime parameters. \
+            For an explanation, see https://pyo3.rs/latest/class.html#no-lifetime-parameters"
+        );
+    }
+
     ensure_spanned!(
         class.generics.params.is_empty(),
-        class.generics.span() => "#[pyclass] cannot have generic parameters"
+        class.generics.span() =>
+            "#[pyclass] cannot have generic parameters. \
+            For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
     let field_options = match &mut class.fields {
