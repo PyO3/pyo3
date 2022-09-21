@@ -48,10 +48,11 @@
 use crate::exceptions::PyTypeError;
 use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
-    PyTzInfo, PyTzInfoAccess,
+    PyTzInfo, PyTzInfoAccess, PyUnicode,
 };
 use crate::{
-    AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, PyTryFrom, Python,
+    ToPyObject,
 };
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
@@ -167,6 +168,48 @@ impl FromPyObject<'_> for NaiveTime {
     }
 }
 
+impl ToPyObject for NaiveDateTime {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        let date = self.date();
+        let time = self.time();
+        let yy = date.year();
+        let mm = date.month() as u8;
+        let dd = date.day() as u8;
+        let h = time.hour() as u8;
+        let m = time.minute() as u8;
+        let s = time.second() as u8;
+        let ns = time.nanosecond();
+        let (ms, fold) = match ns.checked_sub(1_000_000_000) {
+            Some(ns) => (ns / 1000, true),
+            None => (ns / 1000, false),
+        };
+        let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, None, fold)
+            .expect("Failed to construct datetime");
+        datetime.into()
+    }
+}
+
+impl IntoPy<PyObject> for NaiveDateTime {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        ToPyObject::to_object(&self, py)
+    }
+}
+
+impl FromPyObject<'_> for NaiveDateTime {
+    fn extract(ob: &PyAny) -> PyResult<NaiveDateTime> {
+        let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
+        let h = dt.get_hour().into();
+        let m = dt.get_minute().into();
+        let s = dt.get_second().into();
+        let ms = dt.get_microsecond();
+        let dt = NaiveDateTime::new(
+            NaiveDate::from_ymd(dt.get_year(), dt.get_month().into(), dt.get_day().into()),
+            NaiveTime::from_hms_micro(h, m, s, ms),
+        );
+        Ok(dt)
+    }
+}
+
 impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let date = self.naive_utc().date();
@@ -249,11 +292,8 @@ fn pytimezone_fromoffset<'a>(py: &Python<'a>, td: &PyDelta) -> &'a PyAny {
 impl ToPyObject for FixedOffset {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let seconds_offset = self.local_minus_utc();
-        // XXX: Here we don't normalize, otherwise the meaning
-        // of the offset changes. Normalizing a negative PyDelta and converting
-        // back to rust would transform a `-00:00:01` offset into `23:59:59`.
         let td =
-            PyDelta::new(py, 0, seconds_offset, 0, false).expect("Failed to contruct timedelta");
+            PyDelta::new(py, 0, seconds_offset, 0, true).expect("Failed to contruct timedelta");
         pytimezone_fromoffset(&py, td).into()
     }
 }
@@ -271,9 +311,28 @@ impl FromPyObject<'_> for FixedOffset {
     /// does not supports microseconds.
     fn extract(ob: &PyAny) -> PyResult<FixedOffset> {
         let py_tzinfo = <PyTzInfo as PyTryFrom>::try_from(ob)?;
+        // Passing `ob.py().None()` (so Python's None) to the `utcoffset` function will only
+        // work for timezones defined as fixed offsets in Python.
+        // Any other timezone would require a datetime as the parameter, and return
+        // None if the datetime is not provided.
+        // Trying to convert None to a PyDelta in the next line will then fail.
         let py_timedelta = py_tzinfo.call_method1("utcoffset", (ob.py().None(),))?;
-        let py_timedelta = <PyDelta as PyTryFrom>::try_from(py_timedelta)?;
-        Ok(FixedOffset::east(py_timedelta.get_seconds()))
+        let py_timedelta = <PyDelta as PyTryFrom>::try_from(py_timedelta).map_err(|_| {
+            PyErr::new::<crate::exceptions::PyTypeError, _>(format!(
+                "{:?} is not a fixed offset timezone",
+                py_tzinfo
+                    .repr()
+                    .unwrap_or_else(|_| PyUnicode::new(ob.py(), "repr failed"))
+            ))
+        })?;
+        let days = py_timedelta.get_days() as i64;
+        let seconds = py_timedelta.get_seconds() as i64;
+        // Here we won't get microseconds as noted before
+        // let microseconds = py_timedelta.get_microseconds() as i64;
+        let total_seconds = Duration::days(days) + Duration::seconds(seconds);
+        // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
+        let total_seconds = total_seconds.num_seconds() as i32;
+        Ok(FixedOffset::east(total_seconds))
     }
 }
 
@@ -306,6 +365,30 @@ mod tests {
     use std::{cmp::Ordering, panic};
 
     use super::*;
+
+    #[test]
+    fn test_zoneinfo_is_not_fixedoffset() {
+        // This test should only run for python >= 3.9, but we can't
+        // force python's version with the `abi3-py39` feature since
+        // this module won't be compiled with the `abi3` feature enabled.
+        Python::with_gil(|py| {
+            let locals = crate::types::PyDict::new(py);
+            // If this doesn't work, we assume we are using python<3.9
+            // and do not test anything.
+            if let Ok(_) = py.run(
+                "import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
+                None,
+                Some(locals),
+            ) {
+                let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().extract();
+                assert!(result.is_err());
+                let res = result.err().unwrap();
+                // Also check the error message is what we expect
+                let msg = res.value(py).repr().unwrap().to_string();
+                assert_eq!(msg, "TypeError('\"zoneinfo.ZoneInfo(key=\\'Europe/London\\')\" is not a fixed offset timezone')");
+            }
+        });
+    }
 
     #[test]
     fn test_pyo3_timedelta_topyobject() {
@@ -351,7 +434,7 @@ mod tests {
         // The `name` parameter is used to identify the check in case of a failure.
         let check = |name: &'static str, delta: Duration, py_days, py_seconds, py_ms| {
             Python::with_gil(|py| {
-                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, false).unwrap();
+                let py_delta = PyDelta::new(py, py_days, py_seconds, py_ms, true).unwrap();
                 let py_delta: Duration = py_delta.extract().unwrap();
                 assert_eq!(py_delta, delta, "{}: {} != {}", name, py_delta, delta);
             })
@@ -623,7 +706,7 @@ mod tests {
 
             // Same but with negative values
             let offset = FixedOffset::east(-3600).to_object(py);
-            let td = PyDelta::new(py, 0, -3600, 0, false).unwrap();
+            let td = PyDelta::new(py, 0, -3600, 0, true).unwrap();
             let py_timedelta = pytimezone_fromoffset(&py, td);
             assert!(offset.as_ref(py).eq(py_timedelta).unwrap());
         })
@@ -655,12 +738,12 @@ mod tests {
             let py_utc: Utc = py_utc.extract().unwrap();
             assert_eq!(Utc, py_utc);
 
-            let py_timedelta = PyDelta::new(py, 0, 0, 0, false).unwrap();
+            let py_timedelta = PyDelta::new(py, 0, 0, 0, true).unwrap();
             let py_timezone_utc = pytimezone_fromoffset(&py, py_timedelta);
             let py_timezone_utc: Utc = py_timezone_utc.extract().unwrap();
             assert_eq!(Utc, py_timezone_utc);
 
-            let py_timedelta = PyDelta::new(py, 0, 3600, 0, false).unwrap();
+            let py_timedelta = PyDelta::new(py, 0, 3600, 0, true).unwrap();
             let py_timezone = pytimezone_fromoffset(&py, py_timedelta);
             assert!(py_timezone.extract::<Utc>().is_err());
         })
