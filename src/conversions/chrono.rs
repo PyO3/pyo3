@@ -110,7 +110,6 @@ impl FromPyObject<'_> for Duration {
 
 impl ToPyObject for NaiveDate {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        // This cast should be safe, right?
         let month = self.month() as u8;
         let day = self.day() as u8;
         let date = PyDate::new(py, self.year(), month, day).expect("Failed to construct date");
@@ -207,7 +206,7 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
         let tz = if let Some(tzinfo) = dt.get_tzinfo() {
             tzinfo.extract()?
         } else {
-            return Err(PyTypeError::new_err("Not datetime.timezone.tzinfo"));
+            return Err(PyTypeError::new_err("Not datetime.tzinfo"));
         };
         let dt = NaiveDateTime::new(
             NaiveDate::from_ymd(dt.get_year(), dt.get_month().into(), dt.get_day().into()),
@@ -243,7 +242,7 @@ fn pytimezone_fromoffset<'a>(py: &Python<'a>, td: &PyDelta) -> &'a PyAny {
     // Since we are forcing a &PyDelta as input, the cast should always be valid.
     unsafe {
         PyDateTime_IMPORT();
-        py.from_borrowed_ptr(PyTimeZone_FromOffset(td.as_ptr()))
+        py.from_owned_ptr(PyTimeZone_FromOffset(td.as_ptr()))
     }
 }
 
@@ -423,7 +422,7 @@ mod proptests {
 }
 
 #[cfg(test)]
-mod test_chrono {
+mod tests {
     use crate::chrono::pytimezone_fromoffset;
     use crate::types::*;
     use crate::{Python, ToPyObject};
