@@ -1,9 +1,11 @@
+import os
 import re
 import subprocess
 import sys
 import time
 from glob import glob
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import nox
 
@@ -11,24 +13,51 @@ nox.options.sessions = ["test", "clippy", "fmt"]
 
 
 @nox.session(venv_backend="none")
-def test(session: nox.Session):
+def test(session: nox.Session) -> None:
     test_rust(session)
     test_py(session)
 
 
 @nox.session(name="test-rust", venv_backend="none")
 def test_rust(session: nox.Session):
-    session.run("cargo", "test", external=True)
-    session.run("cargo", "test", "--features=abi3", external=True)
-    session.run("cargo", "test", "--features=full", external=True)
-    session.run("cargo", "test", "--features=abi3 full", external=True)
+    _run_cargo_test(session, package="pyo3-build-config")
+    _run_cargo_test(session, package="pyo3-macros-backend")
+    _run_cargo_test(session, package="pyo3-macros")
+    _run_cargo_test(session, package="pyo3-ffi")
+
+    _run_cargo_test(session)
+    _run_cargo_test(session, features="abi3")
+    _run_cargo_test(session, features="full")
+    _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
-def test_py(session):
-    session.run("nox", "-f", "pytests/noxfile.py", external=True)
+def test_py(session: nox.Session) -> None:
+    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
     for example in glob("examples/*/noxfile.py"):
-        session.run("nox", "-f", example, external=True)
+        _run(session, "nox", "-f", example, external=True)
+
+
+@nox.session(venv_backend="none")
+def coverage(session: nox.Session) -> None:
+    session.env.update(_get_coverage_env())
+    _run(session, "cargo", "llvm-cov", "clean", "--workspace", external=True)
+    test(session)
+    _run(
+        session,
+        "cargo",
+        "llvm-cov",
+        "--package=pyo3",
+        "--package=pyo3-build-config",
+        "--package=pyo3-macros-backend",
+        "--package=pyo3-macros",
+        "--package=pyo3-ffi",
+        "report",
+        "--lcov",
+        "--output-path",
+        "coverage.lcov",
+        external=True,
+    )
 
 
 @nox.session
@@ -39,19 +68,20 @@ def fmt(session: nox.Session):
 
 @nox.session(name="fmt-rust", venv_backend="none")
 def fmt_rust(session: nox.Session):
-    session.run("cargo", "fmt", "--all", "--check", external=True)
+    _run(session, "cargo", "fmt", "--all", "--check", external=True)
 
 
 @nox.session(name="fmt-py")
 def fmt_py(session: nox.Session):
     session.install("black==22.3.0")
-    session.run("black", ".", "--check")
+    _run(session, "black", ".", "--check")
 
 
 @nox.session(venv_backend="none")
 def clippy(session: nox.Session) -> None:
     for feature_set in ["full", "abi3 full"]:
-        session.run(
+        _run(
+            session,
             "cargo",
             "clippy",
             f"--features={feature_set}",
@@ -65,31 +95,15 @@ def clippy(session: nox.Session) -> None:
 
 @nox.session(venv_backend="none")
 def publish(session: nox.Session) -> None:
-    session.run(
-        "cargo",
-        "publish",
-        "--manifest-path",
-        "pyo3-build-config/Cargo.toml",
-        external=True,
-    )
+    _run_cargo_publish(session, package="pyo3-build-config")
     time.sleep(10)
-    session.run(
-        "cargo",
-        "publish",
-        "--manifest-path",
-        "pyo3-macros-backend/Cargo.toml",
-        external=True,
-    )
+    _run_cargo_publish(session, package="pyo3-macros-backend")
     time.sleep(10)
-    session.run(
-        "cargo", "publish", "--manifest-path", "pyo3-macros/Cargo.toml", external=True
-    )
+    _run_cargo_publish(session, package="pyo3-macros")
     time.sleep(10)
-    session.run(
-        "cargo", "publish", "--manifest-path", "pyo3-ffi/Cargo.toml", external=True
-    )
+    _run_cargo_publish(session, package="pyo3-ffi")
     time.sleep(10)
-    session.run("cargo", "publish", external=True)
+    _run_cargo_publish(session, package="pyo3")
 
 
 @nox.session(venv_backend="none")
@@ -156,7 +170,8 @@ class EmscriptenInfo:
 @nox.session(name="build-emscripten", venv_backend="none")
 def build_emscripten(session: nox.Session):
     info = EmscriptenInfo()
-    session.run(
+    _run(
+        session,
         "make",
         "-C",
         str(info.emscripten_dir),
@@ -192,20 +207,24 @@ def test_emscripten(session: nox.Session):
     )
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
-    session.run("rustup", "target", "add", target, "--toolchain", "stable")
-    session.run(
-        "bash", "-c", f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test"
+    _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+    _run(
+        session,
+        "bash",
+        "-c",
+        f"source {info.builddir/'emsdk/emsdk_env.sh'} && cargo test",
     )
 
 
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
-    session.run("mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
+    _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
 
 
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
-    session.run(
+    _run(
+        session,
         "cargo",
         "+nightly",
         "test",
@@ -230,3 +249,47 @@ def _get_rust_target() -> str:
 
 
 _HOST_LINE_START = "host: "
+
+
+def _get_coverage_env() -> Dict[str, str]:
+    env = {}
+    output = subprocess.check_output(["cargo", "llvm-cov", "show-env"], text=True)
+
+    for line in output.strip().splitlines():
+        (key, value) = line.split("=", maxsplit=1)
+        env[key] = value.strip('"')
+
+    # Ensure that examples/ and pytests/ all build to the correct target directory to collect
+    # coverage artifacts.
+    env["CARGO_TARGET_DIR"] = env["CARGO_LLVM_COV_TARGET_DIR"]
+
+    return env
+
+
+def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
+    """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
+    if "GITHUB_ACTIONS" in os.environ:
+        # Insert ::group:: at the start of nox's command line output
+        print("::group::", end="", flush=True, file=sys.stderr)
+    session.run(*args, **kwargs)
+    if "GITHUB_ACTIONS" in os.environ:
+        print("::endgroup::", file=sys.stderr)
+
+
+def _run_cargo_test(
+    session: nox.Session,
+    *,
+    package: Optional[str] = None,
+    features: Optional[str] = None,
+) -> None:
+    command = ["cargo", "test"]
+    if package:
+        command.append(f"--package={package}")
+    if features:
+        command.append(f"--features={features}")
+
+    _run(session, *command, external=True)
+
+
+def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
+    _run(session, "cargo", "publish", f"--package={package}", external=True)
