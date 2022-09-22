@@ -58,7 +58,11 @@ To integrate Rust types with Python, PyO3 needs to place some restrictions on th
 
 #### No lifetime parameters
 
-As soon as Rust data crosses into Python, there is no guarantee which the Rust compiler can make on how long the data will live. The only possible way to express this correctly is to require that no data in the struct is borrowed for any lifetime shorter than the `'static` lifetime, i.e. the struct cannot have any lifetime parameters.
+Rust lifetimes are used by the Rust compiler to reason about a program's memory safety. They are a compile-time only concept; there is no way to access Rust lifetimes at runtime from a dynamic language like Python.
+
+As soon as Rust data is exposed to Python, there is no guarantee which the Rust compiler can make on how long the data will live. Python is a reference-counted language and those references can be held for an arbitrarily long time which is untraceable by the Rust compiler. The only possible way to express this correctly is to require that any `#[pyclass]` does not borrow data for any lifetime shorter than the `'static` lifetime, i.e. the `#[pyclass]` cannot have any lifetime parameters.
+
+When you need to share ownership of data between Python and Rust, instead of using borrowed references with lifetimes consider using reference-counted smart pointers such as [`Arc`] or [`Py`].
 
 #### No generic parameters
 
@@ -1010,12 +1014,14 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [`GILGuard`]: {{#PYO3_DOCS_URL}}/pyo3/struct.GILGuard.html
 [`PyTypeInfo`]: {{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PyTypeInfo.html
 
+[`Py`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [`PyCell`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyCell.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
 [`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
 [`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
 [`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
 
+[`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 
 [classattr]: https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
