@@ -270,10 +270,10 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     if "GITHUB_ACTIONS" in os.environ:
         # Insert ::group:: at the start of nox's command line output
-        print("::group::", end="", flush=True)
+        print("::group::", end="", flush=True, file=sys.stderr)
     session.run(*args, **kwargs)
     if "GITHUB_ACTIONS" in os.environ:
-        print("::endgroup::")
+        print("::endgroup::", file=sys.stderr)
 
 
 def _run_cargo_test(
