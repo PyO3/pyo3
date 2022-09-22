@@ -90,6 +90,7 @@
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
+//! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
