@@ -3,6 +3,7 @@ xtask = "run --package xtask --"
 
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
+    "-Aclippy::needless_borrow", # TODO: remove once msrv increased from 1.48
     "-Dclippy::checked_conversions",
     "-Dclippy::dbg_macro",
     "-Dclippy::explicit_into_iter_loop",

@@ -200,7 +200,7 @@ pub mod pyo3_build_script_impl {
                     path.display()
                 )
             })?;
-            std::fs::create_dir_all(&parent_dir).with_context(|| {
+            std::fs::create_dir_all(parent_dir).with_context(|| {
                 format!(
                     "failed to create config file directory {}",
                     parent_dir.display()
