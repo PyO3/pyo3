@@ -851,7 +851,7 @@ mod tests {
             }
 
             #[test]
-            fn test_fixedoffset_roundtrip(secs in -86_400i32..=86_400i32) {
+            fn test_fixedoffset_roundtrip(secs in -86399i32..=86399i32) {
                 Python::with_gil(|py| {
                     let offset = FixedOffset::east(secs);
                     let pyoffset = offset.into_py(py);
@@ -932,7 +932,7 @@ mod tests {
                 min in 0u32..=60u32,
                 sec in 0u32..=60u32,
                 micro in 0u32..=2_000_000u32,
-                offset_secs in -86_400i32..=86_400i32
+                offset_secs in -86399i32..=86399i32
             ) {
                 Python::with_gil(|py| {
                     let date_opt = NaiveDate::from_ymd_opt(year, month, day);
