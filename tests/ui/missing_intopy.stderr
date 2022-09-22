@@ -2,9 +2,9 @@ error[E0599]: the method `assert_into_py_result` exists for struct `Blah`, but i
    --> tests/ui/missing_intopy.rs:3:1
     |
 1   | struct Blah;
-    | ------------
+    | -----------
     | |
-    | method `assert_into_py_result` not found for this
+    | method `assert_into_py_result` not found for this struct
     | doesn't satisfy `Blah: IntoPy<Py<PyAny>>`
     | doesn't satisfy `Blah: IntoPyResult<Blah>`
 2   |
@@ -17,11 +17,8 @@ error[E0599]: the method `assert_into_py_result` exists for struct `Blah`, but i
 note: the following trait must be implemented
    --> src/conversion.rs
     |
-    | / pub trait IntoPy<T>: Sized {
-    | |     /// Performs the conversion.
-    | |     fn into_py(self, py: Python<'_>) -> T;
-    | | }
-    | |_^
+    | pub trait IntoPy<T>: Sized {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `Blah: IntoPyCallbackOutput<_>` is not satisfied
