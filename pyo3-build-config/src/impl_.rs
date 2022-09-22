@@ -1182,7 +1182,7 @@ impl Sysconfigdata {
 /// [`from_sysconfigdata`](InterpreterConfig::from_sysconfigdata).
 pub fn parse_sysconfigdata(sysconfigdata_path: impl AsRef<Path>) -> Result<Sysconfigdata> {
     let sysconfigdata_path = sysconfigdata_path.as_ref();
-    let mut script = fs::read_to_string(&sysconfigdata_path).with_context(|| {
+    let mut script = fs::read_to_string(sysconfigdata_path).with_context(|| {
         format!(
             "failed to read config from {}",
             sysconfigdata_path.display()
