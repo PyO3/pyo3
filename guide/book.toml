@@ -5,3 +5,7 @@ author = "PyO3 Project and Contributors"
 
 [preprocessor.pyo3_version]
 command = "python3 guide/pyo3_version.py"
+
+[output.html]
+git-repository-url = "https://github.com/PyO3/pyo3/tree/main/guide"
+edit-url-template = "https://github.com/PyO3/pyo3/edit/main/guide/{path}"
