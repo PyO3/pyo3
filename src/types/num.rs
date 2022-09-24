@@ -37,7 +37,7 @@ macro_rules! int_fits_larger_int {
 /// Represents a Python `int` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [`ToPyObject`](trait.ToPyObject.html)
+/// by using [`ToPyObject`](crate::conversion::ToPyObject)
 /// and [extract](struct.PyAny.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
