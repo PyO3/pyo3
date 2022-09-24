@@ -31,11 +31,11 @@ To see a full reference of all the `#[cfg]` flags provided, see the [`pyo3-build
 
 You can use the `#[cfg]` flags in just two steps:
 
-1. Add `pyo3-build-config` it to your crate's build dependencies in `Cargo.toml`:
+1. Add `pyo3-build-config` with the [`resolve-config`](../features.md#resolve-config) feature enabled to your crate's build dependencies in `Cargo.toml`:
 
    ```toml
    [build-dependencies]
-   pyo3-build-config = { {{#PYO3_CRATE_VERSION}} }
+   pyo3-build-config = { {{#PYO3_CRATE_VERSION}}, features = ["resolve-config"] }
    ```
 
 2. Add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) file to your crate with the following contents:
