@@ -194,7 +194,7 @@ struct MyOtherError(OtherError);
 
 impl From<MyOtherError> for PyErr {
     fn from(error: MyOtherError) -> Self {
-        PyValueError::new_err(self.0.message())
+        PyValueError::new_err(error.0.message())
     }
 }
 
