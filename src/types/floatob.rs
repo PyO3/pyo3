@@ -10,7 +10,7 @@ use std::os::raw::c_double;
 ///
 /// You can usually avoid directly working with this type
 /// by using [`ToPyObject`](crate::conversion::ToPyObject)
-/// and [extract](struct.PyAny.html#method.extract)
+/// and [`extract`](PyAny::extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
