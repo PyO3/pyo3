@@ -35,7 +35,7 @@ You can use the `#[cfg]` flags in just two steps:
 
    ```toml
    [build-dependencies]
-   pyo3-build-config = "{{#PYO3_CRATE_VERSION}}"
+   pyo3-build-config = { {{#PYO3_CRATE_VERSION}} }
    ```
 
 2. Add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) file to your crate with the following contents:
