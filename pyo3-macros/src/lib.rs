@@ -30,6 +30,11 @@ use syn::{parse::Nothing, parse_macro_input};
 ///
 /// For more on creating Python modules see the [module section of the guide][1].
 ///
+/// Due to technical limitations on how `#[pymodule]` is implemented, a function marked
+/// `#[pymodule]` cannot have a module with the same name in the same scope. (The
+/// `#[pymodule]` implementation generates a hidden module with the same name containing
+/// metadata about the module, which is used by `wrap_pymodule!`).
+///
 /// [1]: https://pyo3.rs/latest/module.html
 #[proc_macro_attribute]
 pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
