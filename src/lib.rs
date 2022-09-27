@@ -453,6 +453,8 @@ pub mod doc_test {
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
         "guide/src/function.md" => guide_function_md,
+        "guide/src/function/error_handling.md" => guide_function_error_handling_md,
+        "guide/src/function/signature.md" => guide_function_signature_md,
         "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,

@@ -46,7 +46,7 @@ fn check_positive(x: i32) -> PyResult<()> {
 # 	Python::with_gil(|py|{
 # 		let fun = pyo3::wrap_pyfunction!(check_positive, py).unwrap();
 # 		fun.call1((-1,)).unwrap_err();
-# 		fun.call1((1)).unwrap();
+# 		fun.call1((1,)).unwrap();
 # 	});
 # }
 ```
@@ -69,6 +69,14 @@ use std::num::ParseIntError;
 fn parse_int(x: &str) -> Result<usize, ParseIntError> {
     x.parse()
 }
+
+# fn main() {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(parse_int, py).unwrap();
+#         let value: usize = fun.call1(("5",)).unwrap().extract().unwrap();
+#         assert_eq!(value, 5);
+#     });
+# }
 ```
 
 When passed a string which doesn't contain a floating-point number, the exception raised will look like the below:
@@ -180,14 +188,15 @@ The following example demonstrates this for some imaginary third-party crate `so
 
 ```rust
 # mod some_crate {
-#   struct OtherError(());
+#   pub struct OtherError(());
 #   impl OtherError {
-#       fn message() -> &'static str { "some error occurred" }
+#       pub fn message(&self) -> &'static str { "some error occurred" }
 #   }
-#   fn get_x() -> Result<i32, OtherError>
+#   pub fn get_x() -> Result<i32, OtherError> { Ok(5) }
 # }
 
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
 use some_crate::{OtherError, get_x};
 
 struct MyOtherError(OtherError);
@@ -210,6 +219,14 @@ fn wrapped_get_x() -> Result<i32, MyOtherError> {
     let x: i32 = get_x()?;
     Ok(x)
 }
+
+# fn main() {
+#     Python::with_gil(|py| {
+#         let fun = pyo3::wrap_pyfunction!(wrapped_get_x, py).unwrap();
+#         let value: usize = fun.call0().unwrap().extract().unwrap();
+#         assert_eq!(value, 5);
+#     });
+# }
 ```
 
 
