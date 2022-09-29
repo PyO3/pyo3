@@ -2,8 +2,8 @@
 
 It will replace:
     - {{#PYO3_VERSION_TAG}} with the contents of the PYO3_VERSION_TAG environment var
-    - {{#PYO3_DOCS_URL}} with the location of docs (e.g. https://docs.rs/pyo3/0.13.2)
-    - {{#PYO3_CRATE_VERSION}} with a relevant toml snippet (e.g. version = "0.13.2")
+    - {{#PYO3_DOCS_URL}} with the location of docs (e.g. 'https://docs.rs/pyo3/0.13.2')
+    - {{#PYO3_CRATE_VERSION}} with a relevant toml snippet (e.g. 'version = "0.13.2"')
 
 
 Tested against mdbook 0.4.10.
