@@ -375,6 +375,28 @@ where
     }
 }
 
+impl<T> ToPyObject for std::collections::LinkedList<T>
+where
+    T: ToPyObject,
+{
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        let mut iter = self.iter().map(|e| e.to_object(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
+    }
+}
+
+impl<T> IntoPy<PyObject> for std::collections::LinkedList<T>
+where
+    T: IntoPy<PyObject>,
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let mut iter = self.into_iter().map(|e| e.into_py(py));
+        let list = new_from_iter(py, &mut iter);
+        list.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::types::PyList;
@@ -391,7 +413,6 @@ mod tests {
             assert_eq!(7, list[3].extract::<i32>().unwrap());
         });
     }
-
     #[test]
     fn test_len() {
         Python::with_gil(|py| {
@@ -605,6 +626,21 @@ mod tests {
             let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
             assert_eq!(1, list[0].extract::<i32>().unwrap());
             assert_eq!(2, list[1].extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_linked_list_into_py() {
+        Python::with_gil(|py| {
+            let linked_list: PyObject = std::collections::LinkedList::from([1, 2]).into_py(py);
+            let list = <PyList as PyTryFrom>::try_from(linked_list.as_ref(py)).unwrap();
+            assert_eq!(1, list[0].extract::<i32>().unwrap());
+            assert_eq!(2, list[1].extract::<i32>().unwrap());
+
+            let linked_list: PyObject = std::collections::LinkedList::from([3, 4]).to_object(py);
+            let list = <PyList as PyTryFrom>::try_from(linked_list.as_ref(py)).unwrap();
+            assert_eq!(3, list[0].extract::<i32>().unwrap());
+            assert_eq!(4, list[1].extract::<i32>().unwrap());
         });
     }
 
