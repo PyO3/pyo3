@@ -38,3 +38,14 @@ def test_default_arg():
     say_hello()
 
     assert say_hello.count == 4
+
+
+# https://github.com/PyO3/pyo3/discussions/2598
+def test_discussion_2598():
+    @Counter
+    def say_hello():
+        if say_hello.count < 2:
+            print(f"hello from decorator")
+
+    say_hello()
+    say_hello()
