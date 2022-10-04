@@ -110,7 +110,7 @@ This shows the dangers of running arbitrary Python code - note that "running arb
 - Dropping arbitrary Python objects may invoke destructors defined in Python (`__del__` methods).
 - Calling Python's C-api (most PyO3 apis call C-api functions internally) may raise exceptions, which may allow Python code in signal handlers to run.
 
-This especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior. You must ensure that your Rust code is in a consistent state before doing any of the above things.
+This is especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior. You must ensure that your Rust code is in a consistent state before doing any of the above things.
 
 [previous implementation]: https://github.com/PyO3/pyo3/discussions/2598 "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
 [`Cell`]: https://doc.rust-lang.org/std/cell/struct.Cell.html "Cell in std::cell - Rust"
