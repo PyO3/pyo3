@@ -137,11 +137,7 @@ pub unsafe fn PyUnicode_IS_COMPACT(op: *mut PyObject) -> c_uint {
 #[inline]
 #[cfg(target_endian = "little")]
 pub unsafe fn PyUnicode_IS_COMPACT_ASCII(op: *mut PyObject) -> c_uint {
-    if (*(op as *mut PyASCIIObject)).ascii() != 0 && PyUnicode_IS_COMPACT(op) != 0 {
-        1
-    } else {
-        0
-    }
+    ((*(op as *mut PyASCIIObject)).ascii() != 0 && PyUnicode_IS_COMPACT(op) != 0).into()
 }
 
 #[cfg(not(Py_3_12))]

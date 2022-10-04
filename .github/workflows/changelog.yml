@@ -1,0 +1,35 @@
+name: changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+
+jobs:
+  check:
+    name: Check changelog entry
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-skip-changelog') }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/github-script@v6
+        id: check
+        with:
+          script: |
+            const fs = require('node:fs')
+            const path = require('node:path')
+                      
+            let found = false
+            const changeTypes = ['packaging', 'added', 'changed', 'removed', 'fixed']
+            for (changeType of changeTypes) {
+              const filename = path.join('newsfragments', `${context.issue.number}.${changeType}.md`)
+              if (fs.existsSync(filename)) {
+                found = true
+                break
+              }
+            }
+          
+            if (!found) {
+              const errorMsg = '📝 Changelog entry not found, please add one (or more) to `newsfragments` directory. For more information see https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes'
+              core.error(errorMsg)
+              process.exit(1)
+            }

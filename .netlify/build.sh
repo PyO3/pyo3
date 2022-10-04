@@ -17,8 +17,16 @@ cp .netlify/_redirects netlify_build/
 echo "/latest/* https://pyo3.github.io/pyo3/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
 
 ## Add landing page redirect
-echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
+if [ "${CONTEXT}" == "deploy-preview" ]; then
+    echo "<meta http-equiv=refresh content=0;url=main/>" > netlify_build/index.html
+else
+    echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
+fi
 
+## Generate towncrier release notes
+
+pip install towncrier
+towncrier build --yes --version Unreleased --date TBC
 
 ## Build guide
 
@@ -39,6 +47,8 @@ mv target/guide netlify_build/main/
 cargo xtask doc
 mv target/doc netlify_build/main/doc/
 
+echo "<meta http-equiv=refresh content=0;url=pyo3/>" > netlify_build/main/doc/index.html
+
 ## Build internal docs
 
 echo "<div class='internal-banner' style='position:fixed; z-index: 99999; color:red;border:3px solid red;margin-left: auto; margin-right: auto; width: 430px;left:0;right: 0;'><div style='display: flex; align-items: center; justify-content: center;'> ⚠️ Internal Docs ⚠️ Not Public API 👉 <a href='https://pyo3.rs/main/doc/pyo3/index.html' style='color:red;text-decoration:underline;'>Official Docs Here</a></div></div>" > netlify_build/banner.html
@@ -49,7 +59,3 @@ mkdir -p netlify_build/internal
 mv target/doc netlify_build/internal/
 
 ls -l netlify_build/
-
-# TODO:
-# - netlify badges
-# - apply for open source plan

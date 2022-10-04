@@ -98,6 +98,17 @@ You can run these tests yourself with
 ```cargo xtask ci```
 See [its documentation](https://github.com/PyO3/pyo3/tree/main/xtask#readme) for more commands you can run.
 
+### Documenting changes
+
+We use [towncrier](https://towncrier.readthedocs.io/en/stable/index.html) to generate a CHANGELOG for each release.
+
+To include your changes in the release notes, you should create one (or more) news items in the `newsfragments` directory. Valid news items should be saved as `<PR>.<CATEGORY>.md` where `<PR>` is the pull request number and `<CATEGORY>` is one of the following:
+- `packaging` - for dependency changes and Python / Rust version compatibility changes
+- `added` - for new features
+- `changed` - for features which already existed but have been altered or deprecated
+- `removed` - for features which have been removed
+- `fixed` - for "changed" features which were classed as a bugfix
+
 ## Python and Rust version support policy
 
 PyO3 aims to keep sufficient compatibility to make packaging Python extensions built with PyO3 feasible on most common package managers.

@@ -91,6 +91,7 @@
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
+//! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
 //! - [`eyre`]: Enables a conversion from [eyre]’s [`Report`] type to [`PyErr`].
 //! - [`hashbrown`]: Enables conversions between Python objects and [hashbrown]'s [`HashMap`] and
 //! [`HashSet`] types.
@@ -452,6 +453,8 @@ pub mod doc_test {
         "guide/src/faq.md" => guide_faq_md,
         "guide/src/features.md" => guide_features_md,
         "guide/src/function.md" => guide_function_md,
+        "guide/src/function/error_handling.md" => guide_function_error_handling_md,
+        "guide/src/function/signature.md" => guide_function_signature_md,
         "guide/src/memory.md" => guide_memory_md,
         "guide/src/migration.md" => guide_migration_md,
         "guide/src/module.md" => guide_module_md,

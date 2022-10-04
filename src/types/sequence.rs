@@ -294,7 +294,16 @@ fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
 where
     T: FromPyObject<'s>,
 {
-    let seq = <PySequence as PyTryFrom>::try_from(obj)?;
+    // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
+    // to support this function and if not, we will only fail extraction safely.
+    let seq = unsafe {
+        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
+            <PySequence as PyTryFrom>::try_from_unchecked(obj)
+        } else {
+            return Err(PyDowncastError::new(obj, "Sequence").into());
+        }
+    };
+
     let mut v = Vec::with_capacity(seq.len().unwrap_or(0) as usize);
     for item in seq.iter()? {
         v.push(item?.extract::<T>()?);

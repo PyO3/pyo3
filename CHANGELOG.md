@@ -6,6 +6,26 @@ PyO3 versions, please see the [migration guide](https://pyo3.rs/latest/migration
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+To see unreleased changes, please see the [CHANGELOG on the main branch guide](https://pyo3.rs/main/changelog.html).
+
+<!-- towncrier release notes start -->
+
+## [0.17.2] - 2022-10-04
+
+### Packaging
+
+- Added optional `chrono` feature to convert `chrono` types into types in the `datetime` module. [#2612](https://github.com/PyO3/pyo3/pull/2612)
+
+### Added
+
+- Add support for `num-bigint` feature on `PyPy`. [#2626](https://github.com/PyO3/pyo3/pull/2626)
+
+### Fixed
+
+- Correctly implement `__richcmp__` for enums, fixing `__ne__` returning always returning `True`. [#2622](https://github.com/PyO3/pyo3/pull/2622)
+- Fix compile error since 0.17.0 with `Option<&SomePyClass>` argument with a default. [#2630](https://github.com/PyO3/pyo3/pull/2630)
+- Fix regression of `impl FromPyObject for Vec<T>` no longer accepting types passing `PySequence_Check`, e.g. NumPy arrays, since 0.17.0. [#2631](https://github.com/PyO3/pyo3/pull/2631)
+
 ## [0.17.1] - 2022-08-28
 
 ### Fixed
@@ -1275,7 +1295,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.17.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.17.2g...HEAD
+[0.17.2]: https://github.com/pyo3/pyo3/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/pyo3/pyo3/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/pyo3/pyo3/compare/v0.16.6...v0.17.0
 [0.16.6]: https://github.com/pyo3/pyo3/compare/v0.16.5...v0.16.6

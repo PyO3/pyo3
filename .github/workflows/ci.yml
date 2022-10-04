@@ -185,11 +185,14 @@ jobs:
           PROJECTS=("." "examples/decorator" "examples/maturin-starter" "examples/setuptools-rust-starter" "examples/word-count")
           for PROJ in ${PROJECTS[@]}; do
             cargo update --manifest-path "$PROJ/Cargo.toml" -p parking_lot --precise 0.11.0
+            cargo update --manifest-path "$PROJ/Cargo.toml" -p once_cell --precise 1.14.0
           done
           cargo update -p plotters --precise 0.3.1
           cargo update -p plotters-svg --precise 0.3.1
           cargo update -p plotters-backend --precise 0.3.2
           cargo update -p bumpalo --precise 3.10.0
+          cargo update -p itertools --precise 0.10.3
+          cargo update -p once_cell --precise 1.14.0
 
       - name: Build docs
         run: cargo doc --no-deps --no-default-features --features "full ${{ matrix.extra_features }}"
@@ -246,7 +249,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install -U pip nox
-          cargo xtask test-py
+          nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
@@ -341,7 +344,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - run: python -m pip install -U pip nox
-      - run: cargo xtask coverage --output-lcov coverage.lcov
+      - run: nox -s coverage
       - uses: codecov/codecov-action@v2
         with:
           file: coverage.lcov

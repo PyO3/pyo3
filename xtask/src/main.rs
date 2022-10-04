@@ -5,7 +5,6 @@ pub mod cli;
 pub mod clippy;
 pub mod doc;
 pub mod fmt;
-pub mod llvm_cov;
 pub mod pytests;
 pub mod test;
 pub mod utils;
