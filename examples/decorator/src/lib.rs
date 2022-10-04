@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::cell::Cell;
 
 /// A function decorator that keeps track how often it is called.
 ///
@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub struct PyCounter {
     // Keeps track of how many calls have gone through.
     //
-    // See the discussion at the end for why an atomic is used.
-    count: AtomicU64,
+    // See the discussion at the end for why `Cell` is used.
+    count: Cell<u64>,
 
     // This is the actual function being wrapped.
     wraps: Py<PyAny>,
@@ -26,14 +26,14 @@ impl PyCounter {
     #[new]
     fn __new__(wraps: Py<PyAny>) -> Self {
         PyCounter {
-            count: AtomicU64::new(0),
+            count: Cell::new(0),
             wraps,
         }
     }
 
     #[getter]
     fn count(&self) -> u64 {
-        self.count.load(Ordering::Relaxed)
+        self.count.get()
     }
 
     #[args(args = "*", kwargs = "**")]
@@ -43,10 +43,12 @@ impl PyCounter {
         args: &PyTuple,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py<PyAny>> {
-        let old_count = self.count.fetch_add(1, Ordering::Relaxed);
+        let old_count = self.count.get();
+        let new_count = old_count + 1;
+        self.count.set(new_count);
         let name = self.wraps.getattr(py, "__name__")?;
 
-        println!("{} has been called {} time(s).", name, old_count + 1);
+        println!("{} has been called {} time(s).", name, new_count);
 
         // After doing something, we finally forward the call to the wrapped function
         let ret = self.wraps.call(py, args, kwargs)?;
