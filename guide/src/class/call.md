@@ -37,7 +37,7 @@ say_hello has been called 4 time(s).
 hello
 ```
 
-#### Pure Python implementation
+### Pure Python implementation
 
 A Python implementation of this looks similar to the Rust version:
 
@@ -65,3 +65,51 @@ def Counter(wraps):
         return wraps(*args, **kwargs)
     return call
 ```
+
+### What are the atomics for?
+
+A [previous implementation] used a normal `u64`, which meant it required a `&mut self` receiver to update the count:
+
+```rust,ignore
+#[args(args = "*", kwargs = "**")]
+fn __call__(&mut self, py: Python<'_>, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Py<PyAny>> {
+    self.count += 1;
+    let name = self.wraps.getattr(py, "__name__")?;
+
+    println!("{} has been called {} time(s).", name, self.count);
+
+    // After doing something, we finally forward the call to the wrapped function
+    let ret = self.wraps.call(py, args, kwargs)?;
+
+    // We could do something with the return value of
+    // the function before returning it
+    Ok(ret)
+}
+```
+
+The problem with this is that the `&mut self` receiver means PyO3 has to borrow it exclusively,
+ and hold this borrow across the`self.wraps.call(py, args, kwargs)` call. This call returns control to the user's Python code
+ which is free to call arbitrary things, *including* the decorated function. If that happens PyO3 is unable to create a second unique borrow and will be forced to raise an exception.
+
+As a result, something innocent like this will raise an exception:
+
+```py
+@Counter
+def say_hello():
+    if say_hello.count < 2:
+        print(f"hello from decorator")
+        
+say_hello()
+# RuntimeError: Already borrowed
+```
+
+The implementation in this chapter fixes that by never borrowing exclusively; all the methods take `&self` as receivers, of which multiple may exist simultaneously. This requires a shared and threadsafe counter and the easiest way to do that is to use atomics, so that's what is used here.
+
+This shows the dangers of running arbitrary Python code - note that "running arbitrary Python code" can be far more subtle than the example above:
+- Python's asynchronous executor may park the current thread in the middle of Python code, even in Python code that *you* control, and let other Python code run.
+- Dropping arbitrary Python objects may invoke destructors defined in Python (`__del__` methods).
+- Calling Python's C-api (most PyO3 apis call C-api functions internally) may raise exceptions, which may allow Python code in signal handlers to run.
+
+This especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior. You must ensure that your Rust code is in a consistent state before doing any of the above things.
+
+[previous implementation]: https://github.com/PyO3/pyo3/discussions/2598 "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
