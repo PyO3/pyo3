@@ -1,5 +1,7 @@
 #![warn(missing_docs)]
-#![cfg_attr(feature = "nightly", feature(auto_traits, negative_impls))]
+#![cfg_attr(feature = "nightly", feature(auto_traits))]
+#![cfg_attr(better_errors, feature(rustc_attrs))] // for rustc_on_unimplemented
+#![cfg_attr(any(better_errors, feature = "nightly"), feature(negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(
     docsrs, // rustdoc:: is not supported on msrv

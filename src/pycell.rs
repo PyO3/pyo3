@@ -907,6 +907,43 @@ where
     }
 }
 
+/// Types that can be used as pymethod receivers
+#[cfg_attr(
+    better_errors,
+    rustc_on_unimplemented(
+        message = "`{Self}` is not a valid receiver type for pyo3 methods",
+        note = "Only `&self`, `&mut self`, `&PyCell<Self>, `&PyRef<'_, Self> and `&PyRefMut<'_, Self> are valid receiver types"
+    )
+)]
+pub trait Receiver<T>: Sized {
+    /// The borrow error type
+    type Error;
+
+    /// Attemps to "receive" the receiver
+    fn receive(value: T) -> Result<Self, Self::Error>;
+}
+
+impl<'a, T: PyClass> Receiver<&'a PyCell<T>> for &'a crate::PyCell<T> {
+    type Error = PyBorrowError;
+    fn receive(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        Ok(cell)
+    }
+}
+
+impl<'a, T: PyClass> Receiver<&'a PyCell<T>> for crate::PyRef<'a, T> {
+    type Error = PyBorrowError;
+    fn receive(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        cell.try_borrow()
+    }
+}
+
+impl<'a, T: PyClass<Frozen = False>> Receiver<&'a PyCell<T>> for crate::PyRefMut<'a, T> {
+    type Error = PyBorrowMutError;
+    fn receive(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        cell.try_borrow_mut()
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {

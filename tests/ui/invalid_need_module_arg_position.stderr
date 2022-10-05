@@ -2,4 +2,4 @@ error: expected &PyModule as first argument with `pass_module`
  --> tests/ui/invalid_need_module_arg_position.rs:6:21
   |
 6 |     fn fail(string: &str, module: &PyModule) -> PyResult<&str> {
-  |                     ^
+  |                     ^^^^

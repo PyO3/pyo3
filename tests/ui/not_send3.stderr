@@ -1,17 +1,22 @@
 error[E0277]: `Rc<i32>` cannot be shared between threads safely
-   --> tests/ui/not_send3.rs:8:12
+   --> tests/ui/not_send3.rs:8:26
     |
-8   |         py.allow_threads(|| {
-    |            ^^^^^^^^^^^^^ `Rc<i32>` cannot be shared between threads safely
+8   |           py.allow_threads(|| {
+    |  ____________-------------_^
+    | |            |
+    | |            required by a bound introduced by this call
+9   | |             println!("{:?}", rc);
+10  | |         });
+    | |_________^ `Rc<i32>` cannot be shared between threads safely
     |
     = help: the trait `Sync` is not implemented for `Rc<i32>`
-    = note: required because of the requirements on the impl of `Send` for `&Rc<i32>`
+    = note: required for `&Rc<i32>` to implement `Send`
 note: required because it's used within this closure
    --> tests/ui/not_send3.rs:8:26
     |
 8   |         py.allow_threads(|| {
     |                          ^^
-    = note: required because of the requirements on the impl of `Ungil` for `[closure@$DIR/tests/ui/not_send3.rs:8:26: 8:28]`
+    = note: required for `[closure@$DIR/tests/ui/not_send3.rs:8:26: 8:28]` to implement `Ungil`
 note: required by a bound in `pyo3::Python::<'py>::allow_threads`
    --> src/marker.rs
     |

@@ -2,6 +2,10 @@ use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
 use pyo3_build_config::{bail, print_feature_cfgs, InterpreterConfig};
+use std::fs;
+use std::path::Path;
+use std::process::{Command, ExitStatus, Stdio};
+use std::str;
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() {
@@ -52,9 +56,70 @@ fn configure_pyo3() -> Result<()> {
     Ok(())
 }
 
+// Stolen from https://github.com/dtolnay/thiserror/blob/master/build.rs
+const PROBE: &str = r#"
+    #![feature(rustc_attrs, negative_impls)]
+
+    #[rustc_on_unimplemented(
+        message="message",
+        label="label",
+        note="note"
+    )]
+    pub trait Foo {}
+
+    pub struct Bar;
+
+    impl !Send for Bar {}
+"#;
+
+fn compile_probe() -> Option<ExitStatus> {
+    let rustc = env::var_os("RUSTC")?;
+    let out_dir = env::var_os("OUT_DIR")?;
+    let probefile = Path::new(&out_dir).join("probe.rs");
+    fs::write(&probefile, PROBE).ok()?;
+
+    // Make sure to pick up Cargo rustc configuration.
+    let mut cmd = if let Some(wrapper) = env::var_os("RUSTC_WRAPPER") {
+        let mut cmd = Command::new(wrapper);
+        // The wrapper's first argument is supposed to be the path to rustc.
+        cmd.arg(rustc);
+        cmd
+    } else {
+        Command::new(rustc)
+    };
+
+    cmd.stderr(Stdio::null())
+        .arg("--edition=2018")
+        .arg("--crate-name=pyo3_build")
+        .arg("--crate-type=lib")
+        .arg("--emit=metadata")
+        .arg("--out-dir")
+        .arg(out_dir)
+        .arg(probefile);
+
+    if let Some(target) = env::var_os("TARGET") {
+        cmd.arg("--target").arg(target);
+    }
+
+    // If Cargo wants to set RUSTFLAGS, use that.
+    if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
+        if !rustflags.is_empty() {
+            for arg in rustflags.split('\x1f') {
+                cmd.arg(arg);
+            }
+        }
+    }
+
+    cmd.status().ok()
+}
+
 fn main() {
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)
+    }
+    match compile_probe() {
+        Some(status) if status.success() => println!("cargo:rustc-cfg=better_errors"),
+        _ => {}
     }
 }

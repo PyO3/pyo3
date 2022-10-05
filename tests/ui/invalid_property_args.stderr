@@ -38,10 +38,10 @@ error: `name` may only be specified once
   --> tests/ui/invalid_property_args.rs:37:42
    |
 37 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
-   |                                          ^^^^
+   |                                          ^^^^^^^^^^^^
 
 error: `name` is useless without `get` or `set`
   --> tests/ui/invalid_property_args.rs:40:33
    |
 40 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
-   |                                 ^^^^
+   |                                 ^^^^^^^^^^^^^^

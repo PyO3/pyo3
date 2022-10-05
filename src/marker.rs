@@ -132,6 +132,9 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 
+#[cfg(not(better_errors))]
+compile_error!("Sanity check for development");
+
 /// Types that are safe to access while the GIL is not held.
 ///
 /// # Safety
@@ -142,11 +145,52 @@ use std::os::raw::c_int;
 /// See the [module-level documentation](self) for more information.
 #[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
+#[cfg_attr(
+    better_errors,
+    rustc_on_unimplemented(
+        message = "`{Self}` cannot be accessed without holding the gil",
+        note = "if your type is `!Send` but does not contain a borrowed Python type, consider enabling pyo3's \"nightly\" feature"
+    )
+)] // I don't think this attr actually works..?
 pub unsafe trait Ungil {}
 
 #[cfg_attr(docsrs, doc(cfg(all())))] // Hide the cfg flag
 #[cfg(not(feature = "nightly"))]
 unsafe impl<T: Send> Ungil for T {}
+
+#[cfg(better_errors)]
+mod negative_send_impls {
+    impl !Send for crate::Python<'_> {}
+
+    // This means that PyString, PyList, etc all inherit !Ungil from  this.
+    impl !Send for crate::PyAny {}
+
+    // Still, we make these impls to reduce the nesting of the error message
+    impl !Send for crate::types::PyString {}
+    // todo: the rest
+
+    // All the borrowing wrappers
+    impl<T> !Send for crate::PyCell<T> {}
+    impl<T> !Send for crate::PyRef<'_, T> {}
+    impl<T> !Send for crate::PyRefMut<'_, T> {}
+}
+
+#[cfg(better_errors)]
+mod negative_sync_impls {
+    impl !Sync for crate::Python<'_> {}
+
+    // This means that PyString, PyList, etc all inherit !Ungil from  this.
+    impl !Sync for crate::PyAny {}
+
+    // Still, we make these impls to reduce the nesting of the error message
+    impl !Sync for crate::types::PyString {}
+    // todo: the rest
+
+    // All the borrowing wrappers
+    impl<T> !Sync for crate::PyCell<T> {}
+    impl<T> !Sync for crate::PyRef<'_, T> {}
+    impl<T> !Sync for crate::PyRefMut<'_, T> {}
+}
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -157,6 +201,10 @@ unsafe impl<T: Send> Ungil for T {}
 ///
 /// See the [module-level documentation](self) for more information.
 #[cfg(feature = "nightly")]
+#[cfg_attr(
+    better_errors,
+    rustc_on_unimplemented(message = "`{Self}` cannot be accessed without holding the gil")
+)] 
 pub unsafe auto trait Ungil {}
 
 #[cfg(feature = "nightly")]
