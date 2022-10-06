@@ -8,7 +8,7 @@ use crate::ffi::{self, Py_hash_t};
 use crate::impl_::panic::PanicTrap;
 use crate::panic::PanicException;
 use crate::{GILPool, IntoPyPointer};
-use crate::{IntoPy, Py, PyAny, PyObject, Python};
+use crate::{IntoPy, PyObject, Python};
 use std::any::Any;
 use std::os::raw::c_int;
 use std::panic::UnwindSafe;
@@ -132,31 +132,6 @@ where
 
 pub trait WrappingCastTo<T> {
     fn wrapping_cast(self) -> T;
-}
-
-pub trait OkWrap<T> {
-    type Error;
-    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error>;
-}
-
-impl<T> OkWrap<T> for T
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = PyErr;
-    fn wrap(self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(self.into_py(py))
-    }
-}
-
-impl<T, E> OkWrap<T> for Result<T, E>
-where
-    T: IntoPy<PyObject>,
-{
-    type Error = E;
-    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error> {
-        self.map(|o| o.into_py(py))
-    }
 }
 
 macro_rules! wrapping_cast {

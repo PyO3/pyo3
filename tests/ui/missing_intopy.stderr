@@ -13,6 +13,6 @@ error[E0277]: the trait bound `Blah: IntoPy<Py<PyAny>>` is not satisfied
             <&'a [u8] as IntoPy<Py<PyAny>>>
             <&'a str as IntoPy<Py<PyAny>>>
             <&'a str as IntoPy<Py<PyString>>>
-          and 173 others
+          and 156 others
   = note: required because of the requirements on the impl of `OkWrap<Blah>` for `Blah`
   = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
