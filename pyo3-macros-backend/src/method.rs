@@ -468,17 +468,12 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
-        // The method call is necessary to generate a decent error message.
         let rust_call = |args: Vec<TokenStream>| {
             quote! {
                 let mut ret = #rust_name(#self_arg #(#args),*);
-
-                if false {
-                    use _pyo3::impl_::ghost::IntoPyResult;
-                    ret.assert_into_py_result();
-                }
-
-                _pyo3::callback::convert(#py, ret)
+                let owned = _pyo3::callback::OkWrap::wrap(ret, #py);
+                owned.map(|obj| _pyo3::conversion::IntoPyPointer::into_ptr(obj))
+                    .map_err(::core::convert::Into::into)
             }
         };
 

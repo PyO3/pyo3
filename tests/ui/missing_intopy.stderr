@@ -1,45 +1,18 @@
-error[E0599]: the method `assert_into_py_result` exists for struct `Blah`, but its trait bounds were not satisfied
-   --> tests/ui/missing_intopy.rs:3:1
-    |
-1   | struct Blah;
-    | -----------
-    | |
-    | method `assert_into_py_result` not found for this struct
-    | doesn't satisfy `Blah: IntoPy<Py<PyAny>>`
-    | doesn't satisfy `Blah: IntoPyResult<Blah>`
-2   |
-3   | #[pyo3::pyfunction]
-    | ^^^^^^^^^^^^^^^^^^^ method cannot be called on `Blah` due to unsatisfied trait bounds
-    |
-    = note: the following trait bounds were not satisfied:
-            `Blah: IntoPy<Py<PyAny>>`
-            which is required by `Blah: IntoPyResult<Blah>`
-note: the following trait must be implemented
-   --> src/conversion.rs
-    |
-    | pub trait IntoPy<T>: Sized {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: the trait bound `Blah: IntoPyCallbackOutput<_>` is not satisfied
-   --> tests/ui/missing_intopy.rs:3:1
-    |
-3   | #[pyo3::pyfunction]
-    | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPyCallbackOutput<_>` is not implemented for `Blah`
-    |
-    = help: the following other types implement trait `IntoPyCallbackOutput<Target>`:
-              <() as IntoPyCallbackOutput<()>>
-              <() as IntoPyCallbackOutput<i32>>
-              <*mut PyObject as IntoPyCallbackOutput<*mut PyObject>>
-              <HashCallbackOutput as IntoPyCallbackOutput<isize>>
-              <IterANextOutput<Py<PyAny>, Py<PyAny>> as IntoPyCallbackOutput<*mut PyObject>>
-              <IterANextOutput<T, U> as IntoPyCallbackOutput<IterANextOutput<Py<PyAny>, Py<PyAny>>>>
-              <IterNextOutput<Py<PyAny>, Py<PyAny>> as IntoPyCallbackOutput<*mut PyObject>>
-              <IterNextOutput<T, U> as IntoPyCallbackOutput<IterNextOutput<Py<PyAny>, Py<PyAny>>>>
-            and 7 others
-note: required by a bound in `pyo3::callback::convert`
-   --> src/callback.rs
-    |
-    |     T: IntoPyCallbackOutput<U>,
-    |        ^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `pyo3::callback::convert`
-    = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0277]: the trait bound `Blah: IntoPy<Py<PyAny>>` is not satisfied
+ --> tests/ui/missing_intopy.rs:3:1
+  |
+3 | #[pyo3::pyfunction]
+  | ^^^^^^^^^^^^^^^^^^^ the trait `IntoPy<Py<PyAny>>` is not implemented for `Blah`
+  |
+  = help: the following other types implement trait `IntoPy<T>`:
+            <&'a OsString as IntoPy<Py<PyAny>>>
+            <&'a Path as IntoPy<Py<PyAny>>>
+            <&'a PathBuf as IntoPy<Py<PyAny>>>
+            <&'a PyErr as IntoPy<Py<PyAny>>>
+            <&'a String as IntoPy<Py<PyAny>>>
+            <&'a [u8] as IntoPy<Py<PyAny>>>
+            <&'a str as IntoPy<Py<PyAny>>>
+            <&'a str as IntoPy<Py<PyString>>>
+          and 173 others
+  = note: required because of the requirements on the impl of `OkWrap<Blah>` for `Blah`
+  = note: this error originates in the attribute macro `pyo3::pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

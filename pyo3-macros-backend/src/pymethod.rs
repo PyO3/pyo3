@@ -389,11 +389,8 @@ fn impl_py_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<Me
         fn #wrapper_ident(py: _pyo3::Python<'_>) -> _pyo3::PyResult<_pyo3::PyObject> {
             #deprecations
             let mut ret = #fncall;
-            if false {
-                use _pyo3::impl_::ghost::IntoPyResult;
-                ret.assert_into_py_result();
-            }
-            _pyo3::callback::convert(py, ret)
+            let owned = _pyo3::callback::OkWrap::wrap(ret, py);
+            owned.map_err(::core::convert::Into::into)
         }
     };
 
