@@ -105,15 +105,7 @@ fn _test_compile_errors() {
     #[rustversion::since(1.62)]
     fn tests_rust_1_62(t: &trybuild::TestCases) {
         t.compile_fail("tests/ui/invalid_pymethod_receiver.rs");
-        // Avoid `"and X others" from mismatching
-        // by only running this for some configurations
-        if cfg!(all(
-            target_os = "linux",
-            feature = "full",
-            not(feature = "abi3")
-        )) {
-            t.compile_fail("tests/ui/missing_intopy.rs");
-        }
+        t.compile_fail("tests/ui/missing_intopy.rs");
     }
 
     #[rustversion::before(1.62)]
@@ -121,15 +113,7 @@ fn _test_compile_errors() {
 
     #[rustversion::since(1.63)]
     fn tests_rust_1_63(t: &trybuild::TestCases) {
-        // Avoid `"and X others" from mismatching
-        // by only running this for some configurations
-        if cfg!(all(
-            target_os = "linux",
-            feature = "full",
-            not(feature = "abi3")
-        )) {
-            t.compile_fail("tests/ui/invalid_result_conversion.rs");
-        }
+        t.compile_fail("tests/ui/invalid_result_conversion.rs");
         t.compile_fail("tests/ui/not_send.rs");
         t.compile_fail("tests/ui/not_send2.rs");
         t.compile_fail("tests/ui/not_send3.rs");

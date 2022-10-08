@@ -13,6 +13,6 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
              <PyErr as From<&PyArithmeticError>>
              <PyErr as From<&PyAssertionError>>
              <PyErr as From<&PyAttributeError>>
-           and 76 others
+           and $N others
    = note: required because of the requirements on the impl of `Into<PyErr>` for `MyError`
    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
