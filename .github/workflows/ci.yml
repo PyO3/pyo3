@@ -345,7 +345,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - run: python -m pip install -U pip nox
       - run: nox -s coverage
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
           file: coverage.lcov
           name: ${{ matrix.os }}
