@@ -14,3 +14,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      # dependabot default labels
+      - "dependencies"
+      - "github-actions"
+      # additional labels
+      - "CI-skip-changelog"
