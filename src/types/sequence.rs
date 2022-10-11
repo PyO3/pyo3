@@ -304,7 +304,7 @@ where
         }
     };
 
-    let mut v = Vec::with_capacity(seq.len().unwrap_or(0) as usize);
+    let mut v = Vec::with_capacity(seq.len().unwrap_or(0));
     for item in seq.iter()? {
         v.push(item?.extract::<T>()?);
     }
