@@ -321,12 +321,14 @@ impl<'a> Iterator for PyListIterator<'a> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.list.len();
+        let len = self.len();
+        (len, Some(len))
+    }
+}
 
-        (
-            len.saturating_sub(self.index),
-            Some(len.saturating_sub(self.index)),
-        )
+impl<'a> ExactSizeIterator for PyListIterator<'a> {
+    fn len(&self) -> usize {
+        self.list.len().saturating_sub(self.index)
     }
 }
 
