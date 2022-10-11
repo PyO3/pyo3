@@ -169,7 +169,7 @@ mod impl_ {
 
     /// PyO3 implementation of an iterator for a Python `set` object.
     pub struct PySetIterator<'py> {
-        set: &'py super::PyAny,
+        set: &'py super::PySet,
         pos: ffi::Py_ssize_t,
         used: ffi::Py_ssize_t,
     }
@@ -219,11 +219,14 @@ mod impl_ {
 
         #[inline]
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let len = self.set.len().unwrap_or_default();
-            (
-                len.saturating_sub(self.pos as usize),
-                Some(len.saturating_sub(self.pos as usize)),
-            )
+            let len = self.len();
+            (len, Some(len))
+        }
+    }
+
+    impl<'py> ExactSizeIterator for PySetIterator<'py> {
+        fn len(&self) -> usize {
+            self.set.len().saturating_sub(self.pos as usize)
         }
     }
 }

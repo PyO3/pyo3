@@ -242,16 +242,14 @@ impl<'a> Iterator for PyTupleIterator<'a> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (
-            self.length.saturating_sub(self.index as usize),
-            Some(self.length.saturating_sub(self.index as usize)),
-        )
+        let len = self.len();
+        (len, Some(len))
     }
 }
 
 impl<'a> ExactSizeIterator for PyTupleIterator<'a> {
     fn len(&self) -> usize {
-        self.length - self.index
+        self.length.saturating_sub(self.index)
     }
 }
 
