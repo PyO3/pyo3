@@ -245,6 +245,75 @@ def leaky_relu(x, slope=0.01):
 # }
 ```
 
+### Want to embed Python in Rust with exposed modules?
+
+Internally Python maintains the `sys.modules` dict.
+An import in Python is simply a lookup into this dict.
+
+It is necessary to insert the new module into the dict
+before it is exposed to Python. There are two ways of
+doing this.
+
+   * manually inserting into `sys.modules`
+   * using [`append_to_inittab`]({{*PYO3_DOCS_URL}}/pyo3/macro.append_to_inittab.html) macro
+
+
+Example using `sys.modules`
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyfunction]
+pub fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+fn main() -> PyResult<()> {
+    Python::with_gil(|py| {
+        // Create new module
+        let foo_module = PyModule::new(py, "foo")?;
+        foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+
+        // Import and get sys.modules
+        let sys = PyModule::import(py, "sys")?;
+        let py_modules: &PyDict = sys.getattr("modules")?.downcast()?;
+
+        // Insert foo into sys.modules
+        py_modules.set_item("foo", foo_module)?;
+
+        // Now we can import + run our python code
+        Python::run(py, "import foo; foo.add_one(6)", None, None)
+    })
+}
+```
+
+Example using [`append_to_inittab`](https://docs.rs/pyo3/latest/pyo3/macro.append_to_inittab.html):
+
+**WARNING** You must call `append_to_inittab` _before_ initializing Python.
+
+
+```rust
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn add_one(x: i64) -> i64 {
+    x + 1
+}
+
+#[pymodule]
+fn foo(_py: Python, foo_module: &PyModule) -> PyResult<()> {
+    foo_module.add_function(wrap_pyfunction!(add_one, foo_module)?)?;
+    Ok(())
+}
+
+fn main() -> PyResult<()> {
+    pyo3::append_to_inittab!(foo);
+    Python::with_gil(|py| Python::run(py, "import foo; foo.add_one(6)", None, None))
+}
+```
+
+
 ### Include multiple Python files
 
 You can include a file at compile time by using
