@@ -44,7 +44,13 @@ TBD
 
 # Availability
 
-TBD
+PyO3 is licensed under the [Apache-2.0 license](https://opensource.org/licenses/APACHE-2.0).
+Versioned releases can be obtained from [crates.io](https://crates.io/crates/pyo3).
+
+The source code is hosted in a git repository on [GitHub](https://github.com/PyO3/pyo3),
+and features a Continuous Integration workflow to run tests of code changes. 
+API documentation is hosted on [docs.rs](https://docs.rs/pyo3), while a 
+user-guide can be found on the [pyo3.rs](https://pyo3.rs/) website.
 
 # Acknowledgments
 
