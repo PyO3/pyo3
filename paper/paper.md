@@ -7,14 +7,14 @@ tags:
 authors:
   - name: David Hewitt
     affiliation: 1
-  - name: Yuji Kanagawa
+  - name: Yuji Kanagawa^[co-first author]
     affiliation: 2
-  - name: Konstantin Schütze
+  - name: Konstantin Schütze^[co-first author]
     orcid: 0000-0002-3957-412X
     affiliation: 3
   - name: Georg Brandl
     affiliation: 4
-  - name: Martin Larralde
+  - name: Martin Larralde^[corresponding author]
     orcid: 0000-0002-3947-4444
     affiliation: 5
 
