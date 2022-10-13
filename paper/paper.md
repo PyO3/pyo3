@@ -8,6 +8,7 @@ authors:
   - name: David Hewitt
     affiliation: 1
   - name: Yuji Kanagawa^[co-first author]
+    orcid: 0000-0002-0925-3894
     affiliation: 2
   - name: Konstantin Schütze^[co-first author]
     orcid: 0000-0002-3957-412X
@@ -21,7 +22,7 @@ authors:
 affiliations:
   - name: Independent scholar
     index: 1
-  - name: Graduate School of Arts and Sciences, The University of Tokyo, Tokyo, Japan
+  - name: Neural Computation Unit, Okinawa Institute of Science and Technology Graduate University, Okinawa, Japan
     index: 2
   - name: TUM Faculty Informatics, Bioinformatics & Computational Biology, Technical University of Munich, Munich, Germany
     index: 3
