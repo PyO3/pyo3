@@ -6,3 +6,6 @@ https://www.cell.com/neuron/fulltext/S0896-6273(16)30265-3
 huggingface/tokenizers [@wolf2020transformers]
 huggingface/transformers is a highly popular library for interfacing with state of the art transformer models, especially in natural language processing, for which fast tokenizer are a crucial part 
 https://github.com/huggingface/tokenizers
+
+GRAPE: Fast and Scalable Graph Processing and Embedding [@cappelletti2021grape]
+https://arxiv.org/pdf/2110.06196.pdf
