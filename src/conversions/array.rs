@@ -3,9 +3,11 @@ use crate::{exceptions, PyErr};
 #[cfg(min_const_generics)]
 mod min_const_generics {
     use super::invalid_sequence_length;
-    use crate::conversion::IntoPyPointer;
+    use crate::conversion::{AsPyPointer, IntoPyPointer};
+    use crate::types::PySequence;
     use crate::{
-        ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, PyTryFrom,
+        Python, ToPyObject,
     };
 
     impl<T, const N: usize> IntoPy<PyObject> for [T; N]
@@ -61,8 +63,16 @@ mod min_const_generics {
     where
         T: FromPyObject<'s>,
     {
-        let seq = <crate::types::PySequence as PyTryFrom>::try_from(obj)?;
-        let seq_len = seq.len()? as usize;
+        // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
+        // to support this function and if not, we will only fail extraction safely.
+        let seq = unsafe {
+            if ffi::PySequence_Check(obj.as_ptr()) != 0 {
+                <PySequence as PyTryFrom>::try_from_unchecked(obj)
+            } else {
+                return Err(PyDowncastError::new(obj, "Sequence").into());
+            }
+        };
+        let seq_len = seq.len()?;
         if seq_len != N {
             return Err(invalid_sequence_length(N, seq_len));
         }
@@ -174,9 +184,11 @@ mod min_const_generics {
 #[cfg(not(min_const_generics))]
 mod array_impls {
     use super::invalid_sequence_length;
-    use crate::conversion::IntoPyPointer;
+    use crate::conversion::{AsPyPointer, IntoPyPointer};
+    use crate::types::PySequence;
     use crate::{
-        ffi, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, PyTryFrom,
+        Python, ToPyObject,
     };
     use std::mem::{transmute_copy, ManuallyDrop};
 
@@ -274,8 +286,16 @@ mod array_impls {
     where
         T: FromPyObject<'s>,
     {
-        let seq = <crate::types::PySequence as PyTryFrom>::try_from(obj)?;
-        let seq_len = seq.len()? as usize;
+        // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
+        // to support this function and if not, we will only fail extraction safely.
+        let seq = unsafe {
+            if ffi::PySequence_Check(obj.as_ptr()) != 0 {
+                <PySequence as PyTryFrom>::try_from_unchecked(obj)
+            } else {
+                return Err(PyDowncastError::new(obj, "Sequence").into());
+            }
+        };
+        let seq_len = seq.len()?;
         if seq_len != slice.len() {
             return Err(invalid_sequence_length(slice.len(), seq_len));
         }
@@ -345,6 +365,15 @@ mod tests {
             assert_eq!(pylist[1].extract::<f32>().unwrap(), -16.0);
             assert_eq!(pylist[2].extract::<f32>().unwrap(), 16.0);
             assert_eq!(pylist[3].extract::<f32>().unwrap(), 42.0);
+        });
+    }
+
+    #[test]
+    fn test_extract_non_iterable_to_array() {
+        Python::with_gil(|py| {
+            let v = py.eval("42", None, None).unwrap();
+            v.extract::<i32>().unwrap();
+            v.extract::<[i32; 1]>().unwrap_err();
         });
     }
 
