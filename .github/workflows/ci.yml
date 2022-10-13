@@ -191,7 +191,6 @@ jobs:
           cargo update -p plotters-svg --precise 0.3.1
           cargo update -p plotters-backend --precise 0.3.2
           cargo update -p bumpalo --precise 3.10.0
-          cargo update -p itertools --precise 0.10.3
           cargo update -p once_cell --precise 1.14.0
 
       - name: Build docs
