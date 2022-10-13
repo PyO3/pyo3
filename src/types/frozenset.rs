@@ -119,7 +119,7 @@ mod impl_ {
 
     /// PyO3 implementation of an iterator for a Python `frozenset` object.
     pub struct PyFrozenSetIterator<'py> {
-        set: &'py PyAny,
+        set: &'py PyFrozenSet,
         pos: ffi::Py_ssize_t,
     }
 
@@ -143,11 +143,14 @@ mod impl_ {
 
         #[inline]
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let len = self.set.len().unwrap_or_default();
-            (
-                len.saturating_sub(self.pos as usize),
-                Some(len.saturating_sub(self.pos as usize)),
-            )
+            let len = self.len();
+            (len, Some(len))
+        }
+    }
+
+    impl<'py> ExactSizeIterator for PyFrozenSetIterator<'py> {
+        fn len(&self) -> usize {
+            self.set.len().saturating_sub(self.pos as usize)
         }
     }
 }

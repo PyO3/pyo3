@@ -310,8 +310,14 @@ impl<'py> Iterator for PyDictIterator<'py> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len as usize;
+        let len = self.len();
         (len, Some(len))
+    }
+}
+
+impl<'py> ExactSizeIterator for PyDictIterator<'py> {
+    fn len(&self) -> usize {
+        self.len as usize
     }
 }
 
