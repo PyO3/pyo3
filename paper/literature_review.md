@@ -9,3 +9,6 @@ https://github.com/huggingface/tokenizers
 
 GRAPE: Fast and Scalable Graph Processing and Embedding [@cappelletti2021grape]
 https://arxiv.org/pdf/2110.06196.pdf
+
+Finch: a tool adding dynamic abundance filtering to genomic MinHashing [@bovee2018finch]
+https://joss.theoj.org/papers/10.21105/joss.00505
