@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
-use crate::exceptions::PyValueError;
+use crate::exceptions::PyTypeError;
 use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::once_cell::GILOnceCell;
@@ -285,7 +285,7 @@ where
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         if let Ok(true) = obj.is_instance_of::<PyString>() {
-            return Err(PyValueError::new_err("Can't extract `str` to `Vec`"));
+            return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
         }
         extract_sequence(obj)
     }
