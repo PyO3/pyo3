@@ -95,10 +95,12 @@ Make sure that the rust you want to be able to access from Python is compiled in
 
 
 ```toml
+# If you already have [package] information in `Cargo.toml`, you can ignore
+# this section!
 [package]
-# Name of the package. If you already have a package defined in `Cargo.toml`, you can remove
-# this section.
+# `name` here is name of the package.
 name = "pyo3_start"
+# these are good defaults:
 version = "0.1.0"
 edition = "2021"
 
