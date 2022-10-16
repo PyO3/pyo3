@@ -89,6 +89,56 @@ impl PyCFunction {
         )
     }
 
+    /// Create a new function from a closure providing some documentation for
+    /// the function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::{py_run, types};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let add_one = |args: &types::PyTuple, _kwargs: Option<&types::PyDict>| -> PyResult<_> {
+    ///         let i = args.extract::<(i64,)>()?.0;
+    ///         Ok(i+1)
+    ///     };
+    ///     let add_one = types::PyCFunction::new_closure_with_doc(
+    ///         add_one,
+    ///         py,
+    ///         "Adds one to its argument.",
+    ///     ).unwrap();
+    ///     py_run!(py, add_one, "assert add_one(42) == 43");
+    /// });
+    /// ```
+    pub fn new_closure_with_doc<'a, F, R>(
+        f: F,
+        py: Python<'a>,
+        doc: &'static str,
+    ) -> PyResult<&'a PyCFunction>
+    where
+        F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
+        R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
+    {
+        let function_ptr = Box::into_raw(Box::new(f));
+        let capsule = unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py,
+                ffi::PyCapsule_New(
+                    function_ptr as *mut c_void,
+                    CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
+                    Some(drop_closure::<F, R>),
+                ),
+            )?
+        };
+        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
+            "pyo3-closure",
+            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
+            doc,
+        );
+        Self::internal_new_from_pointers(&method_def, py, capsule.as_ptr(), std::ptr::null_mut())
+    }
+
     /// Create a new function from a closure.
     ///
     /// # Examples
@@ -111,23 +161,7 @@ impl PyCFunction {
         F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
-        let function_ptr = Box::into_raw(Box::new(f));
-        let capsule = unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyCapsule_New(
-                    function_ptr as *mut c_void,
-                    CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
-                    Some(drop_closure::<F, R>),
-                ),
-            )?
-        };
-        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
-            "pyo3-closure",
-            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
-            "",
-        );
-        Self::internal_new_from_pointers(&method_def, py, capsule.as_ptr(), std::ptr::null_mut())
+        Self::new_closure_with_doc(f, py, "")
     }
 
     #[doc(hidden)]

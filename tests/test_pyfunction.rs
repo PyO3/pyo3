@@ -448,6 +448,19 @@ fn test_closure_counter() {
 }
 
 #[test]
+fn test_closure_doc() {
+    Python::with_gil(|py| {
+        let py_fn = move |_args: &types::PyTuple,
+                          _kwargs: Option<&types::PyDict>|
+              -> PyResult<i32> { Ok(0) };
+        let py_fn = PyCFunction::new_closure_with_doc(py_fn, py, "some doc").unwrap();
+
+        py_assert!(py, py_fn, "py_fn() == 0");
+        py_assert!(py, py_fn, "py_fn.__doc__ == 'some doc'");
+    });
+}
+
+#[test]
 fn use_pyfunction() {
     mod function_in_module {
         use pyo3::prelude::*;
