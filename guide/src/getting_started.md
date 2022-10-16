@@ -129,7 +129,7 @@ classifiers = [
 
 ## Running code
 
-After this you can setup rust code to be available in python as such:
+After this you can setup rust code to be available in python as below; for example, you can place this code in `src/lib.rs`
 
 ```rust
 use pyo3::prelude::*;
