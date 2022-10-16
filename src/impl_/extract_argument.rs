@@ -221,7 +221,7 @@ impl FunctionDescription {
     /// Equivalent of `extract_arguments_tuple_dict` which uses the Python C-API "fastcall" convention.
     ///
     /// # Safety
-    /// - `args` must be a pointer to a C-style array of valid `ffi::PyObject` pointers.
+    /// - `args` must be a pointer to a C-style array of valid `ffi::PyObject` pointers, or NULL.
     /// - `kwnames` must be a pointer to a PyTuple, or NULL.
     /// - `nargs + kwnames.len()` is the total length of the `args` array.
     #[cfg(not(Py_LIMITED_API))]
@@ -240,7 +240,11 @@ impl FunctionDescription {
         // Safety: Option<&PyAny> has the same memory layout as `*mut ffi::PyObject`
         let args = args as *const Option<&PyAny>;
         let positional_args_provided = nargs as usize;
-        let args_slice = std::slice::from_raw_parts(args, positional_args_provided);
+        let args_slice = if args.is_null() {
+            &[]
+        } else {
+            std::slice::from_raw_parts(args, positional_args_provided)
+        };
 
         let num_positional_parameters = self.positional_parameter_names.len();
 
