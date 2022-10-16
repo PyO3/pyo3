@@ -1,7 +1,8 @@
-use crate::internal_tricks::{extract_cstr_or_leak_cstring, NulByteInString};
+use crate::internal_tricks::{extract_cstr_or_leak_cstring, MaybeLeaked, NulByteInString};
 use crate::{ffi, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, PyTraverseError, Python};
-use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt;
+use std::mem::ManuallyDrop;
 use std::os::raw::c_int;
 
 /// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
@@ -161,7 +162,9 @@ impl PyMethodDef {
     }
 
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> Result<ffi::PyMethodDef, NulByteInString> {
+    pub(crate) fn as_method_def(
+        &self,
+    ) -> Result<(ffi::PyMethodDef, ManuallyDrop<PyMethodDefDestructor>), NulByteInString> {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer {
                 PyCFunction: meth.0,
@@ -175,12 +178,28 @@ impl PyMethodDef {
             },
         };
 
-        Ok(ffi::PyMethodDef {
-            ml_name: get_name(self.ml_name)?.as_ptr(),
+        let name = get_name(self.ml_name)?;
+        let doc = match get_doc(self.ml_doc) {
+            Ok(d) => d,
+            Err(e) => {
+                // Free `name` if it got leaked and doc failed.
+                if let MaybeLeaked::Leaked(ptr) = name {
+                    let _ = unsafe { CString::from_raw(ptr) };
+                }
+                return Err(e);
+            }
+        };
+        let destructor = ManuallyDrop::new(PyMethodDefDestructor {
+            name: Some(name),
+            doc: Some(doc),
+        });
+        let def = ffi::PyMethodDef {
+            ml_name: name.as_ptr(),
             ml_meth: meth,
             ml_flags: self.ml_flags,
-            ml_doc: get_doc(self.ml_doc)?.as_ptr(),
-        })
+            ml_doc: doc.as_ptr(),
+        };
+        Ok((def, destructor))
     }
 }
 
@@ -245,11 +264,11 @@ impl PySetterDef {
     }
 }
 
-fn get_name(name: &'static str) -> Result<&'static CStr, NulByteInString> {
+fn get_name(name: &'static str) -> Result<MaybeLeaked, NulByteInString> {
     extract_cstr_or_leak_cstring(name, "Function name cannot contain NUL byte.")
 }
 
-fn get_doc(doc: &'static str) -> Result<&'static CStr, NulByteInString> {
+fn get_doc(doc: &'static str) -> Result<MaybeLeaked, NulByteInString> {
     extract_cstr_or_leak_cstring(doc, "Document cannot contain NUL byte.")
 }
 
@@ -260,6 +279,22 @@ pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
     match result {
         Ok(()) => 0,
         Err(PyTraverseError(value)) => value,
+    }
+}
+
+pub(crate) struct PyMethodDefDestructor {
+    name: Option<MaybeLeaked>,
+    doc: Option<MaybeLeaked>,
+}
+
+impl Drop for PyMethodDefDestructor {
+    fn drop(&mut self) {
+        if let Some(MaybeLeaked::Leaked(ptr)) = self.name.take() {
+            let _ = unsafe { CString::from_raw(ptr) };
+        }
+        if let Some(MaybeLeaked::Leaked(ptr)) = self.doc.take() {
+            let _ = unsafe { CString::from_raw(ptr) };
+        }
     }
 }
 

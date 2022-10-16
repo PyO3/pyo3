@@ -1,6 +1,7 @@
 use crate::derive_utils::PyFunctionArguments;
 use crate::exceptions::PyValueError;
 use crate::impl_::panic::PanicTrap;
+use crate::methods::PyMethodDefDestructor;
 use crate::panic::PanicException;
 use crate::{
     ffi,
@@ -8,6 +9,7 @@ use crate::{
     types, AsPyPointer,
 };
 use crate::{prelude::*, GILPool};
+use std::mem::ManuallyDrop;
 use std::os::raw::c_void;
 
 /// Represents a builtin Python function object.
@@ -28,13 +30,21 @@ where
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
     crate::callback_body!(py, {
-        let boxed_fn: &F =
+        let boxed_fn: &ClosureDestructor<F> =
             &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr() as *const _)
-                as *mut F);
+                as *mut ClosureDestructor<F>);
         let args = py.from_borrowed_ptr::<types::PyTuple>(args);
         let kwargs = py.from_borrowed_ptr_or_opt::<types::PyDict>(kwargs);
-        boxed_fn(args, kwargs)
+        (boxed_fn.closure)(args, kwargs)
     })
+}
+
+struct ClosureDestructor<F> {
+    closure: F,
+    def: ffi::PyMethodDef,
+    // Used to destroy the cstrings in `def`, if necessary.
+    #[allow(dead_code)]
+    def_destructor: PyMethodDefDestructor,
 }
 
 unsafe extern "C" fn drop_closure<F, R>(capsule_ptr: *mut ffi::PyObject)
@@ -45,11 +55,12 @@ where
     let trap = PanicTrap::new("uncaught panic during drop_closure");
     let pool = GILPool::new();
     if let Err(payload) = std::panic::catch_unwind(|| {
-        let boxed_fn: Box<F> = Box::from_raw(ffi::PyCapsule_GetPointer(
+        let destructor: Box<ClosureDestructor<F>> = Box::from_raw(ffi::PyCapsule_GetPointer(
             capsule_ptr,
             CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
-        ) as *mut F);
-        drop(boxed_fn)
+        )
+            as *mut ClosureDestructor<F>);
+        drop(destructor)
     }) {
         let py = pool.python();
         let err = PanicException::from_panic_payload(payload);
@@ -106,45 +117,45 @@ impl PyCFunction {
     ///     py_run!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
-    pub fn new_closure<F, R>(f: F, py: Python<'_>) -> PyResult<&PyCFunction>
+    pub fn new_closure<F, R>(closure: F, py: Python<'_>) -> PyResult<&PyCFunction>
     where
         F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
     {
-        let function_ptr = Box::into_raw(Box::new(f));
-        let capsule = unsafe {
+        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
+            "pyo3-closure\0",
+            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
+            "\0",
+        );
+        let (def, def_destructor) = method_def
+            .as_method_def()
+            .map_err(|err| PyValueError::new_err(err.0))?;
+        let ptr = Box::into_raw(Box::new(ClosureDestructor {
+            closure,
+            def,
+            // Disable the `ManuallyDrop`; we do actually want to drop this later.
+            def_destructor: ManuallyDrop::into_inner(def_destructor),
+        }));
+
+        let destructor = unsafe {
             PyObject::from_owned_ptr_or_err(
                 py,
                 ffi::PyCapsule_New(
-                    function_ptr as *mut c_void,
+                    ptr as *mut c_void,
                     CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
                     Some(drop_closure::<F, R>),
                 ),
             )?
         };
-        let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
-            "pyo3-closure",
-            pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
-            "",
-        );
-        Self::internal_new_from_pointers(&method_def, py, capsule.as_ptr(), std::ptr::null_mut())
-    }
 
-    #[doc(hidden)]
-    fn internal_new_from_pointers<'py>(
-        method_def: &PyMethodDef,
-        py: Python<'py>,
-        mod_ptr: *mut ffi::PyObject,
-        module_name: *mut ffi::PyObject,
-    ) -> PyResult<&'py Self> {
-        let def = method_def
-            .as_method_def()
-            .map_err(|err| PyValueError::new_err(err.0))?;
         unsafe {
             py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
-                Box::into_raw(Box::new(def)),
-                mod_ptr,
-                module_name,
+                #[cfg(addr_of)]
+                core::ptr::addr_of_mut!((*ptr).def),
+                #[cfg(not(addr_of))]
+                &mut (*ptr).def,
+                destructor.as_ptr(),
+                std::ptr::null_mut(),
             ))
         }
     }
@@ -162,7 +173,19 @@ impl PyCFunction {
         } else {
             (std::ptr::null_mut(), std::ptr::null_mut())
         };
-        Self::internal_new_from_pointers(method_def, py, mod_ptr, module_name)
+        let (def, _destructor) = method_def
+            .as_method_def()
+            .map_err(|err| PyValueError::new_err(err.0))?;
+
+        let def = Box::into_raw(Box::new(def));
+
+        unsafe {
+            py.from_owned_ptr_or_err::<PyCFunction>(ffi::PyCFunction_NewEx(
+                def,
+                mod_ptr,
+                module_name,
+            ))
+        }
     }
 }
 

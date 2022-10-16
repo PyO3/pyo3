@@ -1,6 +1,6 @@
 use crate::ffi::{Py_ssize_t, PY_SSIZE_T_MAX};
 use std::ffi::{CStr, CString};
-
+use std::os::raw::c_char;
 pub struct PrivateMarker;
 
 macro_rules! private_decl {
@@ -35,15 +35,45 @@ macro_rules! pyo3_exception {
 #[derive(Debug)]
 pub(crate) struct NulByteInString(pub(crate) &'static str);
 
+#[derive(Copy, Clone)]
+pub(crate) enum MaybeLeaked {
+    Static(*const c_char),
+    Leaked(*mut c_char),
+}
+
+impl MaybeLeaked {
+    pub(crate) fn as_ptr(&self) -> *const c_char {
+        match *self {
+            Self::Static(ptr) => ptr,
+            Self::Leaked(ptr) => ptr as *const c_char,
+        }
+    }
+}
+
 pub(crate) fn extract_cstr_or_leak_cstring(
     src: &'static str,
     err_msg: &'static str,
-) -> Result<&'static CStr, NulByteInString> {
-    CStr::from_bytes_with_nul(src.as_bytes())
-        .or_else(|_| {
-            CString::new(src.as_bytes()).map(|c_string| &*Box::leak(c_string.into_boxed_c_str()))
-        })
-        .map_err(|_| NulByteInString(err_msg))
+) -> Result<MaybeLeaked, NulByteInString> {
+    let bytes = src.as_bytes();
+    let nul_pos = memchr::memchr(0, bytes);
+    match nul_pos {
+        Some(nul_pos) if nul_pos + 1 == bytes.len() => {
+            // SAFETY: We know there is only one nul byte, at the end
+            // of the byte slice.
+            let ptr = unsafe { CStr::from_bytes_with_nul_unchecked(bytes).as_ptr() };
+            Ok(MaybeLeaked::Static(ptr))
+        }
+        Some(_) => Err(NulByteInString(err_msg)),
+        None => {
+            let mut v = Vec::with_capacity(bytes.len() + 1);
+            v.extend_from_slice(bytes);
+
+            // SAFETY: There is no null byte, and `from_vec_unchecked` will append one.
+            let cstring = unsafe { CString::from_vec_unchecked(v) };
+            let ptr = cstring.into_raw();
+            Ok(MaybeLeaked::Leaked(ptr))
+        }
+    }
 }
 
 /// Convert an usize index into a Py_ssize_t index, clamping overflow to

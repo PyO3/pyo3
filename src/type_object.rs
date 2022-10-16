@@ -2,7 +2,7 @@
 //! Python type object information
 
 use crate::impl_::pyclass::PyClassItemsIter;
-use crate::internal_tricks::extract_cstr_or_leak_cstring;
+use crate::internal_tricks::{extract_cstr_or_leak_cstring, MaybeLeaked};
 use crate::once_cell::GILOnceCell;
 use crate::pyclass::create_type_object;
 use crate::pyclass::PyClass;
@@ -221,7 +221,7 @@ impl LazyStaticType {
 fn initialize_tp_dict(
     py: Python<'_>,
     type_object: *mut ffi::PyObject,
-    items: Vec<(&'static std::ffi::CStr, PyObject)>,
+    items: Vec<(MaybeLeaked, PyObject)>,
 ) -> PyResult<()> {
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.

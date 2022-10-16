@@ -18,6 +18,7 @@ cfg-if = "1.0"
 libc = "0.2.62"
 parking_lot = ">= 0.11, < 0.13"
 memoffset = "0.6.5"
+memchr = "1"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
 pyo3-ffi = { path = "pyo3-ffi", version = "=0.17.2" }
