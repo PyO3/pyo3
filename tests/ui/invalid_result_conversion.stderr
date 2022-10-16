@@ -1,30 +1,18 @@
-error[E0599]: no method named `assert_into_py_result` found for enum `Result` in the current scope
+error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
   --> tests/ui/invalid_result_conversion.rs:21:1
    |
 21 | #[pyfunction]
-   | ^^^^^^^^^^^^^ method not found in `Result<(), MyError>`
+   | ^^^^^^^^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
    |
-note: the method `assert_into_py_result` exists on the type `()`
-  --> src/impl_/ghost.rs
-   |
-   |     fn assert_into_py_result(&mut self) {}
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: the following other types implement trait `From<T>`:
+             <PyErr as From<&CancelledError>>
+             <PyErr as From<&IncompleteReadError>>
+             <PyErr as From<&InvalidStateError>>
+             <PyErr as From<&LimitOverrunError>>
+             <PyErr as From<&PanicException>>
+             <PyErr as From<&PyArithmeticError>>
+             <PyErr as From<&PyAssertionError>>
+             <PyErr as From<&PyAttributeError>>
+           and $N others
+   = note: required because of the requirements on the impl of `Into<PyErr>` for `MyError`
    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: use the `?` operator to extract the `()` value, propagating a `Result::Err` value to the caller
-   |
-21 | #[pyfunction]?
-   |              +
-
-error[E0277]: the trait bound `Result<(), MyError>: IntoPyCallbackOutput<_>` is not satisfied
-   --> tests/ui/invalid_result_conversion.rs:21:1
-    |
-21  | #[pyfunction]
-    | ^^^^^^^^^^^^^ the trait `IntoPyCallbackOutput<_>` is not implemented for `Result<(), MyError>`
-    |
-    = help: the trait `IntoPyCallbackOutput<U>` is implemented for `Result<T, E>`
-note: required by a bound in `pyo3::callback::convert`
-   --> src/callback.rs
-    |
-    |     T: IntoPyCallbackOutput<U>,
-    |        ^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `pyo3::callback::convert`
-    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
