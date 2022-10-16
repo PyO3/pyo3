@@ -244,11 +244,19 @@ jobs:
       - name: Test build config
         run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
 
+      - name: Install nox
+        run: python -m pip install -U pip nox
+
+      - if: matrix.platform.os == 'ubuntu-latest'
+        name: Test with address sanitizer
+        run: |
+          rustup toolchain install nightly
+          rustup component add rust-src --toolchain nightly
+          nox -s address-sanitizer
+
       - name: Test python examples and tests
         shell: bash
-        run: |
-          python -m pip install -U pip nox
-          nox -s test-py
+        run: nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
