@@ -341,6 +341,10 @@ impl PyTypeBuilder {
         module_name: Option<&'static str>,
         basicsize: usize,
     ) -> PyResult<*mut ffi::PyTypeObject> {
+        // `c_ulong` and `c_uint` have the same size
+        // on some platforms (like windows)
+        #![allow(clippy::useless_conversion)]
+
         self.finalize_methods_and_properties();
 
         if !self.has_new {
@@ -376,9 +380,7 @@ impl PyTypeBuilder {
             name: py_class_qualified_name(module_name, name)?,
             basicsize: basicsize as c_int,
             itemsize: 0,
-            // `c_ulong` and `c_uint` have the same size
-            // on some platforms (like windows)
-            #[allow(clippy::useless_conversion)]
+
             flags: (ffi::Py_TPFLAGS_DEFAULT | self.class_flags)
                 .try_into()
                 .unwrap(),
