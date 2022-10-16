@@ -235,6 +235,7 @@ def address_sanitizer(session: nox.Session):
         "cargo",
         "+nightly",
         "test",
+        "-Zbuild-std",
         f"--target={_get_rust_target()}",
         "--",
         "--test-threads=1",
