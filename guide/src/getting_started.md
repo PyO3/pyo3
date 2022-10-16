@@ -95,6 +95,13 @@ Make sure that the rust you want to be able to access from Python is compiled in
 
 
 ```toml
+[package]
+# Name of the package. If you already have a package defined in `Cargo.toml`, you can remove
+# this section.
+name = "pyo3_start"
+version = "0.1.0"
+edition = "2021"
+
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the
 # library (i.e. `import string_sum`). If you change this, you must also change the name of the
