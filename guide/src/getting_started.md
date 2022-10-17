@@ -95,6 +95,15 @@ Make sure that the rust you want to be able to access from Python is compiled in
 
 
 ```toml
+# If you already have [package] information in `Cargo.toml`, you can ignore
+# this section!
+[package]
+# `name` here is name of the package.
+name = "pyo3_start"
+# these are good defaults:
+version = "0.1.0"
+edition = "2021"
+
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the
 # library (i.e. `import string_sum`). If you change this, you must also change the name of the
@@ -129,7 +138,7 @@ classifiers = [
 
 ## Running code
 
-After this you can setup rust code to be available in python as such:
+After this you can setup rust code to be available in python as below; for example, you can place this code in `src/lib.rs`:
 
 ```rust
 use pyo3::prelude::*;
