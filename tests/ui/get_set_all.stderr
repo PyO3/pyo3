@@ -1,0 +1,23 @@
+error: `set_all` on an unit struct does nothing, because unit structs have no fields
+ --> tests/ui/get_set_all.rs:3:11
+  |
+3 | #[pyclass(set_all)]
+  |           ^^^^^^^
+
+error: duplicate `set` - the struct is already annotated with `set_all`
+ --> tests/ui/get_set_all.rs:6:11
+  |
+6 | #[pyclass(set_all)]
+  |           ^^^^^^^
+
+error: `get_all` on an unit struct does nothing, because unit structs have no fields
+  --> tests/ui/get_set_all.rs:12:11
+   |
+12 | #[pyclass(get_all)]
+   |           ^^^^^^^
+
+error: duplicate `get` - the struct is already annotated with `get_all`
+  --> tests/ui/get_set_all.rs:15:11
+   |
+15 | #[pyclass(get_all)]
+   |           ^^^^^^^

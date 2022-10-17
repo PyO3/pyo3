@@ -158,3 +158,34 @@ fn tuple_struct_getter_setter() {
         py_assert!(py, inst, "inst.num == 20");
     });
 }
+
+#[pyclass(get_all, set_all)]
+struct All {
+    num: i32,
+}
+
+#[test]
+fn get_set_all() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, All { num: 10 }).unwrap();
+
+        py_run!(py, inst, "assert inst.num == 10");
+        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    });
+}
+
+#[pyclass(get_all)]
+struct All2 {
+    #[pyo3(set)]
+    num: i32,
+}
+
+#[test]
+fn get_all_and_set() {
+    Python::with_gil(|py| {
+        let inst = Py::new(py, All2 { num: 10 }).unwrap();
+
+        py_run!(py, inst, "assert inst.num == 10");
+        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    });
+}

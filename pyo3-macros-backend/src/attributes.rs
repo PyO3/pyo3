@@ -18,6 +18,7 @@ pub mod kw {
     syn::custom_keyword!(frozen);
     syn::custom_keyword!(gc);
     syn::custom_keyword!(get);
+    syn::custom_keyword!(get_all);
     syn::custom_keyword!(item);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
@@ -25,6 +26,7 @@ pub mod kw {
     syn::custom_keyword!(pass_module);
     syn::custom_keyword!(sequence);
     syn::custom_keyword!(set);
+    syn::custom_keyword!(set_all);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(subclass);
     syn::custom_keyword!(text_signature);

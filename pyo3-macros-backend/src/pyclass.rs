@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::borrow::Cow;
+use std::mem;
 
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
@@ -60,12 +61,14 @@ pub struct PyClassPyO3Options {
     pub krate: Option<CrateAttribute>,
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
+    pub get_all: Option<kw::get_all>,
     pub freelist: Option<FreelistAttribute>,
     pub frozen: Option<kw::frozen>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub sequence: Option<kw::sequence>,
+    pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
@@ -80,10 +83,12 @@ enum PyClassPyO3Option {
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
     Frozen(kw::frozen),
+    GetAll(kw::get_all),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
     Sequence(kw::sequence),
+    SetAll(kw::set_all),
     Subclass(kw::subclass),
     TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
@@ -105,6 +110,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Freelist)
         } else if lookahead.peek(attributes::kw::frozen) {
             input.parse().map(PyClassPyO3Option::Frozen)
+        } else if lookahead.peek(attributes::kw::get_all) {
+            input.parse().map(PyClassPyO3Option::GetAll)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -113,6 +120,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Name)
         } else if lookahead.peek(attributes::kw::sequence) {
             input.parse().map(PyClassPyO3Option::Sequence)
+        } else if lookahead.peek(attributes::kw::set_all) {
+            input.parse().map(PyClassPyO3Option::SetAll)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::text_signature) {
@@ -165,10 +174,12 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
+            PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
+            PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -212,7 +223,7 @@ pub fn build_py_class(
             For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
-    let field_options = match &mut class.fields {
+    let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter_mut()
@@ -230,10 +241,32 @@ pub fn build_py_class(
             })
             .collect::<Result<_>>()?,
         syn::Fields::Unit => {
+            if let Some(attr) = args.options.set_all {
+                return Err(syn::Error::new(attr.span(), UNIT_SET));
+            };
+            if let Some(attr) = args.options.get_all {
+                return Err(syn::Error::new(attr.span(), UNIT_GET));
+            };
             // No fields for unit struct
             Vec::new()
         }
     };
+
+    if let Some(attr) = args.options.get_all {
+        for (_, FieldPyO3Options { get, .. }) in &mut field_options {
+            if mem::replace(get, true) {
+                return Err(syn::Error::new(attr.span(), DUPE_GET));
+            }
+        }
+    }
+
+    if let Some(attr) = args.options.set_all {
+        for (_, FieldPyO3Options { set, .. }) in &mut field_options {
+            if mem::replace(set, true) {
+                return Err(syn::Error::new(attr.span(), DUPE_SET));
+            }
+        }
+    }
 
     impl_class(&class.ident, &args, doc, field_options, methods_type, krate)
 }
@@ -1085,3 +1118,10 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         _pyo3::inventory::collect!(#inventory_class_name);
     }
 }
+
+const DUPE_SET: &str = "duplicate `set` - the struct is already annotated with `set_all`";
+const DUPE_GET: &str = "duplicate `get` - the struct is already annotated with `get_all`";
+const UNIT_GET: &str =
+    "`get_all` on an unit struct does nothing, because unit structs have no fields";
+const UNIT_SET: &str =
+    "`set_all` on an unit struct does nothing, because unit structs have no fields";
