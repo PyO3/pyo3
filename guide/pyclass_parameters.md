@@ -7,10 +7,12 @@
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrowchecker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
+| `get_all` | Generates getters for all fields of the pyclass. |
 | `mapping` |  Inform PyO3 that this class is a [`Mapping`][params-mapping], and so leave its implementation of sequence C-API slots empty. |
 | <span style="white-space: pre">`module = "module_name"`</span> |  Python code will see the class as being defined in this module. Defaults to `builtins`. |
 | <span style="white-space: pre">`name = "python_name"`</span> | Sets the name that Python sees this class as. Defaults to the name of the Rust struct. |
 | `sequence` |  Inform PyO3 that this class is a [`Sequence`][params-sequence], and so leave its C-API mapping length slot empty. |
+| `set_all` | Generates setters for all fields of the pyclass. |
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
 | <span style="white-space: pre">`text_signature = "(arg1, arg2, ...)"`</span> |  Sets the text signature for the Python class' `__new__` method. |
 | `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a threadsafe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread.|
