@@ -42,7 +42,7 @@ impl PyType {
     /// Checks whether `self` is a subclass of `other`.
     ///
     /// Equivalent to the Python expression `issubclass(self, other)`.
-    pub fn is_subclass(&self, other: &PyType) -> PyResult<bool> {
+    pub fn is_subclass(&self, other: &PyAny) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
