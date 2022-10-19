@@ -107,7 +107,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::PySet;
-    use crate::{IntoPy, PyObject, Python};
+    use crate::{IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
 
     #[test]
@@ -136,6 +136,20 @@ mod tests {
 
             let bto: PyObject = bt.clone().into_py(py);
             let hso: PyObject = hs.clone().into_py(py);
+
+            assert_eq!(bt, bto.extract(py).unwrap());
+            assert_eq!(hs, hso.extract(py).unwrap());
+        });
+    }
+
+    #[test]
+    fn test_set_to_object() {
+        Python::with_gil(|py| {
+            let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+
+            let bto: PyObject = bt.to_object(py);
+            let hso: PyObject = hs.to_object(py);
 
             assert_eq!(bt, bto.extract(py).unwrap());
             assert_eq!(hs, hso.extract(py).unwrap());

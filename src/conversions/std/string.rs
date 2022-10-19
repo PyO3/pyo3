@@ -38,7 +38,7 @@ impl<'a> IntoPy<Py<PyString>> for &'a str {
 
 /// Converts a Rust `Cow<'_, str>` to a Python object.
 /// See `PyString::new` for details on the conversion.
-impl<'a> ToPyObject for Cow<'a, str> {
+impl ToPyObject for Cow<'_, str> {
     #[inline]
     fn to_object(&self, py: Python<'_>) -> PyObject {
         PyString::new(py, self).into()
@@ -150,7 +150,30 @@ impl FromPyObject<'_> for char {
 #[cfg(test)]
 mod tests {
     use crate::Python;
-    use crate::{FromPyObject, ToPyObject};
+    use crate::{FromPyObject, IntoPy, PyObject, ToPyObject};
+    use std::borrow::Cow;
+
+    #[test]
+    fn test_cow_into_py() {
+        Python::with_gil(|py| {
+            let s = "Hello Python";
+            let py_string: PyObject = Cow::Borrowed(s).into_py(py);
+            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            let py_string: PyObject = Cow::<str>::Owned(s.into()).into_py(py);
+            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+        })
+    }
+
+    #[test]
+    fn test_cow_to_object() {
+        Python::with_gil(|py| {
+            let s = "Hello Python";
+            let py_string = Cow::Borrowed(s).to_object(py);
+            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+            let py_string = Cow::<str>::Owned(s.into()).to_object(py);
+            assert_eq!(s, py_string.extract::<&str>(py).unwrap());
+        })
+    }
 
     #[test]
     fn test_non_bmp() {
@@ -192,6 +215,33 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("expected a string of length 1"));
+        })
+    }
+
+    #[test]
+    fn test_string_into_py() {
+        Python::with_gil(|py| {
+            let s = "Hello Python";
+            let s2 = s.to_owned();
+            let s3 = &s2;
+            assert_eq!(
+                s,
+                IntoPy::<PyObject>::into_py(s3, py)
+                    .extract::<&str>(py)
+                    .unwrap()
+            );
+            assert_eq!(
+                s,
+                IntoPy::<PyObject>::into_py(s2, py)
+                    .extract::<&str>(py)
+                    .unwrap()
+            );
+            assert_eq!(
+                s,
+                IntoPy::<PyObject>::into_py(s, py)
+                    .extract::<&str>(py)
+                    .unwrap()
+            );
         })
     }
 }
