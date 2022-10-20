@@ -6,12 +6,9 @@ use std::convert::TryInto;
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::inspect::types::TypeInfo;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
-use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToPyObject,
-};
+use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -21,7 +18,7 @@ pyobject_native_type_core!(PyList, ffi::PyList_Type, #checkfunction=ffi::PyList_
 
 #[inline]
 #[track_caller]
-fn new_from_iter(
+pub(crate) fn new_from_iter(
     py: Python<'_>,
     elements: &mut dyn ExactSizeIterator<Item = PyObject>,
 ) -> Py<PyList> {
@@ -339,41 +336,6 @@ impl<'a> std::iter::IntoIterator for &'a PyList {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-impl<T> ToPyObject for [T]
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let mut iter = self.iter().map(|e| e.to_object(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
-    }
-}
-
-impl<T> ToPyObject for Vec<T>
-where
-    T: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_slice().to_object(py)
-    }
-}
-
-impl<T> IntoPy<PyObject> for Vec<T>
-where
-    T: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let mut iter = self.into_iter().map(|e| e.into_py(py));
-        let list = new_from_iter(py, &mut iter);
-        list.into()
-    }
-
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(T::type_output())
     }
 }
 
