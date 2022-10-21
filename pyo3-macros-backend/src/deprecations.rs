@@ -4,6 +4,8 @@ use quote::{quote_spanned, ToTokens};
 pub enum Deprecation {
     PyClassGcOption,
     RequiredArgumentAfterOption,
+    PyFunctionArguments,
+    PyMethodArgsAttribute,
 }
 
 impl Deprecation {
@@ -11,6 +13,8 @@ impl Deprecation {
         let string = match self {
             Deprecation::PyClassGcOption => "PYCLASS_GC_OPTION",
             Deprecation::RequiredArgumentAfterOption => "REQUIRED_ARGUMENT_AFTER_OPTION",
+            Deprecation::PyFunctionArguments => "PYFUNCTION_ARGUMENTS",
+            Deprecation::PyMethodArgsAttribute => "PYMETHODS_ARGS_ATTRIBUTE",
         };
         syn::Ident::new(string, span)
     }

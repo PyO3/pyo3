@@ -766,7 +766,7 @@ impl Dummy {
 
     // Things with attributes
 
-    #[pyo3(signature = (_y=1, *, _z=2))]
+    #[pyo3(signature = (_y, *, _z=2))]
     fn test(&self, _y: &Dummy, _z: i32) {}
     #[staticmethod]
     fn staticmethod() {}

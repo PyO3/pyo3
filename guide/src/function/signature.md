@@ -103,6 +103,8 @@ The `#[pymethods]` macro has an `#[args]` attribute which accepts the deprecated
 Below are the same examples as above which using the deprecated syntax:
 
 ```rust
+# #![allow(deprecated)]
+
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -136,6 +138,7 @@ The following parameters can be passed to the `#[pyfunction]` attribute:
 
 Example:
 ```rust
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #

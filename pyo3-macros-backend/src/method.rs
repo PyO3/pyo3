@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use crate::attributes::TextSignatureAttribute;
-use crate::deprecations::Deprecations;
+use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
 use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
@@ -278,7 +278,7 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             deprecated_args,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0))?;
+        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
@@ -327,7 +327,7 @@ impl<'a> FnSpec<'a> {
             signature,
             output: ty,
             doc,
-            deprecations: Deprecations::new(),
+            deprecations,
             text_signature,
             unsafety: sig.unsafety,
         })
@@ -578,6 +578,7 @@ struct MethodAttributes {
 fn parse_method_attributes(
     attrs: &mut Vec<syn::Attribute>,
     mut python_name: Option<syn::Ident>,
+    deprecations: &mut Deprecations,
 ) -> Result<MethodAttributes> {
     let mut new_attrs = Vec::new();
     let mut deprecated_args = None;
@@ -682,6 +683,7 @@ fn parse_method_attributes(
                         deprecated_args.is_none(),
                         nested.span() => "args may only be specified once"
                     );
+                    deprecations.push(Deprecation::PyMethodArgsAttribute, nested.span());
                     deprecated_args = Some(DeprecatedArgs::from_meta(&nested)?);
                 } else {
                     new_attrs.push(attr)

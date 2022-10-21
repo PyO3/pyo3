@@ -7,7 +7,7 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    deprecations::Deprecations,
+    deprecations::{Deprecation, Deprecations},
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
     utils::{self, ensure_not_async_fn, get_pyo3_crate},
@@ -269,8 +269,9 @@ impl Parse for PyFunctionOptions {
                 options.krate = Some(input.parse()?);
             } else {
                 // If not recognised attribute, this is "legacy" pyfunction syntax #[pyfunction(a, b)]
-                //
-                // TODO deprecate in favour of #[pyfunction(signature = (a, b), name = "foo")]
+                options
+                    .deprecations
+                    .push(Deprecation::PyFunctionArguments, input.span());
                 options.deprecated_args = Some(input.parse()?);
                 break;
             }
