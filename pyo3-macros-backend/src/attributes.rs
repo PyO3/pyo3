@@ -43,7 +43,7 @@ pub struct KeywordAttribute<K, V> {
 }
 
 /// A helper type which parses the inner type via a literal string
-/// e.g. LitStrValue<Path> -> parses "some::path" in quotes.
+/// e.g. `LitStrValue<Path>` -> parses "some::path" in quotes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LitStrValue<T>(pub T);
 

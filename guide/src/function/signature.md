@@ -97,10 +97,10 @@ num=-1
 > Note: for keywords like `struct`, to use it as a function argument, use "raw ident" syntax `r#struct` in both the signature and the function definition:
 >
 > ```rust
-> # !#[allow(unused_code)]
+> # #![allow(dead_code)]
 > # use pyo3::prelude::*;
 > #[pyfunction(signature = (r#struct = "foo"))]
-> fn method_with_keyword<'a>(&self, r#struct: &'a str) {
+> fn function_with_keyword(r#struct: &str) {
 > #     let _ = r#struct;
 >     /* ... */
 > }
