@@ -1344,6 +1344,11 @@ impl r#RawIdents {
 
     #[classattr]
     const r#CLASS_ATTR_CONST: i32 = 6;
+
+    #[pyo3(signature = (r#struct = "foo"))]
+    fn method_with_keyword<'a>(&self, r#struct: &'a str) -> &'a str {
+        r#struct
+    }
 }
 
 #[test]
@@ -1377,6 +1382,10 @@ fn test_raw_idents() {
 
             assert raw_idents_type.class_attr_fn == 5
             assert raw_idents_type.CLASS_ATTR_CONST == 6
+
+            assert instance.method_with_keyword() == "foo"
+            assert instance.method_with_keyword("bar") == "bar"
+            assert instance.method_with_keyword(struct="baz") == "baz"
             "#
         );
     })

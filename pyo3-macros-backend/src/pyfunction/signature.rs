@@ -348,11 +348,11 @@ impl<'a> FunctionSignature<'a> {
         let mut next_argument_checked = |name: &syn::Ident| match args_iter.next() {
             Some(fn_arg) => {
                 ensure_spanned!(
-                    name == &fn_arg.name.unraw(),
+                    name == fn_arg.name,
                     name.span() => format!(
                         "expected argument from function definition `{}` but got argument `{}`",
                         fn_arg.name.unraw(),
-                        name,
+                        name.unraw(),
                     )
                 );
                 Ok(fn_arg)
