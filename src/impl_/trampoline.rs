@@ -134,6 +134,8 @@ trampolines!(
     ) -> *mut ffi::PyObject;
 
     pub fn unaryfunc(slf: *mut ffi::PyObject) -> *mut ffi::PyObject;
+
+    pub fn dealloc(slf: *mut ffi::PyObject) -> ();
 );
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
