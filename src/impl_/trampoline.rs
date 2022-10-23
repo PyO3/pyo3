@@ -3,11 +3,17 @@
 //! They exist to monomorphise std::panic::catch_unwind once into PyO3, rather than inline in every
 //! function, thus saving a huge amount of compile-time complexity.
 
-use std::os::raw::{c_int, c_void};
+use std::{
+    os::raw::{c_int, c_void},
+    panic::{self, UnwindSafe},
+};
 
 use crate::{
-    callback::panic_result_into_callback_output, ffi, methods::IPowModulo, GILPool, PyResult,
-    Python,
+    callback::{panic_result_into_callback_output, PyCallbackOutput},
+    ffi,
+    impl_::panic::PanicTrap,
+    methods::IPowModulo,
+    GILPool, PyResult, Python,
 };
 
 #[inline]
@@ -17,10 +23,7 @@ pub unsafe fn noargs(
     f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
 ) -> *mut ffi::PyObject {
     debug_assert!(args.is_null());
-
-    let gil = GILPool::new();
-    let py = gil.python();
-    panic_result_into_callback_output(py, std::panic::catch_unwind(move || f(py, slf)))
+    trampoline_inner(|py| f(py, slf))
 }
 
 macro_rules! trampoline {
@@ -30,11 +33,7 @@ macro_rules! trampoline {
             $($arg_names: $arg_types,)*
             f: for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>,
         ) -> $ret {
-            let gil = GILPool::new();
-            let py = gil.python();
-            panic_result_into_callback_output(
-                py,
-                std::panic::catch_unwind(move || f(py, $($arg_names),*)))
+            trampoline_inner(|py| f(py, $($arg_names,)*))
         }
     }
 }
@@ -155,3 +154,20 @@ trampoline!(
         arg3: IPowModulo,
     ) -> *mut ffi::PyObject;
 );
+
+#[inline]
+pub fn trampoline_inner<F, R>(body: F) -> R
+where
+    F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
+    R: PyCallbackOutput,
+{
+    let trap = PanicTrap::new("uncaught panic at ffi boundary");
+    let pool = unsafe { GILPool::new() };
+    let py = pool.python();
+    let out = panic_result_into_callback_output(
+        py,
+        panic::catch_unwind(move || -> PyResult<_> { body(py) }),
+    );
+    trap.disarm();
+    out
+}
