@@ -60,12 +60,14 @@ pub struct PyClassPyO3Options {
     pub krate: Option<CrateAttribute>,
     pub dict: Option<kw::dict>,
     pub extends: Option<ExtendsAttribute>,
+    pub get_all: Option<kw::get_all>,
     pub freelist: Option<FreelistAttribute>,
     pub frozen: Option<kw::frozen>,
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
     pub sequence: Option<kw::sequence>,
+    pub set_all: Option<kw::set_all>,
     pub subclass: Option<kw::subclass>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub unsendable: Option<kw::unsendable>,
@@ -80,10 +82,12 @@ enum PyClassPyO3Option {
     Extends(ExtendsAttribute),
     Freelist(FreelistAttribute),
     Frozen(kw::frozen),
+    GetAll(kw::get_all),
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
     Sequence(kw::sequence),
+    SetAll(kw::set_all),
     Subclass(kw::subclass),
     TextSignature(TextSignatureAttribute),
     Unsendable(kw::unsendable),
@@ -105,6 +109,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Freelist)
         } else if lookahead.peek(attributes::kw::frozen) {
             input.parse().map(PyClassPyO3Option::Frozen)
+        } else if lookahead.peek(attributes::kw::get_all) {
+            input.parse().map(PyClassPyO3Option::GetAll)
         } else if lookahead.peek(attributes::kw::mapping) {
             input.parse().map(PyClassPyO3Option::Mapping)
         } else if lookahead.peek(attributes::kw::module) {
@@ -113,6 +119,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Name)
         } else if lookahead.peek(attributes::kw::sequence) {
             input.parse().map(PyClassPyO3Option::Sequence)
+        } else if lookahead.peek(attributes::kw::set_all) {
+            input.parse().map(PyClassPyO3Option::SetAll)
         } else if lookahead.peek(attributes::kw::subclass) {
             input.parse().map(PyClassPyO3Option::Subclass)
         } else if lookahead.peek(attributes::kw::text_signature) {
@@ -165,10 +173,12 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
             PyClassPyO3Option::Freelist(freelist) => set_option!(freelist),
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
+            PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
+            PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::TextSignature(text_signature) => set_option!(text_signature),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -212,7 +222,7 @@ pub fn build_py_class(
             For an explanation, see https://pyo3.rs/latest/class.html#no-generic-parameters"
     );
 
-    let field_options = match &mut class.fields {
+    let mut field_options: Vec<(&syn::Field, FieldPyO3Options)> = match &mut class.fields {
         syn::Fields::Named(fields) => fields
             .named
             .iter_mut()
@@ -230,18 +240,54 @@ pub fn build_py_class(
             })
             .collect::<Result<_>>()?,
         syn::Fields::Unit => {
+            if let Some(attr) = args.options.set_all {
+                return Err(syn::Error::new_spanned(attr, UNIT_SET));
+            };
+            if let Some(attr) = args.options.get_all {
+                return Err(syn::Error::new_spanned(attr, UNIT_GET));
+            };
             // No fields for unit struct
             Vec::new()
         }
     };
 
+    if let Some(attr) = args.options.get_all {
+        for (_, FieldPyO3Options { get, .. }) in &mut field_options {
+            if let Some(old_get) = get.replace(Annotated::Struct(attr)) {
+                return Err(syn::Error::new(old_get.span(), DUPE_GET));
+            }
+        }
+    }
+
+    if let Some(attr) = args.options.set_all {
+        for (_, FieldPyO3Options { set, .. }) in &mut field_options {
+            if let Some(old_set) = set.replace(Annotated::Struct(attr)) {
+                return Err(syn::Error::new(old_set.span(), DUPE_SET));
+            }
+        }
+    }
+
     impl_class(&class.ident, &args, doc, field_options, methods_type, krate)
+}
+
+enum Annotated<X, Y> {
+    Field(X),
+    Struct(Y),
+}
+
+impl<X: Spanned, Y: Spanned> Spanned for Annotated<X, Y> {
+    fn span(&self) -> Span {
+        match self {
+            Self::Field(x) => x.span(),
+            Self::Struct(y) => y.span(),
+        }
+    }
 }
 
 /// `#[pyo3()]` options for pyclass fields
 struct FieldPyO3Options {
-    get: bool,
-    set: bool,
+    get: Option<Annotated<kw::get, kw::get_all>>,
+    set: Option<Annotated<kw::set, kw::set_all>>,
     name: Option<NameAttribute>,
 }
 
@@ -269,33 +315,27 @@ impl Parse for FieldPyO3Option {
 impl FieldPyO3Options {
     fn take_pyo3_options(attrs: &mut Vec<syn::Attribute>) -> Result<Self> {
         let mut options = FieldPyO3Options {
-            get: false,
-            set: false,
+            get: None,
+            set: None,
             name: None,
         };
 
         for option in take_pyo3_options(attrs)? {
             match option {
                 FieldPyO3Option::Get(kw) => {
-                    ensure_spanned!(
-                        !options.get,
-                        kw.span() => "`get` may only be specified once"
-                    );
-                    options.get = true;
+                    if options.get.replace(Annotated::Field(kw)).is_some() {
+                        return Err(syn::Error::new(kw.span(), UNIQUE_GET));
+                    }
                 }
                 FieldPyO3Option::Set(kw) => {
-                    ensure_spanned!(
-                        !options.set,
-                        kw.span() => "`set` may only be specified once"
-                    );
-                    options.set = true;
+                    if options.set.replace(Annotated::Field(kw)).is_some() {
+                        return Err(syn::Error::new(kw.span(), UNIQUE_SET));
+                    }
                 }
                 FieldPyO3Option::Name(name) => {
-                    ensure_spanned!(
-                        options.name.is_none(),
-                        name.span() => "`name` may only be specified once"
-                    );
-                    options.name = Some(name);
+                    if options.name.replace(name).is_some() {
+                        return Err(syn::Error::new(options.name.span(), UNIQUE_NAME));
+                    }
                 }
             }
         }
@@ -664,39 +704,42 @@ fn descriptors_to_items(
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
 ) -> syn::Result<Vec<MethodAndMethodDef>> {
     let ty = syn::parse_quote!(#cls);
-    field_options
-        .into_iter()
-        .enumerate()
-        .flat_map(|(field_index, (field, options))| {
-            let name_err = if options.name.is_some() && !options.get && !options.set {
-                Some(Err(err_spanned!(options.name.as_ref().unwrap().span() => "`name` is useless without `get` or `set`")))
-            } else {
-                None
-            };
+    let mut items = Vec::new();
+    for (field_index, (field, options)) in field_options.into_iter().enumerate() {
+        if let FieldPyO3Options {
+            name: Some(name),
+            get: None,
+            set: None,
+        } = options
+        {
+            return Err(syn::Error::new_spanned(name, USELESS_NAME));
+        }
 
-            let getter = if options.get {
-                Some(impl_py_getter_def(&ty, PropertyType::Descriptor {
+        if options.get.is_some() {
+            let getter = impl_py_getter_def(
+                &ty,
+                PropertyType::Descriptor {
                     field_index,
                     field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
+                    python_name: options.name.as_ref(),
+                },
+            )?;
+            items.push(getter);
+        }
 
-            let setter = if options.set {
-                Some(impl_py_setter_def(&ty, PropertyType::Descriptor {
+        if options.set.is_some() {
+            let setter = impl_py_setter_def(
+                &ty,
+                PropertyType::Descriptor {
                     field_index,
                     field,
-                    python_name: options.name.as_ref()
-                }))
-            } else {
-                None
-            };
-
-            name_err.into_iter().chain(getter).chain(setter)
-        })
-        .collect::<syn::Result<_>>()
+                    python_name: options.name.as_ref(),
+                },
+            )?;
+            items.push(setter);
+        };
+    }
+    Ok(items)
 }
 
 fn impl_pytypeinfo(
@@ -1085,3 +1128,16 @@ fn define_inventory_class(inventory_class_name: &syn::Ident) -> TokenStream {
         _pyo3::inventory::collect!(#inventory_class_name);
     }
 }
+
+const UNIQUE_GET: &str = "`get` may only be specified once";
+const UNIQUE_SET: &str = "`set` may only be specified once";
+const UNIQUE_NAME: &str = "`name` may only be specified once";
+
+const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all`";
+const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all`";
+const UNIT_GET: &str =
+    "`get_all` on an unit struct does nothing, because unit structs have no fields";
+const UNIT_SET: &str =
+    "`set_all` on an unit struct does nothing, because unit structs have no fields";
+
+const USELESS_NAME: &str = "`name` is useless without `get` or `set`";

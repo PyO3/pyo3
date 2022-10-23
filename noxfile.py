@@ -110,17 +110,24 @@ def publish(session: nox.Session) -> None:
 def contributors(session: nox.Session) -> None:
     import requests
 
-    if len(session.posargs) != 1:
+    if len(session.posargs) < 1:
         raise Exception("base commit positional argument missing")
 
     base = session.posargs[0]
     page = 1
 
+    head = "HEAD"
+    if len(session.posargs) == 2:
+        head = session.posargs[1]
+
+    if len(session.posargs) > 2:
+        raise Exception("too many arguments")
+
     authors = set()
 
     while True:
         resp = requests.get(
-            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...HEAD",
+            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...{head}",
             params={"page": page, "per_page": 100},
         )
 

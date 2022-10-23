@@ -540,8 +540,6 @@ fn main() -> PyResult<()> {
                     uvloop
                         .as_ref(py)
                         .getattr("Loop")?
-                        .downcast::<PyType>()
-                        .unwrap()
                 )?);
                 Ok(())
             })?;

@@ -848,7 +848,7 @@ impl PyAny {
     /// Checks whether this object is an instance of type `ty`.
     ///
     /// This is equivalent to the Python expression `isinstance(self, ty)`.
-    pub fn is_instance(&self, ty: &PyType) -> PyResult<bool> {
+    pub fn is_instance(&self, ty: &PyAny) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), ty.as_ptr()) };
         err::error_on_minusone(self.py(), result)?;
         Ok(result == 1)
@@ -985,7 +985,7 @@ class SimpleClass:
     }
 
     #[test]
-    fn test_any_isinstance() {
+    fn test_any_isinstance_of() {
         Python::with_gil(|py| {
             let x = 5.to_object(py).into_ref(py);
             assert!(x.is_instance_of::<PyLong>().unwrap());
@@ -996,7 +996,7 @@ class SimpleClass:
     }
 
     #[test]
-    fn test_any_isinstance_of() {
+    fn test_any_isinstance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
             assert!(l.is_instance(PyList::type_object(py)).unwrap());

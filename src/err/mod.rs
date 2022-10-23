@@ -448,8 +448,8 @@ impl PyErr {
 
     /// Returns true if the current exception is instance of `T`.
     #[inline]
-    pub fn is_instance(&self, py: Python<'_>, typ: &PyType) -> bool {
-        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), typ.as_ptr()) != 0 }
+    pub fn is_instance(&self, py: Python<'_>, ty: &PyAny) -> bool {
+        unsafe { ffi::PyErr_GivenExceptionMatches(self.type_ptr(py), ty.as_ptr()) != 0 }
     }
 
     /// Returns true if the current exception is instance of `T`.

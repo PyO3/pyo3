@@ -1,5 +1,5 @@
 use crate::internal_tricks::{extract_cstr_or_leak_cstring, NulByteInString};
-use crate::{ffi, PyAny, PyObject, PyResult, PyTraverseError, Python};
+use crate::{ffi, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, PyTraverseError, Python};
 use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::c_int;
@@ -260,5 +260,31 @@ pub fn unwrap_traverse_result(result: Result<(), PyTraverseError>) -> c_int {
     match result {
         Ok(()) => 0,
         Err(PyTraverseError(value)) => value,
+    }
+}
+
+// The macros need to Ok-wrap the output of user defined functions; i.e. if they're not a result, make them into one.
+pub trait OkWrap<T> {
+    type Error;
+    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error>;
+}
+
+impl<T> OkWrap<T> for T
+where
+    T: IntoPy<PyObject>,
+{
+    type Error = PyErr;
+    fn wrap(self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.into_py(py))
+    }
+}
+
+impl<T, E> OkWrap<T> for Result<T, E>
+where
+    T: IntoPy<PyObject>,
+{
+    type Error = E;
+    fn wrap(self, py: Python<'_>) -> Result<Py<PyAny>, Self::Error> {
+        self.map(|o| o.into_py(py))
     }
 }

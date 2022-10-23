@@ -10,7 +10,6 @@ pub mod deprecations;
 pub mod extract_argument;
 pub mod freelist;
 pub mod frompyobject;
-pub mod ghost;
 pub(crate) mod not_send;
 pub mod panic;
 pub mod pycell;

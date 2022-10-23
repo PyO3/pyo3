@@ -279,7 +279,7 @@ mod frame;
 mod frozenset;
 mod function;
 mod iterator;
-mod list;
+pub(crate) mod list;
 mod mapping;
 mod module;
 mod num;
