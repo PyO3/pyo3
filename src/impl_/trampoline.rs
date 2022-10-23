@@ -67,10 +67,7 @@ pub unsafe fn getter(
 ) -> *mut ffi::PyObject {
     // PyO3 doesn't use the closure argument at present.
     debug_assert!(closure.is_null());
-
-    let gil = GILPool::new();
-    let py = gil.python();
-    panic_result_into_callback_output(py, std::panic::catch_unwind(move || f(py, slf)))
+    trampoline_inner(|py| f(py, slf))
 }
 
 #[inline]
@@ -82,10 +79,7 @@ pub unsafe fn setter(
 ) -> c_int {
     // PyO3 doesn't use the closure argument at present.
     debug_assert!(closure.is_null());
-
-    let gil = GILPool::new();
-    let py = gil.python();
-    panic_result_into_callback_output(py, std::panic::catch_unwind(move || f(py, slf, value)))
+    trampoline_inner(|py| f(py, slf, value))
 }
 
 // Trampolines used by slot methods
@@ -155,8 +149,12 @@ trampoline!(
     ) -> *mut ffi::PyObject;
 );
 
+/// Implementation of trampoline functions, which sets up a GILPool and calls F.
+///
+/// Panics during execution are trapped so that they don't propagate through any
+/// outer FFI boundary.
 #[inline]
-pub fn trampoline_inner<F, R>(body: F) -> R
+pub(crate) fn trampoline_inner<F, R>(body: F) -> R
 where
     F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
     R: PyCallbackOutput,
