@@ -4,17 +4,22 @@
 //! function, thus saving a huge amount of compile-time complexity.
 
 use std::{
+    any::Any,
     os::raw::{c_int, c_void},
     panic::{self, UnwindSafe},
 };
 
 use crate::{
-    callback::{panic_result_into_callback_output, PyCallbackOutput},
-    ffi,
-    impl_::panic::PanicTrap,
-    methods::IPowModulo,
-    GILPool, PyResult, Python,
+    callback::PyCallbackOutput, ffi, impl_::panic::PanicTrap, methods::IPowModulo,
+    panic::PanicException, types::PyModule, GILPool, IntoPyPointer, Py, PyResult, Python,
 };
+
+#[inline]
+pub unsafe fn module_init(
+    f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
+) -> *mut ffi::PyObject {
+    trampoline_inner(|py| f(py).map(|module| module.into_ptr()))
+}
 
 #[inline]
 pub unsafe fn noargs(
@@ -84,6 +89,14 @@ pub unsafe fn setter(
 
 // Trampolines used by slot methods
 trampolines!(
+    pub fn getattrofunc(slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> *mut ffi::PyObject;
+
+    pub fn setattrofunc(
+        slf: *mut ffi::PyObject,
+        attr: *mut ffi::PyObject,
+        value: *mut ffi::PyObject,
+    ) -> c_int;
+
     pub fn binaryfunc(slf: *mut ffi::PyObject, arg1: *mut ffi::PyObject) -> *mut ffi::PyObject;
 
     pub fn descrgetfunc(
@@ -168,4 +181,23 @@ where
     );
     trap.disarm();
     out
+}
+
+/// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
+/// exception or by unwrapping the contained success output.
+#[inline]
+fn panic_result_into_callback_output<R>(
+    py: Python<'_>,
+    panic_result: Result<PyResult<R>, Box<dyn Any + Send + 'static>>,
+) -> R
+where
+    R: PyCallbackOutput,
+{
+    let py_err = match panic_result {
+        Ok(Ok(value)) => return value,
+        Ok(Err(py_err)) => py_err,
+        Err(payload) => PanicException::from_panic_payload(payload),
+    };
+    py_err.restore(py);
+    R::ERR_VALUE
 }

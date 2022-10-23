@@ -5,10 +5,8 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::panic::PanicException;
 use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
-use std::any::Any;
 use std::isize;
 use std::os::raw::c_int;
 
@@ -184,24 +182,4 @@ where
     T: IntoPyCallbackOutput<U>,
 {
     value.convert(py)
-}
-
-/// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
-/// exception or by unwrapping the contained success output.
-#[doc(hidden)]
-#[inline]
-pub fn panic_result_into_callback_output<R>(
-    py: Python<'_>,
-    panic_result: Result<PyResult<R>, Box<dyn Any + Send + 'static>>,
-) -> R
-where
-    R: PyCallbackOutput,
-{
-    let py_err = match panic_result {
-        Ok(Ok(value)) => return value,
-        Ok(Err(py_err)) => py_err,
-        Err(payload) => PanicException::from_panic_payload(payload),
-    };
-    py_err.restore(py);
-    R::ERR_VALUE
 }
