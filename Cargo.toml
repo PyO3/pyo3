@@ -39,6 +39,16 @@ indexmap = { version = ">= 1.6, < 1.8", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-complex = { version = ">= 0.2, < 0.5", optional = true }
 serde = { version = "1.0", optional = true }
+rustc-hash = "1.1.0"
+smallvec = "1.10.0"
+
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"

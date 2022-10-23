@@ -1,14 +1,21 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Defines conversions between Rust and Python types.
+use rustc_hash::FxHashMap;
+use smallvec::{Array, SmallVec};
+use uuid::Uuid;
+
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::inspect::types::TypeInfo;
 use crate::pyclass::boolean_struct::False;
 use crate::type_object::PyTypeInfo;
-use crate::types::PyTuple;
+use crate::types::{PyModule, PyTuple};
 use crate::{
-    ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python,
+    exceptions, ffi, gil, Py, PyAny, PyCell, PyClass, PyErr, PyNativeType, PyObject, PyRef,
+    PyRefMut, Python,
 };
+use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::ptr::NonNull;
 
 /// Returns a borrowed pointer to a Python object.
@@ -697,5 +704,62 @@ mod tests {
             // Ensure ref count not changed by as_ptr call
             assert_eq!(none.get_refcnt(py), ref_cnt);
         });
+    }
+}
+
+// Redwood Research Stuff
+
+impl<'a> FromPyObject<'a> for () {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        if obj.is_none() {
+            Ok(())
+        } else {
+            Err(PyDowncastError::new(obj, std::borrow::Cow::from("()")).into())
+        }
+    }
+}
+
+impl<'source> FromPyObject<'source> for Uuid {
+    fn extract(uuid_obj: &'source PyAny) -> PyResult<Self> {
+        let uuid_bytes: Vec<u8> = uuid_obj.getattr("bytes")?.extract()?;
+
+        let num_bytes = uuid_bytes.len();
+        let bytes_arr: [u8; 16] = uuid_bytes.try_into().map_err(|_| {
+            PyErr::new::<exceptions::PyTypeError, _>(format!(
+                "expected 16 bytes for uuid, found {}",
+                num_bytes
+            ))
+        })?;
+
+        Ok(Uuid::from_bytes(bytes_arr))
+    }
+}
+
+impl IntoPy<PyObject> for Uuid {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyModule::import(py, "uuid")
+            .unwrap()
+            .call1((self.to_string(),))
+            .unwrap()
+            .into()
+    }
+}
+
+impl<A: Array> IntoPy<PyObject> for SmallVec<A>
+where
+    Vec<<A as smallvec::Array>::Item>: crate::IntoPy<PyObject>,
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.into_iter().collect::<Vec<_>>().into_py(py)
+    }
+}
+
+impl<'source, A: Array> FromPyObject<'source> for SmallVec<A>
+where
+    Vec<<A as smallvec::Array>::Item>: crate::FromPyObject<'source>,
+{
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        let vec_version: Vec<A::Item> = obj.extract()?;
+        Ok(vec_version.into_iter().collect())
     }
 }
