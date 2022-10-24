@@ -451,13 +451,13 @@ use std::any::Any;
 use std::backtrace::Backtrace;
 fn exception_filter_out_python_stuff(string: &str) -> String {
     let re = Regex::new(r"rust_circuit").unwrap();
-    println!("orig string {}", string);
+    // println!("orig string {}", string);
     let result = string
         .lines()
         .filter(|x| re.is_match(x))
         .collect::<Vec<_>>()
         .join("\n");
-    println!("regexed!!! {}", result);
+    // println!("regexed!!! {}", result);
     result
 }
 
@@ -471,6 +471,7 @@ fn string_from_panic_payload(payload: &(dyn Any + Send)) -> String {
     }
 }
 
+/// catch unwind, but filter out stack frames that don't include "rust_circuit"
 pub fn catch_unwind_filtered<F, R>(f: F) -> std::thread::Result<R>
 where
     F: FnOnce() -> R + ::std::panic::UnwindSafe,
