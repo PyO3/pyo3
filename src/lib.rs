@@ -21,6 +21,7 @@
     ),
     allow(unused_variables, unused_assignments, unused_extern_crates)
 )))]
+#![feature(backtrace)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -447,6 +448,7 @@ pub mod inspect;
 
 use regex::Regex;
 use std::any::Any;
+use std::backtrace::Backtrace;
 fn exception_filter_out_python_stuff(string: &str) -> String {
     let re = Regex::new(r"rust_circuit").unwrap();
     println!("orig string {}", string);
@@ -475,9 +477,12 @@ where
 {
     let prev_hook = ::std::panic::take_hook();
     ::std::panic::set_hook(Box::new(|panic_info| {
+        let bt = Backtrace::force_capture();
+
         eprintln!(
-            "{}",
-            exception_filter_out_python_stuff(&string_from_panic_payload(panic_info.payload()))
+            "{} {}",
+            &string_from_panic_payload(panic_info.payload()),
+            exception_filter_out_python_stuff(&bt.to_string())
         )
     }));
     let result = ::std::panic::catch_unwind(f);
