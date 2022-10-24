@@ -482,8 +482,9 @@ where
             let bt = Backtrace::force_capture();
 
             eprintln!(
-                "{} (traceback filtered) {}",
+                "panicked at '{}', {}\n{}",
                 &string_from_panic_payload(panic_info.payload()),
+                panic_info.location().unwrap(),
                 exception_filter_out_python_stuff(&bt.to_string())
             )
         }));
