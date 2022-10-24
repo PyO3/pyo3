@@ -16,10 +16,10 @@ Python interpreter to exit.
 );
 use regex::Regex;
 fn exception_filter_out_python_stuff(string: &str) -> String {
-    let re = Regex::new("call_function|PyObject|PyFunction|function_code|/tmp/build|std::").unwrap();
+    let re = Regex::new(r"rust_circuit").unwrap();
     string
         .lines()
-        .filter(|x| !re.is_match(x))
+        .filter(|x| re.is_match(x))
         .collect::<Vec<_>>()
         .join("\n")
 }
