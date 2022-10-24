@@ -14,17 +14,6 @@ Python interpreter to exit.
     PanicException,
     PyBaseException
 );
-use regex::Regex;
-fn exception_filter_out_python_stuff(string: &str) -> String {
-    let re = Regex::new(r"rust_circuit").unwrap();
-    let result = string
-        .lines()
-        .filter(|x| re.is_match(x))
-        .collect::<Vec<_>>()
-        .join("\n");
-    println!("regexed!!! {}", result);
-    result
-}
 
 impl PanicException {
     /// Creates a new PanicException from a panic payload.
@@ -33,9 +22,9 @@ impl PanicException {
     #[cold]
     pub(crate) fn from_panic_payload(payload: Box<dyn Any + Send + 'static>) -> PyErr {
         if let Some(string) = payload.downcast_ref::<String>() {
-            Self::new_err((exception_filter_out_python_stuff(&string.clone()),))
+            Self::new_err((string.clone(),))
         } else if let Some(s) = payload.downcast_ref::<&str>() {
-            Self::new_err((exception_filter_out_python_stuff(&s.to_string()),))
+            Self::new_err((s.to_string(),))
         } else {
             Self::new_err(("panic from Rust code",))
         }

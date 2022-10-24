@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::any::Any;
 use std::borrow::Cow;
 
 use crate::attributes::TextSignatureAttribute;
@@ -489,18 +490,8 @@ impl<'a> FnSpec<'a> {
                                     #deprecations
                                     let gil = _pyo3::GILPool::new();
                                     let #py = gil.python();
-                                        // https://stackoverflow.com/a/59211505
-                fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
-                where
-                    F: FnOnce() -> R + ::std::panic::UnwindSafe,
-                {
-                    let prev_hook = ::std::panic::take_hook();
-                    ::std::panic::set_hook(Box::new(|_| {}));
-                    let result = ::std::panic::catch_unwind(f);
-                    ::std::panic::set_hook(prev_hook);
-                    result
-                }
-                                    _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
+
+                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
                                         #self_conversion
                                         #call
                                     }))
@@ -520,18 +511,7 @@ impl<'a> FnSpec<'a> {
                                     #deprecations
                                     let gil = _pyo3::GILPool::new();
                                     let #py = gil.python();
-                                        // https://stackoverflow.com/a/59211505
-                fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
-                where
-                    F: FnOnce() -> R + ::std::panic::UnwindSafe,
-                {
-                    let prev_hook = ::std::panic::take_hook();
-                    ::std::panic::set_hook(Box::new(|_| {}));
-                    let result = ::std::panic::catch_unwind(f);
-                    ::std::panic::set_hook(prev_hook);
-                    result
-                }
-                                    _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
+                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
                                         #self_conversion
                                         #arg_convert
                                         #call
@@ -551,18 +531,7 @@ impl<'a> FnSpec<'a> {
                                     #deprecations
                                     let gil = _pyo3::GILPool::new();
                                     let #py = gil.python();
-                                        // https://stackoverflow.com/a/59211505
-                fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
-                where
-                    F: FnOnce() -> R + ::std::panic::UnwindSafe,
-                {
-                    let prev_hook = ::std::panic::take_hook();
-                    ::std::panic::set_hook(Box::new(|_| {}));
-                    let result = ::std::panic::catch_unwind(f);
-                    ::std::panic::set_hook(prev_hook);
-                    result
-                }
-                                    _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
+                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
                                         #self_conversion
                                         #arg_convert
                                         #call
@@ -583,18 +552,7 @@ impl<'a> FnSpec<'a> {
                                     use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
                                     let gil = _pyo3::GILPool::new();
                                     let #py = gil.python();
-                                        // https://stackoverflow.com/a/59211505
-                fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
-                where
-                    F: FnOnce() -> R + ::std::panic::UnwindSafe,
-                {
-                    let prev_hook = ::std::panic::take_hook();
-                    ::std::panic::set_hook(Box::new(|_| {}));
-                    let result = ::std::panic::catch_unwind(f);
-                    ::std::panic::set_hook(prev_hook);
-                    result
-                }
-                                    _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
+                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
                                         #arg_convert
                                         let result = #call;
                                         let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;

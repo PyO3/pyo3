@@ -445,6 +445,46 @@ mod test_hygiene;
 
 pub mod inspect;
 
+use regex::Regex;
+use std::any::Any;
+fn exception_filter_out_python_stuff(string: &str) -> String {
+    let re = Regex::new(r"rust_circuit").unwrap();
+    println!("orig string {}", string);
+    let result = string
+        .lines()
+        .filter(|x| re.is_match(x))
+        .collect::<Vec<_>>()
+        .join("\n");
+    println!("regexed!!! {}", result);
+    result
+}
+
+fn string_from_panic_payload(payload: &(dyn Any + Send)) -> String {
+    if let Some(string) = payload.downcast_ref::<String>() {
+        string.clone()
+    } else if let Some(s) = payload.downcast_ref::<&str>() {
+        s.to_string()
+    } else {
+        "UNKNOWN panic!!!".to_owned()
+    }
+}
+
+pub fn catch_unwind_filtered<F, R>(f: F) -> std::thread::Result<R>
+where
+    F: FnOnce() -> R + ::std::panic::UnwindSafe,
+{
+    let prev_hook = ::std::panic::take_hook();
+    ::std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!(
+            "{}",
+            exception_filter_out_python_stuff(&string_from_panic_payload(panic_info.payload()))
+        )
+    }));
+    let result = ::std::panic::catch_unwind(f);
+    ::std::panic::set_hook(prev_hook);
+    result
+}
+
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
