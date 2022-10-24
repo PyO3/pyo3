@@ -477,15 +477,17 @@ where
     F: FnOnce() -> R + ::std::panic::UnwindSafe,
 {
     let prev_hook = ::std::panic::take_hook();
-    ::std::panic::set_hook(Box::new(|panic_info| {
-        let bt = Backtrace::force_capture();
+    if std::env::var("PYO3_NO_TRACEBACK_FILTER").is_err() {
+        ::std::panic::set_hook(Box::new(|panic_info| {
+            let bt = Backtrace::force_capture();
 
-        eprintln!(
-            "{} (traceback filtered) {}",
-            &string_from_panic_payload(panic_info.payload()),
-            exception_filter_out_python_stuff(&bt.to_string())
-        )
-    }));
+            eprintln!(
+                "{} (traceback filtered) {}",
+                &string_from_panic_payload(panic_info.payload()),
+                exception_filter_out_python_stuff(&bt.to_string())
+            )
+        }));
+    }
     let result = ::std::panic::catch_unwind(f);
     ::std::panic::set_hook(prev_hook);
     result
