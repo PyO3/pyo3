@@ -16,6 +16,7 @@ Python interpreter to exit.
 );
 use regex::Regex;
 fn exception_filter_out_python_stuff(string: &str) -> String {
+    println!("regexing!!!");
     let re = Regex::new(r"rust_circuit").unwrap();
     string
         .lines()
