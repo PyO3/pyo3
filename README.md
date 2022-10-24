@@ -1,3 +1,14 @@
+# Changes in this fork
+
+Add conversion from py None to rust unit type ()
+
+Displaying PyErr includes traceback
+
+Implement FromPyObject and IntoPy for various other crates:
+Uuid
+Smallvec
+rustc_hash
+
 # PyO3
 
 [![actions status](https://github.com/PyO3/pyo3/workflows/CI/badge.svg)](https://github.com/PyO3/pyo3/actions)
