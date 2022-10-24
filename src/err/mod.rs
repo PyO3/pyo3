@@ -671,7 +671,7 @@ impl std::fmt::Display for PyErr {
             let type_name = value.get_type().name().map_err(|_| std::fmt::Error)?;
             write!(f, "{}", type_name)?;
             if let Ok(s) = value.str() {
-                write!(f, ": {} traceback {}", &s.to_string_lossy(),self.traceback(py).unwrap())
+                write!(f, ": {} traceback {}", &s.to_string_lossy(),self.traceback(py).unwrap().format().unwrap())
             } else {
                 write!(f, ": <exception str() failed>")
             }
