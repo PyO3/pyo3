@@ -489,7 +489,7 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         let gil = _pyo3::GILPool::new();
                         let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
+                        _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #call
                         }))
@@ -509,7 +509,7 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         let gil = _pyo3::GILPool::new();
                         let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
+                        _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #call
@@ -529,7 +529,7 @@ impl<'a> FnSpec<'a> {
                         #deprecations
                         let gil = _pyo3::GILPool::new();
                         let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
+                        _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
                             #self_conversion
                             #arg_convert
                             #call
@@ -550,7 +550,7 @@ impl<'a> FnSpec<'a> {
                         use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
                         let gil = _pyo3::GILPool::new();
                         let #py = gil.python();
-                        _pyo3::callback::panic_result_into_callback_output(#py, ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
+                        _pyo3::callback::panic_result_into_callback_output(#py, catch_unwind_silent(move || -> _pyo3::PyResult<_> {
                             #arg_convert
                             let result = #call;
                             let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
