@@ -21,14 +21,16 @@ def test(session: nox.Session) -> None:
 @nox.session(name="test-rust", venv_backend="none")
 def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-build-config")
-    _run_cargo_test(session, package="pyo3-macros-backend")
-    _run_cargo_test(session, package="pyo3-macros")
+    if not "skip-macros" in session.posargs:
+        _run_cargo_test(session, package="pyo3-macros-backend")
+        _run_cargo_test(session, package="pyo3-macros")
     _run_cargo_test(session, package="pyo3-ffi")
 
     _run_cargo_test(session)
     _run_cargo_test(session, features="abi3")
-    _run_cargo_test(session, features="full")
-    _run_cargo_test(session, features="abi3 full")
+    if not "skip-full" in session.posargs:
+        _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -290,7 +292,12 @@ def _run_cargo_test(
     package: Optional[str] = None,
     features: Optional[str] = None,
 ) -> None:
-    command = ["cargo", "test"]
+    command = ["cargo"]
+    if "careful" in session.posargs:
+        command.append("careful")
+    command.append("test")
+    if "release" in session.posargs:
+        command.append("--release")
     if package:
         command.append(f"--package={package}")
     if features:
