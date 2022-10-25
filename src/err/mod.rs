@@ -7,7 +7,9 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject, python_println};
+use crate::{
+    python_println, AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject,
+};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;

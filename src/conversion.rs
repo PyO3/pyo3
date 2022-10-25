@@ -736,7 +736,9 @@ impl<'source> FromPyObject<'source> for Uuid {
 impl IntoPy<PyObject> for Uuid {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyModule::import(py, "uuid")
-            .unwrap().getattr("UUID").unwrap()
+            .unwrap()
+            .getattr("UUID")
+            .unwrap()
             .call1((self.to_string(),))
             .unwrap()
             .into()

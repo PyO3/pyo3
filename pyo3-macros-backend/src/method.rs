@@ -482,84 +482,84 @@ impl<'a> FnSpec<'a> {
             CallingConvention::Noargs => {
                 let call = rust_call(vec![]);
                 quote! {
-                                unsafe extern "C" fn #ident (
-                                    _slf: *mut _pyo3::ffi::PyObject,
-                                    _args: *mut _pyo3::ffi::PyObject,
-                                ) -> *mut _pyo3::ffi::PyObject
-                                {
-                                    #deprecations
-                                    let gil = _pyo3::GILPool::new();
-                                    let #py = gil.python();
+                    unsafe extern "C" fn #ident (
+                        _slf: *mut _pyo3::ffi::PyObject,
+                        _args: *mut _pyo3::ffi::PyObject,
+                    ) -> *mut _pyo3::ffi::PyObject
+                    {
+                        #deprecations
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
 
-                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
-                                        #self_conversion
-                                        #call
-                                    }))
-                                }
-                            }
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
+                            #self_conversion
+                            #call
+                        }))
+                    }
+                }
             }
             CallingConvention::Fastcall => {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, true)?;
                 let call = rust_call(args);
                 quote! {
-                                unsafe extern "C" fn #ident (
-                                    _slf: *mut _pyo3::ffi::PyObject,
-                                    _args: *const *mut _pyo3::ffi::PyObject,
-                                    _nargs: _pyo3::ffi::Py_ssize_t,
-                                    _kwnames: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                                {
-                                    #deprecations
-                                    let gil = _pyo3::GILPool::new();
-                                    let #py = gil.python();
-                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
-                                        #self_conversion
-                                        #arg_convert
-                                        #call
-                                    }))
-                                }
-                            }
+                    unsafe extern "C" fn #ident (
+                        _slf: *mut _pyo3::ffi::PyObject,
+                        _args: *const *mut _pyo3::ffi::PyObject,
+                        _nargs: _pyo3::ffi::Py_ssize_t,
+                        _kwnames: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                    {
+                        #deprecations
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
+                            #self_conversion
+                            #arg_convert
+                            #call
+                        }))
+                    }
+                }
             }
             CallingConvention::Varargs => {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
                 let call = rust_call(args);
                 quote! {
-                                unsafe extern "C" fn #ident (
-                                    _slf: *mut _pyo3::ffi::PyObject,
-                                    _args: *mut _pyo3::ffi::PyObject,
-                                    _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                                {
-                                    #deprecations
-                                    let gil = _pyo3::GILPool::new();
-                                    let #py = gil.python();
-                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
-                                        #self_conversion
-                                        #arg_convert
-                                        #call
-                                    }))
-                                }
-                            }
+                    unsafe extern "C" fn #ident (
+                        _slf: *mut _pyo3::ffi::PyObject,
+                        _args: *mut _pyo3::ffi::PyObject,
+                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                    {
+                        #deprecations
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
+                            #self_conversion
+                            #arg_convert
+                            #call
+                        }))
+                    }
+                }
             }
             CallingConvention::TpNew => {
                 let (arg_convert, args) = impl_arg_params(self, cls, &py, false)?;
                 let call = quote! { #rust_name(#(#args),*) };
                 quote! {
-                                unsafe extern "C" fn #ident (
-                                    subtype: *mut _pyo3::ffi::PyTypeObject,
-                                    _args: *mut _pyo3::ffi::PyObject,
-                                    _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-                                {
-                                    #deprecations
-                                    use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
-                                    let gil = _pyo3::GILPool::new();
-                                    let #py = gil.python();
-                                    _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
-                                        #arg_convert
-                                        let result = #call;
-                                        let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
-                                        initializer.into_new_object(#py, subtype)
-                                    }))
-                                }
-                            }
+                    unsafe extern "C" fn #ident (
+                        subtype: *mut _pyo3::ffi::PyTypeObject,
+                        _args: *mut _pyo3::ffi::PyObject,
+                        _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+                    {
+                        #deprecations
+                        use _pyo3::{callback::IntoPyCallbackOutput, pyclass_init::PyObjectInit};
+                        let gil = _pyo3::GILPool::new();
+                        let #py = gil.python();
+                        _pyo3::callback::panic_result_into_callback_output(#py, ::pyo3::catch_unwind_filtered(move || -> _pyo3::PyResult<_> {
+                            #arg_convert
+                            let result = #call;
+                            let initializer: _pyo3::PyClassInitializer::<#cls> = result.convert(#py)?;
+                            initializer.into_new_object(#py, subtype)
+                        }))
+                    }
+                }
             }
         })
     }
