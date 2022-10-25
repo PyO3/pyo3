@@ -9,6 +9,8 @@ Uuid
 Smallvec
 rustc_hash
 
+Filter tracebacks to only include stack frames with `rust_circuit`
+
 # PyO3
 
 [![actions status](https://github.com/PyO3/pyo3/workflows/CI/badge.svg)](https://github.com/PyO3/pyo3/actions)
