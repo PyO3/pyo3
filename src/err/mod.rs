@@ -7,7 +7,7 @@ use crate::{
     exceptions::{self, PyBaseException},
     ffi,
 };
-use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
+use crate::{AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject, python_println};
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::ffi::CString;
@@ -322,10 +322,10 @@ impl PyErr {
                 .and_then(|obj| obj.extract(py).ok())
                 .unwrap_or_else(|| String::from("Unwrapped panic from Python code"));
 
-            eprintln!(
+            python_println!(
                 "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
             );
-            eprintln!("Python stack trace below:");
+            python_println!("Python stack trace below:");
 
             unsafe {
                 ffi::PyErr_Restore(ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr());

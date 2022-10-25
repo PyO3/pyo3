@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Defines conversions between Rust and Python types.
-use rustc_hash::FxHashMap;
 use smallvec::{Array, SmallVec};
 use uuid::Uuid;
 
@@ -14,7 +13,6 @@ use crate::{
     exceptions, ffi, gil, Py, PyAny, PyCell, PyClass, PyErr, PyNativeType, PyObject, PyRef,
     PyRefMut, Python,
 };
-use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::ptr::NonNull;
 

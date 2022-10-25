@@ -446,6 +446,20 @@ mod test_hygiene;
 
 pub mod inspect;
 
+/// this exists bc cursed jupyter bug that makes prints from rust hang
+#[macro_export]
+macro_rules! python_println{
+    ($($tt:tt)*)=>{
+        Python::with_gil(|py| {
+            py.eval(
+                &format!("print('''{}''')",format!($($tt)*)),
+                None,
+                None,
+            ).unwrap();
+        })
+    }
+}
+
 use regex::Regex;
 use std::any::Any;
 use std::backtrace::Backtrace;
@@ -480,8 +494,8 @@ where
     if std::env::var("PYO3_NO_TRACEBACK_FILTER").is_err() {
         ::std::panic::set_hook(Box::new(|panic_info| {
             let bt = Backtrace::force_capture();
-
-            eprintln!(
+            // should be eprintln but using python_println for jupyter issue
+            python_println!(
                 "panicked at '{}', {}\n{}",
                 &string_from_panic_payload(panic_info.payload()),
                 panic_info.location().unwrap(),
