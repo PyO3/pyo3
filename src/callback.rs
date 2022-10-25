@@ -5,14 +5,10 @@
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyOverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::impl_::panic::PanicTrap;
-use crate::panic::PanicException;
-use crate::{GILPool, IntoPyPointer};
+use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
-use std::any::Any;
+use std::isize;
 use std::os::raw::c_int;
-use std::panic::UnwindSafe;
-use std::{isize, panic};
 
 /// A type which can be the return type of a python C-API callback
 pub trait PyCallbackOutput: Copy {
@@ -186,91 +182,4 @@ where
     T: IntoPyCallbackOutput<U>,
 {
     value.convert(py)
-}
-
-/// Use this macro for all internal callback functions which Python will call.
-///
-/// It sets up the GILPool and converts the output into a Python object. It also restores
-/// any python error returned as an Err variant from the body.
-///
-/// Finally, any panics inside the callback body will be caught and translated into PanicExceptions.
-///
-/// # Safety
-/// This macro assumes the GIL is held. (It makes use of unsafe code, so usage of it is only
-/// possible inside unsafe blocks.)
-#[doc(hidden)]
-#[macro_export]
-macro_rules! callback_body {
-    ($py:ident, $body:expr) => {
-        $crate::callback::handle_panic(|$py| $crate::callback::convert($py, $body))
-    };
-}
-
-/// Variant of the above which does not perform the callback conversion. This allows the callback
-/// conversion to be done manually in the case where lifetimes might otherwise cause issue.
-///
-/// For example this pyfunction:
-///
-/// ```no_compile
-/// fn foo(&self) -> &Bar {
-///     &self.bar
-/// }
-/// ```
-///
-/// It is wrapped in proc macros with handle_panic like so:
-///
-/// ```no_compile
-/// pyo3::callback::handle_panic(|_py| {
-///     let _slf = #slf;
-///     pyo3::callback::convert(_py, #foo)
-/// })
-/// ```
-///
-/// If callback_body was used instead:
-///
-/// ```no_compile
-/// pyo3::callback_body!(py, {
-///     let _slf = #slf;
-///     #foo
-/// })
-/// ```
-///
-/// Then this will fail to compile, because the result of #foo borrows _slf, but _slf drops when
-/// the block passed to the macro ends.
-#[doc(hidden)]
-#[inline]
-pub unsafe fn handle_panic<F, R>(body: F) -> R
-where
-    F: for<'py> FnOnce(Python<'py>) -> PyResult<R> + UnwindSafe,
-    R: PyCallbackOutput,
-{
-    let trap = PanicTrap::new("uncaught panic at ffi boundary");
-    let pool = GILPool::new();
-    let py = pool.python();
-    let out = panic_result_into_callback_output(
-        py,
-        panic::catch_unwind(move || -> PyResult<_> { body(py) }),
-    );
-    trap.disarm();
-    out
-}
-
-/// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
-/// exception or by unwrapping the contained success output.
-#[doc(hidden)]
-#[inline]
-pub fn panic_result_into_callback_output<R>(
-    py: Python<'_>,
-    panic_result: Result<PyResult<R>, Box<dyn Any + Send + 'static>>,
-) -> R
-where
-    R: PyCallbackOutput,
-{
-    let py_err = match panic_result {
-        Ok(Ok(value)) => return value,
-        Ok(Err(py_err)) => py_err,
-        Err(payload) => PanicException::from_panic_payload(payload),
-    };
-    py_err.restore(py);
-    R::ERR_VALUE
 }

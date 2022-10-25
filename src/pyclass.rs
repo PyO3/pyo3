@@ -600,8 +600,8 @@ pub(crate) unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    crate::callback_body!(py, {
-        Err::<(), _>(crate::exceptions::PyTypeError::new_err(
+    crate::impl_::trampoline::trampoline_inner(|_| {
+        Err(crate::exceptions::PyTypeError::new_err(
             "No constructor defined",
         ))
     })

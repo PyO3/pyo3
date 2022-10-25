@@ -313,29 +313,24 @@ macro_rules! generate_pyclass_getattro_slot {
             _slf: *mut $crate::ffi::PyObject,
             attr: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
-            use ::std::result::Result::*;
-            use $crate::impl_::pyclass::*;
-            let gil = $crate::GILPool::new();
-            let py = gil.python();
-            $crate::callback::panic_result_into_callback_output(
-                py,
-                ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
-                    let collector = PyClassImplCollector::<$cls>::new();
+            $crate::impl_::trampoline::getattrofunc(_slf, attr, |py, _slf, attr| {
+                use ::std::result::Result::*;
+                use $crate::impl_::pyclass::*;
+                let collector = PyClassImplCollector::<$cls>::new();
 
-                    // Strategy:
-                    // - Try __getattribute__ first.  Its default is PyObject_GenericGetAttr.
-                    // - If it returns a result, use it.
-                    // - If it fails with AttributeError, try __getattr__.
-                    // - If it fails otherwise, reraise.
-                    match collector.__getattribute__(py, _slf, attr) {
-                        Ok(obj) => Ok(obj),
-                        Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => {
-                            collector.__getattr__(py, _slf, attr)
-                        }
-                        Err(e) => Err(e),
+                // Strategy:
+                // - Try __getattribute__ first. Its default is PyObject_GenericGetAttr.
+                // - If it returns a result, use it.
+                // - If it fails with AttributeError, try __getattr__.
+                // - If it fails otherwise, reraise.
+                match collector.__getattribute__(py, _slf, attr) {
+                    Ok(obj) => Ok(obj),
+                    Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => {
+                        collector.__getattr__(py, _slf, attr)
                     }
-                }),
-            )
+                    Err(e) => Err(e),
+                }
+            })
         }
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_tp_getattro,
@@ -402,21 +397,21 @@ macro_rules! define_pyclass_setattr_slot {
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
                 ) -> ::std::os::raw::c_int {
-                    use ::std::option::Option::*;
-                    use $crate::callback::IntoPyCallbackOutput;
-                    use $crate::impl_::pyclass::*;
-                    let gil = $crate::GILPool::new();
-                    let py = gil.python();
-                    $crate::callback::panic_result_into_callback_output(
-                        py,
-                        ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+                    $crate::impl_::trampoline::setattrofunc(
+                        _slf,
+                        attr,
+                        value,
+                        |py, _slf, attr, value| {
+                            use ::std::option::Option::*;
+                            use $crate::callback::IntoPyCallbackOutput;
+                            use $crate::impl_::pyclass::*;
                             let collector = PyClassImplCollector::<$cls>::new();
                             if let Some(value) = ::std::ptr::NonNull::new(value) {
                                 collector.$set(py, _slf, attr, value).convert(py)
                             } else {
                                 collector.$del(py, _slf, attr).convert(py)
                             }
-                        }),
+                        },
                     )
                 }
                 $crate::ffi::PyType_Slot {
@@ -517,22 +512,17 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     _other: *mut $crate::ffi::PyObject,
                 ) -> *mut $crate::ffi::PyObject {
-                    let gil = $crate::GILPool::new();
-                    let py = gil.python();
-                    $crate::callback::panic_result_into_callback_output(
-                        py,
-                        ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
-                            use $crate::impl_::pyclass::*;
-                            let collector = PyClassImplCollector::<$cls>::new();
-                            let lhs_result = collector.$lhs(py, _slf, _other)?;
-                            if lhs_result == $crate::ffi::Py_NotImplemented() {
-                                $crate::ffi::Py_DECREF(lhs_result);
-                                collector.$rhs(py, _other, _slf)
-                            } else {
-                                ::std::result::Result::Ok(lhs_result)
-                            }
-                        }),
-                    )
+                    $crate::impl_::trampoline::binaryfunc(_slf, _other, |py, _slf, _other| {
+                        use $crate::impl_::pyclass::*;
+                        let collector = PyClassImplCollector::<$cls>::new();
+                        let lhs_result = collector.$lhs(py, _slf, _other)?;
+                        if lhs_result == $crate::ffi::Py_NotImplemented() {
+                            $crate::ffi::Py_DECREF(lhs_result);
+                            collector.$rhs(py, _other, _slf)
+                        } else {
+                            ::std::result::Result::Ok(lhs_result)
+                        }
+                    })
                 }
                 $crate::ffi::PyType_Slot {
                     slot: $crate::ffi::$slot,
@@ -715,22 +705,17 @@ macro_rules! generate_pyclass_pow_slot {
             _other: *mut $crate::ffi::PyObject,
             _mod: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject {
-            let gil = $crate::GILPool::new();
-            let py = gil.python();
-            $crate::callback::panic_result_into_callback_output(
-                py,
-                ::std::panic::catch_unwind(move || -> $crate::PyResult<_> {
-                    use $crate::impl_::pyclass::*;
-                    let collector = PyClassImplCollector::<$cls>::new();
-                    let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
-                    if lhs_result == $crate::ffi::Py_NotImplemented() {
-                        $crate::ffi::Py_DECREF(lhs_result);
-                        collector.__rpow__(py, _other, _slf, _mod)
-                    } else {
-                        ::std::result::Result::Ok(lhs_result)
-                    }
-                }),
-            )
+            $crate::impl_::trampoline::ternaryfunc(_slf, _other, _mod, |py, _slf, _other, _mod| {
+                use $crate::impl_::pyclass::*;
+                let collector = PyClassImplCollector::<$cls>::new();
+                let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
+                if lhs_result == $crate::ffi::Py_NotImplemented() {
+                    $crate::ffi::Py_DECREF(lhs_result);
+                    collector.__rpow__(py, _other, _slf, _mod)
+                } else {
+                    ::std::result::Result::Ok(lhs_result)
+                }
+            })
         }
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_nb_power,
@@ -943,7 +928,19 @@ impl<T: PyClass> PyClassBaseType for T {
 
 /// Implementation of tp_dealloc for all pyclasses
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    crate::callback_body!(py, T::Layout::tp_dealloc(obj, py))
+    /// A wrapper because PyCellLayout::tp_dealloc currently takes the py argument last
+    /// (which is different to the rest of the trampolines which take py first)
+    #[inline]
+    #[allow(clippy::unnecessary_wraps)]
+    unsafe fn trampoline_dealloc_wrapper<T: PyClass>(
+        py: Python<'_>,
+        slf: *mut ffi::PyObject,
+    ) -> PyResult<()> {
+        T::Layout::tp_dealloc(slf, py);
+        Ok(())
+    }
+    // TODO change argument order in PyCellLayout::tp_dealloc so this wrapper isn't needed.
+    crate::impl_::trampoline::dealloc(obj, trampoline_dealloc_wrapper::<T>)
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(

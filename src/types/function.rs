@@ -27,14 +27,20 @@ where
     F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
     R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
 {
-    crate::callback_body!(py, {
-        let boxed_fn: &F =
-            &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr() as *const _)
-                as *mut F);
-        let args = py.from_borrowed_ptr::<types::PyTuple>(args);
-        let kwargs = py.from_borrowed_ptr_or_opt::<types::PyDict>(kwargs);
-        boxed_fn(args, kwargs)
-    })
+    crate::impl_::trampoline::cfunction_with_keywords(
+        capsule_ptr,
+        args,
+        kwargs,
+        |py, capsule_ptr, args, kwargs| {
+            let boxed_fn: &F = &*(ffi::PyCapsule_GetPointer(
+                capsule_ptr,
+                CLOSURE_CAPSULE_NAME.as_ptr() as *const _,
+            ) as *mut F);
+            let args = py.from_borrowed_ptr::<types::PyTuple>(args);
+            let kwargs = py.from_borrowed_ptr_or_opt::<types::PyDict>(kwargs);
+            crate::callback::convert(py, boxed_fn(args, kwargs))
+        },
+    )
 }
 
 unsafe extern "C" fn drop_closure<F, R>(capsule_ptr: *mut ffi::PyObject)

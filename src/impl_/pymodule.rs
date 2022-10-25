@@ -5,10 +5,7 @@ use std::{
     sync::atomic::{self, AtomicBool},
 };
 
-use crate::{
-    callback::panic_result_into_callback_output, exceptions::PyImportError, ffi, types::PyModule,
-    GILPool, IntoPyPointer, Py, PyObject, PyResult, Python,
-};
+use crate::{exceptions::PyImportError, ffi, types::PyModule, Py, PyResult, Python};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -58,7 +55,22 @@ impl ModuleDef {
         }
     }
     /// Builds a module using user given initializer. Used for [`#[pymodule]`][crate::pymodule].
-    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<PyObject> {
+    pub fn make_module(&'static self, py: Python<'_>) -> PyResult<Py<PyModule>> {
+        #[cfg(all(PyPy, not(Py_3_8)))]
+        {
+            const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
+            let version = py
+                .import("sys")?
+                .getattr("implementation")?
+                .getattr("version")?;
+            if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
+                let warn = py.import("warnings")?.getattr("warn")?;
+                warn.call1((
+                    "PyPy 3.7 versions older than 7.3.8 are known to have binary \
+                        compatibility issues which may cause segfaults. Please upgrade.",
+                ))?;
+            }
+        }
         let module = unsafe {
             Py::<PyModule>::from_owned_ptr_or_err(py, ffi::PyModule_Create(self.ffi_def.get()))?
         };
@@ -68,37 +80,7 @@ impl ModuleDef {
             ));
         }
         (self.initializer.0)(py, module.as_ref(py))?;
-        Ok(module.into())
-    }
-    /// Implementation of `PyInit_foo` functions generated in [`#[pymodule]`][crate::pymodule]..
-    ///
-    /// # Safety
-    /// The Python GIL must be held.
-    pub unsafe fn module_init(&'static self) -> *mut ffi::PyObject {
-        let pool = GILPool::new();
-        let py = pool.python();
-        let unwind_safe_self = std::panic::AssertUnwindSafe(self);
-        panic_result_into_callback_output(
-            py,
-            std::panic::catch_unwind(move || -> PyResult<_> {
-                #[cfg(all(PyPy, not(Py_3_8)))]
-                {
-                    const PYPY_GOOD_VERSION: [u8; 3] = [7, 3, 8];
-                    let version = py
-                        .import("sys")?
-                        .getattr("implementation")?
-                        .getattr("version")?;
-                    if version.lt(crate::types::PyTuple::new(py, &PYPY_GOOD_VERSION))? {
-                        let warn = py.import("warnings")?.getattr("warn")?;
-                        warn.call1((
-                            "PyPy 3.7 versions older than 7.3.8 are known to have binary \
-                             compatibility issues which may cause segfaults. Please upgrade.",
-                        ))?;
-                    }
-                }
-                Ok(unwind_safe_self.make_module(py)?.into_ptr())
-            }),
-        )
+        Ok(module)
     }
 }
 
@@ -112,46 +94,43 @@ mod tests {
 
     #[test]
     fn module_init() {
-        unsafe {
-            static MODULE_DEF: ModuleDef = unsafe {
-                ModuleDef::new(
-                    "test_module\0",
-                    "some doc\0",
-                    ModuleInitializer(|_, m| {
-                        m.add("SOME_CONSTANT", 42)?;
-                        Ok(())
-                    }),
-                )
-            };
-            Python::with_gil(|py| {
-                let module = MODULE_DEF.module_init();
-                let pymodule: &PyModule = py.from_owned_ptr(module);
-                assert_eq!(
-                    pymodule
-                        .getattr("__name__")
-                        .unwrap()
-                        .extract::<&str>()
-                        .unwrap(),
-                    "test_module",
-                );
-                assert_eq!(
-                    pymodule
-                        .getattr("__doc__")
-                        .unwrap()
-                        .extract::<&str>()
-                        .unwrap(),
-                    "some doc",
-                );
-                assert_eq!(
-                    pymodule
-                        .getattr("SOME_CONSTANT")
-                        .unwrap()
-                        .extract::<u8>()
-                        .unwrap(),
-                    42,
-                );
-            })
-        }
+        static MODULE_DEF: ModuleDef = unsafe {
+            ModuleDef::new(
+                "test_module\0",
+                "some doc\0",
+                ModuleInitializer(|_, m| {
+                    m.add("SOME_CONSTANT", 42)?;
+                    Ok(())
+                }),
+            )
+        };
+        Python::with_gil(|py| {
+            let module = MODULE_DEF.make_module(py).unwrap().into_ref(py);
+            assert_eq!(
+                module
+                    .getattr("__name__")
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap(),
+                "test_module",
+            );
+            assert_eq!(
+                module
+                    .getattr("__doc__")
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap(),
+                "some doc",
+            );
+            assert_eq!(
+                module
+                    .getattr("SOME_CONSTANT")
+                    .unwrap()
+                    .extract::<u8>()
+                    .unwrap(),
+                42,
+            );
+        })
     }
 
     #[test]

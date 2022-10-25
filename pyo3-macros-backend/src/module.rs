@@ -84,7 +84,7 @@ pub fn pymodule_impl(
             /// the module.
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn init() -> *mut #krate::ffi::PyObject {
-                DEF.module_init()
+                #krate::impl_::trampoline::module_init(|py| DEF.make_module(py))
             }
         }
 

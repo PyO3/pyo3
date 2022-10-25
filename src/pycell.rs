@@ -55,25 +55,20 @@
 //! #    }
 //! # }
 //! #
-//! // This function is exported to Python.
+//! // The function which is exported to Python looks roughly like the following
 //! unsafe extern "C" fn __pymethod_increment__(
 //!     _slf: *mut pyo3::ffi::PyObject,
 //!     _args: *mut pyo3::ffi::PyObject,
 //! ) -> *mut pyo3::ffi::PyObject {
 //!     use :: pyo3 as _pyo3;
-//!     let gil = _pyo3::GILPool::new();
-//!     let _py = gil.python();
-//!     _pyo3::callback::panic_result_into_callback_output(
-//!         _py,
-//!         ::std::panic::catch_unwind(move || -> _pyo3::PyResult<_> {
-//!             let _cell = _py
-//!                 .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
-//!                 .downcast::<_pyo3::PyCell<Number>>()?;
-//!             let mut _ref = _cell.try_borrow_mut()?;
-//!             let _slf: &mut Number = &mut *_ref;
-//!             _pyo3::callback::convert(_py, Number::increment(_slf))
-//!         }),
-//!     )
+//!     _pyo3::impl_::trampoline::noargs(_slf, _args, |py, _slf| {
+//!         let _cell = py
+//!             .from_borrowed_ptr::<_pyo3::PyAny>(_slf)
+//!             .downcast::<_pyo3::PyCell<Number>>()?;
+//!         let mut _ref = _cell.try_borrow_mut()?;
+//!         let _slf: &mut Number = &mut *_ref;
+//!         _pyo3::callback::convert(py, Number::increment(_slf))
+//!     })
 //! }
 //! ```
 //!
