@@ -104,15 +104,15 @@ error: `pass_module` cannot be used on Python methods
 
 error: Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
        Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.
-   --> tests/ui/invalid_pymethods.rs:124:29
+   --> tests/ui/invalid_pymethods.rs:118:29
     |
-124 |     fn method_self_by_value(self){}
+118 |     fn method_self_by_value(self){}
     |                             ^^^^
 
 error[E0201]: duplicate definitions with name `__pymethod___new____`:
-   --> tests/ui/invalid_pymethods.rs:129:1
+   --> tests/ui/invalid_pymethods.rs:123:1
     |
-129 | #[pymethods]
+123 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | previous definition of `__pymethod___new____` here
@@ -121,9 +121,9 @@ error[E0201]: duplicate definitions with name `__pymethod___new____`:
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0201]: duplicate definitions with name `__pymethod_func__`:
-   --> tests/ui/invalid_pymethods.rs:140:1
+   --> tests/ui/invalid_pymethods.rs:134:1
     |
-140 | #[pymethods]
+134 | #[pymethods]
     | ^^^^^^^^^^^^
     | |
     | previous definition of `__pymethod_func__` here

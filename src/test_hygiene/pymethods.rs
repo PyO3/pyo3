@@ -367,13 +367,13 @@ impl Dummy {
 
     // Things with attributes
 
-    #[args(x = "1", "*", _z = "2")]
+    #[pyo3(signature = (_y, *, _z=2))]
     fn test(&self, _y: &Dummy, _z: i32) {}
     #[staticmethod]
     fn staticmethod() {}
     #[classmethod]
     fn clsmethod(_: &crate::types::PyType) {}
-    #[args(args = "*", kwds = "**")]
+    #[pyo3(signature = (*_args, **_kwds))]
     fn __call__(
         &self,
         _args: &crate::types::PyTuple,
@@ -766,13 +766,13 @@ impl Dummy {
 
     // Things with attributes
 
-    #[args(x = "1", "*", _z = "2")]
+    #[pyo3(signature = (_y, *, _z=2))]
     fn test(&self, _y: &Dummy, _z: i32) {}
     #[staticmethod]
     fn staticmethod() {}
     #[classmethod]
     fn clsmethod(_: &crate::types::PyType) {}
-    #[args(args = "*", kwds = "**")]
+    #[pyo3(signature = (*_args, **_kwds))]
     fn __call__(
         &self,
         _args: &crate::types::PyTuple,

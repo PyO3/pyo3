@@ -44,7 +44,7 @@ pub fn is_python(ty: &syn::Type) -> bool {
     }
 }
 
-/// If `ty` is Option<T>, return `Some(T)`, else None.
+/// If `ty` is `Option<T>`, return `Some(T)`, else `None`.
 pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
     if let syn::Type::Path(syn::TypePath { path, .. }) = ty {
         let seg = path.segments.last().filter(|s| s.ident == "Option")?;

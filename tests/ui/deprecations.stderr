@@ -1,11 +1,23 @@
-error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
- --> tests/ui/deprecations.rs:5:11
+error: use of deprecated constant `pyo3::impl_::deprecations::PYFUNCTION_ARGUMENTS`: passing arbitrary arguments to `#[pyfunction()]` to specify the signature is being replaced by `#[pyo3(signature)]`
+ --> tests/ui/deprecations.rs:8:14
   |
-5 | #[pyclass(gc)]
-  |           ^^
+8 | #[pyfunction(_opt = "None", x = "5")]
+  |              ^^^^
   |
 note: the lint level is defined here
  --> tests/ui/deprecations.rs:1:9
   |
 1 | #![deny(deprecated)]
   |         ^^^^^^^^^^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYCLASS_GC_OPTION`: implement a `__traverse__` `#[pymethod]` instead of using `gc` option
+ --> tests/ui/deprecations.rs:5:11
+  |
+5 | #[pyclass(gc)]
+  |           ^^
+
+error: use of deprecated constant `pyo3::impl_::deprecations::PYMETHODS_ARGS_ATTRIBUTE`: the `#[args]` attribute for `#[methods]` is being replaced by `#[pyo3(signature)]`
+  --> tests/ui/deprecations.rs:16:12
+   |
+16 |     #[args(_opt = "None", x = "5")]
+   |            ^^^^
