@@ -5,10 +5,15 @@ use crate::{
         assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
         PyClassItemsIter,
     },
+    impl_::{
+        pymethods::{get_doc, get_name, Getter, Setter},
+        trampoline::trampoline_inner,
+    },
     types::PyType,
-    Py, PyClass, PyMethodDefType, PyResult, PyTypeInfo, Python,
+    Py, PyClass, PyGetterDef, PyMethodDefType, PyResult, PySetterDef, PyTypeInfo, Python,
 };
 use std::{
+    borrow::Cow,
     collections::HashMap,
     convert::TryInto,
     ffi::{CStr, CString},
@@ -16,7 +21,13 @@ use std::{
     ptr,
 };
 
-pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<Py<PyType>>
+pub(crate) struct PyClassTypeObject {
+    pub type_object: Py<PyType>,
+    #[allow(dead_code)] // This is purely a cache that must live as long as the type object
+    getset_destructors: Vec<GetSetDefDestructor>,
+}
+
+pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObject>
 where
     T: PyClass,
 {
@@ -40,7 +51,7 @@ type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
-    property_defs_map: HashMap<&'static str, ffi::PyGetSetDef>,
+    getset_builders: HashMap<&'static str, GetSetDefBuilder>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
@@ -111,28 +122,18 @@ impl PyTypeBuilder {
     }
 
     fn pymethod_def(&mut self, def: &PyMethodDefType) {
-        const PY_GET_SET_DEF_INIT: ffi::PyGetSetDef = ffi::PyGetSetDef {
-            name: ptr::null_mut(),
-            get: None,
-            set: None,
-            doc: ptr::null(),
-            closure: ptr::null_mut(),
-        };
-
         match def {
             PyMethodDefType::Getter(getter) => {
-                getter.copy_to(
-                    self.property_defs_map
-                        .entry(getter.name)
-                        .or_insert(PY_GET_SET_DEF_INIT),
-                );
+                self.getset_builders
+                    .entry(getter.name)
+                    .or_default()
+                    .add_getter(getter);
             }
             PyMethodDefType::Setter(setter) => {
-                setter.copy_to(
-                    self.property_defs_map
-                        .entry(setter.name)
-                        .or_insert(PY_GET_SET_DEF_INIT),
-                );
+                self.getset_builders
+                    .entry(setter.name)
+                    .or_default()
+                    .add_setter(setter);
             }
             PyMethodDefType::Method(def)
             | PyMethodDefType::Class(def)
@@ -147,22 +148,30 @@ impl PyTypeBuilder {
         }
     }
 
-    fn finalize_methods_and_properties(&mut self) {
-        let method_defs = std::mem::take(&mut self.method_defs);
+    fn finalize_methods_and_properties(&mut self) -> PyResult<Vec<GetSetDefDestructor>> {
+        let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
 
-        let property_defs = std::mem::take(&mut self.property_defs_map);
-        // TODO: use into_values when on MSRV Rust >= 1.54
+        let mut getset_destructors = Vec::with_capacity(self.getset_builders.len());
+
         #[allow(unused_mut)]
-        let mut property_defs: Vec<_> = property_defs.into_iter().map(|(_, value)| value).collect();
+        let mut property_defs: Vec<_> = self
+            .getset_builders
+            .iter()
+            .map(|(name, builder)| {
+                let (def, destructor) = builder.as_get_set_def(name)?;
+                getset_destructors.push(destructor);
+                Ok(def)
+            })
+            .collect::<PyResult<_>>()?;
 
         // PyPy doesn't automatically add __dict__ getter / setter.
         // PyObject_GenericGetDict not in the limited API until Python 3.10.
         if self.has_dict {
             #[cfg(not(any(PyPy, all(Py_LIMITED_API, not(Py_3_10)))))]
             property_defs.push(ffi::PyGetSetDef {
-                name: "__dict__\0".as_ptr() as *mut c_char,
+                name: "__dict__\0".as_ptr().cast(),
                 get: Some(ffi::PyObject_GenericGetDict),
                 set: Some(ffi::PyObject_GenericSetDict),
                 doc: ptr::null(),
@@ -200,6 +209,8 @@ impl PyTypeBuilder {
                 )
             }
         }
+
+        Ok(getset_destructors)
     }
 
     fn set_is_basetype(mut self, is_basetype: bool) -> Self {
@@ -324,12 +335,12 @@ impl PyTypeBuilder {
         name: &'static str,
         module_name: Option<&'static str>,
         basicsize: usize,
-    ) -> PyResult<Py<PyType>> {
+    ) -> PyResult<PyClassTypeObject> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        self.finalize_methods_and_properties();
+        let getset_destructors = self.finalize_methods_and_properties()?;
 
         if !self.has_new {
             // Safety: This is the correct slot type for Py_tp_new
@@ -380,7 +391,10 @@ impl PyTypeBuilder {
             cleanup(&self, type_object.as_ref(py).as_type_ptr());
         }
 
-        Ok(type_object)
+        Ok(PyClassTypeObject {
+            type_object,
+            getset_destructors,
+        })
     }
 }
 
@@ -399,9 +413,152 @@ unsafe extern "C" fn no_constructor_defined(
     _args: *mut ffi::PyObject,
     _kwds: *mut ffi::PyObject,
 ) -> *mut ffi::PyObject {
-    crate::impl_::trampoline::trampoline_inner(|_| {
+    trampoline_inner(|_| {
         Err(crate::exceptions::PyTypeError::new_err(
             "No constructor defined",
         ))
     })
+}
+
+#[derive(Default)]
+struct GetSetDefBuilder {
+    doc: Option<&'static str>,
+    getter: Option<Getter>,
+    setter: Option<Setter>,
+}
+
+impl GetSetDefBuilder {
+    fn add_getter(&mut self, getter: &PyGetterDef) {
+        // TODO: be smarter about merging getter and setter docs
+        if self.doc.is_none() {
+            self.doc = Some(getter.doc);
+        }
+        // TODO: return an error if getter already defined?
+        self.getter = Some(getter.meth.0)
+    }
+
+    fn add_setter(&mut self, setter: &PySetterDef) {
+        // TODO: be smarter about merging getter and setter docs
+        if self.doc.is_none() {
+            self.doc = Some(setter.doc);
+        }
+        // TODO: return an error if setter already defined?
+        self.setter = Some(setter.meth.0)
+    }
+
+    fn as_get_set_def(
+        &self,
+        name: &'static str,
+    ) -> PyResult<(ffi::PyGetSetDef, GetSetDefDestructor)> {
+        let name = get_name(name)?;
+        let doc = self.doc.map(get_doc).transpose()?;
+
+        let getset_type = match (self.getter, self.setter) {
+            (Some(getter), None) => GetSetDefType::Getter(getter),
+            (None, Some(setter)) => GetSetDefType::Setter(setter),
+            (Some(getter), Some(setter)) => {
+                GetSetDefType::GetterAndSetter(Box::new(GetterAndSetter { getter, setter }))
+            }
+            (None, None) => {
+                unreachable!("GetSetDefBuilder expected to always have either getter or setter")
+            }
+        };
+
+        let getset_def = getset_type.create_py_get_set_def(&name, doc.as_deref());
+        let destructor = GetSetDefDestructor {
+            name,
+            doc,
+            closure: getset_type,
+        };
+        Ok((getset_def, destructor))
+    }
+}
+
+#[allow(dead_code)] // a stack of fields which are purely to cache until dropped
+struct GetSetDefDestructor {
+    name: Cow<'static, CStr>,
+    doc: Option<Cow<'static, CStr>>,
+    closure: GetSetDefType,
+}
+
+/// Possible forms of property - either a getter, setter, or both
+enum GetSetDefType {
+    Getter(Getter),
+    Setter(Setter),
+    // The box is here so that the `GetterAndSetter` has a stable
+    // memory address even if the `GetSetDefType` enum is moved
+    GetterAndSetter(Box<GetterAndSetter>),
+}
+
+pub(crate) struct GetterAndSetter {
+    getter: Getter,
+    setter: Setter,
+}
+
+impl GetSetDefType {
+    /// Fills a PyGetSetDef structure
+    /// It is only valid for as long as this GetSetDefType remains alive,
+    /// as well as name and doc members
+    pub(crate) fn create_py_get_set_def(
+        &self,
+        name: &CStr,
+        doc: Option<&CStr>,
+    ) -> ffi::PyGetSetDef {
+        let (get, set, closure): (Option<ffi::getter>, Option<ffi::setter>, *mut c_void) =
+            match self {
+                &Self::Getter(closure) => {
+                    unsafe extern "C" fn getter(
+                        slf: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
+                        let getter: Getter = std::mem::transmute(closure);
+                        trampoline_inner(|py| getter(py, slf))
+                    }
+                    (Some(getter), None, closure as Getter as _)
+                }
+                &Self::Setter(closure) => {
+                    unsafe extern "C" fn setter(
+                        slf: *mut ffi::PyObject,
+                        value: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> c_int {
+                        // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
+                        let setter: Setter = std::mem::transmute(closure);
+                        trampoline_inner(|py| setter(py, slf, value))
+                    }
+                    (None, Some(setter), closure as Setter as _)
+                }
+                Self::GetterAndSetter(closure) => {
+                    unsafe extern "C" fn getset_getter(
+                        slf: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        trampoline_inner(|py| (getset.getter)(py, slf))
+                    }
+
+                    unsafe extern "C" fn getset_setter(
+                        slf: *mut ffi::PyObject,
+                        value: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> c_int {
+                        let getset: &GetterAndSetter = &*(closure as *const GetterAndSetter);
+                        trampoline_inner(|py| (getset.setter)(py, slf, value))
+                    }
+                    (
+                        Some(getset_getter),
+                        Some(getset_setter),
+                        closure.as_ref() as *const GetterAndSetter as _,
+                    )
+                }
+            };
+        ffi::PyGetSetDef {
+            name: name.as_ptr(),
+            doc: doc.map_or(ptr::null(), CStr::as_ptr),
+            get,
+            set,
+            closure,
+        }
+    }
 }

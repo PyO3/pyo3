@@ -9,10 +9,10 @@ use std::{
 use crate::{
     exceptions::PyRuntimeError,
     ffi,
-    pyclass::create_type_object,
+    pyclass::{create_type_object, PyClassTypeObject},
     sync::{GILOnceCell, GILProtected},
     types::PyType,
-    AsPyPointer, IntoPyPointer, Py, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
+    AsPyPointer, IntoPyPointer, PyClass, PyErr, PyMethodDefType, PyObject, PyResult, Python,
 };
 
 use super::PyClassItemsIter;
@@ -23,7 +23,7 @@ pub struct LazyTypeObject<T>(LazyTypeObjectInner, PhantomData<T>);
 
 // Non-generic inner of LazyTypeObject to keep code size down
 struct LazyTypeObjectInner {
-    value: GILOnceCell<Py<PyType>>,
+    value: GILOnceCell<PyClassTypeObject>,
     // Threads which have begun initialization of the `tp_dict`. Used for
     // reentrant initialization detection.
     initializing_threads: GILProtected<RefCell<Vec<ThreadId>>>,
@@ -67,12 +67,16 @@ impl LazyTypeObjectInner {
     fn get_or_try_init<'py>(
         &'py self,
         py: Python<'py>,
-        init: fn(Python<'py>) -> PyResult<Py<PyType>>,
+        init: fn(Python<'py>) -> PyResult<PyClassTypeObject>,
         name: &str,
         items_iter: PyClassItemsIter,
     ) -> PyResult<&'py PyType> {
         (|| -> PyResult<_> {
-            let type_object = self.value.get_or_try_init(py, || init(py))?.as_ref(py);
+            let type_object = self
+                .value
+                .get_or_try_init(py, || init(py))?
+                .type_object
+                .as_ref(py);
             self.ensure_init(type_object, name, items_iter)?;
             Ok(type_object)
         })()
