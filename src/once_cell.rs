@@ -1,6 +1,10 @@
 //! A write-once cell mediated by the Python GIL.
 use crate::{types::PyString, Py, Python};
-use std::cell::UnsafeCell;
+use std::{
+    cell::{Cell, UnsafeCell},
+    ops::{Deref, DerefMut},
+    panic::RefUnwindSafe,
+};
 
 /// A write-once cell similar to [`once_cell::OnceCell`](https://docs.rs/once_cell/1.4.0/once_cell/).
 ///
@@ -193,5 +197,209 @@ mod tests {
             assert!(dict.contains(foo2).unwrap());
             assert_eq!(dict.get_item(foo3).unwrap().extract::<usize>().unwrap(), 42);
         });
+    }
+}
+
+/// A value which is initialized on the first access based on
+/// [`once_cell::sync::Lazy`](https://docs.rs/once_cell/1.14.0/once_cell/sync/struct.Lazy.html).
+///
+/// This type is thread-safe and can be used in statics.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+///
+/// use rust_circuit::lazy::GILLazy;
+///
+/// pyo3::prepare_freethreaded_python();
+///
+/// static HASHMAP: GILLazy<HashMap<i32, String>> = GILLazy::new(|| {
+///     println!("initializing");
+///     let mut m = HashMap::default();
+///     m.insert(13, "Spica".to_string());
+///     m.insert(74, "Hoyten".to_string());
+///     m
+/// });
+///
+/// fn main() {
+///     println!("ready");
+///     std::thread::spawn(|| {
+///         println!("{:?}", HASHMAP.get(&13));
+///     })
+///     .join()
+///     .unwrap();
+///     println!("{:?}", HASHMAP.get(&74));
+///
+///     // Prints:
+///     //   ready
+///     //   initializing
+///     //   Some("Spica")
+///     //   Some("Hoyten")
+/// }
+/// ```
+///
+/// TODO: contribute to pyo3!
+pub struct GILLazyPy<T, F = for<'py> fn(Python<'py>) -> T> {
+    cell: GILOnceCell<T>,
+    init: Cell<Option<F>>,
+}
+
+/// Wrapper type, see docs for GILLazyPy
+pub struct PyCallWrap<F>(F);
+
+/// Wrapper for GILLazyPy, see docs for that.
+pub type GILLazy<T, S = PyCallWrap<fn() -> T>> = GILLazyPy<T, S>;
+
+// We never create a `&F` from a `&GILLazyPy<T, F>` so it is fine to not impl
+// `Sync` for `F`. We do create a `&mut Option<F>` in `force`, but this is
+// properly synchronized, so it only happens once so it also does not
+// contribute to this impl.
+// TODO: is this ok with GILOnceCell????
+unsafe impl<T, F: Send> Sync for GILLazyPy<T, F> where GILOnceCell<T>: Sync {}
+// auto-derived `Send` impl is OK.
+
+impl<T, F: RefUnwindSafe> RefUnwindSafe for GILLazyPy<T, F> where GILOnceCell<T>: RefUnwindSafe {}
+
+impl<T, F> GILLazyPy<T, PyCallWrap<F>> {
+    /// Creates a new lazy value with the given initializing
+    /// function.
+    pub const fn new(f: F) -> GILLazyPy<T, PyCallWrap<F>> {
+        GILLazyPy {
+            cell: GILOnceCell::new(),
+            init: Cell::new(Some(PyCallWrap(f))),
+        }
+    }
+}
+
+impl<T, F> GILLazyPy<T, F> {
+    /// TODO: doc
+    pub const fn new_py(f: F) -> GILLazyPy<T, F> {
+        GILLazyPy {
+            cell: GILOnceCell::new(),
+            init: Cell::new(Some(f)),
+        }
+    }
+}
+
+/// trait for once cell stuff
+pub trait MaybePyCallable<T> {
+    /// call trait
+    fn call<'py>(self, py: Python<'py>) -> T;
+}
+
+impl<T, F: for<'py> FnOnce(Python<'py>) -> T> MaybePyCallable<T> for F {
+    fn call<'py>(self, py: Python<'py>) -> T {
+        self(py)
+    }
+}
+
+impl<T, F: FnOnce() -> T> MaybePyCallable<T> for PyCallWrap<F> {
+    fn call<'py>(self, _: Python<'py>) -> T {
+        self.0()
+    }
+}
+
+impl<T, F: MaybePyCallable<T>> GILLazyPy<T, F> {
+    /// Forces the evaluation of this lazy value and
+    /// returns a reference to the result. This is equivalent
+    /// to the `Deref` impl, but is explicit.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_circuit::lazy::GILLazyPy;
+    ///
+    /// pyo3::prepare_freethreaded_python();
+    ///
+    /// let lazy = GILLazyPy::new(|| 92);
+    ///
+    /// assert_eq!(GILLazyPy::force(&lazy), &92);
+    /// assert_eq!(&*lazy, &92);
+    /// ```
+    pub fn force(this: &GILLazyPy<T, F>) -> &T {
+        Python::with_gil(|py| {
+            this.cell.get_or_init(py, || match this.init.take() {
+                Some(f) => f.call(py),
+                None => panic!("GILLazyPy instance has previously been poisoned"),
+            })
+        })
+    }
+
+    /// Forces the evaluation of this lazy value and
+    /// returns a mutable reference to the result. This is equivalent
+    /// to the `Deref` impl, but is explicit.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_circuit::lazy::GILLazyPy;
+    ///
+    /// pyo3::prepare_freethreaded_python();
+    ///
+    /// let mut lazy = GILLazyPy::new(|| 92);
+    ///
+    /// assert_eq!(GILLazyPy::force_mut(&mut lazy), &mut 92);
+    /// ```
+    pub fn force_mut(this: &mut GILLazyPy<T, F>) -> &mut T {
+        Self::force(this);
+        Self::get_mut(this).unwrap_or_else(|| unreachable!())
+    }
+
+    /// Gets the reference to the result of this lazy value if
+    /// it was initialized, otherwise returns `None`.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_circuit::lazy::GILLazyPy;
+    ///
+    /// pyo3::prepare_freethreaded_python();
+    ///
+    /// let lazy = GILLazyPy::new(|| 92);
+    ///
+    /// assert_eq!(GILLazyPy::get(&lazy), None);
+    /// assert_eq!(&*lazy, &92);
+    /// assert_eq!(GILLazyPy::get(&lazy), Some(&92));
+    /// ```
+    pub fn get(this: &GILLazyPy<T, F>) -> Option<&T> {
+        Python::with_gil(|py| this.cell.get(py))
+    }
+
+    /// Gets the reference to the result of this lazy value if
+    /// it was initialized, otherwise returns `None`.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_circuit::lazy::GILLazyPy;
+    ///
+    /// pyo3::prepare_freethreaded_python();
+    ///
+    /// let mut lazy = GILLazyPy::new(|| 92);
+    ///
+    /// assert_eq!(GILLazyPy::get_mut(&mut lazy), None);
+    /// assert_eq!(&*lazy, &92);
+    /// assert_eq!(GILLazyPy::get_mut(&mut lazy), Some(&mut 92));
+    /// ```
+    pub fn get_mut(this: &mut GILLazyPy<T, F>) -> Option<&mut T> {
+        this.cell.get_mut()
+    }
+}
+
+impl<T, F: MaybePyCallable<T>> Deref for GILLazyPy<T, F> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        GILLazyPy::force(self)
+    }
+}
+
+impl<T, F: MaybePyCallable<T>> DerefMut for GILLazyPy<T, F> {
+    fn deref_mut(&mut self) -> &mut T {
+        GILLazyPy::force(self);
+        self.cell.get_mut().unwrap_or_else(|| unreachable!())
+    }
+}
+
+impl<T: Default> Default for GILLazy<T> {
+    /// Creates a new lazy value using `Default` as the initializing function.
+    fn default() -> GILLazy<T> {
+        GILLazyPy::new(T::default)
     }
 }
