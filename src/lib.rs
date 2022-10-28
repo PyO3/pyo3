@@ -395,6 +395,7 @@ pub mod buffer;
 pub mod callback;
 pub mod conversion;
 mod conversions;
+pub use conversions::anyhow::set_get_exception as anyhow_set_get_exception;
 #[macro_use]
 #[doc(hidden)]
 pub mod derive_utils;
