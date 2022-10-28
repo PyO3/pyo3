@@ -27,8 +27,9 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session)
     _run_cargo_test(session, features="abi3")
-    _run_cargo_test(session, features="full")
-    _run_cargo_test(session, features="abi3 full")
+    if not "skip-full" in session.posargs:
+        _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -235,6 +236,7 @@ def address_sanitizer(session: nox.Session):
         "cargo",
         "+nightly",
         "test",
+        "-Zbuild-std",
         f"--target={_get_rust_target()}",
         "--",
         "--test-threads=1",
@@ -289,7 +291,12 @@ def _run_cargo_test(
     package: Optional[str] = None,
     features: Optional[str] = None,
 ) -> None:
-    command = ["cargo", "test"]
+    command = ["cargo"]
+    if "careful" in session.posargs:
+        command.append("careful")
+    command.append("test")
+    if "release" in session.posargs:
+        command.append("--release")
     if package:
         command.append(f"--package={package}")
     if features:
