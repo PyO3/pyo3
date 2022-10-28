@@ -343,6 +343,7 @@ jobs:
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
       RUST_BACKTRACE: 1
+      TRYBUILD: overwrite
 
   careful:
     needs: [fmt]
@@ -367,6 +368,7 @@ jobs:
       - run: nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
+      TRYBUILD: overwrite
 
   coverage:
     needs: [fmt]
