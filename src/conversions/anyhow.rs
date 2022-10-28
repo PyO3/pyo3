@@ -121,6 +121,11 @@ static GET_EXCEPTION: GILLazy<
     Mutex<Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>>,
 > = GILLazy::new(|| Mutex::new(Arc::new(get_exception_from_base_error)));
 
+/// set anyhow exception getter
+pub fn set_get_exception(f: Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>) {
+    *GET_EXCEPTION.lock().unwrap() = f;
+}
+
 impl From<anyhow::Error> for PyErr {
     fn from(err: anyhow::Error) -> Self {
         Python::with_gil(|py| {
