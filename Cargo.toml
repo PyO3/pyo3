@@ -70,7 +70,7 @@ widestring = "0.5.1"
 pyo3-build-config = { path = "pyo3-build-config", version = "0.17.2", features = ["resolve-config"] }
 
 [features]
-default = ["macros", "anyhow"]
+default = ["macros"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros", "indoc", "unindent"]
