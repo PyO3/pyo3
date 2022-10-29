@@ -58,7 +58,7 @@ jobs:
       - name: Run cargo checks
         run: |
           set -x
-          VERSIONS=("3.7" "3.8" "3.9" "3.10")
+          VERSIONS=("3.7" "3.8" "3.9" "3.10" "3.11")
           for VERSION in ${VERSIONS[@]}; do
             echo "version=$VERSION" > config.txt
             echo "suppress_build_script_link_lines=true" >> config.txt
@@ -109,7 +109,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: 1.48.0
-            python-version: "3.10"
+            python-version: "3.11"
             platform:
               {
                 os: "ubuntu-latest",
@@ -121,7 +121,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.10"
+            python-version: "3.11"
             platform:
               {
                 os: "ubuntu-latest",
@@ -132,7 +132,7 @@ jobs:
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
-            python-version: "3.10"
+            python-version: "3.11"
             platform:
               {
                 os: "windows-latest",
@@ -315,7 +315,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-valgrind
@@ -338,7 +338,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-careful
@@ -364,7 +364,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-cargo-${{ matrix.os }}
@@ -389,7 +389,7 @@ jobs:
       - uses: actions/setup-python@v4
         id: setup-python
         with:
-          python-version: 3.11.0-beta.4
+          python-version: "3.11"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
