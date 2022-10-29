@@ -107,21 +107,48 @@
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
-use crate::exceptions::PyRuntimeError;
-use crate::PyErr;
+use crate::{
+    exceptions::PyRuntimeError, once_cell::GILLazy, types::PyType, Py, PyErr, PyTypeInfo, Python,
+};
+use std::sync::{Arc, Mutex};
+
+// get exception stuff is Redwood hack. Could maybe be upstreamed, but would need to be improved...
+
+pub fn get_exception_from_base_error(err: &anyhow::Error) -> Option<Py<PyType>> {
+    let py_err: &PyErr = err.root_cause().downcast_ref()?;
+    Some(Python::with_gil(|py| py_err.get_type(py).into()))
+}
+
+static GET_EXCEPTION: GILLazy<
+    Mutex<Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>>,
+> = GILLazy::new(|| Mutex::new(Arc::new(get_exception_from_base_error)));
+
+/// set anyhow exception getter
+pub fn set_get_exception(f: Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>) {
+    *GET_EXCEPTION.lock().unwrap() = f;
+}
 
 impl From<anyhow::Error> for PyErr {
     fn from(err: anyhow::Error) -> Self {
-        PyRuntimeError::new_err(format!("{:?}", err))
+        Python::with_gil(|py| {
+            let exception = GET_EXCEPTION.lock().unwrap()(&err);
+            PyErr::from_type(
+                exception
+                    .map(|x| x.into_ref(py))
+                    .unwrap_or(PyRuntimeError::type_object(py)),
+                format!("{:?}", err),
+            )
+        })
     }
 }
 
 #[cfg(test)]
 mod test_anyhow {
+    use crate::exceptions::PyTypeError;
     use crate::prelude::*;
-    use crate::types::IntoPyDict;
+    use crate::types::{IntoPyDict, PyType};
 
-    use anyhow::{anyhow, bail, Context, Result};
+    use anyhow::{anyhow, bail, Context, Error, Result};
 
     fn f() -> Result<()> {
         use std::io;
@@ -163,6 +190,14 @@ mod test_anyhow {
             let locals = [("err", pyerr)].into_py_dict(py);
             let pyerr = py.run("raise err", None, Some(locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
+        })
+    }
+
+    #[test]
+    fn test_pyo3_exception_different_type() {
+        let err: PyErr = Error::new(PyTypeError::new_err("Some sort of error")).into();
+        Python::with_gil(|py| {
+            assert!(err.get_type(py).is(PyType::new::<PyTypeError>(py)));
         })
     }
 }
