@@ -112,6 +112,8 @@ use crate::{
 };
 use std::sync::{Arc, Mutex};
 
+// get exception stuff is Redwood hack. Could maybe be upstreamed, but would need to be improved...
+
 pub fn get_exception_from_base_error(err: &anyhow::Error) -> Option<Py<PyType>> {
     let py_err: &PyErr = err.root_cause().downcast_ref()?;
     Some(Python::with_gil(|py| py_err.get_type(py).into()))
