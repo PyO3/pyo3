@@ -238,6 +238,7 @@ def address_sanitizer(session: nox.Session):
         "cargo",
         "+nightly",
         "test",
+        "--release",
         "-Zbuild-std",
         f"--target={_get_rust_target()}",
         "--",
