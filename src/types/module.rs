@@ -203,7 +203,7 @@ impl PyModule {
     /// Returns the filename (the `__file__` attribute) of the module.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    #[cfg(not(all(windows, PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn filename(&self) -> PyResult<&str> {
         unsafe {
             self.py()
