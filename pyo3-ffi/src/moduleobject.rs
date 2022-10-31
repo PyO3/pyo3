@@ -32,6 +32,7 @@ extern "C" {
     #[cfg(not(all(windows, PyPy)))]
     #[deprecated(note = "Python 3.2")]
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
+    #[cfg(not(PyPy))]
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
     // skipped non-limited _PyModule_Clear
     // skipped non-limited _PyModule_ClearDict
