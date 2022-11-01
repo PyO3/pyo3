@@ -27,8 +27,9 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session)
     _run_cargo_test(session, features="abi3")
-    _run_cargo_test(session, features="full")
-    _run_cargo_test(session, features="abi3 full")
+    if not "skip-full" in session.posargs:
+        _run_cargo_test(session, features="full")
+        _run_cargo_test(session, features="abi3 full")
 
 
 @nox.session(name="test-py", venv_backend="none")
@@ -110,17 +111,24 @@ def publish(session: nox.Session) -> None:
 def contributors(session: nox.Session) -> None:
     import requests
 
-    if len(session.posargs) != 1:
+    if len(session.posargs) < 1:
         raise Exception("base commit positional argument missing")
 
     base = session.posargs[0]
     page = 1
 
+    head = "HEAD"
+    if len(session.posargs) == 2:
+        head = session.posargs[1]
+
+    if len(session.posargs) > 2:
+        raise Exception("too many arguments")
+
     authors = set()
 
     while True:
         resp = requests.get(
-            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...HEAD",
+            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...{head}",
             params={"page": page, "per_page": 100},
         )
 
@@ -228,6 +236,7 @@ def address_sanitizer(session: nox.Session):
         "cargo",
         "+nightly",
         "test",
+        "-Zbuild-std",
         f"--target={_get_rust_target()}",
         "--",
         "--test-threads=1",
@@ -282,7 +291,12 @@ def _run_cargo_test(
     package: Optional[str] = None,
     features: Optional[str] = None,
 ) -> None:
-    command = ["cargo", "test"]
+    command = ["cargo"]
+    if "careful" in session.posargs:
+        command.append("careful")
+    command.append("test")
+    if "release" in session.posargs:
+        command.append("--release")
     if package:
         command.append(f"--package={package}")
     if features:

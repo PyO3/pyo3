@@ -25,7 +25,7 @@
 //! Note that you must use compatible versions of chrono and PyO3.
 //! The required chrono version may vary based on the version of PyO3.
 //!
-//! # Example: Convert a PyDateTime to chrono's DateTime<Utc>
+//! # Example: Convert a `PyDateTime` to chrono's `DateTime<Utc>`
 //!
 //! ```rust
 //! use chrono::{Utc, DateTime};

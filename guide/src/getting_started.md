@@ -95,6 +95,13 @@ Make sure that the rust you want to be able to access from Python is compiled in
 
 
 ```toml
+[package]
+# Name of the package. If you already have a package defined in `Cargo.toml`, you can remove
+# this section.
+name = "pyo3_start"
+version = "0.1.0"
+edition = "2021"
+
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the
 # library (i.e. `import string_sum`). If you change this, you must also change the name of the
@@ -129,7 +136,7 @@ classifiers = [
 
 ## Running code
 
-After this you can setup rust code to be available in python as such:
+After this you can setup rust code to be available in python as below; for example, you can place this code in `src/lib.rs`
 
 ```rust
 use pyo3::prelude::*;
@@ -144,7 +151,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn string_sum(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pyo3_example(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     Ok(())
 }

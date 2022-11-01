@@ -955,9 +955,9 @@ where
     }
 }
 
-/// Py<T> can be used as an error when T is an Error.
+/// `Py<T>` can be used as an error when T is an Error.
 ///
-/// However for GIL lifetime reasons, cause() cannot be implemented for Py<T>.
+/// However for GIL lifetime reasons, cause() cannot be implemented for `Py<T>`.
 /// Use .as_ref() to get the GIL-scoped error if you need to inspect the cause.
 impl<T> std::error::Error for Py<T>
 where
