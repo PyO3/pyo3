@@ -8,6 +8,7 @@ Follow the process below to update all required pieces to bump the version. All 
 
 1. Replace all instances of the PyO3 current version with the new version to be released. Places to check:
    - `Cargo.toml` for all PyO3 crates in the repository.
+   - Examples in `README.md`
    - PyO3 version embedded into documentation like the README.
    - `pre-script.rhai` templates for the examples.
    - `[towncrier]` section in `pyproject.toml`.

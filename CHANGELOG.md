@@ -10,6 +10,22 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.17.3] - 2022-11-01
+
+### Packaging
+
+- Support Python 3.11. (Previous versions of PyO3 0.17 have been tested against Python 3.11 release candidates and are expected to be compatible, this is the first version tested against Python 3.11.0.) [#2708](https://github.com/PyO3/pyo3/pull/2708)
+
+### Added
+
+- Implemented `ExactSizeIterator` for `PyListIterator`, `PyDictIterator`, `PySetIterator` and `PyFrozenSetIterator`. [#2676](https://github.com/PyO3/pyo3/pull/2676)
+
+### Fixed
+
+- Fix regression of `impl FromPyObject for [T; N]` no longer accepting types passing `PySequence_Check`, e.g. NumPy arrays, since version 0.17.0. This the same fix that was applied `impl FromPyObject for Vec<T>` in version 0.17.1 extended to fixed-size arrays. [#2675](https://github.com/PyO3/pyo3/pull/2675)
+- Fix UB in `FunctionDescription::extract_arguments_fastcall` due to creating slices from a null pointer. [#2687](https://github.com/PyO3/pyo3/pull/2687)
+
+
 ## [0.17.2] - 2022-10-04
 
 ### Packaging
@@ -1295,7 +1311,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.17.2g...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.17.3...HEAD
+[0.17.3]: https://github.com/pyo3/pyo3/compare/v0.17.2...v0.17.3
 [0.17.2]: https://github.com/pyo3/pyo3/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/pyo3/pyo3/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/pyo3/pyo3/compare/v0.16.6...v0.17.0
