@@ -244,7 +244,7 @@ jobs:
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         env:
           PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
         with:
@@ -256,7 +256,7 @@ jobs:
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
       - name: Test cross compile to same architecture
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.9' }}
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         env:
           PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
         with:
@@ -266,7 +266,7 @@ jobs:
 
       - name: Test cross compilation
         if: ${{ matrix.platform.os == 'macos-latest' && matrix.python-version == '3.9' }}
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: aarch64-apple-darwin
           args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
@@ -289,7 +289,7 @@ jobs:
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
       - name: Test cross compile to Windows with maturin
         if: ${{ matrix.platform.os == 'ubuntu-latest' && matrix.python-version == '3.8' }}
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: x86_64-pc-windows-gnu
           args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
