@@ -1,22 +1,27 @@
 error[E0277]: `UnsafeCell<PyObject>` cannot be shared between threads safely
-   --> tests/ui/not_send2.rs:8:12
-    |
-8   |         py.allow_threads(|| {
-    |            ^^^^^^^^^^^^^ `UnsafeCell<PyObject>` cannot be shared between threads safely
-    |
-    = help: within `&PyString`, the trait `Sync` is not implemented for `UnsafeCell<PyObject>`
-    = note: required because it appears within the type `PyAny`
-    = note: required because it appears within the type `PyString`
-    = note: required because it appears within the type `&PyString`
-    = note: required because of the requirements on the impl of `Send` for `&&PyString`
+  --> tests/ui/not_send2.rs:8:26
+   |
+8  |           py.allow_threads(|| {
+   |  ____________-------------_^
+   | |            |
+   | |            required by a bound introduced by this call
+9  | |             println!("{:?}", string);
+10 | |         });
+   | |_________^ `UnsafeCell<PyObject>` cannot be shared between threads safely
+   |
+   = help: within `&PyString`, the trait `Sync` is not implemented for `UnsafeCell<PyObject>`
+   = note: required because it appears within the type `PyAny`
+   = note: required because it appears within the type `PyString`
+   = note: required because it appears within the type `&PyString`
+   = note: required for `&&PyString` to implement `Send`
 note: required because it's used within this closure
-   --> tests/ui/not_send2.rs:8:26
-    |
-8   |         py.allow_threads(|| {
-    |                          ^^
-    = note: required because of the requirements on the impl of `Ungil` for `[closure@$DIR/tests/ui/not_send2.rs:8:26: 8:28]`
+  --> tests/ui/not_send2.rs:8:26
+   |
+8  |         py.allow_threads(|| {
+   |                          ^^
+   = note: required for `[closure@$DIR/tests/ui/not_send2.rs:8:26: 8:28]` to implement `Ungil`
 note: required by a bound in `pyo3::Python::<'py>::allow_threads`
-   --> src/marker.rs
-    |
-    |         F: Ungil + FnOnce() -> T,
-    |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`
+  --> src/marker.rs
+   |
+   |         F: Ungil + FnOnce() -> T,
+   |            ^^^^^ required by this bound in `pyo3::Python::<'py>::allow_threads`
