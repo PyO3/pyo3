@@ -108,11 +108,16 @@ impl PyCFunction {
     ///         let i = args.extract::<(i64,)>()?.0;
     ///         Ok(i+1)
     ///     };
-    ///     let add_one = types::PyCFunction::new_closure(add_one, py).unwrap();
+    ///     let add_one = types::PyCFunction::new_closure(py, None, None, add_one).unwrap();
     ///     py_run!(py, add_one, "assert add_one(42) == 43");
     /// });
     /// ```
-    pub fn new_closure<F, R>(f: F, py: Python<'_>) -> PyResult<&PyCFunction>
+    pub fn new_closure<'a, F, R>(
+        py: Python<'a>,
+        name: Option<&'static str>,
+        doc: Option<&'static str>,
+        f: F,
+    ) -> PyResult<&'a PyCFunction>
     where
         F: Fn(&types::PyTuple, Option<&types::PyDict>) -> R + Send + 'static,
         R: crate::callback::IntoPyCallbackOutput<*mut ffi::PyObject>,
@@ -129,9 +134,9 @@ impl PyCFunction {
             )?
         };
         let method_def = pymethods::PyMethodDef::cfunction_with_keywords(
-            "pyo3-closure",
+            name.unwrap_or("pyo3-closure\0"),
             pymethods::PyCFunctionWithKeywords(run_closure::<F, R>),
-            "",
+            doc.unwrap_or("\0"),
         );
         Self::internal_new_from_pointers(&method_def, py, capsule.as_ptr(), std::ptr::null_mut())
     }

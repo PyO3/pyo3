@@ -418,9 +418,12 @@ fn test_closure() {
                 Ok(res)
             })
         };
-        let closure_py = PyCFunction::new_closure(f, py).unwrap();
+        let closure_py =
+            PyCFunction::new_closure(py, Some("test_fn"), Some("test_fn doc"), f).unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
+        py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");
+        py_assert!(py, closure_py, "closure_py.__doc__ == 'test_fn doc'");
         py_assert!(
             py,
             closure_py,
@@ -439,7 +442,7 @@ fn test_closure_counter() {
                 *counter += 1;
                 Ok(*counter)
             };
-        let counter_py = PyCFunction::new_closure(counter_fn, py).unwrap();
+        let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 
         py_assert!(py, counter_py, "counter_py() == 1");
         py_assert!(py, counter_py, "counter_py() == 2");

@@ -4,8 +4,8 @@ error[E0597]: `local_data` does not live long enough
 7  |         let ref_: &[u8] = &local_data;
    |                           ^^^^^^^^^^^ borrowed value does not live long enough
 ...
-13 |         PyCFunction::new_closure(closure_fn, py).unwrap().into()
-   |         ---------------------------------------- argument requires that `local_data` is borrowed for `'static`
+13 |         PyCFunction::new_closure(py, None, None, closure_fn).unwrap().into()
+   |         ---------------------------------------------------- argument requires that `local_data` is borrowed for `'static`
 14 |     });
    |     - `local_data` dropped here while still borrowed
 
@@ -20,8 +20,8 @@ error[E0373]: closure may outlive the current function, but it borrows `ref_`, w
 note: function requires argument type to outlive `'static`
   --> tests/ui/invalid_closure.rs:13:9
    |
-13 |         PyCFunction::new_closure(closure_fn, py).unwrap().into()
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |         PyCFunction::new_closure(py, None, None, closure_fn).unwrap().into()
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 help: to force the closure to take ownership of `ref_` (and any other referenced variables), use the `move` keyword
    |
 9  |         let closure_fn = move |_args: &PyTuple, _kwargs: Option<&PyDict>| -> PyResult<()> {
