@@ -3,7 +3,6 @@ CURDIR=$(abspath .)
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
 PYMAJORMINORMICRO ?= 3.11.0
-PYPRERELEASE ?= b4 # I'm not sure how to split 3.11.0b4 in Make.
 
 EMSCRIPTEN_VERSION=3.1.13
 
@@ -23,7 +22,7 @@ version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
 PYMAJOR=$(word 1,$(version_tuple))
 PYMINOR=$(word 2,$(version_tuple))
 PYMICRO=$(word 3,$(version_tuple))
-PYVERSION=$(PYMAJORMINORMICRO)$(PYPRERELEASE)
+PYVERSION=$(PYMAJORMINORMICRO)
 PYMAJORMINOR=$(PYMAJOR).$(PYMINOR)
 
 
