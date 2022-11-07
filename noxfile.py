@@ -210,6 +210,8 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
             "-C link-arg=-lmpdec",
+            "-C link-arg=-lz",
+            "-C link-arg=-lbz2",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
         ]
     )
@@ -236,6 +238,7 @@ def address_sanitizer(session: nox.Session):
         "cargo",
         "+nightly",
         "test",
+        "--release",
         "-Zbuild-std",
         f"--target={_get_rust_target()}",
         "--",
