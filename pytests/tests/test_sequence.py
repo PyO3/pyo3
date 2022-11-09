@@ -17,7 +17,7 @@ def test_vec_from_bytes():
 
 
 def test_vec_from_str():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         sequence.vec_to_vec_pystring("123")
 
 
