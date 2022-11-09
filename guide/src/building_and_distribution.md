@@ -45,6 +45,8 @@ Caused by:
   suppress_build_script_link_lines=false
 ```
 
+The `PYO3_ENVIRONMENT_SIGNATURE` environment variable can be used to trigger rebuilds when its value changes, it has no other effect.
+
 ### Advanced: config files
 
 If you save the above output config from `PYO3_PRINT_CONFIG` to a file, it is possible to manually override the contents and feed it back into PyO3 using the `PYO3_CONFIG_FILE` env var.
