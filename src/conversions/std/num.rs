@@ -3,6 +3,10 @@ use crate::{
     PyObject, PyResult, Python, ToPyObject,
 };
 use std::convert::TryFrom;
+use std::num::{
+    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+};
 use std::os::raw::c_long;
 
 macro_rules! int_fits_larger_int {
@@ -299,6 +303,47 @@ fn err_if_invalid_value<T: PartialEq>(
     Ok(actual_value)
 }
 
+macro_rules! nonzero_int_impl {
+    ($nonzero_type:ty, $primitive_type:ty) => {
+        impl ToPyObject for $nonzero_type {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
+                self.get().to_object(py)
+            }
+        }
+
+        impl IntoPy<PyObject> for $nonzero_type {
+            fn into_py(self, py: Python<'_>) -> PyObject {
+                self.get().into_py(py)
+            }
+        }
+
+        impl<'source> FromPyObject<'source> for $nonzero_type {
+            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+                let val: $primitive_type = obj.extract()?;
+                <$nonzero_type>::try_from(val)
+                    .map_err(|_| exceptions::PyOverflowError::new_err("invalid zero value"))
+            }
+
+            fn type_input() -> TypeInfo {
+                <$primitive_type>::type_input()
+            }
+        }
+    };
+}
+
+nonzero_int_impl!(NonZeroI8, i8);
+nonzero_int_impl!(NonZeroI16, i16);
+nonzero_int_impl!(NonZeroI32, i32);
+nonzero_int_impl!(NonZeroI64, i64);
+nonzero_int_impl!(NonZeroI128, i128);
+nonzero_int_impl!(NonZeroIsize, isize);
+nonzero_int_impl!(NonZeroU8, u8);
+nonzero_int_impl!(NonZeroU16, u16);
+nonzero_int_impl!(NonZeroU32, u32);
+nonzero_int_impl!(NonZeroU64, u64);
+nonzero_int_impl!(NonZeroU128, u128);
+nonzero_int_impl!(NonZeroUsize, usize);
+
 #[cfg(test)]
 mod test_128bit_integers {
     use super::*;
@@ -320,6 +365,22 @@ mod test_128bit_integers {
                 assert_eq!(x, roundtripped);
             })
         }
+
+        #[test]
+        fn test_nonzero_i128_roundtrip(
+            x in any::<i128>()
+                .prop_filter("Values must not be 0", |x| x != &0)
+                .prop_map(|x| NonZeroI128::new(x).unwrap())
+        ) {
+            Python::with_gil(|py| {
+                let x_py = x.into_py(py);
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                let roundtripped: NonZeroI128 = x_py.extract(py).unwrap();
+                assert_eq!(x, roundtripped);
+            })
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -332,6 +393,22 @@ mod test_128bit_integers {
                 locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
                 py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
                 let roundtripped: u128 = x_py.extract(py).unwrap();
+                assert_eq!(x, roundtripped);
+            })
+        }
+
+        #[test]
+        fn test_nonzero_u128_roundtrip(
+            x in any::<u128>()
+                .prop_filter("Values must not be 0", |x| x != &0)
+                .prop_map(|x| NonZeroU128::new(x).unwrap())
+        ) {
+            Python::with_gil(|py| {
+                let x_py = x.into_py(py);
+                let locals = PyDict::new(py);
+                locals.set_item("x_py", x_py.clone_ref(py)).unwrap();
+                py.run(&format!("assert x_py == {}", x), None, Some(locals)).unwrap();
+                let roundtripped: NonZeroU128 = x_py.extract(py).unwrap();
                 assert_eq!(x, roundtripped);
             })
         }
@@ -386,12 +463,84 @@ mod test_128bit_integers {
             assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
         })
     }
+
+    #[test]
+    fn test_nonzero_i128_max() {
+        Python::with_gil(|py| {
+            let v = NonZeroI128::new(std::i128::MAX).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroI128>(py).unwrap());
+            assert_eq!(
+                NonZeroU128::new(v.get() as u128).unwrap(),
+                obj.extract::<NonZeroU128>(py).unwrap()
+            );
+            assert!(obj.extract::<NonZeroU64>(py).is_err());
+        })
+    }
+
+    #[test]
+    fn test_nonzero_i128_min() {
+        Python::with_gil(|py| {
+            let v = NonZeroI128::new(std::i128::MIN).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroI128>(py).unwrap());
+            assert!(obj.extract::<NonZeroI64>(py).is_err());
+            assert!(obj.extract::<NonZeroU128>(py).is_err());
+        })
+    }
+
+    #[test]
+    fn test_nonzero_u128_max() {
+        Python::with_gil(|py| {
+            let v = NonZeroU128::new(std::u128::MAX).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroU128>(py).unwrap());
+            assert!(obj.extract::<NonZeroI128>(py).is_err());
+        })
+    }
+
+    #[test]
+    fn test_nonzero_i128_overflow() {
+        Python::with_gil(|py| {
+            let obj = py.eval("(1 << 130) * -1", None, None).unwrap();
+            let err = obj.extract::<NonZeroI128>().unwrap_err();
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
+    fn test_nonzero_u128_overflow() {
+        Python::with_gil(|py| {
+            let obj = py.eval("1 << 130", None, None).unwrap();
+            let err = obj.extract::<NonZeroU128>().unwrap_err();
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
+    fn test_nonzero_i128_zero_value() {
+        Python::with_gil(|py| {
+            let obj = py.eval("0", None, None).unwrap();
+            let err = obj.extract::<NonZeroI128>().unwrap_err();
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
+    fn test_nonzero_u128_zero_value() {
+        Python::with_gil(|py| {
+            let obj = py.eval("0", None, None).unwrap();
+            let err = obj.extract::<NonZeroU128>().unwrap_err();
+            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::Python;
     use crate::ToPyObject;
+    use std::num::*;
 
     #[test]
     fn test_u32_max() {
@@ -446,8 +595,6 @@ mod tests {
                 #[test]
                 fn from_py_string_type_error() {
                     Python::with_gil(|py|{
-
-
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -457,7 +604,6 @@ mod tests {
                 #[test]
                 fn from_py_float_type_error() {
                     Python::with_gil(|py|{
-
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -466,7 +612,6 @@ mod tests {
                 #[test]
                 fn to_py_object_and_back() {
                     Python::with_gil(|py|{
-
                     let val = 123 as $t;
                     let obj = val.to_object(py);
                     assert_eq!(obj.extract::<$t>(py).unwrap(), val as $t);});
@@ -487,4 +632,99 @@ mod tests {
     test_common!(usize, usize);
     test_common!(i128, i128);
     test_common!(u128, u128);
+
+    #[test]
+    fn test_nonzero_u32_max() {
+        Python::with_gil(|py| {
+            let v = NonZeroU32::new(std::u32::MAX).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroU32>(py).unwrap());
+            assert_eq!(NonZeroU64::from(v), obj.extract::<NonZeroU64>(py).unwrap());
+            assert!(obj.extract::<NonZeroI32>(py).is_err());
+        });
+    }
+
+    #[test]
+    fn test_nonzero_i64_max() {
+        Python::with_gil(|py| {
+            let v = NonZeroI64::new(std::i64::MAX).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroI64>(py).unwrap());
+            assert_eq!(
+                NonZeroU64::new(v.get() as u64).unwrap(),
+                obj.extract::<NonZeroU64>(py).unwrap()
+            );
+            assert!(obj.extract::<NonZeroU32>(py).is_err());
+        });
+    }
+
+    #[test]
+    fn test_nonzero_i64_min() {
+        Python::with_gil(|py| {
+            let v = NonZeroI64::new(std::i64::MIN).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroI64>(py).unwrap());
+            assert!(obj.extract::<NonZeroI32>(py).is_err());
+            assert!(obj.extract::<NonZeroU64>(py).is_err());
+        });
+    }
+
+    #[test]
+    fn test_nonzero_u64_max() {
+        Python::with_gil(|py| {
+            let v = NonZeroU64::new(std::u64::MAX).unwrap();
+            let obj = v.to_object(py);
+            assert_eq!(v, obj.extract::<NonZeroU64>(py).unwrap());
+            assert!(obj.extract::<NonZeroI64>(py).is_err());
+        });
+    }
+
+    macro_rules! test_nonzero_common (
+        ($test_mod_name:ident, $t:ty) => (
+            mod $test_mod_name {
+                use crate::exceptions;
+                use crate::ToPyObject;
+                use crate::Python;
+                use std::num::*;
+
+                #[test]
+                fn from_py_string_type_error() {
+                    Python::with_gil(|py|{
+                    let obj = ("123").to_object(py);
+                    let err = obj.extract::<$t>(py).unwrap_err();
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
+                    });
+                }
+
+                #[test]
+                fn from_py_float_type_error() {
+                    Python::with_gil(|py|{
+                    let obj = (12.3).to_object(py);
+                    let err = obj.extract::<$t>(py).unwrap_err();
+                    assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
+                }
+
+                #[test]
+                fn to_py_object_and_back() {
+                    Python::with_gil(|py|{
+                    let val = <$t>::new(123).unwrap();
+                    let obj = val.to_object(py);
+                    assert_eq!(obj.extract::<$t>(py).unwrap(), val);});
+                }
+            }
+        )
+    );
+
+    test_nonzero_common!(nonzero_i8, NonZeroI8);
+    test_nonzero_common!(nonzero_u8, NonZeroU8);
+    test_nonzero_common!(nonzero_i16, NonZeroI16);
+    test_nonzero_common!(nonzero_u16, NonZeroU16);
+    test_nonzero_common!(nonzero_i32, NonZeroI32);
+    test_nonzero_common!(nonzero_u32, NonZeroU32);
+    test_nonzero_common!(nonzero_i64, NonZeroI64);
+    test_nonzero_common!(nonzero_u64, NonZeroU64);
+    test_nonzero_common!(nonzero_isize, NonZeroIsize);
+    test_nonzero_common!(nonzero_usize, NonZeroUsize);
+    test_nonzero_common!(nonzero_i128, NonZeroI128);
+    test_nonzero_common!(nonzero_u128, NonZeroU128);
 }
