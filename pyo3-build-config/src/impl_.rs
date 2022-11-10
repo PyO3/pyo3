@@ -1684,6 +1684,10 @@ fn get_env_interpreter() -> Option<PathBuf> {
 ///   3. `python`, if this is functional a Python 3.x interpreter
 ///   4. `python3`, as above
 pub fn find_interpreter() -> Result<PathBuf> {
+    // Trigger rebuilds when `PYO3_ENVIRONMENT_SIGNATURE` env var value changes
+    // See https://github.com/PyO3/pyo3/issues/2724
+    println!("cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE");
+
     if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
     } else if let Some(env_interpreter) = get_env_interpreter() {
