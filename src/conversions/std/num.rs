@@ -321,7 +321,7 @@ macro_rules! nonzero_int_impl {
             fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
-                    .map_err(|_| exceptions::PyOverflowError::new_err("invalid zero value"))
+                    .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))
             }
 
             fn type_input() -> TypeInfo {
@@ -522,7 +522,7 @@ mod test_128bit_integers {
         Python::with_gil(|py| {
             let obj = py.eval("0", None, None).unwrap();
             let err = obj.extract::<NonZeroI128>().unwrap_err();
-            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
     }
 
@@ -531,7 +531,7 @@ mod test_128bit_integers {
         Python::with_gil(|py| {
             let obj = py.eval("0", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
-            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
     }
 }
