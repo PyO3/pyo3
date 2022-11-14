@@ -64,29 +64,6 @@ pyobject_native_type_extract!(PyAny);
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 
 impl PyAny {
-    /// Converts this `PyAny` to a concrete Python type.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyAny, PyDict, PyList};
-    ///
-    /// Python::with_gil(|py| {
-    ///     let dict = PyDict::new(py);
-    ///     assert!(dict.is_instance_of::<PyAny>().unwrap());
-    ///     let any: &PyAny = dict.as_ref();
-    ///     assert!(any.downcast::<PyDict>().is_ok());
-    ///     assert!(any.downcast::<PyList>().is_err());
-    /// });
-    /// ```
-    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
-    where
-        for<'py> T: PyTryFrom<'py>,
-    {
-        <T as PyTryFrom>::try_from(self)
-    }
-
     /// Returns whether `self` and `other` point to the same object. To compare
     /// the equality of two objects (the `==` operator), use [`eq`](PyAny::eq).
     ///
@@ -769,14 +746,38 @@ impl PyAny {
         unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
-    /// Casts `self` to a concrete Python object type.
-    ///
-    /// This can cast only to native Python types, not types implemented in Rust.
+    /// Converts this `PyAny` to a concrete Python type.
+    #[deprecated(since = "0.18.0", note = "use the equivalent .downcast()")]
     pub fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'_>>
     where
         D: PyTryFrom<'a>,
     {
         <D as PyTryFrom<'_>>::try_from(self)
+    }
+
+    /// Converts this `PyAny` to a concrete Python type.
+    ///
+    /// This can cast only to native Python types, not types implemented in Rust.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyAny, PyDict, PyList};
+    ///
+    /// Python::with_gil(|py| {
+    ///     let dict = PyDict::new(py);
+    ///     assert!(dict.is_instance_of::<PyAny>().unwrap());
+    ///     let any: &PyAny = dict.as_ref();
+    ///     assert!(any.downcast::<PyDict>().is_ok());
+    ///     assert!(any.downcast::<PyList>().is_err());
+    /// });
+    /// ```
+    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
+    where
+        for<'py> T: PyTryFrom<'py>,
+    {
+        <T as PyTryFrom>::try_from(self)
     }
 
     /// Extracts some type from the Python object.

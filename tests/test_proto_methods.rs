@@ -529,7 +529,7 @@ struct GetItem {}
 #[pymethods]
 impl GetItem {
     fn __getitem__(&self, idx: &PyAny) -> PyResult<&'static str> {
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");

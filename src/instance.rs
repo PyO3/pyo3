@@ -995,11 +995,20 @@ impl PyObject {
     ///
     /// This can cast only to native Python types, not types implemented in Rust. For a more
     /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
+    pub fn downcast<'p, T>(&'p self, py: Python<'p>) -> Result<&T, PyDowncastError<'_>>
+    where
+        for<'py> T: PyTryFrom<'py>,
+    {
+        <T as PyTryFrom<'_>>::try_from(self.as_ref(py))
+    }
+
+    /// Casts the PyObject to a concrete Python object type.
+    #[deprecated(since = "0.18.0", note = "use downcast() instead")]
     pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError<'_>>
     where
         D: PyTryFrom<'p>,
     {
-        <D as PyTryFrom<'_>>::try_from(unsafe { py.from_borrowed_ptr::<PyAny>(self.as_ptr()) })
+        <D as PyTryFrom<'_>>::try_from(self.as_ref(py))
     }
 }
 

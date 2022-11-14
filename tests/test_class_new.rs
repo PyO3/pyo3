@@ -21,7 +21,7 @@ fn empty_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .cast_as::<PyCell<EmptyClassWithNew>>()
+            .downcast::<PyCell<EmptyClassWithNew>>()
             .is_ok());
     });
 }
@@ -44,7 +44,7 @@ fn unit_class_with_new() {
         assert!(typeobj
             .call((), None)
             .unwrap()
-            .cast_as::<PyCell<UnitClassWithNew>>()
+            .downcast::<PyCell<UnitClassWithNew>>()
             .is_ok());
     });
 }
@@ -65,7 +65,7 @@ fn tuple_class_with_new() {
     Python::with_gil(|py| {
         let typeobj = py.get_type::<TupleClassWithNew>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.cast_as::<PyCell<TupleClassWithNew>>().unwrap();
+        let obj = wrp.downcast::<PyCell<TupleClassWithNew>>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref.0, 42);
     });
@@ -90,7 +90,7 @@ fn new_with_one_arg() {
     Python::with_gil(|py| {
         let typeobj = py.get_type::<NewWithOneArg>();
         let wrp = typeobj.call((42,), None).unwrap();
-        let obj = wrp.cast_as::<PyCell<NewWithOneArg>>().unwrap();
+        let obj = wrp.downcast::<PyCell<NewWithOneArg>>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref._data, 42);
     });
@@ -121,7 +121,7 @@ fn new_with_two_args() {
             .call((10, 20), None)
             .map_err(|e| e.print(py))
             .unwrap();
-        let obj = wrp.cast_as::<PyCell<NewWithTwoArgs>>().unwrap();
+        let obj = wrp.downcast::<PyCell<NewWithTwoArgs>>().unwrap();
         let obj_ref = obj.borrow();
         assert_eq!(obj_ref._data1, 10);
         assert_eq!(obj_ref._data2, 20);
