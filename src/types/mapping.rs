@@ -288,7 +288,7 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in mapping.items().unwrap().iter().unwrap() {
-                let tuple = el.unwrap().cast_as::<PyTuple>().unwrap();
+                let tuple = el.unwrap().downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }

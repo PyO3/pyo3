@@ -623,7 +623,7 @@ mod tests {
             let mut key_sum = 0;
             let mut value_sum = 0;
             for el in dict.items().iter() {
-                let tuple = el.cast_as::<PyTuple>().unwrap();
+                let tuple = el.downcast::<PyTuple>().unwrap();
                 key_sum += tuple.get_item(0).unwrap().extract::<i32>().unwrap();
                 value_sum += tuple.get_item(1).unwrap().extract::<i32>().unwrap();
             }

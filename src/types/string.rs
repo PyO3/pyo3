@@ -392,7 +392,7 @@ mod tests {
     fn test_string_data_ucs2() {
         Python::with_gil(|py| {
             let s = py.eval("'foo\\ud800'", None, None).unwrap();
-            let py_string = s.cast_as::<PyString>().unwrap();
+            let py_string = s.downcast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
 
             assert_eq!(data, PyStringData::Ucs2(&[102, 111, 111, 0xd800]));

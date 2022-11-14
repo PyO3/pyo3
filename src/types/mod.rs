@@ -57,7 +57,7 @@ pub use self::typeobject::PyType;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::with_gil(|py| {
-///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.cast_as()?;
+///     let dict: &PyDict = py.eval("{'a':'b', 'c':'d'}", None, None)?.downcast()?;
 ///
 ///     for (key, value) in dict {
 ///         println!("key: {}, value: {}", key, value);

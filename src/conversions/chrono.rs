@@ -36,7 +36,7 @@
 //!     Python::with_gil(|py| {
 //!         // Create an UTC datetime in python
 //!         let py_tz = Utc.to_object(py);
-//!         let py_tz = py_tz.cast_as(py).unwrap();
+//!         let py_tz = py_tz.downcast(py).unwrap();
 //!         let pydatetime = PyDateTime::new(py, 2022, 1, 1, 12, 0, 0, 0, Some(py_tz)).unwrap();
 //!         println!("PyDateTime: {}", pydatetime);
 //!         // Now convert it to chrono's DateTime<Utc>
@@ -237,7 +237,7 @@ impl<Tz: TimeZone> ToPyObject for DateTime<Tz> {
             None => (ns / 1000, false),
         };
         let tz = self.offset().fix().to_object(py);
-        let tz = tz.cast_as(py).unwrap();
+        let tz = tz.downcast(py).unwrap();
         let datetime = PyDateTime::new_with_fold(py, yy, mm, dd, h, m, s, ms, Some(tz), fold)
             .expect("Failed to construct datetime");
         datetime.into()
@@ -577,7 +577,7 @@ mod tests {
                     let datetime = DateTime::<Utc>::from_utc(datetime, Utc).to_object(py);
                     let datetime: &PyDateTime = datetime.extract(py).unwrap();
                     let py_tz = Utc.to_object(py);
-                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_tz = py_tz.downcast(py).unwrap();
                     let py_datetime = PyDateTime::new_with_fold(
                         py,
                         year,
@@ -617,7 +617,7 @@ mod tests {
                         DateTime::<FixedOffset>::from_utc(datetime, offset).to_object(py);
                     let datetime: &PyDateTime = datetime.extract(py).unwrap();
                     let py_tz = offset.to_object(py);
-                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_tz = py_tz.downcast(py).unwrap();
                     let py_datetime = PyDateTime::new_with_fold(
                         py,
                         year,
@@ -652,7 +652,7 @@ mod tests {
             |name: &'static str, year, month, day, hour, minute, second, ms, py_ms, fold| {
                 Python::with_gil(|py| {
                     let py_tz = Utc.to_object(py);
-                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_tz = py_tz.downcast(py).unwrap();
                     let py_datetime = PyDateTime::new_with_fold(
                         py,
                         year,
@@ -688,7 +688,7 @@ mod tests {
                 Python::with_gil(|py| {
                     let offset = FixedOffset::east_opt(3600).unwrap();
                     let py_tz = offset.to_object(py);
-                    let py_tz = py_tz.cast_as(py).unwrap();
+                    let py_tz = py_tz.downcast(py).unwrap();
                     let py_datetime = PyDateTime::new_with_fold(
                         py,
                         year,
@@ -721,14 +721,14 @@ mod tests {
 
         Python::with_gil(|py| {
             let py_tz = Utc.to_object(py);
-            let py_tz = py_tz.cast_as(py).unwrap();
+            let py_tz = py_tz.downcast(py).unwrap();
             let py_datetime =
                 PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(py_tz), false)
                     .unwrap();
             assert!(py_datetime.extract::<DateTime<FixedOffset>>().is_ok());
             let offset = FixedOffset::east_opt(3600).unwrap();
             let py_tz = offset.to_object(py);
-            let py_tz = py_tz.cast_as(py).unwrap();
+            let py_tz = py_tz.downcast(py).unwrap();
             let py_datetime =
                 PyDateTime::new_with_fold(py, 2014, 5, 6, 7, 8, 9, 999_999, Some(py_tz), false)
                     .unwrap();
