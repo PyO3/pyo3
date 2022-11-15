@@ -196,7 +196,7 @@ pub fn gen_py_method(
             GeneratedPyMethod::Method(impl_py_class_attribute(cls, spec)?)
         }
         (PyMethodKind::Proto(proto_kind), _) => {
-            ensure_no_forbidden_protocol_attributes(spec, &method.method_name)?;
+            ensure_no_forbidden_protocol_attributes(&proto_kind, spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
                     let slot = slot_def.generate_type_slot(cls, spec, &method.method_name)?;
@@ -206,7 +206,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, method.spec)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, method.spec))
+                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, &spec.name))
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec)?;
@@ -263,11 +263,18 @@ fn ensure_function_options_valid(options: &PyFunctionOptions) -> syn::Result<()>
 }
 
 fn ensure_no_forbidden_protocol_attributes(
+    proto_kind: &PyMethodProtoKind,
     spec: &FnSpec<'_>,
     method_name: &str,
 ) -> syn::Result<()> {
+    if let Some(signature) = &spec.signature.attribute {
+        // __call__ is allowed to have a signature, but nothing else is.
+        if !matches!(proto_kind, PyMethodProtoKind::Call) {
+            bail_spanned!(signature.kw.span() => format!("`signature` cannot be used with magic method `{}`", method_name));
+        }
+    }
     if let Some(text_signature) = &spec.text_signature {
-        bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with `{}`", method_name));
+        bail_spanned!(text_signature.kw.span() => format!("`text_signature` cannot be used with magic method `{}`", method_name));
     }
     Ok(())
 }
@@ -360,8 +367,7 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>) -> Result<MethodAndSlot
     })
 }
 
-fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> MethodAndSlotDef {
-    let ident = spec.name;
+fn impl_traverse_slot(cls: &syn::Type, rust_fn_ident: &syn::Ident) -> MethodAndSlotDef {
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod_traverse__(
             slf: *mut _pyo3::ffi::PyObject,
@@ -377,7 +383,7 @@ fn impl_traverse_slot(cls: &syn::Type, spec: FnSpec<'_>) -> MethodAndSlotDef {
             let visit = _pyo3::class::gc::PyVisit::from_raw(visit, arg, py);
             let borrow = slf.try_borrow();
             let retval = if let ::std::result::Result::Ok(borrow) = borrow {
-                _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#ident(visit))
+                _pyo3::impl_::pymethods::unwrap_traverse_result(borrow.#rust_fn_ident(visit))
             } else {
                 0
             };

@@ -1,0 +1,23 @@
+error: Expected 1 arguments, got 0
+  --> tests/ui/invalid_proto_pymethods.rs:18:8
+   |
+18 |     fn truediv_expects_one_argument(&self) -> PyResult<()> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: Expected 1 arguments, got 0
+  --> tests/ui/invalid_proto_pymethods.rs:26:8
+   |
+26 |     fn truediv_expects_one_argument_py(&self, _py: Python<'_>) -> PyResult<()> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `signature` cannot be used with magic method `__bool__`
+  --> tests/ui/invalid_proto_pymethods.rs:37:31
+   |
+37 |     #[pyo3(name = "__bool__", signature = ())]
+   |                               ^^^^^^^^^
+
+error: `text_signature` cannot be used with magic method `__bool__`
+  --> tests/ui/invalid_proto_pymethods.rs:45:31
+   |
+45 |     #[pyo3(name = "__bool__", text_signature = "")]
+   |                               ^^^^^^^^^^^^^^

@@ -5,8 +5,8 @@ use std::borrow::Cow;
 use crate::attributes::TextSignatureAttribute;
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
-use crate::pyfunction::PyFunctionOptions;
 use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
+use crate::pyfunction::{PyFunctionOptions, SignatureAttribute};
 use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -282,7 +282,7 @@ impl<'a> FnSpec<'a> {
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
-        Self::ensure_text_signature_on_valid_method(&fn_type, text_signature.as_ref())?;
+        ensure_signatures_on_valid_method(&fn_type, signature.as_ref(), text_signature.as_ref())?;
 
         let name = &sig.ident;
         let ty = get_return_info(&sig.output);
@@ -339,26 +339,6 @@ impl<'a> FnSpec<'a> {
 
     pub fn null_terminated_python_name(&self) -> syn::LitStr {
         syn::LitStr::new(&format!("{}\0", self.python_name), self.python_name.span())
-    }
-
-    fn ensure_text_signature_on_valid_method(
-        fn_type: &FnType,
-        text_signature: Option<&TextSignatureAttribute>,
-    ) -> syn::Result<()> {
-        if let Some(text_signature) = text_signature {
-            match &fn_type {
-                FnType::FnNew => bail_spanned!(
-                    text_signature.kw.span() =>
-                    "text_signature not allowed on __new__; if you want to add a signature on \
-                     __new__, put it on the struct definition instead"
-                ),
-                FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => bail_spanned!(
-                    text_signature.kw.span() => "text_signature not allowed with this method type"
-                ),
-                _ => {}
-            }
-        }
-        Ok(())
     }
 
     fn parse_fn_type(
@@ -742,3 +722,44 @@ const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` argument
 const RECEIVER_BY_VALUE_ERR: &str =
     "Python objects are shared, so 'self' cannot be moved out of the Python interpreter.
 Try `&self`, `&mut self, `slf: PyRef<'_, Self>` or `slf: PyRefMut<'_, Self>`.";
+
+fn ensure_signatures_on_valid_method(
+    fn_type: &FnType,
+    signature: Option<&SignatureAttribute>,
+    text_signature: Option<&TextSignatureAttribute>,
+) -> syn::Result<()> {
+    if let Some(signature) = signature {
+        match fn_type {
+            FnType::Getter(_) => {
+                bail_spanned!(signature.kw.span() => "`signature` not allowed with `getter`")
+            }
+            FnType::Setter(_) => {
+                bail_spanned!(signature.kw.span() => "`signature` not allowed with `setter`")
+            }
+            FnType::ClassAttribute => {
+                bail_spanned!(signature.kw.span() => "`signature` not allowed with `classattr`")
+            }
+            _ => {}
+        }
+    }
+    if let Some(text_signature) = text_signature {
+        match fn_type {
+            FnType::FnNew => bail_spanned!(
+                text_signature.kw.span() =>
+                "`text_signature` not allowed on `__new__`; if you want to add a signature on \
+                 `__new__`, put it on the struct definition instead"
+            ),
+            FnType::Getter(_) => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `getter`")
+            }
+            FnType::Setter(_) => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `setter`")
+            }
+            FnType::ClassAttribute => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `classattr`")
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}

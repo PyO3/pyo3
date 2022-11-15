@@ -1,5 +1,0 @@
-error: Expected 1 arguments, got 0
- --> tests/ui/invalid_pymethod_proto_args.rs:8:8
-  |
-8 |     fn __truediv__(&self) -> PyResult<()> {
-  |        ^^^^^^^^^^^
