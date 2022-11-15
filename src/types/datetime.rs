@@ -210,7 +210,7 @@ impl PyDate {
 
 impl PyDateAccess for PyDate {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
     }
 
     fn get_month(&self) -> u8 {
@@ -324,7 +324,7 @@ impl PyDateTime {
 
 impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
     }
 
     fn get_month(&self) -> u8 {
@@ -523,15 +523,15 @@ impl PyDelta {
 
 impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
     }
 
     fn get_seconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
     }
 
     fn get_microseconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) as i32 }
+        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
     }
 }
 

@@ -107,6 +107,6 @@ pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
 #[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject {
-    let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset as isize;
+    let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset;
     o.offset(weaklistoffset) as *mut *mut PyObject
 }
