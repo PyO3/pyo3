@@ -450,13 +450,12 @@ pub mod inspect;
 #[macro_export]
 macro_rules! python_println{
     ($($tt:tt)*)=>{
-        Python::with_gil(|py| {
-            py.eval(
-                &format!("print('''{}''')",format!($($tt)*)),
-                None,
-                None,
-            ).unwrap();
-        })
+        {
+            let s = format!($($tt)*);
+            $crate::Python::with_gil(|py| {
+                $crate::prelude::PyModule::import(py, "builtins").unwrap().getattr("print").unwrap().call1((s,)).unwrap();
+            })
+        }
     }
 }
 
