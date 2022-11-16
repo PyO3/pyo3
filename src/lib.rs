@@ -65,7 +65,7 @@
 //!
 //! # Feature flags
 //!
-//! PyO3 uses [feature flags] to enable you to opt-in to additional functionality.For a detailed
+//! PyO3 uses [feature flags] to enable you to opt-in to additional functionality. For a detailed
 //! description, see the [Features chapter of the guide].
 //!
 //! ## Default feature flags
@@ -264,6 +264,8 @@
 //! [`Complex`]: https://docs.rs/num-complex/latest/num_complex/struct.Complex.html
 //! [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 //! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
+//! [chrono]: https://docs.rs/chrono/ "Date and Time for Rust."
+//! [`chrono`]: ./chrono/index.html "Documentation about the `chrono` feature."
 //! [eyre]: https://docs.rs/eyre/ "A library for easy idiomatic error handling and reporting in Rust applications."
 //! [`Report`]: https://docs.rs/eyre/latest/eyre/struct.Report.html
 //! [`eyre`]: ./eyre/index.html "Documentation about the `eyre` feature."
