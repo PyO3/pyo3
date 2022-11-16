@@ -752,7 +752,7 @@ impl PyAny {
     where
         D: PyTryFrom<'a>,
     {
-        <D as PyTryFrom<'_>>::try_from(self)
+        self.downcast()
     }
 
     /// Converts this `PyAny` to a concrete Python type.
@@ -773,9 +773,9 @@ impl PyAny {
     ///     assert!(any.downcast::<PyList>().is_err());
     /// });
     /// ```
-    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError<'_>>
+    pub fn downcast<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
     where
-        for<'py> T: PyTryFrom<'py>,
+        T: PyTryFrom<'p>,
     {
         <T as PyTryFrom>::try_from(self)
     }

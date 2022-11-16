@@ -997,7 +997,7 @@ impl PyObject {
     /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
     pub fn downcast<'p, T>(&'p self, py: Python<'p>) -> Result<&T, PyDowncastError<'_>>
     where
-        for<'py> T: PyTryFrom<'py>,
+        T: PyTryFrom<'p>,
     {
         <T as PyTryFrom<'_>>::try_from(self.as_ref(py))
     }
@@ -1008,7 +1008,7 @@ impl PyObject {
     where
         D: PyTryFrom<'p>,
     {
-        <D as PyTryFrom<'_>>::try_from(self.as_ref(py))
+        self.downcast(py)
     }
 }
 
