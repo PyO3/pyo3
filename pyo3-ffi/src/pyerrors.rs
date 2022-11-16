@@ -245,6 +245,8 @@ extern "C" {
     pub static mut PyExc_BytesWarning: *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyExc_ResourceWarning")]
     pub static mut PyExc_ResourceWarning: *mut PyObject;
+    #[cfg(Py_3_10)]
+    pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
 extern "C" {

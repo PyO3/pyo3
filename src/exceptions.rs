@@ -1,12 +1,15 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Exception types defined by Python.
+//! Exception and warning types defined by Python.
 //!
-//! The structs in this module represent Python's built-in exceptions, while the modules comprise
-//! structs representing errors defined in Python code.
+//! The structs in this module represent Python's built-in exceptions and
+//! warnings, while the modules comprise structs representing errors defined in
+//! Python code.
 //!
-//! The latter are created with the [`import_exception`](crate::import_exception) macro, which you
-//! can use yourself to import Python exceptions.
+//! The latter are created with the
+//! [`import_exception`](crate::import_exception) macro, which you can use
+//! yourself to import Python classes that are ultimately derived from
+//! `BaseException`.
 
 use crate::{ffi, PyResult, Python};
 use std::ffi::CStr;
@@ -660,6 +663,61 @@ impl PyUnicodeDecodeError {
     }
 }
 
+impl_native_exception!(PyWarning, PyExc_Warning, native_doc!("Warning"));
+impl_native_exception!(PyUserWarning, PyExc_UserWarning, native_doc!("UserWarning"));
+impl_native_exception!(
+    PyDeprecationWarning,
+    PyExc_DeprecationWarning,
+    native_doc!("DeprecationWarning")
+);
+impl_native_exception!(
+    PyPendingDeprecationWarning,
+    PyExc_PendingDeprecationWarning,
+    native_doc!("PendingDeprecationWarning")
+);
+impl_native_exception!(
+    PySyntaxWarning,
+    PyExc_SyntaxWarning,
+    native_doc!("SyntaxWarning")
+);
+impl_native_exception!(
+    PyRuntimeWarning,
+    PyExc_RuntimeWarning,
+    native_doc!("RuntimeWarning")
+);
+impl_native_exception!(
+    PyFutureWarning,
+    PyExc_FutureWarning,
+    native_doc!("FutureWarning")
+);
+impl_native_exception!(
+    PyImportWarning,
+    PyExc_ImportWarning,
+    native_doc!("ImportWarning")
+);
+impl_native_exception!(
+    PyUnicodeWarning,
+    PyExc_UnicodeWarning,
+    native_doc!("UnicodeWarning")
+);
+impl_native_exception!(
+    PyBytesWarning,
+    PyExc_BytesWarning,
+    native_doc!("BytesWarning")
+);
+impl_native_exception!(
+    PyResourceWarning,
+    PyExc_ResourceWarning,
+    native_doc!("ResourceWarning")
+);
+
+#[cfg(Py_3_10)]
+impl_native_exception!(
+    PyEncodingWarning,
+    PyExc_EncodingWarning,
+    native_doc!("EncodingWarning")
+);
+
 #[cfg(test)]
 macro_rules! test_exception {
     ($exc_ty:ident $(, $constructor:expr)?) => {
@@ -1017,4 +1075,17 @@ mod tests {
     test_exception!(PyIOError);
     #[cfg(windows)]
     test_exception!(PyWindowsError);
+
+    test_exception!(PyWarning);
+    test_exception!(PyUserWarning);
+    test_exception!(PyDeprecationWarning);
+    test_exception!(PyPendingDeprecationWarning);
+    test_exception!(PySyntaxWarning);
+    test_exception!(PyRuntimeWarning);
+    test_exception!(PyFutureWarning);
+    test_exception!(PyImportWarning);
+    test_exception!(PyUnicodeWarning);
+    test_exception!(PyBytesWarning);
+    #[cfg(Py_3_10)]
+    test_exception!(PyEncodingWarning);
 }
