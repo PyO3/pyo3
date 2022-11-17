@@ -70,7 +70,7 @@ impl<'v> PyTryFrom<'v> for PyIterator {
         let value = value.into();
         unsafe {
             if ffi::PyIter_Check(value.as_ptr()) != 0 {
-                Ok(<PyIterator as PyTryFrom>::try_from_unchecked(value))
+                Ok(value.downcast_unchecked())
             } else {
                 Err(PyDowncastError::new(value, "Iterator"))
             }

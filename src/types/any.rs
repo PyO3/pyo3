@@ -780,6 +780,18 @@ impl PyAny {
         <T as PyTryFrom>::try_from(self)
     }
 
+    /// Converts this `PyAny` to a concrete Python type without checking validity.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    pub unsafe fn downcast_unchecked<'p, T>(&'p self) -> &'p T
+    where
+        T: PyTryFrom<'p>,
+    {
+        <T as PyTryFrom>::try_from_unchecked(self)
+    }
+
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around [`FromPyObject::extract()`].

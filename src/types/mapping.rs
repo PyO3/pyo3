@@ -142,7 +142,7 @@ impl<'v> PyTryFrom<'v> for PyMapping {
         // TODO: surface specific errors in this chain to the user
         if let Ok(abc) = get_mapping_abc(value.py()) {
             if value.is_instance(abc).unwrap_or(false) {
-                unsafe { return Ok(<PyMapping as PyTryFrom>::try_from_unchecked(value)) }
+                unsafe { return Ok(value.downcast_unchecked()) }
             }
         }
 
