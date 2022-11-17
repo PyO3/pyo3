@@ -2,8 +2,7 @@ use crate::types::PyString;
 #[cfg(windows)]
 use crate::PyErr;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
@@ -57,7 +56,7 @@ impl ToPyObject for OsStr {
 
 impl FromPyObject<'_> for OsString {
     fn extract(ob: &PyAny) -> PyResult<Self> {
-        let pystring = <PyString as PyTryFrom>::try_from(ob)?; // Cast PyAny to PyString
+        let pystring: &PyString = ob.downcast()?;
 
         #[cfg(not(windows))]
         {

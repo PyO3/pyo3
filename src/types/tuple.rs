@@ -145,7 +145,7 @@ impl PyTuple {
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| -> PyResult<()> {
     ///     let ob = (1, 2, 3).to_object(py);
-    ///     let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+    ///     let tuple: &PyTuple = ob.downcast(py).unwrap();
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
     ///     Ok(())
@@ -316,7 +316,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyAny) -> PyResult<Self>
         {
-            let t = <PyTuple as PyTryFrom>::try_from(obj)?;
+            let t: &PyTuple = obj.downcast()?;
             if t.len() == $length {
                 #[cfg(any(Py_LIMITED_API, PyPy))]
                 return Ok(($(t.get_item($n)?.extract::<$T>()?,)+));
@@ -441,7 +441,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAny, PyTuple};
-    use crate::{PyTryFrom, Python, ToPyObject};
+    use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -463,7 +463,7 @@ mod tests {
     fn test_len() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(3, tuple.len());
             let ob: &PyAny = tuple.into();
             assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -485,7 +485,7 @@ mod tests {
     fn test_iter() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
 
@@ -506,7 +506,7 @@ mod tests {
     fn test_into_iter() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(3, tuple.len());
 
             for (i, item) in tuple.iter().enumerate() {
@@ -520,7 +520,7 @@ mod tests {
     fn test_as_slice() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
 
             let slice = tuple.as_slice();
             assert_eq!(3, slice.len());
@@ -598,7 +598,7 @@ mod tests {
     fn test_tuple_get_item_invalid_index() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             let obj = tuple.get_item(5);
             assert!(obj.is_err());
             assert_eq!(
@@ -612,7 +612,7 @@ mod tests {
     fn test_tuple_get_item_sanity() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             let obj = tuple.get_item(0);
             assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
         });
@@ -623,7 +623,7 @@ mod tests {
     fn test_tuple_get_item_unchecked_sanity() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 1);
         });
@@ -633,7 +633,7 @@ mod tests {
     fn test_tuple_index_trait() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(1, tuple[0].extract::<i32>().unwrap());
             assert_eq!(2, tuple[1].extract::<i32>().unwrap());
             assert_eq!(3, tuple[2].extract::<i32>().unwrap());
@@ -645,7 +645,7 @@ mod tests {
     fn test_tuple_index_trait_panic() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             let _ = &tuple[7];
         });
     }
@@ -654,7 +654,7 @@ mod tests {
     fn test_tuple_index_trait_ranges() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(vec![2, 3], tuple[1..3].extract::<Vec<i32>>().unwrap());
             assert_eq!(
                 Vec::<i32>::new(),
@@ -674,7 +674,7 @@ mod tests {
     fn test_tuple_index_trait_range_panic_start() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             tuple[5..10].extract::<Vec<i32>>().unwrap();
         })
     }
@@ -684,7 +684,7 @@ mod tests {
     fn test_tuple_index_trait_range_panic_end() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             tuple[1..10].extract::<Vec<i32>>().unwrap();
         })
     }
@@ -694,7 +694,7 @@ mod tests {
     fn test_tuple_index_trait_range_panic_wrong_order() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             #[allow(clippy::reversed_empty_ranges)]
             tuple[2..1].extract::<Vec<i32>>().unwrap();
         })
@@ -705,7 +705,7 @@ mod tests {
     fn test_tuple_index_trait_range_from_panic() {
         Python::with_gil(|py| {
             let ob = (1, 2, 3).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             tuple[8..].extract::<Vec<i32>>().unwrap();
         })
     }
@@ -714,7 +714,7 @@ mod tests {
     fn test_tuple_contains() {
         Python::with_gil(|py| {
             let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(6, tuple.len());
 
             let bad_needle = 7i32.to_object(py);
@@ -732,7 +732,7 @@ mod tests {
     fn test_tuple_index() {
         Python::with_gil(|py| {
             let ob = (1, 1, 2, 3, 5, 8).to_object(py);
-            let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let tuple: &PyTuple = ob.downcast(py).unwrap();
             assert_eq!(0, tuple.index(1i32).unwrap());
             assert_eq!(2, tuple.index(2i32).unwrap());
             assert_eq!(3, tuple.index(3i32).unwrap());

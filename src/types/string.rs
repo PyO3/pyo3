@@ -285,7 +285,7 @@ mod tests {
     #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     use crate::PyTypeInfo;
     use crate::Python;
-    use crate::{PyObject, PyTryFrom, ToPyObject};
+    use crate::{PyObject, ToPyObject};
     #[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
     use std::borrow::Cow;
 
@@ -294,7 +294,7 @@ mod tests {
         Python::with_gil(|py| {
             let s = "ascii 🐈";
             let obj: PyObject = PyString::new(py, s).into();
-            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let py_string: &PyString = obj.downcast(py).unwrap();
             assert_eq!(s, py_string.to_str().unwrap());
         })
     }
@@ -303,7 +303,7 @@ mod tests {
     fn test_to_str_surrogate() {
         Python::with_gil(|py| {
             let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
-            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let py_string: &PyString = obj.downcast(py).unwrap();
             assert!(py_string.to_str().is_err());
         })
     }
@@ -313,7 +313,7 @@ mod tests {
         Python::with_gil(|py| {
             let s = "哈哈🐈";
             let obj: PyObject = PyString::new(py, s).into();
-            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let py_string: &PyString = obj.downcast(py).unwrap();
             assert_eq!(s, py_string.to_str().unwrap());
         })
     }
@@ -325,7 +325,7 @@ mod tests {
                 .eval(r#"'🐈 Hello \ud800World'"#, None, None)
                 .unwrap()
                 .into();
-            let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let py_string: &PyString = obj.downcast(py).unwrap();
             assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
         })
     }
@@ -334,7 +334,7 @@ mod tests {
     fn test_debug_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            let s: &PyString = v.downcast(py).unwrap();
             assert_eq!(format!("{:?}", s), "'Hello\\n'");
         })
     }
@@ -343,7 +343,7 @@ mod tests {
     fn test_display_string() {
         Python::with_gil(|py| {
             let v = "Hello\n".to_object(py);
-            let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+            let s: &PyString = v.downcast(py).unwrap();
             assert_eq!(format!("{}", s), "Hello\n");
         })
     }

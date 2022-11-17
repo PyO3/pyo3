@@ -343,7 +343,7 @@ impl<'a> std::iter::IntoIterator for &'a PyList {
 mod tests {
     use crate::types::PyList;
     use crate::Python;
-    use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};
+    use crate::{IntoPy, PyObject, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -407,7 +407,7 @@ mod tests {
                 let _pool = unsafe { crate::GILPool::new() };
                 let v = vec![2];
                 let ob = v.to_object(py);
-                let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+                let list: &PyList = ob.downcast(py).unwrap();
                 let none = py.None();
                 cnt = none.get_refcnt(py);
                 list.set_item(0, none).unwrap();
@@ -494,7 +494,7 @@ mod tests {
         Python::with_gil(|py| {
             let v = vec![2, 3, 5, 7];
             let ob = v.to_object(py);
-            let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let list: &PyList = ob.downcast(py).unwrap();
 
             let mut iter = list.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -566,7 +566,7 @@ mod tests {
     fn test_array_into_py() {
         Python::with_gil(|py| {
             let array: PyObject = [1, 2].into_py(py);
-            let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
+            let list: &PyList = array.downcast(py).unwrap();
             assert_eq!(1, list[0].extract::<i32>().unwrap());
             assert_eq!(2, list[1].extract::<i32>().unwrap());
         });

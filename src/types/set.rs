@@ -233,7 +233,7 @@ pub use impl_::*;
 #[cfg(test)]
 mod tests {
     use super::PySet;
-    use crate::{PyTryFrom, Python, ToPyObject};
+    use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -260,11 +260,11 @@ mod tests {
         Python::with_gil(|py| {
             let mut v = HashSet::new();
             let ob = v.to_object(py);
-            let set = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let set: &PySet = ob.downcast(py).unwrap();
             assert_eq!(0, set.len());
             v.insert(7);
             let ob = v.to_object(py);
-            let set2 = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let set2: &PySet = ob.downcast(py).unwrap();
             assert_eq!(1, set2.len());
         });
     }

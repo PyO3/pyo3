@@ -1,8 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::inspect::types::TypeInfo;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
@@ -58,7 +57,7 @@ impl IntoPy<PyObject> for bool {
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl<'source> FromPyObject<'source> for bool {
     fn extract(obj: &'source PyAny) -> PyResult<Self> {
-        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+        Ok(obj.downcast::<PyBool>()?.is_true())
     }
 
     fn type_input() -> TypeInfo {

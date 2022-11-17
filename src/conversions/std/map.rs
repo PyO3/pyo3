@@ -3,7 +3,7 @@ use std::{cmp, collections, hash};
 use crate::{
     inspect::types::TypeInfo,
     types::{IntoPyDict, PyDict},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyTryFrom, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, Python, ToPyObject,
 };
 
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
@@ -69,7 +69,7 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let dict: &PyDict = ob.downcast()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(K::extract(k)?, V::extract(v)?);
@@ -88,7 +88,7 @@ where
     V: FromPyObject<'source>,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let dict: &PyDict = ob.downcast()?;
         let mut ret = collections::BTreeMap::new();
         for (k, v) in dict.iter() {
             ret.insert(K::extract(k)?, V::extract(v)?);
@@ -104,7 +104,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -129,7 +129,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -144,7 +144,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -158,7 +158,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

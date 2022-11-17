@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     inspect::types::TypeInfo, types::PyString, FromPyObject, IntoPy, Py, PyAny, PyObject, PyResult,
-    PyTryFrom, Python, ToPyObject,
+    Python, ToPyObject,
 };
 
 /// Converts a Rust `str` to a Python object.
@@ -107,7 +107,7 @@ impl<'a> IntoPy<PyObject> for &'a String {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for &'source str {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(ob)?.to_str()
+        ob.downcast::<PyString>()?.to_str()
     }
 
     fn type_input() -> TypeInfo {
@@ -119,9 +119,7 @@ impl<'source> FromPyObject<'source> for &'source str {
 /// Accepts Python `str` and `unicode` objects.
 impl FromPyObject<'_> for String {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(obj)?
-            .to_str()
-            .map(ToOwned::to_owned)
+        obj.downcast::<PyString>()?.to_str().map(ToOwned::to_owned)
     }
 
     fn type_input() -> TypeInfo {
@@ -131,7 +129,7 @@ impl FromPyObject<'_> for String {
 
 impl FromPyObject<'_> for char {
     fn extract(obj: &PyAny) -> PyResult<Self> {
-        let s = <PyString as PyTryFrom<'_>>::try_from(obj)?.to_str()?;
+        let s = obj.downcast::<PyString>()?.to_str()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {
             Ok(ch)

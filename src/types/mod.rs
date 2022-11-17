@@ -213,7 +213,7 @@ macro_rules! pyobject_native_type_extract {
     ($name:ty $(;$generics:ident)*) => {
         impl<'py, $($generics,)*> $crate::FromPyObject<'py> for &'py $name {
             fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
-                $crate::PyTryFrom::try_from(obj).map_err(::std::convert::Into::into)
+                obj.downcast().map_err(::std::convert::Into::into)
             }
         }
     }
