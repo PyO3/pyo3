@@ -477,7 +477,28 @@ impl PyErr {
     }
 
     /// Issues a warning message.
-    /// May return a `PyErr` if warnings-as-errors is enabled.
+    ///
+    /// May return an `Err(PyErr)` if warnings-as-errors is enabled.
+    ///
+    /// Equivalent to `warnings.warn()` in Python.
+    ///
+    /// The `category` should be one of the `Warning` classes available in
+    /// [`pyo3::exceptions`](crate::exceptions), or a subclass.  The Python
+    /// object can be retrieved using [`PyTypeInfo::type_object()`].
+    ///
+    /// Example:
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::PyTypeInfo;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| {
+    ///     let user_warning = pyo3::exceptions::PyUserWarning::type_object(py);
+    ///     PyErr::warn(py, user_warning, "I am warning you", 0)?;
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     pub fn warn(py: Python<'_>, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
         unsafe {
@@ -487,6 +508,49 @@ impl PyErr {
                     category.as_ptr(),
                     message.as_ptr(),
                     stacklevel as ffi::Py_ssize_t,
+                ),
+            )
+        }
+    }
+
+    /// Issues a warning message, with more control over the warning attributes.
+    ///
+    /// May return a `PyErr` if warnings-as-errors is enabled.
+    ///
+    /// Equivalent to `warnings.warn_explicit()` in Python.
+    ///
+    /// The `category` should be one of the `Warning` classes available in
+    /// [`pyo3::exceptions`](crate::exceptions), or a subclass.
+    pub fn warn_explicit(
+        py: Python<'_>,
+        category: &PyAny,
+        message: &str,
+        filename: &str,
+        lineno: i32,
+        module: Option<&str>,
+        registry: Option<&PyAny>,
+    ) -> PyResult<()> {
+        let message = CString::new(message)?;
+        let filename = CString::new(filename)?;
+        let module = module.map(CString::new).transpose()?;
+        let module_ptr = match module {
+            None => std::ptr::null_mut(),
+            Some(s) => s.as_ptr(),
+        };
+        let registry: *mut ffi::PyObject = match registry {
+            None => std::ptr::null_mut(),
+            Some(obj) => obj.as_ptr(),
+        };
+        unsafe {
+            error_on_minusone(
+                py,
+                ffi::PyErr_WarnExplicit(
+                    category.as_ptr(),
+                    message.as_ptr(),
+                    filename.as_ptr(),
+                    lineno,
+                    module_ptr,
+                    registry,
                 ),
             )
         }
@@ -769,7 +833,7 @@ fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::{AsPyPointer, PyErr, Python};
+    use crate::{AsPyPointer, PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -936,6 +1000,59 @@ mod tests {
                 PyErr::from_instance(err.value(py)).value(py).as_ptr(),
                 err.value(py).as_ptr()
             );
+        });
+    }
+
+    #[test]
+    fn warnings() {
+        // Note: although the warning filter is interpreter global, keeping the
+        // GIL locked should prevent effects to be visible to other testing
+        // threads.
+        Python::with_gil(|py| {
+            let cls = exceptions::PyUserWarning::type_object(py);
+
+            // Reset warning filter to default state
+            let warnings = py.import("warnings").unwrap();
+            warnings.call_method0("resetwarnings").unwrap();
+
+            // First, test with ignoring the warning
+            warnings
+                .call_method1("simplefilter", ("ignore", cls))
+                .unwrap();
+            PyErr::warn(py, cls, "I am warning you", 0).unwrap();
+
+            // Test with raising
+            warnings
+                .call_method1("simplefilter", ("error", cls))
+                .unwrap();
+            PyErr::warn(py, cls, "I am warning you", 0).unwrap_err();
+
+            // Test with explicit module and specific filter
+            warnings.call_method0("resetwarnings").unwrap();
+            warnings
+                .call_method1("simplefilter", ("ignore", cls))
+                .unwrap();
+            warnings
+                .call_method1("filterwarnings", ("error", "", cls, "pyo3test"))
+                .unwrap();
+
+            // This has the wrong module and will not raise
+            PyErr::warn(py, cls, "I am warning you", 0).unwrap();
+
+            let err =
+                PyErr::warn_explicit(py, cls, "I am warning you", "pyo3test.py", 427, None, None)
+                    .unwrap_err();
+            assert!(err
+                .value(py)
+                .getattr("args")
+                .unwrap()
+                .get_item(0)
+                .unwrap()
+                .eq("I am warning you")
+                .unwrap());
+
+            // Finally, reset filter again
+            warnings.call_method0("resetwarnings").unwrap();
         });
     }
 }

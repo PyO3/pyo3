@@ -22,6 +22,7 @@ extern "C" {
         format: *const c_char,
         ...
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnExplicit")]
     pub fn PyErr_WarnExplicit(
         category: *mut PyObject,
         message: *const c_char,
