@@ -1002,6 +1002,21 @@ impl PyObject {
         <T as PyTryFrom<'_>>::try_from(self.as_ref(py))
     }
 
+    /// Casts the PyObject to a concrete Python object type without checking validity.
+    ///
+    /// This can cast only to native Python types, not types implemented in Rust. For a more
+    /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    pub unsafe fn downcast_unchecked<'p, T>(&'p self, py: Python<'p>) -> &T
+    where
+        T: PyTryFrom<'p>,
+    {
+        <T as PyTryFrom<'_>>::try_from_unchecked(self.as_ref(py))
+    }
+
     /// Casts the PyObject to a concrete Python object type.
     #[deprecated(since = "0.18.0", note = "use downcast() instead")]
     pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError<'_>>

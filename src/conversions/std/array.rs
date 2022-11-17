@@ -6,8 +6,8 @@ mod min_const_generics {
     use crate::conversion::{AsPyPointer, IntoPyPointer};
     use crate::types::PySequence;
     use crate::{
-        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, PyTryFrom,
-        Python, ToPyObject,
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, Python,
+        ToPyObject,
     };
 
     impl<T, const N: usize> IntoPy<PyObject> for [T; N]
@@ -65,9 +65,9 @@ mod min_const_generics {
     {
         // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
         // to support this function and if not, we will only fail extraction safely.
-        let seq = unsafe {
+        let seq: &PySequence = unsafe {
             if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-                <PySequence as PyTryFrom>::try_from_unchecked(obj)
+                obj.downcast_unchecked()
             } else {
                 return Err(PyDowncastError::new(obj, "Sequence").into());
             }
@@ -187,8 +187,8 @@ mod array_impls {
     use crate::conversion::{AsPyPointer, IntoPyPointer};
     use crate::types::PySequence;
     use crate::{
-        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, PyTryFrom,
-        Python, ToPyObject,
+        ffi, FromPyObject, IntoPy, Py, PyAny, PyDowncastError, PyObject, PyResult, Python,
+        ToPyObject,
     };
     use std::mem::{transmute_copy, ManuallyDrop};
 
@@ -288,9 +288,9 @@ mod array_impls {
     {
         // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
         // to support this function and if not, we will only fail extraction safely.
-        let seq = unsafe {
+        let seq: &PySequence = unsafe {
             if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-                <PySequence as PyTryFrom>::try_from_unchecked(obj)
+                obj.downcast_unchecked()
             } else {
                 return Err(PyDowncastError::new(obj, "Sequence").into());
             }

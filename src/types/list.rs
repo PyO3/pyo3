@@ -8,7 +8,7 @@ use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
-use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, PyTryFrom, Python, ToPyObject};
+use crate::{AsPyPointer, IntoPyPointer, Py, PyAny, PyObject, Python, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -115,7 +115,7 @@ impl PyList {
 
     /// Returns `self` cast as a `PySequence`.
     pub fn as_sequence(&self) -> &PySequence {
-        unsafe { PySequence::try_from_unchecked(self) }
+        unsafe { self.downcast_unchecked() }
     }
 
     /// Gets the list item at the specified index.

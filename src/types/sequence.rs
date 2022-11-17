@@ -301,9 +301,9 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq = unsafe {
+    let seq: &PySequence = unsafe {
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            <PySequence as PyTryFrom>::try_from_unchecked(obj)
+            obj.downcast_unchecked()
         } else {
             return Err(PyDowncastError::new(obj, "Sequence").into());
         }
@@ -339,7 +339,7 @@ impl<'v> PyTryFrom<'v> for PySequence {
         // TODO: surface specific errors in this chain to the user
         if let Ok(abc) = get_sequence_abc(value.py()) {
             if value.is_instance(abc).unwrap_or(false) {
-                unsafe { return Ok(<PySequence as PyTryFrom>::try_from_unchecked(value)) }
+                unsafe { return Ok(value.downcast_unchecked::<PySequence>()) }
             }
         }
 
@@ -386,7 +386,7 @@ impl Py<PySequence> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyList, PySequence};
-    use crate::{AsPyPointer, Py, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyPointer, Py, PyObject, Python, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -867,13 +867,13 @@ mod tests {
     }
 
     #[test]
-    fn test_seq_try_from_unchecked() {
+    fn test_seq_downcast_unchecked() {
         Python::with_gil(|py| {
             let v = vec!["foo", "bar"];
             let ob = v.to_object(py);
             let seq = ob.downcast::<PySequence>(py).unwrap();
             let type_ptr = seq.as_ref();
-            let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
+            let seq_from = unsafe { type_ptr.downcast_unchecked::<PySequence>() };
             assert!(seq_from.list().is_ok());
         });
     }

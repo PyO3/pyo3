@@ -8,7 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::PySequence;
 use crate::{
     exceptions, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr, PyObject,
-    PyResult, PyTryFrom, Python, ToPyObject,
+    PyResult, Python, ToPyObject,
 };
 
 #[inline]
@@ -120,7 +120,7 @@ impl PyTuple {
 
     /// Returns `self` cast as a `PySequence`.
     pub fn as_sequence(&self) -> &PySequence {
-        unsafe { PySequence::try_from_unchecked(self) }
+        unsafe { self.downcast_unchecked() }
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new tuple.

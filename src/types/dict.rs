@@ -4,7 +4,7 @@ use super::PyMapping;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::types::{PyAny, PyList};
-use crate::{ffi, AsPyPointer, PyTryFrom, Python, ToPyObject};
+use crate::{ffi, AsPyPointer, Python, ToPyObject};
 #[cfg(not(PyPy))]
 use crate::{IntoPyPointer, PyObject};
 use std::ptr::NonNull;
@@ -255,7 +255,7 @@ impl PyDict {
 
     /// Returns `self` cast as a `PyMapping`.
     pub fn as_mapping(&self) -> &PyMapping {
-        unsafe { PyMapping::try_from_unchecked(self) }
+        unsafe { self.downcast_unchecked() }
     }
 }
 
