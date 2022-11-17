@@ -45,14 +45,13 @@
 //!     });
 //! }
 //! ```
-use crate::exceptions::PyTypeError;
+use crate::exceptions::{PyTypeError, PyValueError};
 use crate::types::{
     timezone_utc, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess,
     PyTzInfo, PyTzInfoAccess, PyUnicode,
 };
 use crate::{
-    AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
@@ -127,12 +126,12 @@ impl IntoPy<PyObject> for NaiveDate {
 impl FromPyObject<'_> for NaiveDate {
     fn extract(ob: &PyAny) -> PyResult<NaiveDate> {
         let date = <PyDate as PyTryFrom>::try_from(ob)?;
-        Ok(NaiveDate::from_ymd_opt(
+        NaiveDate::from_ymd_opt(
             date.get_year(),
             date.get_month() as u32,
             date.get_day() as u32,
         )
-        .expect("invalid or out-of-range date"))
+        .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
     }
 }
 
@@ -165,7 +164,8 @@ impl FromPyObject<'_> for NaiveTime {
         let h = time.get_hour() as u32;
         let m = time.get_minute() as u32;
         let s = time.get_second() as u32;
-        Ok(NaiveTime::from_hms_micro_opt(h, m, s, ms).expect("invalid or out-of-range date"))
+        NaiveTime::from_hms_micro_opt(h, m, s, ms)
+            .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
     }
 }
 
@@ -203,7 +203,7 @@ impl FromPyObject<'_> for NaiveDateTime {
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
         if dt.get_tzinfo().is_some() {
-            return Err(PyErr::new::<crate::exceptions::PyTypeError, _>(
+            return Err(PyTypeError::new_err(
                 "Trying to convert a timezone aware datetime into a NaiveDateTime.",
             ));
         }
@@ -213,8 +213,9 @@ impl FromPyObject<'_> for NaiveDateTime {
         let ms = dt.get_microsecond();
         let dt = NaiveDateTime::new(
             NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .expect("invalid or out-of-range date"),
-            NaiveTime::from_hms_micro_opt(h, m, s, ms).expect("invalid or out-of-range time"),
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
+            NaiveTime::from_hms_micro_opt(h, m, s, ms)
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
         );
         Ok(dt)
     }
@@ -263,8 +264,9 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
         };
         let dt = NaiveDateTime::new(
             NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .expect("invalid or out-of-range date"),
-            NaiveTime::from_hms_micro_opt(h, m, s, ms).expect("invalid or out-of-range time"),
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
+            NaiveTime::from_hms_micro_opt(h, m, s, ms)
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
         );
         Ok(DateTime::from_utc(dt, tz))
     }
@@ -284,8 +286,9 @@ impl FromPyObject<'_> for DateTime<Utc> {
         };
         let dt = NaiveDateTime::new(
             NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
-                .expect("invalid or out-of-range date"),
-            NaiveTime::from_hms_micro_opt(h, m, s, ms).expect("invalid or out-of-range time"),
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))?,
+            NaiveTime::from_hms_micro_opt(h, m, s, ms)
+                .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))?,
         );
         Ok(DateTime::from_utc(dt, tz))
     }
@@ -330,7 +333,7 @@ impl FromPyObject<'_> for FixedOffset {
         // Trying to convert None to a PyDelta in the next line will then fail.
         let py_timedelta = py_tzinfo.call_method1("utcoffset", (ob.py().None(),))?;
         let py_timedelta = <PyDelta as PyTryFrom>::try_from(py_timedelta).map_err(|_| {
-            PyErr::new::<crate::exceptions::PyTypeError, _>(format!(
+            PyTypeError::new_err(format!(
                 "{:?} is not a fixed offset timezone",
                 py_tzinfo
                     .repr()
@@ -344,7 +347,8 @@ impl FromPyObject<'_> for FixedOffset {
         let total_seconds = Duration::days(days) + Duration::seconds(seconds);
         // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
         let total_seconds = total_seconds.num_seconds() as i32;
-        Ok(FixedOffset::east_opt(total_seconds).expect("fixed offset out of bounds"))
+        FixedOffset::east_opt(total_seconds)
+            .ok_or_else(|| PyValueError::new_err("fixed offset out of bounds"))
     }
 }
 
