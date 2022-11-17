@@ -113,7 +113,7 @@ pub unsafe trait PyNativeType: Sized {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
-/// #         let foo: &PyCell<Foo> = pyo3::PyTryFrom::try_from(m.getattr("Foo")?.call0()?)?;
+/// #         let foo: &PyCell<Foo> = m.getattr("Foo")?.call0()?.downcast()?;
 /// #         let dict = &foo.borrow().inner;
 /// #         let dict: &PyDict = dict.as_ref(py);
 /// #
@@ -150,7 +150,7 @@ pub unsafe trait PyNativeType: Sized {
 /// #         let m = pyo3::types::PyModule::new(py, "test")?;
 /// #         m.add_class::<Foo>()?;
 /// #
-/// #         let foo: &PyCell<Foo> = pyo3::PyTryFrom::try_from(m.getattr("Foo")?.call0()?)?;
+/// #         let foo: &PyCell<Foo> = m.getattr("Foo")?.call0()?.downcast()?;
 /// #         let bar = &foo.borrow().inner;
 /// #         let bar: &Bar = &*bar.borrow(py);
 /// #

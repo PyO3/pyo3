@@ -93,7 +93,7 @@
 //! ```
 
 use crate::types::*;
-use crate::{FromPyObject, IntoPy, PyErr, PyObject, PyTryFrom, Python, ToPyObject};
+use crate::{FromPyObject, IntoPy, PyErr, PyObject, Python, ToPyObject};
 use std::{cmp, hash};
 
 impl<K, V, H> ToPyObject for indexmap::IndexMap<K, V, H>
@@ -128,7 +128,7 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let dict: &PyDict = ob.downcast()?;
         let mut ret = indexmap::IndexMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(K::extract(k)?, V::extract(v)?);
@@ -141,7 +141,7 @@ where
 mod test_indexmap {
 
     use crate::types::*;
-    use crate::{IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{IntoPy, PyObject, Python, ToPyObject};
 
     #[test]
     fn test_indexmap_indexmap_to_python() {
@@ -150,7 +150,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -168,7 +168,7 @@ mod test_indexmap {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

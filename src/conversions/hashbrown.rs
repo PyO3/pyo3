@@ -23,7 +23,7 @@
 //! The required hashbrown version may vary based on the version of PyO3.
 use crate::{
     types::{IntoPyDict, PyDict, PySet},
-    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    FromPyObject, IntoPy, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use std::{cmp, hash};
 
@@ -59,7 +59,7 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
-        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let dict: &PyDict = ob.downcast()?;
         let mut ret = hashbrown::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(K::extract(k)?, V::extract(v)?);
@@ -121,7 +121,7 @@ mod tests {
             map.insert(1, 1);
 
             let m = map.to_object(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -135,7 +135,7 @@ mod tests {
             map.insert(1, 1);
 
             let m: PyObject = map.into_py(py);
-            let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+            let py_map: &PyDict = m.downcast(py).unwrap();
 
             assert!(py_map.len() == 1);
             assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

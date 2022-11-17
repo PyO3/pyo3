@@ -78,7 +78,7 @@ impl<'v> PyTryFrom<'v> for PyIterator {
     }
 
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PyIterator, PyDowncastError<'v>> {
-        <PyIterator as PyTryFrom>::try_from(value)
+        value.into().downcast()
     }
 
     #[inline]
@@ -110,8 +110,6 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::gil::GILPool;
     use crate::types::{PyDict, PyList};
-    #[cfg(any(not(Py_LIMITED_API), Py_3_8))]
-    use crate::PyTryFrom;
     use crate::{Py, PyAny, Python, ToPyObject};
 
     #[test]
@@ -224,8 +222,7 @@ def fibonacci(target):
     fn iterator_try_from() {
         Python::with_gil(|py| {
             let obj: Py<PyAny> = vec![10, 20].to_object(py).as_ref(py).iter().unwrap().into();
-            let iter: &PyIterator =
-                <PyIterator as PyTryFrom<'_>>::try_from(obj.as_ref(py)).unwrap();
+            let iter: &PyIterator = obj.downcast(py).unwrap();
             assert!(obj.is(iter));
         });
     }

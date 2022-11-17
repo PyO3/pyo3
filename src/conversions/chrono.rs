@@ -51,7 +51,7 @@ use crate::types::{
     PyTzInfo, PyTzInfoAccess, PyUnicode,
 };
 use crate::{
-    AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    AsPyPointer, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 use chrono::offset::{FixedOffset, Utc};
 use chrono::{
@@ -97,7 +97,7 @@ impl IntoPy<PyObject> for Duration {
 
 impl FromPyObject<'_> for Duration {
     fn extract(ob: &PyAny) -> PyResult<Duration> {
-        let delta = <PyDelta as PyTryFrom>::try_from(ob)?;
+        let delta: &PyDelta = ob.downcast()?;
         // Python size are much lower than rust size so we do not need bound checks.
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
@@ -125,7 +125,7 @@ impl IntoPy<PyObject> for NaiveDate {
 
 impl FromPyObject<'_> for NaiveDate {
     fn extract(ob: &PyAny) -> PyResult<NaiveDate> {
-        let date = <PyDate as PyTryFrom>::try_from(ob)?;
+        let date: &PyDate = ob.downcast()?;
         NaiveDate::from_ymd_opt(
             date.get_year(),
             date.get_month() as u32,
@@ -159,7 +159,7 @@ impl IntoPy<PyObject> for NaiveTime {
 
 impl FromPyObject<'_> for NaiveTime {
     fn extract(ob: &PyAny) -> PyResult<NaiveTime> {
-        let time = <PyTime as PyTryFrom>::try_from(ob)?;
+        let time: &PyTime = ob.downcast()?;
         let ms = time.get_fold() as u32 * 1_000_000 + time.get_microsecond();
         let h = time.get_hour() as u32;
         let m = time.get_minute() as u32;
@@ -198,7 +198,7 @@ impl IntoPy<PyObject> for NaiveDateTime {
 
 impl FromPyObject<'_> for NaiveDateTime {
     fn extract(ob: &PyAny) -> PyResult<NaiveDateTime> {
-        let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
+        let dt: &PyDateTime = ob.downcast()?;
         // If the user tries to convert a timezone aware datetime into a naive one,
         // we return a hard error. We could silently remove tzinfo, or assume local timezone
         // and do a conversion, but better leave this decision to the user of the library.
@@ -252,7 +252,7 @@ impl<Tz: TimeZone> IntoPy<PyObject> for DateTime<Tz> {
 
 impl FromPyObject<'_> for DateTime<FixedOffset> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<FixedOffset>> {
-        let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
+        let dt: &PyDateTime = ob.downcast()?;
         let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
         let h = dt.get_hour().into();
         let m = dt.get_minute().into();
@@ -274,7 +274,7 @@ impl FromPyObject<'_> for DateTime<FixedOffset> {
 
 impl FromPyObject<'_> for DateTime<Utc> {
     fn extract(ob: &PyAny) -> PyResult<DateTime<Utc>> {
-        let dt = <PyDateTime as PyTryFrom>::try_from(ob)?;
+        let dt: &PyDateTime = ob.downcast()?;
         let ms = dt.get_fold() as u32 * 1_000_000 + dt.get_microsecond();
         let h = dt.get_hour().into();
         let m = dt.get_minute().into();
@@ -325,14 +325,14 @@ impl FromPyObject<'_> for FixedOffset {
     /// Note that the conversion will result in precision lost in microseconds as chrono offset
     /// does not supports microseconds.
     fn extract(ob: &PyAny) -> PyResult<FixedOffset> {
-        let py_tzinfo = <PyTzInfo as PyTryFrom>::try_from(ob)?;
+        let py_tzinfo: &PyTzInfo = ob.downcast()?;
         // Passing `ob.py().None()` (so Python's None) to the `utcoffset` function will only
         // work for timezones defined as fixed offsets in Python.
         // Any other timezone would require a datetime as the parameter, and return
         // None if the datetime is not provided.
         // Trying to convert None to a PyDelta in the next line will then fail.
         let py_timedelta = py_tzinfo.call_method1("utcoffset", (ob.py().None(),))?;
-        let py_timedelta = <PyDelta as PyTryFrom>::try_from(py_timedelta).map_err(|_| {
+        let py_timedelta: &PyDelta = py_timedelta.downcast().map_err(|_| {
             PyTypeError::new_err(format!(
                 "{:?} is not a fixed offset timezone",
                 py_tzinfo
@@ -366,7 +366,7 @@ impl IntoPy<PyObject> for Utc {
 
 impl FromPyObject<'_> for Utc {
     fn extract(ob: &PyAny) -> PyResult<Utc> {
-        let py_tzinfo = <PyTzInfo as PyTryFrom>::try_from(ob)?;
+        let py_tzinfo: &PyTzInfo = ob.downcast()?;
         let py_utc = timezone_utc(ob.py());
         if py_tzinfo.eq(py_utc)? {
             Ok(Utc)

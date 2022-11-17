@@ -347,7 +347,7 @@ impl<'v> PyTryFrom<'v> for PySequence {
     }
 
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError<'v>> {
-        <PySequence as PyTryFrom>::try_from(value)
+        value.into().downcast()
     }
 
     #[inline]
@@ -401,7 +401,7 @@ mod tests {
     fn test_numbers_are_not_sequences() {
         Python::with_gil(|py| {
             let v = 42i32;
-            assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_err());
+            assert!(v.to_object(py).downcast::<PySequence>(py).is_err());
         });
     }
 
@@ -409,7 +409,7 @@ mod tests {
     fn test_strings_are_sequences() {
         Python::with_gil(|py| {
             let v = "London Calling";
-            assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_ok());
+            assert!(v.to_object(py).downcast::<PySequence>(py).is_ok());
         });
     }
 
@@ -809,7 +809,7 @@ mod tests {
         Python::with_gil(|py| {
             let v = "foo";
             let ob = v.to_object(py);
-            let seq = <PySequence as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let seq: &PySequence = ob.downcast(py).unwrap();
             assert!(seq.list().is_ok());
         });
     }

@@ -1,6 +1,6 @@
 use crate::{
     inspect::types::TypeInfo, types::PyBytes, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    PyTryFrom, Python, ToPyObject,
+    Python, ToPyObject,
 };
 
 impl<'a> IntoPy<PyObject> for &'a [u8] {
@@ -15,7 +15,7 @@ impl<'a> IntoPy<PyObject> for &'a [u8] {
 
 impl<'a> FromPyObject<'a> for &'a [u8] {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
-        Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
+        Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 
     fn type_input() -> TypeInfo {
