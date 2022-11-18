@@ -110,35 +110,54 @@
 use crate::{
     exceptions::PyRuntimeError, once_cell::GILLazy, types::PyType, Py, PyErr, PyTypeInfo, Python,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 // get exception stuff is Redwood hack. Could maybe be upstreamed, but would need to be improved...
 
-pub fn get_exception_from_base_error(err: &anyhow::Error) -> Option<Py<PyType>> {
+/// TODO
+pub fn get_exception_type_from_py_err_root_cause(
+    err: &anyhow::Error,
+    py: Python<'_>,
+) -> Option<Py<PyType>> {
     let py_err: &PyErr = err.root_cause().downcast_ref()?;
-    Some(Python::with_gil(|py| py_err.get_type(py).into()))
+    Some(py_err.get_type(py).into())
 }
 
-static GET_EXCEPTION: GILLazy<
-    Mutex<Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>>,
-> = GILLazy::new(|| Mutex::new(Arc::new(get_exception_from_base_error)));
+/// TODO
+pub fn anyhow_error_for_exception_type(
+    err: anyhow::Error,
+    py: Python<'_>,
+    exc_type: Option<Py<PyType>>,
+) -> PyErr {
+    PyErr::from_type(
+        exc_type
+            .as_ref()
+            .map(|x| x.as_ref(py))
+            .unwrap_or(PyRuntimeError::type_object(py)),
+        format!("{:?}", err),
+    )
+}
+
+/// TODO
+pub fn default_anyhow_to_py_err(err: anyhow::Error) -> PyErr {
+    Python::with_gil(|py| {
+        let exc_type = get_exception_type_from_py_err_root_cause(&err, py);
+        anyhow_error_for_exception_type(err, py, exc_type)
+    })
+}
+
+static ANYHOW_TO_PY_ERR: GILLazy<
+    Mutex<Box<dyn Fn(anyhow::Error) -> PyErr + Send + Sync + 'static>>,
+> = GILLazy::new(|| Mutex::new(Box::new(default_anyhow_to_py_err)));
 
 /// set anyhow exception getter
-pub fn set_get_exception(f: Arc<dyn Fn(&anyhow::Error) -> Option<Py<PyType>> + Send + Sync>) {
-    *GET_EXCEPTION.lock().unwrap() = f;
+pub fn set_anyhow_to_py_err(f: Box<dyn Fn(anyhow::Error) -> PyErr + Send + Sync + 'static>) {
+    *ANYHOW_TO_PY_ERR.lock().unwrap() = f;
 }
 
 impl From<anyhow::Error> for PyErr {
     fn from(err: anyhow::Error) -> Self {
-        Python::with_gil(|py| {
-            let exception = GET_EXCEPTION.lock().unwrap()(&err);
-            PyErr::from_type(
-                exception
-                    .map(|x| x.into_ref(py))
-                    .unwrap_or(PyRuntimeError::type_object(py)),
-                format!("{:?}", err),
-            )
-        })
+        ANYHOW_TO_PY_ERR.lock().unwrap()(err)
     }
 }
 
