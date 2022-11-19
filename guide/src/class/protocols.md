@@ -243,17 +243,24 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
 
     Implements retrieval of the `self[a]` element.
 
-    *Note:* Negative integer indexes are not handled specially.
+    *Note:* Negative integer indexes are not handled specially by PyO3.
+    However, for classes with `#[pyclass(sequence)]`, when a negative index is
+    accessed via `PySequence::get_item`, the underlying C API already adjusts
+    the index to be positive.
 
   - `__setitem__(<self>, object, object) -> ()`
 
     Implements assignment to the `self[a]` element.
     Should only be implemented if elements can be replaced.
 
+    Same behavior regarding negative indices as for `__getitem__`.
+
   - `__delitem__(<self>, object) -> ()`
 
     Implements deletion of the `self[a]` element.
     Should only be implemented if elements can be deleted.
+
+    Same behavior regarding negative indices as for `__getitem__`.
 
   * `fn __concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
