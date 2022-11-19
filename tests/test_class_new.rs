@@ -2,6 +2,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 
 #[pyclass]
 struct EmptyClassWithNew {}
@@ -23,6 +24,12 @@ fn empty_class_with_new() {
             .unwrap()
             .downcast::<PyCell<EmptyClassWithNew>>()
             .is_ok());
+
+        // Calling with arbitrary args or kwargs is not ok
+        assert!(typeobj.call(("some", "args"), None).is_err());
+        assert!(typeobj
+            .call((), Some([("some", "kwarg")].into_py_dict(py)))
+            .is_err());
     });
 }
 
