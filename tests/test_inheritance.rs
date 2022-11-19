@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::prelude::*;
-use pyo3::{py_run, PyTypeInfo};
+use pyo3::py_run;
 
 use pyo3::types::IntoPyDict;
 
@@ -107,8 +107,8 @@ fn mutation_fails() {
 #[test]
 fn is_subclass_and_is_instance() {
     Python::with_gil(|py| {
-        let sub_ty = SubClass::type_object(py);
-        let base_ty = BaseClass::type_object(py);
+        let sub_ty = py.get_type::<SubClass>();
+        let base_ty = py.get_type::<BaseClass>();
         assert!(sub_ty.is_subclass_of::<BaseClass>().unwrap());
         assert!(sub_ty.is_subclass(base_ty).unwrap());
 
@@ -308,10 +308,9 @@ impl SimpleClass {
 #[test]
 fn test_subclass_ref_counts() {
     // regression test for issue #1363
-    use pyo3::PyTypeInfo;
     Python::with_gil(|py| {
         #[allow(non_snake_case)]
-        let SimpleClass = SimpleClass::type_object(py);
+        let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(
             py,
             SimpleClass,

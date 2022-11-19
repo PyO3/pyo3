@@ -596,6 +596,7 @@ impl<'py> Python<'py> {
     }
 
     /// Gets the Python type object for type `T`.
+    #[inline]
     pub fn get_type<T>(self) -> &'py PyType
     where
         T: PyTypeInfo,

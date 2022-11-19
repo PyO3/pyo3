@@ -913,7 +913,6 @@ impl PyAny {
 #[cfg(test)]
 mod tests {
     use crate::{
-        type_object::PyTypeInfo,
         types::{IntoPyDict, PyList, PyLong, PyModule},
         Python, ToPyObject,
     };
@@ -1014,7 +1013,7 @@ class SimpleClass:
     fn test_any_isinstance() {
         Python::with_gil(|py| {
             let l = vec![1u8, 2].to_object(py).into_ref(py);
-            assert!(l.is_instance(PyList::type_object(py)).unwrap());
+            assert!(l.is_instance(py.get_type::<PyList>()).unwrap());
         });
     }
 

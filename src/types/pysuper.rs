@@ -1,5 +1,4 @@
 use crate::ffi;
-use crate::type_object::PyTypeInfo;
 use crate::types::PyType;
 use crate::{PyAny, PyResult};
 
@@ -54,7 +53,7 @@ impl PySuper {
     /// ```
     pub fn new<'py>(ty: &'py PyType, obj: &'py PyAny) -> PyResult<&'py PySuper> {
         let py = ty.py();
-        let super_ = PySuper::type_object(py).call1((ty, obj))?;
+        let super_ = py.get_type::<PySuper>().call1((ty, obj))?;
         let super_ = super_.downcast::<PySuper>()?;
         Ok(super_)
     }
