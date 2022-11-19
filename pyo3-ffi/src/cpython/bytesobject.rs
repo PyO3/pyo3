@@ -15,5 +15,6 @@ pub struct PyBytesObject {
 opaque_struct!(PyBytesObject);
 
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
     pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
