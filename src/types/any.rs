@@ -773,6 +773,7 @@ impl PyAny {
     ///     assert!(any.downcast::<PyList>().is_err());
     /// });
     /// ```
+    #[inline]
     pub fn downcast<'p, T>(&'p self) -> Result<&'p T, PyDowncastError<'_>>
     where
         T: PyTryFrom<'p>,
@@ -785,6 +786,7 @@ impl PyAny {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
     pub unsafe fn downcast_unchecked<'p, T>(&'p self) -> &'p T
     where
         T: PyTryFrom<'p>,
