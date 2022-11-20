@@ -200,7 +200,7 @@ impl CallingConvention {
     /// Different other slots (tp_call, tp_new) can have other requirements
     /// and are set manually (see `parse_fn_type` below).
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
-        if signature.arguments.is_empty() {
+        if signature.python_signature.has_no_args() {
             Self::Noargs
         } else if signature.python_signature.accepts_kwargs {
             // for functions that accept **kwargs, always prefer varargs
@@ -457,7 +457,12 @@ impl<'a> FnSpec<'a> {
 
         Ok(match self.convention {
             CallingConvention::Noargs => {
-                let call = rust_call(vec![]);
+                let call = if !self.signature.arguments.is_empty() {
+                    // Only `py` arg can be here
+                    rust_call(vec![quote!(#py)])
+                } else {
+                    rust_call(vec![])
+                };
                 quote! {
                     unsafe fn #ident<'py>(
                         #py: _pyo3::Python<'py>,

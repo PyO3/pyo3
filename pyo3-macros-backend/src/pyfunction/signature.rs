@@ -211,6 +211,15 @@ pub struct PythonSignature {
     pub accepts_kwargs: bool,
 }
 
+impl PythonSignature {
+    pub fn has_no_args(&self) -> bool {
+        self.positional_parameters.is_empty()
+            && self.keyword_only_parameters.is_empty()
+            && !self.accepts_varargs
+            && !self.accepts_kwargs
+    }
+}
+
 pub struct FunctionSignature<'a> {
     pub arguments: Vec<FnArg<'a>>,
     pub python_signature: PythonSignature,
