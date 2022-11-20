@@ -119,7 +119,7 @@ still use `new()` for a Rust-level constructor.
 If no method marked with `#[new]` is declared, object instances can only be
 created from Rust, but not from Python.
 
-For arguments, see the `Method arguments` section below.
+For arguments, see the [`Method arguments`](#method-arguments) section below.
 
 ## Adding the class to a module
 
