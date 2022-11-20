@@ -7,10 +7,8 @@ opaque_struct!(PyDictKeysObject);
 #[cfg(Py_3_11)]
 opaque_struct!(PyDictValues);
 
-#[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Debug)]
-// Not moved because dict.rs uses PyDictObject extensively.
 pub struct PyDictObject {
     pub ob_base: PyObject,
     pub ma_used: Py_ssize_t,
@@ -20,15 +18,6 @@ pub struct PyDictObject {
     pub ma_values: *mut *mut PyObject,
     #[cfg(Py_3_11)]
     pub ma_values: *mut PyDictValues,
-}
-
-#[cfg(PyPy)]
-#[repr(C)]
-#[derive(Debug)]
-pub struct PyDictObject {
-    pub ob_base: PyObject,
-    // a private place to put keys during PyDict_Next
-    _tmpkeys: *mut PyObject,
 }
 
 extern "C" {

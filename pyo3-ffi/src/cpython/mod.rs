@@ -1,6 +1,5 @@
 pub(crate) mod abstract_;
 // skipped bytearrayobject.h
-#[cfg(not(PyPy))]
 pub(crate) mod bytesobject;
 #[cfg(not(PyPy))]
 pub(crate) mod ceval;
@@ -19,7 +18,6 @@ pub(crate) mod import;
 pub(crate) mod initconfig;
 // skipped interpreteridobject.h
 pub(crate) mod listobject;
-
 #[cfg(all(Py_3_9, not(PyPy)))]
 pub(crate) mod methodobject;
 pub(crate) mod object;
@@ -36,7 +34,6 @@ pub(crate) mod unicodeobject;
 pub(crate) mod weakrefobject;
 
 pub use self::abstract_::*;
-#[cfg(not(PyPy))]
 pub use self::bytesobject::*;
 #[cfg(not(PyPy))]
 pub use self::ceval::*;
