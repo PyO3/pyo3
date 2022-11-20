@@ -88,7 +88,8 @@ Traceback (most recent call last):
 ValueError: invalid digit found in string
 ```
 
-As a more complete example, the following snippet defines a Rust error named `CustomIOError`. It then defines a `From<CustomIOError> for PyErr`, which returns a `PyErr` representing Python's `OSError`. Finally, it
+As a more complete example, the following snippet defines a Rust error named `CustomIOError`. It then defines a `From<CustomIOError> for PyErr`, which returns a `PyErr` representing Python's `OSError`.
+Therefore, it can use this error in the result of a `#[pyfunction]` directly, relying on the conversion if it has to be propagated into a Python exception.
 
 ```rust
 use pyo3::exceptions::PyOSError;
@@ -125,6 +126,7 @@ fn bind(addr: String) -> Result<Connection, CustomIOError> {
 #[pyfunction]
 fn connect(s: String) -> Result<(), CustomIOError> {
     bind(s)?;
+    // etc.
     Ok(())
 }
 

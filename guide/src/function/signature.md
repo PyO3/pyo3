@@ -94,7 +94,7 @@ num=44
 num=-1
 ```
 
-> Note: for keywords like `struct`, to use it as a function argument, use "raw ident" syntax `r#struct` in both the signature and the function definition:
+> Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
 > ```rust
 > # #![allow(dead_code)]
