@@ -259,7 +259,7 @@ mod inheriting_native_type {
     #[pymethods]
     impl CustomException {
         #[new]
-        fn new() -> Self {
+        fn new(_exc_arg: &PyAny) -> Self {
             CustomException {
                 context: "Hello :)",
             }

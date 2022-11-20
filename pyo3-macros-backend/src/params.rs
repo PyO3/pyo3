@@ -32,10 +32,6 @@ pub fn impl_arg_params(
     py: &syn::Ident,
     fastcall: bool,
 ) -> Result<(TokenStream, Vec<TokenStream>)> {
-    if spec.signature.arguments.is_empty() {
-        return Ok((TokenStream::new(), vec![]));
-    }
-
     let args_array = syn::Ident::new("output", Span::call_site());
 
     if !fastcall && is_forwarded_args(&spec.signature) {
