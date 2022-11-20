@@ -233,7 +233,7 @@ Consult the table below to determine which type your constructor should return:
 
 ## Inheritance
 
-By default, `PyAny` is used as the base class. To override this default,
+By default, `object`, i.e. `PyAny` is used as the base class. To override this default,
 use the `extends` parameter for `pyclass` with the full path to the base class.
 
 For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
@@ -310,7 +310,8 @@ impl SubSubClass {
 ```
 
 You can also inherit native types such as `PyDict`, if they implement
-[`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html). However, this is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
+[`PySizedLayout`]({{#PYO3_DOCS_URL}}/pyo3/type_object/trait.PySizedLayout.html).
+This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 However, because of some technical problems, we don't currently provide safe upcasting methods for types
 that inherit native types. Even in such cases, you can unsafely get a base class by raw pointer conversion.
@@ -334,6 +335,7 @@ impl DictWithCounter {
     fn new() -> Self {
         Self::default()
     }
+
     fn set(mut self_: PyRefMut<'_, Self>, key: String, value: &PyAny) -> PyResult<()> {
         self_.counter.entry(key.clone()).or_insert(0);
         let py = self_.py();
@@ -370,6 +372,42 @@ impl SubClass {
     }
 }
 ```
+
+The `__new__` constructor of a native base class is called implicitly when
+creating a new instance from Python.  Be sure to accept arguments in the
+`#[new]` method that you want the base class to get, even if they are not used
+in that `fn`:
+
+```rust
+# #[allow(dead_code)]
+# #[cfg(not(Py_LIMITED_API))] {
+# use pyo3::prelude::*;
+use pyo3::types::PyDict;
+
+#[pyclass(extends=PyDict)]
+struct MyDict {
+    private: i32,
+}
+
+#[pymethods]
+impl MyDict {
+    #[new]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(args: &PyAny, kwargs: Option<&PyAny>) -> Self {
+        Self { private: 0 }
+    }
+
+    // some custom methods that use `private` here...
+}
+# Python::with_gil(|py| {
+#     let cls = py.get_type::<MyDict>();
+#     pyo3::py_run!(py, cls, "cls(a=1, b=2)")
+# });
+# }
+```
+
+Here, the `args` and `kwargs` allow creating instances of the subclass passing
+initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 
 ## Object properties
 
