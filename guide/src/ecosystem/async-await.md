@@ -131,7 +131,6 @@ fn my_async_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     Ok(())
 }
-
 ```
 
 If you want to use `tokio` instead, here's what your module should look like:

@@ -89,7 +89,7 @@ For a `&PyAny` object reference `any` where the underlying object is a `#[pyclas
 # use pyo3::{Py, Python, PyAny, PyResult};
 # #[pyclass] #[derive(Clone)] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let obj: &PyAny = Py::new(py, MyClass { })?.into_ref(py);
+let obj: &PyAny = Py::new(py, MyClass {})?.into_ref(py);
 
 // To &PyCell<MyClass> with PyAny::downcast
 let _: &PyCell<MyClass> = obj.downcast()?;
@@ -238,7 +238,7 @@ so it also exposes all of the methods on `PyAny`.
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // To PyRef<T> with .borrow() or .try_borrow()
 let py_ref: PyRef<'_, MyClass> = cell.try_borrow()?;
@@ -258,7 +258,7 @@ let _: &mut MyClass = &mut *py_ref_mut;
 # use pyo3::prelude::*;
 # #[pyclass] struct MyClass { }
 # Python::with_gil(|py| -> PyResult<()> {
-let cell: &PyCell<MyClass> = PyCell::new(py, MyClass { })?;
+let cell: &PyCell<MyClass> = PyCell::new(py, MyClass {})?;
 
 // Use methods from PyAny on PyCell<T> with Deref implementation
 let _ = cell.repr()?;

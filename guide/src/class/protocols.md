@@ -48,7 +48,7 @@ given signatures should be interpreted as follows:
     # use pyo3::prelude::*;
     #
     #[pyclass]
-    struct NotHashable { }
+    struct NotHashable {}
 
     #[pymethods]
     impl NotHashable {
@@ -229,7 +229,7 @@ Use the `#[pyclass(sequence)]` annotation to instruct PyO3 to fill the `sq_lengt
     # use pyo3::prelude::*;
     #
     #[pyclass]
-    struct NoContains { }
+    struct NoContains {}
 
     #[pymethods]
     impl NoContains {

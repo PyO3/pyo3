@@ -43,7 +43,9 @@ fn main() -> PyResult<()> {
                     print('called with no arguments')",
             "",
             "",
-        )?.getattr("example")?.into();
+        )?
+        .getattr("example")?
+        .into();
 
         // call object without any arguments
         fun.call0(py)?;
@@ -87,8 +89,9 @@ fn main() -> PyResult<()> {
                     print('called with no arguments')",
             "",
             "",
-        )?.getattr("example")?.into();
-
+        )?
+        .getattr("example")?
+        .into();
 
         // call object with PyDict
         let kwargs = [(key1, val1)].into_py_dict(py);
@@ -104,7 +107,7 @@ fn main() -> PyResult<()> {
         fun.call(py, (), Some(kwargs.into_py_dict(py)))?;
 
         Ok(())
-   })
+    })
 }
 ```
 
@@ -124,7 +127,10 @@ use pyo3::prelude::*;
 fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         let builtins = PyModule::import(py, "builtins")?;
-        let total: i32 = builtins.getattr("sum")?.call1((vec![1, 2, 3],))?.extract()?;
+        let total: i32 = builtins
+            .getattr("sum")?
+            .call1((vec![1, 2, 3],))?
+            .extract()?;
         assert_eq!(total, 6);
         Ok(())
     })
@@ -142,9 +148,11 @@ use pyo3::prelude::*;
 
 # fn main() -> Result<(), ()> {
 Python::with_gil(|py| {
-    let result = py.eval("[i * 10 for i in range(5)]", None, None).map_err(|e| {
-        e.print_and_set_sys_last_vars(py);
-    })?;
+    let result = py
+        .eval("[i * 10 for i in range(5)]", None, None)
+        .map_err(|e| {
+            e.print_and_set_sys_last_vars(py);
+        })?;
     let res: Vec<i64> = result.extract().unwrap();
     assert_eq!(res, vec![0, 10, 20, 30, 40]);
     Ok(())
@@ -228,7 +236,8 @@ def leaky_relu(x, slope=0.01):
 
     let kwargs = [("slope", 0.2)].into_py_dict(py);
     let lrelu_result: f64 = activators
-        .getattr("leaky_relu")?.call((-1.0,), Some(kwargs))?
+        .getattr("leaky_relu")?
+        .call((-1.0,), Some(kwargs))?
         .extract()?;
     assert_eq!(lrelu_result, -0.2);
 #    Ok(())

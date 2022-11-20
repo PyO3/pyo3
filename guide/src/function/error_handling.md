@@ -112,10 +112,10 @@ impl std::convert::From<CustomIOError> for PyErr {
     }
 }
 
-pub struct Connection { /* ... */}
+pub struct Connection {/* ... */}
 
 fn bind(addr: String) -> Result<Connection, CustomIOError> {
-    if &addr == "0.0.0.0"{
+    if &addr == "0.0.0.0" {
         Err(CustomIOError)
     } else {
         Ok(Connection{ /* ... */})

@@ -14,13 +14,13 @@ This allows us to write code like the following
 
 ```rust,ignore
 #[cfg(Py_3_7)]
-fn function_only_supported_on_python_3_7_and_up() { }
+fn function_only_supported_on_python_3_7_and_up() {}
 
 #[cfg(not(Py_3_8))]
-fn function_only_supported_before_python_3_8() { }
+fn function_only_supported_before_python_3_8() {}
 
 #[cfg(not(Py_LIMITED_API))]
-fn function_incompatible_with_abi3_feature() { }
+fn function_incompatible_with_abi3_feature() {}
 ```
 
 The following sections first show how to add these `#[cfg]` flags to your build process, and then cover some common patterns flags in a little more detail.
@@ -98,11 +98,10 @@ PyO3 provides the APIs [`Python::version()`] and [`Python::version_info()`] to q
 use pyo3::Python;
 
 Python::with_gil(|py| {
-   // PyO3 supports Python 3.7 and up.
-   assert!(py.version_info() >= (3, 7));
-   assert!(py.version_info() >= (3, 7, 0));
+    // PyO3 supports Python 3.7 and up.
+    assert!(py.version_info() >= (3, 7));
+    assert!(py.version_info() >= (3, 7, 0));
 });
-
 ```
 
 [`Python::version()`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Python.html#method.version

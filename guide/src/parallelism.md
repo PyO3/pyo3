@@ -43,7 +43,7 @@ But let's assume you have a long running Rust function which you would like to e
 #     }
 #     total
 # }
-# 
+#
 fn search_sequential(contents: &str, needle: &str) -> usize {
     contents.lines().map(|line| count_line(line, needle)).sum()
 }
@@ -63,7 +63,7 @@ To enable parallel execution of this function, the [`Python::allow_threads`] met
 #     }
 #     total
 # }
-# 
+#
 # fn search_sequential(contents: &str, needle: &str) -> usize {
 #    contents.lines().map(|line| count_line(line, needle)).sum()
 # }

@@ -50,7 +50,9 @@ The `#[pyo3]` attribute can be used to modify properties of the generated Python
 
     #[pyfunction]
     #[pyo3(name = "no_args")]
-    fn no_args_py() -> usize { 42 }
+    fn no_args_py() -> usize {
+        42
+    }
 
     #[pymodule]
     fn module_with_functions(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -185,8 +187,6 @@ fn add(a: u64, b: u64) -> u64 {
 
 /// sub(a, b, /)
 /// --
-///
-///
 #[pyfunction]
 fn sub(a: u64, b: u64) -> u64 {
     a - b
@@ -255,7 +255,6 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-
     #[pyfn(m)]
     fn double(x: usize) -> usize {
         x * 2
@@ -273,7 +272,6 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn my_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-
     #[pyfunction]
     fn double(x: usize) -> usize {
         x * 2

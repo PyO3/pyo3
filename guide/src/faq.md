@@ -86,7 +86,7 @@ You may have a nested struct similar to this:
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
-struct Inner { /* fields omitted */ }
+struct Inner {/* fields omitted */}
 
 #[pyclass]
 struct Outer {
@@ -126,7 +126,7 @@ If you don't want that cloning to happen, a workaround is to allocate the field 
 # use pyo3::prelude::*;
 #[pyclass]
 #[derive(Clone)]
-struct Inner { /* fields omitted */ }
+struct Inner {/* fields omitted */}
 
 #[pyclass]
 struct Outer {

@@ -27,7 +27,7 @@ use pyo3::prelude::*;
 
 #[pyclass]
 struct MyClass {
-   num: u32,
+    num: u32,
 }
 
 #[pymethods]

@@ -26,8 +26,8 @@ To define a custom Python class, add the `#[pyclass]` attribute to a Rust struct
 use pyo3::prelude::*;
 
 #[pyclass]
-struct Integer{
-    inner: i32
+struct Integer {
+    inner: i32,
 }
 
 // A "tuple" struct
@@ -166,7 +166,7 @@ struct MyClass {
     num: i32,
 }
 Python::with_gil(|py| {
-    let obj = PyCell::new(py, MyClass { num: 3}).unwrap();
+    let obj = PyCell::new(py, MyClass { num: 3 }).unwrap();
     {
         let obj_ref = obj.borrow(); // Get PyRef
         assert_eq!(obj_ref.num, 3);
@@ -204,7 +204,7 @@ fn return_myclass() -> Py<MyClass> {
 
 let obj = return_myclass();
 
-Python::with_gil(|py|{
+Python::with_gil(|py| {
     let cell = obj.as_ref(py); // Py<MyClass>::as_ref returns &PyCell<MyClass>
     let obj_ref = cell.borrow(); // Get PyRef<T>
     assert_eq!(obj_ref.num, 1);
@@ -279,7 +279,7 @@ impl SubClass {
     }
 
     fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let super_ = self_.as_ref();  // Get &BaseClass
+        let super_ = self_.as_ref(); // Get &BaseClass
         super_.method().map(|x| x * self_.val2)
     }
 }
@@ -293,13 +293,12 @@ struct SubSubClass {
 impl SubSubClass {
     #[new]
     fn new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from(SubClass::new())
-            .add_subclass(SubSubClass{val3: 20})
+        PyClassInitializer::from(SubClass::new()).add_subclass(SubSubClass { val3: 20 })
     }
 
     fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
-        let super_ = self_.into_super();  // Get PyRef<'_, SubClass>
+        let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 }
@@ -426,7 +425,7 @@ For simple cases where a member variable is just read and written with no side e
 #[pyclass]
 struct MyClass {
     #[pyo3(get, set)]
-    num: i32
+    num: i32,
 }
 ```
 
@@ -937,7 +936,7 @@ You may not use enums as a base class or let enums inherit from other classes.
 ```rust,compile_fail
 # use pyo3::prelude::*;
 #[pyclass(subclass)]
-enum BadBase{
+enum BadBase {
     Var1,
 }
 ```
@@ -949,7 +948,7 @@ enum BadBase{
 struct Base;
 
 #[pyclass(extends=Base)]
-enum BadSubclass{
+enum BadSubclass {
     Var1,
 }
 ```
