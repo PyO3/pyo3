@@ -475,7 +475,7 @@ impl CompareOp {
     ///
     /// #[pyclass]
     /// struct Size {
-    ///     size: usize
+    ///     size: usize,
     /// }
     ///
     /// #[pymethods]

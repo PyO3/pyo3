@@ -32,8 +32,8 @@ impl PyModule {
     /// ``` rust
     /// use pyo3::prelude::*;
     ///
-    /// # fn main() -> PyResult<()>{
-    /// Python::with_gil(|py| -> PyResult<()>{
+    /// # fn main() -> PyResult<()> {
+    /// Python::with_gil(|py| -> PyResult<()> {
     ///     let module = PyModule::new(py, "my_module")?;
     ///
     ///     assert_eq!(module.name()?, "my_module");
@@ -52,7 +52,7 @@ impl PyModule {
     /// # Examples
     ///
     /// ```no_run
-    /// # fn main(){
+    /// # fn main() {
     /// use pyo3::prelude::*;
     ///
     /// Python::with_gil(|py| {

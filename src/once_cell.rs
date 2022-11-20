@@ -123,20 +123,20 @@ impl<T> GILOnceCell<T> {
 ///
 /// #[pyfunction]
 /// fn create_dict(py: Python<'_>) -> PyResult<&PyDict> {
-///    let dict = PyDict::new(py);
-///    //             👇 A new `PyString` is created
-///    //                for every call of this function.
-///    dict.set_item("foo", 42)?;
-///    Ok(dict)
+///     let dict = PyDict::new(py);
+///     //             👇 A new `PyString` is created
+///     //                for every call of this function.
+///     dict.set_item("foo", 42)?;
+///     Ok(dict)
 /// }
 ///
 /// #[pyfunction]
 /// fn create_dict_faster(py: Python<'_>) -> PyResult<&PyDict> {
-///    let dict = PyDict::new(py);
-///    //               👇 A `PyString` is created once and reused
-///    //                  for the lifetime of the program.
-///    dict.set_item(intern!(py, "foo"), 42)?;
-///    Ok(dict)
+///     let dict = PyDict::new(py);
+///     //               👇 A `PyString` is created once and reused
+///     //                  for the lifetime of the program.
+///     dict.set_item(intern!(py, "foo"), 42)?;
+///     Ok(dict)
 /// }
 /// #
 /// # Python::with_gil(|py| {

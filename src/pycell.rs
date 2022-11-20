@@ -105,7 +105,7 @@
 //!     // `PyRefMut` before borrowing again.
 //!     drop(guard);
 //!
-//!     let n_immutable : &Number = &n.as_ref(py).borrow();
+//!     let n_immutable: &Number = &n.as_ref(py).borrow();
 //!     assert_eq!(n_immutable.inner, 1);
 //!
 //!     Ok(())
@@ -127,7 +127,7 @@
 //!     std::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
-//! #     Python::with_gil(|py|{
+//! #     Python::with_gil(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -164,7 +164,7 @@
 //! }
 //! # fn main() {
 //! #     // With duplicate numbers
-//! #     Python::with_gil(|py|{
+//! #     Python::with_gil(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = n.clone_ref(py);
 //! #         assert!(n.is(&n2));
@@ -173,7 +173,7 @@
 //! #     });
 //! #
 //! #     // With two different numbers
-//! #     Python::with_gil(|py|{
+//! #     Python::with_gil(|py| {
 //! #         let n = Py::new(py, Number{inner: 35}).unwrap();
 //! #         let n2 = Py::new(py, Number{inner: 42}).unwrap();
 //! #         assert!(!n.is(&n2));

@@ -16,28 +16,28 @@ use std::os::raw::{c_char, c_int, c_void};
 ///
 /// # Example
 /// ```
-///  use std::ffi::CString;
-///  use pyo3::{prelude::*, types::PyCapsule};
+/// use pyo3::{prelude::*, types::PyCapsule};
+/// use std::ffi::CString;
 ///
-///  #[repr(C)]
-///  struct Foo {
-///      pub val: u32,
-///  }
+/// #[repr(C)]
+/// struct Foo {
+///     pub val: u32,
+/// }
 ///
-///  let r = Python::with_gil(|py| -> PyResult<()> {
-///      let foo = Foo { val: 123 };
-///      let name = CString::new("builtins.capsule").unwrap();
+/// let r = Python::with_gil(|py| -> PyResult<()> {
+///     let foo = Foo { val: 123 };
+///     let name = CString::new("builtins.capsule").unwrap();
 ///
-///      let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
+///     let capsule = PyCapsule::new(py, foo, Some(name.clone()))?;
 ///
-///      let module = PyModule::import(py, "builtins")?;
-///      module.add("capsule", capsule)?;
+///     let module = PyModule::import(py, "builtins")?;
+///     module.add("capsule", capsule)?;
 ///
-///      let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
-///      assert_eq!(cap.val, 123);
-///      Ok(())
-///  });
-///  assert!(r.is_ok());
+///     let cap: &Foo = unsafe { PyCapsule::import(py, name.as_ref())? };
+///     assert_eq!(cap.val, 123);
+///     Ok(())
+/// });
+/// assert!(r.is_ok());
 /// ```
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);

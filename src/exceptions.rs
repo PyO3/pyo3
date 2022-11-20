@@ -154,7 +154,7 @@ macro_rules! import_exception {
 /// create_exception!(my_module, MyError, PyException, "Some description.");
 ///
 /// #[pyfunction]
-/// fn raise_myerror() -> PyResult<()>{
+/// fn raise_myerror() -> PyResult<()> {
 ///     let err = MyError::new_err("Some error happened.");
 ///     Err(err)
 /// }
@@ -636,7 +636,7 @@ impl PyUnicodeDecodeError {
     /// use pyo3::exceptions::PyUnicodeDecodeError;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py|{
+    /// Python::with_gil(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
     ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;

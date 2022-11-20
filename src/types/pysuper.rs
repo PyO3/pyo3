@@ -18,7 +18,7 @@ impl PySuper {
     /// ```rust
     /// use pyo3::prelude::*;
     ///
-    ///#[pyclass(subclass)]
+    /// #[pyclass(subclass)]
     /// struct BaseClass {
     ///     val1: usize,
     /// }

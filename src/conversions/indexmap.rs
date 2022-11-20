@@ -68,7 +68,7 @@
 //!
 //! #[pyfunction]
 //! fn calculate_statistics(data: Vec<i32>) -> IndexMap<&'static str, f32> {
-//!     indexmap!{
+//!     indexmap! {
 //!        "median" => median(&data),
 //!        "mean" => mean(&data),
 //!        "mode" => mode(&data),
