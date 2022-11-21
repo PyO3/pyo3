@@ -1,0 +1,199 @@
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+      python-architecture:
+        required: true
+        type: string
+      rust:
+        required: true
+        type: string
+      rust-target:
+        required: true
+        type: string
+      msrv:
+        required: false
+        type: string
+      extra-features:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          architecture: ${{ inputs.python-architecture }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust }}
+          targets: ${{ inputs.rust-target }}
+          # needed to correctly format errors, see #1865
+          components: rust-src
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-${{ inputs.python-architecture }}-${{ inputs.os }}-${{ inputs.msrv }}
+        continue-on-error: true
+
+      - if: inputs.os == 'ubuntu-latest'
+        name: Prepare LD_LIBRARY_PATH (Ubuntu only)
+        run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
+
+      - if: inputs.msrv == 'MSRV'
+        name: Prepare minimal package versions (MSRV only)
+        run: |
+          set -x
+          cargo update -p indexmap --precise 1.6.2
+          cargo update -p hashbrown:0.12.3 --precise 0.9.1
+          PROJECTS=("." "examples/decorator" "examples/maturin-starter" "examples/setuptools-rust-starter" "examples/word-count")
+          for PROJ in ${PROJECTS[@]}; do
+            cargo update --manifest-path "$PROJ/Cargo.toml" -p parking_lot --precise 0.11.0
+            cargo update --manifest-path "$PROJ/Cargo.toml" -p once_cell --precise 1.14.0
+          done
+          cargo update --manifest-path "examples/word-count/Cargo.toml" -p rayon --precise 1.5.3
+          cargo update --manifest-path "examples/word-count/Cargo.toml" -p rayon-core --precise 1.9.3
+          cargo update -p plotters --precise 0.3.1
+          cargo update -p plotters-svg --precise 0.3.1
+          cargo update -p plotters-backend --precise 0.3.2
+          cargo update -p bumpalo --precise 3.10.0
+          cargo update -p once_cell --precise 1.14.0
+          cargo update -p rayon --precise 1.5.3
+          cargo update -p rayon-core --precise 1.9.3
+
+      - name: Build docs
+        run: cargo doc --no-deps --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      - name: Build (no features)
+        run: cargo build --lib --tests --no-default-features
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Build pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo build --no-default-features
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test (no features)
+        run: cargo test --no-default-features --lib --tests
+
+      # --no-default-features when used with `cargo build/test -p` doesn't seem to work!
+      - name: Test pyo3-build-config (no features)
+        run: |
+          cd pyo3-build-config
+          cargo test --no-default-features
+
+      - name: Build (all additive features)
+        run: cargo build --lib --tests --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      - if: ${{ startsWith(inputs.python-version, 'pypy') }}
+        name: Build PyPy (abi3-py37)
+        run: cargo build --lib --tests --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+
+      # Run tests (except on PyPy, because no embedding API).
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test
+        run: cargo test --no-default-features --features "full ${{ inputs.extra-features }}"
+
+      # Run tests again, but in abi3 mode
+      - if: ${{ !startsWith(inputs.python-version, 'pypy') }}
+        name: Test (abi3)
+        run: cargo test --no-default-features --features "abi3 full ${{ inputs.extra-features }}"
+
+      # Run tests again, for abi3-py37 (the minimal Python version)
+      - if: ${{ (!startsWith(inputs.python-version, 'pypy')) && (inputs.python-version != '3.7') }}
+        name: Test (abi3-py37)
+        run: cargo test --no-default-features --features "abi3-py37 full ${{ inputs.extra-features }}"
+
+      - name: Test proc-macro code
+        run: cargo test --manifest-path=pyo3-macros-backend/Cargo.toml
+
+      - name: Test build config
+        run: cargo test --manifest-path=pyo3-build-config/Cargo.toml
+
+      - name: Test python examples and tests
+        shell: bash
+        run: |
+          python -m pip install -U pip nox
+          nox -s test-py
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+
+      - name: Test cross compilation
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
+        with:
+          target: aarch64-unknown-linux-gnu
+          manylinux: auto
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - run: sudo rm -rf examples/maturin-starter/target
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+      - name: Test cross compile to same architecture
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_CROSS_LIB_DIR: /opt/python/cp39-cp39/lib
+        with:
+          target: x86_64-unknown-linux-gnu
+          manylinux: auto
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - name: Test cross compilation
+        if: ${{ inputs.os == 'macos-latest' && inputs.python-version == '3.9' }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64-apple-darwin
+          args: --release -i python3.9 -m examples/maturin-starter/Cargo.toml
+
+      - name: Test cross compile to Windows
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
+        env:
+          XWIN_ARCH: x86_64
+        run: |
+          set -ex
+          sudo apt-get install -y mingw-w64 llvm
+          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+          python -m pip install cargo-xwin
+          # abi3
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
+          # non-abi3
+          export PYO3_CROSS_PYTHON_VERSION=3.9
+          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
+          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
+      - name: Test cross compile to Windows with maturin
+        if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-pc-windows-gnu
+          args: -i python3.8 -m examples/maturin-starter/Cargo.toml --features abi3
+
+    env:
+      CARGO_TERM_VERBOSE: true
+      CARGO_BUILD_TARGET: ${{ inputs.rust-target }}
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"
+      # TODO: this is a hack to workaround compile_error! warnings about auto-initialize on PyPy
+      # Once cargo's `resolver = "2"` is stable (~ MSRV Rust 1.52), remove this.
+      PYO3_CI: 1
+      # This is a hack to make CARGO_PRIMARY_PACKAGE always set even for the
+      # msrv job. MSRV is currently 1.48, but CARGO_PRIMARY_PACKAGE only came in
+      # 1.49.
+      CARGO_PRIMARY_PACKAGE: 1
