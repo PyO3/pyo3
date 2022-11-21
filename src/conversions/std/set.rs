@@ -1,8 +1,8 @@
 use std::{cmp, collections, hash};
 
 use crate::{
-    inspect::types::TypeInfo, types::PySet, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    err::PyDowncastError, inspect::types::TypeInfo, types::PyFrozenSet, types::PySet, FromPyObject,
+    IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -62,8 +62,13 @@ where
     S: hash::BuildHasher + Default,
 {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let set: &PySet = ob.downcast()?;
-        set.iter().map(K::extract).collect()
+        ob.downcast::<PyFrozenSet>()
+            .map_err(|e| e.into())
+            .and_then(|frozenset| frozenset.iter().map(K::extract).collect())
+            .or_else(|_| {
+                let set: &PySet = ob.downcast()?;
+                set.iter().map(K::extract).collect()
+            })
     }
 
     fn type_input() -> TypeInfo {
