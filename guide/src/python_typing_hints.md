@@ -10,6 +10,8 @@ Currently the best solution for the problem is to maintain manually the `*.pyi` 
 
 > A stubs file only contains a description of the public interface of the module without any implementations.
 
+There is also [extensive documentation on type stubs on the offical Python typing documentation](https://typing.readthedocs.io/en/latest/source/stubs.html).
+
 Probably most Python developers encountered them already when trying to use the IDE "Go to Definition" function on any builtin type. For example the definitions of few standard exceptions look like this:
 
 ```python
