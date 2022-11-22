@@ -118,10 +118,7 @@ where
 }
 
 const STATE_INTERNED_INDEX: usize = 0;
-#[cfg(not(Py_3_12))]
 const STATE_INTERNED_WIDTH: u8 = 2;
-#[cfg(Py_3_12)]
-const STATE_INTERNED_WIDTH: u8 = 1;
 
 const STATE_KIND_INDEX: usize = STATE_INTERNED_WIDTH as usize;
 const STATE_KIND_WIDTH: u8 = 3;
@@ -265,20 +262,22 @@ pub struct PyASCIIObject {
 
 /// Interacting with the bitfield is not actually well-defined, so we mark these APIs unsafe.
 impl PyASCIIObject {
+    #[cfg_attr(not(Py_3_12), allow(rustdoc::broken_intra_doc_links))] // SSTATE_INTERNED_IMMORTAL_STATIC requires 3.12
     /// Get the `interned` field of the [`PyASCIIObject`] state bitfield.
     ///
     /// Returns one of: [`SSTATE_NOT_INTERNED`], [`SSTATE_INTERNED_MORTAL`],
-    /// or on CPython earlier than 3.12, [`SSTATE_INTERNED_IMMORTAL`]
+    /// [`SSTATE_INTERNED_IMMORTAL`], or [`SSTATE_INTERNED_IMMORTAL_STATIC`].
     #[inline]
     pub unsafe fn interned(&self) -> c_uint {
         PyASCIIObjectState::from(self.state).interned()
     }
 
+    #[cfg_attr(not(Py_3_12), allow(rustdoc::broken_intra_doc_links))] // SSTATE_INTERNED_IMMORTAL_STATIC requires 3.12
     /// Set the `interned` field of the [`PyASCIIObject`] state bitfield.
     ///
     /// Calling this function with an argument that is not [`SSTATE_NOT_INTERNED`],
-    /// [`SSTATE_INTERNED_MORTAL`], or on CPython earlier than 3.12,
-    /// [`SSTATE_INTERNED_IMMORTAL`] is invalid.
+    /// [`SSTATE_INTERNED_MORTAL`], [`SSTATE_INTERNED_IMMORTAL`], or
+    /// [`SSTATE_INTERNED_IMMORTAL_STATIC`] is invalid.
     #[inline]
     pub unsafe fn set_interned(&mut self, val: c_uint) {
         let mut state = PyASCIIObjectState::from(self.state);
@@ -398,12 +397,14 @@ extern "C" {
 
 pub const SSTATE_NOT_INTERNED: c_uint = 0;
 pub const SSTATE_INTERNED_MORTAL: c_uint = 1;
-#[cfg(not(Py_3_12))]
 pub const SSTATE_INTERNED_IMMORTAL: c_uint = 2;
+#[cfg(Py_3_12)]
+pub const SSTATE_INTERNED_IMMORTAL_STATIC: c_uint = 3;
 
 #[inline]
 pub unsafe fn PyUnicode_IS_ASCII(op: *mut PyObject) -> c_uint {
     debug_assert!(crate::PyUnicode_Check(op) != 0);
+    #[cfg(not(Py_3_12))]
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).ascii()
@@ -420,7 +421,7 @@ pub unsafe fn PyUnicode_IS_COMPACT_ASCII(op: *mut PyObject) -> c_uint {
 }
 
 #[cfg(not(Py_3_12))]
-#[cfg_attr(Py_3_10, deprecated(note = "Python 3.10"))]
+#[deprecated(note = "Removed in Python 3.12")]
 pub const PyUnicode_WCHAR_KIND: c_uint = 0;
 
 pub const PyUnicode_1BYTE_KIND: c_uint = 1;
@@ -445,6 +446,7 @@ pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
 #[inline]
 pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
     debug_assert!(crate::PyUnicode_Check(op) != 0);
+    #[cfg(not(Py_3_12))]
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).kind()
@@ -484,6 +486,7 @@ pub unsafe fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void {
 #[inline]
 pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
     debug_assert!(crate::PyUnicode_Check(op) != 0);
+    #[cfg(not(Py_3_12))]
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).length
@@ -502,8 +505,13 @@ pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
     (*(op as *mut PyASCIIObject)).ready()
 }
 
+#[cfg(Py_3_12)]
+#[inline]
+pub unsafe fn PyUnicode_READY(_op: *mut PyObject) -> c_int {
+    0
+}
+
 #[cfg(not(Py_3_12))]
-#[cfg_attr(Py_3_10, deprecated(note = "Python 3.10"))]
 #[inline]
 pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
     debug_assert!(crate::PyUnicode_Check(op) != 0);

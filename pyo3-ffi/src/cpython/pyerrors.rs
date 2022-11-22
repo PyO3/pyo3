@@ -65,6 +65,8 @@ pub struct PyImportErrorObject {
     pub msg: *mut PyObject,
     pub name: *mut PyObject,
     pub path: *mut PyObject,
+    #[cfg(Py_3_12)]
+    pub name_from: *mut PyObject,
 }
 
 #[cfg(not(PyPy))]
