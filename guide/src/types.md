@@ -37,7 +37,7 @@ mutable Rust reference for mutating operations such as
 be created through `Python<'_>` with a GIL lifetime) is sufficient.
 
 However, Rust structs wrapped as Python objects (called `pyclass` types) usually
-*do* need `&mut` access.  Due to the GIL, PyO3 *can* guarantee thread-safe acces
+*do* need `&mut` access.  Due to the GIL, PyO3 *can* guarantee thread-safe access
 to them, but it cannot statically guarantee uniqueness of `&mut` references once
 an object's ownership has been passed to the Python interpreter, ensuring
 references is done at runtime using `PyCell`, a scheme very similar to
@@ -227,7 +227,7 @@ wrapped in a Python object.  The cell part is an analog to stdlib's
 taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules of
 Rust references.
 
-Like pyo3's Python native types, `PyCell<T>` implements `Deref<Target = PyAny>`,
+Like PyO3's Python native types, `PyCell<T>` implements `Deref<Target = PyAny>`,
 so it also exposes all of the methods on `PyAny`.
 
 **Conversions:**

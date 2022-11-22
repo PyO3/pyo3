@@ -210,7 +210,7 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 ## You have a Python file or code snippet? Then use `PyModule::from_code`.
 
-[PyModule::from_code]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
+[`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code)
 can be used to generate a Python module which can then be used just as if it was imported with
 `PyModule::import`.
 

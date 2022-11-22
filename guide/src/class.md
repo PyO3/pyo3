@@ -237,7 +237,7 @@ By default, `object`, i.e. `PyAny` is used as the base class. To override this d
 use the `extends` parameter for `pyclass` with the full path to the base class.
 
 For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
-baseclass of `T`.
+base class of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
 
@@ -349,7 +349,7 @@ impl DictWithCounter {
 # }
 ```
 
-If `SubClass` does not provide a baseclass initialization, the compilation fails.
+If `SubClass` does not provide a base class initialization, the compilation fails.
 ```rust,compile_fail
 # use pyo3::prelude::*;
 

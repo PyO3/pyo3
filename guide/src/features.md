@@ -1,6 +1,6 @@
 # Features reference
 
-PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.
+PyO3 provides a number of Cargo features to customize functionality. This chapter of the guide provides detail on each of them.
 
 By default, only the `macros` feature is enabled.
 
@@ -77,7 +77,7 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the `Python::allow_threads` function.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
 
 ### `resolve-config`
 
@@ -125,7 +125,7 @@ Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conv
 
 ### `serde`
 
-Enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
+Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust

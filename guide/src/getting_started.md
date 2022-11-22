@@ -65,7 +65,7 @@ After this, you should install your build manager. In this example, we will use 
 pip install maturin
 ```
 
-Now you can initialise the new project:
+Now you can initialize the new project:
 
 ```bash
 maturin init
