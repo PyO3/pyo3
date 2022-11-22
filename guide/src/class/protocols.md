@@ -11,8 +11,8 @@ The magic methods handled by PyO3 are very similar to the standard Python ones o
  - Magic methods for the buffer protocol
 
 When PyO3 handles a magic method, a couple of changes apply compared to other `#[pymethods]`:
- - The `#[pyo3(text_signature = "...")]` attribute is not allowed
- - The signature is restricted to match the magic method
+ - The Rust function signature is restricted to match the magic method.
+ - The `#[pyo3(signature = (...)]` and `#[pyo3(text_signature = "...")]` attributes are not allowed.
 
 The following sections list of all magic methods PyO3 currently handles.  The
 given signatures should be interpreted as follows:
