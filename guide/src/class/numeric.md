@@ -395,7 +395,6 @@ fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #         Ok(())
 #     })
 # }
-
 ```
 
 ## Appendix: Writing some unsafe code

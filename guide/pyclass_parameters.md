@@ -24,12 +24,12 @@ more accompanying `#[pyo3(...)]` annotations, e.g.:
 ```rust,ignore
 // Argument supplied directly to the `#[pyclass]` annotation.
 #[pyclass(name = "SomeName", subclass)]
-struct MyClass { }
+struct MyClass {}
 
 // Argument supplied as a separate annotation.
 #[pyclass]
 #[pyo3(name = "SomeName", subclass)]
-struct MyClass { }
+struct MyClass {}
 ```
 
 [params-1]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html

@@ -138,14 +138,14 @@ This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.
 #[pyclass]
 #[derive(Serialize, Deserialize)]
 struct Permission {
-    name: String
+    name: String,
 }
 
 #[pyclass]
 #[derive(Serialize, Deserialize)]
 struct User {
     username: String,
-    permissions: Vec<Py<Permission>>
+    permissions: Vec<Py<Permission>>,
 }
 # }
 ```

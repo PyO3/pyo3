@@ -40,10 +40,10 @@ print(n)
 ### String representations
 
 It can't even print an user-readable representation of itself! We can fix that by defining the
- `__repr__` and `__str__` methods inside a `#[pymethods]` block. We do this by accessing the value
- contained inside `Number`.
+`__repr__` and `__str__` methods inside a `#[pymethods]` block. We do this by accessing the value
+contained inside `Number`.
 
- ```rust
+```rust
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -114,13 +114,13 @@ impl Number {
 > ```rust
 > # use pyo3::prelude::*;
 > #[pyclass]
-> struct NotHashable { }
+> struct NotHashable {}
 >
 > #[pymethods]
 > impl NotHashable {
->    #[classattr]
->    const __hash__: Option<Py<PyAny>> = None;
->}
+>     #[classattr]
+>     const __hash__: Option<Py<PyAny>> = None;
+> }
 > ```
 
 ### Comparisons

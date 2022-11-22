@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from glob import glob
 from pathlib import Path
@@ -229,6 +230,58 @@ def test_emscripten(session: nox.Session):
 @nox.session(name="build-guide", venv_backend="none")
 def build_guide(session: nox.Session):
     _run(session, "mdbook", "build", "-d", "../target/guide", "guide", *session.posargs)
+
+
+@nox.session(name="format-guide", venv_backend="none")
+def format_guide(session: nox.Session):
+    fence_line = "//! ```\n"
+
+    for path in Path("guide").glob("**/*.md"):
+        session.log("Working on %s", path)
+        content = path.read_text()
+
+        lines = iter(path.read_text().splitlines(True))
+        new_lines = []
+
+        for line in lines:
+            new_lines.append(line)
+            if not re.search("```rust(,.*)?$", line):
+                continue
+
+            # Found a code block fence, gobble up its lines and write to temp. file
+            prefix = line[: line.index("```")]
+            with tempfile.NamedTemporaryFile("w", delete=False) as file:
+                tempname = file.name
+                file.write(fence_line)
+                for line in lines:
+                    if line == prefix + "```\n":
+                        break
+                    file.write(("//! " + line[len(prefix) :]).rstrip() + "\n")
+                file.write(fence_line)
+
+            # Format it (needs nightly rustfmt for `format_code_in_doc_comments`)
+            _run(
+                session,
+                "rustfmt",
+                "+nightly",
+                "--config",
+                "format_code_in_doc_comments=true",
+                "--config",
+                "reorder_imports=false",
+                tempname,
+            )
+
+            # Re-read the formatted file, add its lines, and delete it
+            with open(tempname, "r") as file:
+                for line in file:
+                    if line == fence_line:
+                        continue
+                    new_lines.append((prefix + line[4:]).rstrip() + "\n")
+            os.unlink(tempname)
+
+            new_lines.append(prefix + "```\n")
+
+        path.write_text("".join(new_lines))
 
 
 @nox.session(name="address-sanitizer", venv_backend="none")

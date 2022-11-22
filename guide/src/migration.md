@@ -44,7 +44,6 @@ impl Mapping {
     // ...
     // truncated implementation of this mapping pyclass - basically a wrapper around a HashMap
 }
-
 ```
 
 You must register the class with `collections.abc.Mapping` before the downcast will work:
@@ -155,7 +154,7 @@ use pyo3::class::{PyBasicProtocol, PyIterProtocol};
 use pyo3::types::PyString;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pyproto]
 impl PyBasicProtocol for MyClass {
@@ -179,7 +178,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pymethods]
 impl MyClass {
@@ -343,7 +342,7 @@ use pyo3::prelude::*;
 use pyo3::class::basic::PyBasicProtocol;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pyproto]
 impl PyBasicProtocol for MyClass {
@@ -359,7 +358,7 @@ After:
 use pyo3::prelude::*;
 
 #[pyclass]
-struct MyClass { }
+struct MyClass {}
 
 #[pymethods]
 impl MyClass {
@@ -457,7 +456,10 @@ assert_eq!(err.to_string(), "TypeError: error message");
 
 // Now possible to interact with exception instances, new for PyO3 0.12
 let instance: &PyBaseException = err.instance(py);
-assert_eq!(instance.getattr("__class__")?, PyTypeError::type_object(py).as_ref());
+assert_eq!(
+    instance.getattr("__class__")?,
+    PyTypeError::type_object(py).as_ref()
+);
 # Ok(())
 # }).unwrap();
 ```
@@ -568,7 +570,7 @@ There can be two fixes:
    #[pyclass]
    struct NotThreadSafe {
        shared_bools: Rc<RefCell<Vec<bool>>>,
-       closure: Box<dyn Fn()>
+       closure: Box<dyn Fn()>,
    }
    ```
 
@@ -581,7 +583,7 @@ There can be two fixes:
    #[pyclass]
    struct ThreadSafe {
        shared_bools: Arc<Mutex<Vec<bool>>>,
-       closure: Box<dyn Fn() + Send>
+       closure: Box<dyn Fn() + Send>,
    }
    ```
 
@@ -679,10 +681,10 @@ struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-   #[new]
-   fn new(obj: &PyRawObject) {
-       obj.init(MyClass { })
-   }
+    #[new]
+    fn new(obj: &PyRawObject) {
+        obj.init(MyClass {})
+    }
 }
 ```
 
@@ -694,10 +696,10 @@ struct MyClass {}
 
 #[pymethods]
 impl MyClass {
-   #[new]
-   fn new() -> Self {
-       MyClass {}
-   }
+    #[new]
+    fn new() -> Self {
+        MyClass {}
+    }
 }
 ```
 
@@ -720,7 +722,7 @@ Here is an example.
 
 #[pyclass]
 struct Names {
-    names: Vec<String>
+    names: Vec<String>,
 }
 
 #[pymethods]
