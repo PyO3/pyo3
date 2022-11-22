@@ -2,7 +2,7 @@ use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     types::{PyTraceback, PyType},
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, PyTypeInfo, Python,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyObject, Python,
 };
 
 #[derive(Clone)]
@@ -89,7 +89,7 @@ impl PyErrState {
     #[inline]
     pub(crate) fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> Self {
         PyErrState::LazyValue {
-            ptype: PyTypeError::type_object(py).into(),
+            ptype: py.get_type::<PyTypeError>().into(),
             pvalue: boxed_args("exceptions must derive from BaseException"),
         }
     }

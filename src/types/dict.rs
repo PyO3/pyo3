@@ -421,7 +421,7 @@ mod tests {
     #[cfg(not(PyPy))]
     use crate::exceptions;
     #[cfg(not(PyPy))]
-    use crate::{types::PyList, PyTypeInfo};
+    use crate::types::PyList;
     use crate::{types::PyTuple, Python, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
@@ -886,7 +886,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let keys = dict.call_method0("keys").unwrap();
-            assert!(keys.is_instance(PyDictKeys::type_object(py)).unwrap());
+            assert!(keys.is_instance(py.get_type::<PyDictKeys>()).unwrap());
         })
     }
 
@@ -896,7 +896,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let values = dict.call_method0("values").unwrap();
-            assert!(values.is_instance(PyDictValues::type_object(py)).unwrap());
+            assert!(values.is_instance(py.get_type::<PyDictValues>()).unwrap());
         })
     }
 
@@ -906,7 +906,7 @@ mod tests {
         Python::with_gil(|py| {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
-            assert!(items.is_instance(PyDictItems::type_object(py)).unwrap());
+            assert!(items.is_instance(py.get_type::<PyDictItems>()).unwrap());
         })
     }
 }

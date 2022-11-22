@@ -995,6 +995,7 @@ impl PyObject {
     ///
     /// This can cast only to native Python types, not types implemented in Rust. For a more
     /// flexible alternative, see [`Py::extract`](struct.Py.html#method.extract).
+    #[inline]
     pub fn downcast<'p, T>(&'p self, py: Python<'p>) -> Result<&T, PyDowncastError<'_>>
     where
         T: PyTryFrom<'p>,
@@ -1010,6 +1011,7 @@ impl PyObject {
     /// # Safety
     ///
     /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
     pub unsafe fn downcast_unchecked<'p, T>(&'p self, py: Python<'p>) -> &T
     where
         T: PyTryFrom<'p>,

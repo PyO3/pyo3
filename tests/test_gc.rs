@@ -3,7 +3,6 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::PyTypeInfo;
 use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -228,7 +227,7 @@ fn gc_during_borrow() {
             }
 
             // get the traverse function
-            let ty = TraversableClass::type_object(py).as_type_ptr();
+            let ty = py.get_type::<TraversableClass>().as_type_ptr();
             let traverse = get_type_traverse(ty).unwrap();
 
             // create an object and check that traversing it works normally
@@ -284,7 +283,7 @@ fn traverse_error() {
         }
 
         // get the traverse function
-        let ty = PanickyTraverse::type_object(py).as_type_ptr();
+        let ty = py.get_type::<PanickyTraverse>().as_type_ptr();
         let traverse = get_type_traverse(ty).unwrap();
 
         // confirm that traversing errors

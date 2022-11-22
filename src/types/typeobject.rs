@@ -75,16 +75,14 @@ impl PyType {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        types::{PyBool, PyLong},
-        PyTypeInfo, Python,
-    };
+    use crate::types::{PyBool, PyLong};
+    use crate::Python;
 
     #[test]
     fn test_type_is_subclass() {
         Python::with_gil(|py| {
-            let bool_type = PyBool::type_object(py);
-            let long_type = PyLong::type_object(py);
+            let bool_type = py.get_type::<PyBool>();
+            let long_type = py.get_type::<PyLong>();
             assert!(bool_type.is_subclass(long_type).unwrap());
         });
     }
@@ -92,7 +90,7 @@ mod tests {
     #[test]
     fn test_type_is_subclass_of() {
         Python::with_gil(|py| {
-            assert!(PyBool::type_object(py).is_subclass_of::<PyLong>().unwrap());
+            assert!(py.get_type::<PyBool>().is_subclass_of::<PyLong>().unwrap());
         });
     }
 

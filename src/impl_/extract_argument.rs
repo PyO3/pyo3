@@ -3,7 +3,7 @@ use crate::{
     ffi,
     pyclass::boolean_struct::False,
     types::{PyDict, PyString, PyTuple},
-    FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, PyTypeInfo, Python,
+    FromPyObject, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyResult, Python,
 };
 
 /// A trait which is used to help PyO3 macros extract function arguments.
@@ -167,7 +167,7 @@ pub fn from_py_with_with_default<'py, T>(
 #[doc(hidden)]
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error.get_type(py).is(PyTypeError::type_object(py)) {
+    if error.get_type(py).is(py.get_type::<PyTypeError>()) {
         let remapped_error =
             PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
         remapped_error.set_cause(py, error.cause(py));

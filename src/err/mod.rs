@@ -484,16 +484,14 @@ impl PyErr {
     ///
     /// The `category` should be one of the `Warning` classes available in
     /// [`pyo3::exceptions`](crate::exceptions), or a subclass.  The Python
-    /// object can be retrieved using [`PyTypeInfo::type_object()`].
+    /// object can be retrieved using [`Python::get_type()`].
     ///
     /// Example:
     /// ```rust
-    /// use pyo3::prelude::*;
-    /// use pyo3::PyTypeInfo;
-    ///
+    /// # use pyo3::prelude::*;
     /// # fn main() -> PyResult<()> {
     /// Python::with_gil(|py| {
-    ///     let user_warning = pyo3::exceptions::PyUserWarning::type_object(py);
+    ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
     ///     PyErr::warn(py, user_warning, "I am warning you", 0)?;
     ///     Ok(())
     /// })
@@ -833,7 +831,7 @@ fn exceptions_must_derive_from_base_exception(py: Python<'_>) -> PyErr {
 mod tests {
     use super::PyErrState;
     use crate::exceptions;
-    use crate::{AsPyPointer, PyErr, PyTypeInfo, Python};
+    use crate::{AsPyPointer, PyErr, Python};
 
     #[test]
     fn no_error() {
@@ -1009,7 +1007,7 @@ mod tests {
         // GIL locked should prevent effects to be visible to other testing
         // threads.
         Python::with_gil(|py| {
-            let cls = exceptions::PyUserWarning::type_object(py);
+            let cls = py.get_type::<exceptions::PyUserWarning>();
 
             // Reset warning filter to default state
             let warnings = py.import("warnings").unwrap();
