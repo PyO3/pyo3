@@ -48,9 +48,9 @@ impl PySlice {
     pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
             let ptr = ffi::PySlice_New(
-                ffi::PyLong_FromLong(start as c_long),
-                ffi::PyLong_FromLong(stop as c_long),
-                ffi::PyLong_FromLong(step as c_long),
+                ffi::PyLong_FromSsize_t(start),
+                ffi::PyLong_FromSsize_t(stop),
+                ffi::PyLong_FromSsize_t(step),
             );
             py.from_owned_ptr(ptr)
         }
@@ -98,6 +98,25 @@ impl ToPyObject for PySliceIndices {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_py_slice_new() {
+        Python::with_gil(|py| {
+            let slice = PySlice::new(py, isize::MIN, isize::MAX, 1);
+            assert_eq!(
+                slice.getattr("start").unwrap().extract::<isize>().unwrap(),
+                isize::MIN
+            );
+            assert_eq!(
+                slice.getattr("stop").unwrap().extract::<isize>().unwrap(),
+                isize::MAX
+            );
+            assert_eq!(
+                slice.getattr("step").unwrap().extract::<isize>().unwrap(),
+                1
+            );
+        });
+    }
 
     #[test]
     fn test_py_slice_indices_new() {
