@@ -61,6 +61,8 @@ extern "C" {
     pub fn PyUnicode_AsUCS4Copy(unicode: *mut PyObject) -> *mut Py_UCS4;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_GetLength")]
     pub fn PyUnicode_GetLength(unicode: *mut PyObject) -> Py_ssize_t;
+    #[cfg(not(Py_3_12))]
+    #[deprecated(note = "Removed in Python 3.12")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_GetSize")]
     pub fn PyUnicode_GetSize(unicode: *mut PyObject) -> Py_ssize_t;
     pub fn PyUnicode_ReadChar(unicode: *mut PyObject, index: Py_ssize_t) -> Py_UCS4;

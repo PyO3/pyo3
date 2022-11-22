@@ -30,12 +30,27 @@ pub struct PyCompilerFlags {
 
 // skipped non-limited _PyCompilerFlags_INIT
 
+#[cfg(all(Py_3_12, not(PyPy)))]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _PyCompilerSrcLocation {
+    pub lineno: c_int,
+    pub end_lineno: c_int,
+    pub col_offset: c_int,
+    pub end_col_offset: c_int,
+}
+
+// skipped SRC_LOCATION_FROM_AST
+
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyFutureFeatures {
     pub ff_features: c_int,
+    #[cfg(not(Py_3_12))]
     pub ff_lineno: c_int,
+    #[cfg(Py_3_12)]
+    pub ff_location: _PyCompilerSrcLocation,
 }
 
 pub const FUTURE_NESTED_SCOPES: &str = "nested_scopes";
