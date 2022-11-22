@@ -77,7 +77,6 @@ jobs:
 
   build-pr:
     if: github.event_name == 'pull_request'
-    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
     uses: ./.github/workflows/build.yml
     with:
@@ -117,7 +116,6 @@ jobs:
 
   build-full:
     if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
-    name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt] # don't wait for clippy as fails rarely and takes longer
     uses: ./.github/workflows/build.yml
     with:
@@ -197,7 +195,7 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
             extra-features: "multiple-pymethods"
-          
+
   valgrind:
     if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
     needs: [fmt]
@@ -317,25 +315,3 @@ jobs:
         run: nox -s build-emscripten
       - name: Test
         run: nox -s test-emscripten
-  
-  conclusion:
-    needs:
-      - fmt
-      - clippy
-      - check-target
-      - build-pr
-      - build-full
-      - valgrind
-      - careful
-      - coverage
-      - emscripten
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Result
-        run: |
-          jq -C <<< "${needs}"
-          # Check if all needs were successful or skipped.
-          "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
-        env:
-          needs: ${{ toJson(needs) }}

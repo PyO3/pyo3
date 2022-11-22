@@ -26,6 +26,7 @@ on:
 jobs:
   build:
     runs-on: ${{ inputs.os }}
+    name: test-python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     steps:
       - uses: actions/checkout@v3
 
