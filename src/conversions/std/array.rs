@@ -210,7 +210,7 @@ mod array_impls {
                             fn drop(&mut self) {
                                 unsafe {
                                     let needs_drop = self.elements.get_mut(self.start..).unwrap();
-                                    for item in needs_drop{
+                                    for item in needs_drop {
                                         ManuallyDrop::drop(item);
                                     }
                                 }
@@ -227,7 +227,7 @@ mod array_impls {
 
                             let slf = ManuallyDrop::new(self);
 
-                            let mut guard = ArrayGuard{
+                            let mut guard = ArrayGuard {
                                 // the transmute size check is _very_ dumb around generics
                                 elements: transmute_copy(&slf),
                                 start: 0

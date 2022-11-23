@@ -2,17 +2,17 @@
 
 PyO3 provides an easy to use interface to code native Python libraries in Rust. The accompanying Maturin allows you to build and publish them as a package. Yet, for the better user experience, Python libraries should provide typing hints and documentation for all public entities, so that IDEs can show them during development and type analyzing tools such as `mypy` can use them to properly verify the code.
 
-Currently the best solution for the problem is to maintain manually the `*.pyi` files and ship them along with the package.
+Currently the best solution for the problem is to manually maintain `*.pyi` files and ship them along with the package.
 
-## The `pyi` files introduction
+## Introduction to `pyi` files
 
-`pyi` (an abbreviation for `Python Interface`) is called a `Stub File` in most of the documentations related to them. Very good definition of what it is can be found in [old MyPy documentation](https://github.com/python/mypy/wiki/Creating-Stubs-For-Python-Modules):
+`pyi` files (an abbreviation for `Python Interface`) are called "stub files" in most of the documentation related to them. A very good definition of what it is can be found in [old MyPy documentation](https://github.com/python/mypy/wiki/Creating-Stubs-For-Python-Modules):
 
 > A stubs file only contains a description of the public interface of the module without any implementations.
 
 There is also [extensive documentation on type stubs on the offical Python typing documentation](https://typing.readthedocs.io/en/latest/source/stubs.html).
 
-Probably most Python developers encountered them already when trying to use the IDE "Go to Definition" function on any builtin type. For example the definitions of few standard exceptions look like this:
+Most Python developers probably already encountered them when trying to use their IDE's "Go to Definition" function on any builtin type. For example, the definitions of a few standard exceptions look like this:
 
 ```python
 class BaseException(object):
@@ -35,11 +35,11 @@ class StopIteration(Exception):
     value: Any
 ```
 
-As we can see those are not full definitions containing implementation, but just a description of interface. It is usually all that is needed by the user of the library.
+As we can see, those are not full definitions containing implementation, but just a description of interface. It is usually all that the user of the library needs.
 
-### What does the PEPs say?
+### What do the PEPs say?
 
-As of the time of writing this documentation the `pyi` files are referenced in three PEPs.
+At the time of writing this documentation, the `pyi` files are referenced in three PEPs.
 
 [PEP8 - Style Guide for Python Code - #Function Annotations](https://www.python.org/dev/peps/pep-0008/#function-annotations) (last point) recommends all third party library creators to provide stub files as the source of knowledge about the package for type checker tools.
 
@@ -61,7 +61,7 @@ It contains a specification for them (highly recommended reading, since it conta
 * `separate package with stub files` - the typing is placed in `pyi` files distributed in their own, separate package;
 * `in-package stub files` - the typing is placed in `pyi` files distributed in the same package as source files.
 
-The first way is tricky with PyO3 since we do not have `py` files. When it will be investigated and necessary changes are implemented, this document will be updated.
+The first way is tricky with PyO3 since we do not have `py` files. When it has been investigated and necessary changes are implemented, this document will be updated.
 
 The second way is easy to do, and the whole work can be fully separated from the main library code. The example repo for the package with stub files can be found in [PEP561 references section](https://www.python.org/dev/peps/pep-0561/#references): [Stub package repository](https://github.com/ethanhs/stub-package)
 
@@ -73,7 +73,7 @@ When source files are in the same package as stub files, they should be placed n
 
 #### If you do not have other Python files
 
-If you do not need to add any other Python files apart from `pyi` to the package, the Maturin provides a way to do most of the work for you. As documented in [Maturin Guide](https://github.com/PyO3/maturin/blob/084cfaced651b28616aeea1f818bdc933a536bfe/guide/src/project_layout.md#adding-python-type-information) the only thing you need to do is create a stub file for your module named `<module_name>.pyi` in your project root and Maturin will do the rest.
+If you do not need to add any other Python files apart from `pyi` to the package, Maturin provides a way to do most of the work for you. As documented in the [Maturin Guide](https://github.com/PyO3/maturin/blob/084cfaced651b28616aeea1f818bdc933a536bfe/guide/src/project_layout.md#adding-python-type-information), the only thing you need to do is to create a stub file for your module named `<module_name>.pyi` in your project root and Maturin will do the rest.
 
 ```text
 my-rust-project/
@@ -84,11 +84,11 @@ my-rust-project/
     └── lib.rs
 ```
 
-For example of `pyi` file see [`my_project.pyi` content](#my_projectpyi-content) section.
+For an example `pyi` file see the [`my_project.pyi` content](#my_projectpyi-content) section.
 
 #### If you need other Python files
 
-If you need to add other Python files apart from `pyi` to the package, you can do it also, but that requires some more work. Maturin provides easy way to add files to package ([documentation](https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects)). You just need to create a folder with the name of your module next to the `Cargo.toml` file (for customization see documentation linked above).
+If you need to add other Python files apart from `pyi` to the package, you can do it also, but that requires some more work. Maturin provides an easy way to add files to a package ([documentation](https://github.com/PyO3/maturin/blob/0dee40510083c03607834c821eea76964140a126/Readme.md#mixed-rustpython-projects)). You just need to create a folder with the name of your module next to the `Cargo.toml` file (for customization see documentation linked above).
 
 The folder structure would be:
 
@@ -106,11 +106,11 @@ my-project
     └── lib.rs
 ```
 
-Let's go a little bit more into details on the files inside the package folder.
+Let's go a little bit more into details regarding the files inside the package folder.
 
 ##### `__init__.py` content
 
-As we now specify our own package content, we have to provide the `__init__.py` file, so the folder is treated as a package and we can import things from it. We can always use the same content that the Maturin creates for us if we do not specify a python source folder. For PyO3 bindings it would be:
+As we now specify our own package content, we have to provide the `__init__.py` file, so the folder is treated as a package and we can import things from it. We can always use the same content that Maturin creates for us if we do not specify a Python source folder. For PyO3 bindings it would be:
 
 ```python
 from .my_project import *
@@ -133,7 +133,7 @@ The file is just a marker file, so it should be empty.
 
 ##### `my_project.pyi` content
 
-Our module stub file. This document does not aim at describing how to write them, since you can find a lot of documentation on it, starting from already quoted [PEP484](https://www.python.org/dev/peps/pep-0484/#stub-files).
+Our module stub file. This document does not aim at describing how to write them, since you can find a lot of documentation on it, starting from the already quoted [PEP484](https://www.python.org/dev/peps/pep-0484/#stub-files).
 
 The example can look like this:
 

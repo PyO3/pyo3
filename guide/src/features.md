@@ -1,6 +1,6 @@
 # Features reference
 
-PyO3 provides a number of Cargo features to customise functionality. This chapter of the guide provides detail on each of them.
+PyO3 provides a number of Cargo features to customize functionality. This chapter of the guide provides detail on each of them.
 
 By default, only the `macros` feature is enabled.
 
@@ -77,7 +77,7 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 ### `nightly`
 
-The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the auto_traits and negative_impls features to fix the `Python::allow_threads` function.
+The `nightly` feature needs the nightly Rust compiler. This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::allow_threads` function.
 
 ### `resolve-config`
 
@@ -91,7 +91,7 @@ These features enable conversions between Python types and types from other Rust
 
 ### `anyhow`
 
-Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
+Adds a dependency on [anyhow](https://docs.rs/anyhow). Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `chrono`
 
@@ -105,7 +105,7 @@ Adds a dependency on [chrono](https://docs.rs/chrono). Enables a conversion from
 
 ### `eyre`
 
-Adds a dependency on [eyre](https://docs.rs/eyre). Enables a conversion from [eyre](https://docs.rs/eyre)’s [`Report`](https://docs.rs/eyre/latest/eyre/struct.Report.html) type to [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), for easy error handling.
+Adds a dependency on [eyre](https://docs.rs/eyre). Enables a conversion from [eyre](https://docs.rs/eyre)’s [`Report`](https://docs.rs/eyre/latest/eyre/struct.Report.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
 
 ### `hashbrown`
 
@@ -125,7 +125,7 @@ Adds a dependency on [num-complex](https://docs.rs/num-complex) and enables conv
 
 ### `serde`
 
-Enables (de)serialization of Py<T> objects via [serde](https://serde.rs/).
+Enables (de)serialization of `Py<T>` objects via [serde](https://serde.rs/).
 This allows to use [`#[derive(Serialize, Deserialize)`](https://serde.rs/derive.html) on structs that hold references to `#[pyclass]` instances
 
 ```rust

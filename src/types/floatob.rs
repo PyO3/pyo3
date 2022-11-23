@@ -111,7 +111,7 @@ mod tests {
             fn $func_name() {
                 use assert_approx_eq::assert_approx_eq;
 
-                Python::with_gil(|py|{
+                Python::with_gil(|py| {
 
                 let val = 123 as $t1;
                 let obj = val.to_object(py);

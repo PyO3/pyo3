@@ -122,11 +122,12 @@ for more information on safety.
 ## GIL-independent memory
 
 Sometimes we need a reference to memory on Python's heap that can outlive the
-GIL.  Python's `Py<PyAny>` is analogous to `Rc<T>`, but for variables whose
+GIL.  Python's `Py<PyAny>` is analogous to `Arc<T>`, but for variables whose
 memory is allocated on Python's heap.  Cloning a `Py<PyAny>` increases its
-internal reference count just like cloning `Rc<T>`.  The smart pointer can
-outlive the GIL from which it was created.  It isn't magic, though.  We need to
-reacquire the GIL to access the memory pointed to by the `Py<PyAny>`.
+internal reference count just like cloning `Arc<T>`.  The smart pointer can
+outlive the "GIL is held" period in which it was created.  It isn't magic,
+though.  We need to reacquire the GIL to access the memory pointed to by the
+`Py<PyAny>`.
 
 What happens to the memory when the last `Py<PyAny>` is dropped and its
 reference count reaches zero?  It depends whether or not we are holding the GIL.

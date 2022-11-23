@@ -110,7 +110,7 @@
 //! impl !Ungil for ffi::PyObject {}
 //!
 //! // `Py` wraps it in  a safe api, so this is OK
-//! unsafe impl <T> Ungil for Py<T> {}
+//! unsafe impl<T> Ungil for Py<T> {}
 //! # }
 //! ```
 //!
@@ -796,7 +796,7 @@ impl<'py> Python<'py> {
     /// # #![allow(dead_code)] // this example is quite impractical to test
     /// use pyo3::prelude::*;
     ///
-    /// # fn main(){
+    /// # fn main() {
     /// #[pyfunction]
     /// fn loop_forever(py: Python<'_>) -> PyResult<()> {
     ///     loop {

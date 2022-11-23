@@ -594,7 +594,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -603,7 +603,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -611,7 +611,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let val = 123 as $t;
                     let obj = val.to_object(py);
                     assert_eq!(obj.extract::<$t>(py).unwrap(), val as $t);});
@@ -689,7 +689,7 @@ mod tests {
 
                 #[test]
                 fn from_py_string_type_error() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
@@ -698,7 +698,7 @@ mod tests {
 
                 #[test]
                 fn from_py_float_type_error() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
                     assert!(err.is_instance_of::<exceptions::PyTypeError>(py));});
@@ -706,7 +706,7 @@ mod tests {
 
                 #[test]
                 fn to_py_object_and_back() {
-                    Python::with_gil(|py|{
+                    Python::with_gil(|py| {
                     let val = <$t>::new(123).unwrap();
                     let obj = val.to_object(py);
                     assert_eq!(obj.extract::<$t>(py).unwrap(), val);});
