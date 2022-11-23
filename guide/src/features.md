@@ -24,7 +24,7 @@ See the [building and distribution](building_and_distribution.md#py_limited_apia
 
 ### The `abi3-pyXY` features
 
-(`abi3-py37`, `abi3-py38`, `abi3-py39`, and `abi3-py310`)
+(`abi3-py37`, `abi3-py38`, `abi3-py39`, `abi3-py310` and `abi3-py311`)
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
