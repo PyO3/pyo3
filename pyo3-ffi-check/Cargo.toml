@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 pyo3-ffi-check-macro = { path = "./macro" }
-memoffset = "0.6.5"
+memoffset = "0.7.0"
 
 [dependencies.pyo3-ffi]
-git = "https://github.com/pyo3/pyo3"
+path = "../pyo3-ffi"
 features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
 
 [workspace]
@@ -17,5 +17,5 @@ members = [
 ]
 
 [build-dependencies]
-bindgen = "0.59.2"
-pyo3-build-config = { git = "https://github.com/pyo3/pyo3" }
+bindgen = "0.63.0"
+pyo3-build-config = { path = "../pyo3-build-config" }

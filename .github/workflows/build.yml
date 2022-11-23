@@ -133,30 +133,25 @@ jobs:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
       
       - uses: dorny/paths-filter@v2
-        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
         id: ffi-changes
         with:
           filters: |
             changed:
               - 'pyo3-ffi/**'
+              - 'pyo3-ffi-check/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/build.yml'
       
-      - name: Checkout pyo3-ffi-check
-        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
-        uses: actions/checkout@v3
-        with:
-          repository: PyO3/pyo3-ffi-check
-          path: pyo3-ffi-check
-
       - run: cargo doc -p pyo3-ffi
         working-directory: pyo3-ffi-check
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
 
-      - run: cargo run
+      - name: Run pyo3-ffi-check
+        run: cargo run
         working-directory: pyo3-ffi-check
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy3.7' && inputs.python-version != 'pypy3.8' }}
+        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
 
       - name: Test cross compilation
         if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
