@@ -5,7 +5,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{spanned::Spanned, Ident};
 
-use crate::attributes::{CrateAttribute, TextSignatureAttribute};
+use crate::attributes::CrateAttribute;
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
@@ -68,7 +68,7 @@ pub struct PythonDoc(TokenStream);
 /// e.g. concat!("...", "\n", "\0")
 pub fn get_doc(
     attrs: &[syn::Attribute],
-    text_signature: Option<(Cow<'_, Ident>, &TextSignatureAttribute)>,
+    text_signature: Option<(Cow<'_, Ident>, String)>,
 ) -> PythonDoc {
     let mut tokens = TokenStream::new();
     let comma = syn::token::Comma(Span::call_site());
@@ -79,8 +79,7 @@ pub fn get_doc(
     syn::token::Bracket(Span::call_site()).surround(&mut tokens, |tokens| {
         if let Some((python_name, text_signature)) = text_signature {
             // create special doc string lines to set `__text_signature__`
-            let signature_lines =
-                format!("{}{}\n--\n\n", python_name, text_signature.value.value());
+            let signature_lines = format!("{}{}\n--\n\n", python_name, text_signature);
             signature_lines.to_tokens(tokens);
             comma.to_tokens(tokens);
         }

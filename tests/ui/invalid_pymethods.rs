@@ -81,6 +81,19 @@ impl MyClass {
 
 #[pymethods]
 impl MyClass {
+    #[pyo3(text_signature = 1)]
+    fn invalid_text_signature() {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[pyo3(text_signature = "()")]
+    #[pyo3(text_signature = None)]
+    fn duplicate_text_signature() {}
+}
+
+#[pymethods]
+impl MyClass {
     #[getter(x)]
     #[pyo3(signature = ())]
     fn signature_on_getter(&self) {}
