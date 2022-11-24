@@ -60,7 +60,7 @@ impl PyTuple {
     ///
     /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
     /// iterable that doesn't implement [`ExactSizeIterator`], create a Rust tuple with the given
-    /// elements and convert it at once.
+    /// elements and convert it at once using `into_py`.
     ///
     /// # Examples
     ///
