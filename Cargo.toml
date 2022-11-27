@@ -110,6 +110,7 @@ full = [
     "eyre",
     "anyhow",
     "experimental-inspect",
+    "pyo3",
 ]
 
 # This makes `#[cfg_attr(feature = "pyo3", pyclass)]` in our own tests work, it has no other function

@@ -1,5 +1,5 @@
 //! This is test_class_attributes.rs wrapped in cfg_attr
-#![cfg(feature = "macros")]
+#![cfg(all(feature = "macros", feature = "pyo3"))]
 
 use pyo3::prelude::*;
 
