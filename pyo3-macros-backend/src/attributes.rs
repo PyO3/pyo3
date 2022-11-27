@@ -1,11 +1,14 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use std::iter::FromIterator;
+use syn::parse::Parser;
+use syn::punctuated::{IntoPairs, Pair};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Expr, ExprPath, Ident, LitStr, Path, Result, Token,
+    Attribute, Expr, ExprPath, Ident, Lit, LitStr, Meta, MetaList, NestedMeta, Path, Result, Token,
 };
 
 pub mod kw {
@@ -144,19 +147,13 @@ pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, LitStrValue<Ex
 /// For specifying the path to the pyo3 crate.
 pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
 
-pub fn get_pyo3_options<T: Parse>(attr: &syn::Attribute) -> Result<Option<Punctuated<T, Comma>>> {
-    if is_attribute_ident(attr, "pyo3") {
+/// We can either have `#[pyo3(...)]` or `#[cfg_attr(feature = "pyo3", pyo3(...))]`,
+/// with a comma separated list of options parsed into `T` inside
+pub fn get_pyo3_options<T: Parse>(attr: &Attribute) -> Result<Option<Punctuated<T, Comma>>> {
+    if attr.path.is_ident("pyo3") {
         attr.parse_args_with(Punctuated::parse_terminated).map(Some)
     } else {
         Ok(None)
-    }
-}
-
-pub fn is_attribute_ident(attr: &syn::Attribute, name: &str) -> bool {
-    if let Some(path_segment) = attr.path.segments.last() {
-        attr.path.segments.len() == 1 && path_segment.ident == name
-    } else {
-        false
     }
 }
 
@@ -169,12 +166,12 @@ pub fn is_attribute_ident(attr: &syn::Attribute, name: &str) -> bool {
 /// (In `retain`, returning `true` keeps the element, here it removes it.)
 pub fn take_attributes(
     attrs: &mut Vec<Attribute>,
-    mut extractor: impl FnMut(&Attribute) -> Result<bool>,
+    mut extractor: impl FnMut(&mut Attribute) -> Result<bool>,
 ) -> Result<()> {
     *attrs = attrs
         .drain(..)
-        .filter_map(|attr| {
-            extractor(&attr)
+        .filter_map(|mut attr| {
+            extractor(&mut attr)
                 .map(move |attribute_handled| if attribute_handled { None } else { Some(attr) })
                 .transpose()
         })
@@ -182,15 +179,143 @@ pub fn take_attributes(
     Ok(())
 }
 
-pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
+pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    take_attributes(attrs, |attr| {
-        if let Some(options) = get_pyo3_options(attr)? {
-            out.extend(options.into_iter());
-            Ok(true)
-        } else {
+    let mut new_attrs = Vec::new();
+
+    for mut attr in attrs.drain(..) {
+        let parse_attr = |meta, _attributes: &Attribute| {
+            if let Meta::List(meta_list) = meta {
+                if meta_list.path.is_ident("pyo3") {
+                    let parsed = Punctuated::<_, Token![,]>::parse_terminated
+                        .parse2(meta_list.nested.to_token_stream())?;
+                    out.extend(parsed.into_iter());
+                    return Ok(true);
+                }
+            }
             Ok(false)
+        };
+        if let Ok(mut meta) = attr.parse_meta() {
+            if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
+                continue;
+            }
         }
-    })?;
+
+        if let Some(options) = get_pyo3_options(&attr)? {
+            out.extend(options.into_iter());
+            continue;
+        } else {
+            new_attrs.push(attr)
+        }
+    }
+
+    *attrs = new_attrs;
     Ok(out)
+}
+
+/// Look for #[cfg_attr(feature = "pyo3", ...)]
+///            ^^^^^^^^ ^^^^^^^ ^ ^^^^^^
+fn is_cfg_feature_pyo3(
+    list: &MetaList,
+    keep: &mut Vec<Pair<NestedMeta, Comma>>,
+    iter: &mut IntoPairs<NestedMeta, Comma>,
+) -> bool {
+    // #[cfg_attr(feature = "pyo3", ...)]
+    //   ^^^^^^^^
+    if list.path.is_ident("cfg_attr") {
+        // #[cfg_attr(feature = "pyo3", ...)]
+        //            ------- ^ ------
+        if let Some(pair) = iter.next() {
+            let pair_tuple = pair.into_tuple();
+            if let (NestedMeta::Meta(Meta::NameValue(name_value)), _) = &pair_tuple {
+                // #[cfg_attr(feature = "pyo3", ...)]
+                //            ^^^^^^^
+                if name_value.path.is_ident("feature") {
+                    if let Lit::Str(lit_str) = &name_value.lit {
+                        // #[cfg_attr(feature = "pyo3", ...)]
+                        //                      ^^^^^^
+                        if lit_str.value() == "pyo3" {
+                            // We want to keep the none-pyo3 pairs intact
+                            keep.push(Pair::new(pair_tuple.0, pair_tuple.1));
+                            return true;
+                        }
+                    }
+                }
+            }
+            keep.push(Pair::new(pair_tuple.0, pair_tuple.1));
+        }
+    }
+    false
+}
+
+/// Handle #[cfg_attr(feature = "pyo3", ...)]
+///
+/// Returns whether the attribute was completely handled and can be discarded (because there were
+/// blocks in cfg_attr tail that weren't handled)
+///
+/// Attributes are icky: by default, we get an `Attribute` where all the real data is hidden in a
+/// `TokenStream` member. Most of the attribute parsing are therefore custom `Parse` impls. We can
+/// also ask syn to parse the attribute into `Meta`, which is essentially an attribute AST, which
+/// also some code uses.
+///
+/// With `cfg_attr` we can additionally have multiple attributes rolled into one behind a gate. So
+/// we have to parse and look for `cfg_attr(feature = "pyo3",`, then segment the parts behind it.
+/// For each one we have to check whether it parses and also keep those where it doesn't parse for
+/// subsequent proc macros (or rustc) to parse. The least bad option for this seems to parsing into
+/// `Meta`, checking for `cfg_attr(feature = "pyo3",`, then splitting and letting the caller process
+/// each attribute, including calling `.to_token_stream()` and then using `Parse` if necessary
+/// (as e.g. [take_pyo3_options] does).
+pub fn handle_cfg_feature_pyo3(
+    mut attr: &mut Attribute,
+    meta: &mut Meta,
+    // Return true if handled
+    mut parse_attr: impl FnMut(Meta, &Attribute) -> Result<bool>,
+) -> Result<bool> {
+    if let Meta::List(list) = meta {
+        // These are the parts of the attr `parse_attr` told us we didn't parse and we should
+        // keep for subsequent proc macros
+        let mut keep = Vec::new();
+        // handrolled drain function, because `Punctuated` doesn't have one.
+        // We keep the comma around so what we do is lossless (keeping the spans)
+        let mut drain = list.nested.clone().into_pairs();
+        // Look for #[cfg_attr(feature = "pyo3", ...)]
+        if !is_cfg_feature_pyo3(list, &mut keep, &mut drain) {
+            // No match? Put the meta back we just swapped out, we don't actually want to drain
+            list.nested = Punctuated::from_iter(keep.into_iter().chain(drain));
+            return Ok(false);
+        }
+
+        // #[cfg_attr(feature = "pyo3", staticmethod, pair(name = "ferris"))]
+        //                              ^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^
+        for nested_attr in drain {
+            if let NestedMeta::Meta(meta) = nested_attr.value() {
+                if !parse_attr(meta.clone(), &attr)? {
+                    keep.push(nested_attr)
+                }
+            }
+        }
+
+        // The one that is always there is the condition in the cfg_attr (we put it in in
+        // is_cfg_feature_pyo3)
+        assert!(!keep.is_empty());
+        // If it's exactly 1, we handled all attributes
+        if keep.len() > 1 {
+            list.nested = Punctuated::from_iter(keep);
+
+            // Keep only the attributes we didn't parse.
+            // I couldn't find any method to just get the `attr.tokens` part again but with
+            // parentheses so here's token stream editing
+            let mut tokens = TokenStream::new();
+            list.paren_token.surround(&mut tokens, |inner| {
+                inner.extend(list.nested.to_token_stream())
+            });
+            attr.tokens = tokens;
+
+            return Ok(false);
+        }
+
+        // We handled this entire attribute, next
+        return Ok(true);
+    }
+    Ok(false)
 }

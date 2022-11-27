@@ -1,0 +1,5 @@
+error: cannot find attribute `fail` in this scope
+ --> tests/ui/invalid_cfg_attr_pyo3.rs:7:45
+  |
+7 |     #[cfg_attr(feature = "pyo3", pyo3(get), fail)]
+  |                                             ^^^^

@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::attributes::TextSignatureAttribute;
+use crate::attributes::{handle_cfg_feature_pyo3, TextSignatureAttribute};
 use crate::deprecations::{Deprecation, Deprecations};
 use crate::params::impl_arg_params;
 use crate::pyfunction::{DeprecatedArgs, FunctionSignature, PyFunctionArgPyO3Attributes};
@@ -9,9 +9,10 @@ use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
+use std::borrow::Cow;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
-use syn::Result;
+use syn::{Attribute, Meta, Result};
 
 #[derive(Clone, Debug)]
 pub struct FnArg<'a> {
@@ -275,7 +276,11 @@ impl<'a> FnSpec<'a> {
             ty: fn_type_attr,
             deprecated_args,
             mut python_name,
-        } = parse_method_attributes(meth_attrs, name.map(|name| name.value.0), &mut deprecations)?;
+        } = MethodAttributes::parse_method_attributes(
+            meth_attrs,
+            name.map(|name| name.value.0),
+            &mut deprecations,
+        )?;
 
         let (fn_type, skip_first_arg, fixed_convention) =
             Self::parse_fn_type(sig, fn_type_attr, &mut python_name)?;
@@ -584,27 +589,58 @@ struct MethodAttributes {
     python_name: Option<syn::Ident>,
 }
 
-fn parse_method_attributes(
-    attrs: &mut Vec<syn::Attribute>,
-    mut python_name: Option<syn::Ident>,
-    deprecations: &mut Deprecations,
-) -> Result<MethodAttributes> {
-    let mut new_attrs = Vec::new();
-    let mut deprecated_args = None;
-    let mut ty: Option<MethodTypeAttribute> = None;
-
-    macro_rules! set_ty {
-        ($new_ty:expr, $ident:expr) => {
-            ensure_spanned!(
-               ty.replace($new_ty).is_none(),
-               $ident.span() => "cannot specify a second method type"
-            );
+impl MethodAttributes {
+    fn parse_method_attributes(
+        attrs: &mut Vec<Attribute>,
+        python_name: Option<syn::Ident>,
+        deprecations: &mut Deprecations,
+    ) -> Result<MethodAttributes> {
+        let mut method_attributes = Self {
+            ty: None,
+            deprecated_args: None,
+            python_name,
         };
+        let mut new_attrs = Vec::new();
+
+        for mut attr in attrs.drain(..) {
+            if let Ok(mut meta) = attr.parse_meta() {
+                let parse_attr = |meta, attr: &Attribute| {
+                    method_attributes.parse_attribute(deprecations, meta, attr)
+                };
+                if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
+                    continue;
+                }
+
+                if method_attributes.parse_attribute(deprecations, meta.clone(), &attr)? {
+                    continue;
+                }
+            }
+            new_attrs.push(attr)
+        }
+
+        *attrs = new_attrs;
+
+        Ok(method_attributes)
     }
 
-    for attr in attrs.drain(..) {
-        match attr.parse_meta() {
-            Ok(syn::Meta::Path(name)) => {
+    /// Returns whether the attribute was consumed as a pyo3 attribute
+    fn parse_attribute(
+        &mut self,
+        deprecations: &mut Deprecations,
+        meta: Meta,
+        attr: &Attribute,
+    ) -> Result<bool> {
+        macro_rules! set_ty {
+            ($new_ty:expr, $ident:expr) => {
+                ensure_spanned!(
+                   self.ty.replace($new_ty).is_none(),
+                   $ident.span() => "cannot specify a second method type"
+                );
+            };
+        }
+
+        match meta {
+            Meta::Path(name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     set_ty!(MethodTypeAttribute::New, name);
                 } else if name.is_ident("init") || name.is_ident("__init__") {
@@ -629,22 +665,22 @@ fn parse_method_attributes(
                         set_ty!(MethodTypeAttribute::Getter, name);
                     }
                 } else {
-                    new_attrs.push(attr)
+                    return Ok(false);
                 }
             }
-            Ok(syn::Meta::List(syn::MetaList {
+            Meta::List(syn::MetaList {
                 path, mut nested, ..
-            })) => {
+            }) => {
                 if path.is_ident("new") {
                     set_ty!(MethodTypeAttribute::New, path);
                 } else if path.is_ident("init") {
                     bail_spanned!(path.span() => "#[init] is disabled since PyO3 0.9.0");
                 } else if path.is_ident("call") {
                     ensure_spanned!(
-                        python_name.is_none(),
-                        python_name.span() => "`name` may not be used with `#[call]`"
+                        self.python_name.is_none(),
+                        self.python_name.span() => "`name` may not be used with `#[call]`"
                     );
-                    python_name = Some(syn::Ident::new("__call__", Span::call_site()));
+                    self.python_name = Some(syn::Ident::new("__call__", Span::call_site()));
                 } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         bail_spanned!(
@@ -663,11 +699,11 @@ fn parse_method_attributes(
                     };
 
                     ensure_spanned!(
-                        python_name.is_none(),
-                        python_name.span() => "`name` may only be specified once"
+                        self.python_name.is_none(),
+                        self.python_name.span() => "`name` may only be specified once"
                     );
 
-                    python_name = match nested.pop().unwrap().into_value() {
+                    self.python_name = match nested.pop().unwrap().into_value() {
                         syn::NestedMeta::Meta(syn::Meta::Path(w)) if w.segments.len() == 1 => {
                             Some(w.segments[0].ident.clone())
                         }
@@ -689,26 +725,19 @@ fn parse_method_attributes(
                     };
                 } else if path.is_ident("args") {
                     ensure_spanned!(
-                        deprecated_args.is_none(),
+                        self.deprecated_args.is_none(),
                         nested.span() => "args may only be specified once"
                     );
                     deprecations.push(Deprecation::PyMethodArgsAttribute, path.span());
-                    deprecated_args = Some(DeprecatedArgs::from_meta(&nested)?);
+                    self.deprecated_args = Some(DeprecatedArgs::from_meta(&nested)?);
                 } else {
-                    new_attrs.push(attr)
+                    return Ok(false);
                 }
             }
-            Ok(syn::Meta::NameValue(_)) | Err(_) => new_attrs.push(attr),
+            Meta::NameValue(_) => return Ok(false),
         }
+        Ok(true)
     }
-
-    *attrs = new_attrs;
-
-    Ok(MethodAttributes {
-        ty,
-        deprecated_args,
-        python_name,
-    })
 }
 
 const IMPL_TRAIT_ERR: &str = "Python functions cannot have `impl Trait` arguments";

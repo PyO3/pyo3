@@ -59,7 +59,7 @@ widestring = "0.5.1"
 pyo3-build-config = { path = "pyo3-build-config", version = "0.18.1", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "pyo3"]
 
 # Enables pyo3::inspect module and additional type information on FromPyObject
 # and IntoPy traits
@@ -111,6 +111,9 @@ full = [
     "anyhow",
     "experimental-inspect",
 ]
+
+# This makes `#[cfg_attr(feature = "pyo3", pyclass)]` in our own tests work, it has no other function
+pyo3 = []
 
 [[bench]]
 name = "bench_call"

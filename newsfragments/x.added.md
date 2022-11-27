@@ -1,0 +1,1 @@
+Add support for wrapping attributes in `#[cfg_attr(feature = "pyo3", ...)]`, so you can add pyo3 as a purely optional feature to otherwise normal rust libraries. See the "Optional bindings" chapter in the guide for more info and usage examples
