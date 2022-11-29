@@ -1,6 +1,6 @@
 # Optional bindings
 
-You might want to write a library the is usable both in pure rust and as a python library. For that, pyo3 support wrapping attributes in `#[cfg_attr(feature = "pyo3", ...)]` (the feature unfortunately has to be hardcoded, so the feature must be named `pyo3`). This does not only apply to classes and their methods but also to e.g. `#[pyfunction]`.
+You might want to write a library the is usable both in pure Rust and as a Python library. For that, PyO3 supports wrapping attributes in `#[cfg_attr(feature = "pyo3", ...)]` (the feature name unfortunately has to be hardcoded, so the feature must be named `pyo3`). This does not only apply to classes and their methods but also to e.g. `#[pyfunction]`.
 
 Make pyo3 optional in Cargo.toml:
 
