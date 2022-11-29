@@ -51,7 +51,7 @@ impl Number {
     }
 }
 
-#[cfg(features = "pyo3")] // We don't want that function at all in a rust library
+#[cfg(feature = "pyo3")] // We don't want that function at all in a rust library
 #[pymodule]
 fn my_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Number>()?;
