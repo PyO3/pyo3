@@ -5,6 +5,10 @@ You might want to write a library the is usable both in pure rust and as a pytho
 Make pyo3 optional in Cargo.toml:
 
 ```toml
+[lib]
+# cdylib for the python module, rlib for the rust crate
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 pyo3 = { version = "0.14", features = ["extension-module", "abi3"], optional = true }
 ```
