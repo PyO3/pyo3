@@ -35,7 +35,7 @@ towncrier build --yes --version Unreleased --date TBC
 MDBOOK_VERSION=$(cargo search mdbook --limit 1 | head -1 | tr -s ' ' | cut -d ' ' -f 3 | tr -d '"')
 INSTALLED_MDBOOK_VERSION=$(mdbook --version || echo "none")
 if [ "${INSTALLED_MDBOOK_VERSION}" != "mdbook v${MDBOOK_VERSION}" ]; then
-    cargo install mdbook@${MDBOOK_VERSION}
+    cargo install mdbook@${MDBOOK_VERSION} --force
 fi
 
 pip install nox
