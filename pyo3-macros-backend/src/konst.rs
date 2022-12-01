@@ -70,13 +70,18 @@ impl ConstAttributes {
 
         for mut attr in attrs.drain(..) {
             let parse_attr = |meta, _attr: &Attribute| parse_attribute(&mut attributes, &meta);
-            if let Ok(mut meta) = attr.parse_meta() {
-                if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
-                    continue;
-                }
+            if attr.path.is_ident("cfg_attr")
+                || attr.path.is_ident("classattr")
+                || attr.path.is_ident("pyo3")
+            {
+                if let Ok(mut meta) = attr.parse_meta() {
+                    if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
+                        continue;
+                    }
 
-                if parse_attribute(&mut attributes, &meta)? {
-                    continue;
+                    if parse_attribute(&mut attributes, &meta)? {
+                        continue;
+                    }
                 }
             }
             new_attrs.push(attr)

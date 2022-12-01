@@ -9,7 +9,6 @@ use crate::utils::{self, PythonDoc};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use quote::{quote, quote_spanned};
-use std::borrow::Cow;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::{Attribute, Meta, Result};

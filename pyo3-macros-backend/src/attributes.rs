@@ -195,12 +195,13 @@ pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<Attribute>) -> Result<Vec<T>>
             }
             Ok(false)
         };
-        if let Ok(mut meta) = attr.parse_meta() {
-            if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
-                continue;
+        if attr.path.is_ident("cfg_attr") {
+            if let Ok(mut meta) = attr.parse_meta() {
+                if handle_cfg_feature_pyo3(&mut attr, &mut meta, parse_attr)? {
+                    continue;
+                }
             }
         }
-
         if let Some(options) = get_pyo3_options(&attr)? {
             out.extend(options.into_iter());
             continue;
