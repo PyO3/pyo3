@@ -24,3 +24,10 @@ features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-trait
 
 [features]
 abi3 = []
+
+[dev-dependencies]
+criterion = "0.3.5"
+
+[[bench]]
+name = "bench_cfg_attr"
+harness = false

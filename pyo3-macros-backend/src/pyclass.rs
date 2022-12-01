@@ -46,7 +46,7 @@ impl PyClassArgs {
         })
     }
 
-    pub fn parse_stuct_args(input: ParseStream<'_>) -> syn::Result<Self> {
+    pub fn parse_struct_args(input: ParseStream<'_>) -> syn::Result<Self> {
         Self::parse(input, PyClassKind::Struct)
     }
 
