@@ -1383,17 +1383,16 @@ impl ToTokens for TokenGenerator {
 mod test {
     use crate::method::FnType;
     use crate::pymethod::PyMethod;
-    use syn::ImplItemMethod;
+    use syn::{parse_quote, ImplItemMethod};
 
     /// Ensure it parses identical whether wrapped or not
     #[test]
     fn test_method_attributes() {
-        let inputs = [
-            r#"#[cfg_attr(feature = "pyo3", classattr)] fn foo() -> i32 { 5 }"#,
-            r#"#[classattr] fn foo() -> i32 { 5 }"#,
+        let inputs: Vec<ImplItemMethod> = vec![
+            parse_quote! {#[cfg_attr(feature = "pyo3", classattr)] fn foo() -> i32 { 5 } },
+            parse_quote! {#[classattr] fn foo() -> i32 { 5 } },
         ];
-        for code in inputs {
-            let mut method: ImplItemMethod = syn::parse_str(code).unwrap();
+        for mut method in inputs {
             let parsed =
                 PyMethod::parse(&mut method.sig, &mut method.attrs, Default::default()).unwrap();
             assert!(matches!(parsed.spec.tp, FnType::ClassAttribute));

@@ -135,23 +135,22 @@ fn parse_attribute(mut attributes: &mut ConstAttributes, meta: &Meta) -> Result<
 mod test {
     use crate::konst::ConstAttributes;
     use quote::ToTokens;
-    use syn::ItemConst;
+    use syn::{parse_quote, ItemConst};
 
     #[test]
     fn test_const_attributes() {
-        let inputs = [
-            ("#[classattr]  const MAX: u16 = 65535;", 0),
+        let inputs: Vec<(ItemConst, usize)> = vec![
+            (parse_quote! { #[classattr]  const MAX: u16 = 65535; }, 0),
             (
-                r#"#[cfg_attr(feature = "pyo3", classattr)]  const MAX: u16 = 65535;"#,
+                parse_quote! { #[cfg_attr(feature = "pyo3", classattr)]  const MAX: u16 = 65535; },
                 0,
             ),
             (
-                r#"#[cfg_attr(feature = "pyo3", other, classattr, still_other)]  const MAX: u16 = 65535;"#,
+                parse_quote! { #[cfg_attr(feature = "pyo3", other, classattr, still_other)]  const MAX: u16 = 65535; },
                 1,
             ),
         ];
-        for (code, attrs_remaining) in inputs {
-            let mut konst: ItemConst = syn::parse_str(code).unwrap();
+        for (mut konst, attrs_remaining) in inputs {
             let actual = ConstAttributes::from_attrs(&mut konst.attrs).unwrap();
             assert!(actual.is_class_attr);
             assert!(actual.name.is_none());
