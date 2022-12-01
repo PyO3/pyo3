@@ -150,6 +150,11 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
+extern "C" {
+    #[cfg(not(PyPy))]
+    pub fn _PyErr_ChainExceptions(typ: *mut PyObject, val: *mut PyObject, tb: *mut PyObject);
+}
+
 // skipped PyNameErrorObject
 // skipped PyAttributeErrorObject
 
@@ -159,8 +164,6 @@ pub struct PyStopIterationObject {
 // skipped _PyErr_SetKeyError
 // skipped _PyErr_GetTopmostException
 // skipped _PyErr_GetExcInfo
-
-// skipped _PyErr_ChainExceptions
 
 // skipped PyErr_SetFromErrnoWithUnicodeFilename
 
