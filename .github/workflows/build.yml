@@ -151,6 +151,8 @@ jobs:
       - name: Run pyo3-ffi-check
         run: cargo run
         working-directory: pyo3-ffi-check
+        # Allow failure on PyPy for now
+        continue-on-error: ${{ startsWith(inputs.python-version, 'pypy') }}
         if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
 
       - name: Test cross compilation
