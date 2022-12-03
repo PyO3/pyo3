@@ -2,6 +2,7 @@
 name = "pyo3-ffi-check"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 pyo3-ffi-check-macro = { path = "./macro" }

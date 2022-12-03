@@ -4,6 +4,7 @@ name = "pyo3-pytests"
 version = "0.1.0"
 description = "Python-based tests for PyO3"
 edition = "2018"
+publish = false
 
 [dependencies]
 pyo3 = { path = "../", features = ["extension-module"] }
