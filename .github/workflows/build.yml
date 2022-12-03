@@ -131,6 +131,29 @@ jobs:
           nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
+      
+      - uses: dorny/paths-filter@v2
+        # pypy 3.7 and 3.8 are not PEP 3123 compliant so fail checks here
+        if: ${{ inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
+        id: ffi-changes
+        with:
+          filters: |
+            changed:
+              - 'pyo3-ffi/**'
+              - 'pyo3-ffi-check/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/build.yml'
+      
+      - run: cargo doc -p pyo3-ffi
+        working-directory: pyo3-ffi-check
+        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
+
+      - name: Run pyo3-ffi-check
+        run: cargo run
+        working-directory: pyo3-ffi-check
+        # Allow failure on PyPy for now
+        continue-on-error: ${{ startsWith(inputs.python-version, 'pypy') }}
+        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
 
       - name: Test cross compilation
         if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
@@ -177,6 +200,7 @@ jobs:
           export PYO3_CROSS_PYTHON_VERSION=3.9
           cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
           cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
+
       - name: Test cross compile to Windows with maturin
         if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.8' }}
         uses: PyO3/maturin-action@v1
