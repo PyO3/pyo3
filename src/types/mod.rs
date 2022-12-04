@@ -286,7 +286,7 @@ mod num;
 #[cfg(not(PyPy))]
 mod pysuper;
 mod sequence;
-mod set;
+pub(crate) mod set;
 mod slice;
 mod string;
 mod traceback;

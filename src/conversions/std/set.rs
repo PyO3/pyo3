@@ -1,8 +1,8 @@
 use std::{cmp, collections, hash};
 
 use crate::{
-    inspect::types::TypeInfo, types::PySet, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    inspect::types::TypeInfo, types::set::new_from_iter, types::PySet, FromPyObject, IntoPy, PyAny,
+    PyObject, PyResult, Python, ToPyObject,
 };
 
 impl<T, S> ToPyObject for collections::HashSet<T, S>
@@ -11,13 +11,9 @@ where
     S: hash::BuildHasher + Default,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
-        {
-            for val in self {
-                set.add(val).expect("Failed to add to set");
-            }
-        }
-        set.into()
+        new_from_iter(py, self)
+            .expect("Failed to create Python set from HashSet")
+            .into()
     }
 }
 
@@ -26,13 +22,9 @@ where
     T: hash::Hash + Eq + ToPyObject,
 {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
-        {
-            for val in self {
-                set.add(val).expect("Failed to add to set");
-            }
-        }
-        set.into()
+        new_from_iter(py, self)
+            .expect("Failed to create Python set from BTreeSet")
+            .into()
     }
 }
 
@@ -42,13 +34,9 @@ where
     S: hash::BuildHasher + Default,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let set = PySet::empty(py).expect("Failed to construct empty set");
-        {
-            for val in self {
-                set.add(val.into_py(py)).expect("Failed to add to set");
-            }
-        }
-        set.into()
+        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
+            .expect("Failed to create Python set from HashSet")
+            .into()
     }
 
     fn type_output() -> TypeInfo {
@@ -76,13 +64,9 @@ where
     K: IntoPy<PyObject> + cmp::Ord,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let set = PySet::empty(py).expect("Failed to construct empty set");
-        {
-            for val in self {
-                set.add(val.into_py(py)).expect("Failed to add to set");
-            }
-        }
-        set.into()
+        new_from_iter(py, self.into_iter().map(|item| item.into_py(py)))
+            .expect("Failed to create Python set from BTreeSet")
+            .into()
     }
 
     fn type_output() -> TypeInfo {

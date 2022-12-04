@@ -1,9 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 
-use crate::err::{PyErr, PyResult};
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyIterator;
+use crate::{
+    err::{self, PyErr, PyResult},
+    IntoPyPointer, Py, PyObject,
+};
 use crate::{ffi, AsPyPointer, PyAny, Python, ToPyObject};
 
 use std::ptr;
@@ -31,9 +34,12 @@ impl PyFrozenSet {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PyFrozenSet> {
-        let list = elements.to_object(py);
-        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
+    #[inline]
+    pub fn new<'a, 'p, T: ToPyObject + 'a>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = &'a T>,
+    ) -> PyResult<&'p PyFrozenSet> {
+        new_from_iter(py, elements).map(|set| set.into_ref(py))
     }
 
     /// Creates a new empty frozen set
@@ -156,6 +162,34 @@ mod impl_ {
 }
 
 pub use impl_::*;
+
+#[inline]
+pub(crate) fn new_from_iter<T: ToPyObject>(
+    py: Python<'_>,
+    elements: impl IntoIterator<Item = T>,
+) -> PyResult<Py<PyFrozenSet>> {
+    fn new_from_iter_inner(
+        py: Python<'_>,
+        elements: &mut dyn Iterator<Item = PyObject>,
+    ) -> PyResult<Py<PyFrozenSet>> {
+        let set: Py<PyFrozenSet> = unsafe {
+            // We create the  `Py` pointer because its Drop cleans up the set if user code panics.
+            Py::from_owned_ptr_or_err(py, ffi::PyFrozenSet_New(std::ptr::null_mut()))?
+        };
+        let ptr = set.as_ptr();
+
+        for obj in elements {
+            unsafe {
+                err::error_on_minusone(py, ffi::PySet_Add(ptr, obj.into_ptr()))?;
+            }
+        }
+
+        Ok(set)
+    }
+
+    let mut iter = elements.into_iter().map(|e| e.to_object(py));
+    new_from_iter_inner(py, &mut iter)
+}
 
 #[cfg(test)]
 mod tests {
