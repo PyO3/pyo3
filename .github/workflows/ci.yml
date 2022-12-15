@@ -197,7 +197,7 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
             extra-features: "multiple-pymethods"
-          
+
   valgrind:
     if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
     needs: [fmt]
@@ -205,8 +205,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-valgrind
@@ -229,8 +227,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-careful
@@ -261,8 +257,6 @@ jobs:
         if: steps.should-skip.outputs.skip != 'true'
       - uses: actions/setup-python@v4
         if: steps.should-skip.outputs.skip != 'true'
-        with:
-          python-version: "3.11"
       - uses: Swatinem/rust-cache@v2
         if: steps.should-skip.outputs.skip != 'true'
         with:
@@ -293,8 +287,6 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         id: setup-python
-        with:
-          python-version: "3.11"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -317,7 +309,7 @@ jobs:
         run: nox -s build-emscripten
       - name: Test
         run: nox -s test-emscripten
-  
+
   conclusion:
     needs:
       - fmt
