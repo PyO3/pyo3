@@ -10,7 +10,6 @@ fn main() {
         .expect("failed to get lib dir");
 
     println!("cargo:rerun-if-changed=wrapper.h");
-    dbg!(format!("-I{python_include_dir}"));
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")

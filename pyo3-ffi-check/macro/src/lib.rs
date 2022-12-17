@@ -19,7 +19,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         }
     };
 
-    if !input.next().is_none() {
+    if input.next().is_some() {
         return quote!(compile_error!(
             "for_all_structs!() takes only a single ident as input"
         ))
@@ -109,7 +109,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         }
     };
 
-    if !input.next().is_none() {
+    if input.next().is_some() {
         return quote!(compile_error!(
             "for_all_fields!() takes exactly two idents as input"
         ))

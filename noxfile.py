@@ -111,6 +111,9 @@ def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
                 *feature_set,
                 "--all-targets",
                 "--workspace",
+                # linting pyo3-ffi-check requires docs to have been built or
+                # the macros will error; doesn't seem worth it on CI
+                "--exclude=pyo3-ffi-check",
                 *extra,
                 external=True,
                 env=env,
@@ -404,9 +407,27 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-minimal-package-versions")
 def set_minimal_package_versions(session: nox.Session):
+    projects = (
+        None,
+        "examples/decorator",
+        "examples/maturin-starter",
+        "examples/setuptools-rust-starter",
+        "examples/word-count",
+    )
+
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
-    _run(session, "cargo", "update", external=True)
+    for project in projects:
+        if project is None:
+            _run(session, "cargo", "update", external=True)
+        else:
+            _run(
+                session,
+                "cargo",
+                "update",
+                f"--manifest-path={project}/Cargo.toml",
+                external=True,
+            )
 
     _run_cargo_set_package_version(session, "indexmap", "1.6.2")
     _run_cargo_set_package_version(session, "hashbrown:0.12.3", "0.9.1")
@@ -417,6 +438,9 @@ def set_minimal_package_versions(session: nox.Session):
     _run_cargo_set_package_version(session, "once_cell", "1.14.0")
     _run_cargo_set_package_version(session, "rayon", "1.5.3")
     _run_cargo_set_package_version(session, "rayon-core", "1.9.3")
+
+    # string_cache 0.8.4 depends on parking_lot 0.12
+    _run_cargo_set_package_version(session, "string_cache:0.8.4", "0.8.3")
 
     # 1.15.0 depends on hermit-abi 0.2.6 which has edition 2021 and breaks 1.48.0
     _run_cargo_set_package_version(session, "num_cpus", "1.14.0")
@@ -433,7 +457,7 @@ def set_minimal_package_versions(session: nox.Session):
     )
     for project in projects:
         _run_cargo_set_package_version(
-            session, "parking_lot", "0.11.0", project=project
+            session, "parking_lot:0.12.1", "0.11.0", project=project
         )
         _run_cargo_set_package_version(session, "once_cell", "1.14.0", project=project)
 
@@ -447,7 +471,24 @@ def set_minimal_package_versions(session: nox.Session):
     # As a smoke test, cargo metadata solves all dependencies, so
     # will break if any crates rely on cargo features not
     # supported on MSRV
-    _run(session, "cargo", "metadata", silent=True, external=True)
+    for project in projects:
+        if project is None:
+            _run(session, "cargo", "metadata", silent=True, external=True)
+        else:
+            _run(
+                session,
+                "cargo",
+                "metadata",
+                f"--manifest-path={project}/Cargo.toml",
+                silent=True,
+                external=True,
+            )
+
+
+@nox.session(name="ffi-check")
+def ffi_check(session: nox.Session):
+    session.run("cargo", "doc", "-p", "pyo3-ffi", "--no-deps", external=True)
+    _run(session, "cargo", "run", "-p", "pyo3-ffi-check", external=True)
 
 
 @lru_cache()

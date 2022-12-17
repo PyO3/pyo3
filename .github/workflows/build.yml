@@ -128,16 +128,12 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/build.yml'
 
-      - run: cargo doc -p pyo3-ffi
-        working-directory: pyo3-ffi-check
-        if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
-
       - name: Run pyo3-ffi-check
-        run: cargo run
-        working-directory: pyo3-ffi-check
+        run: nox -s ffi-check
         # Allow failure on PyPy for now
         continue-on-error: ${{ startsWith(inputs.python-version, 'pypy') }}
         if: ${{ steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && inputs.python-version != 'pypy-3.7' && inputs.python-version != 'pypy-3.8' }}
+
 
       - name: Test cross compilation
         if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.9' }}
