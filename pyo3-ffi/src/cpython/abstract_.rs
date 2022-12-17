@@ -4,10 +4,12 @@ use std::os::raw::{c_char, c_int};
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
+#[cfg(Py_3_8)]
+use crate::pyport::PY_SSIZE_T_MAX;
 #[cfg(all(Py_3_8, not(PyPy)))]
 use crate::{
-    pyport::PY_SSIZE_T_MAX, vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET,
-    PyTuple_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
+    vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
+    PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 #[cfg(Py_3_8)]
 use libc::size_t;
@@ -39,11 +41,11 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[cfg(all(Py_3_8, not(PyPy)))]
+#[cfg(all(Py_3_8))]
 const PY_VECTORCALL_ARGUMENTS_OFFSET: Py_ssize_t =
     1 << (8 * std::mem::size_of::<Py_ssize_t>() as Py_ssize_t - 1);
 
-#[cfg(all(Py_3_8, not(PyPy)))]
+#[cfg(all(Py_3_8))]
 #[inline(always)]
 pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
     assert!(n <= (PY_SSIZE_T_MAX as size_t));
@@ -103,6 +105,7 @@ pub unsafe fn PyObject_Vectorcall(
 extern "C" {
     #[cfg(all(PyPy, Py_3_8))]
     #[cfg_attr(not(Py_3_9), link_name = "_PyPyObject_Vectorcall")]
+    #[cfg_attr(Py_3_9, link_name = "PyPyObject_Vectorcall")]
     pub fn PyObject_Vectorcall(
         callable: *mut PyObject,
         args: *const *mut PyObject,
