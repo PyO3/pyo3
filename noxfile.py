@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -11,6 +12,9 @@ from typing import Any, Dict, List, Optional
 import nox
 
 nox.options.sessions = ["test", "clippy", "fmt"]
+
+
+PYO3_DIR = Path(__file__).parent
 
 
 @nox.session(venv_backend="none")
@@ -159,9 +163,8 @@ def contributors(session: nox.Session) -> None:
 
 class EmscriptenInfo:
     def __init__(self):
-        rootdir = Path(__file__).parent
-        self.emscripten_dir = rootdir / "emscripten"
-        self.builddir = rootdir / ".nox/emscripten"
+        self.emscripten_dir = PYO3_DIR / "emscripten"
+        self.builddir = PYO3_DIR / ".nox/emscripten"
         self.builddir.mkdir(exist_ok=True, parents=True)
 
         self.pyversion = sys.version.split()[0]
@@ -305,8 +308,48 @@ def address_sanitizer(session: nox.Session):
     )
 
 
+@nox.session(name="check-changelog")
+def check_changelog(session: nox.Session):
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path is None:
+        session.error("Can only check changelog on github actions")
+
+    with open(event_path) as event_file:
+        event = json.load(event_file)
+
+    if event["pull_request"]["title"].startswith("release:"):
+        session.skip("PR title starts with release")
+
+    for label in event["pull_request"]["labels"]:
+        if label["name"] == "CI-skip-changelog":
+            session.skip("CI-skip-changelog label applied")
+
+    issue_number = event["pull_request"]["number"]
+
+    newsfragments = PYO3_DIR / "newsfragments"
+
+    fragments = tuple(
+        filter(
+            Path.exists,
+            (
+                newsfragments / f"{issue_number}.{change_type}.md"
+                for change_type in ("packaging", "added", "changed", "removed", "fixed")
+            ),
+        )
+    )
+
+    if not fragments:
+        session.error(
+            "Changelog entry not found, please add one (or more) to `newsfragments` directory. For more information see https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes"
+        )
+
+    print("Found newsfragments:")
+    for fragment in fragments:
+        print(fragment.name)
+
+
 def _get_rust_target() -> str:
-    output = subprocess.check_output(["rustc", "-vV"], text=True)
+    output = _get_output("rustc", "-vV")
 
     for line in output.splitlines():
         if line.startswith(_HOST_LINE_START):
@@ -318,7 +361,7 @@ _HOST_LINE_START = "host: "
 
 def _get_coverage_env() -> Dict[str, str]:
     env = {}
-    output = subprocess.check_output(["cargo", "llvm-cov", "show-env"], text=True)
+    output = _get_output("cargo", "llvm-cov", "show-env")
 
     for line in output.strip().splitlines():
         (key, value) = line.split("=", maxsplit=1)
@@ -363,3 +406,7 @@ def _run_cargo_test(
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
     _run(session, "cargo", "publish", f"--package={package}", external=True)
+
+
+def _get_output(*args: str) -> str:
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
