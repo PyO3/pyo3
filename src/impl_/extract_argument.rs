@@ -237,17 +237,9 @@ impl FunctionDescription {
         V: VarargsHandler<'py>,
         K: VarkeywordsHandler<'py>,
     {
-        // Safety: Option<&PyAny> has the same memory layout as `*mut ffi::PyObject`
-        let args = args as *const Option<&PyAny>;
-        let positional_args_provided = nargs as usize;
-        let args_slice = if args.is_null() {
-            &[]
-        } else {
-            std::slice::from_raw_parts(args, positional_args_provided)
-        };
-
         let num_positional_parameters = self.positional_parameter_names.len();
 
+        debug_assert!(nargs >= 0);
         debug_assert!(self.positional_only_parameters <= num_positional_parameters);
         debug_assert!(self.required_positional_parameters <= num_positional_parameters);
         debug_assert_eq!(
@@ -255,57 +247,39 @@ impl FunctionDescription {
             num_positional_parameters + self.keyword_only_parameters.len()
         );
 
-        let varargs = if positional_args_provided > num_positional_parameters {
-            let (positional_parameters, varargs) = args_slice.split_at(num_positional_parameters);
-            output[..num_positional_parameters].copy_from_slice(positional_parameters);
-            V::handle_varargs_fastcall(py, varargs, self)?
+        // Handle positional arguments
+        // Safety: Option<&PyAny> has the same memory layout as `*mut ffi::PyObject`
+        let args: *const Option<&PyAny> = args.cast();
+        let positional_args_provided = nargs as usize;
+        let remaining_positional_args = if args.is_null() {
+            debug_assert_eq!(positional_args_provided, 0);
+            &[]
         } else {
-            output[..positional_args_provided].copy_from_slice(args_slice);
-            V::handle_varargs_fastcall(py, &[], self)?
+            // Can consume at most the number of positional parameters in the function definition,
+            // the rest are varargs.
+            let positional_args_to_consume =
+                num_positional_parameters.min(positional_args_provided);
+            let (positional_parameters, remaining) =
+                std::slice::from_raw_parts(args, positional_args_provided)
+                    .split_at(positional_args_to_consume);
+            output[..positional_args_to_consume].copy_from_slice(positional_parameters);
+            remaining
         };
+        let varargs = V::handle_varargs_fastcall(py, remaining_positional_args, self)?;
 
         // Handle keyword arguments
-        let mut varkeywords = Default::default();
+        let mut varkeywords = K::Varkeywords::default();
         if let Some(kwnames) = py.from_borrowed_ptr_or_opt::<PyTuple>(kwnames) {
-            let mut positional_only_keyword_arguments = Vec::new();
-
             // Safety: &PyAny has the same memory layout as `*mut ffi::PyObject`
             let kwargs =
                 ::std::slice::from_raw_parts((args as *const &PyAny).offset(nargs), kwnames.len());
 
-            for (kwarg_name_py, &value) in kwnames.iter().zip(kwargs) {
-                // All keyword arguments should be UTF8 strings, but we'll check, just in case.
-                if let Ok(kwarg_name) = kwarg_name_py.downcast::<PyString>()?.to_str() {
-                    // Try to place parameter in keyword only parameters
-                    if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
-                        if output[i + num_positional_parameters]
-                            .replace(value)
-                            .is_some()
-                        {
-                            return Err(self.multiple_values_for_argument(kwarg_name));
-                        }
-                        continue;
-                    }
-
-                    // Repeat for positional parameters
-                    if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
-                        if i < self.positional_only_parameters {
-                            positional_only_keyword_arguments.push(kwarg_name);
-                        } else if output[i].replace(value).is_some() {
-                            return Err(self.multiple_values_for_argument(kwarg_name));
-                        }
-                        continue;
-                    }
-                };
-
-                K::handle_unexpected_keyword(&mut varkeywords, kwarg_name_py, value, self)?
-            }
-
-            if !positional_only_keyword_arguments.is_empty() {
-                return Err(
-                    self.positional_only_keyword_arguments(&positional_only_keyword_arguments)
-                );
-            }
+            self.handle_kwargs::<K, _>(
+                kwnames.iter().zip(kwargs.iter().copied()),
+                &mut varkeywords,
+                num_positional_parameters,
+                output,
+            )?
         }
 
         // Once all inputs have been processed, check that all required arguments have been provided.
@@ -360,42 +334,9 @@ impl FunctionDescription {
         let varargs = V::handle_varargs_tuple(args, self)?;
 
         // Handle keyword arguments
-        let mut varkeywords = Default::default();
+        let mut varkeywords = K::Varkeywords::default();
         if let Some(kwargs) = kwargs {
-            let mut positional_only_keyword_arguments = Vec::new();
-            for (kwarg_name_py, value) in kwargs {
-                // All keyword arguments should be UTF8 strings, but we'll check, just in case.
-                if let Ok(kwarg_name) = kwarg_name_py.downcast::<PyString>()?.to_str() {
-                    // Try to place parameter in keyword only parameters
-                    if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
-                        if output[i + num_positional_parameters]
-                            .replace(value)
-                            .is_some()
-                        {
-                            return Err(self.multiple_values_for_argument(kwarg_name));
-                        }
-                        continue;
-                    }
-
-                    // Repeat for positional parameters
-                    if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
-                        if i < self.positional_only_parameters {
-                            positional_only_keyword_arguments.push(kwarg_name);
-                        } else if output[i].replace(value).is_some() {
-                            return Err(self.multiple_values_for_argument(kwarg_name));
-                        }
-                        continue;
-                    }
-                };
-
-                K::handle_unexpected_keyword(&mut varkeywords, kwarg_name_py, value, self)?
-            }
-
-            if !positional_only_keyword_arguments.is_empty() {
-                return Err(
-                    self.positional_only_keyword_arguments(&positional_only_keyword_arguments)
-                );
-            }
+            self.handle_kwargs::<K, _>(kwargs, &mut varkeywords, num_positional_parameters, output)?
         }
 
         // Once all inputs have been processed, check that all required arguments have been provided.
@@ -404,6 +345,70 @@ impl FunctionDescription {
         self.ensure_no_missing_required_keyword_arguments(output)?;
 
         Ok((varargs, varkeywords))
+    }
+
+    #[inline]
+    fn handle_kwargs<'py, K, I>(
+        &self,
+        kwargs: I,
+        varkeywords: &mut K::Varkeywords,
+        num_positional_parameters: usize,
+        output: &mut [Option<&'py PyAny>],
+    ) -> PyResult<()>
+    where
+        K: VarkeywordsHandler<'py>,
+        I: IntoIterator<Item = (&'py PyAny, &'py PyAny)>,
+    {
+        debug_assert_eq!(
+            num_positional_parameters,
+            self.positional_parameter_names.len()
+        );
+        debug_assert_eq!(
+            output.len(),
+            num_positional_parameters + self.keyword_only_parameters.len()
+        );
+        let mut positional_only_keyword_arguments = Vec::new();
+        for (kwarg_name_py, value) in kwargs {
+            // All keyword arguments should be UTF-8 strings, but we'll check, just in case.
+            // If it isn't, then it will be handled below as a varkeyword (which may raise an
+            // error if this function doesn't accept **kwargs). Rust source is always UTF-8
+            // and so all argument names in `#[pyfunction]` signature must be UTF-8.
+            if let Ok(kwarg_name) = kwarg_name_py.downcast::<PyString>()?.to_str() {
+                // Try to place parameter in keyword only parameters
+                if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
+                    if output[i + num_positional_parameters]
+                        .replace(value)
+                        .is_some()
+                    {
+                        return Err(self.multiple_values_for_argument(kwarg_name));
+                    }
+                    continue;
+                }
+
+                // Repeat for positional parameters
+                if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
+                    if i < self.positional_only_parameters {
+                        // If accepting **kwargs, then it's allowed for the name of the
+                        // kwarg to conflict with a postional-only argument - the value
+                        // will go into **kwargs anyway.
+                        if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
+                            positional_only_keyword_arguments.push(kwarg_name);
+                        }
+                    } else if output[i].replace(value).is_some() {
+                        return Err(self.multiple_values_for_argument(kwarg_name));
+                    }
+                    continue;
+                }
+            };
+
+            K::handle_varkeyword(varkeywords, kwarg_name_py, value, self)?
+        }
+
+        if !positional_only_keyword_arguments.is_empty() {
+            return Err(self.positional_only_keyword_arguments(&positional_only_keyword_arguments));
+        }
+
+        Ok(())
     }
 
     #[inline]
@@ -637,10 +642,10 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
     }
 }
 
-/// A trait used to control whether to accept unrecognised keywords in FunctionDescription::extract_argument_(method) functions.
+/// A trait used to control whether to accept varkeywords in FunctionDescription::extract_argument_(method) functions.
 pub trait VarkeywordsHandler<'py> {
     type Varkeywords: Default;
-    fn handle_unexpected_keyword(
+    fn handle_varkeyword(
         varkeywords: &mut Self::Varkeywords,
         name: &'py PyAny,
         value: &'py PyAny,
@@ -654,7 +659,7 @@ pub struct NoVarkeywords;
 impl<'py> VarkeywordsHandler<'py> for NoVarkeywords {
     type Varkeywords = ();
     #[inline]
-    fn handle_unexpected_keyword(
+    fn handle_varkeyword(
         _varkeywords: &mut Self::Varkeywords,
         name: &'py PyAny,
         _value: &'py PyAny,
@@ -670,7 +675,7 @@ pub struct DictVarkeywords;
 impl<'py> VarkeywordsHandler<'py> for DictVarkeywords {
     type Varkeywords = Option<&'py PyDict>;
     #[inline]
-    fn handle_unexpected_keyword(
+    fn handle_varkeyword(
         varkeywords: &mut Self::Varkeywords,
         name: &'py PyAny,
         value: &'py PyAny,

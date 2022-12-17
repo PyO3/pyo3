@@ -711,6 +711,16 @@ impl MethSignature {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
 
+    #[pyo3(signature = (a=0, /, **kwargs))]
+    fn get_optional_pos_only_with_kwargs(
+        &self,
+        py: Python<'_>,
+        a: i32,
+        kwargs: Option<&PyDict>,
+    ) -> PyObject {
+        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    }
+
     #[pyo3(signature = (*, a = 2, b = 3))]
     fn get_kwargs_only_with_defaults(&self, a: i32, b: i32) -> i32 {
         a + b
@@ -959,6 +969,22 @@ fn meth_signature() {
             inst,
             "inst.get_pos_only_with_kwargs(a = 10, b = 10)",
             PyTypeError
+        );
+
+        py_run!(
+            py,
+            inst,
+            "assert inst.get_optional_pos_only_with_kwargs() == [0, None]"
+        );
+        py_run!(
+            py,
+            inst,
+            "assert inst.get_optional_pos_only_with_kwargs(10) == [10, None]"
+        );
+        py_run!(
+            py,
+            inst,
+            "assert inst.get_optional_pos_only_with_kwargs(a=10) == [0, {'a': 10}]"
         );
 
         py_run!(py, inst, "assert inst.get_kwargs_only_with_defaults() == 5");
