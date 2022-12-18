@@ -191,7 +191,8 @@ jobs:
 
           # Test 32-bit Windows only with the latest Python version
           - rust: stable
-            python-version: "3.11"
+            # FIXME - pinned to 3.11.0 because 3.11.1 breaks CI on windows, see PyO3 issue 2817
+            python-version: "3.11.0"
             platform:
               {
                 os: "windows-latest",
