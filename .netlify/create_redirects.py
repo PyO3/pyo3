@@ -14,13 +14,9 @@ def main() -> None:
         version_without_v = version.lstrip("v")
         # redirect doc requests to docs.rs
         print(f"/{version}/doc/* https://docs.rs/pyo3/{version_without_v}/:splat")
-        # guide doesn't render nicely if trailing slash missing
-        print(f"/{version} /{version}/")
         # proxy guide to github-pages hosting
         print(f"/{version}/* https://pyo3.github.io/pyo3/{version}/:splat 200")
-    # similar to guide, proxy benchmarks to github-pages hosting, add trailing
-    # slash.
-    print(f"/dev/bench /dev/bench/")
+    # proxy benchmarks to github-pages hosting
     print(f"/dev/bench/* https://pyo3.github.io/pyo3/dev/bench/:splat 200")
 
 
