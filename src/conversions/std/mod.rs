@@ -6,4 +6,5 @@ mod path;
 mod set;
 mod slice;
 mod string;
+mod time;
 mod vec;
