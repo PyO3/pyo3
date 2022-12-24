@@ -5,9 +5,10 @@ import subprocess
 import sys
 import tempfile
 import time
+from functools import lru_cache
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import nox
 
@@ -15,6 +16,8 @@ nox.options.sessions = ["test", "clippy", "fmt"]
 
 
 PYO3_DIR = Path(__file__).parent
+PY_VERSIONS = ("3.7", "3.8", "3.9", "3.10", "3.11")
+PYPY_VERSIONS = ("3.7", "3.8", "3.9")
 
 
 @nox.session(venv_backend="none")
@@ -83,20 +86,71 @@ def fmt_py(session: nox.Session):
     _run(session, "black", ".", "--check")
 
 
-@nox.session(venv_backend="none")
-def clippy(session: nox.Session) -> None:
-    for feature_set in ["full", "abi3 full"]:
-        _run(
-            session,
-            "cargo",
-            "clippy",
-            f"--features={feature_set}",
-            "--all-targets",
-            "--workspace",
-            "--",
-            "--deny=warnings",
-            external=True,
-        )
+@nox.session(name="clippy", venv_backend="none")
+def clippy(session: nox.Session) -> bool:
+    if not _clippy(session):
+        session.error("one or more jobs failed")
+
+
+def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
+    success = True
+    env = env or os.environ
+    for feature_set in _get_feature_sets():
+        command = "clippy"
+        extra = ("--", "--deny=warnings")
+        if _get_rust_version()[:2] == (1, 48):
+            # 1.48 crashes during clippy because of lints requested
+            # in .cargo/config
+            command = "check"
+            extra = ()
+        try:
+            _run(
+                session,
+                "cargo",
+                command,
+                *feature_set,
+                "--all-targets",
+                "--workspace",
+                *extra,
+                external=True,
+                env=env,
+            )
+        except Exception:
+            success = False
+    return success
+
+
+@nox.session(name="clippy-all", venv_backend="none")
+def clippy_all(session: nox.Session) -> None:
+    success = True
+    with tempfile.NamedTemporaryFile("r+") as config:
+        env = os.environ.copy()
+        env["PYO3_CONFIG_FILE"] = config.name
+        env["PYO3_CI"] = "1"
+
+        def _clippy_with_config(implementation, version) -> bool:
+            config.seek(0)
+            config.truncate(0)
+            config.write(
+                f"""\
+implementation={implementation}
+version={version}
+suppress_build_script_link_lines=true
+"""
+            )
+            config.flush()
+
+            session.log(f"{implementation} {version}")
+            return _clippy(session, env=env)
+
+        for version in PY_VERSIONS:
+            success &= _clippy_with_config("CPython", version)
+
+        for version in PYPY_VERSIONS:
+            success &= _clippy_with_config("PyPy", version)
+
+    if not success:
+        session.error("one or more jobs failed")
 
 
 @nox.session(venv_backend="none")
@@ -396,14 +450,56 @@ def set_minimal_package_versions(session: nox.Session):
     _run(session, "cargo", "metadata", silent=True, external=True)
 
 
-def _get_rust_target() -> str:
+@lru_cache()
+def _get_rust_info() -> Tuple[str, ...]:
     output = _get_output("rustc", "-vV")
 
-    for line in output.splitlines():
+    return tuple(output.splitlines())
+
+
+def _get_rust_version() -> Tuple[int, int, int, List[str]]:
+    for line in _get_rust_info():
+        if line.startswith(_RELEASE_LINE_START):
+            version = line[len(_RELEASE_LINE_START) :].strip()
+            # e.g. 1.67.0-beta.2
+            (version_number, *extra) = version.split("-", maxsplit=1)
+            return (*map(int, version_number.split(".")), extra)
+
+
+def _get_rust_target() -> str:
+    for line in _get_rust_info():
         if line.startswith(_HOST_LINE_START):
             return line[len(_HOST_LINE_START) :].strip()
 
 
+@lru_cache()
+def _get_feature_sets() -> Tuple[Tuple[str, ...], ...]:
+    """Returns feature sets to use for clippy job"""
+    rust_version = _get_rust_version()
+    if rust_version[:2] >= (1, 62):
+        # multiple-pymethods feature not supported before 1.62
+        return (
+            ("--no-default-features",),
+            (
+                "--no-default-features",
+                "--features=abi3",
+            ),
+            ("--features=full multiple-pymethods",),
+            ("--features=abi3 full multiple-pymethods",),
+        )
+    else:
+        return (
+            ("--no-default-features",),
+            (
+                "--no-default-features",
+                "--features=abi3",
+            ),
+            ("--features=full",),
+            ("--features=abi3 full",),
+        )
+
+
+_RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
