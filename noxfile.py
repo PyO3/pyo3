@@ -348,6 +348,54 @@ def check_changelog(session: nox.Session):
         print(fragment.name)
 
 
+@nox.session(name="set-minimal-package-versions")
+def set_minimal_package_versions(session: nox.Session):
+    # run cargo update first to ensure that everything is at highest
+    # possible version, so that this matches what CI will resolve to.
+    _run(session, "cargo", "update", external=True)
+
+    _run_cargo_set_package_version(session, "indexmap", "1.6.2")
+    _run_cargo_set_package_version(session, "hashbrown:0.12.3", "0.9.1")
+    _run_cargo_set_package_version(session, "plotters", "0.3.1")
+    _run_cargo_set_package_version(session, "plotters-svg", "0.3.1")
+    _run_cargo_set_package_version(session, "plotters-backend", "0.3.2")
+    _run_cargo_set_package_version(session, "bumpalo", "3.10.0")
+    _run_cargo_set_package_version(session, "once_cell", "1.14.0")
+    _run_cargo_set_package_version(session, "rayon", "1.5.3")
+    _run_cargo_set_package_version(session, "rayon-core", "1.9.3")
+
+    # 1.15.0 depends on hermit-abi 0.2.6 which has edition 2021 and breaks 1.48.0
+    _run_cargo_set_package_version(session, "num_cpus", "1.14.0")
+    _run_cargo_set_package_version(
+        session, "num_cpus", "1.14.0", project="examples/word-count"
+    )
+
+    projects = (
+        None,
+        "examples/decorator",
+        "examples/maturin-starter",
+        "examples/setuptools-rust-starter",
+        "examples/word-count",
+    )
+    for project in projects:
+        _run_cargo_set_package_version(
+            session, "parking_lot", "0.11.0", project=project
+        )
+        _run_cargo_set_package_version(session, "once_cell", "1.14.0", project=project)
+
+    _run_cargo_set_package_version(
+        session, "rayon", "1.5.3", project="examples/word-count"
+    )
+    _run_cargo_set_package_version(
+        session, "rayon-core", "1.9.3", project="examples/word-count"
+    )
+
+    # As a smoke test, cargo metadata solves all dependencies, so
+    # will break if any crates rely on cargo features not
+    # supported on MSRV
+    _run(session, "cargo", "metadata", silent=True, external=True)
+
+
 def _get_rust_target() -> str:
     output = _get_output("rustc", "-vV")
 
@@ -406,6 +454,19 @@ def _run_cargo_test(
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
     _run(session, "cargo", "publish", f"--package={package}", external=True)
+
+
+def _run_cargo_set_package_version(
+    session: nox.Session,
+    package: str,
+    version: str,
+    *,
+    project: Optional[str] = None,
+) -> None:
+    command = ["cargo", "update", "-p", package, "--precise", version]
+    if project:
+        command.append(f"--manifest-path={project}/Cargo.toml")
+    _run(session, *command, external=True)
 
 
 def _get_output(*args: str) -> str:
