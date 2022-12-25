@@ -35,50 +35,82 @@ jobs:
         run: nox -s fmt-rust
 
   clippy:
-    if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-      - run: pip install nox
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - run: nox -s clippy
-
-  check-target:
     needs: [fmt]
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
+    runs-on: ${{ matrix.platform.os }}
+    if: github.ref != 'refs/heads/main'
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
-        target: [powerpc64le-unknown-linux-gnu, s390x-unknown-linux-gnu, wasm32-wasi]
-    name: check-${{ matrix.target }}
+        rust: [stable]
+        platform: [
+          {
+            os: "macos-latest",
+            python-architecture: "x64",
+            rust-target: "x86_64-apple-darwin",
+          },
+          {
+            os: "ubuntu-latest",
+            python-architecture: "x64",
+            rust-target: "x86_64-unknown-linux-gnu",
+          },
+          {
+            os: "ubuntu-latest",
+            python-architecture: "x64",
+            rust-target: "powerpc64le-unknown-linux-gnu",
+          },
+          {
+            os: "ubuntu-latest",
+            python-architecture: "x64",
+            rust-target: "s390x-unknown-linux-gnu",
+          },
+          {
+            os: "ubuntu-latest",
+            python-architecture: "x64",
+            rust-target: "wasm32-wasi",
+          },
+          {
+            os: "windows-latest",
+            python-architecture: "x64",
+            rust-target: "x86_64-pc-windows-msvc",
+          },
+          {
+            os: "windows-latest",
+            python-architecture: "x86",
+            rust-target: "i686-pc-windows-msvc",
+          },
+        ]
+        include:
+          - rust: 1.48.0
+            python-version: "3.11"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+            msrv: "MSRV"
+    name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
-          targets: ${{ matrix.target }}
-      - name: Run cargo checks
-        run: |
-          set -x
-          VERSIONS=("3.7" "3.8" "3.9" "3.10" "3.11")
-          for VERSION in ${VERSIONS[@]}; do
-            echo "version=$VERSION" > config.txt
-            echo "suppress_build_script_link_lines=true" >> config.txt
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --no-default-features --features "abi3"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "full multiple-pymethods"
-            PYO3_BUILD_CONFIG=$(pwd)/config.txt cargo check --all-targets --features "abi3 full multiple-pymethods"
-          done
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.rust-target }}
+          components: clippy
+      - uses: actions/setup-python@v4
+        with:
+          architecture: ${{ matrix.platform.python-architecture }}
+      - run: python -m pip install nox
+      - if: matrix.msrv == 'MSRV'
+        name: Prepare minimal package versions (MSRV only)
+        run: nox -s set-minimal-package-versions
+      - run: nox -s clippy-all
 
   build-pr:
     if: github.event_name == 'pull_request'
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
-    needs: [fmt] # don't wait for clippy as fails rarely and takes longer
+    needs: [fmt]
     uses: ./.github/workflows/build.yml
     with:
       os: ${{ matrix.platform.os }}
@@ -114,12 +146,16 @@ jobs:
               python-architecture: "x64",
               rust-target: "x86_64-pc-windows-msvc",
             },
+            {
+              os: "windows-latest",
+              python-architecture: "x86",
+              rust-target: "i686-pc-windows-msvc",
+            }
           ]
-
   build-full:
     if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
-    needs: [fmt] # don't wait for clippy as fails rarely and takes longer
+    needs: [fmt]
     uses: ./.github/workflows/build.yml
     with:
       os: ${{ matrix.platform.os }}
@@ -317,7 +353,6 @@ jobs:
     needs:
       - fmt
       - clippy
-      - check-target
       - build-pr
       - build-full
       - valgrind

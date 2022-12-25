@@ -2,11 +2,9 @@ use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
 
-use pyo3::{intern, prepare_freethreaded_python};
+use pyo3::intern;
 
 fn getattr_direct(b: &mut Bencher<'_>) {
-    prepare_freethreaded_python();
-
     Python::with_gil(|py| {
         let sys = py.import("sys").unwrap();
 
@@ -15,8 +13,6 @@ fn getattr_direct(b: &mut Bencher<'_>) {
 }
 
 fn getattr_intern(b: &mut Bencher<'_>) {
-    prepare_freethreaded_python();
-
     Python::with_gil(|py| {
         let sys = py.import("sys").unwrap();
 
