@@ -9,19 +9,21 @@ mkdir netlify_build
 
 ## Configure netlify _redirects file
 
-# TODO: have some better system to automatically generate this on build rather
-# than check this in to the repo
+# TODO: have some better system to automatically generate this on build rather
+# than check this in to the repo
 cp .netlify/_redirects netlify_build/
 
 # Add latest redirect (proxy)
 echo "/latest/* https://pyo3.github.io/pyo3/v${PYO3_VERSION}/:splat 200" >> netlify_build/_redirects
 
-## Add landing page redirect
+## Add landing page redirects
 if [ "${CONTEXT}" == "deploy-preview" ]; then
     echo "<meta http-equiv=refresh content=0;url=main/>" > netlify_build/index.html
 else
     echo "<meta http-equiv=refresh content=0;url=v${PYO3_VERSION}/>" > netlify_build/index.html
 fi
+
+python .netlify/create_redirect_files.py
 
 ## Generate towncrier release notes
 
